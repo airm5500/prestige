@@ -229,15 +229,24 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
-                        }
-
-                        , {
-                            text: 'imprimer',
-                            itemId: 'imprimer',
+                        },
+                        {
+                            xtype: 'splitbutton',
+                            text: 'Exporter',
                             iconCls: 'printable',
-                            tooltip: 'imprimer',
-                            scope: this
-                        }, {
+                            itemId: 'exporter',
+                            menu: 
+                               [
+                                    {text: 'PDF', 
+                                       itemId: 'exporterpdf'
+
+                                    },
+                                    {text: 'EXCEL', itemId: 'exporterexcel'}
+                                ]
+
+                        },
+
+                        {
                             text: 'suggestion',
                             itemId: 'suggestion',
                             iconCls: 'suggestionreapro',
@@ -246,7 +255,6 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                         }
                     ]
                 }
-
 
             ],
             items: [

@@ -28,12 +28,11 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_famille_zonegeo")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFamilleZonegeo.findAll", query = "SELECT t FROM TFamilleZonegeo t"),
-    @NamedQuery(name = "TFamilleZonegeo.findByLgFAMILLEZONEGEOID", query = "SELECT t FROM TFamilleZonegeo t WHERE t.lgFAMILLEZONEGEOID = :lgFAMILLEZONEGEOID"),
-    @NamedQuery(name = "TFamilleZonegeo.findByStrSTATUT", query = "SELECT t FROM TFamilleZonegeo t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TFamilleZonegeo.findByDtCREATED", query = "SELECT t FROM TFamilleZonegeo t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFamilleZonegeo.findByDtUPDATED", query = "SELECT t FROM TFamilleZonegeo t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TFamilleZonegeo.findAll", query = "SELECT t FROM TFamilleZonegeo t"),
+        @NamedQuery(name = "TFamilleZonegeo.findByLgFAMILLEZONEGEOID", query = "SELECT t FROM TFamilleZonegeo t WHERE t.lgFAMILLEZONEGEOID = :lgFAMILLEZONEGEOID"),
+        @NamedQuery(name = "TFamilleZonegeo.findByStrSTATUT", query = "SELECT t FROM TFamilleZonegeo t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TFamilleZonegeo.findByDtCREATED", query = "SELECT t FROM TFamilleZonegeo t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFamilleZonegeo.findByDtUPDATED", query = "SELECT t FROM TFamilleZonegeo t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TFamilleZonegeo implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -135,7 +134,8 @@ public class TFamilleZonegeo implements Serializable {
             return false;
         }
         TFamilleZonegeo other = (TFamilleZonegeo) object;
-        if ((this.lgFAMILLEZONEGEOID == null && other.lgFAMILLEZONEGEOID != null) || (this.lgFAMILLEZONEGEOID != null && !this.lgFAMILLEZONEGEOID.equals(other.lgFAMILLEZONEGEOID))) {
+        if ((this.lgFAMILLEZONEGEOID == null && other.lgFAMILLEZONEGEOID != null)
+                || (this.lgFAMILLEZONEGEOID != null && !this.lgFAMILLEZONEGEOID.equals(other.lgFAMILLEZONEGEOID))) {
             return false;
         }
         return true;
@@ -145,5 +145,5 @@ public class TFamilleZonegeo implements Serializable {
     public String toString() {
         return "dal.TFamilleZonegeo[ lgFAMILLEZONEGEOID=" + lgFAMILLEZONEGEOID + " ]";
     }
-    
+
 }

@@ -192,14 +192,27 @@ Ext.define('testextjs.model.BonLivraisonDetail', {
             name: 'int_QTYCMDE',
             type: 'number'
         }
-      , {
+        , {
             name: 'intQTERECUE',
             type: 'int'
         },
         {
             name: 'prixDiff',
             type: 'boolean'
+        },
+        {
+            name: 'hasLots',
+            type: 'boolean'
+        },
+        {
+            name: 'existLots',
+            type: 'boolean'
         }
         
+        ,
+        {
+            name: 'freeQty',
+            type: 'number'
+        }
     ]
 });

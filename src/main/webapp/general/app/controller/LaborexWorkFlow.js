@@ -815,8 +815,8 @@ Ext.define('testextjs.controller.LaborexWorkFlow', {
     },
     GetToDifferes: function () {
         var lgcompteclientID = Ext.getCmp('lg_COMPTE_CLIENT_ID').getValue();
-        var str_path_tp = testextjs.view.sm_user.dovente.action.checkdif;
-        LaborexWorkFlow.ShowPopUp(lgcompteclientID, lgcompteclientID, 'doventemanagerID', str_path_tp, lgcompteclientID, "dysplay", "Liste Des Differes Correspondants", "");
+      //  var str_path_tp = testextjs.view.sm_user.dovente.action.checkdif;
+     //   LaborexWorkFlow.ShowPopUp(lgcompteclientID, lgcompteclientID, 'doventemanagerID', str_path_tp, lgcompteclientID, "dysplay", "Liste Des Differes Correspondants", "");
     },
     onPdfClick: function (lg_PREENREGISTRMENET_ID, str_FIRST_NAME_FACTURE, str_LAST_NAME_FACTURE, int_NUMBER_FACTURE) {
 //        var url_services_pdf_ticket = '../webservices/sm_user/detailsvente/ws_generate_pdf.jsp';

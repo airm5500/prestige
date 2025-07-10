@@ -79,16 +79,16 @@ public class ErpReglementDTO implements Serializable {
         this.montant = montant;
     }
 
-    public ErpReglementDTO(TDossierReglement d, TReglement r,TTiersPayant p) {
+    public ErpReglementDTO(TDossierReglement d, TReglement r, TTiersPayant p) {
         this.mvtDate = dateFormat.format(d.getDtCREATED());
         TFacture facture = d.getLgFACTUREID();
-            this.tiersPayantId = p.getLgTIERSPAYANTID();
-            this.tiersPayantLibelle = p.getStrFULLNAME();
+        this.tiersPayantId = p.getLgTIERSPAYANTID();
+        this.tiersPayantLibelle = p.getStrFULLNAME();
         if (facture != null) {
             this.numFacturation = facture.getStrCODEFACTURE();
         }
         try {
-           this.modeReglement = r.getLgMODEREGLEMENTID().getLgTYPEREGLEMENTID().getStrNAME();  
+            this.modeReglement = r.getLgMODEREGLEMENTID().getLgTYPEREGLEMENTID().getStrNAME();
         } catch (Exception e) {
         }
         this.dateSaisie = dateFormat.format(d.getDtREGLEMENT());

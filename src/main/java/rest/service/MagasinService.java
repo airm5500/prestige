@@ -6,7 +6,6 @@
 package rest.service;
 
 import javax.ejb.Local;
-import javax.ejb.Remote;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -15,8 +14,9 @@ import org.json.JSONObject;
  * @author DICI
  */
 @Local
-//@Remote
+
 public interface MagasinService {
     JSONObject findAllDepots(String query) throws JSONException;
-    JSONObject findAllDepots(String query,String type) throws JSONException;
+
+    JSONObject findAllDepots(String query, String type) throws JSONException;
 }

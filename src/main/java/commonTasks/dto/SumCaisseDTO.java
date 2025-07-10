@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package commonTasks.dto;
 
 import java.io.Serializable;
@@ -18,6 +13,15 @@ public class SumCaisseDTO implements Serializable {
     private String modeReglement;
     private List<VisualisationCaisseDTO> caisses;
     private List<SumCaisseDTO> summary;
+    private long montantAnnulation;
+
+    public long getMontantAnnulation() {
+        return montantAnnulation;
+    }
+
+    public void setMontantAnnulation(long montantAnnulation) {
+        this.montantAnnulation = montantAnnulation;
+    }
 
     public long getAmount() {
         return amount;
@@ -48,7 +52,7 @@ public class SumCaisseDTO implements Serializable {
         this.modeReglement = modeReglement;
     }
 
-    public SumCaisseDTO( String modeReglement,Long amount) {
+    public SumCaisseDTO(String modeReglement, Long amount) {
         this.amount = amount;
         this.modeReglement = modeReglement;
     }

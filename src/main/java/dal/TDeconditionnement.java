@@ -28,13 +28,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_deconditionnement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TDeconditionnement.findAll", query = "SELECT t FROM TDeconditionnement t"),
-    @NamedQuery(name = "TDeconditionnement.findByLgDECONDITIONNEMENTID", query = "SELECT t FROM TDeconditionnement t WHERE t.lgDECONDITIONNEMENTID = :lgDECONDITIONNEMENTID"),
-    @NamedQuery(name = "TDeconditionnement.findByStrSTATUT", query = "SELECT t FROM TDeconditionnement t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TDeconditionnement.findByIntNUMBER", query = "SELECT t FROM TDeconditionnement t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TDeconditionnement.findByDtCREATED", query = "SELECT t FROM TDeconditionnement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TDeconditionnement.findByDtUPDATED", query = "SELECT t FROM TDeconditionnement t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TDeconditionnement.findAll", query = "SELECT t FROM TDeconditionnement t"),
+        @NamedQuery(name = "TDeconditionnement.findByLgDECONDITIONNEMENTID", query = "SELECT t FROM TDeconditionnement t WHERE t.lgDECONDITIONNEMENTID = :lgDECONDITIONNEMENTID"),
+        @NamedQuery(name = "TDeconditionnement.findByStrSTATUT", query = "SELECT t FROM TDeconditionnement t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TDeconditionnement.findByIntNUMBER", query = "SELECT t FROM TDeconditionnement t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TDeconditionnement.findByDtCREATED", query = "SELECT t FROM TDeconditionnement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TDeconditionnement.findByDtUPDATED", query = "SELECT t FROM TDeconditionnement t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TDeconditionnement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -135,7 +134,9 @@ public class TDeconditionnement implements Serializable {
             return false;
         }
         TDeconditionnement other = (TDeconditionnement) object;
-        if ((this.lgDECONDITIONNEMENTID == null && other.lgDECONDITIONNEMENTID != null) || (this.lgDECONDITIONNEMENTID != null && !this.lgDECONDITIONNEMENTID.equals(other.lgDECONDITIONNEMENTID))) {
+        if ((this.lgDECONDITIONNEMENTID == null && other.lgDECONDITIONNEMENTID != null)
+                || (this.lgDECONDITIONNEMENTID != null
+                        && !this.lgDECONDITIONNEMENTID.equals(other.lgDECONDITIONNEMENTID))) {
             return false;
         }
         return true;
@@ -145,5 +146,5 @@ public class TDeconditionnement implements Serializable {
     public String toString() {
         return "dal.TDeconditionnement[ lgDECONDITIONNEMENTID=" + lgDECONDITIONNEMENTID + " ]";
     }
-    
+
 }

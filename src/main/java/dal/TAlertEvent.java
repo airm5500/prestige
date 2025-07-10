@@ -30,24 +30,22 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_alert_event", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"str_Event"})})
+@Table(name = "t_alert_event", uniqueConstraints = { @UniqueConstraint(columnNames = { "str_Event" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TAlertEvent.findAll", query = "SELECT t FROM TAlertEvent t"),
-    @NamedQuery(name = "TAlertEvent.findByDtDateEnvoi", query = "SELECT t FROM TAlertEvent t WHERE t.dtDateEnvoi = :dtDateEnvoi"),
-    @NamedQuery(name = "TAlertEvent.findByIntMaxMessages", query = "SELECT t FROM TAlertEvent t WHERE t.intMaxMessages = :intMaxMessages"),
-    @NamedQuery(name = "TAlertEvent.findByStrEvent", query = "SELECT t FROM TAlertEvent t WHERE t.strEvent = :strEvent"),
-    @NamedQuery(name = "TAlertEvent.findByBIsCommand", query = "SELECT t FROM TAlertEvent t WHERE t.bIsCommand = :bIsCommand"),
-    @NamedQuery(name = "TAlertEvent.findByDecNumPercent", query = "SELECT t FROM TAlertEvent t WHERE t.decNumPercent = :decNumPercent"),
-    @NamedQuery(name = "TAlertEvent.findByBRowActive", query = "SELECT t FROM TAlertEvent t WHERE t.bRowActive = :bRowActive"),
-    @NamedQuery(name = "TAlertEvent.findByLgUIDWhoNew", query = "SELECT t FROM TAlertEvent t WHERE t.lgUIDWhoNew = :lgUIDWhoNew"),
-    @NamedQuery(name = "TAlertEvent.findByLgUIDWhoLastUpdate", query = "SELECT t FROM TAlertEvent t WHERE t.lgUIDWhoLastUpdate = :lgUIDWhoLastUpdate"),
-    @NamedQuery(name = "TAlertEvent.findByDtLastEnterDate", query = "SELECT t FROM TAlertEvent t WHERE t.dtLastEnterDate = :dtLastEnterDate"),
-    @NamedQuery(name = "TAlertEvent.findByStrERRORCODE", query = "SELECT t FROM TAlertEvent t WHERE t.strERRORCODE = :strERRORCODE"),
-    @NamedQuery(name = "TAlertEvent.findByStrDESCRIPTION", query = "SELECT t FROM TAlertEvent t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TAlertEvent.findByStrFONCTION", query = "SELECT t FROM TAlertEvent t WHERE t.strFONCTION = :strFONCTION"),
-    @NamedQuery(name = "TAlertEvent.findByStrTYPE", query = "SELECT t FROM TAlertEvent t WHERE t.strTYPE = :strTYPE")})
+@NamedQueries({ @NamedQuery(name = "TAlertEvent.findAll", query = "SELECT t FROM TAlertEvent t"),
+        @NamedQuery(name = "TAlertEvent.findByDtDateEnvoi", query = "SELECT t FROM TAlertEvent t WHERE t.dtDateEnvoi = :dtDateEnvoi"),
+        @NamedQuery(name = "TAlertEvent.findByIntMaxMessages", query = "SELECT t FROM TAlertEvent t WHERE t.intMaxMessages = :intMaxMessages"),
+        @NamedQuery(name = "TAlertEvent.findByStrEvent", query = "SELECT t FROM TAlertEvent t WHERE t.strEvent = :strEvent"),
+        @NamedQuery(name = "TAlertEvent.findByBIsCommand", query = "SELECT t FROM TAlertEvent t WHERE t.bIsCommand = :bIsCommand"),
+        @NamedQuery(name = "TAlertEvent.findByDecNumPercent", query = "SELECT t FROM TAlertEvent t WHERE t.decNumPercent = :decNumPercent"),
+        @NamedQuery(name = "TAlertEvent.findByBRowActive", query = "SELECT t FROM TAlertEvent t WHERE t.bRowActive = :bRowActive"),
+        @NamedQuery(name = "TAlertEvent.findByLgUIDWhoNew", query = "SELECT t FROM TAlertEvent t WHERE t.lgUIDWhoNew = :lgUIDWhoNew"),
+        @NamedQuery(name = "TAlertEvent.findByLgUIDWhoLastUpdate", query = "SELECT t FROM TAlertEvent t WHERE t.lgUIDWhoLastUpdate = :lgUIDWhoLastUpdate"),
+        @NamedQuery(name = "TAlertEvent.findByDtLastEnterDate", query = "SELECT t FROM TAlertEvent t WHERE t.dtLastEnterDate = :dtLastEnterDate"),
+        @NamedQuery(name = "TAlertEvent.findByStrERRORCODE", query = "SELECT t FROM TAlertEvent t WHERE t.strERRORCODE = :strERRORCODE"),
+        @NamedQuery(name = "TAlertEvent.findByStrDESCRIPTION", query = "SELECT t FROM TAlertEvent t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TAlertEvent.findByStrFONCTION", query = "SELECT t FROM TAlertEvent t WHERE t.strFONCTION = :strFONCTION"),
+        @NamedQuery(name = "TAlertEvent.findByStrTYPE", query = "SELECT t FROM TAlertEvent t WHERE t.strTYPE = :strTYPE") })
 public class TAlertEvent implements Serializable {
     private static final long serialVersionUID = 1L;
     @Column(name = "dt_Date_Envoi")
@@ -64,7 +62,8 @@ public class TAlertEvent implements Serializable {
     @Lob
     @Column(name = "str_SMS_English_Text", length = 65535)
     private String strSMSEnglishText;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dec_Num_Percent", precision = 15, scale = 6)
     private BigDecimal decNumPercent;
     @Lob
@@ -262,7 +261,8 @@ public class TAlertEvent implements Serializable {
             return false;
         }
         TAlertEvent other = (TAlertEvent) object;
-        if ((this.strEvent == null && other.strEvent != null) || (this.strEvent != null && !this.strEvent.equals(other.strEvent))) {
+        if ((this.strEvent == null && other.strEvent != null)
+                || (this.strEvent != null && !this.strEvent.equals(other.strEvent))) {
             return false;
         }
         return true;
@@ -272,5 +272,5 @@ public class TAlertEvent implements Serializable {
     public String toString() {
         return "dal.TAlertEvent[ strEvent=" + strEvent + " ]";
     }
-    
+
 }

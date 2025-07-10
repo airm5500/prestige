@@ -28,17 +28,15 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_dci", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"str_CODE"})})
+@Table(name = "t_dci", uniqueConstraints = { @UniqueConstraint(columnNames = { "str_CODE" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TDci.findAll", query = "SELECT t FROM TDci t"),
-    @NamedQuery(name = "TDci.findByLgDCIID", query = "SELECT t FROM TDci t WHERE t.lgDCIID = :lgDCIID"),
-    @NamedQuery(name = "TDci.findByStrCODE", query = "SELECT t FROM TDci t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TDci.findByStrNAME", query = "SELECT t FROM TDci t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TDci.findByStrSTATUT", query = "SELECT t FROM TDci t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TDci.findByDtCREATED", query = "SELECT t FROM TDci t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TDci.findByDtUPDATED", query = "SELECT t FROM TDci t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TDci.findAll", query = "SELECT t FROM TDci t"),
+        @NamedQuery(name = "TDci.findByLgDCIID", query = "SELECT t FROM TDci t WHERE t.lgDCIID = :lgDCIID"),
+        @NamedQuery(name = "TDci.findByStrCODE", query = "SELECT t FROM TDci t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TDci.findByStrNAME", query = "SELECT t FROM TDci t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TDci.findByStrSTATUT", query = "SELECT t FROM TDci t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TDci.findByDtCREATED", query = "SELECT t FROM TDci t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TDci.findByDtUPDATED", query = "SELECT t FROM TDci t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TDci implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -57,7 +55,7 @@ public class TDci implements Serializable {
     @Column(name = "dt_UPDATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
-    @OneToMany( mappedBy = "lgDCIID")
+    @OneToMany(mappedBy = "lgDCIID")
     private Collection<TFamilleDci> tFamilleDciCollection;
 
     public TDci() {
@@ -138,7 +136,8 @@ public class TDci implements Serializable {
             return false;
         }
         TDci other = (TDci) object;
-        if ((this.lgDCIID == null && other.lgDCIID != null) || (this.lgDCIID != null && !this.lgDCIID.equals(other.lgDCIID))) {
+        if ((this.lgDCIID == null && other.lgDCIID != null)
+                || (this.lgDCIID != null && !this.lgDCIID.equals(other.lgDCIID))) {
             return false;
         }
         return true;
@@ -148,5 +147,5 @@ public class TDci implements Serializable {
     public String toString() {
         return "dal.TDci[ lgDCIID=" + lgDCIID + " ]";
     }
-    
+
 }

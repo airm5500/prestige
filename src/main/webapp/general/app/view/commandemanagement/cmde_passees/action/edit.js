@@ -5,11 +5,11 @@ var Omode;
 var Me;
 var ref;
 var montantachat;
-var lgBONLIVRAISONID='';
+var lgBONLIVRAISONID = '';
 Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
     extend: 'Ext.window.Window',
 
-    requires: [ 
+    requires: [
         'Ext.form.*',
         'Ext.window.Window',
         'testextjs.model.Grossiste'
@@ -23,25 +23,19 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
         titre: ''
     },
     initComponent: function () {
-
         Oview = this.getParentview();
-           
-
         Omode = this.getMode();
-        var Oodatasource = this.getOdatasource();lgBONLIVRAISONID=Oodatasource.lg_BON_LIVRAISON_ID;
-       
-        
-        
-        
-        //alert("idOrder 2  " + idOrder);
+        var Oodatasource = this.getOdatasource();
+        lgBONLIVRAISONID = Oodatasource.lgBONLIVRAISONID;
+
         Me = this;
         var storerepartiteur = new Ext.data.Store({
             model: 'testextjs.model.Grossiste',
-            pageSize: 20,
+            pageSize: 999,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/grossiste/ws_data.jsp',
+                url: '../api/v1/grossiste/all',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -51,7 +45,6 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
             }
 
         });
-
 
 
         var form = new Ext.form.Panel({
@@ -70,7 +63,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
                         anchor: '100%'
                     },
                     items: [
-                       {
+                        {
                             xtype: 'displayfield',
                             fieldLabel: 'REF CMD:',
                             name: 'str_REF_',
@@ -88,8 +81,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
                             store: storerepartiteur,
                             valueField: 'lg_GROSSISTE_ID',
                             displayField: 'str_LIBELLE',
-                            
-                            pageSize: 20,
+                            pageSize: 999,
                             queryMode: 'remote',
                             // width: 450,
                             emptyText: 'Choisir un repartiteur...'
@@ -97,20 +89,19 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
 
                         },
 
-                       
                         {
-                            fieldLabel: 'REF BL',
-                            emptyText: 'REF BL',
+                            fieldLabel: 'NUMERO BL:',
+                            emptyText: 'NUMERO BL',
                             name: 'str_REF_LIVRAISON',
                             allowBlank: false,
                             id: 'str_REF_LIVRAISON'
                         },
                         {
                             xtype: 'datefield',
-                            fieldLabel: 'Date BL',
+                            fieldLabel: 'Date du BL',
                             name: 'dt_DATE_LIVRAISON',
                             id: 'dt_DATE_LIVRAISON',
-                            //submitFormat: 'Y/m/d',
+                            format: 'd/m/Y',
                             submitFormat: 'Y-m-d',
                             allowBlank: false,
                             maxValue: new Date()
@@ -137,18 +128,18 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
                     ]
                 }]
         });
-        Ext.getCmp('lgGROSSISTEIDEDIT').setValue(Oodatasource.str_LIBELLE);
-        Ext.getCmp('str_REF_').setValue(Oodatasource.str_ORDER_REF);
-        Ext.getCmp('str_REF_LIVRAISON').setValue(Oodatasource.str_BL_REF);
-        Ext.getCmp('dt_DATE_LIVRAISON').setValue(Oodatasource.dt_DATE_LIVRAISON);
-        Ext.getCmp('int_MHT').setValue(Oodatasource.int_ORDER_PRICE);
-        Ext.getCmp('int_TVA').setValue(Oodatasource.int_TVA);
+        Ext.getCmp('lgGROSSISTEIDEDIT').setValue(Oodatasource.fournisseur.fournisseurLibelle);
+        Ext.getCmp('str_REF_').setValue(Oodatasource.orderRef);
+        Ext.getCmp('str_REF_LIVRAISON').setValue(Oodatasource.strREFLIVRAISON);
+        Ext.getCmp('dt_DATE_LIVRAISON').setValue(Oodatasource.dateLivraison);
+        Ext.getCmp('int_MHT').setValue(Oodatasource.intMHT);
+        Ext.getCmp('int_TVA').setValue(Oodatasource.intTVA);
 
 
 
         //Initialisation des valeur
 
-        var win = new Ext.window.Window({
+        let win = new Ext.window.Window({
             autoShow: true,
             title: this.getTitre(),
             width: 500,
@@ -171,7 +162,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
         });
 
     },
-    
+
     onbtncreerbl: function (button) {
         var today = new Date();
         var dd = today.getDate();
@@ -197,9 +188,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
             int_TVA = Ext.getCmp('int_TVA').getValue();
         }
 
-        //var int_HTTC = Ext.getCmp('int_HTTC').getValue();
 
-        //  alert("str_REF_LIVRAISON "+str_REF_LIVRAISON);
         if (str_REF_LIVRAISON === "" || dt_DATE_LIVRAISON === "" || int_MHT === "" || int_TVA === "") {
             Ext.MessageBox.alert('VALIDATION', 'Veuillez renseigner les champs vides svp!');
             return;
@@ -213,31 +202,33 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
         testextjs.app.getController('App').ShowWaitingProcess();
         Ext.Ajax.request({
             timeout: 240000,
-            url: '../webservices/commandemanagement/bonlivraison/ws_update.jsp',
-            params: {
-                mode: 'updateBL',
-                lgBONLIVRAISONID: lgBONLIVRAISONID,
-                dt_DATE_LIVRAISON: dt_DATE_LIVRAISON,
-                int_MHT: int_MHT,
-                int_TVA: int_TVA,
-                str_REF:str_REF_LIVRAISON,
-                lgGROSSISTEIDEDIT:Ext.getCmp('lgGROSSISTEIDEDIT').getValue()
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            params: Ext.JSON.encode({
+                bonId: lgBONLIVRAISONID,
+                dateLivraison: dt_DATE_LIVRAISON,
+                montantHt: int_MHT,
+                tva: int_TVA,
+                referenceBon: str_REF_LIVRAISON,
+                grossisteId: Ext.getCmp('lgGROSSISTEIDEDIT').getValue()
 
-            },
+            }),
+            url: '../api/v1/etat-control-bon/edit',
+
             success: function (response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();
-                console.log('response',response);
-                var object = Ext.JSON.decode(response.responseText, false);
+
+                const object = Ext.JSON.decode(response.responseText, false);
                 if (object.status === 0) {
                     Ext.MessageBox.alert('Error Message', object.message);
-                     return;
+
                 } else {
                     Ext.MessageBox.alert('confirmation', object.message);
-                    
-                    Oview.getStore().load();
-                    
-                    var bouton = button.up('window').close();
+
+                    Oview.getStore().reload();
+
+                    button.up('window').close();
 
                 }
 
@@ -245,7 +236,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
             failure: function (response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
+                const object = Ext.JSON.decode(response.responseText, false);
                 console.log("Bug " + response.responseText);
                 Ext.MessageBox.alert('Error Message', response.responseText);
 

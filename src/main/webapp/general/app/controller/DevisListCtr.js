@@ -67,7 +67,8 @@ Ext.define('testextjs.controller.DevisListCtr', {
                 toRemove: this.onDelete,
                 toTransform: this.transformIntoVente,
                 toPdf: this.onExportPdf,
-                toClone: this.toClone
+                toClone: this.toClone,
+                toBonPdf:this.onbonPdf
             },
             'devismanager #query': {
                 specialkey: this.onSpecialKey
@@ -108,6 +109,11 @@ Ext.define('testextjs.controller.DevisListCtr', {
     },
     onExportPdf: function (view, rowIndex, colIndex, item, e, rec, row) {
         var linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId=" + rec.get('lgPREENREGISTREMENTID') + "&format=PDF";
+        window.open(linkUrl);
+
+    },
+     onbonPdf: function (view, rowIndex, colIndex, item, e, rec, row) {
+          var linkUrl = '../webservices/sm_user/detailsvente/ws_generate_devis__pdf.jsp?lg_PREENREGISTREMENT_ID=' + rec.get('lgPREENREGISTREMENTID');
         window.open(linkUrl);
 
     },

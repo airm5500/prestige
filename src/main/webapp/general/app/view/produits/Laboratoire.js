@@ -15,7 +15,7 @@ Ext.define('testextjs.view.produits.Laboratoire', {
     },
     initComponent: function () {
         var groupeGrossiste = Ext.create('Ext.data.Store', {
-                idProperty: 'id',
+            idProperty: 'id',
             fields:
                     [
                         {
@@ -39,7 +39,7 @@ Ext.define('testextjs.view.produits.Laboratoire', {
                     root: 'data',
                     totalProperty: 'total'
                 }
-            
+
 
             }
         });
@@ -66,7 +66,7 @@ Ext.define('testextjs.view.produits.Laboratoire', {
                             flex: 1,
                             height: 30,
                             enableKeyEvents: true,
-                              emptyText: 'Taper pour rechercher'
+                            emptyText: 'Taper pour rechercher'
                         }, '-',
 
                         {
@@ -119,7 +119,7 @@ Ext.define('testextjs.view.produits.Laboratoire', {
 
                                 }]
                         },
-                  {
+                        {
                             xtype: 'actioncolumn',
                             width: 30,
                             sortable: false,

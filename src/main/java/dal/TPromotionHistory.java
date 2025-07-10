@@ -28,22 +28,21 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_promotion_history")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TPromotionHistory.findAll", query = "SELECT t FROM TPromotionHistory t"),
-    @NamedQuery(name = "TPromotionHistory.findByLgCODEPROMOTIONHISTORY", query = "SELECT t FROM TPromotionHistory t WHERE t.lgCODEPROMOTIONHISTORY = :lgCODEPROMOTIONHISTORY"),
-    @NamedQuery(name = "TPromotionHistory.findByLgCODEPROMOTIONID", query = "SELECT t FROM TPromotionHistory t WHERE t.lgCODEPROMOTIONID = :lgCODEPROMOTIONID"),
-    @NamedQuery(name = "TPromotionHistory.findByIntCIP", query = "SELECT t FROM TPromotionHistory t WHERE t.intCIP = :intCIP"),
-    @NamedQuery(name = "TPromotionHistory.findByLgFAMILLEID", query = "SELECT t FROM TPromotionHistory t WHERE t.lgFAMILLEID = :lgFAMILLEID"),
-    @NamedQuery(name = "TPromotionHistory.findByStrNAME", query = "SELECT t FROM TPromotionHistory t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TPromotionHistory.findByDtPROMOTEDDATE", query = "SELECT t FROM TPromotionHistory t WHERE t.dtPROMOTEDDATE = :dtPROMOTEDDATE"),
-    @NamedQuery(name = "TPromotionHistory.findByDtSTARTDATE", query = "SELECT t FROM TPromotionHistory t WHERE t.dtSTARTDATE = :dtSTARTDATE"),
-    @NamedQuery(name = "TPromotionHistory.findByDtENDDATE", query = "SELECT t FROM TPromotionHistory t WHERE t.dtENDDATE = :dtENDDATE"),
-    @NamedQuery(name = "TPromotionHistory.findByStrTYPE", query = "SELECT t FROM TPromotionHistory t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TPromotionHistory.findByIntDISCOUNT", query = "SELECT t FROM TPromotionHistory t WHERE t.intDISCOUNT = :intDISCOUNT"),
-    @NamedQuery(name = "TPromotionHistory.findByBlMODE", query = "SELECT t FROM TPromotionHistory t WHERE t.blMODE = :blMODE"),
-    @NamedQuery(name = "TPromotionHistory.findByIntPACKNUMBER", query = "SELECT t FROM TPromotionHistory t WHERE t.intPACKNUMBER = :intPACKNUMBER"),
-    @NamedQuery(name = "TPromotionHistory.findByIntACTIVEAT", query = "SELECT t FROM TPromotionHistory t WHERE t.intACTIVEAT = :intACTIVEAT"),
-    @NamedQuery(name = "TPromotionHistory.findByDbPRICE", query = "SELECT t FROM TPromotionHistory t WHERE t.dbPRICE = :dbPRICE")})
+@NamedQueries({ @NamedQuery(name = "TPromotionHistory.findAll", query = "SELECT t FROM TPromotionHistory t"),
+        @NamedQuery(name = "TPromotionHistory.findByLgCODEPROMOTIONHISTORY", query = "SELECT t FROM TPromotionHistory t WHERE t.lgCODEPROMOTIONHISTORY = :lgCODEPROMOTIONHISTORY"),
+        @NamedQuery(name = "TPromotionHistory.findByLgCODEPROMOTIONID", query = "SELECT t FROM TPromotionHistory t WHERE t.lgCODEPROMOTIONID = :lgCODEPROMOTIONID"),
+        @NamedQuery(name = "TPromotionHistory.findByIntCIP", query = "SELECT t FROM TPromotionHistory t WHERE t.intCIP = :intCIP"),
+        @NamedQuery(name = "TPromotionHistory.findByLgFAMILLEID", query = "SELECT t FROM TPromotionHistory t WHERE t.lgFAMILLEID = :lgFAMILLEID"),
+        @NamedQuery(name = "TPromotionHistory.findByStrNAME", query = "SELECT t FROM TPromotionHistory t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TPromotionHistory.findByDtPROMOTEDDATE", query = "SELECT t FROM TPromotionHistory t WHERE t.dtPROMOTEDDATE = :dtPROMOTEDDATE"),
+        @NamedQuery(name = "TPromotionHistory.findByDtSTARTDATE", query = "SELECT t FROM TPromotionHistory t WHERE t.dtSTARTDATE = :dtSTARTDATE"),
+        @NamedQuery(name = "TPromotionHistory.findByDtENDDATE", query = "SELECT t FROM TPromotionHistory t WHERE t.dtENDDATE = :dtENDDATE"),
+        @NamedQuery(name = "TPromotionHistory.findByStrTYPE", query = "SELECT t FROM TPromotionHistory t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TPromotionHistory.findByIntDISCOUNT", query = "SELECT t FROM TPromotionHistory t WHERE t.intDISCOUNT = :intDISCOUNT"),
+        @NamedQuery(name = "TPromotionHistory.findByBlMODE", query = "SELECT t FROM TPromotionHistory t WHERE t.blMODE = :blMODE"),
+        @NamedQuery(name = "TPromotionHistory.findByIntPACKNUMBER", query = "SELECT t FROM TPromotionHistory t WHERE t.intPACKNUMBER = :intPACKNUMBER"),
+        @NamedQuery(name = "TPromotionHistory.findByIntACTIVEAT", query = "SELECT t FROM TPromotionHistory t WHERE t.intACTIVEAT = :intACTIVEAT"),
+        @NamedQuery(name = "TPromotionHistory.findByDbPRICE", query = "SELECT t FROM TPromotionHistory t WHERE t.dbPRICE = :dbPRICE") })
 public class TPromotionHistory implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -82,7 +81,8 @@ public class TPromotionHistory implements Serializable {
     private Integer intPACKNUMBER;
     @Column(name = "int_ACTIVE_AT")
     private Integer intACTIVEAT;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "db_PRICE", precision = 22)
     private Double dbPRICE;
 
@@ -93,7 +93,8 @@ public class TPromotionHistory implements Serializable {
         this.lgCODEPROMOTIONHISTORY = lgCODEPROMOTIONHISTORY;
     }
 
-    public TPromotionHistory(Integer lgCODEPROMOTIONHISTORY, int lgCODEPROMOTIONID, String intCIP, String lgFAMILLEID, Date dtPROMOTEDDATE) {
+    public TPromotionHistory(Integer lgCODEPROMOTIONHISTORY, int lgCODEPROMOTIONID, String intCIP, String lgFAMILLEID,
+            Date dtPROMOTEDDATE) {
         this.lgCODEPROMOTIONHISTORY = lgCODEPROMOTIONHISTORY;
         this.lgCODEPROMOTIONID = lgCODEPROMOTIONID;
         this.intCIP = intCIP;
@@ -227,7 +228,9 @@ public class TPromotionHistory implements Serializable {
             return false;
         }
         TPromotionHistory other = (TPromotionHistory) object;
-        if ((this.lgCODEPROMOTIONHISTORY == null && other.lgCODEPROMOTIONHISTORY != null) || (this.lgCODEPROMOTIONHISTORY != null && !this.lgCODEPROMOTIONHISTORY.equals(other.lgCODEPROMOTIONHISTORY))) {
+        if ((this.lgCODEPROMOTIONHISTORY == null && other.lgCODEPROMOTIONHISTORY != null)
+                || (this.lgCODEPROMOTIONHISTORY != null
+                        && !this.lgCODEPROMOTIONHISTORY.equals(other.lgCODEPROMOTIONHISTORY))) {
             return false;
         }
         return true;
@@ -237,5 +240,5 @@ public class TPromotionHistory implements Serializable {
     public String toString() {
         return "dal.TPromotionHistory[ lgCODEPROMOTIONHISTORY=" + lgCODEPROMOTIONHISTORY + " ]";
     }
-    
+
 }

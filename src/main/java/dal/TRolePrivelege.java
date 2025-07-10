@@ -27,16 +27,14 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_role_privelege", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_ROLE_PRIVILEGE"})})
+@Table(name = "t_role_privelege", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_ROLE_PRIVILEGE" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRolePrivelege.findAll", query = "SELECT t FROM TRolePrivelege t"),
-    @NamedQuery(name = "TRolePrivelege.findByLgROLEPRIVILEGE", query = "SELECT t FROM TRolePrivelege t WHERE t.lgROLEPRIVILEGE = :lgROLEPRIVILEGE"),
-    @NamedQuery(name = "TRolePrivelege.findByDtCREATED", query = "SELECT t FROM TRolePrivelege t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRolePrivelege.findByStrCREATEDBY", query = "SELECT t FROM TRolePrivelege t WHERE t.strCREATEDBY = :strCREATEDBY"),
-    @NamedQuery(name = "TRolePrivelege.findByDtUPDATED", query = "SELECT t FROM TRolePrivelege t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TRolePrivelege.findByStrUPDATEDBY", query = "SELECT t FROM TRolePrivelege t WHERE t.strUPDATEDBY = :strUPDATEDBY")})
+@NamedQueries({ @NamedQuery(name = "TRolePrivelege.findAll", query = "SELECT t FROM TRolePrivelege t"),
+        @NamedQuery(name = "TRolePrivelege.findByLgROLEPRIVILEGE", query = "SELECT t FROM TRolePrivelege t WHERE t.lgROLEPRIVILEGE = :lgROLEPRIVILEGE"),
+        @NamedQuery(name = "TRolePrivelege.findByDtCREATED", query = "SELECT t FROM TRolePrivelege t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRolePrivelege.findByStrCREATEDBY", query = "SELECT t FROM TRolePrivelege t WHERE t.strCREATEDBY = :strCREATEDBY"),
+        @NamedQuery(name = "TRolePrivelege.findByDtUPDATED", query = "SELECT t FROM TRolePrivelege t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TRolePrivelege.findByStrUPDATEDBY", query = "SELECT t FROM TRolePrivelege t WHERE t.strUPDATEDBY = :strUPDATEDBY") })
 public class TRolePrivelege implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -137,7 +135,8 @@ public class TRolePrivelege implements Serializable {
             return false;
         }
         TRolePrivelege other = (TRolePrivelege) object;
-        if ((this.lgROLEPRIVILEGE == null && other.lgROLEPRIVILEGE != null) || (this.lgROLEPRIVILEGE != null && !this.lgROLEPRIVILEGE.equals(other.lgROLEPRIVILEGE))) {
+        if ((this.lgROLEPRIVILEGE == null && other.lgROLEPRIVILEGE != null)
+                || (this.lgROLEPRIVILEGE != null && !this.lgROLEPRIVILEGE.equals(other.lgROLEPRIVILEGE))) {
             return false;
         }
         return true;
@@ -147,5 +146,5 @@ public class TRolePrivelege implements Serializable {
     public String toString() {
         return "dal.TRolePrivelege[ lgROLEPRIVILEGE=" + lgROLEPRIVILEGE + " ]";
     }
-    
+
 }

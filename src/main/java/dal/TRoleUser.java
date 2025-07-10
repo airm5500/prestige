@@ -27,16 +27,14 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_role_user", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_USER_ROLE_ID"})})
+@Table(name = "t_role_user", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_USER_ROLE_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRoleUser.findAll", query = "SELECT t FROM TRoleUser t"),
-    @NamedQuery(name = "TRoleUser.findByLgUSERROLEID", query = "SELECT t FROM TRoleUser t WHERE t.lgUSERROLEID = :lgUSERROLEID"),
-    @NamedQuery(name = "TRoleUser.findByDtCREATED", query = "SELECT t FROM TRoleUser t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRoleUser.findByDtUPDATED", query = "SELECT t FROM TRoleUser t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TRoleUser.findByStrCREATEDBY", query = "SELECT t FROM TRoleUser t WHERE t.strCREATEDBY = :strCREATEDBY"),
-    @NamedQuery(name = "TRoleUser.findByStrUPDATEDBY", query = "SELECT t FROM TRoleUser t WHERE t.strUPDATEDBY = :strUPDATEDBY")})
+@NamedQueries({ @NamedQuery(name = "TRoleUser.findAll", query = "SELECT t FROM TRoleUser t"),
+        @NamedQuery(name = "TRoleUser.findByLgUSERROLEID", query = "SELECT t FROM TRoleUser t WHERE t.lgUSERROLEID = :lgUSERROLEID"),
+        @NamedQuery(name = "TRoleUser.findByDtCREATED", query = "SELECT t FROM TRoleUser t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRoleUser.findByDtUPDATED", query = "SELECT t FROM TRoleUser t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TRoleUser.findByStrCREATEDBY", query = "SELECT t FROM TRoleUser t WHERE t.strCREATEDBY = :strCREATEDBY"),
+        @NamedQuery(name = "TRoleUser.findByStrUPDATEDBY", query = "SELECT t FROM TRoleUser t WHERE t.strUPDATEDBY = :strUPDATEDBY") })
 public class TRoleUser implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -137,7 +135,8 @@ public class TRoleUser implements Serializable {
             return false;
         }
         TRoleUser other = (TRoleUser) object;
-        if ((this.lgUSERROLEID == null && other.lgUSERROLEID != null) || (this.lgUSERROLEID != null && !this.lgUSERROLEID.equals(other.lgUSERROLEID))) {
+        if ((this.lgUSERROLEID == null && other.lgUSERROLEID != null)
+                || (this.lgUSERROLEID != null && !this.lgUSERROLEID.equals(other.lgUSERROLEID))) {
             return false;
         }
         return true;
@@ -147,5 +146,5 @@ public class TRoleUser implements Serializable {
     public String toString() {
         return "dal.TRoleUser[ lgUSERROLEID=" + lgUSERROLEID + " ]";
     }
-    
+
 }

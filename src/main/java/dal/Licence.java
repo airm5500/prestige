@@ -28,7 +28,7 @@ public class Licence implements Serializable {
     @Basic(optional = false)
     @Column(name = "id", nullable = false, length = 200)
     private String id;
-      @NotNull
+    @NotNull
     @Column(name = "date_start", nullable = false)
     private LocalDate dateStart;
     @NotNull
@@ -58,8 +58,5 @@ public class Licence implements Serializable {
     public void setDateEnd(LocalDate dateEnd) {
         this.dateEnd = dateEnd;
     }
-    
-    
-    
-    
+
 }

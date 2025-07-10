@@ -13,7 +13,5 @@ package bll.common;
  * @author Administrateur
  */
 public enum errorEnumm {
-   SOLDE_INSUFISANT ,
-   MOT_DE_PASSE_INVALIDE ,
-   ;
+    SOLDE_INSUFISANT, MOT_DE_PASSE_INVALIDE,;
 }

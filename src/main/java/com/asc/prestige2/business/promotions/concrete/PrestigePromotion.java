@@ -58,9 +58,11 @@ public class PrestigePromotion implements PromotionService {
             return;
         } else {
             for (TPromotion promotion : promotions) {
-                Query promotionProductsQuery = _em.createNamedQuery("TPromotionProduct.findByLgCODEPROMOTIONID", TPromotionProduct.class);
+                Query promotionProductsQuery = _em.createNamedQuery("TPromotionProduct.findByLgCODEPROMOTIONID",
+                        TPromotionProduct.class);
                 promotionProductsQuery.setParameter("lgCODEPROMOTIONID", promotion.getLgCODEPROMOTIONID());
-                List<TPromotionProduct> promotionProducts = (List<TPromotionProduct>) promotionProductsQuery.getResultList();
+                List<TPromotionProduct> promotionProducts = (List<TPromotionProduct>) promotionProductsQuery
+                        .getResultList();
                 if (!isValidPromotion(promotion) || !promotionBegan(promotion)) {
 
                     // make all products in this promotion available again
@@ -102,7 +104,7 @@ public class PrestigePromotion implements PromotionService {
 
         _em.persist(promotion); // add ptomotion to the managed objects
         result = _em.contains(promotion);
-        _em.flush();  // save it
+        _em.flush(); // save it
         _dataManager.CloseTransaction();
 
         _logMessage = "promotion created";
@@ -118,7 +120,8 @@ public class PrestigePromotion implements PromotionService {
     }
 
     @Override
-    public boolean promoteProductWithDiscount(String productID, int promotionID, int discount, boolean mode, double price) throws Exception {
+    public boolean promoteProductWithDiscount(String productID, int promotionID, int discount, boolean mode,
+            double price) throws Exception {
         boolean result = false;
         // verify that this product and promotion really exist.
         Query familleNamedQuery = _em.createNamedQuery("TFamille.findByLgFAMILLEID", TFamille.class);
@@ -243,7 +246,8 @@ public class PrestigePromotion implements PromotionService {
     }
 
     @Override
-    public boolean promoteProductWithPackNumber(String productID, int promotionID, int activeAT, int packNumber) throws Exception {
+    public boolean promoteProductWithPackNumber(String productID, int promotionID, int activeAT, int packNumber)
+            throws Exception {
         boolean result = false;
         // verify that this product and promotion really exist.
         Query familleNamedQuery = _em.createNamedQuery("TFamille.findByLgFAMILLEID", TFamille.class);
@@ -309,7 +313,7 @@ public class PrestigePromotion implements PromotionService {
     @Override
     public boolean isPromotionProduct(String productID, Integer promotionID) throws Exception {
         Query query = _em.createNamedQuery("TPromotionProduct.findByLgFAMILLEID");
-        //query.setParameter("lgCODEPROMOTIONID", promotionID);
+        // query.setParameter("lgCODEPROMOTIONID", promotionID);
         query.setParameter("lgFAMILLEID", productID);
         List<TPromotionProduct> results = query.getResultList();
         return !results.isEmpty();
@@ -320,7 +324,8 @@ public class PrestigePromotion implements PromotionService {
     public List<TPromotionProduct> getPromotionProductsWithAssociation(final Integer promotionID) {
         List<TPromotionProduct> promotionProducts = null;
 
-        Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID.lgCODEPROMOTIONID = :lgCODEPROMOTIONID");
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID.lgCODEPROMOTIONID = :lgCODEPROMOTIONID");
         query.setParameter("lgCODEPROMOTIONID", promotionID);
         promotionProducts = (List<TPromotionProduct>) query.getResultList();
 
@@ -331,12 +336,14 @@ public class PrestigePromotion implements PromotionService {
     public List<TPromotionProduct> getPromotionProducts(Integer promotionID, String strTYPE, String search_value) {
 
         List<TPromotionProduct> products = new ArrayList<>();
-        //Query query = _em.createNamedQuery("TPromotionProduct.findByLgCODEPROMOTIONID");
+        // Query query = _em.createNamedQuery("TPromotionProduct.findByLgCODEPROMOTIONID");
         if (search_value.equalsIgnoreCase("") || search_value == null) {
             search_value = "%%";
         }
-        Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE (t.lgCODEPROMOTIONID.lgCODEPROMOTIONID= :lgCODEPROMOTIONID AND t.lgCODEPROMOTIONID.strTYPE= :strTYPE) AND (t.lgFAMILLEID.intCIP LIKE :SEARCH_VALUE  OR t.lgFAMILLEID.strNAME LIKE :SEARCH_VALUE)");
-        //Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID =:lgCODEPROMOTIONID");
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotionProduct t WHERE (t.lgCODEPROMOTIONID.lgCODEPROMOTIONID= :lgCODEPROMOTIONID AND t.lgCODEPROMOTIONID.strTYPE= :strTYPE) AND (t.lgFAMILLEID.intCIP LIKE :SEARCH_VALUE  OR t.lgFAMILLEID.strNAME LIKE :SEARCH_VALUE)");
+        // Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID
+        // =:lgCODEPROMOTIONID");
         query.setParameter("lgCODEPROMOTIONID", promotionID);
         query.setParameter("strTYPE", strTYPE);
         query.setParameter("SEARCH_VALUE", search_value + "%");
@@ -348,8 +355,9 @@ public class PrestigePromotion implements PromotionService {
     @Override
     public List<TFamille> getPromotionProducts(Integer promotionID) {
         List<TFamille> products = new ArrayList<>();
-        //Query query = _em.createNamedQuery("TPromotionProduct.findByLgCODEPROMOTIONID");
-        Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID.lgCODEPROMOTIONID =:lgCODEPROMOTIONID");
+        // Query query = _em.createNamedQuery("TPromotionProduct.findByLgCODEPROMOTIONID");
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID.lgCODEPROMOTIONID =:lgCODEPROMOTIONID");
         query.setParameter("lgCODEPROMOTIONID", promotionID);
 
         List<TPromotionProduct> promotionProducts = (List<TPromotionProduct>) query.getResultList();
@@ -376,8 +384,10 @@ public class PrestigePromotion implements PromotionService {
     @Override
     public List<TPromotion> getPromotion(Date start, Date end) {
         List<TPromotion> promotions = null;
-        //Query query = _em.createNamedQuery("TPromotion.findBYSTARTDATEANDENDDATE", TPromotion.class);
-        Query query = _em.createQuery("SELECT t FROM TPromotion t WHERE t.dtSTARTDATE =:dtSTARTDATE AND t.dtENDDATE =:dtENDDATE", TPromotion.class);
+        // Query query = _em.createNamedQuery("TPromotion.findBYSTARTDATEANDENDDATE", TPromotion.class);
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotion t WHERE t.dtSTARTDATE =:dtSTARTDATE AND t.dtENDDATE =:dtENDDATE",
+                TPromotion.class);
 
         query.setParameter("dtSTARTDATE", start);
         query.setParameter("dtENDDATE", end);
@@ -402,7 +412,7 @@ public class PrestigePromotion implements PromotionService {
         if (promotion == null) {
             LOG.log(Level.SEVERE, "promotion with ID: {0} does not exist.", promotionCode);
         } else {
-            //promotionMap.replace(key, promotion, result);
+            // promotionMap.replace(key, promotion, result);
             SimpleDateFormat formatter = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss.s", Locale.FRENCH);
 
             _em.getTransaction().begin();
@@ -459,8 +469,10 @@ public class PrestigePromotion implements PromotionService {
 
     @Override
     public boolean productAlreadyInValidPromotion(String productID) {
-        //Query query = _em.createNamedQuery("TPromotionProduct.findByLgFAMILLEID", TPromotionProduct.class);
-        Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID", TPromotionProduct.class);
+        // Query query = _em.createNamedQuery("TPromotionProduct.findByLgFAMILLEID", TPromotionProduct.class);
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotionProduct t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID",
+                TPromotionProduct.class);
         query.setParameter("lgFAMILLEID", productID);
 
         List<TPromotionProduct> promotionProducts = (List<TPromotionProduct>) query.getResultList();
@@ -481,8 +493,11 @@ public class PrestigePromotion implements PromotionService {
     @Override
     public boolean removeProductFromPromotion(String productID, int promotionCode) {
         // boolean result = false;
-        //Query query = _em.createNamedQuery("TPromotionProduct.findByFAMILLEIDANDCODEPROMOTIONID", TPromotionProduct.class);
-        Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID AND t.lgCODEPROMOTIONID.lgCODEPROMOTIONID = :lgCODEPROMOTIONID", TPromotionProduct.class);
+        // Query query = _em.createNamedQuery("TPromotionProduct.findByFAMILLEIDANDCODEPROMOTIONID",
+        // TPromotionProduct.class);
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotionProduct t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID AND t.lgCODEPROMOTIONID.lgCODEPROMOTIONID = :lgCODEPROMOTIONID",
+                TPromotionProduct.class);
         query.setParameter("lgFAMILLEID", productID);
         query.setParameter("lgCODEPROMOTIONID", promotionCode);
 
@@ -503,8 +518,10 @@ public class PrestigePromotion implements PromotionService {
 
     @Override
     public boolean promotionExists(final Date start, final Date end, String type) {
-        //Query query = _em.createNamedQuery("TPromotion.findBySTARTDATEANDENDDATEANDSTRTYPE", TPromotion.class);
-        Query query = _em.createQuery("SELECT t FROM TPromotion t WHERE t.dtSTARTDATE = :dtSTARTDATE AND t.dtENDDATE = :dtENDDATE AND t.strTYPE = :strTYPE", TPromotion.class);
+        // Query query = _em.createNamedQuery("TPromotion.findBySTARTDATEANDENDDATEANDSTRTYPE", TPromotion.class);
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotion t WHERE t.dtSTARTDATE = :dtSTARTDATE AND t.dtENDDATE = :dtENDDATE AND t.strTYPE = :strTYPE",
+                TPromotion.class);
 
         query.setParameter("dtSTARTDATE", start);
         query.setParameter("dtENDDATE", end);
@@ -562,9 +579,11 @@ public class PrestigePromotion implements PromotionService {
     @Override
     public TPromotionProduct getPromotionProduct(final String productID) {
         TPromotionProduct promotionProduct = null;
-        Query query = _em.createQuery("SELECT t FROM TPromotionProduct t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID", TPromotionProduct.class);
+        Query query = _em.createQuery(
+                "SELECT t FROM TPromotionProduct t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID",
+                TPromotionProduct.class);
 
-        //Query query = _em.createNamedQuery("TPromotionProduct.findByLgFAMILLEID", TPromotionProduct.class);
+        // Query query = _em.createNamedQuery("TPromotionProduct.findByLgFAMILLEID", TPromotionProduct.class);
         query.setParameter("lgFAMILLEID", productID);
         promotionProduct = (TPromotionProduct) query.getSingleResult();
 
@@ -582,7 +601,8 @@ public class PrestigePromotion implements PromotionService {
             }
         }
 
-        new logger().OCategory.info(selectedPromotions.size() + " Promotions found between " + startDate.toString() + " and " + endDate.toString());
+        new logger().OCategory.info(selectedPromotions.size() + " Promotions found between " + startDate.toString()
+                + " and " + endDate.toString());
         return selectedPromotions;
     }
 
@@ -597,9 +617,11 @@ public class PrestigePromotion implements PromotionService {
         }
 
         if (allPromotions.isEmpty() || selectedPromotions.isEmpty()) {
-            new logger().OCategory.info("No " + strType + " promotions between " + startDate.toString() + " and " + endDate.toString());
+            new logger().OCategory.info(
+                    "No " + strType + " promotions between " + startDate.toString() + " and " + endDate.toString());
         } else {
-            new logger().OCategory.info(selectedPromotions.size() + " promotions found between " + startDate.toString() + " and " + endDate.toString());
+            new logger().OCategory.info(selectedPromotions.size() + " promotions found between " + startDate.toString()
+                    + " and " + endDate.toString());
 
         }
 
@@ -641,7 +663,8 @@ public class PrestigePromotion implements PromotionService {
 
     @Override
     public List<TPromotionProduct> getPromotionProducts(Integer promotionID, String search_value) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
 
 }

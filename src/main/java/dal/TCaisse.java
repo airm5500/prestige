@@ -31,21 +31,21 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_caisse")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCaisse.findAll", query = "SELECT t FROM TCaisse t"),
-    @NamedQuery(name = "TCaisse.findByLgCAISSEID", query = "SELECT t FROM TCaisse t WHERE t.lgCAISSEID = :lgCAISSEID"),
-    @NamedQuery(name = "TCaisse.findByIntSOLDE", query = "SELECT t FROM TCaisse t WHERE t.intSOLDE = :intSOLDE"),
-    @NamedQuery(name = "TCaisse.findByDtCREATED", query = "SELECT t FROM TCaisse t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCaisse.findByDtUPDATED", query = "SELECT t FROM TCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TCaisse.findByLgUPDATEDBY", query = "SELECT t FROM TCaisse t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
-    @NamedQuery(name = "TCaisse.findByLgCREATEDBY", query = "SELECT t FROM TCaisse t WHERE t.lgCREATEDBY = :lgCREATEDBY")})
+@NamedQueries({ @NamedQuery(name = "TCaisse.findAll", query = "SELECT t FROM TCaisse t"),
+        @NamedQuery(name = "TCaisse.findByLgCAISSEID", query = "SELECT t FROM TCaisse t WHERE t.lgCAISSEID = :lgCAISSEID"),
+        @NamedQuery(name = "TCaisse.findByIntSOLDE", query = "SELECT t FROM TCaisse t WHERE t.intSOLDE = :intSOLDE"),
+        @NamedQuery(name = "TCaisse.findByDtCREATED", query = "SELECT t FROM TCaisse t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCaisse.findByDtUPDATED", query = "SELECT t FROM TCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCaisse.findByLgUPDATEDBY", query = "SELECT t FROM TCaisse t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
+        @NamedQuery(name = "TCaisse.findByLgCREATEDBY", query = "SELECT t FROM TCaisse t WHERE t.lgCREATEDBY = :lgCREATEDBY") })
 public class TCaisse implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
     @Column(name = "lg_CAISSE_ID", nullable = false, length = 40)
     private String lgCAISSEID;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_SOLDE", precision = 12, scale = 2)
     private Double intSOLDE;
     @Column(name = "dt_CREATED")
@@ -132,7 +132,8 @@ public class TCaisse implements Serializable {
         return tSnapShopDalyRecetteCaisseCollection;
     }
 
-    public void setTSnapShopDalyRecetteCaisseCollection(Collection<TSnapShopDalyRecetteCaisse> tSnapShopDalyRecetteCaisseCollection) {
+    public void setTSnapShopDalyRecetteCaisseCollection(
+            Collection<TSnapShopDalyRecetteCaisse> tSnapShopDalyRecetteCaisseCollection) {
         this.tSnapShopDalyRecetteCaisseCollection = tSnapShopDalyRecetteCaisseCollection;
     }
 
@@ -150,7 +151,8 @@ public class TCaisse implements Serializable {
             return false;
         }
         TCaisse other = (TCaisse) object;
-        if ((this.lgCAISSEID == null && other.lgCAISSEID != null) || (this.lgCAISSEID != null && !this.lgCAISSEID.equals(other.lgCAISSEID))) {
+        if ((this.lgCAISSEID == null && other.lgCAISSEID != null)
+                || (this.lgCAISSEID != null && !this.lgCAISSEID.equals(other.lgCAISSEID))) {
             return false;
         }
         return true;
@@ -160,5 +162,5 @@ public class TCaisse implements Serializable {
     public String toString() {
         return "dal.TCaisse[ lgCAISSEID=" + lgCAISSEID + " ]";
     }
-    
+
 }

@@ -22,14 +22,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_model_facture")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TModelFacture.findAll", query = "SELECT t FROM TModelFacture t"),
-    @NamedQuery(name = "TModelFacture.findByLgMODELFACTUREID", query = "SELECT t FROM TModelFacture t WHERE t.lgMODELFACTUREID = :lgMODELFACTUREID"),
-    @NamedQuery(name = "TModelFacture.findByStrVALUE", query = "SELECT t FROM TModelFacture t WHERE t.strVALUE = :strVALUE"),
-    @NamedQuery(name = "TModelFacture.findByStrDESCRIPTION", query = "SELECT t FROM TModelFacture t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TModelFacture.findByStrSTATUT", query = "SELECT t FROM TModelFacture t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TModelFacture.findByDtCREATED", query = "SELECT t FROM TModelFacture t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TModelFacture.findByDtUPDATED", query = "SELECT t FROM TModelFacture t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TModelFacture.findAll", query = "SELECT t FROM TModelFacture t"),
+        @NamedQuery(name = "TModelFacture.findByLgMODELFACTUREID", query = "SELECT t FROM TModelFacture t WHERE t.lgMODELFACTUREID = :lgMODELFACTUREID"),
+        @NamedQuery(name = "TModelFacture.findByStrVALUE", query = "SELECT t FROM TModelFacture t WHERE t.strVALUE = :strVALUE"),
+        @NamedQuery(name = "TModelFacture.findByStrDESCRIPTION", query = "SELECT t FROM TModelFacture t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TModelFacture.findByStrSTATUT", query = "SELECT t FROM TModelFacture t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TModelFacture.findByDtCREATED", query = "SELECT t FROM TModelFacture t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TModelFacture.findByDtUPDATED", query = "SELECT t FROM TModelFacture t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TModelFacture implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -172,7 +171,8 @@ public class TModelFacture implements Serializable {
             return false;
         }
         TModelFacture other = (TModelFacture) object;
-        if ((this.lgMODELFACTUREID == null && other.lgMODELFACTUREID != null) || (this.lgMODELFACTUREID != null && !this.lgMODELFACTUREID.equals(other.lgMODELFACTUREID))) {
+        if ((this.lgMODELFACTUREID == null && other.lgMODELFACTUREID != null)
+                || (this.lgMODELFACTUREID != null && !this.lgMODELFACTUREID.equals(other.lgMODELFACTUREID))) {
             return false;
         }
         return true;

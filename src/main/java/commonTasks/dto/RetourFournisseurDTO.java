@@ -50,6 +50,15 @@ public class RetourFournisseurDTO implements Serializable {
     private String lgBONLIVRAISONID, strREFLIVRAISON, strLIBELLE;
     private List<RetourDetailsDTO> items = new ArrayList<>();
     private TUser user;
+    private boolean closed;
+
+    public boolean isClosed() {
+        return closed;
+    }
+
+    public void setClosed(boolean closed) {
+        this.closed = closed;
+    }
 
     public List<RetourDetailsDTO> getItems() {
         return items;
@@ -241,9 +250,19 @@ public class RetourFournisseurDTO implements Serializable {
         this.lgBONLIVRAISONID = bonLivraison.getLgBONLIVRAISONID();
         this.strREFLIVRAISON = bonLivraison.getStrREFLIVRAISON();
         this.strLIBELLE = tg.getStrLIBELLE();
-        details.forEach((tpd) -> {
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getStrNAME() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntNUMBERRETURN() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getPrixPaf(), '.') + " F CFA " + "</span></b><br> " + this.details;
-        });
+        int count = 0;
+        for (RetourDetailsDTO tpd : details) {
+            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getIntCIP()
+                    + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getStrNAME()
+                    + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntNUMBERRETURN()
+                    + ")</span><span style='display:inline-block;width: 15%;'>"
+                    + DateConverter.amountFormat(tpd.getPrixPaf(), '.') + " F CFA " + "</span></b><br> " + this.details;
+            if (tpd.getIntNUMBERRETURN() > tpd.getIntNUMBERANSWER()) {
+                count++;
+            }
+        }
+
+        this.closed = count == 0;
     }
 
     public TUser getUser() {
@@ -258,14 +277,34 @@ public class RetourFournisseurDTO implements Serializable {
     }
 
     public RetourFournisseurDTO(TRetourFournisseur f) {
-         this.lgRETOURFRSID = f.getLgRETOURFRSID();
+        this.lgRETOURFRSID = f.getLgRETOURFRSID();
         this.strREFRETOURFRS = f.getStrREFRETOURFRS();
         this.dtDATE = SIMPLE_DATE_FORMAT.format(f.getDtDATE());
         this.strREPONSEFRS = f.getStrREPONSEFRS();
         this.strCOMMENTAIRE = f.getStrCOMMENTAIRE();
         this.dlAMOUNT = f.getDlAMOUNT().intValue();
-       
-       
     }
 
+    public RetourFournisseurDTO(TRetourFournisseur f, List<RetourDetailsDTO> details) {
+        TGrossiste tg = f.getLgGROSSISTEID();
+        TBonLivraison bonLivraison = f.getLgBONLIVRAISONID();
+        TUser tu = f.getLgUSERID();
+        this.lgRETOURFRSID = f.getLgRETOURFRSID();
+        this.strREFRETOURFRS = f.getStrREFRETOURFRS();
+        this.dtDATE = SIMPLE_DATE_FORMAT.format(f.getDtDATE());
+        this.strREPONSEFRS = f.getStrREPONSEFRS();
+        this.strCOMMENTAIRE = f.getStrCOMMENTAIRE();
+        this.strSTATUT = f.getStrSTATUT();
+        this.dtUPDATED = SIMPLE_DATE_FORMAT.format(bonLivraison.getDtDATELIVRAISON());
+        this.dtCREATED = SIMPLE_DATE_FORMAT.format(f.getDtUPDATED());
+        this.dlAMOUNT = f.getDlAMOUNT().intValue();
+        this.nombreProduit = details.size();
+        this.lgUSERID = tu.getLgUSERID();
+        this.userFullName = tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
+        this.lgGROSSISTEID = tg.getLgGROSSISTEID();
+        this.lgBONLIVRAISONID = bonLivraison.getLgBONLIVRAISONID();
+        this.strREFLIVRAISON = bonLivraison.getStrREFLIVRAISON();
+        this.strLIBELLE = tg.getStrLIBELLE();
+        this.items = details;
+    }
 }

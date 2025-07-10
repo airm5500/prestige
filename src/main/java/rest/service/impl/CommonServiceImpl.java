@@ -47,6 +47,7 @@ import dal.TVille_;
 import dal.TZoneGeographique;
 import dal.TZoneGeographique_;
 import dal.MotifAjustement;
+import dal.MotifRetourCarnet;
 import dal.enumeration.Statut;
 import java.awt.print.PrinterJob;
 import java.io.Serializable;
@@ -73,7 +74,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.CommonService;
-import toolkits.parameters.commonparameter;
+import util.Constant;
 import util.DateConverter;
 
 /**
@@ -87,13 +88,13 @@ public class CommonServiceImpl implements Serializable, CommonService {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
-    private TOfficine officine;
     private PrintService service;
-    private TImprimante OTImprimante;
+    private TImprimante imprimante;
     private Boolean afficheeurActif;
     private LocalDate dateUpdat;
     private Integer maximunproduit;
-    private Boolean voirNumeroTicket, sansBon, plafondVenteIsActive;
+    private Boolean voirNumeroTicket;
+    private Boolean sansBon;
 
     public LocalDate getDateUpdat() {
         return dateUpdat;
@@ -131,15 +132,12 @@ public class CommonServiceImpl implements Serializable, CommonService {
         return em;
     }
 
-    public CommonServiceImpl() {
+    public TImprimante getImprimante() {
+        return imprimante;
     }
 
-    public TImprimante getOTImprimante() {
-        return OTImprimante;
-    }
-
-    public void setOTImprimante(TImprimante OTImprimante) {
-        this.OTImprimante = OTImprimante;
+    public void setImprimante(TImprimante imprimante) {
+        this.imprimante = imprimante;
     }
 
     public Boolean getAfficheeurActif() {
@@ -166,18 +164,11 @@ public class CommonServiceImpl implements Serializable, CommonService {
         this.voirNumeroTicket = voirNumeroTicket;
     }
 
-    public Boolean getPlafondVenteIsActive() {
-        return plafondVenteIsActive;
-    }
-
-    public void setPlafondVenteIsActive(Boolean plafondVenteIsActive) {
-        this.plafondVenteIsActive = plafondVenteIsActive;
-    }
-
     @Override
     public List<TNatureVente> findNatureVente() {
-        TypedQuery<TNatureVente> tq = getEntityManager().createNamedQuery("TNatureVente.findByStrSTATUT", TNatureVente.class);
-        tq.setParameter("strSTATUT", commonparameter.statut_enable);
+        TypedQuery<TNatureVente> tq = getEntityManager().createNamedQuery("TNatureVente.findByStrSTATUT",
+                TNatureVente.class);
+        tq.setParameter("strSTATUT", Constant.STATUT_ENABLE);
         return tq.getResultList();
     }
 
@@ -188,7 +179,9 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaQuery<TTypeVente> cq = cb.createQuery(TTypeVente.class);
             Root<TTypeVente> root = cq.from(TTypeVente.class);
             cq.select(root);
-            cq.where(cb.and(cb.equal(root.get(TTypeVente_.strSTATUT), "enable"), cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_EXTENSION), cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_AGREE)));
+            cq.where(cb.and(cb.equal(root.get(TTypeVente_.strSTATUT), "enable"),
+                    cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_EXTENSION),
+                    cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_AGREE)));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -204,7 +197,10 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaQuery<TTypeVente> cq = cb.createQuery(TTypeVente.class);
             Root<TTypeVente> root = cq.from(TTypeVente.class);
             cq.select(root);
-            cq.where(cb.and(cb.equal(root.get(TTypeVente_.strSTATUT), "enable"), cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_EXTENSION), cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_AGREE), cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.VENTE_ASSURANCE)));
+            cq.where(cb.and(cb.equal(root.get(TTypeVente_.strSTATUT), "enable"),
+                    cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_EXTENSION),
+                    cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.DEPOT_AGREE),
+                    cb.notEqual(root.get(TTypeVente_.lgTYPEVENTEID), Util.VENTE_ASSURANCE)));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -216,14 +212,15 @@ public class CommonServiceImpl implements Serializable, CommonService {
     @Override
     public List<TTypeVente> findAllTypeVente() {
         TypedQuery<TTypeVente> tq = getEntityManager().createNamedQuery("TTypeVente.findByStrSTATUT", TTypeVente.class);
-        tq.setParameter("strSTATUT", commonparameter.statut_enable);
+        tq.setParameter("strSTATUT", Constant.STATUT_ENABLE);
         return tq.getResultList();
     }
 
     @Override
     public List<TypeRemiseDTO> findAllTTypeRemises() {
-        TypedQuery<TTypeRemise> tq = getEntityManager().createNamedQuery("TTypeRemise.findByStrSTATUT", TTypeRemise.class);
-        tq.setParameter("strSTATUT", commonparameter.statut_enable);
+        TypedQuery<TTypeRemise> tq = getEntityManager().createNamedQuery("TTypeRemise.findByStrSTATUT",
+                TTypeRemise.class);
+        tq.setParameter("strSTATUT", Constant.STATUT_ENABLE);
         List<TTypeRemise> list = tq.getResultList();
         return list.stream().map(TypeRemiseDTO::new).collect(Collectors.toList());
     }
@@ -231,7 +228,7 @@ public class CommonServiceImpl implements Serializable, CommonService {
     @Override
     public List<RemiseDTO> findAllRemise(String typeId) {
         TypedQuery<TRemise> tq = getEntityManager().createNamedQuery("TRemise.findByStrSTATUT", TRemise.class);
-        tq.setParameter("strSTATUT", commonparameter.statut_enable);
+        tq.setParameter("strSTATUT", Constant.STATUT_ENABLE);
         tq.setParameter("typeId", typeId);
         List<TRemise> list = tq.getResultList();
         return list.stream().map(RemiseDTO::new).collect(Collectors.toList());
@@ -243,8 +240,10 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<ReglementDTO> cq = cb.createQuery(ReglementDTO.class);
             Root<TTypeReglement> root = cq.from(TTypeReglement.class);
-            cq.select(cb.construct(ReglementDTO.class, root.get(TTypeReglement_.lgTYPEREGLEMENTID), root.get(TTypeReglement_.strNAME))).orderBy(cb.asc(root.get(TTypeReglement_.strNAME)));
-            cq.where(cb.and(cb.equal(root.get(TTypeReglement_.strSTATUT), "enable"), cb.notEqual(root.get(TTypeReglement_.lgTYPEREGLEMENTID), DateConverter.MODE_DEVISE)));
+            cq.select(cb.construct(ReglementDTO.class, root.get(TTypeReglement_.lgTYPEREGLEMENTID),
+                    root.get(TTypeReglement_.strNAME))).orderBy(cb.asc(root.get(TTypeReglement_.strNAME)));
+            cq.where(cb.and(cb.equal(root.get(TTypeReglement_.strSTATUT), "enable"),
+                    cb.notEqual(root.get(TTypeReglement_.lgTYPEREGLEMENTID), Constant.MODE_DEVISE)));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -265,9 +264,12 @@ public class CommonServiceImpl implements Serializable, CommonService {
             predicates.add(cb.and(cb.equal(root.get(TUser_.lgEMPLACEMENTID).get("lgEMPLACEMENTID"), empl)));
 
             if (query != null && !query.equals("")) {
-                predicates.add(cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"), cb.like(root.get(TUser_.strLASTNAME), query + "%"), cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)), query + "%")));
+                predicates.add(cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"),
+                        cb.like(root.get(TUser_.strLASTNAME), query + "%"),
+                        cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)),
+                                query + "%")));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
 
             return ((Long) q.getSingleResult()).intValue();
@@ -284,17 +286,23 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<UserDTO> cq = cb.createQuery(UserDTO.class);
             Root<TUser> root = cq.from(TUser.class);
-            cq.select(cb.construct(UserDTO.class, root.get(TUser_.lgUSERID), root.get(TUser_.strFIRSTNAME), root.get(TUser_.strLASTNAME))).orderBy(cb.asc(root.get(TUser_.strFIRSTNAME)));
+            cq.select(cb.construct(UserDTO.class, root.get(TUser_.lgUSERID), root.get(TUser_.strFIRSTNAME),
+                    root.get(TUser_.strLASTNAME))).orderBy(cb.asc(root.get(TUser_.strFIRSTNAME)));
             predicates.add(cb.and(cb.equal(root.get(TUser_.strSTATUT), "enable")));
             predicates.add(cb.and(cb.equal(root.get(TUser_.lgEMPLACEMENTID).get("lgEMPLACEMENTID"), empl)));
 
             if (query != null && !query.equals("")) {
-                predicates.add(cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"), cb.like(root.get(TUser_.strLASTNAME), query + "%"), cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)), query + "%")));
+                predicates.add(cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"),
+                        cb.like(root.get(TUser_.strLASTNAME), query + "%"),
+                        cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)),
+                                query + "%")));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
-            q.setFirstResult(start);
-            q.setMaxResults(limit);
+            if (limit > 0) {
+                q.setFirstResult(start);
+                q.setMaxResults(limit);
+            }
 
             return q.getResultList();
         } catch (Exception e) {
@@ -304,16 +312,18 @@ public class CommonServiceImpl implements Serializable, CommonService {
     }
 
     @Override
-    public boolean hasAuthority(List<TPrivilege> LstTPrivilege, String authorityName) {
+    public boolean hasAuthority(List<TPrivilege> lstTPrivilege, String authorityName) {
         java.util.function.Predicate<TPrivilege> p = e -> e.getStrNAME().equalsIgnoreCase(authorityName);
-        return LstTPrivilege.stream().anyMatch(p);
+        return lstTPrivilege.stream().anyMatch(p);
     }
 
     @Override
-    public boolean canShowAllSales(List<TPrivilege> LstTPrivilege) {
-        java.util.function.Predicate<TPrivilege> p = e -> e.getStrNAME().equalsIgnoreCase(Parameter.P_SHOW_ALL_ACTIVITY);
-        return LstTPrivilege.stream().anyMatch(p);
+    public boolean canShowAllSales(List<TPrivilege> lstTPrivilege) {
+        java.util.function.Predicate<TPrivilege> p = e -> e.getStrNAME()
+                .equalsIgnoreCase(Parameter.P_SHOW_ALL_ACTIVITY);
+        return lstTPrivilege.stream().anyMatch(p);
     }
+
     private Integer nombreTickets;
 
     @Override
@@ -336,7 +346,7 @@ public class CommonServiceImpl implements Serializable, CommonService {
         try {
             if (voirNumeroTicket == null) {
                 TParameters tp = getEntityManager().find(TParameters.class, Parameter.KEY_SHOW_NUMERO_TICKET);
-                voirNumeroTicket = (Integer.valueOf(tp.getStrVALUE()) == 1);
+                voirNumeroTicket = (Integer.parseInt(tp.getStrVALUE()) == 1);
             }
             return voirNumeroTicket;
         } catch (Exception e) {
@@ -403,21 +413,19 @@ public class CommonServiceImpl implements Serializable, CommonService {
 
     @Override
     public TImprimante findImprimanteByName() {
-        if (OTImprimante == null) {
-            if (service != null) {
-                try {
+        if (imprimante == null && service != null) {
+            try {
 
-                    Query qry = getEntityManager().createQuery("SELECT t FROM TImprimante t WHERE t.strNAME = ?1 ")
-                            .setParameter(1, service.getName());
-                    if (qry.getResultList().size() > 0) {
-                        OTImprimante = (TImprimante) qry.getSingleResult();
-                    }
-                } catch (Exception e) {
+                Query qry = getEntityManager().createQuery("SELECT t FROM TImprimante t WHERE t.strNAME = ?1 ")
+                        .setParameter(1, service.getName());
+                if (!qry.getResultList().isEmpty()) {
+                    imprimante = (TImprimante) qry.getSingleResult();
                 }
+            } catch (Exception e) {
             }
         }
 
-        return OTImprimante;
+        return imprimante;
     }
 
     @Override
@@ -431,7 +439,7 @@ public class CommonServiceImpl implements Serializable, CommonService {
             if (query != null && !query.equals("")) {
                 predicates.add(cb.like(root.get(TVille_.strName), query + "%"));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -447,14 +455,14 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<RisqueDTO> cq = cb.createQuery(RisqueDTO.class);
             Root<TRisque> root = cq.from(TRisque.class);
-            cq.select(cb.construct(RisqueDTO.class, root.get(TRisque_.lgRISQUEID),
-                    root.get(TRisque_.strLIBELLERISQUE), root.get(TRisque_.lgTYPERISQUEID).get(TTypeRisque_.lgTYPERISQUEID),
-                    root.get(TRisque_.lgTYPERISQUEID).get(TTypeRisque_.strNAME)
-            )).orderBy(cb.asc(root.get(TRisque_.strLIBELLERISQUE)));
+            cq.select(cb.construct(RisqueDTO.class, root.get(TRisque_.lgRISQUEID), root.get(TRisque_.strLIBELLERISQUE),
+                    root.get(TRisque_.lgTYPERISQUEID).get(TTypeRisque_.lgTYPERISQUEID),
+                    root.get(TRisque_.lgTYPERISQUEID).get(TTypeRisque_.strNAME)))
+                    .orderBy(cb.asc(root.get(TRisque_.strLIBELLERISQUE)));
             if (query != null && !query.equals("")) {
                 predicates.add(cb.like(root.get(TRisque_.strLIBELLERISQUE), query + "%"));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -469,12 +477,14 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<CategorieAyantdroitDTO> cq = cb.createQuery(CategorieAyantdroitDTO.class);
             Root<TCategorieAyantdroit> root = cq.from(TCategorieAyantdroit.class);
-            cq.select(cb.construct(CategorieAyantdroitDTO.class, root.get(TCategorieAyantdroit_.lgCATEGORIEAYANTDROITID), root.get(TCategorieAyantdroit_.strLIBELLECATEGORIEAYANTDROIT)))
+            cq.select(
+                    cb.construct(CategorieAyantdroitDTO.class, root.get(TCategorieAyantdroit_.lgCATEGORIEAYANTDROITID),
+                            root.get(TCategorieAyantdroit_.strLIBELLECATEGORIEAYANTDROIT)))
                     .orderBy(cb.asc(root.get(TCategorieAyantdroit_.strLIBELLECATEGORIEAYANTDROIT)));
             if (query != null && !query.equals("")) {
                 predicates.add(cb.like(root.get(TCategorieAyantdroit_.strLIBELLECATEGORIEAYANTDROIT), query + "%"));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -498,23 +508,9 @@ public class CommonServiceImpl implements Serializable, CommonService {
     }
 
     @Override
-    public boolean plafondVenteIsActive() {
-        if (plafondVenteIsActive == null) {
-            try {
-                TParameters tp = getEntityManager().find(TParameters.class, "KEY_ACTIVATION_PLAFOND_VENTE");
-                plafondVenteIsActive = (tp != null && tp.getStrVALUE().trim().equals("1"));
-            } catch (Exception e) {
-                plafondVenteIsActive = plafondVenteIsActive;
-            }
-        }
-        return plafondVenteIsActive;
-
-    }
-
-    @Override
     public List<RemiseDTO> findAllRemise() {
         TypedQuery<TRemise> tq = getEntityManager().createNamedQuery("TRemise.findByAll", TRemise.class);
-        tq.setParameter("strSTATUT", commonparameter.statut_enable);
+        tq.setParameter("strSTATUT", Constant.STATUT_ENABLE);
         List<TRemise> list = tq.getResultList();
         return list.stream().map(RemiseDTO::new).collect(Collectors.toList());
     }
@@ -525,8 +521,11 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<ReglementDTO> cq = cb.createQuery(ReglementDTO.class);
             Root<TTypeReglement> root = cq.from(TTypeReglement.class);
-            cq.select(cb.construct(ReglementDTO.class, root.get(TTypeReglement_.lgTYPEREGLEMENTID), root.get(TTypeReglement_.strNAME))).orderBy(cb.asc(root.get(TTypeReglement_.strNAME)));
-            cq.where(cb.and(cb.equal(root.get(TTypeReglement_.strSTATUT), "enable"), cb.notEqual(root.get(TTypeReglement_.lgTYPEREGLEMENTID), DateConverter.MODE_DEVISE), cb.notEqual(root.get(TTypeReglement_.lgTYPEREGLEMENTID), DateConverter.MODE_DIFF)));
+            cq.select(cb.construct(ReglementDTO.class, root.get(TTypeReglement_.lgTYPEREGLEMENTID),
+                    root.get(TTypeReglement_.strNAME))).orderBy(cb.asc(root.get(TTypeReglement_.strNAME)));
+            cq.where(cb.and(cb.equal(root.get(TTypeReglement_.strSTATUT), "enable"),
+                    cb.notEqual(root.get(TTypeReglement_.lgTYPEREGLEMENTID), DateConverter.MODE_DEVISE),
+                    cb.notEqual(root.get(TTypeReglement_.lgTYPEREGLEMENTID), DateConverter.MODE_DIFF)));
             Query q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -538,8 +537,10 @@ public class CommonServiceImpl implements Serializable, CommonService {
     @Override
     public List<ComboDTO> loadGroupeFournisseur() {
         try {
-            TypedQuery<Groupefournisseur> q = getEntityManager().createNamedQuery("Groupefournisseur.findAll", Groupefournisseur.class);
-            return q.getResultList().stream().map(x -> new ComboDTO(x.getId(), x.getLibelle())).collect(Collectors.toList());
+            TypedQuery<Groupefournisseur> q = getEntityManager().createNamedQuery("Groupefournisseur.findAll",
+                    Groupefournisseur.class);
+            return q.getResultList().stream().map(x -> new ComboDTO(x.getId(), x.getLibelle()))
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             return Collections.emptyList();
         }
@@ -552,12 +553,15 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<ComboDTO> cq = cb.createQuery(ComboDTO.class);
             Root<TGrossiste> root = cq.from(TGrossiste.class);
-            cq.select(cb.construct(ComboDTO.class, root.get(TGrossiste_.lgGROSSISTEID), root.get(TGrossiste_.strLIBELLE))).orderBy(cb.asc(root.get(TGrossiste_.strLIBELLE)));
+            cq.select(
+                    cb.construct(ComboDTO.class, root.get(TGrossiste_.lgGROSSISTEID), root.get(TGrossiste_.strLIBELLE)))
+                    .orderBy(cb.asc(root.get(TGrossiste_.strLIBELLE)));
             predicates.add(cb.equal(root.get(TGrossiste_.strSTATUT), DateConverter.STATUT_ENABLE));
             if (!StringUtils.isEmpty(query)) {
-                predicates.add(cb.or(cb.like(root.get(TGrossiste_.strCODE), query + "%"), cb.like(root.get(TGrossiste_.strLIBELLE), query + "%")));
+                predicates.add(cb.or(cb.like(root.get(TGrossiste_.strCODE), query + "%"),
+                        cb.like(root.get(TGrossiste_.strLIBELLE), query + "%")));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<ComboDTO> q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -573,12 +577,15 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<ComboDTO> cq = cb.createQuery(ComboDTO.class);
             Root<TZoneGeographique> root = cq.from(TZoneGeographique.class);
-            cq.select(cb.construct(ComboDTO.class, root.get(TZoneGeographique_.lgZONEGEOID), root.get(TZoneGeographique_.strLIBELLEE))).orderBy(cb.asc(root.get(TZoneGeographique_.strLIBELLEE)));
+            cq.select(cb.construct(ComboDTO.class, root.get(TZoneGeographique_.lgZONEGEOID),
+                    root.get(TZoneGeographique_.strLIBELLEE)))
+                    .orderBy(cb.asc(root.get(TZoneGeographique_.strLIBELLEE)));
             predicates.add(cb.equal(root.get(TZoneGeographique_.strSTATUT), DateConverter.STATUT_ENABLE));
             if (!StringUtils.isEmpty(query)) {
-                predicates.add(cb.or(cb.like(root.get(TZoneGeographique_.strCODE), query + "%"), cb.like(root.get(TZoneGeographique_.strLIBELLEE), query + "%")));
+                predicates.add(cb.or(cb.like(root.get(TZoneGeographique_.strCODE), query + "%"),
+                        cb.like(root.get(TZoneGeographique_.strLIBELLEE), query + "%")));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<ComboDTO> q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -594,12 +601,34 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<ComboDTO> cq = cb.createQuery(ComboDTO.class);
             Root<TFamillearticle> root = cq.from(TFamillearticle.class);
-            cq.select(cb.construct(ComboDTO.class, root.get(TFamillearticle_.lgFAMILLEARTICLEID), root.get(TFamillearticle_.strLIBELLE))).orderBy(cb.asc(root.get(TFamillearticle_.strLIBELLE)));
+            cq.select(cb.construct(ComboDTO.class, root.get(TFamillearticle_.lgFAMILLEARTICLEID),
+                    root.get(TFamillearticle_.strLIBELLE))).orderBy(cb.asc(root.get(TFamillearticle_.strLIBELLE)));
             predicates.add(cb.equal(root.get(TFamillearticle_.strSTATUT), DateConverter.STATUT_ENABLE));
             if (!StringUtils.isEmpty(query)) {
-                predicates.add(cb.or(cb.like(root.get(TFamillearticle_.strCODEFAMILLE), query + "%"), cb.like(root.get(TFamillearticle_.strLIBELLE), query + "%")));
+                predicates.add(cb.or(cb.like(root.get(TFamillearticle_.strCODEFAMILLE), query + "%"),
+                        cb.like(root.get(TFamillearticle_.strLIBELLE), query + "%")));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+            TypedQuery<ComboDTO> q = getEntityManager().createQuery(cq);
+            return q.getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public List<ComboDTO> findAllTypeReglement() {
+        try {
+            List<Predicate> predicates = new ArrayList<>();
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<ComboDTO> cq = cb.createQuery(ComboDTO.class);
+            Root<TTypeReglement> root = cq.from(TTypeReglement.class);
+            cq.select(cb.construct(ComboDTO.class, root.get(TTypeReglement_.lgTYPEREGLEMENTID),
+                    root.get(TTypeReglement_.strNAME))).orderBy(cb.asc(root.get(TTypeReglement_.strNAME)));
+            predicates.add(cb.equal(root.get(TTypeReglement_.strSTATUT), DateConverter.STATUT_ENABLE));
+
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<ComboDTO> q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -615,12 +644,14 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<ComboDTO> cq = cb.createQuery(ComboDTO.class);
             Root<GammeProduit> root = cq.from(GammeProduit.class);
-            cq.select(cb.construct(ComboDTO.class, root.get(GammeProduit_.id), root.get(GammeProduit_.libelle))).orderBy(cb.asc(root.get(GammeProduit_.libelle)));
+            cq.select(cb.construct(ComboDTO.class, root.get(GammeProduit_.id), root.get(GammeProduit_.libelle)))
+                    .orderBy(cb.asc(root.get(GammeProduit_.libelle)));
             predicates.add(cb.equal(root.get(GammeProduit_.status), Statut.ENABLE));
             if (!StringUtils.isEmpty(query)) {
-                predicates.add(cb.or(cb.like(root.get(GammeProduit_.libelle), query + "%"), cb.like(root.get(GammeProduit_.code), query + "%")));
+                predicates.add(cb.or(cb.like(root.get(GammeProduit_.libelle), query + "%"),
+                        cb.like(root.get(GammeProduit_.code), query + "%")));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<ComboDTO> q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -636,12 +667,13 @@ public class CommonServiceImpl implements Serializable, CommonService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<ComboDTO> cq = cb.createQuery(ComboDTO.class);
             Root<Laboratoire> root = cq.from(Laboratoire.class);
-            cq.select(cb.construct(ComboDTO.class, root.get(Laboratoire_.id), root.get(Laboratoire_.libelle))).orderBy(cb.asc(root.get(Laboratoire_.libelle)));
+            cq.select(cb.construct(ComboDTO.class, root.get(Laboratoire_.id), root.get(Laboratoire_.libelle)))
+                    .orderBy(cb.asc(root.get(Laboratoire_.libelle)));
             predicates.add(cb.equal(root.get(GammeProduit_.status), Statut.ENABLE));
             if (!StringUtils.isEmpty(query)) {
                 predicates.add(cb.or(cb.like(root.get(Laboratoire_.libelle), query + "%")));
             }
-            cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<ComboDTO> q = getEntityManager().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -675,7 +707,7 @@ public class CommonServiceImpl implements Serializable, CommonService {
                 }
                 return new JSONObject().put("success", false);
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.log(Level.SEVERE, null, e);
                 return new JSONObject().put("success", false);
             }
         }
@@ -687,13 +719,34 @@ public class CommonServiceImpl implements Serializable, CommonService {
         try {
             TParameters tp = getEntityManager().find(TParameters.class, "KEY_CHECK_UG");
             if (tp != null) {
-                return Integer.valueOf(tp.getStrVALUE().trim()) == 1;
+                return Integer.parseInt(tp.getStrVALUE().trim()) == 1;
             }
             return false;
         } catch (Exception e) {
 
             return false;
         }
+    }
+
+    @Override
+    public boolean findParam(String key) {
+        try {
+            TParameters tp = getEntityManager().find(TParameters.class, key);
+            if (tp != null) {
+                return Integer.parseInt(tp.getStrVALUE().trim()) == 1;
+            }
+            return false;
+        } catch (Exception e) {
+
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isNormalUse() {
+        boolean takeInAccount = this.findParam(DateConverter.KEY_TAKE_INTO_ACCOUNT);
+        boolean keyParams = this.findParam(DateConverter.KEY_PARAMS);
+        return takeInAccount || keyParams;
     }
 
     @Override
@@ -704,7 +757,15 @@ public class CommonServiceImpl implements Serializable, CommonService {
 
     @Override
     public List<MotifAjustement> findAllTypeAjustements() {
-        TypedQuery<MotifAjustement> tq = getEntityManager().createNamedQuery("MotifAjustement.findAll", MotifAjustement.class);
+        TypedQuery<MotifAjustement> tq = getEntityManager().createNamedQuery("MotifAjustement.findAll",
+                MotifAjustement.class);
+        return tq.getResultList();
+    }
+
+    @Override
+    public List<MotifRetourCarnet> motifRetourCarnets() {
+        TypedQuery<MotifRetourCarnet> tq = getEntityManager().createNamedQuery("MotifRetourCarnet.findAll",
+                MotifRetourCarnet.class);
         return tq.getResultList();
     }
 

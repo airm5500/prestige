@@ -8,7 +8,7 @@ Ext.define('testextjs.store.caisse.RechercheClientAss', {
     pageSize: null,
     proxy: {
         type: 'ajax',
-        url: '../api/v1/client',
+        url: '../api/v1/client/all',
         reader: {
             type: 'json',
             root: 'data',

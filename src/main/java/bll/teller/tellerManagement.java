@@ -39,15 +39,16 @@ public class tellerManagement extends bll.bllBase {
     public TFamilleStock getTProductItemStock(TFamille OTProductItem) {
         TFamilleStock OTProductItemStock = null;
         try {
-          
-            OTProductItemStock = (TFamilleStock) this.getOdataManager().getEm().
-                    createQuery("SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND t.strSTATUT ='enable' ").
-                    setParameter(1, OTProductItem.getLgFAMILLEID()).setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID()).
-                    getSingleResult();
+
+            OTProductItemStock = (TFamilleStock) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND t.strSTATUT ='enable' ")
+                    .setParameter(1, OTProductItem.getLgFAMILLEID())
+                    .setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID()).getSingleResult();
             new logger().OCategory.info("Stock actuel " + OTProductItemStock.getIntNUMBERAVAILABLE());
         } catch (Exception e) {
             e.printStackTrace();
-            ///  OTProductItemStock = new familleManagement(this.getOdataManager()).createFamilleStock(OTProductItem, 0, this.getOTUser().getLgEMPLACEMENTID());
+            /// OTProductItemStock = new familleManagement(this.getOdataManager()).createFamilleStock(OTProductItem, 0,
+            /// this.getOTUser().getLgEMPLACEMENTID());
             this.buildErrorTraceMessage(e.getMessage());
         }
         return OTProductItemStock;
@@ -56,9 +57,10 @@ public class tellerManagement extends bll.bllBase {
     public TFamilleStock getTProductItemStock(String lg_FAMILLE_ID) {
         TFamilleStock OTProductItemStock = null;
         try {
-            Query qry = this.getOdataManager().getEm().
-                    createQuery("SELECT t FROM TFamilleStock t WHERE (t.lgFAMILLEID.lgFAMILLEID = ?1 OR t.lgFAMILLEID.intCIP = ?1 OR t.lgFAMILLEID.strNAME = ?1 OR t.lgFAMILLEID.strDESCRIPTION = ?1 OR t.lgFAMILLEID.intEAN13 = ?1) AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2").
-                    setParameter(1, lg_FAMILLE_ID).setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamilleStock t WHERE (t.lgFAMILLEID.lgFAMILLEID = ?1 OR t.lgFAMILLEID.intCIP = ?1 OR t.lgFAMILLEID.strNAME = ?1 OR t.lgFAMILLEID.strDESCRIPTION = ?1 OR t.lgFAMILLEID.intEAN13 = ?1) AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2")
+                    .setParameter(1, lg_FAMILLE_ID)
+                    .setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
             if (qry.getResultList().size() > 0) {
                 OTProductItemStock = (TFamilleStock) qry.getSingleResult();
             }
@@ -69,14 +71,15 @@ public class tellerManagement extends bll.bllBase {
         return OTProductItemStock;
     }
 
-    //recherche de famille stock d'un emplacement
+    // recherche de famille stock d'un emplacement
     public TFamilleStock getTProductItemStock(String lg_FAMILLE_ID, String lg_EMPLACEMENT_ID) {
         TFamilleStock OTProductItemStock = null;
 
         try {
-            OTProductItemStock = (TFamilleStock) this.getOdataManager().getEm().
-                    createQuery("SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND t.strSTATUT='enable'").
-                    setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_EMPLACEMENT_ID).setFirstResult(0).setMaxResults(1).getSingleResult();
+            OTProductItemStock = (TFamilleStock) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND t.strSTATUT='enable'")
+                    .setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_EMPLACEMENT_ID).setFirstResult(0)
+                    .setMaxResults(1).getSingleResult();
             this.getOdataManager().getEm().refresh(OTProductItemStock);
         } catch (Exception e) {
             e.printStackTrace();
@@ -84,7 +87,7 @@ public class tellerManagement extends bll.bllBase {
         return OTProductItemStock;
     }
 
-    //fin recherche de famille stock d'un emplacement
+    // fin recherche de famille stock d'un emplacement
     public boolean isVailableProductInStock(TFamille OTProductItem, int NbItemOfCommande) {
 
         int valstockdispo;
@@ -154,15 +157,15 @@ public class tellerManagement extends bll.bllBase {
         return dbAmountTTC;
     }
 
-    //liste des modes de reglements
-    public List<TModeReglement> getListeTModeReglement(String search_value, String lg_MODE_REGLEMENT_ID, String lg_TYPE_REGLEMENT_ID) {
+    // liste des modes de reglements
+    public List<TModeReglement> getListeTModeReglement(String search_value, String lg_MODE_REGLEMENT_ID,
+            String lg_TYPE_REGLEMENT_ID) {
         List<TModeReglement> lstTModeReglement = new ArrayList<>();
         try {
-            lstTModeReglement = this.getOdataManager().getEm().createQuery("SELECT t FROM TModeReglement t WHERE t.lgMODEREGLEMENTID LIKE ?1 AND (t.strNAME LIKE ?2 OR t.strDESCRIPTION LIKE ?2) AND t.lgTYPEREGLEMENTID.lgTYPEREGLEMENTID LIKE ?3 AND t.strSTATUT = ?4 ")
-                    .setParameter(1, lg_MODE_REGLEMENT_ID)
-                    .setParameter(2, search_value + "%")
-                    .setParameter(3, lg_TYPE_REGLEMENT_ID)
-                    .setParameter(4, commonparameter.statut_enable)
+            lstTModeReglement = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TModeReglement t WHERE t.lgMODEREGLEMENTID LIKE ?1 AND (t.strNAME LIKE ?2 OR t.strDESCRIPTION LIKE ?2) AND t.lgTYPEREGLEMENTID.lgTYPEREGLEMENTID LIKE ?3 AND t.strSTATUT = ?4 ")
+                    .setParameter(1, lg_MODE_REGLEMENT_ID).setParameter(2, search_value + "%")
+                    .setParameter(3, lg_TYPE_REGLEMENT_ID).setParameter(4, commonparameter.statut_enable)
                     .getResultList();
         } catch (Exception e) {
             e.printStackTrace();
@@ -171,14 +174,15 @@ public class tellerManagement extends bll.bllBase {
         return lstTModeReglement;
     }
 
-    //fin liste des modes de reglements
+    // fin liste des modes de reglements
     public TFamilleStock geProductItemStock(String lg_FAMILLE_ID) {
         TFamilleStock OTProductItemStock = null;
         try {
 
-            TypedQuery<TFamilleStock> qry = this.getOdataManager().getEm().
-                    createQuery("SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2", TFamilleStock.class).
-                    setParameter(1, lg_FAMILLE_ID).setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+            TypedQuery<TFamilleStock> qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2",
+                    TFamilleStock.class).setParameter(1, lg_FAMILLE_ID)
+                    .setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
             qry.setMaxResults(1);
             OTProductItemStock = qry.getSingleResult();
 

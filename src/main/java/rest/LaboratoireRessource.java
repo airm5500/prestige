@@ -6,12 +6,8 @@
 package rest;
 
 import dal.Laboratoire;
-import dal.TUser;
 import java.util.List;
 import javax.ejb.EJB;
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -23,7 +19,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import rest.query.repo.ProduitQueryRepo;
 import rest.repo.LaboratoireRepo;
-import toolkits.parameters.commonparameter;
 
 /**
  *
@@ -34,28 +29,22 @@ import toolkits.parameters.commonparameter;
 @Consumes("application/json")
 public class LaboratoireRessource {
 
-    @Inject
-    private HttpServletRequest servletRequest;
     @EJB
     private ProduitQueryRepo produitQueryRepo;
     @EJB
     private LaboratoireRepo repo;
 
     @GET
-    public Response findAllGammeProduit(
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query) {
+    public Response findAllGammeProduit(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query) {
         List<Laboratoire> data = produitQueryRepo.findAllLaboratoire(query, start, limit, false);
-        return Response.ok().entity(ResultFactory.getSuccessResult(data, produitQueryRepo.countLaboratoire(query))).build();
+        return Response.ok().entity(ResultFactory.getSuccessResult(data, produitQueryRepo.countLaboratoire(query)))
+                .build();
     }
 
     @POST
     public Response save(Laboratoire obj) {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+
         obj = repo.saveOrUpdate(obj);
         if (obj != null) {
             return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
@@ -66,11 +55,7 @@ public class LaboratoireRessource {
     @DELETE
     @Path("{id}")
     public Response remove(@PathParam("id") String id) {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+
         int result = repo.deleteById(id);
         if (result > 0) {
             return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();

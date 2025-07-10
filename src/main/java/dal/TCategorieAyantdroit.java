@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_categorie_ayantdroit")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCategorieAyantdroit.findAll", query = "SELECT t FROM TCategorieAyantdroit t"),
-    @NamedQuery(name = "TCategorieAyantdroit.findByLgCATEGORIEAYANTDROITID", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.lgCATEGORIEAYANTDROITID = :lgCATEGORIEAYANTDROITID"),
-    @NamedQuery(name = "TCategorieAyantdroit.findByStrCODE", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TCategorieAyantdroit.findByStrLIBELLECATEGORIEAYANTDROIT", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.strLIBELLECATEGORIEAYANTDROIT = :strLIBELLECATEGORIEAYANTDROIT"),
-    @NamedQuery(name = "TCategorieAyantdroit.findByStrSTATUT", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TCategorieAyantdroit.findByDtCREATED", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCategorieAyantdroit.findByDtUPDATED", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TCategorieAyantdroit.findAll", query = "SELECT t FROM TCategorieAyantdroit t"),
+        @NamedQuery(name = "TCategorieAyantdroit.findByLgCATEGORIEAYANTDROITID", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.lgCATEGORIEAYANTDROITID = :lgCATEGORIEAYANTDROITID"),
+        @NamedQuery(name = "TCategorieAyantdroit.findByStrCODE", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TCategorieAyantdroit.findByStrLIBELLECATEGORIEAYANTDROIT", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.strLIBELLECATEGORIEAYANTDROIT = :strLIBELLECATEGORIEAYANTDROIT"),
+        @NamedQuery(name = "TCategorieAyantdroit.findByStrSTATUT", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TCategorieAyantdroit.findByDtCREATED", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCategorieAyantdroit.findByDtUPDATED", query = "SELECT t FROM TCategorieAyantdroit t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TCategorieAyantdroit implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +135,9 @@ public class TCategorieAyantdroit implements Serializable {
             return false;
         }
         TCategorieAyantdroit other = (TCategorieAyantdroit) object;
-        if ((this.lgCATEGORIEAYANTDROITID == null && other.lgCATEGORIEAYANTDROITID != null) || (this.lgCATEGORIEAYANTDROITID != null && !this.lgCATEGORIEAYANTDROITID.equals(other.lgCATEGORIEAYANTDROITID))) {
+        if ((this.lgCATEGORIEAYANTDROITID == null && other.lgCATEGORIEAYANTDROITID != null)
+                || (this.lgCATEGORIEAYANTDROITID != null
+                        && !this.lgCATEGORIEAYANTDROITID.equals(other.lgCATEGORIEAYANTDROITID))) {
             return false;
         }
         return true;
@@ -146,5 +147,5 @@ public class TCategorieAyantdroit implements Serializable {
     public String toString() {
         return "dal.TCategorieAyantdroit[ lgCATEGORIEAYANTDROITID=" + lgCATEGORIEAYANTDROITID + " ]";
     }
-    
+
 }

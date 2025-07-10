@@ -4,6 +4,7 @@
     Author     : KKOFFI
 --%>
 
+<%@page import="util.Constant"%>
 <%@page import="bll.userManagement.user"%>
 <%@page import="dal.TRole"%>
 <%@page import="bll.entity.EntityData"%>
@@ -32,7 +33,7 @@
 
 
         <%
-            TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+            TUser OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
             // new logger().OCategory.info("OTUser  session ---- " + OTUser.getStrLOGIN());
 
             if (OTUser == null) {
@@ -45,14 +46,12 @@
         <%
                 return;
             }
-            dataManager OdataManager = new dataManager();
-            user Ouser = new user(OdataManager);
-            TRole OTRole = Ouser.getTRoleUser(OTUser.getLgUSERID()).getLgROLEID();
+            String roleId = (String) session.getAttribute(Constant.USER_ROLE_ID);
 
         %> 
         <script type="text/javascript">
-            sessionStorage.setItem("connecteduser", '<%=OTRole.getLgROLEID()%>');
-           
+            sessionStorage.setItem("connecteduser", '<%=roleId%>');
+
         </script>
         <title><%= jdom.APP_NAME%> :: Ver <%= jdom.APP_VERSION%></title>
         <!-- <x-compile> -->
@@ -79,12 +78,12 @@
 
             //code ajouté pr la gestion des langues
             $(function () {
-             /*   setInterval('updateSmsMiDay()', 2880000); 
-                setInterval('updateALLData()', 9000000); 
-                setInterval('GenerateALLDataForAvoir()', 1800000); */
+                /*   setInterval('updateSmsMiDay()', 2880000); 
+                 setInterval('updateALLData()', 9000000); 
+                 setInterval('GenerateALLDataForAvoir()', 1800000); */
                 // setInterval('GenerateALLDataForAvoir()', 100000);
 
-               
+
 
             });
 
@@ -152,7 +151,7 @@
         </script>
     </head>
     <body>
-      
 
-  </body>
+
+    </body>
 </html>

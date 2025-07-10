@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_tva")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTva.findAll", query = "SELECT t FROM TTva t"),
-    @NamedQuery(name = "TTva.findByLgTVAID", query = "SELECT t FROM TTva t WHERE t.lgTVAID = :lgTVAID"),
-    @NamedQuery(name = "TTva.findByStrLIBELLE", query = "SELECT t FROM TTva t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TTva.findByDblTAUX", query = "SELECT t FROM TTva t WHERE t.dblTAUX = :dblTAUX"),
-    @NamedQuery(name = "TTva.findByDtCREATED", query = "SELECT t FROM TTva t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTva.findByDtUPDATED", query = "SELECT t FROM TTva t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTva.findByStrSTATUT", query = "SELECT t FROM TTva t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTva.findAll", query = "SELECT t FROM TTva t"),
+        @NamedQuery(name = "TTva.findByLgTVAID", query = "SELECT t FROM TTva t WHERE t.lgTVAID = :lgTVAID"),
+        @NamedQuery(name = "TTva.findByStrLIBELLE", query = "SELECT t FROM TTva t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TTva.findByDblTAUX", query = "SELECT t FROM TTva t WHERE t.dblTAUX = :dblTAUX"),
+        @NamedQuery(name = "TTva.findByDtCREATED", query = "SELECT t FROM TTva t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTva.findByDtUPDATED", query = "SELECT t FROM TTva t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTva.findByStrSTATUT", query = "SELECT t FROM TTva t WHERE t.strSTATUT = :strSTATUT") })
 public class TTva implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -42,7 +41,8 @@ public class TTva implements Serializable {
     private String lgTVAID;
     @Column(name = "str_LIBELLE", length = 40)
     private String strLIBELLE;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_TAUX", precision = 15, scale = 3)
     private Double dblTAUX;
     @Column(name = "dt_CREATED")
@@ -123,7 +123,8 @@ public class TTva implements Serializable {
             return false;
         }
         TTva other = (TTva) object;
-        if ((this.lgTVAID == null && other.lgTVAID != null) || (this.lgTVAID != null && !this.lgTVAID.equals(other.lgTVAID))) {
+        if ((this.lgTVAID == null && other.lgTVAID != null)
+                || (this.lgTVAID != null && !this.lgTVAID.equals(other.lgTVAID))) {
             return false;
         }
         return true;
@@ -133,5 +134,5 @@ public class TTva implements Serializable {
     public String toString() {
         return "dal.TTva[ lgTVAID=" + lgTVAID + " ]";
     }
-    
+
 }

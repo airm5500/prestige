@@ -29,11 +29,11 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_escompte_societe_tranche")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TEscompteSocieteTranche.findAll", query = "SELECT t FROM TEscompteSocieteTranche t"),
-    @NamedQuery(name = "TEscompteSocieteTranche.findByLgESCOMPTESOCIETETRANCHEID", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.lgESCOMPTESOCIETETRANCHEID = :lgESCOMPTESOCIETETRANCHEID"),
-    @NamedQuery(name = "TEscompteSocieteTranche.findByStrSTATUT", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TEscompteSocieteTranche.findByDtCREATED", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TEscompteSocieteTranche.findByDtUPDATED", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.dtUPDATED = :dtUPDATED")})
+        @NamedQuery(name = "TEscompteSocieteTranche.findAll", query = "SELECT t FROM TEscompteSocieteTranche t"),
+        @NamedQuery(name = "TEscompteSocieteTranche.findByLgESCOMPTESOCIETETRANCHEID", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.lgESCOMPTESOCIETETRANCHEID = :lgESCOMPTESOCIETETRANCHEID"),
+        @NamedQuery(name = "TEscompteSocieteTranche.findByStrSTATUT", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TEscompteSocieteTranche.findByDtCREATED", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TEscompteSocieteTranche.findByDtUPDATED", query = "SELECT t FROM TEscompteSocieteTranche t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TEscompteSocieteTranche implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -124,7 +124,9 @@ public class TEscompteSocieteTranche implements Serializable {
             return false;
         }
         TEscompteSocieteTranche other = (TEscompteSocieteTranche) object;
-        if ((this.lgESCOMPTESOCIETETRANCHEID == null && other.lgESCOMPTESOCIETETRANCHEID != null) || (this.lgESCOMPTESOCIETETRANCHEID != null && !this.lgESCOMPTESOCIETETRANCHEID.equals(other.lgESCOMPTESOCIETETRANCHEID))) {
+        if ((this.lgESCOMPTESOCIETETRANCHEID == null && other.lgESCOMPTESOCIETETRANCHEID != null)
+                || (this.lgESCOMPTESOCIETETRANCHEID != null
+                        && !this.lgESCOMPTESOCIETETRANCHEID.equals(other.lgESCOMPTESOCIETETRANCHEID))) {
             return false;
         }
         return true;
@@ -134,5 +136,5 @@ public class TEscompteSocieteTranche implements Serializable {
     public String toString() {
         return "dal.TEscompteSocieteTranche[ lgESCOMPTESOCIETETRANCHEID=" + lgESCOMPTESOCIETETRANCHEID + " ]";
     }
-    
+
 }

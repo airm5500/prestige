@@ -122,8 +122,8 @@ public class PrestigeBLService implements BLService {
     }
 
     @Override
-    public boolean createBL(String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT,
-            int int_TVA, int int_HTTC, String str_STATUT, String str_STATUT_FACTURE) {
+    public boolean createBL(String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT, int int_TVA, int int_HTTC,
+            String str_STATUT, String str_STATUT_FACTURE) {
 
         EntityManager em = _prestigeDataManager.getEm();
 
@@ -219,7 +219,8 @@ public class PrestigeBLService implements BLService {
             }
             quinzaine.setLgGROSSISTEID(lg_GROSSISTE_ID);
         }
-        System.out.printf("lg_GROSSISTE_ID: %s, dt_DATE_END: %s, dt_DATE_START: %s\n", lg_GROSSISTE_ID_VALUE, startDate, startEnd);
+        System.out.printf("lg_GROSSISTE_ID: %s, dt_DATE_END: %s, dt_DATE_START: %s\n", lg_GROSSISTE_ID_VALUE, startDate,
+                startEnd);
         _prestigeDataManager.BeginTransaction();
         updatedQuinzaine = em.merge(quinzaine);
         _prestigeDataManager.CloseTransaction();
@@ -282,8 +283,9 @@ public class PrestigeBLService implements BLService {
         query = em.createNamedQuery("TBonLivraison.findByLgBONLIVRAISONID", TBonLivraison.class);
         query.setParameter("lgBONLIVRAISONID", lg_BON_LIVRAISON_ID);
         bl = (TBonLivraison) query.getSingleResult();
-     /*   bl.setSTATUS("NON REGLE");
-        bl.setIntMONTANTRESTANT(bl.getIntMHT());*/
+        /*
+         * bl.setSTATUS("NON REGLE"); bl.setIntMONTANTRESTANT(bl.getIntMHT());
+         */
         _prestigeDataManager.BeginTransaction();
         em.merge(bl);
         _prestigeDataManager.CloseTransaction();
@@ -300,10 +302,10 @@ public class PrestigeBLService implements BLService {
         query = em.createNamedQuery("TBonLivraison.findByLgBONLIVRAISONID", TBonLivraison.class);
         query.setParameter("lgBONLIVRAISONID", lg_BON_LIVRAISON_ID);
         bl = (TBonLivraison) query.getSingleResult();
-       /* bl.setSTATUS("REGLE");
-        bl.setDtREGLEMENTDATE(dt_REGLEMENT_DATE);
-        bl.setIntMONTANTREGLE(bl.getIntMHT());
-        bl.setIntMONTANTRESTANT(0);*/
+        /*
+         * bl.setSTATUS("REGLE"); bl.setDtREGLEMENTDATE(dt_REGLEMENT_DATE); bl.setIntMONTANTREGLE(bl.getIntMHT());
+         * bl.setIntMONTANTRESTANT(0);
+         */
         _prestigeDataManager.BeginTransaction();
         em.merge(bl);
         _prestigeDataManager.CloseTransaction();
@@ -312,17 +314,18 @@ public class PrestigeBLService implements BLService {
     }
 
     @Override
-    public boolean markREGLEENPARTIEBonLivraison(String lg_BON_LIVRAISON_ID, Date dt_REGLEMENT_DATE, int int_MONTANT_REGLE) {
+    public boolean markREGLEENPARTIEBonLivraison(String lg_BON_LIVRAISON_ID, Date dt_REGLEMENT_DATE,
+            int int_MONTANT_REGLE) {
         EntityManager em = _prestigeDataManager.getEm();
         Query query = null;
         TBonLivraison bl = null;
         query = em.createNamedQuery("TBonLivraison.findByLgBONLIVRAISONID", TBonLivraison.class);
         query.setParameter("lgBONLIVRAISONID", lg_BON_LIVRAISON_ID);
         bl = (TBonLivraison) query.getSingleResult();
-      /*  bl.setSTATUS("REGLE EN PARTIE");
-        bl.setDtREGLEMENTDATE(dt_REGLEMENT_DATE);
-        bl.setIntMONTANTREGLE(int_MONTANT_REGLE);
-        bl.setIntMONTANTRESTANT(bl.getIntMHT() - int_MONTANT_REGLE);*/
+        /*
+         * bl.setSTATUS("REGLE EN PARTIE"); bl.setDtREGLEMENTDATE(dt_REGLEMENT_DATE);
+         * bl.setIntMONTANTREGLE(int_MONTANT_REGLE); bl.setIntMONTANTRESTANT(bl.getIntMHT() - int_MONTANT_REGLE);
+         */
         _prestigeDataManager.BeginTransaction();
         em.merge(bl);
         _prestigeDataManager.CloseTransaction();

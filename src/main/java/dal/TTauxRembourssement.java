@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_taux_rembourssement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTauxRembourssement.findAll", query = "SELECT t FROM TTauxRembourssement t"),
-    @NamedQuery(name = "TTauxRembourssement.findByLgTAUXREMBOURID", query = "SELECT t FROM TTauxRembourssement t WHERE t.lgTAUXREMBOURID = :lgTAUXREMBOURID"),
-    @NamedQuery(name = "TTauxRembourssement.findByStrCODEREMB", query = "SELECT t FROM TTauxRembourssement t WHERE t.strCODEREMB = :strCODEREMB"),
-    @NamedQuery(name = "TTauxRembourssement.findByStrLIBELLEE", query = "SELECT t FROM TTauxRembourssement t WHERE t.strLIBELLEE = :strLIBELLEE"),
-    @NamedQuery(name = "TTauxRembourssement.findByDtCREATED", query = "SELECT t FROM TTauxRembourssement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTauxRembourssement.findByDtUPDATED", query = "SELECT t FROM TTauxRembourssement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTauxRembourssement.findByStrSTATUT", query = "SELECT t FROM TTauxRembourssement t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTauxRembourssement.findAll", query = "SELECT t FROM TTauxRembourssement t"),
+        @NamedQuery(name = "TTauxRembourssement.findByLgTAUXREMBOURID", query = "SELECT t FROM TTauxRembourssement t WHERE t.lgTAUXREMBOURID = :lgTAUXREMBOURID"),
+        @NamedQuery(name = "TTauxRembourssement.findByStrCODEREMB", query = "SELECT t FROM TTauxRembourssement t WHERE t.strCODEREMB = :strCODEREMB"),
+        @NamedQuery(name = "TTauxRembourssement.findByStrLIBELLEE", query = "SELECT t FROM TTauxRembourssement t WHERE t.strLIBELLEE = :strLIBELLEE"),
+        @NamedQuery(name = "TTauxRembourssement.findByDtCREATED", query = "SELECT t FROM TTauxRembourssement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTauxRembourssement.findByDtUPDATED", query = "SELECT t FROM TTauxRembourssement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTauxRembourssement.findByStrSTATUT", query = "SELECT t FROM TTauxRembourssement t WHERE t.strSTATUT = :strSTATUT") })
 public class TTauxRembourssement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTauxRembourssement implements Serializable {
             return false;
         }
         TTauxRembourssement other = (TTauxRembourssement) object;
-        if ((this.lgTAUXREMBOURID == null && other.lgTAUXREMBOURID != null) || (this.lgTAUXREMBOURID != null && !this.lgTAUXREMBOURID.equals(other.lgTAUXREMBOURID))) {
+        if ((this.lgTAUXREMBOURID == null && other.lgTAUXREMBOURID != null)
+                || (this.lgTAUXREMBOURID != null && !this.lgTAUXREMBOURID.equals(other.lgTAUXREMBOURID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTauxRembourssement implements Serializable {
     public String toString() {
         return "dal.TTauxRembourssement[ lgTAUXREMBOURID=" + lgTAUXREMBOURID + " ]";
     }
-    
+
 }

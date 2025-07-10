@@ -47,7 +47,8 @@ public class privilege extends bllBase {
     public void loadUser(TUser oTUser) {
         this.setOTUser(oTUser);
     }
-   public static boolean hasAuthorityByName(List<TPrivilege> LstTPrivilege, String authorityName) {
+
+    public static boolean hasAuthorityByName(List<TPrivilege> LstTPrivilege, String authorityName) {
         java.util.function.Predicate<TPrivilege> p = e -> e.getStrNAME().equalsIgnoreCase(authorityName);
         return LstTPrivilege.stream().anyMatch(p);
     }
@@ -56,12 +57,12 @@ public class privilege extends bllBase {
         boolean result = false;
         try {
             this.setMessage("pas d'acces au privilege");
-            TPrivilege OTPrivilege = (TPrivilege) this.getOdataManager().getEm().createQuery("SELECT t FROM TPrivilege t WHERE t.strNAME = ?1 AND t.strSTATUT LIKE ?2 ")
-                    .setParameter(1, str_Privilege_name)
-                    .setParameter(2, commonparameter.statut_enable)
+            TPrivilege OTPrivilege = (TPrivilege) this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TPrivilege t WHERE t.strNAME = ?1 AND t.strSTATUT LIKE ?2 ")
+                    .setParameter(1, str_Privilege_name).setParameter(2, commonparameter.statut_enable)
                     .getSingleResult();
             this.refresh(OTPrivilege);
-            //Liste des role de l'utilisateur
+            // Liste des role de l'utilisateur
             Collection<TRoleUser> CollTRoleUser = this.getOTUser().getTRoleUserCollection();
             Iterator iteraror = CollTRoleUser.iterator();
             while (iteraror.hasNext()) {
@@ -69,7 +70,7 @@ public class privilege extends bllBase {
                 TRoleUser OTRoleUser = (TRoleUser) el;
 
                 this.refresh(OTRoleUser);
-                //Get List of privilege role
+                // Get List of privilege role
                 Collection<TRolePrivelege> CollTRolePrivelege = OTRoleUser.getLgROLEID().getTRolePrivelegeCollection();
                 Iterator iterarorTRolePrivelege = CollTRolePrivelege.iterator();
                 while (iterarorTRolePrivelege.hasNext()) {
@@ -100,7 +101,9 @@ public class privilege extends bllBase {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            String qry = "SELECT lg_PRIVELEGE_ID,str_DESCRIPTION,str_NAME FROM t_privilege WHERE t_privilege.lg_PRIVELEGE_ID IN (SELECT t_role_privelege.lg_PRIVILEGE_ID FROM t_role_privelege WHERE t_role_privelege.lg_ROLE_ID LIKE '" + lg_ROLE_ID + "')  AND str_NAME  LIKE '" + KEY_TYPE + "%' AND str_STATUT  LIKE '" + commonparameter.statut_enable + "%'  ORDER BY str_DESCRIPTION";
+            String qry = "SELECT lg_PRIVELEGE_ID,str_DESCRIPTION,str_NAME FROM t_privilege WHERE t_privilege.lg_PRIVELEGE_ID IN (SELECT t_role_privelege.lg_PRIVILEGE_ID FROM t_role_privelege WHERE t_role_privelege.lg_ROLE_ID LIKE '"
+                    + lg_ROLE_ID + "')  AND str_NAME  LIKE '" + KEY_TYPE + "%' AND str_STATUT  LIKE '"
+                    + commonparameter.statut_enable + "%'  ORDER BY str_DESCRIPTION";
             new logger().OCategory.info(qry);
             Ojconnexion.set_Request(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -123,13 +126,13 @@ public class privilege extends bllBase {
 
         List<TPrivilege> LstTPrivilege = new ArrayList<>();
         try {
-            //Liste des role de l'utilisateur
+            // Liste des role de l'utilisateur
             Collection<TRoleUser> CollTRoleUser = oTUser.getTRoleUserCollection();
             Iterator iteraror = CollTRoleUser.iterator();
             while (iteraror.hasNext()) {
                 Object el = iteraror.next();
                 TRoleUser OTRoleUser = (TRoleUser) el;
-                //Get List of privilege role
+                // Get List of privilege role
                 Collection<TRolePrivelege> CollTRolePrivelege = OTRoleUser.getLgROLEID().getTRolePrivelegeCollection();
                 Iterator iterarorTRolePrivelege = CollTRolePrivelege.iterator();
                 int i = 0;
@@ -140,7 +143,8 @@ public class privilege extends bllBase {
                     this.getOdataManager().getEm().refresh(OTRolePrivelege);
                     this.getOdataManager().getEm().refresh(OTRolePrivelege.getLgPRIVILEGEID());
                     LstTPrivilege.add(OTRolePrivelege.getLgPRIVILEGEID());
-                    // new logger().OCategory.info("Privilege " + i + "  " + OTRolePrivelege.getLgPRIVILEGEID().getStrNAME());
+                    // new logger().OCategory.info("Privilege " + i + " " +
+                    // OTRolePrivelege.getLgPRIVILEGEID().getStrNAME());
                 }
             }
         } catch (Exception ex) {
@@ -157,7 +161,9 @@ public class privilege extends bllBase {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            String qry = "SELECT lg_PRIVELEGE_ID,str_DESCRIPTION,str_NAME FROM t_privilege WHERE t_privilege.lg_PRIVELEGE_ID IN (SELECT t_role_privelege.lg_PRIVILEGE_ID FROM t_role_privelege WHERE t_role_privelege.lg_ROLE_ID LIKE '" + lg_ROLE_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable + "%' ORDER BY str_DESCRIPTION";
+            String qry = "SELECT lg_PRIVELEGE_ID,str_DESCRIPTION,str_NAME FROM t_privilege WHERE t_privilege.lg_PRIVELEGE_ID IN (SELECT t_role_privelege.lg_PRIVILEGE_ID FROM t_role_privelege WHERE t_role_privelege.lg_ROLE_ID LIKE '"
+                    + lg_ROLE_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable
+                    + "%' ORDER BY str_DESCRIPTION";
             new logger().OCategory.info(qry);
             Ojconnexion.set_Request(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -183,7 +189,9 @@ public class privilege extends bllBase {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            String qry = "SELECT lg_PRIVELEGE_ID,str_DESCRIPTION,str_NAME FROM t_privilege WHERE t_privilege.lg_PRIVELEGE_ID NOT IN (SELECT t_role_privelege.lg_PRIVILEGE_ID FROM t_role_privelege WHERE t_role_privelege.lg_ROLE_ID LIKE '" + lg_ROLE_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable + "%' ORDER BY str_DESCRIPTION";
+            String qry = "SELECT lg_PRIVELEGE_ID,str_DESCRIPTION,str_NAME FROM t_privilege WHERE t_privilege.lg_PRIVELEGE_ID NOT IN (SELECT t_role_privelege.lg_PRIVILEGE_ID FROM t_role_privelege WHERE t_role_privelege.lg_ROLE_ID LIKE '"
+                    + lg_ROLE_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable
+                    + "%' ORDER BY str_DESCRIPTION";
             Ojconnexion.set_Request(qry);
             new logger().OCategory.info(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -209,7 +217,9 @@ public class privilege extends bllBase {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            String qry = "SELECT lg_TIERS_PAYANT_ID,str_CODE_ORGANISME,str_NAME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID NOT IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '" + lg_COMPTE_CLIENT_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable + "%' ORDER BY str_NAME";
+            String qry = "SELECT lg_TIERS_PAYANT_ID,str_CODE_ORGANISME,str_NAME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID NOT IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '"
+                    + lg_COMPTE_CLIENT_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable
+                    + "%' ORDER BY str_NAME";
             Ojconnexion.set_Request(qry);
             new logger().OCategory.info(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -235,7 +245,9 @@ public class privilege extends bllBase {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            String qry = "SELECT lg_TIERS_PAYANT_ID,str_CODE_ORGANISME,str_NAME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID  IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '" + lg_COMPTE_CLIENT_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable + "%' ORDER BY str_NAME";
+            String qry = "SELECT lg_TIERS_PAYANT_ID,str_CODE_ORGANISME,str_NAME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID  IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '"
+                    + lg_COMPTE_CLIENT_ID + "') AND str_STATUT  LIKE '" + commonparameter.statut_enable
+                    + "%' ORDER BY str_NAME";
             new logger().OCategory.info(qry);
             Ojconnexion.set_Request(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -262,20 +274,23 @@ public class privilege extends bllBase {
     }
 
     /**
-     * @param oTUser the oTUser to set
+     * @param oTUser
+     *            the oTUser to set
      */
     @Override
     public void setOTUser(TUser oTUser) {
         this.oTUser = oTUser;
     }
 
-    //verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
+    // verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
     public boolean isColonneStockMachineIsAuthorize_(String str_NAME) {
         boolean result = false;
         TRolePrivelege OTRolePrivelege = null;
         try {
-            OTRolePrivelege = (TRolePrivelege) this.getOdataManager().getEm().createQuery("SELECT  t FROM TRolePrivelege t, TRoleUser r WHERE t.lgROLEID.lgROLEID = r.lgROLEID.lgROLEID AND r.lgUSERID.lgUSERID = ?1 AND t.lgPRIVILEGEID.strNAME = ?2 AND t.lgPRIVILEGEID.strSTATUT = ?3")
-                    .setParameter(1, this.getOTUser().getLgUSERID()).setParameter(2, str_NAME).setParameter(3, commonparameter.statut_enable).getSingleResult();
+            OTRolePrivelege = (TRolePrivelege) this.getOdataManager().getEm().createQuery(
+                    "SELECT  t FROM TRolePrivelege t, TRoleUser r WHERE t.lgROLEID.lgROLEID = r.lgROLEID.lgROLEID AND r.lgUSERID.lgUSERID = ?1 AND t.lgPRIVILEGEID.strNAME = ?2 AND t.lgPRIVILEGEID.strSTATUT = ?3")
+                    .setParameter(1, this.getOTUser().getLgUSERID()).setParameter(2, str_NAME)
+                    .setParameter(3, commonparameter.statut_enable).getSingleResult();
 
             if (OTRolePrivelege != null) {
                 result = true;
@@ -286,9 +301,9 @@ public class privilege extends bllBase {
         new logger().OCategory.info("result " + result);
         return result;
     }
-    //fin verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
+    // fin verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
 
-    //creation de role privilege
+    // creation de role privilege
     public boolean createRolePrivilege(String lg_ROLE_ID, String lg_PRIVILEGE_ID) {
         boolean result = false;
         try {
@@ -301,7 +316,11 @@ public class privilege extends bllBase {
             OTRolePrivelege.setLgPRIVILEGEID(OTPrivilege);
             OTRolePrivelege.setStrCREATEDBY(this.getOTUser().getLgUSERID());
             this.persiste(OTRolePrivelege);
-            this.do_event_log(this.getOdataManager(), "", "Attribution du privilège : "+OTPrivilege.getStrDESCRIPTION()+" au : "+OTRole.getStrDESIGNATION(),this.getOTUser().getStrFIRSTNAME()+" "+this.getOTUser().getStrLASTNAME(), "enable", "t_privilege", "GESTION PRIVILEGE", "Attribution de privilege", this.getOTUser().getLgUSERID());
+            this.do_event_log(this.getOdataManager(), "",
+                    "Attribution du privilège : " + OTPrivilege.getStrDESCRIPTION() + " au : "
+                            + OTRole.getStrDESIGNATION(),
+                    this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME(), "enable",
+                    "t_privilege", "GESTION PRIVILEGE", "Attribution de privilege", this.getOTUser().getLgUSERID());
             result = true;
             this.buildSuccesTraceMessage("Opération effectuée avec succes");
         } catch (Exception e) {
@@ -310,14 +329,15 @@ public class privilege extends bllBase {
         }
         return result;
     }
-    //fin creation de role privilige
+    // fin creation de role privilige
 
-    //suppression role privilege
+    // suppression role privilege
     public boolean deleteRolePrivilege(String lg_ROLE_ID, String lg_PRIVILEGE_ID) {
         boolean result = false;
         try {
 
-            TRolePrivelege OTRolePrivelege = (TRolePrivelege) this.getOdataManager().getEm().createQuery("SELECT t FROM TRolePrivelege t WHERE t.lgROLEID.lgROLEID LIKE ?1 AND t.lgPRIVILEGEID.lgPRIVELEGEID LIKE ?2")
+            TRolePrivelege OTRolePrivelege = (TRolePrivelege) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TRolePrivelege t WHERE t.lgROLEID.lgROLEID LIKE ?1 AND t.lgPRIVILEGEID.lgPRIVELEGEID LIKE ?2")
                     .setParameter(1, lg_ROLE_ID).setParameter(2, lg_PRIVILEGE_ID).getSingleResult();
             if (this.delete(OTRolePrivelege)) {
                 result = true;
@@ -325,16 +345,21 @@ public class privilege extends bllBase {
             } else {
                 this.buildErrorTraceMessage("Echec de suppression");
             }
-             this.do_event_log(this.getOdataManager(), "", "retrait du privilège : "+OTRolePrivelege.getLgPRIVILEGEID().getStrDESCRIPTION()+" au:  "+OTRolePrivelege.getLgROLEID().getStrDESIGNATION(),this.getOTUser().getStrFIRSTNAME()+" "+this.getOTUser().getStrLASTNAME(), "enable", "t_privilege", "GESTION PRIVILEGE", "Attribution de privilege", this.getOTUser().getLgUSERID());
+            this.do_event_log(this.getOdataManager(), "",
+                    "retrait du privilège : " + OTRolePrivelege.getLgPRIVILEGEID().getStrDESCRIPTION() + " au:  "
+                            + OTRolePrivelege.getLgROLEID().getStrDESIGNATION(),
+                    this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME(), "enable",
+                    "t_privilege", "GESTION PRIVILEGE", "Attribution de privilege", this.getOTUser().getLgUSERID());
         } catch (Exception e) {
             e.printStackTrace();
             this.buildErrorTraceMessage("Echec de suppression du privilege dans le role");
         }
         return result;
     }
-    //fin suppression role privilege
+    // fin suppression role privilege
 
-    public List<EntityData> showAllOrOnePrivilegeByRole(String search_value, String lg_ROLE_ID, String lg_PRIVILEGE_ID) {
+    public List<EntityData> showAllOrOnePrivilegeByRole(String search_value, String lg_ROLE_ID,
+            String lg_PRIVILEGE_ID) {
 
         List<EntityData> Lst = new ArrayList<>();
         List<TPrivilege> lstTPrivilege = new ArrayList<>();
@@ -346,7 +371,8 @@ public class privilege extends bllBase {
                 OEntityData = new EntityData();
                 OEntityData.setStr_value1(OTPrivilege.getLgPRIVELEGEID());
                 OEntityData.setStr_value2(OTPrivilege.getStrDESCRIPTION());
-                OEntityData.setStr_value3(String.valueOf(this.isExistUserPrivilege(lg_ROLE_ID, OTPrivilege.getLgPRIVELEGEID())));
+                OEntityData.setStr_value3(
+                        String.valueOf(this.isExistUserPrivilege(lg_ROLE_ID, OTPrivilege.getLgPRIVELEGEID())));
 
                 Lst.add(OEntityData);
             }
@@ -362,16 +388,18 @@ public class privilege extends bllBase {
         boolean result = false;
         List<TRolePrivelege> lst = new ArrayList<>();
         try {
-            lst = this.getOdataManager().getEm().createQuery("SELECT t FROM TRolePrivelege t WHERE t.lgROLEID.lgROLEID LIKE ?1 AND t.lgPRIVILEGEID.lgPRIVELEGEID LIKE ?2")
+            lst = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TRolePrivelege t WHERE t.lgROLEID.lgROLEID LIKE ?1 AND t.lgPRIVILEGEID.lgPRIVELEGEID LIKE ?2")
                     .setParameter(1, lg_ROLE_ID).setParameter(2, lg_PRIVILEGE_ID).getResultList();
             if (lst.size() > 0) {
                 result = true;
             }
-            /*TRolePrivelege OTRolePrivelege = (TRolePrivelege) this.getOdataManager().getEm().createQuery("SELECT t FROM TRolePrivelege t WHERE t.lgROLEID.lgROLEID LIKE ?1 AND t.lgPRIVILEGEID.lgPRIVELEGEID LIKE ?2")
-             .setParameter(1, lg_ROLE_ID).setParameter(2, lg_PRIVILEGE_ID).getSingleResult();
-             if (OTRolePrivelege != null) {
-             result = true;
-             }*/
+            /*
+             * TRolePrivelege OTRolePrivelege = (TRolePrivelege) this.getOdataManager().getEm().
+             * createQuery("SELECT t FROM TRolePrivelege t WHERE t.lgROLEID.lgROLEID LIKE ?1 AND t.lgPRIVILEGEID.lgPRIVELEGEID LIKE ?2"
+             * ) .setParameter(1, lg_ROLE_ID).setParameter(2, lg_PRIVILEGE_ID).getSingleResult(); if (OTRolePrivelege !=
+             * null) { result = true; }
+             */
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -389,18 +417,30 @@ public class privilege extends bllBase {
 
             if (OTRoleUser != null) {
                 if (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_SUPERADMIN)) {
-                    lstTPrivilege = this.getOdataManager().getEm().createQuery("SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) ORDER BY t.strDESCRIPTION ASC")
-                            .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable).setParameter(3, search_value + "%").getResultList();
-                } else if (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_ADMIN) || OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN)) {
-                    lstTPrivilege = this.getOdataManager().getEm().createQuery("SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND (t.strTYPE LIKE ?4 OR t.strTYPE LIKE ?5) ORDER BY t.strDESCRIPTION ASC")
-                            .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable).setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER).setParameter(5, commonparameter.PARAMETER_ADMIN).getResultList();
+                    lstTPrivilege = this.getOdataManager().getEm().createQuery(
+                            "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) ORDER BY t.strDESCRIPTION ASC")
+                            .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
+                            .setParameter(3, search_value + "%").getResultList();
+                } else if (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_ADMIN)
+                        || OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN)) {
+                    lstTPrivilege = this.getOdataManager().getEm().createQuery(
+                            "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND (t.strTYPE LIKE ?4 OR t.strTYPE LIKE ?5) ORDER BY t.strDESCRIPTION ASC")
+                            .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
+                            .setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER)
+                            .setParameter(5, commonparameter.PARAMETER_ADMIN).getResultList();
                 } else {
-                    lstTPrivilege = this.getOdataManager().getEm().createQuery("SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND t.strTYPE LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
-                            .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable).setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER).getResultList();
+                    lstTPrivilege = this.getOdataManager().getEm().createQuery(
+                            "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND t.strTYPE LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
+                            .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
+                            .setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER)
+                            .getResultList();
                 }
             } else {
-                lstTPrivilege = this.getOdataManager().getEm().createQuery("SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND t.strTYPE LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
-                        .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable).setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER).getResultList();
+                lstTPrivilege = this.getOdataManager().getEm().createQuery(
+                        "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND t.strTYPE LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
+                        .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
+                        .setParameter(3, search_value + "%").setParameter(4, commonparameter.PARAMETER_CUSTOMER)
+                        .getResultList();
             }
         } catch (Exception e) {
             // e.printStackTrace();
@@ -409,8 +449,9 @@ public class privilege extends bllBase {
         return lstTPrivilege;
     }
 
-    //chargement des privileges d'un role vers un autre
-    public boolean loadPrivilegeFromRoleToAnother(String search_value, String lg_ROLE_ID_INT, String lg_ROLE_ID_COPY, String lg_PRIVILEGE_ID) {
+    // chargement des privileges d'un role vers un autre
+    public boolean loadPrivilegeFromRoleToAnother(String search_value, String lg_ROLE_ID_INT, String lg_ROLE_ID_COPY,
+            String lg_PRIVILEGE_ID) {
         List<EntityData> Lst = new ArrayList<EntityData>();
         int i = 0;
         boolean result = false;
@@ -437,13 +478,14 @@ public class privilege extends bllBase {
         return result;
     }
 
-    //fin chargement des privileges d'un role vers un autre
+    // fin chargement des privileges d'un role vers un autre
     // Ajoute le 07/04/2016
     public List<EntityData> getAllMenuByUser(String lg_USER_ID) {
         List<EntityData> datas = new ArrayList<>();
         List<Object[]> list = new ArrayList<>();
         try {
-            String query = "SELECT o.* FROM v_getmenubyconnecteduser o WHERE o.lg_USER_ID='" + lg_USER_ID + "' ORDER BY o.`int_PRIORITY`";
+            String query = "SELECT o.* FROM v_getmenubyconnecteduser o WHERE o.lg_USER_ID='" + lg_USER_ID
+                    + "' ORDER BY o.`int_PRIORITY`";
             list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
             for (Object[] OData : list) {
 
@@ -464,7 +506,8 @@ public class privilege extends bllBase {
         List<EntityData> datas = new ArrayList<>();
         List<Object[]> list = new ArrayList<>();
         try {
-            String query = "SELECT o.* FROM v_getallsousmenubyconnecteduser o WHERE o.lg_USER_ID='" + lg_USER_ID + "' AND `lg_MENU_ID`='" + lg_MENU_ID + "' ORDER BY o.`int_PRIORITY`";
+            String query = "SELECT o.* FROM v_getallsousmenubyconnecteduser o WHERE o.lg_USER_ID='" + lg_USER_ID
+                    + "' AND `lg_MENU_ID`='" + lg_MENU_ID + "' ORDER BY o.`int_PRIORITY`";
             list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
             for (Object[] OData : list) {
 
@@ -479,38 +522,39 @@ public class privilege extends bllBase {
         }
         return datas;
     }
-    
-    
-     //verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
+
+    // verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
     public boolean isColonneStockMachineIsAuthorize(String str_NAME) {
         boolean isValid = false;
-        
-              
-      String query="SELECT DISTINCT COUNT( (`t_privilege`.`str_NAME`))  FROM  `t_role_user` INNER JOIN `t_user` ON (`t_role_user`.`lg_USER_ID` = `t_user`.`lg_USER_ID`) INNER JOIN `t_role` ON (`t_role`.`lg_ROLE_ID` = `t_role_user`.`lg_ROLE_ID`) INNER JOIN `t_role_privelege` ON (`t_role`.`lg_ROLE_ID` = `t_role_privelege`.`lg_ROLE_ID`) INNER JOIN `t_privilege` ON (`t_role_privelege`.`lg_PRIVILEGE_ID` = `t_privilege`.`lg_PRIVELEGE_ID`) "
-              + " WHERE `t_privilege`.`str_NAME` = '"+str_NAME+"' AND `t_user`.`lg_USER_ID` = '"+this.getOTUser().getLgUSERID()+"' AND `t_privilege`.`str_STATUT`='"+commonparameter.statut_enable+"' ";
+
+        String query = "SELECT DISTINCT COUNT( (`t_privilege`.`str_NAME`))  FROM  `t_role_user` INNER JOIN `t_user` ON (`t_role_user`.`lg_USER_ID` = `t_user`.`lg_USER_ID`) INNER JOIN `t_role` ON (`t_role`.`lg_ROLE_ID` = `t_role_user`.`lg_ROLE_ID`) INNER JOIN `t_role_privelege` ON (`t_role`.`lg_ROLE_ID` = `t_role_privelege`.`lg_ROLE_ID`) INNER JOIN `t_privilege` ON (`t_role_privelege`.`lg_PRIVILEGE_ID` = `t_privilege`.`lg_PRIVELEGE_ID`) "
+                + " WHERE `t_privilege`.`str_NAME` = '" + str_NAME + "' AND `t_user`.`lg_USER_ID` = '"
+                + this.getOTUser().getLgUSERID() + "' AND `t_privilege`.`str_STATUT`='" + commonparameter.statut_enable
+                + "' ";
         try {
-//            new logger().OCategory.info("query:"+query);
-         Object result=   this.getOdataManager().getEm().createNativeQuery(query).getSingleResult();
-            if(Integer.valueOf(result+"")>0)
-                isValid=true;
-           
+            // new logger().OCategory.info("query:"+query);
+            Object result = this.getOdataManager().getEm().createNativeQuery(query).getSingleResult();
+            if (Integer.valueOf(result + "") > 0)
+                isValid = true;
+
         } catch (Exception e) {
-           e.printStackTrace();
+            e.printStackTrace();
         }
-       
+
         return isValid;
     }
-    //fin verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
+    // fin verifie si un utilisateur a le privilege de visualisation de la colonne du stock machine lors de l'inventaire
 
-    //recuperation des privileges sur les produits par rapport a un utilisateur
+    // recuperation des privileges sur les produits par rapport a un utilisateur
     public Object[] getPrivilegeProductByUser(String lg_USER_ID) {
         try {
-            Object[] O = (Object[]) this.getOdataManager().getEm().createNativeQuery("call proc_getprivilege_user_for_product(?)")
-                    .setParameter(1, lg_USER_ID).getSingleResult();
+            Object[] O = (Object[]) this.getOdataManager().getEm()
+                    .createNativeQuery("call proc_getprivilege_user_for_product(?)").setParameter(1, lg_USER_ID)
+                    .getSingleResult();
             return O;
         } catch (Exception e) {
             return null;
         }
     }
-    //fin recuperation des privileges sur les produits par rapport a un utilisateur
+    // fin recuperation des privileges sur les produits par rapport a un utilisateur
 }

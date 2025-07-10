@@ -6,6 +6,7 @@
 package fileupload;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 
 /**
  *
@@ -27,6 +28,9 @@ public class OrderItem implements Serializable {
     private Integer ligne;
     private String facture;
     private Integer prixAchat;
+    private String etablissement;
+    private String numeroLot;
+    private LocalDate datePeremption;
 
     public Integer getPrixAchat() {
         return prixAchat;
@@ -40,7 +44,8 @@ public class OrderItem implements Serializable {
         this.cip = cip;
         return this;
     }
-  public OrderItem prixAchat(Integer prixAchat) {
+
+    public OrderItem prixAchat(Integer prixAchat) {
         this.prixAchat = prixAchat;
         return this;
     }
@@ -72,6 +77,24 @@ public class OrderItem implements Serializable {
 
     public OrderItem montant(Double montant) {
         this.montant = montant;
+        return this;
+    }
+
+    public String getNumeroLot() {
+        return numeroLot;
+    }
+
+    public OrderItem setNumeroLot(String numeroLot) {
+        this.numeroLot = numeroLot;
+        return this;
+    }
+
+    public LocalDate getDatePeremption() {
+        return datePeremption;
+    }
+
+    public OrderItem setDatePeremption(LocalDate datePeremption) {
+        this.datePeremption = datePeremption;
         return this;
     }
 
@@ -160,8 +183,8 @@ public class OrderItem implements Serializable {
     public void setDateBl(String dateBl) {
         this.dateBl = dateBl;
     }
-//String cip, String ean, String libelle, Integer cmde, Integer cmdeL, String refBl, String dateBl
-    //dpc1 3
+    // String cip, String ean, String libelle, Integer cmde, Integer cmdeL, String refBl, String dateBl
+    // dpc1 3
 
     public OrderItem(String refBl, String dateBl, String cip, String libelle, Integer cmdeL, Double montant) {
         this.cip = cip;
@@ -180,17 +203,19 @@ public class OrderItem implements Serializable {
         this.montant = montant;
     }
 
-    //tedis csv
-    public OrderItem(String cip, Integer cmde, String ean, Integer cmdeL, Double montant) {
+    // tedis csv
+    public OrderItem(int ligne, String cip, int prixAchat, Integer cmdeL, double tva, int prixUn) {
         this.cip = cip;
-        this.cmde = cmde;
-        this.montant = montant;
+        this.prixUn = prixUn;
         this.cmdeL = cmdeL;
-        this.ean = ean;
+        this.ligne = ligne;
+        this.prixAchat = prixAchat;
+        this.tva = tva;
 
     }
 
-    public OrderItem(String cip, Double montant, Integer cmdeL, Integer ug, Integer prixUn, String refBl, String dateBl) {
+    public OrderItem(String cip, Double montant, Integer cmdeL, Integer ug, Integer prixUn, String refBl,
+            String dateBl) {
         this.cip = cip;
         this.prixUn = prixUn;
         this.dateBl = dateBl;
@@ -200,7 +225,7 @@ public class OrderItem implements Serializable {
         this.refBl = refBl;
 
     }
-//cophamed
+    // cophamed
 
     public OrderItem() {
 
@@ -252,9 +277,19 @@ public class OrderItem implements Serializable {
     public void setFacture(String facture) {
         this.facture = facture;
     }
-//   printer.printRecord("N° Facture", "N° ligne", "CIP/EAN13", "Libellé du produit", "Qté commandée","Qté livrée","Prix de cession","Prix public","N° commande","Tva");
 
-    public OrderItem(String facture, Integer ligne, String cip, String libelle, Integer cmde, Integer cmdeL, Double montant, Double prixUn, String refBl, Double tva) {
+    public String getEtablissement() {
+        return etablissement;
+    }
+
+    public void setEtablissement(String etablissement) {
+        this.etablissement = etablissement;
+    }
+
+    // printer.printRecord("N° Facture", "N° ligne", "CIP/EAN13", "Libellé du produit", "Qté commandée","Qté
+    // livrée","Prix de cession","Prix public","N° commande","Tva");
+    public OrderItem(String etablissement, String facture, Integer ligne, String cip, String libelle, Integer cmde,
+            int ug, Integer cmdeL, Double montant, Double prixUn, String refBl, Double tva) {
         this.cip = cip;
         this.libelle = libelle;
         this.cmde = cmde;
@@ -265,6 +300,16 @@ public class OrderItem implements Serializable {
         this.tva = tva;
         this.ligne = ligne;
         this.facture = facture;
+        this.etablissement = etablissement;
+        this.ug = ug;
+    }
+
+    @Override
+    public String toString() {
+        return "OrderItem{" + "cip=" + cip + ", ean=" + ean + ", libelle=" + libelle + ", cmde=" + cmde + ", cmdeL="
+                + cmdeL + ", refBl=" + refBl + ", dateBl=" + dateBl + ", montant=" + montant + ", ug=" + ug
+                + ", prixUn=" + prixUn + ", tva=" + tva + ", ligne=" + ligne + ", facture=" + facture + ", prixAchat="
+                + prixAchat + '}';
     }
 
 }

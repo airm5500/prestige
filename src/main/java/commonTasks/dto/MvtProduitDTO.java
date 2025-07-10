@@ -19,7 +19,6 @@ public class MvtProduitDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-//    private final DateTimeFormatter heureFormat = DateTimeFormatter.ofPattern("HH:mm");
     String produitId, cip, produitName, dateOp;
     LocalDate dateOperation;
     int qtyVente = 0, qtyAnnulation = 0, qtyRetour = 0, qtyRetourDepot = 0, qtyInv = 0;

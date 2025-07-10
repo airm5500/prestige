@@ -19,14 +19,14 @@ import org.json.JSONObject;
 import rest.service.CaisseService;
 import rest.service.impl.FlagService;
 import toolkits.parameters.commonparameter;
-import util.DateConverter;
+import util.Constant;
 
-@WebServlet(name = "Custom", urlPatterns = {"/custom"})
+@WebServlet(name = "Custom", urlPatterns = { "/custom" })
 public class Custom extends HttpServlet {
 
     @EJB
     private CaisseService caisseService;
-    TUser OTUser = null;
+    private TUser oUser = null;
     @EJB
     private FlagService flagService;
 
@@ -35,30 +35,29 @@ public class Custom extends HttpServlet {
 
         response.setContentType("application/json;charset=UTF-8");
         HttpSession session = request.getSession();
-        OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
-        String dt_start = LocalDate.now().toString(), dt_end = dt_start;
-        Integer virtualAmount = 0;
+        oUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+        String dtStart = LocalDate.now().toString(), dtEnd = dtStart;
+        Integer virtualAmount;
         if (request.getParameter("dt_start") != null && !"".equalsIgnoreCase(request.getParameter("dt_start"))) {
-            dt_start = request.getParameter("dt_start");
+            dtStart = request.getParameter("dt_start");
         }
         if (request.getParameter("dt_end") != null && !"".equalsIgnoreCase(request.getParameter("dt_end"))) {
-            dt_end = request.getParameter("dt_end");
+            dtEnd = request.getParameter("dt_end");
         }
         JSONObject json = new JSONObject();
-        try ( PrintWriter out = response.getWriter()) {
-            if (!caisseService.key_Params()) {
+        try (PrintWriter out = response.getWriter()) {
+            if (!caisseService.getKeyParams()) {
                 out.println(json);
                 return;
             }
             if (request.getParameter("action").equals("getca")) {
-                Integer ca = caisseService.montantCa(LocalDate.parse(dt_start), LocalDate.parse(dt_end), true, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), TypeTransaction.VENTE_COMPTANT, DateConverter.MODE_ESP);
-                if (ca != null) {
-                    json.put("CA", ca);
-                    json.put("success", true);
-                } else {
-                    json.put("CA", 0);
-                    json.put("success", true);
-                }
+                long ca = caisseService.montantCa(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), true,
+                        oUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), TypeTransaction.VENTE_COMPTANT,
+                        Constant.MODE_ESP);
+
+                json.put("CA", ca);
+                json.put("success", true);
+
             } else if (request.getParameter("action").equals("finish")) {
                 json.put("success", 0);
                 if (request.getParameter("amount") != null && !"".equalsIgnoreCase(request.getParameter("amount"))) {
@@ -67,7 +66,8 @@ public class Custom extends HttpServlet {
                         out.println(json);
 
                     } else {
-                        json = flagService.saveFlag(dt_start, dt_end, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), virtualAmount);
+                        json = flagService.saveFlag(dtStart, dtEnd, oUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
+                                virtualAmount);
                     }
                 }
 

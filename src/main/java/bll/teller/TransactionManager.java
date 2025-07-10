@@ -19,6 +19,5 @@ public class TransactionManager extends bll.bllBase {
         this.setOdataManager(odataManager);
         this.checkDatamanager();
     }
-    
-    
+
 }

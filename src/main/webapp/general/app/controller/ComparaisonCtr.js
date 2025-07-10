@@ -158,7 +158,6 @@ Ext.define('testextjs.controller.ComparaisonCtr', {
     goto: function (view, rowIndex, colIndex, item, e, record, row) {
         var me = this;
         me.selected = record;
-//        console.log(record);
         Ext.create('testextjs.view.produits.ComparaisonStockDetails', {data: record}).show();
         me.getDetailForm().loadRecord(record);
     },
@@ -359,5 +358,5 @@ Ext.define('testextjs.controller.ComparaisonCtr', {
         });
 
 
-    },
+    }
 });

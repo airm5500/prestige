@@ -27,13 +27,10 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_groupe_tierspayant")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TGroupeTierspayant.findAll", query = "SELECT t FROM TGroupeTierspayant t")
-    , @NamedQuery(name = "TGroupeTierspayant.findByLgGROUPEID", query = "SELECT t FROM TGroupeTierspayant t WHERE t.lgGROUPEID = :lgGROUPEID")
-    , @NamedQuery(name = "TGroupeTierspayant.findByStrLIBELLE", query = "SELECT t FROM TGroupeTierspayant t WHERE t.strLIBELLE = :strLIBELLE")})
+@NamedQueries({ @NamedQuery(name = "TGroupeTierspayant.findAll", query = "SELECT t FROM TGroupeTierspayant t"),
+        @NamedQuery(name = "TGroupeTierspayant.findByLgGROUPEID", query = "SELECT t FROM TGroupeTierspayant t WHERE t.lgGROUPEID = :lgGROUPEID"),
+        @NamedQuery(name = "TGroupeTierspayant.findByStrLIBELLE", query = "SELECT t FROM TGroupeTierspayant t WHERE t.strLIBELLE = :strLIBELLE") })
 public class TGroupeTierspayant implements Serializable {
-
-   
 
     private static final long serialVersionUID = 1L;
     @Id
@@ -46,13 +43,14 @@ public class TGroupeTierspayant implements Serializable {
     private String strLIBELLE;
     @OneToMany(mappedBy = "lgGROUPEID")
     private List<TTiersPayant> tTiersPayantList;
- @Column(name = "str_ADRESSE")
+    @Column(name = "str_ADRESSE")
     private String strADRESSE;
     @Column(name = "str_TELEPHONE")
     private String strTELEPHONE;
 
     @OneToMany(mappedBy = "lgGROUPEID")
     private List<TGroupeFactures> tGroupeFacturesList;
+
     public TGroupeTierspayant() {
     }
 
@@ -104,7 +102,8 @@ public class TGroupeTierspayant implements Serializable {
             return false;
         }
         TGroupeTierspayant other = (TGroupeTierspayant) object;
-        if ((this.lgGROUPEID == null && other.lgGROUPEID != null) || (this.lgGROUPEID != null && !this.lgGROUPEID.equals(other.lgGROUPEID))) {
+        if ((this.lgGROUPEID == null && other.lgGROUPEID != null)
+                || (this.lgGROUPEID != null && !this.lgGROUPEID.equals(other.lgGROUPEID))) {
             return false;
         }
         return true;
@@ -139,5 +138,5 @@ public class TGroupeTierspayant implements Serializable {
     public void setStrTELEPHONE(String strTELEPHONE) {
         this.strTELEPHONE = strTELEPHONE;
     }
-    
+
 }

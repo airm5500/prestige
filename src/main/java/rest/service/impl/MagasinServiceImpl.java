@@ -29,13 +29,13 @@ public class MagasinServiceImpl implements MagasinService {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
-//    @PostConstruct
-//    public void init() {
-//        dataManager manager = new dataManager();
-//        manager.initEntityManager();
-//        em = manager.getEm();
-//
-//    }
+    // @PostConstruct
+    // public void init() {
+    // dataManager manager = new dataManager();
+    // manager.initEntityManager();
+    // em = manager.getEm();
+    //
+    // }
 
     public EntityManager getEntityManager() {
         return em;
@@ -45,7 +45,9 @@ public class MagasinServiceImpl implements MagasinService {
     public JSONObject findAllDepots(String query) throws JSONException {
         JSONObject json = new JSONObject();
         try {
-            TypedQuery<TEmplacement> q = getEntityManager().createQuery("SELECT o FROM TEmplacement o WHERE o.lgEMPLACEMENTID <>'1' AND o.strSTATUT='enable' ", TEmplacement.class);
+            TypedQuery<TEmplacement> q = getEntityManager().createQuery(
+                    "SELECT o FROM TEmplacement o WHERE o.lgEMPLACEMENTID <>'1' AND o.strSTATUT='enable' ",
+                    TEmplacement.class);
             List<MagasinDTO> re = q.getResultList().stream().map(MagasinDTO::new).collect(Collectors.toList());
             json.put("total", re.size());
             json.put("data", new JSONArray(re));
@@ -58,10 +60,12 @@ public class MagasinServiceImpl implements MagasinService {
 
     @Override
     public JSONObject findAllDepots(String query, String type) throws JSONException {
-       JSONObject json = new JSONObject();
+        JSONObject json = new JSONObject();
         try {
-            TypedQuery<TEmplacement> q = getEntityManager().createQuery("SELECT o FROM TEmplacement o WHERE o.lgTYPEDEPOTID.lgTYPEDEPOTID =?1 AND o.strSTATUT='enable' ", TEmplacement.class);
-             q.setParameter(1, type);
+            TypedQuery<TEmplacement> q = getEntityManager().createQuery(
+                    "SELECT o FROM TEmplacement o WHERE o.lgTYPEDEPOTID.lgTYPEDEPOTID =?1 AND o.strSTATUT='enable' ",
+                    TEmplacement.class);
+            q.setParameter(1, type);
             List<MagasinDTO> re = q.getResultList().stream().map(MagasinDTO::new).collect(Collectors.toList());
             json.put("total", re.size());
             json.put("data", new JSONArray(re));

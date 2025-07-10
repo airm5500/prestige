@@ -6,15 +6,16 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
     requires: [
         'testextjs.view.caisseManager.VisualisationGrid',
         'testextjs.model.caisse.Reglement',
-        'testextjs.model.caisse.User', 
-        'testextjs.model.caisse.Caisse'
+        'testextjs.model.caisse.User',
+        'testextjs.model.caisse.Caisse',
+        'Ext.grid.plugin.RowExpander'
 
     ],
     frame: true,
     title: 'Visualisation de la caisse',
     width: '97%',
     height: Ext.getBody().getViewSize().height * 0.85,
-     minHeight: 550,
+    minHeight: 550,
     cls: 'custompanel',
     layout: {
         type: 'fit'
@@ -54,7 +55,6 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
         var me = this;
         Ext.applyIf(me, {
             dockedItems: [
-
                 {
                     xtype: 'toolbar',
                     dock: 'top',
@@ -68,7 +68,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
                             flex: 1,
                             labelWidth: 20,
                             maxValue: new Date(),
-                             value: new Date(),
+                            value: new Date(),
                             format: 'd/m/Y'
                                     /* listeners: {
                                      'change': function (me) {
@@ -79,10 +79,10 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
                             xtype: 'datefield',
                             fieldLabel: 'Au',
                             itemId: 'endDate',
-                             labelWidth: 20,
+                            labelWidth: 20,
                             flex: 1,
                             maxValue: new Date(),
-                             value: new Date(),
+                            value: new Date(),
                             margin: '0 9 0 0',
                             submitFormat: 'Y-m-d',
                             format: 'd/m/Y'
@@ -94,7 +94,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
                             flex: 1,
                             labelWidth: 20,
                             increment: 30,
-                           value: '00:00',
+                            value: '00:00',
                             submitFormat: 'H:i',
                             format: 'H:i'
                         }, {
@@ -104,7 +104,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
                             emptyText: 'Heure fin(HH:mm)',
                             labelWidth: 10,
                             increment: 30,
-                             value: '23:59',
+                            value: '23:59',
                             flex: 1,
                             format: 'H:i',
                             submitFormat: 'H:i'
@@ -132,7 +132,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
                             typeAhead: false,
                             flex: 2,
                             minChars: 2,
-                             labelWidth: 60,
+                            labelWidth: 60,
                             queryMode: 'remote',
                             emptyText: 'Choisir un utilisateur...'
 
@@ -153,10 +153,16 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
                          }*/
                     ]
                 }
-
             ],
             items: [{
-                    xtype: 'visualisationGrid'
+                    xtype: 'visualisationGrid',
+                    plugins: [{
+                            ptype: 'rowexpander',
+                            rowBodyTpl: new Ext.XTemplate(
+                                    '<p>{items}</p>'
+                                    )
+                        }
+                    ]
                 }]
 
         });

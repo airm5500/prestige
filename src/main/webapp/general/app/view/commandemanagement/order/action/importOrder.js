@@ -38,7 +38,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.importOrder', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste,
+                  url: '../api/v1/grossiste/all',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -150,7 +150,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.importOrder', {
                 return;
             }
         }
-        var fenetre = button.up('window'),
+        let fenetre = button.up('window'),
                 formulaire = fenetre.down('form');
         if (formulaire.isValid()) {
 
@@ -172,7 +172,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.importOrder', {
                             Ext.MessageBox.alert('Erreur', action.result.errors);
                         }
 
-                        var bouton = button.up('window');
+                        let bouton = button.up('window');
                         bouton.close();
                     },
                     failure: function (formulaire, action) {
@@ -185,15 +185,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.importOrder', {
                     waitMsg: 'Traitement.....',
                     timeout: 2400000,
                     success: function (formulaire, action) {
-                        var result = Ext.JSON.decode(action.response.responseText, false);
+                        let result = Ext.JSON.decode(action.response.responseText, false);
                         if (result.success) {
-                            var nbrePrisEnCompte = result.nbrePrisEnCompte;
-//                            var nbreNonPrisEnCompte = result.nbreNonPrisEnCompte;
-//                            var rupture = result.rupture;
-//                            if (nbreNonPrisEnCompte > 0) {
-//                                nbrePrisEnCompte += "<br>" + rupture;
-//                            }
-//                            Ext.MessageBox.alert('Confirmation', nbrePrisEnCompte);
+                            let nbrePrisEnCompte = result.nbrePrisEnCompte;
                             Ext.MessageBox.show({
                                 title: 'Message',
                                 width: 400,
@@ -203,13 +197,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.importOrder', {
 
                             });
 
-
                             Oview.getStore().reload();
                         } else {
                             Ext.MessageBox.alert('Erreur', "Erreur ");
                         }
 
-                        var bouton = button.up('window');
+                        let bouton = button.up('window');
                         bouton.close();
                     },
                     failure: function (formulaire, action) {
@@ -217,9 +210,6 @@ Ext.define('testextjs.view.commandemanagement.order.action.importOrder', {
                     }
                 });
             }
-
-
-
         } else {
             Ext.MessageBox.alert('Echec', 'Form non valide');
         }

@@ -3,17 +3,14 @@
 Ext.define('testextjs.view.Dashboard.TableauPhama', {
     extend: 'Ext.tab.Panel',
     xtype: 'tableauPhama',
-
     frame: true,
     width: '97%',
     height: 'auto',
     minHeight: 570,
     fullscreen: true,
-    // border:1,
-//    cls: 'custompanel',
     tabPosition: "top",
     initComponent: function () {
-        var data = new Ext.data.Store({
+        let data = new Ext.data.Store({
             fields: [
                 {
                     name: 'dateOperation',
@@ -83,11 +80,9 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
             ],
             pageSize: 99999,
             autoLoad: false,
-//            storeId: 'tableaudata',
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/caisse/tableauboard',
-//              url: '../api/v1/caisse/tableauboard-old',
+                url: '../api/v1/tableau-board/tableau',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -97,7 +92,7 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                 timeout: 2400000
             }
         });
-        var me = this;
+        const me = this;
         Ext.applyIf(me, {
             dockedItems: [
                 {
@@ -136,13 +131,7 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                             itemId: 'monthly'
                         },
 
-                        {
-                            text: 'rechercher',
-                            tooltip: 'rechercher',
-                            itemId: 'rechercher',
-                            scope: this,
-                            iconCls: 'searchicon'
-                        },
+                       
                         {
                             xtype: 'combo',
                             value: 'Ratio Ventes/Achats',
@@ -151,6 +140,12 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                             labelWidth: 60,
                             fieldLabel: 'Filtrer par',
                             store: ['Ratio Vente/Achat', 'Ratio Achat/Vente']
+                        }, {
+                            text: 'rechercher',
+                            tooltip: 'rechercher',
+                            itemId: 'rechercher',
+                            scope: this,
+                            iconCls: 'searchicon'
                         }
                         , {
                             text: 'imprimer',
@@ -630,13 +625,7 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                             type: 'Category',
                             position: 'bottom', // the axe position
                             fields: ['dateOperation'] // the mapping data for this axe
-//                    title: 'Month of the Year'
-                                    /*  ,
-                                     label: {display: 'insideStart',
-                                     font: '10px Arial',
-                                     rotate: {
-                                     degrees: -340
-                                     }}*/
+
                         }],
                     series: [{
                             type: 'column',

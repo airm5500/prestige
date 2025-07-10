@@ -10,5 +10,5 @@ package dal.enumeration;
  * @author DICI
  */
 public enum CategoryTransaction {
-    DEBIT,CREDIT
+    DEBIT, CREDIT
 }

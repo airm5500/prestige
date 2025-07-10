@@ -79,7 +79,7 @@
 %>
 <!-- fin logic de gestion des page -->
 
-<%    List<TBonLivraison> lstTBonLivraison = new ArrayList<TBonLivraison>();
+<%    List<TBonLivraison> lstTBonLivraison = new ArrayList<>();
     String lg_BON_LIVRAISON_ID = "%%", str_REF_LIVRAISON = "%%", search_value = "", lg_GROSSISTE_ID = "%%", str_STATUT = commonparameter.statut_is_Process;
 
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);

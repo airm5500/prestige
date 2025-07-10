@@ -26,13 +26,10 @@ import org.hibernate.annotations.TypeDef;
  * @author koben
  */
 @Entity
-@TypeDef(
-        name = "json", typeClass = JsonStringType.class
-)
+@TypeDef(name = "json", typeClass = JsonStringType.class)
 @Table(name = "stock_snapshot")
-@NamedQueries({
-    @NamedQuery(name = "StockSnapshot.findAll", query = " SELECT o FROM StockSnapshot o ")
-    
+@NamedQueries({ @NamedQuery(name = "StockSnapshot.findAll", query = " SELECT o FROM StockSnapshot o ")
+
 })
 public class StockSnapshot implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -40,7 +37,7 @@ public class StockSnapshot implements Serializable {
     @Column(name = "id", nullable = false, length = 40)
     private String id;
     @OneToOne
-    @JoinColumn(name = "produit_id",referencedColumnName = "lg_FAMILLE_ID")
+    @JoinColumn(name = "produit_id", referencedColumnName = "lg_FAMILLE_ID")
     private TFamille produit;
     @Type(type = "json")
     @Column(columnDefinition = "json", name = "stock_journalier")
@@ -77,10 +74,12 @@ public class StockSnapshot implements Serializable {
     public String getId() {
         return id;
     }
- public StockSnapshot id(String id) {
+
+    public StockSnapshot id(String id) {
         this.id = id;
-          return this;
+        return this;
     }
+
     public void setId(String id) {
         this.id = id;
     }
@@ -122,6 +121,5 @@ public class StockSnapshot implements Serializable {
     public String toString() {
         return "StockSnapshot{" + "id=" + id + '}';
     }
-    
-    
+
 }

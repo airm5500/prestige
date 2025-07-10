@@ -29,13 +29,12 @@ import toolkits.parameters.commonparameter;
 @Entity
 @Table(name = "t_type_stock_famille")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeStockFamille.findAll", query = "SELECT t FROM TTypeStockFamille t"),
-    @NamedQuery(name = "TTypeStockFamille.findByLgTYPESTOCKFAMILLEID", query = "SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKFAMILLEID = :lgTYPESTOCKFAMILLEID"),
-    @NamedQuery(name = "TTypeStockFamille.findByDtCREATED", query = "SELECT t FROM TTypeStockFamille t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeStockFamille.findByDtUPDATED", query = "SELECT t FROM TTypeStockFamille t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypeStockFamille.findByStrSTATUT", query = "SELECT t FROM TTypeStockFamille t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypeStockFamille.findByIntNUMBER", query = "SELECT t FROM TTypeStockFamille t WHERE t.intNUMBER = :intNUMBER")})
+@NamedQueries({ @NamedQuery(name = "TTypeStockFamille.findAll", query = "SELECT t FROM TTypeStockFamille t"),
+        @NamedQuery(name = "TTypeStockFamille.findByLgTYPESTOCKFAMILLEID", query = "SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKFAMILLEID = :lgTYPESTOCKFAMILLEID"),
+        @NamedQuery(name = "TTypeStockFamille.findByDtCREATED", query = "SELECT t FROM TTypeStockFamille t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeStockFamille.findByDtUPDATED", query = "SELECT t FROM TTypeStockFamille t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypeStockFamille.findByStrSTATUT", query = "SELECT t FROM TTypeStockFamille t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeStockFamille.findByIntNUMBER", query = "SELECT t FROM TTypeStockFamille t WHERE t.intNUMBER = :intNUMBER") })
 public class TTypeStockFamille implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -54,14 +53,14 @@ public class TTypeStockFamille implements Serializable {
     @Column(name = "dt_CREATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCREATED = new Date();
-    
+
     @Column(name = "dt_UPDATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED = new Date();
-   
+
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT = commonparameter.statut_enable;
-    
+
     @Column(name = "int_NUMBER")
     private Integer intNUMBER;
     @JoinColumn(name = "lg_EMPLACEMENT_ID", referencedColumnName = "lg_EMPLACEMENT_ID", nullable = false)
@@ -181,7 +180,9 @@ public class TTypeStockFamille implements Serializable {
             return false;
         }
         TTypeStockFamille other = (TTypeStockFamille) object;
-        if ((this.lgTYPESTOCKFAMILLEID == null && other.lgTYPESTOCKFAMILLEID != null) || (this.lgTYPESTOCKFAMILLEID != null && !this.lgTYPESTOCKFAMILLEID.equals(other.lgTYPESTOCKFAMILLEID))) {
+        if ((this.lgTYPESTOCKFAMILLEID == null && other.lgTYPESTOCKFAMILLEID != null)
+                || (this.lgTYPESTOCKFAMILLEID != null
+                        && !this.lgTYPESTOCKFAMILLEID.equals(other.lgTYPESTOCKFAMILLEID))) {
             return false;
         }
         return true;

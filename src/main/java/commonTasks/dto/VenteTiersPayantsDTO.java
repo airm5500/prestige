@@ -14,7 +14,11 @@ import dal.TUser;
 import java.io.Serializable;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import rest.service.dto.VenteExclusDTO;
+import util.DateConverter;
 
 /**
  *
@@ -29,16 +33,27 @@ public class VenteTiersPayantsDTO implements Serializable {
     private String libelleTiersPayant;
     private String codeTiersPayant;
     private int nbreDossier, taux;
-    private long montant,account;
+    private long montant, account;
     private long montantRemise;
     private String typeTiersPayant;
     private String typeTiersPayantId;
     private String refVente, dateVente, refBon;
     private String operateur;
+    private LocalDateTime createdAt;
+    private String groupBy;
     private final DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+    private static String dateFormatPattern = "dd/MM/yyyy HH:mm:ss";
 
     public long getAccount() {
         return account;
+    }
+
+    public String getGroupBy() {
+        return groupBy;
+    }
+
+    public void setGroupBy(String groupBy) {
+        this.groupBy = groupBy;
     }
 
     public void setAccount(long account) {
@@ -141,7 +156,16 @@ public class VenteTiersPayantsDTO implements Serializable {
         this.montant = montant;
     }
 
-    public VenteTiersPayantsDTO(TTiersPayant payant, List<TPreenregistrementCompteClientTiersPayent> clientTiersPayents) {
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public VenteTiersPayantsDTO(TTiersPayant payant,
+            List<TPreenregistrementCompteClientTiersPayent> clientTiersPayents) {
 
         this.tiersPayantId = payant.getLgTIERSPAYANTID();
         this.codeTiersPayant = payant.getStrCODEORGANISME();
@@ -197,6 +221,9 @@ public class VenteTiersPayantsDTO implements Serializable {
         if (groupe != null) {
             this.groupeId = groupe.getLgGROUPEID();
             this.libelleGroupe = groupe.getStrLIBELLE();
+            this.groupBy = groupe.getStrLIBELLE();
+        } else {
+            this.groupBy = "";
         }
 
         this.nbreDossier = (int) nbreDossier;
@@ -218,9 +245,35 @@ public class VenteTiersPayantsDTO implements Serializable {
         this.tiersPayantId = payant.getLgTIERSPAYANTID();
         this.codeTiersPayant = payant.getStrCODEORGANISME();
         this.libelleTiersPayant = payant.getStrFULLNAME();
+        this.createdAt = DateConverter.convertDateToLocalDateTime(pr.getDtUPDATED());
+    }
+
+    @Override
+    public String toString() {
+        return "VenteTiersPayantsDTO{" + "libelleGroupe=" + libelleGroupe + ", groupeId=" + groupeId
+                + ", tiersPayantId=" + tiersPayantId + ", libelleTiersPayant=" + libelleTiersPayant
+                + ", codeTiersPayant=" + codeTiersPayant + ", nbreDossier=" + nbreDossier + ", taux=" + taux
+                + ", montant=" + montant + ", account=" + account + ", montantRemise=" + montantRemise
+                + ", typeTiersPayant=" + typeTiersPayant + ", typeTiersPayantId=" + typeTiersPayantId + ", refVente="
+                + refVente + ", dateVente=" + dateVente + ", refBon=" + refBon + ", operateur=" + operateur
+                + ", createdAt=" + createdAt + ", dateFormat=" + dateFormat + '}';
     }
 
     public VenteTiersPayantsDTO() {
     }
 
+    public VenteTiersPayantsDTO(VenteExclusDTO venteExclus) {
+        this.montant = venteExclus.getMontantTiersPayant();
+        this.operateur = venteExclus.getUserFullName();
+        this.dateVente = venteExclus.getModifiedAt().format(DateTimeFormatter.ofPattern(dateFormatPattern));
+
+        this.refBon = venteExclus.getRefBon();
+        this.refVente = venteExclus.getPreenregistrementRef();
+
+        this.tiersPayantId = venteExclus.getTiersPayantId();
+
+        this.libelleTiersPayant = venteExclus.getTiersPayantName();
+        this.createdAt = venteExclus.getModifiedAt();
+
+    }
 }

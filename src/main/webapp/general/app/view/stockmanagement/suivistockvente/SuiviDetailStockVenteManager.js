@@ -3,7 +3,6 @@
 var url_services_data_detailentreesortie = "../webservices/stockmanagement/suivistockvente/ws_data_mouvement_entree.jsp";
 
 var url_services_data_article = "../webservices/sm_user/famille/ws_data.jsp";
-var url_services_data_grossiste = "../webservices/configmanagement/grossiste/ws_data.jsp";
 var url_services_data_zonegeo = "../webservices/configmanagement/zonegeographique/ws_data.jsp";
 var url_services_data_famillearticle = "../webservices/configmanagement/famillearticle/ws_data.jsp";
 var url_services_data_fabriquant = "../webservices/configmanagement/fabriquant/ws_data.jsp";
@@ -122,7 +121,7 @@ Ext.define("testextjs.view.stockmanagement.suivistockvente.SuiviDetailStockVente
             autoLoad: false,
             proxy: {
                 type: "ajax",
-                url: url_services_data_grossiste,
+                   url: '../api/v1/grossiste/all',
                 reader: {
                     type: "json",
                     root: "results",

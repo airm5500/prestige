@@ -13,9 +13,10 @@ import java.io.Serializable;
  */
 public class ErpCaComptant implements Serializable {
     private static final long serialVersionUID = 1L;
-    private long totEsp,totCB,totVirement,totTVA,totMobile;
-    private long totChq,remiseSurCA;
-    private String mvtDate,mode;
+    private long totEsp, totCB, totVirement, totTVA, totMobile;
+    private long totChq, remiseSurCA;
+    private String mvtDate, mode;
+    private long montantCredit;
 
     public long getTotEsp() {
         return totEsp;
@@ -88,7 +89,13 @@ public class ErpCaComptant implements Serializable {
     public void setMode(String mode) {
         this.mode = mode;
     }
-    
-    
-    
+
+    public long getMontantCredit() {
+        return montantCredit;
+    }
+
+    public void setMontantCredit(long montantCredit) {
+        this.montantCredit = montantCredit;
+    }
+
 }

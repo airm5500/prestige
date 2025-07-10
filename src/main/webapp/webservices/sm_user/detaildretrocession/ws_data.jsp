@@ -25,7 +25,7 @@
 
 <%
     dataManager OdataManager = new dataManager();
-    List<TRetrocessionDetail> lstTRetrocessionDetail = new ArrayList<TRetrocessionDetail>();
+    List<TRetrocessionDetail> lstTRetrocessionDetail = new ArrayList<>();
     JSONArray arrayObj = new JSONArray();
     JSONObject json = null;
 %>

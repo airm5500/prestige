@@ -44,11 +44,13 @@ Ext.define('testextjs.controller.ProduitDesactivesCtr', {
                 viewready: this.doInitStore
             },
             "familledisablemanager gridpanel actioncolumn": {
-                click: this.handleActionColumn
+               remove: this.onDelete,
+               activeProduit:this.activeProduit
             },
             'familledisablemanager #query': {
                 specialkey: this.onSpecialKey
             }
+            
 
         });
     },
@@ -64,12 +66,13 @@ Ext.define('testextjs.controller.ProduitDesactivesCtr', {
         }
     },
 
-    onDelete: function (id) {
+    onDelete:function (view, rowIndex, colIndex, item, e, rec, row)  {
         var me = this;
+       
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
-            url: '../api/v1/produit/remove-desactive/' + id,
+            url: '../api/v1/produit/remove-desactive/' + rec.get('lgFAMILLEID'),
             success: function (response, options) {
                 progress.hide();
                 var result = Ext.JSON.decode(response.responseText, true);
@@ -93,12 +96,13 @@ Ext.define('testextjs.controller.ProduitDesactivesCtr', {
 
         });
     },
-    activeProduit: function (id) {
+    activeProduit: function (view, rowIndex, colIndex, item, e, rec, row)  {
         var me = this;
+       
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
-            url: '../api/v1/produit/enable-desactives/' + id,
+            url: '../api/v1/produit/enable-desactives/' + rec.get('lgFAMILLEID'),
             success: function (response, options) {
                 progress.hide();
                 var result = Ext.JSON.decode(response.responseText, true);

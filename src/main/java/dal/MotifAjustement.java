@@ -6,6 +6,7 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.Objects;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -22,8 +23,7 @@ import javax.validation.constraints.NotNull;
 @Entity
 @Table(name = "motif_ajustement")
 @NamedQueries({
-    @NamedQuery(name = "MotifAjustement.findAll", query = "SELECT o FROM MotifAjustement o ORDER BY o.libelle")}
-        )
+        @NamedQuery(name = "MotifAjustement.findAll", query = "SELECT o FROM MotifAjustement o ORDER BY o.libelle") })
 public class MotifAjustement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -49,7 +49,37 @@ public class MotifAjustement implements Serializable {
     public void setLibelle(String libelle) {
         this.libelle = libelle;
     }
-    
-    
-    
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 79 * hash + Objects.hashCode(this.id);
+        return hash;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final MotifAjustement other = (MotifAjustement) obj;
+        return Objects.equals(this.id, other.id);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("MotifAjustement{");
+        sb.append("id=").append(id);
+        sb.append(", libelle=").append(libelle);
+        sb.append('}');
+        return sb.toString();
+    }
+
 }

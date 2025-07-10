@@ -28,17 +28,15 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_motif_reglement", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_MOTIF_REGLEMENT_ID"})})
+@Table(name = "t_motif_reglement", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_MOTIF_REGLEMENT_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMotifReglement.findAll", query = "SELECT t FROM TMotifReglement t"),
-    @NamedQuery(name = "TMotifReglement.findByLgMOTIFREGLEMENTID", query = "SELECT t FROM TMotifReglement t WHERE t.lgMOTIFREGLEMENTID = :lgMOTIFREGLEMENTID"),
-    @NamedQuery(name = "TMotifReglement.findByStrNAME", query = "SELECT t FROM TMotifReglement t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TMotifReglement.findByStrDESCRIPTION", query = "SELECT t FROM TMotifReglement t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TMotifReglement.findByDtCREATED", query = "SELECT t FROM TMotifReglement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMotifReglement.findByDtUPDATED", query = "SELECT t FROM TMotifReglement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMotifReglement.findByStrSTATUT", query = "SELECT t FROM TMotifReglement t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TMotifReglement.findAll", query = "SELECT t FROM TMotifReglement t"),
+        @NamedQuery(name = "TMotifReglement.findByLgMOTIFREGLEMENTID", query = "SELECT t FROM TMotifReglement t WHERE t.lgMOTIFREGLEMENTID = :lgMOTIFREGLEMENTID"),
+        @NamedQuery(name = "TMotifReglement.findByStrNAME", query = "SELECT t FROM TMotifReglement t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TMotifReglement.findByStrDESCRIPTION", query = "SELECT t FROM TMotifReglement t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TMotifReglement.findByDtCREATED", query = "SELECT t FROM TMotifReglement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMotifReglement.findByDtUPDATED", query = "SELECT t FROM TMotifReglement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMotifReglement.findByStrSTATUT", query = "SELECT t FROM TMotifReglement t WHERE t.strSTATUT = :strSTATUT") })
 public class TMotifReglement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -138,7 +136,8 @@ public class TMotifReglement implements Serializable {
             return false;
         }
         TMotifReglement other = (TMotifReglement) object;
-        if ((this.lgMOTIFREGLEMENTID == null && other.lgMOTIFREGLEMENTID != null) || (this.lgMOTIFREGLEMENTID != null && !this.lgMOTIFREGLEMENTID.equals(other.lgMOTIFREGLEMENTID))) {
+        if ((this.lgMOTIFREGLEMENTID == null && other.lgMOTIFREGLEMENTID != null)
+                || (this.lgMOTIFREGLEMENTID != null && !this.lgMOTIFREGLEMENTID.equals(other.lgMOTIFREGLEMENTID))) {
             return false;
         }
         return true;
@@ -148,5 +147,5 @@ public class TMotifReglement implements Serializable {
     public String toString() {
         return "dal.TMotifReglement[ lgMOTIFREGLEMENTID=" + lgMOTIFREGLEMENTID + " ]";
     }
-    
+
 }

@@ -5,9 +5,7 @@
  */
 package dal;
 
-import dal.enumeration.Canal;
 import dal.enumeration.Statut;
-import dal.enumeration.TypeNotification;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -20,7 +18,6 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.Index;
 import javax.persistence.JoinColumn;
@@ -29,7 +26,6 @@ import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 /**
@@ -37,14 +33,13 @@ import javax.validation.constraints.NotNull;
  * @author koben
  */
 @Entity
-@Table(name = "notification", indexes = {
-    @Index(name = "notificationIdex1", columnList = "canal"),
-    @Index(name = "notificationStatut", columnList = "statut")
-})
+@Table(name = "notification", indexes = { @Index(name = "notificationStatut", columnList = "statut") })
 @NamedQueries({
-    @NamedQuery(name = "Notification.findAllByCreatedAtAndStatus", query = "SELECT o FROM Notification o WHERE o.createdAt >= :createdAt AND o.statut=:statut "),
-    @NamedQuery(name = "Notification.findAllByStatus", query = "SELECT o FROM Notification o LEFT JOIN FETCH o.notificationClients WHERE  o.statut=:statut "),
-    @NamedQuery(name = "Notification.findAllByCreatedAtAndStatusAndCanal", query = "SELECT o FROM Notification o WHERE o.createdAt >= :createdAt AND  o.statut=:statut AND o.canal IN :canaux")
+        @NamedQuery(name = "Notification.findAllByCreatedAtAndStatus", query = "SELECT o FROM Notification o WHERE o.createdAt >= :createdAt AND o.statut=:statut "),
+        @NamedQuery(name = "Notification.findAllByStatus", query = "SELECT o FROM Notification o LEFT JOIN FETCH o.notificationClients WHERE  o.statut=:statut "),
+        @NamedQuery(name = "Notification.findAllByStatusAndCanal", query = "SELECT o FROM Notification o LEFT JOIN FETCH o.notificationClients WHERE  o.statut=:statut AND o.categorieNotification.canal IN :canaux"),
+        @NamedQuery(name = "Notification.findAllByCreatedAtAndStatusAndCanal", query = "SELECT o FROM Notification o WHERE o.createdAt >= :createdAt AND  o.statut=:statut AND o.categorieNotification.canal =:canal"),
+        @NamedQuery(name = "Notification.findAllByCreatedAtAndStatusAndCanaux", query = "SELECT o FROM Notification o WHERE o.createdAt >= :createdAt AND  o.statut IN :statut AND o.categorieNotification.canal IN :canaux")
 
 })
 public class Notification implements Serializable {
@@ -54,38 +49,48 @@ public class Notification implements Serializable {
     @Basic(optional = false)
     @Column(name = "id", nullable = false)
     private String id = UUID.randomUUID().toString();
-    @NotBlank
-    @NotNull
-    @Column(name = "message", length = 3000, nullable = false)
+
+    @Column(name = "message", length = 3000)
     private String message;
     @NotNull
     @Column(name = "statut")
     @Enumerated(EnumType.STRING)
     private Statut statut = Statut.NOT_SEND;
+
     @NotNull
-    @Enumerated(EnumType.ORDINAL)
-    @Column(name = "canal", nullable = false)
-    private Canal canal;
-    @NotNull
-    @Enumerated(EnumType.ORDINAL)
-    @Column(name = "type_notification", nullable = false)
-    private TypeNotification typeNotification;
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "type_notification", referencedColumnName = "id")
+    private CategorieNotification categorieNotification;
     @NotNull
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
     @NotNull
     @Column(name = "modfied_at", nullable = false)
     private LocalDateTime modfiedAt = LocalDateTime.now();
-    @JoinColumn(name = "user_id", referencedColumnName = "lg_USER_ID")
+    @NotNull
+    @JoinColumn(name = "user_id", referencedColumnName = "lg_USER_ID", nullable = false)
     @ManyToOne
     private TUser user;
     @JoinColumn(name = "user_to", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser userTo;
-    @OneToMany(cascade = {CascadeType.REMOVE, CascadeType.PERSIST, CascadeType.MERGE}, mappedBy = "notification")
+    @OneToMany(cascade = { CascadeType.REMOVE, CascadeType.PERSIST, CascadeType.MERGE }, mappedBy = "notification")
     private Collection<NotificationClient> notificationClients = new ArrayList<>();
     @Column(name = "number_attempt", nullable = false)
     private int numberAttempt = 0;
+    @Column(name = "entity_ref")
+    private String entityRef;
+    @Column(name = "donnees", length = 3000)
+    private String donnees;
+
+    public String getDonnees() {
+        return donnees;
+    }
+
+    public Notification donnees(String donnees) {
+        this.donnees = donnees;
+        return this;
+    }
 
     public String getId() {
         return id;
@@ -109,13 +114,12 @@ public class Notification implements Serializable {
         return this;
     }
 
-    public Notification canal(Canal canal) {
-        this.canal = canal;
-        return this;
+    public String getEntityRef() {
+        return entityRef;
     }
 
-    public Notification typeNotification(TypeNotification typeNotification) {
-        this.typeNotification = typeNotification;
+    public Notification entityRef(String entityRef) {
+        this.entityRef = entityRef;
         return this;
     }
 
@@ -131,20 +135,13 @@ public class Notification implements Serializable {
         this.statut = statut;
     }
 
-    public Canal getCanal() {
-        return canal;
+    public CategorieNotification getCategorieNotification() {
+        return categorieNotification;
     }
 
-    public void setCanal(Canal canal) {
-        this.canal = canal;
-    }
-
-    public TypeNotification getTypeNotification() {
-        return typeNotification;
-    }
-
-    public void setTypeNotification(TypeNotification typeNotification) {
-        this.typeNotification = typeNotification;
+    public Notification setCategorieNotification(CategorieNotification categorieNotification) {
+        this.categorieNotification = categorieNotification;
+        return this;
     }
 
     public LocalDateTime getCreatedAt() {
@@ -226,8 +223,11 @@ public class Notification implements Serializable {
     }
 
     public Notification addNotificationClients(NotificationClient notificationClient) {
-        notificationClient.setNotification(this);
-        this.getNotificationClients().add(notificationClient);
+        if (Objects.nonNull(notificationClient)) {
+            notificationClient.setNotification(this);
+            this.getNotificationClients().add(notificationClient);
+        }
+
         return this;
 
     }

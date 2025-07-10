@@ -182,14 +182,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.historyView', {
     },
     onAddClick: function () {
 
-//
-//        new testextjs.view.commandemanagement.suggestion.action.add({
-//            odatasource: '',
-//            parentview: this,
-//            mode: "create",
-//            titre: "Ajouter une suggestion"
-//
-//        });
+
 
     },
     onRemoveClick: function (grid, rowIndex) {

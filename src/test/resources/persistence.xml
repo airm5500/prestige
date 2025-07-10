@@ -3,6 +3,7 @@
   <persistence-unit name="DALPU" transaction-type="RESOURCE_LOCAL">
     <!--      <non-jta-data-source>java:global/laborex/prestigedb</non-jta-data-source>-->
     <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+    <non-jta-data-source>jdbc/__laborex_pool</non-jta-data-source>
     <class>dal.TSnapShopDalySortieFamille</class>
     <class>dal.TEmplacement</class>
     <class>dal.TLanguage</class>
@@ -198,13 +199,10 @@
     <class>dal.MvtTransaction</class>
     <properties>
       <property name="javax.persistence.schema-generation.database.action" value="none"/>
-     
       <property name="javax.persistence.jdbc.url" value="jdbc:mysql://localhost:3306"/>
       <property name="javax.persistence.jdbc.user" value="root"/>
       <property name="javax.persistence.jdbc.driver" value="com.mysql.jdbc.Driver"/>
-      <property name="javax.persistence.jdbc.password" value="badou1986$"/>
+      <property name="javax.persistence.jdbc.password" value="dcph1995"/>
     </properties>
-  
   </persistence-unit>
-  
 </persistence>

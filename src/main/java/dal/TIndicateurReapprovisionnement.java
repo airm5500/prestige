@@ -30,13 +30,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Table(name = "t_indicateur_reapprovisionnement")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TIndicateurReapprovisionnement.findAll", query = "SELECT t FROM TIndicateurReapprovisionnement t"),
-    @NamedQuery(name = "TIndicateurReapprovisionnement.findByLgINDICATEURREAPPROVISIONNEMENTID", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.lgINDICATEURREAPPROVISIONNEMENTID = :lgINDICATEURREAPPROVISIONNEMENTID"),
-    @NamedQuery(name = "TIndicateurReapprovisionnement.findByStrCODEINDICATEUR", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.strCODEINDICATEUR = :strCODEINDICATEUR"),
-    @NamedQuery(name = "TIndicateurReapprovisionnement.findByStrLIBELLEINDICATEUR", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.strLIBELLEINDICATEUR = :strLIBELLEINDICATEUR"),
-    @NamedQuery(name = "TIndicateurReapprovisionnement.findByDtCREATED", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TIndicateurReapprovisionnement.findByDtUPDATED", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TIndicateurReapprovisionnement.findByStrSTATUT", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.strSTATUT = :strSTATUT")})
+        @NamedQuery(name = "TIndicateurReapprovisionnement.findAll", query = "SELECT t FROM TIndicateurReapprovisionnement t"),
+        @NamedQuery(name = "TIndicateurReapprovisionnement.findByLgINDICATEURREAPPROVISIONNEMENTID", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.lgINDICATEURREAPPROVISIONNEMENTID = :lgINDICATEURREAPPROVISIONNEMENTID"),
+        @NamedQuery(name = "TIndicateurReapprovisionnement.findByStrCODEINDICATEUR", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.strCODEINDICATEUR = :strCODEINDICATEUR"),
+        @NamedQuery(name = "TIndicateurReapprovisionnement.findByStrLIBELLEINDICATEUR", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.strLIBELLEINDICATEUR = :strLIBELLEINDICATEUR"),
+        @NamedQuery(name = "TIndicateurReapprovisionnement.findByDtCREATED", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TIndicateurReapprovisionnement.findByDtUPDATED", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TIndicateurReapprovisionnement.findByStrSTATUT", query = "SELECT t FROM TIndicateurReapprovisionnement t WHERE t.strSTATUT = :strSTATUT") })
 public class TIndicateurReapprovisionnement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +136,9 @@ public class TIndicateurReapprovisionnement implements Serializable {
             return false;
         }
         TIndicateurReapprovisionnement other = (TIndicateurReapprovisionnement) object;
-        if ((this.lgINDICATEURREAPPROVISIONNEMENTID == null && other.lgINDICATEURREAPPROVISIONNEMENTID != null) || (this.lgINDICATEURREAPPROVISIONNEMENTID != null && !this.lgINDICATEURREAPPROVISIONNEMENTID.equals(other.lgINDICATEURREAPPROVISIONNEMENTID))) {
+        if ((this.lgINDICATEURREAPPROVISIONNEMENTID == null && other.lgINDICATEURREAPPROVISIONNEMENTID != null)
+                || (this.lgINDICATEURREAPPROVISIONNEMENTID != null
+                        && !this.lgINDICATEURREAPPROVISIONNEMENTID.equals(other.lgINDICATEURREAPPROVISIONNEMENTID))) {
             return false;
         }
         return true;
@@ -144,7 +146,8 @@ public class TIndicateurReapprovisionnement implements Serializable {
 
     @Override
     public String toString() {
-        return "dal.TIndicateurReapprovisionnement[ lgINDICATEURREAPPROVISIONNEMENTID=" + lgINDICATEURREAPPROVISIONNEMENTID + " ]";
+        return "dal.TIndicateurReapprovisionnement[ lgINDICATEURREAPPROVISIONNEMENTID="
+                + lgINDICATEURREAPPROVISIONNEMENTID + " ]";
     }
-    
+
 }

@@ -26,7 +26,7 @@ public class typetierspayantManagement extends bllBase {
         this.checkDatamanager();
     }
 
-    public void create( String str_CODE_TYPE_TIERS_PAYANT, String str_LIBELLE_TYPE_TIERS_PAYANT) {
+    public void create(String str_CODE_TYPE_TIERS_PAYANT, String str_LIBELLE_TYPE_TIERS_PAYANT) {
         try {
 
             TTypeTiersPayant OTTypeTiersPayant = new TTypeTiersPayant();
@@ -47,14 +47,14 @@ public class typetierspayantManagement extends bllBase {
 
     }
 
-    public void update(String lg_TYPE_TIERS_PAYANT_ID, String str_CODE_TYPE_TIERS_PAYANT, String str_LIBELLE_TYPE_TIERS_PAYANT) {
+    public void update(String lg_TYPE_TIERS_PAYANT_ID, String str_CODE_TYPE_TIERS_PAYANT,
+            String str_LIBELLE_TYPE_TIERS_PAYANT) {
 
         try {
 
             TTypeTiersPayant OTTypeTiersPayant = null;
 
             OTTypeTiersPayant = getOdataManager().getEm().find(TTypeTiersPayant.class, lg_TYPE_TIERS_PAYANT_ID);
-
 
             OTTypeTiersPayant.setStrCODETYPETIERSPAYANT(str_CODE_TYPE_TIERS_PAYANT);
             OTTypeTiersPayant.setStrLIBELLETYPETIERSPAYANT(str_LIBELLE_TYPE_TIERS_PAYANT);
@@ -95,9 +95,9 @@ public class typetierspayantManagement extends bllBase {
 
         try {
 
-            lstTTypeTiersPayant = getOdataManager().getEm().createQuery("SELECT t FROM TTypeTiersPayant t WHERE  t.strSTATUT LIKE ?1 ").
-                    setParameter(1, commonparameter.statut_enable).
-                    getResultList();
+            lstTTypeTiersPayant = getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TTypeTiersPayant t WHERE  t.strSTATUT LIKE ?1 ")
+                    .setParameter(1, commonparameter.statut_enable).getResultList();
             new logger().OCategory.info(lstTTypeTiersPayant.size());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -110,5 +110,5 @@ public class typetierspayantManagement extends bllBase {
         }
 
     }
- 
+
 }

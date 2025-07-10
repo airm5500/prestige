@@ -5,18 +5,17 @@
  */
 package util;
 
-
 import javax.print.DocFlavor;
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
-
 
 /**
  *
  * @author koben
  */
-public class UtilTicket {
-      public static PrintService getPrintService(String printername) {
+public final class UtilTicket {
+
+    public static PrintService getPrintService(String printername) {
 
         // Initalize print service
         if (printername == null) {
@@ -24,26 +23,25 @@ public class UtilTicket {
         } else {
 
             switch (printername) {
-                case "(Show dialog)":
-                    return null; // null means "you have to show the print dialog"
-                case "(Default)":
-                    return PrintServiceLookup.lookupDefaultPrintService();
-                default:
-                    PrintService[] pservices
-                            = PrintServiceLookup.lookupPrintServices(DocFlavor.SERVICE_FORMATTED.PRINTABLE, null);
-                    for (PrintService s : pservices) {
-                        if (printername.equals(s.getName())) {
-                            return s;
-                        }
+            case "(Show dialog)":
+                return null; // null means "you have to show the print dialog"
+            case "(Default)":
+                return PrintServiceLookup.lookupDefaultPrintService();
+            default:
+                PrintService[] pservices = PrintServiceLookup.lookupPrintServices(DocFlavor.SERVICE_FORMATTED.PRINTABLE,
+                        null);
+                for (PrintService s : pservices) {
+                    if (printername.equals(s.getName())) {
+                        return s;
                     }
-                    return PrintServiceLookup.lookupDefaultPrintService();
+                }
+                return PrintServiceLookup.lookupDefaultPrintService();
             }
         }
     }
 
     public static String[] getPrintNames() {
-        PrintService[] pservices
-                = PrintServiceLookup.lookupPrintServices(DocFlavor.SERVICE_FORMATTED.PRINTABLE, null);
+        PrintService[] pservices = PrintServiceLookup.lookupPrintServices(DocFlavor.SERVICE_FORMATTED.PRINTABLE, null);
 
         String printers[] = new String[pservices.length];
         for (int i = 0; i < pservices.length; i++) {
@@ -52,4 +50,8 @@ public class UtilTicket {
 
         return printers;
     }
+
+    private UtilTicket() {
+    }
+
 }

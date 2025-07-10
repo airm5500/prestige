@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_taux_remboursement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTauxRemboursement.findAll", query = "SELECT t FROM TTauxRemboursement t"),
-    @NamedQuery(name = "TTauxRemboursement.findByLgTAUXREMBOURID", query = "SELECT t FROM TTauxRemboursement t WHERE t.lgTAUXREMBOURID = :lgTAUXREMBOURID"),
-    @NamedQuery(name = "TTauxRemboursement.findByStrCODEREMB", query = "SELECT t FROM TTauxRemboursement t WHERE t.strCODEREMB = :strCODEREMB"),
-    @NamedQuery(name = "TTauxRemboursement.findByStrLIBELLEE", query = "SELECT t FROM TTauxRemboursement t WHERE t.strLIBELLEE = :strLIBELLEE"),
-    @NamedQuery(name = "TTauxRemboursement.findByDtCREATED", query = "SELECT t FROM TTauxRemboursement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTauxRemboursement.findByDtUPDATED", query = "SELECT t FROM TTauxRemboursement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTauxRemboursement.findByStrSTATUT", query = "SELECT t FROM TTauxRemboursement t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTauxRemboursement.findAll", query = "SELECT t FROM TTauxRemboursement t"),
+        @NamedQuery(name = "TTauxRemboursement.findByLgTAUXREMBOURID", query = "SELECT t FROM TTauxRemboursement t WHERE t.lgTAUXREMBOURID = :lgTAUXREMBOURID"),
+        @NamedQuery(name = "TTauxRemboursement.findByStrCODEREMB", query = "SELECT t FROM TTauxRemboursement t WHERE t.strCODEREMB = :strCODEREMB"),
+        @NamedQuery(name = "TTauxRemboursement.findByStrLIBELLEE", query = "SELECT t FROM TTauxRemboursement t WHERE t.strLIBELLEE = :strLIBELLEE"),
+        @NamedQuery(name = "TTauxRemboursement.findByDtCREATED", query = "SELECT t FROM TTauxRemboursement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTauxRemboursement.findByDtUPDATED", query = "SELECT t FROM TTauxRemboursement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTauxRemboursement.findByStrSTATUT", query = "SELECT t FROM TTauxRemboursement t WHERE t.strSTATUT = :strSTATUT") })
 public class TTauxRemboursement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTauxRemboursement implements Serializable {
             return false;
         }
         TTauxRemboursement other = (TTauxRemboursement) object;
-        if ((this.lgTAUXREMBOURID == null && other.lgTAUXREMBOURID != null) || (this.lgTAUXREMBOURID != null && !this.lgTAUXREMBOURID.equals(other.lgTAUXREMBOURID))) {
+        if ((this.lgTAUXREMBOURID == null && other.lgTAUXREMBOURID != null)
+                || (this.lgTAUXREMBOURID != null && !this.lgTAUXREMBOURID.equals(other.lgTAUXREMBOURID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTauxRemboursement implements Serializable {
     public String toString() {
         return "dal.TTauxRemboursement[ lgTAUXREMBOURID=" + lgTAUXREMBOURID + " ]";
     }
-    
+
 }

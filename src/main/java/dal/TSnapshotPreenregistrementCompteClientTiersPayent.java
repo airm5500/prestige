@@ -29,14 +29,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_snapshot_preenregistrement_compte_client_tiers_payent")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findAll", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t"),
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByLgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID = :lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID"),
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION"),
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByStrSTATUT", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByStrREF", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.strREF = :strREF"),
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByDtCREATED", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByDtUPDATED", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByIntPRICE", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.intPRICE = :intPRICE")})
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findAll", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t"),
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByLgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID = :lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID"),
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION"),
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByStrSTATUT", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByStrREF", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.strREF = :strREF"),
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByDtCREATED", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByDtUPDATED", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSnapshotPreenregistrementCompteClientTiersPayent.findByIntPRICE", query = "SELECT t FROM TSnapshotPreenregistrementCompteClientTiersPayent t WHERE t.intPRICE = :intPRICE") })
 public class TSnapshotPreenregistrementCompteClientTiersPayent implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -65,11 +65,13 @@ public class TSnapshotPreenregistrementCompteClientTiersPayent implements Serial
     public TSnapshotPreenregistrementCompteClientTiersPayent() {
     }
 
-    public TSnapshotPreenregistrementCompteClientTiersPayent(String lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID) {
+    public TSnapshotPreenregistrementCompteClientTiersPayent(
+            String lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID) {
         this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID = lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID;
     }
 
-    public TSnapshotPreenregistrementCompteClientTiersPayent(String lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID, int intNUMBERTRANSACTION) {
+    public TSnapshotPreenregistrementCompteClientTiersPayent(String lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID,
+            int intNUMBERTRANSACTION) {
         this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID = lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID;
         this.intNUMBERTRANSACTION = intNUMBERTRANSACTION;
     }
@@ -78,7 +80,8 @@ public class TSnapshotPreenregistrementCompteClientTiersPayent implements Serial
         return lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID;
     }
 
-    public void setLgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID(String lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID) {
+    public void setLgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID(
+            String lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID) {
         this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID = lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID;
     }
 
@@ -141,7 +144,8 @@ public class TSnapshotPreenregistrementCompteClientTiersPayent implements Serial
     @Override
     public int hashCode() {
         int hash = 0;
-        hash += (lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID != null ? lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID.hashCode() : 0);
+        hash += (lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID != null
+                ? lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID.hashCode() : 0);
         return hash;
     }
 
@@ -152,7 +156,11 @@ public class TSnapshotPreenregistrementCompteClientTiersPayent implements Serial
             return false;
         }
         TSnapshotPreenregistrementCompteClientTiersPayent other = (TSnapshotPreenregistrementCompteClientTiersPayent) object;
-        if ((this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID == null && other.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID != null) || (this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID != null && !this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID.equals(other.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID))) {
+        if ((this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID == null
+                && other.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID != null)
+                || (this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID != null
+                        && !this.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID
+                                .equals(other.lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID))) {
             return false;
         }
         return true;
@@ -160,7 +168,8 @@ public class TSnapshotPreenregistrementCompteClientTiersPayent implements Serial
 
     @Override
     public String toString() {
-        return "dal.TSnapshotPreenregistrementCompteClientTiersPayent[ lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID=" + lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID + " ]";
+        return "dal.TSnapshotPreenregistrementCompteClientTiersPayent[ lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID="
+                + lgSNAPSHOTPREENREGISTREMENTCOMPTECLIENTTIERSPAENTID + " ]";
     }
-    
+
 }

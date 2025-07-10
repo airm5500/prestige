@@ -31,21 +31,20 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_reglement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TReglement.findAll", query = "SELECT t FROM TReglement t"),
-    @NamedQuery(name = "TReglement.findByLgREGLEMENTID", query = "SELECT t FROM TReglement t WHERE t.lgREGLEMENTID = :lgREGLEMENTID"),
-    @NamedQuery(name = "TReglement.findByStrREFRESSOURCE", query = "SELECT t FROM TReglement t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
-    @NamedQuery(name = "TReglement.findByStrBANQUE", query = "SELECT t FROM TReglement t WHERE t.strBANQUE = :strBANQUE"),
-    @NamedQuery(name = "TReglement.findByStrLIEU", query = "SELECT t FROM TReglement t WHERE t.strLIEU = :strLIEU"),
-    @NamedQuery(name = "TReglement.findByStrCODEMONNAIE", query = "SELECT t FROM TReglement t WHERE t.strCODEMONNAIE = :strCODEMONNAIE"),
-    @NamedQuery(name = "TReglement.findByIntTAUX", query = "SELECT t FROM TReglement t WHERE t.intTAUX = :intTAUX"),
-    @NamedQuery(name = "TReglement.findByStrCOMMENTAIRE", query = "SELECT t FROM TReglement t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
-    @NamedQuery(name = "TReglement.findByDtCREATED", query = "SELECT t FROM TReglement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TReglement.findByDtUPDATED", query = "SELECT t FROM TReglement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TReglement.findByStrSTATUT", query = "SELECT t FROM TReglement t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TReglement.findByBISFACTURE", query = "SELECT t FROM TReglement t WHERE t.bISFACTURE = :bISFACTURE"),
-    @NamedQuery(name = "TReglement.findByDtREGLEMENT", query = "SELECT t FROM TReglement t WHERE t.dtREGLEMENT = :dtREGLEMENT"),
-    @NamedQuery(name = "TReglement.findByBoolCHECKED", query = "SELECT t FROM TReglement t WHERE t.boolCHECKED = :boolCHECKED")})
+@NamedQueries({ @NamedQuery(name = "TReglement.findAll", query = "SELECT t FROM TReglement t"),
+        @NamedQuery(name = "TReglement.findByLgREGLEMENTID", query = "SELECT t FROM TReglement t WHERE t.lgREGLEMENTID = :lgREGLEMENTID"),
+        @NamedQuery(name = "TReglement.findByStrREFRESSOURCE", query = "SELECT t FROM TReglement t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
+        @NamedQuery(name = "TReglement.findByStrBANQUE", query = "SELECT t FROM TReglement t WHERE t.strBANQUE = :strBANQUE"),
+        @NamedQuery(name = "TReglement.findByStrLIEU", query = "SELECT t FROM TReglement t WHERE t.strLIEU = :strLIEU"),
+        @NamedQuery(name = "TReglement.findByStrCODEMONNAIE", query = "SELECT t FROM TReglement t WHERE t.strCODEMONNAIE = :strCODEMONNAIE"),
+        @NamedQuery(name = "TReglement.findByIntTAUX", query = "SELECT t FROM TReglement t WHERE t.intTAUX = :intTAUX"),
+        @NamedQuery(name = "TReglement.findByStrCOMMENTAIRE", query = "SELECT t FROM TReglement t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
+        @NamedQuery(name = "TReglement.findByDtCREATED", query = "SELECT t FROM TReglement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TReglement.findByDtUPDATED", query = "SELECT t FROM TReglement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TReglement.findByStrSTATUT", query = "SELECT t FROM TReglement t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TReglement.findByBISFACTURE", query = "SELECT t FROM TReglement t WHERE t.bISFACTURE = :bISFACTURE"),
+        @NamedQuery(name = "TReglement.findByDtREGLEMENT", query = "SELECT t FROM TReglement t WHERE t.dtREGLEMENT = :dtREGLEMENT"),
+        @NamedQuery(name = "TReglement.findByBoolCHECKED", query = "SELECT t FROM TReglement t WHERE t.boolCHECKED = :boolCHECKED") })
 public class TReglement implements Serializable {
 
     @OneToMany(mappedBy = "lgREGLEMENTID")
@@ -77,7 +76,7 @@ public class TReglement implements Serializable {
     private String strSTATUT;
     @Column(name = "b_IS_FACTURE")
     private Boolean bISFACTURE;
-   
+
     @Column(name = "str_FIRST_LAST_NAME", length = 200)
     private String strFIRSTLASTNAME;
     @Column(name = "dt_REGLEMENT")
@@ -252,7 +251,8 @@ public class TReglement implements Serializable {
             return false;
         }
         TReglement other = (TReglement) object;
-        if ((this.lgREGLEMENTID == null && other.lgREGLEMENTID != null) || (this.lgREGLEMENTID != null && !this.lgREGLEMENTID.equals(other.lgREGLEMENTID))) {
+        if ((this.lgREGLEMENTID == null && other.lgREGLEMENTID != null)
+                || (this.lgREGLEMENTID != null && !this.lgREGLEMENTID.equals(other.lgREGLEMENTID))) {
             return false;
         }
         return true;
@@ -271,5 +271,5 @@ public class TReglement implements Serializable {
     public void setTPreenregistrementCollection(Collection<TPreenregistrement> tPreenregistrementCollection) {
         this.tPreenregistrementCollection = tPreenregistrementCollection;
     }
-    
+
 }

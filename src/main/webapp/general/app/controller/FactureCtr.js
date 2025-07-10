@@ -260,8 +260,6 @@ Ext.define('testextjs.controller.FactureCtr', {
                 codegroup: codegroup,
                 tpid: tpid,
                 groupTp: groupTp
-
-
             }
         });
     },
@@ -450,11 +448,9 @@ Ext.define('testextjs.controller.FactureCtr', {
         var selects = [];
         switch (mode) {
             case 'BONS':
-                all = null;
                 var bn = me.getBonscmp();
                 all = me.isAll(bn);
                 if (!all) {
-                    selects = [];
                     selects = bn.getSelectionModel().getSelection().map(function (e) {
                         return e.data.id;
                     });
@@ -462,12 +458,11 @@ Ext.define('testextjs.controller.FactureCtr', {
 
                 break;
             case 'SELECT':
-                all = null;
+              
                 selects = [];
                 var _cmp = me.getDataselectmode();
                 all = me.isAll(_cmp);
                 if (!all) {
-                    selects = [];
                     selects = _cmp.getSelectionModel().getSelection().map(function (e) {
                         return e.data.id;
                     });
@@ -498,20 +493,7 @@ Ext.define('testextjs.controller.FactureCtr', {
                 progress.hide();
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
-//                    var data = result.data;
-                  
                     me.onPrint();
-                    /*  Ext.MessageBox.show({
-                     title: 'Message',
-                     width: 320,
-                     msg: data.length + ' factures(s) générée(s)',
-                     buttons: Ext.MessageBox.OK,
-                     icon: Ext.MessageBox.INFO
-                     
-                     });*/
-                    // Ext.JSON.encode({typeVenteId: newValue}),
-//                    const linkUrl = '../FactureProvisoire?mode=ALL&data=' + JSON.stringify(Ext.JSON.encode(data));
-//                    window.open(linkUrl);
                     me.resetAll();
                 } else {
                     Ext.MessageBox.show({

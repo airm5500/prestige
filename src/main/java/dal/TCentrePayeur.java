@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_centre_payeur")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCentrePayeur.findAll", query = "SELECT t FROM TCentrePayeur t"),
-    @NamedQuery(name = "TCentrePayeur.findByLgCENTREPAYEUR", query = "SELECT t FROM TCentrePayeur t WHERE t.lgCENTREPAYEUR = :lgCENTREPAYEUR"),
-    @NamedQuery(name = "TCentrePayeur.findByStrCODE", query = "SELECT t FROM TCentrePayeur t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TCentrePayeur.findByStrLIBELLE", query = "SELECT t FROM TCentrePayeur t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TCentrePayeur.findByStrSTATUT", query = "SELECT t FROM TCentrePayeur t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TCentrePayeur.findByDtUPDATED", query = "SELECT t FROM TCentrePayeur t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TCentrePayeur.findByDtCREATED", query = "SELECT t FROM TCentrePayeur t WHERE t.dtCREATED = :dtCREATED")})
+@NamedQueries({ @NamedQuery(name = "TCentrePayeur.findAll", query = "SELECT t FROM TCentrePayeur t"),
+        @NamedQuery(name = "TCentrePayeur.findByLgCENTREPAYEUR", query = "SELECT t FROM TCentrePayeur t WHERE t.lgCENTREPAYEUR = :lgCENTREPAYEUR"),
+        @NamedQuery(name = "TCentrePayeur.findByStrCODE", query = "SELECT t FROM TCentrePayeur t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TCentrePayeur.findByStrLIBELLE", query = "SELECT t FROM TCentrePayeur t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TCentrePayeur.findByStrSTATUT", query = "SELECT t FROM TCentrePayeur t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TCentrePayeur.findByDtUPDATED", query = "SELECT t FROM TCentrePayeur t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCentrePayeur.findByDtCREATED", query = "SELECT t FROM TCentrePayeur t WHERE t.dtCREATED = :dtCREATED") })
 public class TCentrePayeur implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TCentrePayeur implements Serializable {
             return false;
         }
         TCentrePayeur other = (TCentrePayeur) object;
-        if ((this.lgCENTREPAYEUR == null && other.lgCENTREPAYEUR != null) || (this.lgCENTREPAYEUR != null && !this.lgCENTREPAYEUR.equals(other.lgCENTREPAYEUR))) {
+        if ((this.lgCENTREPAYEUR == null && other.lgCENTREPAYEUR != null)
+                || (this.lgCENTREPAYEUR != null && !this.lgCENTREPAYEUR.equals(other.lgCENTREPAYEUR))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TCentrePayeur implements Serializable {
     public String toString() {
         return "dal.TCentrePayeur[ lgCENTREPAYEUR=" + lgCENTREPAYEUR + " ]";
     }
-    
+
 }

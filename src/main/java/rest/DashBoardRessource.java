@@ -20,7 +20,9 @@ import javax.ws.rs.core.Response;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.DashBoardService;
+import rest.service.dto.BalanceParamsDTO;
 import toolkits.parameters.commonparameter;
+import util.Constant;
 
 /**
  *
@@ -38,57 +40,103 @@ public class DashBoardRessource {
 
     @GET
     @Path("credits")
-    public Response donneesCreditAccordes(
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "limit") int limit
-    ) throws JSONException {
+    public Response donneesCreditAccordes(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "start") int start,
+            @QueryParam(value = "query") String query, @QueryParam(value = "limit") int limit) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject jsono = dashBoardService.donneesCreditAccordesView(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),  tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu, query, start, limit, false);
+
+        JSONObject jsono = dashBoardService.donneesCreditAccordesView(BalanceParamsDTO.builder().dtStart(dtStart)
+                .all(false).start(start).query(query).limi(limit).dtEnd(dtEnd).showAllAmount(true)
+                .emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).build());
         return Response.ok().entity(jsono.toString()).build();
     }
 
     @GET
+    @Path("credits/totaux")
+    public Response donneesRecapTotataux(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject jsono = new JSONObject(dashBoardService
+                .donneesRecapTotataux(BalanceParamsDTO.builder().dtStart(dtStart).query(query).dtEnd(dtEnd)
+                        .showAllAmount(true).emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).build()));
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    @GET
+    @Path("credits/totauxmob")
+    public Response donneesRecapTotaux(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query) throws JSONException {
+        String TEmplacement = Constant.EMPLACEMENT;
+        JSONObject jsono = new JSONObject(dashBoardService.donneesRecapTotaux(BalanceParamsDTO.builder()
+                .dtStart(dtStart).query(query).dtEnd(dtEnd).showAllAmount(true).emplacementId(TEmplacement).build()));
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    @GET
+    @Path("creditsmob")
+    public Response donneesCreditsAccordes(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "start") int start,
+            @QueryParam(value = "query") String query, @QueryParam(value = "limit") int limit) throws JSONException {
+        String TEmplacement = "1";
+
+        JSONObject jsono = dashBoardService
+                .donneesCreditAccordesView(BalanceParamsDTO.builder().dtStart(dtStart).all(false).start(start)
+                        .query(query).limi(limit).dtEnd(dtEnd).showAllAmount(true).emplacementId(TEmplacement).build());
+        return Response.ok().entity(jsono.toString()).build();
+
+    }
+
+    @GET
     @Path("reglements")
-    public Response reglements(
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "limit") int limit
-    ) throws JSONException {
+    public Response reglements(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "start") int start, @QueryParam(value = "query") String query,
+            @QueryParam(value = "limit") int limit) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
 
-        JSONObject jsono = dashBoardService.donneesReglementsTpView(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu, query, start, limit, false);
+        JSONObject jsono = dashBoardService.donneesReglementsTpView(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
+                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu, query, start, limit, false);
         return Response.ok().entity(jsono.toString()).build();
     }
-    
-     @GET
+
+    @GET
     @Path("dashboard")
-    public Response donneesRecaps(
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd
-           
-    ) throws JSONException {
+    public Response donneesRecaps(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject jsono = dashBoardService.donneesRecapActiviteView(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu, "");
+        JSONObject jsono = dashBoardService.donneesRecapActiviteView(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
+                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tu, "");
         return Response.ok().entity(jsono.toString()).build();
     }
+
+    @GET
+    @Path("dashboardmob")
+    public Response donneesRecap(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+
+        String TEmplacement = "1";
+        JSONObject jsono = dashBoardService.donneesRecapActiviteView(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
+                TEmplacement, "");
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
 }

@@ -13,19 +13,20 @@ import commonTasks.dto.ValorisationDTO;
 import dal.TFamille;
 import dal.TFamilleGrossiste;
 import dal.TFamilleStock;
+import dal.TGrossiste;
 import dal.TUser;
 import java.time.LocalDate;
 import java.util.List;
 import javax.ejb.Local;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.dto.CreationProduitDTO;
 
 /**
  *
  * @author DICI
  */
 @Local
-//@Remote
 public interface ProduitService {
 
     JSONObject produitDesactives(QueryDTO dto, boolean all) throws JSONException;
@@ -52,34 +53,56 @@ public interface ProduitService {
 
     JSONObject findAllRayons(String query) throws JSONException;
 
-    JSONObject suivitEclateViewDatas(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
+    JSONObject suivitEclateViewDatas(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
 
     MvtProduitDTO suivitEclate(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl);
 
-    JSONObject suivitEclateVentes(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
+    JSONObject suivitEclateVentes(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
 
-    JSONObject suivitEclateAjustement(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl, boolean positif) throws JSONException;
+    JSONObject suivitEclateAjustement(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl,
+            boolean positif) throws JSONException;
 
-    JSONObject suivitEclateDecond(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl, boolean positif) throws JSONException;
+    JSONObject suivitEclateDecond(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl, boolean positif)
+            throws JSONException;
 
     JSONObject suivitEclateInv(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
 
-    JSONObject suivitEclateAnnulation(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
+    JSONObject suivitEclateAnnulation(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
 
-    JSONObject suivitEclatePerime(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
+    JSONObject suivitEclatePerime(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
 
-    JSONObject suivitEclateEntree(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
+    JSONObject suivitEclateEntree(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
 
-    JSONObject suivitEclateRetourFour(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
+    JSONObject suivitEclateRetourFour(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
 
-    JSONObject suivitEclateRetourDepot(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) throws JSONException;
+    JSONObject suivitEclateRetourDepot(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
 
     TFamille findById(String produitId);
 
-    JSONObject valorisationStock(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId) throws JSONException;
+    JSONObject valorisationStock(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
+            String lgZONEGEOID, String end, String begin, String emplacementId) throws JSONException;
 
-    Params getValeurStock(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId);
+    Params getValeurStock(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
+            String lgZONEGEOID, String end, String begin, String emplacementId);
 
-    ValorisationDTO getValeurStockPdf(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId);
+    ValorisationDTO getValeurStockPdf(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
+            String lgZONEGEOID, String end, String begin, String emplacementId);
 
+    JSONObject createProduit(CreationProduitDTO creationProduit);
+
+    JSONObject createProduitDetail(CreationProduitDTO creationProduit);
+
+    JSONObject updateProduitDetail(CreationProduitDTO creationProduit, String idProduit);
+
+    TFamille createProduitFromRupture(CreationProduitDTO creationProduit, TGrossiste grossiste);
+
+    TFamilleGrossiste createTFamilleGrossisteFromRupture(CreationProduitDTO creationProduit, TFamille famille,
+            TGrossiste grossiste);
 }

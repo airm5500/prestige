@@ -31,22 +31,22 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_coffre_caisse")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCoffreCaisse.findAll", query = "SELECT t FROM TCoffreCaisse t"),
-    @NamedQuery(name = "TCoffreCaisse.findByIdCoffreCaisse", query = "SELECT t FROM TCoffreCaisse t WHERE t.idCoffreCaisse = :idCoffreCaisse"),
-    @NamedQuery(name = "TCoffreCaisse.findByIntAMOUNT", query = "SELECT t FROM TCoffreCaisse t WHERE t.intAMOUNT = :intAMOUNT"),
-    @NamedQuery(name = "TCoffreCaisse.findByDtCREATED", query = "SELECT t FROM TCoffreCaisse t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCoffreCaisse.findByDtUPDATED", query = "SELECT t FROM TCoffreCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TCoffreCaisse.findByLdCREATEDBY", query = "SELECT t FROM TCoffreCaisse t WHERE t.ldCREATEDBY = :ldCREATEDBY"),
-    @NamedQuery(name = "TCoffreCaisse.findByLdUPDATEDBY", query = "SELECT t FROM TCoffreCaisse t WHERE t.ldUPDATEDBY = :ldUPDATEDBY"),
-    @NamedQuery(name = "TCoffreCaisse.findByStrSTATUT", query = "SELECT t FROM TCoffreCaisse t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TCoffreCaisse.findAll", query = "SELECT t FROM TCoffreCaisse t"),
+        @NamedQuery(name = "TCoffreCaisse.findByIdCoffreCaisse", query = "SELECT t FROM TCoffreCaisse t WHERE t.idCoffreCaisse = :idCoffreCaisse"),
+        @NamedQuery(name = "TCoffreCaisse.findByIntAMOUNT", query = "SELECT t FROM TCoffreCaisse t WHERE t.intAMOUNT = :intAMOUNT"),
+        @NamedQuery(name = "TCoffreCaisse.findByDtCREATED", query = "SELECT t FROM TCoffreCaisse t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCoffreCaisse.findByDtUPDATED", query = "SELECT t FROM TCoffreCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCoffreCaisse.findByLdCREATEDBY", query = "SELECT t FROM TCoffreCaisse t WHERE t.ldCREATEDBY = :ldCREATEDBY"),
+        @NamedQuery(name = "TCoffreCaisse.findByLdUPDATEDBY", query = "SELECT t FROM TCoffreCaisse t WHERE t.ldUPDATEDBY = :ldUPDATEDBY"),
+        @NamedQuery(name = "TCoffreCaisse.findByStrSTATUT", query = "SELECT t FROM TCoffreCaisse t WHERE t.strSTATUT = :strSTATUT") })
 public class TCoffreCaisse implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
     @Column(name = "ID_COFFRE_CAISSE", nullable = false, length = 40)
     private String idCoffreCaisse;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_AMOUNT", precision = 15, scale = 3)
     private Double intAMOUNT;
     @Column(name = "dt_CREATED")
@@ -161,7 +161,8 @@ public class TCoffreCaisse implements Serializable {
             return false;
         }
         TCoffreCaisse other = (TCoffreCaisse) object;
-        if ((this.idCoffreCaisse == null && other.idCoffreCaisse != null) || (this.idCoffreCaisse != null && !this.idCoffreCaisse.equals(other.idCoffreCaisse))) {
+        if ((this.idCoffreCaisse == null && other.idCoffreCaisse != null)
+                || (this.idCoffreCaisse != null && !this.idCoffreCaisse.equals(other.idCoffreCaisse))) {
             return false;
         }
         return true;
@@ -171,5 +172,5 @@ public class TCoffreCaisse implements Serializable {
     public String toString() {
         return "dal.TCoffreCaisse[ idCoffreCaisse=" + idCoffreCaisse + " ]";
     }
-    
+
 }

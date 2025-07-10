@@ -28,12 +28,11 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_famille_dci")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFamilleDci.findAll", query = "SELECT t FROM TFamilleDci t"),
-    @NamedQuery(name = "TFamilleDci.findByLgFAMILLEDCIID", query = "SELECT t FROM TFamilleDci t WHERE t.lgFAMILLEDCIID = :lgFAMILLEDCIID"),
-    @NamedQuery(name = "TFamilleDci.findByStrSTATUT", query = "SELECT t FROM TFamilleDci t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TFamilleDci.findByDtCREATED", query = "SELECT t FROM TFamilleDci t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFamilleDci.findByDtUPDATED", query = "SELECT t FROM TFamilleDci t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TFamilleDci.findAll", query = "SELECT t FROM TFamilleDci t"),
+        @NamedQuery(name = "TFamilleDci.findByLgFAMILLEDCIID", query = "SELECT t FROM TFamilleDci t WHERE t.lgFAMILLEDCIID = :lgFAMILLEDCIID"),
+        @NamedQuery(name = "TFamilleDci.findByStrSTATUT", query = "SELECT t FROM TFamilleDci t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TFamilleDci.findByDtCREATED", query = "SELECT t FROM TFamilleDci t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFamilleDci.findByDtUPDATED", query = "SELECT t FROM TFamilleDci t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TFamilleDci implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -124,7 +123,8 @@ public class TFamilleDci implements Serializable {
             return false;
         }
         TFamilleDci other = (TFamilleDci) object;
-        if ((this.lgFAMILLEDCIID == null && other.lgFAMILLEDCIID != null) || (this.lgFAMILLEDCIID != null && !this.lgFAMILLEDCIID.equals(other.lgFAMILLEDCIID))) {
+        if ((this.lgFAMILLEDCIID == null && other.lgFAMILLEDCIID != null)
+                || (this.lgFAMILLEDCIID != null && !this.lgFAMILLEDCIID.equals(other.lgFAMILLEDCIID))) {
             return false;
         }
         return true;
@@ -134,5 +134,5 @@ public class TFamilleDci implements Serializable {
     public String toString() {
         return "dal.TFamilleDci[ lgFAMILLEDCIID=" + lgFAMILLEDCIID + " ]";
     }
-    
+
 }

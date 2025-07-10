@@ -26,10 +26,10 @@
 
 
 
-<%  String str_FIRST_NAME = "", str_STATUT = "", str_LAST_NAME = "", lg_ROLE_ID = "", lg_USER_ID = "", str_PASSWORD = "", str_LOGIN = "", str_FUNCTION = "", lg_SKIN_ID = "", lg_Language_ID = "", str_LIEU_TRAVAIL = "",str_PHONE="", str_TYPE = commonparameter.PARAMETER_CUSTOMER;
+<%  String str_FIRST_NAME = "", str_STATUT = "", str_LAST_NAME = "", lg_ROLE_ID = "", lg_USER_ID = "", str_PASSWORD = "", str_LOGIN = "", str_FUNCTION = "", lg_SKIN_ID = "", lg_Language_ID = "", str_LIEU_TRAVAIL = "", str_PHONE = "", str_TYPE = commonparameter.PARAMETER_CUSTOMER;
     date str_LAST_CONNECTION_DATE;
     int str_IDS = 1;
-    String   user_id="";
+    String user_id = "";
     String lg_IMPRIMANTE_ID = "", str_NAME = "";
     if (request.getParameter("lg_IMPRIMANTE_ID") != null) {
         lg_IMPRIMANTE_ID = request.getParameter("lg_IMPRIMANTE_ID");
@@ -83,11 +83,10 @@
     if (request.getParameter("str_PHONE") != null) {
         str_PHONE = request.getParameter("str_PHONE");
     }
-    
 
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     OdataManager.initEntityManager();
- TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
+    TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     bllBase ObllBase = new bllBase();
     ObllBase.setOTUser(user);
     ObllBase.LoadDataManger(OdataManager);
@@ -97,7 +96,7 @@
     ObllBase.setDetailmessage("PAS D'ACTION");
     new logger().oCategory.info("le mode : " + request.getParameter("mode"));
     new logger().oCategory.info("ID " + request.getParameter("lg_USER_ID"));
-new logger().oCategory.info("ID connecté " + OTUser.getLgUSERID());
+    new logger().oCategory.info("ID connecté " + OTUser.getLgUSERID());
     if (request.getParameter("mode") != null) {
 
         if (request.getParameter("mode").toString().equals("create")) {
@@ -130,10 +129,9 @@ new logger().oCategory.info("ID connecté " + OTUser.getLgUSERID());
 
         } else if (request.getParameter("mode").toString().equals("update")) {
 
-           
-                Ouser.updateMyUser(lg_USER_ID, str_LOGIN, str_IDS, str_FIRST_NAME, str_LAST_NAME, lg_Language_ID, str_LIEU_TRAVAIL, lg_ROLE_ID);
-                ObllBase.setMessage(Ouser.getMessage());
-                ObllBase.setDetailmessage(Ouser.getDetailmessage());
+            Ouser.updateMyUser(lg_USER_ID, str_LOGIN, str_IDS, str_FIRST_NAME, str_LAST_NAME, lg_Language_ID, str_LIEU_TRAVAIL, lg_ROLE_ID);
+            ObllBase.setMessage(Ouser.getMessage());
+            ObllBase.setDetailmessage(Ouser.getDetailmessage());
 
         } else if (request.getParameter("mode").toString().equals("updatepassword")) {
             Ouser.updatePassword(lg_USER_ID, str_PASSWORD);
@@ -151,7 +149,8 @@ new logger().oCategory.info("ID connecté " + OTUser.getLgUSERID());
 
              new logger().oCategory.info("Suppression de user " + request.getParameter("lg_USER_ID").toString());*/
 
-        } /*else if (request.getParameter("mode").toString().equals("createUserImprimante")) {
+        }
+        /*else if (request.getParameter("mode").toString().equals("createUserImprimante")) {
             Ouser.createUserImprimante(lg_USER_ID, lg_IMPRIMANTE_ID);
             ObllBase.setDetailmessage(Ouser.getDetailmessage());
             ObllBase.setMessage(Ouser.getMessage());

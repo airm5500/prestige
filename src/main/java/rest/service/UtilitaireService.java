@@ -11,7 +11,8 @@ package rest.service;
  */
 public interface UtilitaireService {
 
-    default int calculPrixMoyenPondereReception(int ancienStock, int ancienPrixAchat, int nouveauStock, int nouveauPrixAchat) {
+    default int calculPrixMoyenPondereReception(int ancienStock, int ancienPrixAchat, int nouveauStock,
+            int nouveauPrixAchat) {
         return (ancienStock * ancienPrixAchat) + (nouveauStock * nouveauPrixAchat) + (ancienStock + nouveauStock);
 
     }

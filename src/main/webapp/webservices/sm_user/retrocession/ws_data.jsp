@@ -36,7 +36,7 @@
 
    JSONArray arrayObj = new JSONArray();
     date key = new date();
-    List<TRetrocession> lstTRetrocession = new ArrayList<TRetrocession>();
+    List<TRetrocession> lstTRetrocession = new ArrayList<>();
 %>
 
 
@@ -83,7 +83,7 @@
         for (int i = 0; i < lstTRetrocession.size(); i++) {
 
             OdataManager.getEm().refresh(lstTRetrocession.get(i));
-            List<TRetrocessionDetail> lstTRetrocessionDetail = new ArrayList<TRetrocessionDetail>();
+            List<TRetrocessionDetail> lstTRetrocessionDetail = new ArrayList<>();
             lstTRetrocessionDetail = ORetrocessionDetailManagement.SearchAllOrOneDetailRetrocession(lstTRetrocession.get(i).getLgRETROCESSIONID());
             new logger().OCategory.info("lstTRetrocessionDetail size "+lstTRetrocessionDetail.size());
             String str_Product = "";
@@ -127,7 +127,7 @@
         new logger().OCategory.info("Failed to display list !");
     }
     String result = "({\"total\":\"" + lstTRetrocession.size() + " \",\"results\":" + arrayObj.toString() + "})";
-new logger().OCategory.info("result "+result);
+
 
 %>
 

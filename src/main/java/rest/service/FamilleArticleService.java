@@ -21,23 +21,33 @@ import org.json.JSONObject;
 @Local
 public interface FamilleArticleService {
 
-    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParFamilleArticle(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
+    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParFamilleArticle(String dtStart, String dtEnd,
+            String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
 
-    JSONObject statistiqueParFamilleArticleView(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste) throws JSONException;
+    JSONObject statistiqueParFamilleArticleView(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste) throws JSONException;
 
-    List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, TUser u, String codeFamile, String codeRayon, String codeGrossiste, int start, int limit, boolean all, boolean qtyOrCa);
+    List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, TUser u, String codeFamile, String codeRayon,
+            String codeGrossiste, int start, int limit, boolean all, boolean qtyOrCa);
 
-    JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, TUser u, String codeFamile, String codeRayon, String codeGrossiste, int start, int limit, boolean qtyOrCa);
+    JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, TUser u, String codeFamile, String codeRayon,
+            String codeGrossiste, int start, int limit, boolean qtyOrCa);
 
-    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParRayons(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
+    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParRayons(String dtStart, String dtEnd,
+            String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
 
-    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParGrossistes(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
+    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParGrossistes(String dtStart, String dtEnd,
+            String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
 
-    JSONObject statistiqueParRayonsView(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste) throws JSONException;
+    JSONObject statistiqueParRayonsView(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste) throws JSONException;
 
-    JSONObject statistiqueParGrossistesView(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste) throws JSONException;
+    JSONObject statistiqueParGrossistesView(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste) throws JSONException;
 
-    JSONObject statistiqueParFamilleArticleViewVeto(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste) throws JSONException;
+    JSONObject statistiqueParFamilleArticleViewVeto(String dtStart, String dtEnd, String codeFamile, String query,
+            TUser u, String codeRayon, String codeGrossiste) throws JSONException;
 
-    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParFamilleArticleVeto(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
+    Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParFamilleArticleVeto(String dtStart,
+            String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
 }

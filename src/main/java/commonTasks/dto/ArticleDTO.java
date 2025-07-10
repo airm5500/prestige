@@ -27,10 +27,13 @@ public class ArticleDTO implements Serializable {
     private SimpleDateFormat dateFormatFull = new SimpleDateFormat("dd/MM/yyyy HH:mm");
     private SimpleDateFormat heureFormat = new SimpleDateFormat("HH:mm");
     private String code, libelle, filterId, filterLibelle, lastDate, lastHour, id, grossisteId, codeGrossiste;
-    private int stock, qtyEntree, prixAchat, prixVente, qteSurplus, qteVendue, consommation, valeurQteSurplus, valeurVente, stockMoyen, seuiRappro, qteReappro, stockDetail,
-            consommationsOne, moyen3Mois, consommationsTwo, cumulConso, consommationsThree, consommationUn, consommationsFour, consommationsFive, consommationsSix;
+    private int stock, qtyEntree, prixAchat, prixVente, qteSurplus, qteVendue, consommation, valeurQteSurplus,
+            valeurVente, stockMoyen, seuiRappro, qteReappro, stockDetail, consommationsOne, moyen3Mois,
+            consommationsTwo, cumulConso, consommationsThree, consommationUn, consommationsFour, consommationsFive,
+            consommationsSix;
     private double coefficient;
-    private String codeEan, datePeremption, rayonLibelle, codeEtiquette, tva, dateEntree, dateBon, familleLibelle, dateInventaire, lastDateVente;
+    private String codeEan, datePeremption, rayonLibelle, codeEtiquette, tva, dateEntree, dateBon, familleLibelle,
+            dateInventaire, lastDateVente;
 
     public ArticleDTO qtyEntree(int qtyEntree) {
         this.qtyEntree = qtyEntree;
@@ -61,7 +64,8 @@ public class ArticleDTO implements Serializable {
     }
 
     public int getCumulConso() {
-        cumulConso = (consommationsOne + consommationsTwo + consommationsThree + consommationUn + consommationsFour + consommationsFive + consommationsSix);
+        cumulConso = (consommationsOne + consommationsTwo + consommationsThree + consommationUn + consommationsFour
+                + consommationsFive + consommationsSix);
         return cumulConso;
     }
 
@@ -75,13 +79,14 @@ public class ArticleDTO implements Serializable {
 
     public ArticleDTO datePeremption(String datePeremption) {
         try {
-              
-           if(!StringUtils.isEmpty(datePeremption)){
-               this.datePeremption = LocalDate.parse(datePeremption.substring(0, datePeremption.indexOf(" "))).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-           }
-            
+
+            if (!StringUtils.isEmpty(datePeremption)) {
+                this.datePeremption = LocalDate.parse(datePeremption.substring(0, datePeremption.indexOf(" ")))
+                        .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            }
+
         } catch (Exception e) {
-           // e.printStackTrace();
+            // e.printStackTrace();
         }
 
         return this;
@@ -162,7 +167,8 @@ public class ArticleDTO implements Serializable {
         this.qteReappro = qteReappro;
     }
 
-    public ArticleDTO(String code, String libelle, String filterId, String filterLibelle, int prixAchat, int prixVente, String id, String grossisteId) {
+    public ArticleDTO(String code, String libelle, String filterId, String filterLibelle, int prixAchat, int prixVente,
+            String id, String grossisteId) {
         this.code = code;
         this.libelle = libelle;
         this.filterId = filterId;
@@ -452,7 +458,12 @@ public class ArticleDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "ArticleDTO{" + "code=" + code + ", libelle=" + libelle + ", filterId=" + filterId + ", filterLibelle=" + filterLibelle + ", lastDate=" + lastDate + ", lastHour=" + lastHour + ", id=" + id + ", grossisteId=" + grossisteId + ", codeGrossiste=" + codeGrossiste + ", stock=" + stock + ", prixAchat=" + prixAchat + ", prixVente=" + prixVente + ", qteSurplus=" + qteSurplus + ", valeurQteSurplus=" + valeurQteSurplus + ", qteVendue=" + qteVendue + ", consommation=" + consommation + ", coefficient=" + coefficient + ", stockMoyen=" + stockMoyen + '}';
+        return "ArticleDTO{" + "code=" + code + ", libelle=" + libelle + ", filterId=" + filterId + ", filterLibelle="
+                + filterLibelle + ", lastDate=" + lastDate + ", lastHour=" + lastHour + ", id=" + id + ", grossisteId="
+                + grossisteId + ", codeGrossiste=" + codeGrossiste + ", stock=" + stock + ", prixAchat=" + prixAchat
+                + ", prixVente=" + prixVente + ", qteSurplus=" + qteSurplus + ", valeurQteSurplus=" + valeurQteSurplus
+                + ", qteVendue=" + qteVendue + ", consommation=" + consommation + ", coefficient=" + coefficient
+                + ", stockMoyen=" + stockMoyen + '}';
     }
 
     @Override

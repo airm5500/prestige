@@ -349,8 +349,6 @@ Ext.define('testextjs.view.Report.activities.rapportactivite', {
                                         iconCls: 'activitiessearch',
                                         text: 'Rechercher',
                                         handler: function () {
-
-
                                             var dt_start_activities = Ext.getCmp('dt_start_activities').getSubmitValue();
                                             var dt_end_activities = Ext.getCmp('dt_end_activities').getSubmitValue();
                                             castore.load({
@@ -400,8 +398,6 @@ Ext.define('testextjs.view.Report.activities.rapportactivite', {
                                                 }
                                             });
                                         }
-
-
 
                                     },
                                     {
@@ -504,7 +500,6 @@ Ext.define('testextjs.view.Report.activities.rapportactivite', {
                                         id: 'crediSearch',
                                         width: 350,
                                         enableKeyEvents: true,
-
                                         listeners: {
                                             specialKey: function (field, e, options) {
                                                 if (e.getKey() === e.ENTER) {

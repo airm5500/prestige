@@ -42,7 +42,8 @@ public class TparameterManager extends bllDirectBase {
     public String getValue(String strKey) {
         String res = "";
         try {
-            java.sql.PreparedStatement stmt = oConnection.prepareStatement("select str_Value from t_parameters where str_Key=?");
+            java.sql.PreparedStatement stmt = oConnection
+                    .prepareStatement("select str_Value from t_parameters where str_Key=?");
             stmt.setString(1, strKey);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -57,7 +58,8 @@ public class TparameterManager extends bllDirectBase {
 
     public void addValue(String strKey, String strValue, String strDescription) {
         try {
-            java.sql.PreparedStatement stmt = oConnection.prepareStatement("insert into t_parameters(str_Key,str_Value,str_DESCRIPTION) values(?,?,?)");
+            java.sql.PreparedStatement stmt = oConnection
+                    .prepareStatement("insert into t_parameters(str_Key,str_Value,str_DESCRIPTION) values(?,?,?)");
 
             stmt.setString(1, strKey);
             stmt.setString(2, strValue);
@@ -71,7 +73,8 @@ public class TparameterManager extends bllDirectBase {
 
     public void setValue(String strKey, String strValue) {
         try {
-            java.sql.PreparedStatement stmt = oConnection.prepareStatement("update t_parameters set str_Value=? where str_Key=?");
+            java.sql.PreparedStatement stmt = oConnection
+                    .prepareStatement("update t_parameters set str_Value=? where str_Key=?");
             stmt.setString(1, strValue);
             stmt.setString(2, strKey);
             int i = stmt.executeUpdate();
@@ -91,7 +94,6 @@ public class TparameterManager extends bllDirectBase {
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             result = true;
 
-            
         } catch (Exception e) {
             e.printStackTrace();
             this.buildErrorTraceMessage("Echec de mise à jour du paramétrage");
@@ -105,7 +107,7 @@ public class TparameterManager extends bllDirectBase {
 
         try {
             OTParameters = this.getOdataManager().getEm().find(TParameters.class, str_KEY);
-//            new logger().OCategory.info("Description: " + OTParameters.getStrDESCRIPTION());
+            // new logger().OCategory.info("Description: " + OTParameters.getStrDESCRIPTION());
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
             e.printStackTrace();
@@ -114,32 +116,38 @@ public class TparameterManager extends bllDirectBase {
         return OTParameters;
     }
 
-    //Liste des parametres generaux de l'application
+    // Liste des parametres generaux de l'application
     public List<TParameters> listeParameter(String search_value, String str_TYPE) {
         List<TParameters> lst = new ArrayList<>();
-        //privilege Oprivilege = new privilege(this.getOdataManager(), this.getOTUser());
+        // privilege Oprivilege = new privilege(this.getOdataManager(), this.getOTUser());
         try {
             if (search_value.equalsIgnoreCase("") || search_value == null) {
                 search_value = "%%";
             }
-            /*if (Oprivilege.isColonneStockMachineIsAuthorize(Parameter.P_SHOW_ALL_ACTIVITY_ADMIN)) {
-                str_TYPE = "%%";
-            }*/
-            if(str_TYPE.equalsIgnoreCase(commonparameter.PARAMETER_ADMIN)) {
-                 lst = this.getOdataManager().getEm().createQuery("SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND (t.strTYPE LIKE ?2 OR t.strTYPE LIKE ?4) AND t.strSTATUT = ?3")
-                    .setParameter(1, search_value + "%").setParameter(2, str_TYPE).setParameter(3, commonparameter.statut_enable).setParameter(4, commonparameter.PARAMETER_CUSTOMER).getResultList();
+            /*
+             * if (Oprivilege.isColonneStockMachineIsAuthorize(Parameter.P_SHOW_ALL_ACTIVITY_ADMIN)) { str_TYPE = "%%";
+             * }
+             */
+            if (str_TYPE.equalsIgnoreCase(commonparameter.PARAMETER_ADMIN)) {
+                lst = this.getOdataManager().getEm().createQuery(
+                        "SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND (t.strTYPE LIKE ?2 OR t.strTYPE LIKE ?4) AND t.strSTATUT = ?3")
+                        .setParameter(1, search_value + "%").setParameter(2, str_TYPE)
+                        .setParameter(3, commonparameter.statut_enable)
+                        .setParameter(4, commonparameter.PARAMETER_CUSTOMER).getResultList();
             } else {
-                 lst = this.getOdataManager().getEm().createQuery("SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND t.strTYPE LIKE ?2 AND t.strSTATUT = ?3")
-                    .setParameter(1, search_value + "%").setParameter(2, str_TYPE).setParameter(3, commonparameter.statut_enable).getResultList();
-        
+                lst = this.getOdataManager().getEm().createQuery(
+                        "SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND t.strTYPE LIKE ?2 AND t.strSTATUT = ?3")
+                        .setParameter(1, search_value + "%").setParameter(2, str_TYPE)
+                        .setParameter(3, commonparameter.statut_enable).getResultList();
+
             }
-           } catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         new logger().OCategory.info("lst size " + lst.size());
         return lst;
     }
-    //fin Liste des parametres generaux de l'application
+    // fin Liste des parametres generaux de l'application
 
     public boolean createParameter(String str_KEY, String str_VALUE, String str_DESCRIPTION, String str_TYPE) {
         boolean result = false;
@@ -166,7 +174,7 @@ public class TparameterManager extends bllDirectBase {
             OTParameters = this.getParameter(Parameter.KEY_MOVEMENT_FALSE);
             OTParametersValue = this.getParameter(Parameter.KEY_MOVEMENT_FALSE_VALUE);
             if (OTParameters != null && OTParametersValue != null && OTParametersValue.getStrISENKRYPTED() != null) {
-                String systemeday = date.formatterShort.format(jour);//compare la date d'aujourd hui à celle dans la bd
+                String systemeday = date.formatterShort.format(jour);// compare la date d'aujourd hui à celle dans la bd
                 this.getOdataManager().BeginTransaction();
                 if (!systemeday.equals(OTParameters.getStrISENKRYPTED())) {
                     OTParametersValue.setStrISENKRYPTED(OTParametersValue.getStrVALUE());
@@ -183,16 +191,16 @@ public class TparameterManager extends bllDirectBase {
         }
 
     }
-    
-    //initialisation des jobs de la base de données
+
+    // initialisation des jobs de la base de données
     public void setJobOfDatabase() {
         try {
             String qry = "SET GLOBAL event_scheduler = ON; DROP EVENT IF EXISTS `MANAGE_MOUVMENT_PRODUCT`;CREATE EVENT `MANAGE_MOUVMENT_PRODUCT` ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP DO BEGIN CALL proc_update_mouvement_product(); END;DROP EVENT IF EXISTS `MAJ_STOCK_REAPRO`; CREATE EVENT `MAJ_STOCK_REAPRO` ON SCHEDULE EVERY 2 HOUR STARTS CURRENT_TIMESTAMP DO BEGIN call UpdateStockReapro(); END;";
-          //  this.getOdataManager().getEm().createNativeQuery(qry).getSingleResult();
+            // this.getOdataManager().getEm().createNativeQuery(qry).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-    //fin initialisation des jobs de la base de données
+    // fin initialisation des jobs de la base de données
 
 }

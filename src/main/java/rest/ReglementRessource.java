@@ -26,6 +26,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.GenerateTicketService;
 import rest.service.ReglementService;
+import util.Constant;
 import toolkits.parameters.commonparameter;
 
 /**
@@ -46,19 +47,11 @@ public class ReglementRessource {
 
     @GET
     @Path("liste")
-    public Response searchProduct(
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "userId") String userId,
-            @QueryParam(value = "pairclient") boolean pairclient
-    ) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
+    public Response searchProduct(@QueryParam(value = "query") String query,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "userId") String userId, @QueryParam(value = "pairclient") boolean pairclient)
+            throws JSONException {
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
         Params body = new Params();
         if (!"".equals(query)) {
             body.setDescription(query);
@@ -66,10 +59,8 @@ public class ReglementRessource {
         if (!"".equals(userId)) {
             body.setRef(userId);
         }
-
         body.setDtEnd(dtEnd);
         body.setDtStart(dtStart);
-        body.setOperateur(tu);
         JSONObject jsono = reglementService.listeDifferesData(body, pairclient);
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -80,7 +71,7 @@ public class ReglementRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         clotureVenteParams.setUserId(tu);
         JSONObject json = reglementService.reglerDiffere(clotureVenteParams);
@@ -94,7 +85,7 @@ public class ReglementRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         clotureVenteParams.setUserId(tu);
         JSONObject json = reglementService.reglerDiffereAll(clotureVenteParams);
@@ -103,30 +94,23 @@ public class ReglementRessource {
 
     @GET
     @Path("delayed")
-    public Response listeReglementDifferes(
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "clientId") String clientId
-    ) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
-        JSONObject jsono = reglementService.reglementsDifferes(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), true, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), clientId);
+    public Response listeReglementDifferes(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "clientId") String clientId)
+            throws JSONException {
+
+        JSONObject jsono = reglementService.reglementsDifferes(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), true,
+                clientId);
         return Response.ok().entity(jsono.toString()).build();
     }
 
     @GET
     @Path("details")
-    public Response detailsDifferes(
-            @QueryParam(value = "ref") String ref
-    ) throws JSONException {
+    public Response detailsDifferes(@QueryParam(value = "ref") String ref) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject jsono = reglementService.detailsReglmentDiffere(ref);
         return Response.ok().entity(jsono.toString()).build();
@@ -138,9 +122,21 @@ public class ReglementRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = generateTicketService.ticketReglementDiffere(ref);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @PUT
+    @Path("ticket-carnet/{id}")
+    public Response print(@PathParam("id") String ref) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = generateTicketService.ticketReglementCarnet(ref);
         return Response.ok().entity(json.toString()).build();
     }
 }

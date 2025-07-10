@@ -81,8 +81,8 @@
 %>
 <!-- fin logic de gestion des page -->
 
-<%    List<EntityData> listPreenregistrement = new ArrayList<EntityData>();
-    List<TPreenregistrementCompteClientTiersPayent> listTPreenregistrementCompteClientTiersPayent = new ArrayList<TPreenregistrementCompteClientTiersPayent>();
+<%    List<EntityData> listPreenregistrement = new ArrayList<>();
+    List<TPreenregistrementCompteClientTiersPayent> listTPreenregistrementCompteClientTiersPayent = new ArrayList<>();
     Date today = new Date();
     String str_Date_Debut = key.DateToString(today, key.formatterMysqlShort), str_Date_Fin = key.DateToString(today, key.formatterMysqlShort), search_value = "",
             h_debut = "00:00", h_fin = "23:59", lg_PREENGISTREMENT_ID = "%%", str_TYPE_VENTE = "%%", lg_TIERS_PAYANT_ID = "%%";
@@ -203,7 +203,7 @@ boolean BTN_EDIT = false;
 
     String result = "({\"total\":\"" + listPreenregistrement.size() + " \",\"results\":" + arrayObj.toString() + "})";
 
-    System.out.println(result);
+   
 %>
 
 <%= result%>

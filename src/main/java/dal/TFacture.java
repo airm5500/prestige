@@ -32,26 +32,25 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_facture")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFacture.findAll", query = "SELECT t FROM TFacture t"),
-    @NamedQuery(name = "TFacture.findByLgFACTUREID", query = "SELECT t FROM TFacture t WHERE t.lgFACTUREID = :lgFACTUREID"),
-    @NamedQuery(name = "TFacture.findByDtDATEFACTURE", query = "SELECT t FROM TFacture t WHERE t.dtDATEFACTURE = :dtDATEFACTURE"),
-    @NamedQuery(name = "TFacture.findByDblMONTANTCMDE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTCMDE = :dblMONTANTCMDE"),
-    @NamedQuery(name = "TFacture.findByStrCODEFACTURE", query = "SELECT t FROM TFacture t WHERE t.strCODEFACTURE = :strCODEFACTURE"),
-    @NamedQuery(name = "TFacture.findByStrCODECOMPTABLE", query = "SELECT t FROM TFacture t WHERE t.strCODECOMPTABLE = :strCODECOMPTABLE"),
-    @NamedQuery(name = "TFacture.findByDblMONTANTPAYE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
-    @NamedQuery(name = "TFacture.findByDtDEBUTFACTURE", query = "SELECT t FROM TFacture t WHERE t.dtDEBUTFACTURE = :dtDEBUTFACTURE"),
-    @NamedQuery(name = "TFacture.findByIntNBDOSSIER", query = "SELECT t FROM TFacture t WHERE t.intNBDOSSIER = :intNBDOSSIER"),
-    @NamedQuery(name = "TFacture.findByDtFINFACTURE", query = "SELECT t FROM TFacture t WHERE t.dtFINFACTURE = :dtFINFACTURE"),
-    @NamedQuery(name = "TFacture.findByStrCUSTOMER", query = "SELECT t FROM TFacture t WHERE t.strCUSTOMER = :strCUSTOMER"),
-    @NamedQuery(name = "TFacture.findByDblMONTANTRESTANT", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
-    @NamedQuery(name = "TFacture.findByStrSTATUT", query = "SELECT t FROM TFacture t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TFacture.findByDtCREATED", query = "SELECT t FROM TFacture t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFacture.findByDtUPDATED", query = "SELECT t FROM TFacture t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TFacture.findByStrPERE", query = "SELECT t FROM TFacture t WHERE t.strPERE = :strPERE"),
-    @NamedQuery(name = "TFacture.findByDblMONTANTREMISE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTREMISE = :dblMONTANTREMISE"),
-    @NamedQuery(name = "TFacture.findByDblMONTANTFOFETAIRE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTFOFETAIRE = :dblMONTANTFOFETAIRE"),
-    @NamedQuery(name = "TFacture.findByDblMONTANTBrut", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTBrut = :dblMONTANTBrut")})
+@NamedQueries({ @NamedQuery(name = "TFacture.findAll", query = "SELECT t FROM TFacture t"),
+        @NamedQuery(name = "TFacture.findByLgFACTUREID", query = "SELECT t FROM TFacture t WHERE t.lgFACTUREID = :lgFACTUREID"),
+        @NamedQuery(name = "TFacture.findByDtDATEFACTURE", query = "SELECT t FROM TFacture t WHERE t.dtDATEFACTURE = :dtDATEFACTURE"),
+        @NamedQuery(name = "TFacture.findByDblMONTANTCMDE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTCMDE = :dblMONTANTCMDE"),
+        @NamedQuery(name = "TFacture.findByStrCODEFACTURE", query = "SELECT t FROM TFacture t WHERE t.strCODEFACTURE = :strCODEFACTURE"),
+        @NamedQuery(name = "TFacture.findByStrCODECOMPTABLE", query = "SELECT t FROM TFacture t WHERE t.strCODECOMPTABLE = :strCODECOMPTABLE"),
+        @NamedQuery(name = "TFacture.findByDblMONTANTPAYE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
+        @NamedQuery(name = "TFacture.findByDtDEBUTFACTURE", query = "SELECT t FROM TFacture t WHERE t.dtDEBUTFACTURE = :dtDEBUTFACTURE"),
+        @NamedQuery(name = "TFacture.findByIntNBDOSSIER", query = "SELECT t FROM TFacture t WHERE t.intNBDOSSIER = :intNBDOSSIER"),
+        @NamedQuery(name = "TFacture.findByDtFINFACTURE", query = "SELECT t FROM TFacture t WHERE t.dtFINFACTURE = :dtFINFACTURE"),
+        @NamedQuery(name = "TFacture.findByStrCUSTOMER", query = "SELECT t FROM TFacture t WHERE t.strCUSTOMER = :strCUSTOMER"),
+        @NamedQuery(name = "TFacture.findByDblMONTANTRESTANT", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
+        @NamedQuery(name = "TFacture.findByStrSTATUT", query = "SELECT t FROM TFacture t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TFacture.findByDtCREATED", query = "SELECT t FROM TFacture t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFacture.findByDtUPDATED", query = "SELECT t FROM TFacture t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TFacture.findByStrPERE", query = "SELECT t FROM TFacture t WHERE t.strPERE = :strPERE"),
+        @NamedQuery(name = "TFacture.findByDblMONTANTREMISE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTREMISE = :dblMONTANTREMISE"),
+        @NamedQuery(name = "TFacture.findByDblMONTANTFOFETAIRE", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTFOFETAIRE = :dblMONTANTFOFETAIRE"),
+        @NamedQuery(name = "TFacture.findByDblMONTANTBrut", query = "SELECT t FROM TFacture t WHERE t.dblMONTANTBrut = :dblMONTANTBrut") })
 public class TFacture implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -62,7 +61,8 @@ public class TFacture implements Serializable {
     @Column(name = "dt_DATE_FACTURE")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtDATEFACTURE;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_MONTANT_CMDE", precision = 15, scale = 3)
     private Double dblMONTANTCMDE;
     @Column(name = "str_CODE_FACTURE", length = 40)
@@ -377,7 +377,8 @@ public class TFacture implements Serializable {
             return false;
         }
         TFacture other = (TFacture) object;
-        return !((this.lgFACTUREID == null && other.lgFACTUREID != null) || (this.lgFACTUREID != null && !this.lgFACTUREID.equals(other.lgFACTUREID)));
+        return !((this.lgFACTUREID == null && other.lgFACTUREID != null)
+                || (this.lgFACTUREID != null && !this.lgFACTUREID.equals(other.lgFACTUREID)));
     }
 
     @Override

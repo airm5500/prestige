@@ -342,7 +342,6 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                     width: 400,
                                     triggerAction: 'all',
                                     queryMode: 'remote',
-//                                    labelWidth: 100,
                                     enableKeyEvents: true,
                                     emptyText: 'Choisir un groupe de grossiste...'
 

@@ -17,20 +17,9 @@ import java.text.SimpleDateFormat;
 public class FactureDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String lgFACTUREID,
-            strLIBELLETYPETIERSPAYANT,
-            strCODECOMPTABLE,
-            dtDATEFACTURE,
-            dtDEBUTFACTURE,
-            dtFINFACTURE,
-            strCUSTOMER,
-            strFULLNAME,
-            periode;
-    private Integer nbDossier,
-            dblMONTANTBrut,
-            dblMONTANTFOFETAIRE,
-            dblMONTANTREMISE,
-            dblMONTANTCMDE;
+    private String lgFACTUREID, strLIBELLETYPETIERSPAYANT, strCODECOMPTABLE, dtDATEFACTURE, dtDEBUTFACTURE,
+            dtFINFACTURE, strCUSTOMER, strFULLNAME, periode;
+    private Integer nbDossier, dblMONTANTBrut, dblMONTANTFOFETAIRE, dblMONTANTREMISE, dblMONTANTCMDE;
     private String strCODEFACTURE;
     private final SimpleDateFormat df = new SimpleDateFormat("dd/MM/yyyy");
 
@@ -153,6 +142,7 @@ public class FactureDTO implements Serializable {
     public void setDblMONTANTCMDE(Integer dblMONTANTCMDE) {
         this.dblMONTANTCMDE = dblMONTANTCMDE;
     }
+
     private Integer montantVente = 0;
     private Integer montantTvaVente = 0;
     private Integer montantRemiseVente = 0;
@@ -216,11 +206,12 @@ public class FactureDTO implements Serializable {
         this.strMOBILE = payant.getStrMOBILE();
         this.strCODEOFFICINE = payant.getStrCODEOFFICINE();
         this.strREGISTRECOMMERCE = payant.getStrREGISTRECOMMERCE();
-        this.strCOMPTECONTRIBUABLE=payant.getStrCOMPTECONTRIBUABLE();
+        this.strCOMPTECONTRIBUABLE = payant.getStrCOMPTECONTRIBUABLE();
     }
+
     private String strTELEPHONE;
     private String strADRESSE;
-    private String strMOBILE, strCODEOFFICINE, strREGISTRECOMMERCE,strCOMPTECONTRIBUABLE;
+    private String strMOBILE, strCODEOFFICINE, strREGISTRECOMMERCE, strCOMPTECONTRIBUABLE;
 
     public String getStrTELEPHONE() {
         return strTELEPHONE;

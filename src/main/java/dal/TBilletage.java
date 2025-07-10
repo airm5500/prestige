@@ -7,6 +7,7 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import javax.persistence.Basic;
@@ -32,15 +33,14 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_billetage")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TBilletage.findAll", query = "SELECT t FROM TBilletage t"),
-    @NamedQuery(name = "TBilletage.findByLgBILLETAGEID", query = "SELECT t FROM TBilletage t WHERE t.lgBILLETAGEID = :lgBILLETAGEID"),
-    @NamedQuery(name = "TBilletage.findByLdCAISSEID", query = "SELECT t FROM TBilletage t WHERE t.ldCAISSEID = :ldCAISSEID"),
-    @NamedQuery(name = "TBilletage.findByIntAMOUNT", query = "SELECT t FROM TBilletage t WHERE t.intAMOUNT = :intAMOUNT"),
-    @NamedQuery(name = "TBilletage.findByDtCREATED", query = "SELECT t FROM TBilletage t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TBilletage.findByDtUPDATED", query = "SELECT t FROM TBilletage t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TBilletage.findByLgUPDATEDBY", query = "SELECT t FROM TBilletage t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
-    @NamedQuery(name = "TBilletage.findByLgCREATEDBY", query = "SELECT t FROM TBilletage t WHERE t.lgCREATEDBY = :lgCREATEDBY")})
+@NamedQueries({ @NamedQuery(name = "TBilletage.findAll", query = "SELECT t FROM TBilletage t"),
+        @NamedQuery(name = "TBilletage.findByLgBILLETAGEID", query = "SELECT t FROM TBilletage t WHERE t.lgBILLETAGEID = :lgBILLETAGEID"),
+        @NamedQuery(name = "TBilletage.findByLdCAISSEID", query = "SELECT t FROM TBilletage t WHERE t.ldCAISSEID = :ldCAISSEID"),
+        @NamedQuery(name = "TBilletage.findByIntAMOUNT", query = "SELECT t FROM TBilletage t WHERE t.intAMOUNT = :intAMOUNT"),
+        @NamedQuery(name = "TBilletage.findByDtCREATED", query = "SELECT t FROM TBilletage t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TBilletage.findByDtUPDATED", query = "SELECT t FROM TBilletage t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TBilletage.findByLgUPDATEDBY", query = "SELECT t FROM TBilletage t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
+        @NamedQuery(name = "TBilletage.findByLgCREATEDBY", query = "SELECT t FROM TBilletage t WHERE t.lgCREATEDBY = :lgCREATEDBY") })
 public class TBilletage implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -50,7 +50,6 @@ public class TBilletage implements Serializable {
     @Basic(optional = false)
     @Column(name = "ld_CAISSE_ID", nullable = false, length = 40)
     private String ldCAISSEID;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
     @Column(name = "int_AMOUNT", precision = 12, scale = 2)
     private Double intAMOUNT;
     @Column(name = "dt_CREATED")
@@ -63,8 +62,8 @@ public class TBilletage implements Serializable {
     private String lgUPDATEDBY;
     @Column(name = "lg_CREATED_BY", length = 20)
     private String lgCREATEDBY;
-    @OneToMany( mappedBy = "lgBILLETAGEID")
-    private Collection<TBilletageDetails> tBilletageDetailsCollection;
+    @OneToMany(mappedBy = "lgBILLETAGEID")
+    private Collection<TBilletageDetails> tBilletageDetailsCollection = new ArrayList<>();
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser lgUSERID;
@@ -73,7 +72,7 @@ public class TBilletage implements Serializable {
     }
 
     public TBilletage(String lgBILLETAGEID) {
-    	
+
         this.lgBILLETAGEID = lgBILLETAGEID;
     }
 
@@ -164,12 +163,13 @@ public class TBilletage implements Serializable {
 
     @Override
     public boolean equals(Object object) {
-        // TODO: Warning - this method won't work in the case the id fields are not set
+
         if (!(object instanceof TBilletage)) {
             return false;
         }
         TBilletage other = (TBilletage) object;
-        if ((this.lgBILLETAGEID == null && other.lgBILLETAGEID != null) || (this.lgBILLETAGEID != null && !this.lgBILLETAGEID.equals(other.lgBILLETAGEID))) {
+        if ((this.lgBILLETAGEID == null && other.lgBILLETAGEID != null)
+                || (this.lgBILLETAGEID != null && !this.lgBILLETAGEID.equals(other.lgBILLETAGEID))) {
             return false;
         }
         return true;
@@ -179,5 +179,5 @@ public class TBilletage implements Serializable {
     public String toString() {
         return "dal.TBilletage[ lgBILLETAGEID=" + lgBILLETAGEID + " ]";
     }
-    
+
 }

@@ -26,13 +26,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_nature_reglement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TNatureReglement.findAll", query = "SELECT t FROM TNatureReglement t"),
-    @NamedQuery(name = "TNatureReglement.findByLgNATUREID", query = "SELECT t FROM TNatureReglement t WHERE t.lgNATUREID = :lgNATUREID"),
-    @NamedQuery(name = "TNatureReglement.findByStrLIBELLE", query = "SELECT t FROM TNatureReglement t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TNatureReglement.findByStrSTATUT", query = "SELECT t FROM TNatureReglement t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TNatureReglement.findByDtCREATED", query = "SELECT t FROM TNatureReglement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TNatureReglement.findByDtUPDATED", query = "SELECT t FROM TNatureReglement t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TNatureReglement.findAll", query = "SELECT t FROM TNatureReglement t"),
+        @NamedQuery(name = "TNatureReglement.findByLgNATUREID", query = "SELECT t FROM TNatureReglement t WHERE t.lgNATUREID = :lgNATUREID"),
+        @NamedQuery(name = "TNatureReglement.findByStrLIBELLE", query = "SELECT t FROM TNatureReglement t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TNatureReglement.findByStrSTATUT", query = "SELECT t FROM TNatureReglement t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TNatureReglement.findByDtCREATED", query = "SELECT t FROM TNatureReglement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TNatureReglement.findByDtUPDATED", query = "SELECT t FROM TNatureReglement t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TNatureReglement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -111,7 +110,8 @@ public class TNatureReglement implements Serializable {
             return false;
         }
         TNatureReglement other = (TNatureReglement) object;
-        if ((this.lgNATUREID == null && other.lgNATUREID != null) || (this.lgNATUREID != null && !this.lgNATUREID.equals(other.lgNATUREID))) {
+        if ((this.lgNATUREID == null && other.lgNATUREID != null)
+                || (this.lgNATUREID != null && !this.lgNATUREID.equals(other.lgNATUREID))) {
             return false;
         }
         return true;
@@ -121,5 +121,5 @@ public class TNatureReglement implements Serializable {
     public String toString() {
         return "dal.TNatureReglement[ lgNATUREID=" + lgNATUREID + " ]";
     }
-    
+
 }

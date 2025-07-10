@@ -45,12 +45,14 @@ public class MigrationManager extends bll.bllBase {
         this.checkDatamanager();
     }
 
-    //importation de données
-    public boolean ImportDataToDataBase(String table_name, String filename, String extension, String str_TYPE_TRANSACTION) {
+    // importation de données
+    public boolean ImportDataToDataBase(String table_name, String filename, String extension,
+            String str_TYPE_TRANSACTION) {
         boolean result = false;
         List<String> lstString = new ArrayList<>();
         familleManagement OfamilleManagement = new familleManagement(this.getOdataManager(), this.getOTUser());
-        tierspayantManagement OtierspayantManagement = new tierspayantManagement(this.getOdataManager(), this.getOTUser());
+        tierspayantManagement OtierspayantManagement = new tierspayantManagement(this.getOdataManager(),
+                this.getOTUser());
         clientManagement OclientManagement = new clientManagement(this.getOdataManager(), this.getOTUser());
         DepotManager ODepotManager = new DepotManager(this.getOdataManager(), this.getOTUser());
         String Message = "", DetailMessage = "";
@@ -111,57 +113,77 @@ public class MigrationManager extends bll.bllBase {
         }
         return result;
     }
-    //fin importation de données
+    // fin importation de données
 
-    //exportation de donnéess
+    // exportation de donnéess
     public String ExportDataFromDataBase(String table_name, String extension, String liste_param) {
         String FILEPATH = "";
         String str_file_name = "";
         new logger().OCategory.info("table_name:" + table_name + "|extension:" + extension);
         familleManagement OfamilleManagement = new familleManagement(this.getOdataManager(), this.getOTUser());
         DepotManager ODepotManager = new DepotManager(this.getOdataManager(), this.getOTUser());
-        tierspayantManagement OtierspayantManagement = new tierspayantManagement(this.getOdataManager(), this.getOTUser());
+        tierspayantManagement OtierspayantManagement = new tierspayantManagement(this.getOdataManager(),
+                this.getOTUser());
         clientManagement OclientManagement = new clientManagement(this.getOdataManager(), this.getOTUser());
         grossisteManagement OgrossisteManagement = new grossisteManagement(this.getOdataManager());
         FabricantManagement OFabricantManagement = new FabricantManagement(this.getOdataManager());
         Preenregistrement OPreenregistrement = new Preenregistrement(this.getOdataManager(), this.getOTUser());
         if (table_name.equalsIgnoreCase(Parameter.TABLE_FAMILLE)) {
             str_file_name = "ARTICLE";
-            FILEPATH = this.ExportDataFromDataBase(OfamilleManagement.generateEnteteForFile(), OfamilleManagement.generateDataToExport(liste_param), str_file_name, extension, "LISTE DES ARTICLES");
+            FILEPATH = this.ExportDataFromDataBase(OfamilleManagement.generateEnteteForFile(),
+                    OfamilleManagement.generateDataToExport(liste_param), str_file_name, extension,
+                    "LISTE DES ARTICLES");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_ZONE_GEOGRAPHIQUE)) {
             str_file_name = "ZONE_GEOGRAPHIQUE";
-            FILEPATH = this.ExportDataFromDataBase(OfamilleManagement.generateEnteteForFileZoneGeographie(), OfamilleManagement.generateDataToExportZoneGeographique(), str_file_name, extension, "LISTE DES EMPLACEMENTS");
+            FILEPATH = this.ExportDataFromDataBase(OfamilleManagement.generateEnteteForFileZoneGeographie(),
+                    OfamilleManagement.generateDataToExportZoneGeographique(), str_file_name, extension,
+                    "LISTE DES EMPLACEMENTS");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_TIERS_PAYANTS)) {
             str_file_name = "TABLE_TIERS_PAYANTS";
-            FILEPATH = this.ExportDataFromDataBase(OtierspayantManagement.generateEnteteForFile(), OtierspayantManagement.generateDataToExport(), str_file_name, extension, "LISTE DES ORGANISMES");
+            FILEPATH = this.ExportDataFromDataBase(OtierspayantManagement.generateEnteteForFile(),
+                    OtierspayantManagement.generateDataToExport(), str_file_name, extension, "LISTE DES ORGANISMES");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_CLIENT)) {
             str_file_name = "TABLE_CLIENT";
-            FILEPATH = this.ExportDataFromDataBase(OclientManagement.generateEnteteForFile(), OclientManagement.generateDataToExport(), str_file_name, extension, "LISTE DES CLIENTS");
+            FILEPATH = this.ExportDataFromDataBase(OclientManagement.generateEnteteForFile(),
+                    OclientManagement.generateDataToExport(), str_file_name, extension, "LISTE DES CLIENTS");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_GROSSISTE)) {
             str_file_name = "TABLE_GROSSISTE";
-            FILEPATH = this.ExportDataFromDataBase(OgrossisteManagement.generateEnteteForFile(), OgrossisteManagement.generateDataToExport(), str_file_name, extension, "LISTE DES GROSSISTES");
+            FILEPATH = this.ExportDataFromDataBase(OgrossisteManagement.generateEnteteForFile(),
+                    OgrossisteManagement.generateDataToExport(), str_file_name, extension, "LISTE DES GROSSISTES");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_FABRIQUANT)) {
             str_file_name = "TABLE_FABRIQUANT";
-            FILEPATH = this.ExportDataFromDataBase(OFabricantManagement.generateEnteteForFile(), OFabricantManagement.generateDataToExport(), str_file_name, extension, "LISTE DES FABRIQUANTS");
+            FILEPATH = this.ExportDataFromDataBase(OFabricantManagement.generateEnteteForFile(),
+                    OFabricantManagement.generateDataToExport(), str_file_name, extension, "LISTE DES FABRIQUANTS");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_ORDER_DEPOT)) {
             str_file_name = "TABLE_ORDER_DEPOT";
-            FILEPATH = this.ExportDataFromDataBase(OfamilleManagement.generateEnteteForFileFromDepot(), OfamilleManagement.generateDataToExportFromDepot(liste_param), str_file_name, extension, "LISTE DES ARTICLES VENDUS");
+            FILEPATH = this.ExportDataFromDataBase(OfamilleManagement.generateEnteteForFileFromDepot(),
+                    OfamilleManagement.generateDataToExportFromDepot(liste_param), str_file_name, extension,
+                    "LISTE DES ARTICLES VENDUS");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_RETOURDEPOT)) {
             str_file_name = "TABLE_RETOURDEPOT";
-            FILEPATH = this.ExportDataFromDataBase(ODepotManager.generateEnteteForFileRetourDepot(), ODepotManager.generateDataToExportRetourDepot(liste_param), str_file_name, extension, "RETOUR DE PRODUIT DEPÔT");
+            FILEPATH = this.ExportDataFromDataBase(ODepotManager.generateEnteteForFileRetourDepot(),
+                    ODepotManager.generateDataToExportRetourDepot(liste_param), str_file_name, extension,
+                    "RETOUR DE PRODUIT DEPÔT");
         } else if (table_name.equalsIgnoreCase(Parameter.TABLE_MISEAJOUR_STOCKDEPOT)) {
             str_file_name = "TABLE_MISEAJOUR_STOCKDEPOT";
-            FILEPATH = this.ExportDataFromDataBase(OPreenregistrement.generateEnteteForFileProductUpdateStockdepot(), OPreenregistrement.generateDataToExportProductUpdateStockdepot(liste_param), str_file_name, extension, "LISTE DES PRODUITS VENDUS AU DEPÔT");
+            FILEPATH = this.ExportDataFromDataBase(OPreenregistrement.generateEnteteForFileProductUpdateStockdepot(),
+                    OPreenregistrement.generateDataToExportProductUpdateStockdepot(liste_param), str_file_name,
+                    extension, "LISTE DES PRODUITS VENDUS AU DEPÔT");
         }
         return FILEPATH;
     }
 
-    public String ExportDataFromDataBase(String str_entete, List<String> lstData, String str_file_name, String str_extension_name, String title) {
+    public String ExportDataFromDataBase(String str_entete, List<String> lstData, String str_file_name,
+            String str_extension_name, String title) {
         String FILEPATH = "";
-        if (str_extension_name.equalsIgnoreCase(commonparameter.type_xls) || str_extension_name.equalsIgnoreCase(commonparameter.type_xlsx)) {
-//            FILEPATH = this.ExportToExcelFileXLS(str_entete, lstData, str_file_name, title); // a decommenter en cas de probleme 19/11/2016
-            FILEPATH = this.ExportToExcelFileXLS(str_entete, lstData, jdom.Path_export + str_file_name, title, "."+str_extension_name);
-        } else if (str_extension_name.equalsIgnoreCase(commonparameter.type_csv) || str_extension_name.equalsIgnoreCase(commonparameter.type_txt)) {
+        if (str_extension_name.equalsIgnoreCase(commonparameter.type_xls)
+                || str_extension_name.equalsIgnoreCase(commonparameter.type_xlsx)) {
+            // FILEPATH = this.ExportToExcelFileXLS(str_entete, lstData, str_file_name, title); // a decommenter en cas
+            // de probleme 19/11/2016
+            FILEPATH = this.ExportToExcelFileXLS(str_entete, lstData, jdom.Path_export + str_file_name, title,
+                    "." + str_extension_name);
+        } else if (str_extension_name.equalsIgnoreCase(commonparameter.type_csv)
+                || str_extension_name.equalsIgnoreCase(commonparameter.type_txt)) {
 
             FILEPATH = this.ExportToCSVOrTXT(lstData, str_file_name, str_extension_name);
         }
@@ -169,87 +191,10 @@ public class MigrationManager extends bll.bllBase {
         return FILEPATH;
     }
 
-    //exportation en excel
-    /*public String ExportToExcelFileXLS(String str_entete, List<String> lstData, String str_file_name, String title) {
+    public String ExportToExcelFileXLS(String str_entete, List<String> lstData, String str_file_name, String title,
+            String extension) {
 
-     String str_NAMEFILE = "";
-     String filepath = "";
-     String[] tabData, tabEntete;
-     jdom.InitRessource();
-     jdom.LoadRessource();
-     try {
-
-     str_NAMEFILE = str_file_name + ".xls";
-     filepath = jdom.Path_export + str_NAMEFILE;
-
-     HSSFWorkbook hwb = new HSSFWorkbook();
-     HSSFSheet sheet = hwb.createSheet(title);
-
-     sheet.setDefaultRowHeight((short) 400); // la hauteur par defaut des cellules
-     sheet.setDefaultColumnWidth((short) 35); // la largeur par defaut des cellules
-
-     Row rowhead = sheet.createRow((short) 0);
-
-     //gestion des styles du fichier
-     Font font = hwb.createFont();
-     font.setFontHeightInPoints((short) 12);
-     font.setFontName("Courier New");
-
-     CellStyle header = hwb.createCellStyle();
-     CellStyle style = hwb.createCellStyle();
-     style.setFont(font);
-     style.setAlignment(CellStyle.ALIGN_LEFT);
-
-     //fin gestion des styles du fichier
-     // un autre style pour les entetes 
-     Font headerfont = hwb.createFont();
-     headerfont.setFontHeightInPoints((short) 12);
-     headerfont.setFontName("Courier New");
-     headerfont.setColor(IndexedColors.WHITE.getIndex());
-     header.setFont(headerfont);
-     header.setFillForegroundColor(IndexedColors.GREY_50_PERCENT.getIndex());
-
-     header.setBorderLeft(CellStyle.BORDER_THIN);
-     header.setLeftBorderColor(IndexedColors.GREY_80_PERCENT.getIndex());
-     header.setBorderRight(CellStyle.BORDER_THIN);
-     header.setRightBorderColor(IndexedColors.GREY_80_PERCENT.getIndex());
-     header.setFillPattern(CellStyle.SOLID_FOREGROUND);
-     header.setAlignment(CellStyle.ALIGN_LEFT);
-
-     //fin du style de l'entete
-     Cell cellule;
-     tabEntete = str_entete.split(";");
-     for (int i = 0; i < tabEntete.length; i++) {
-     cellule = rowhead.createCell((short) i);
-     cellule.setCellValue(tabEntete[i]);
-     cellule.setCellStyle(header);
-     }
-
-            
-     for (int j = 0; j < lstData.size(); j++) {
-     tabData = lstData.get(j).split(";");
-     HSSFRow row = sheet.createRow((short) j + 1);
-     for (int k = 0; k < tabData.length; k++) {
-     row.createCell((short) k).setCellValue(tabData[k]);
-     }
-     }
-
-     FileOutputStream fileOut = new FileOutputStream(filepath);
-     hwb.write(fileOut);
-     fileOut.close();
-     System.out.println("Fichier genere avec succès! Chemin  " + filepath);
-
-     } catch (Exception ex) {
-     System.out.println(ex);
-     }
-
-     return filepath;
-
-     } // a decommenter en cas de probleme 19/11/2016
-     */
-    public String ExportToExcelFileXLS(String str_entete, List<String> lstData, String str_file_name, String title, String extension) {
-
-        //String str_NAMEFILE = "";
+        // String str_NAMEFILE = "";
         String filepath = "";
         String[] tabData, tabEntete;
         jdom.InitRessource();
@@ -267,7 +212,7 @@ public class MigrationManager extends bll.bllBase {
 
             Row rowhead = sheet.createRow((short) 0);
 
-            //gestion des styles du fichier
+            // gestion des styles du fichier
             Font font = hwb.createFont();
             font.setFontHeightInPoints((short) 12);
             font.setFontName("Courier New");
@@ -277,8 +222,8 @@ public class MigrationManager extends bll.bllBase {
             style.setFont(font);
             style.setAlignment(CellStyle.ALIGN_LEFT);
 
-            //fin gestion des styles du fichier
-            // un autre style pour les entetes 
+            // fin gestion des styles du fichier
+            // un autre style pour les entetes
             Font headerfont = hwb.createFont();
             headerfont.setFontHeightInPoints((short) 12);
             headerfont.setFontName("Courier New");
@@ -293,7 +238,7 @@ public class MigrationManager extends bll.bllBase {
             header.setFillPattern(CellStyle.SOLID_FOREGROUND);
             header.setAlignment(CellStyle.ALIGN_LEFT);
 
-            //fin du style de l'entete
+            // fin du style de l'entete
             Cell cellule;
             if (!str_entete.equals("")) {
                 tabEntete = str_entete.split(";");
@@ -325,8 +270,8 @@ public class MigrationManager extends bll.bllBase {
 
     }
 
-//fin exportation en excel
-    //exportation en csv
+    // fin exportation en excel
+    // exportation en csv
     public String ExportToCSVOrTXT(List<String> lstData, String str_file_name, String str_extension_name) {
         jdom.InitRessource();
         jdom.LoadRessource();
@@ -346,16 +291,17 @@ public class MigrationManager extends bll.bllBase {
         }
 
     }
-    //fin exportation en csv
+    // fin exportation en csv
 
-    //fin exportation de données
-    //generation de la liste des produits du fichier de la pharmacie qui n'existe pas dans la BD
+    // fin exportation de données
+    // generation de la liste des produits du fichier de la pharmacie qui n'existe pas dans la BD
     public String CheckDataToDataBase(String table_name, String filename, String extension, String format) {
 
         List<String> lstString = new ArrayList<>();
         List<String> lstStringFinal = new ArrayList<>();
         familleManagement OfamilleManagement = new familleManagement(this.getOdataManager(), this.getOTUser());
-        tierspayantManagement OtierspayantManagement = new tierspayantManagement(this.getOdataManager(), this.getOTUser());
+        tierspayantManagement OtierspayantManagement = new tierspayantManagement(this.getOdataManager(),
+                this.getOTUser());
         String FILEPATH = "";
 
         try {
@@ -387,14 +333,16 @@ public class MigrationManager extends bll.bllBase {
                 this.setMessage(OorderManagement.getMessage());
                 this.setDetailmessage(OorderManagement.getDetailmessage());
             }
-////            FILEPATH = this.ExportToCSVOrTXT(lstStringFinal, table_name, extension.substring(1, extension.length())); // a decommenter apres urgent
+            //// FILEPATH = this.ExportToCSVOrTXT(lstStringFinal, table_name, extension.substring(1,
+            //// extension.length())); // a decommenter apres urgent
             new logger().OCategory.info("extension fichier final:" + extension.substring(1, extension.length()));
-            if(extension.substring(1, extension.length()).equals(commonparameter.type_csv) || extension.substring(1, extension.length()).equals(commonparameter.type_txt)) {
-                FILEPATH = this.ExportToCSVOrTXT(lstStringFinal, table_name, extension.substring(1, extension.length()));
+            if (extension.substring(1, extension.length()).equals(commonparameter.type_csv)
+                    || extension.substring(1, extension.length()).equals(commonparameter.type_txt)) {
+                FILEPATH = this.ExportToCSVOrTXT(lstStringFinal, table_name,
+                        extension.substring(1, extension.length()));
             } else {
                 FILEPATH = this.ExportToExcelFileXLS("", lstStringFinal, jdom.Path_export + table_name, "", extension);
             }
-            
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -402,10 +350,6 @@ public class MigrationManager extends bll.bllBase {
         }
         return FILEPATH;
     }
-    
-    
-  
-    
 
-    //fin generation de la liste des produits du fichier de la pharmacie qui n'existe pas dans la BD
+    // fin generation de la liste des produits du fichier de la pharmacie qui n'existe pas dans la BD
 }

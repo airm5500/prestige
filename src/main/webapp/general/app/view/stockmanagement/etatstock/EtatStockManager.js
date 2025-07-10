@@ -71,11 +71,11 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
         });
         var store_grossiste = new Ext.data.Store({
             model: 'testextjs.model.Grossiste',
-            pageSize: itemsPerPage,
+            pageSize: 999,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste,
+                  url: '../api/v1/grossiste/all',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -377,7 +377,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                     displayField: 'str_LIBELLE',
                     typeAhead: true,
                     queryMode: 'remote',
-                    pageSize: itemsPerPage,
+                    pageSize: 999,
                     flex: 1,
                     emptyText: 'Sectionner fournisseur...',
                     listeners: {

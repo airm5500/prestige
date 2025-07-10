@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_tableau")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTableau.findAll", query = "SELECT t FROM TTableau t"),
-    @NamedQuery(name = "TTableau.findByLgTABLEAUID", query = "SELECT t FROM TTableau t WHERE t.lgTABLEAUID = :lgTABLEAUID"),
-    @NamedQuery(name = "TTableau.findByStrCODE", query = "SELECT t FROM TTableau t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TTableau.findByStrNAME", query = "SELECT t FROM TTableau t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTableau.findByStrSTATUT", query = "SELECT t FROM TTableau t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTableau.findByDtCREATED", query = "SELECT t FROM TTableau t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTableau.findByDtUPDATED", query = "SELECT t FROM TTableau t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTableau.findAll", query = "SELECT t FROM TTableau t"),
+        @NamedQuery(name = "TTableau.findByLgTABLEAUID", query = "SELECT t FROM TTableau t WHERE t.lgTABLEAUID = :lgTABLEAUID"),
+        @NamedQuery(name = "TTableau.findByStrCODE", query = "SELECT t FROM TTableau t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TTableau.findByStrNAME", query = "SELECT t FROM TTableau t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTableau.findByStrSTATUT", query = "SELECT t FROM TTableau t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTableau.findByDtCREATED", query = "SELECT t FROM TTableau t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTableau.findByDtUPDATED", query = "SELECT t FROM TTableau t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTableau implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTableau implements Serializable {
             return false;
         }
         TTableau other = (TTableau) object;
-        if ((this.lgTABLEAUID == null && other.lgTABLEAUID != null) || (this.lgTABLEAUID != null && !this.lgTABLEAUID.equals(other.lgTABLEAUID))) {
+        if ((this.lgTABLEAUID == null && other.lgTABLEAUID != null)
+                || (this.lgTABLEAUID != null && !this.lgTABLEAUID.equals(other.lgTABLEAUID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTableau implements Serializable {
     public String toString() {
         return "dal.TTableau[ lgTABLEAUID=" + lgTABLEAUID + " ]";
     }
-    
+
 }

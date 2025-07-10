@@ -147,10 +147,7 @@ Ext.define('testextjs.view.vente.VenteView', {
                 {
                     xtype: 'container',
                     layout: 'anchor',
-                    itemId: 'contenu'/*,
-                     items: [
-                     {xtype: 'ventevno'}
-                     ]*/
+                    itemId: 'contenu'
 
                 }
 

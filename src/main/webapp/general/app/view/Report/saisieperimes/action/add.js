@@ -73,12 +73,51 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
 
         });
         var pendingStore = new Ext.data.Store({
-            model: 'testextjs.model.perimesModel',
+            fields: [
+                {
+                    name: 'id',
+                    type: 'string'
+                },
+                {
+                    name: 'lot',
+                    type: 'string'
+                },
+                {
+                    name: 'produitId',
+                    type: 'string'
+                },
+                {
+                    name: 'datePeremption',
+                    type: 'string'
+                },
+                {
+                    name: 'dateEntree',
+                    type: 'string'
+                },
+                {
+                    name: 'produitCip',
+                    type: 'string'
+                },
+                {
+                    name: 'produitLibelle',
+                    type: 'string'
+                },
+                {
+                    name: 'quantity',
+                    type: 'number'
+                }, {
+                    name: 'stockInitial',
+                    type: 'number'
+                }, {
+                    name: 'stockFinal',
+                    type: 'number'
+                }
+            ],
             pageSize: 20,
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/Report/saisieperimes/ws_data_pending.jsp',
+                url: '../api/v1/gestionperime/saisie-encours',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -287,7 +326,7 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                                         }
 
                                                         Ext.Ajax.request({
-                                                            //  url: '../webservices/Report/saisieperimes/ws_transaction.jsp',
+
                                                             url: '../api/v1/gestionperime/add',
                                                             method: 'POST',
                                                             headers: {'Content-Type': 'application/json'},
@@ -384,32 +423,54 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                             columns: [
                                 {
                                     header: 'ID',
-                                    dataIndex: 'ID',
+                                    dataIndex: 'id',
                                     hidden: true,
                                     width: 40
                                 }
                                 , {
                                     header: 'CODE CIP',
-                                    dataIndex: 'CIP',
+                                    dataIndex: 'produitCip',
                                     flex: 1
                                 }
                                 , {
                                     header: 'ARTICLE',
-                                    dataIndex: 'ARTICLE',
+                                    dataIndex: 'produitLibelle',
                                     flex: 1
                                 }, {
                                     header: 'LOT',
-                                    dataIndex: 'LOT',
+                                    dataIndex: 'lot',
                                     editor: {
                                         xtype: "textfield",
                                         allowBlank: false
 
                                     },
                                     flex: 1
+                                }, {
+                                    header: 'STOCK ACTUEL',
+                                    dataIndex: 'stockInitial',
+                                    renderer: amountformat,
+                                    align: 'right',
+                                    editor: {
+                                        xtype: "numberfield",
+                                        minValue: 1,
+                                        allowBlank: false
+                                    },
+                                    flex: 1
                                 },
                                 {
                                     header: 'QUANTITE',
-                                    dataIndex: 'QTY',
+                                    dataIndex: 'quantity',
+                                    renderer: amountformat,
+                                    align: 'right',
+                                    editor: {
+                                        xtype: "numberfield",
+                                        minValue: 1,
+                                        allowBlank: false
+                                    },
+                                    flex: 1
+                                }, {
+                                    header: 'STOCK FINAL',
+                                    dataIndex: 'stockFinal',
                                     renderer: amountformat,
                                     align: 'right',
                                     editor: {
@@ -421,14 +482,12 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                 },
                                 {
                                     header: 'DATE ENTREE',
-                                    dataIndex: 'DATEENTREE',
-
+                                    dataIndex: 'dateEntree',
                                     flex: 1
                                 },
                                 {
                                     header: 'DATE PEREMPTION',
-                                    dataIndex: 'DATEPEREMPTION',
-
+                                    dataIndex: 'datePeremption',
                                     flex: 1
                                 }
                                 , {
@@ -436,7 +495,8 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                     width: 30,
                                     sortable: false,
                                     menuDisabled: true,
-                                    items: [{
+                                    items: [
+                                        {
                                             getClass: function (v, meta, rec) {
 
                                                 return 'unpaid';
@@ -700,7 +760,7 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         var rec = grid.getStore().getAt(rowIndex);
 
         Ext.Ajax.request({
-            url: '../api/v1/gestionperime/' + rec.get('ID'),
+            url: '../api/v1/gestionperime/' + rec.get('id'),
             method: 'DELETE',
             success: function (response, options) {
 
@@ -741,7 +801,7 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
             var record = store.getAt(0);
             myAppController.ShowWaitingProcess();
             Ext.Ajax.request({
-                url: '../api/v1/gestionperime/close/' + record.get('ID'),
+                url: '../api/v1/gestionperime/close/' + record.get('id'),
                 method: 'PUT',
                 timeout: 24000000,
                 success: function (response, options) {

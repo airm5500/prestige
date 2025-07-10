@@ -6,10 +6,12 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
     requires: [
         'testextjs.view.caisseManager.ListeCaisseGrid',
         'testextjs.model.caisse.Reglement',
-        'testextjs.model.caisse.User', 'testextjs.model.caisse.Caisse'
+        'testextjs.model.caisse.User',
+        'testextjs.model.caisse.Caisse',
+        'Ext.grid.plugin.RowExpander'
 
     ],
-   
+
     frame: true,
     title: 'Liste de Caisse',
     width: '97%',
@@ -19,7 +21,6 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
     cls: 'custompanel',
     layout: {
         type: 'fit'
-//        align: 'stretch'
     },
     initComponent: function () {
 
@@ -70,11 +71,7 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
                             maxValue: new Date(),
                             value: new Date(),
                             format: 'd/m/Y'
-                                    /* listeners: {
-                                     'change': function (me) {
-                                     Ext.getCmp('dt_Date_Fin').setMinValue(me.getValue());
-                                     }
-                                     }*/
+
                         }, {
                             xtype: 'datefield',
                             fieldLabel: 'Au',
@@ -85,12 +82,8 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
                             value: new Date(),
                             margin: '0 9 0 0',
                             submitFormat: 'Y-m-d',
-                            format: 'd/m/Y'/*,
-                             listeners: {
-                             'change': function (me) {
-                             //                                    Ext.getCmp('dt_Date_Debut').setMaxValue(me.getValue());
-                             }
-                             }*/
+                            format: 'd/m/Y'
+
                         }, '-', {
                             xtype: 'timefield',
                             fieldLabel: 'De',
@@ -111,7 +104,7 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
                             increment: 30,
                             flex: 1,
                             format: 'H:i',
-                             value: '23:59',
+                            value: '23:59',
                             submitFormat: 'H:i'
                         }, '-', {
                             xtype: 'combobox',
@@ -141,7 +134,7 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
                             queryMode: 'remote',
                             emptyText: 'Choisir un utilisateur...'
 
-                        }, 
+                        },
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',
@@ -152,7 +145,7 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
                         , {
                             text: 'imprimer',
                             itemId: 'imprimer',
-                             iconCls: 'printable',
+                            iconCls: 'printable',
                             tooltip: 'imprimer',
                             scope: this
                         }
@@ -161,7 +154,14 @@ Ext.define('testextjs.view.caisseManager.ListeCaisse', {
 
             ],
             items: [{
-                    xtype: 'listeCaisseGrid'
+                    xtype: 'listeCaisseGrid',
+                    plugins: [{
+                            ptype: 'rowexpander',
+                            rowBodyTpl: new Ext.XTemplate(
+                                    '<p>{items}</p>'
+                                    )
+                        }
+                    ]
                 }]
 
         });

@@ -11,12 +11,7 @@ Ext.define('testextjs.view.caisseManager.VisualisationGrid', {
             autoLoad: false,
             pageSize: 18,
             itemId: 'caisseStore',
-            /* remoteSort: false,
-             sorters: [{
-             property: 'heure',
-             direction: 'DESC'
-             }
-             ],*/
+
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/caisse/listecaisse',
@@ -25,25 +20,15 @@ Ext.define('testextjs.view.caisseManager.VisualisationGrid', {
                     root: 'data',
                     totalProperty: 'total',
                     metaProperty: 'metaData'
-                            //   successProperty : 'meta.success'
+
 
                 },
-                 timeout: 2400000
+                timeout: 2400000
 
-            }/*,
-             listeners: {
-             'metachange': function (store, meta) {
-             console.log(store, meta);
-             
-             }
-             }*/
+            }
         });
         var me = this;
         Ext.applyIf(me, {
-            /*tools: [{
-             type: 'refresh',
-             tooltip: 'Actualiser'
-             }],*/
 
             store: store,
             viewConfig: {
@@ -51,7 +36,7 @@ Ext.define('testextjs.view.caisseManager.VisualisationGrid', {
                 emptyText: '<h1 style="margin:10px 10px 10px 30%;">Pas de donn&eacute;es</h1>'
             },
             columns: [
-//Ext.util.Format.number(val, '0,000.');
+
                 {
                     header: '#',
                     dataIndex: 'id',
@@ -84,11 +69,13 @@ Ext.define('testextjs.view.caisseManager.VisualisationGrid', {
                     dataIndex: 'taskHeure',
                     flex: 0.7
 
-                }, {
-                    header: 'Mode.R&egrave;gelement',
-                    dataIndex: 'modeReglement',
-                    flex: 1
-                }, {
+                }/*, {
+                 header: 'Mode.R&egrave;gelement',
+                 dataIndex: 'modeReglement',
+                 flex: 1
+                 },*/
+                ,
+                {
                     xtype: 'numbercolumn',
                     header: 'Montant',
 //                    format: '0,000.',
@@ -109,7 +96,7 @@ Ext.define('testextjs.view.caisseManager.VisualisationGrid', {
             bbar: {
                 xtype: 'pagingtoolbar',
                 store: store,
-                 pageSize: 18,
+                pageSize: 18,
                 dock: 'bottom',
                 displayInfo: true
 

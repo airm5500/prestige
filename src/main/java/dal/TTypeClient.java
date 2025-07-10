@@ -29,15 +29,14 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_client")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeClient.findAll", query = "SELECT t FROM TTypeClient t"),
-    @NamedQuery(name = "TTypeClient.findByLgTYPECLIENTID", query = "SELECT t FROM TTypeClient t WHERE t.lgTYPECLIENTID = :lgTYPECLIENTID"),
-    @NamedQuery(name = "TTypeClient.findByStrNAME", query = "SELECT t FROM TTypeClient t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypeClient.findByStrTYPE", query = "SELECT t FROM TTypeClient t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TTypeClient.findByStrDESCRIPTION", query = "SELECT t FROM TTypeClient t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypeClient.findByStrSTATUT", query = "SELECT t FROM TTypeClient t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypeClient.findByDtCREATED", query = "SELECT t FROM TTypeClient t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeClient.findByDtUPDATED", query = "SELECT t FROM TTypeClient t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypeClient.findAll", query = "SELECT t FROM TTypeClient t"),
+        @NamedQuery(name = "TTypeClient.findByLgTYPECLIENTID", query = "SELECT t FROM TTypeClient t WHERE t.lgTYPECLIENTID = :lgTYPECLIENTID"),
+        @NamedQuery(name = "TTypeClient.findByStrNAME", query = "SELECT t FROM TTypeClient t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypeClient.findByStrTYPE", query = "SELECT t FROM TTypeClient t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TTypeClient.findByStrDESCRIPTION", query = "SELECT t FROM TTypeClient t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypeClient.findByStrSTATUT", query = "SELECT t FROM TTypeClient t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeClient.findByDtCREATED", query = "SELECT t FROM TTypeClient t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeClient.findByDtUPDATED", query = "SELECT t FROM TTypeClient t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypeClient implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -147,7 +146,8 @@ public class TTypeClient implements Serializable {
             return false;
         }
         TTypeClient other = (TTypeClient) object;
-        if ((this.lgTYPECLIENTID == null && other.lgTYPECLIENTID != null) || (this.lgTYPECLIENTID != null && !this.lgTYPECLIENTID.equals(other.lgTYPECLIENTID))) {
+        if ((this.lgTYPECLIENTID == null && other.lgTYPECLIENTID != null)
+                || (this.lgTYPECLIENTID != null && !this.lgTYPECLIENTID.equals(other.lgTYPECLIENTID))) {
             return false;
         }
         return true;
@@ -157,5 +157,5 @@ public class TTypeClient implements Serializable {
     public String toString() {
         return "dal.TTypeClient[ lgTYPECLIENTID=" + lgTYPECLIENTID + " ]";
     }
-    
+
 }

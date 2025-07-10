@@ -22,7 +22,7 @@ Ext.define('testextjs.view.devis.form.DevisClientGrid', {
             pageSize: null,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/client',
+                url: '../api/v1/client/all',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -143,10 +143,7 @@ Ext.define('testextjs.view.devis.form.DevisClientGrid', {
                         mode: 'SINGLE'
                     },
 
-//            selModel: {
-//                selType: 'cellmodel'
-//                selType: 'checkboxmodel',
-//            },
+
 
                     dockedItems: [
                         {
@@ -160,15 +157,7 @@ Ext.define('testextjs.view.devis.form.DevisClientGrid', {
                                     height: 35,
                                     enableKeyEvents: true,
                                     emptyText: 'Taper ici pour rechercher un client'
-                                }/*, '-',
-                                 
-                                 {
-                                 text: 'rechercher',
-                                 tooltip: 'rechercher',
-                                 itemId: 'btnSearchClientAss',
-                                 scope: this,
-                                 iconCls: 'searchicon'
-                                 }*/
+                                }
                             ]
                         }
 

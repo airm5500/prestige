@@ -153,6 +153,7 @@ public class TRetourFournisseurDetail implements Serializable {
 
     public TMotifRetour getLgMOTIFRETOUR() {
         return lgMOTIFRETOUR;
+
     }
 
     public void setLgMOTIFRETOUR(TMotifRetour lgMOTIFRETOUR) {
@@ -181,7 +182,8 @@ public class TRetourFournisseurDetail implements Serializable {
             return false;
         }
         TRetourFournisseurDetail other = (TRetourFournisseurDetail) object;
-        if ((this.lgRETOURFRSDETAIL == null && other.lgRETOURFRSDETAIL != null) || (this.lgRETOURFRSDETAIL != null && !this.lgRETOURFRSDETAIL.equals(other.lgRETOURFRSDETAIL))) {
+        if ((this.lgRETOURFRSDETAIL == null && other.lgRETOURFRSDETAIL != null)
+                || (this.lgRETOURFRSDETAIL != null && !this.lgRETOURFRSDETAIL.equals(other.lgRETOURFRSDETAIL))) {
             return false;
         }
         return true;

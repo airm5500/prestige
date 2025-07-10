@@ -24,13 +24,13 @@ public class GammeProduitRepo extends AbstractRepoImpl<GammeProduit> {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    public GammeProduitRepo() {
+        super(GammeProduit.class);
+    }
+
     @Override
     protected EntityManager getEntityManager() {
         return em;
-    }
-
-    public GammeProduitRepo() {
-        super(GammeProduit.class);
     }
 
     public GammeProduit saveOrUpdate(GammeProduit gammeProduit) {

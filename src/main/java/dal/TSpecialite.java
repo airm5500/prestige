@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_specialite")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSpecialite.findAll", query = "SELECT t FROM TSpecialite t"),
-    @NamedQuery(name = "TSpecialite.findByLgSPECIALITEID", query = "SELECT t FROM TSpecialite t WHERE t.lgSPECIALITEID = :lgSPECIALITEID"),
-    @NamedQuery(name = "TSpecialite.findByStrCODESPECIALITE", query = "SELECT t FROM TSpecialite t WHERE t.strCODESPECIALITE = :strCODESPECIALITE"),
-    @NamedQuery(name = "TSpecialite.findByStrLIBELLESPECIALITE", query = "SELECT t FROM TSpecialite t WHERE t.strLIBELLESPECIALITE = :strLIBELLESPECIALITE"),
-    @NamedQuery(name = "TSpecialite.findByStrSTATUT", query = "SELECT t FROM TSpecialite t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSpecialite.findByDtCREATED", query = "SELECT t FROM TSpecialite t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSpecialite.findByDtUPDATED", query = "SELECT t FROM TSpecialite t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TSpecialite.findAll", query = "SELECT t FROM TSpecialite t"),
+        @NamedQuery(name = "TSpecialite.findByLgSPECIALITEID", query = "SELECT t FROM TSpecialite t WHERE t.lgSPECIALITEID = :lgSPECIALITEID"),
+        @NamedQuery(name = "TSpecialite.findByStrCODESPECIALITE", query = "SELECT t FROM TSpecialite t WHERE t.strCODESPECIALITE = :strCODESPECIALITE"),
+        @NamedQuery(name = "TSpecialite.findByStrLIBELLESPECIALITE", query = "SELECT t FROM TSpecialite t WHERE t.strLIBELLESPECIALITE = :strLIBELLESPECIALITE"),
+        @NamedQuery(name = "TSpecialite.findByStrSTATUT", query = "SELECT t FROM TSpecialite t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSpecialite.findByDtCREATED", query = "SELECT t FROM TSpecialite t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSpecialite.findByDtUPDATED", query = "SELECT t FROM TSpecialite t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TSpecialite implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -55,7 +54,7 @@ public class TSpecialite implements Serializable {
     @Column(name = "dt_UPDATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
-    @OneToMany( mappedBy = "lgSPECIALITEID")
+    @OneToMany(mappedBy = "lgSPECIALITEID")
     private Collection<TMedecinSpecialite> tMedecinSpecialiteCollection;
     @OneToMany(mappedBy = "lgSPECIALITEID")
     private Collection<TMedecin> tMedecinCollection;
@@ -147,7 +146,8 @@ public class TSpecialite implements Serializable {
             return false;
         }
         TSpecialite other = (TSpecialite) object;
-        if ((this.lgSPECIALITEID == null && other.lgSPECIALITEID != null) || (this.lgSPECIALITEID != null && !this.lgSPECIALITEID.equals(other.lgSPECIALITEID))) {
+        if ((this.lgSPECIALITEID == null && other.lgSPECIALITEID != null)
+                || (this.lgSPECIALITEID != null && !this.lgSPECIALITEID.equals(other.lgSPECIALITEID))) {
             return false;
         }
         return true;
@@ -157,5 +157,5 @@ public class TSpecialite implements Serializable {
     public String toString() {
         return "dal.TSpecialite[ lgSPECIALITEID=" + lgSPECIALITEID + " ]";
     }
-    
+
 }

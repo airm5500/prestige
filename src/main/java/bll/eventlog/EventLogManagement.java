@@ -28,20 +28,19 @@ public class EventLogManagement extends bll.bllBase {
     }
 
     public List<TEventLog> GetLstTEventLog() {
-     List<TEventLog> lstTEventLog = new ArrayList<TEventLog>();
-     lstTEventLog = this.getOdataManager().getEm().createQuery("SELECT t FROM TEventLog t WHERE t.strTABLECONCERN  LIKE ?1 AND t.strSTATUT  LIKE ?2  ORDER BY t.dtCREATED").
-     setParameter(1, "TFamille").
-     setParameter(2, commonparameter.statut_enable).
-     getResultList();
+        List<TEventLog> lstTEventLog = new ArrayList<TEventLog>();
+        lstTEventLog = this.getOdataManager().getEm().createQuery(
+                "SELECT t FROM TEventLog t WHERE t.strTABLECONCERN  LIKE ?1 AND t.strSTATUT  LIKE ?2  ORDER BY t.dtCREATED")
+                .setParameter(1, "TFamille").setParameter(2, commonparameter.statut_enable).getResultList();
 
-     return lstTEventLog;
-     }
+        return lstTEventLog;
+    }
+
     public List<TEventLog> GetLstTEventLog(String Table) {
         List<TEventLog> lstTEventLog = new ArrayList<TEventLog>();
-        lstTEventLog = this.getOdataManager().getEm().createQuery("SELECT t FROM TEventLog t WHERE t.strTABLECONCERN  LIKE ?1 AND t.strSTATUT  LIKE ?2  ORDER BY t.dtCREATED").
-                setParameter(1, Table).
-                setParameter(2, commonparameter.statut_enable).
-                getResultList();
+        lstTEventLog = this.getOdataManager().getEm().createQuery(
+                "SELECT t FROM TEventLog t WHERE t.strTABLECONCERN  LIKE ?1 AND t.strSTATUT  LIKE ?2  ORDER BY t.dtCREATED")
+                .setParameter(1, Table).setParameter(2, commonparameter.statut_enable).getResultList();
 
         return lstTEventLog;
     }
@@ -65,7 +64,8 @@ public class EventLogManagement extends bll.bllBase {
         return result;
     }
 
-    public boolean updateAlertEventUserPhone(TAlertEventUserFone OAlertEventUserFone, TAlertEvent OTAlertEvent, TUserFone OTUserFone) {
+    public boolean updateAlertEventUserPhone(TAlertEventUserFone OAlertEventUserFone, TAlertEvent OTAlertEvent,
+            TUserFone OTUserFone) {
         boolean result = false;
         try {
             OAlertEventUserFone.setLgUSERFONEID(OTUserFone);
@@ -83,7 +83,8 @@ public class EventLogManagement extends bll.bllBase {
     public boolean removeAlertEventUserPhone(String str_Event, String lg_USER_FONE_ID) {
         boolean result = false;
         try {
-            TAlertEventUserFone OAlertEventUserFone = (TAlertEventUserFone) this.getOdataManager().getEm().createQuery("SELECT t FROM TAlertEventUserFone t WHERE t.lgUSERFONEID.lgUSERFONEID = ?1 AND t.strEvent.strEvent = ?2")
+            TAlertEventUserFone OAlertEventUserFone = (TAlertEventUserFone) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TAlertEventUserFone t WHERE t.lgUSERFONEID.lgUSERFONEID = ?1 AND t.strEvent.strEvent = ?2")
                     .setParameter(1, lg_USER_FONE_ID).setParameter(2, str_Event).getSingleResult();
 
             this.delete(OAlertEventUserFone);
@@ -117,7 +118,7 @@ public class EventLogManagement extends bll.bllBase {
         new logger().OCategory.info("lst getListeAlertEvent " + lst.size());
         return lst;
     }
-    
+
     public List<TAlertEvent> getListeAlertEvent(String str_Event) {
         List<TAlertEvent> lst = new ArrayList<TAlertEvent>();
         try {
@@ -133,7 +134,8 @@ public class EventLogManagement extends bll.bllBase {
     public List<TAlertEventUserFone> getListeAlertEventUserFone(String lg_USER_FONE_ID) {
         List<TAlertEventUserFone> lst = new ArrayList<TAlertEventUserFone>();
         try {
-            lst = this.getOdataManager().getEm().createQuery("SELECT t FROM TAlertEventUserFone t WHERE t.lgUSERFONEID.lgUSERFONEID LIKE ?1")
+            lst = this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TAlertEventUserFone t WHERE t.lgUSERFONEID.lgUSERFONEID LIKE ?1")
                     .setParameter(1, lg_USER_FONE_ID).getResultList();
         } catch (Exception e) {
             e.printStackTrace();

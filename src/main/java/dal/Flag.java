@@ -23,11 +23,10 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "flag")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "Flag.findAll", query = "SELECT o FROM Flag o ORDER BY o.dateStart DESC"),
-    @NamedQuery(name = "Flag.checkDate", query = "SELECT o FROM Flag o WHERE o.interval LIKE ?1")}
-        
-        )
+@NamedQueries({ @NamedQuery(name = "Flag.findAll", query = "SELECT o FROM Flag o ORDER BY o.dateStart DESC"),
+        @NamedQuery(name = "Flag.checkDate", query = "SELECT o FROM Flag o WHERE o.interval LIKE ?1") }
+
+)
 public class Flag implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -54,7 +53,6 @@ public class Flag implements Serializable {
         this.interval = interval;
     }
 
-    
     public String getId() {
         return id;
     }
@@ -89,7 +87,8 @@ public class Flag implements Serializable {
 
     @Override
     public String toString() {
-        return "Flag{" + "id=" + id + ", montant=" + montant + ", dateStart=" + dateStart + ", dateEnd=" + dateEnd + '}';
+        return "Flag{" + "id=" + id + ", montant=" + montant + ", dateStart=" + dateStart + ", dateEnd=" + dateEnd
+                + '}';
     }
 
 }

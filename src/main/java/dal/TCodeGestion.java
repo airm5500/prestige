@@ -31,19 +31,18 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_code_gestion")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCodeGestion.findAll", query = "SELECT t FROM TCodeGestion t"),
-    @NamedQuery(name = "TCodeGestion.findByLgCODEGESTIONID", query = "SELECT t FROM TCodeGestion t WHERE t.lgCODEGESTIONID = :lgCODEGESTIONID"),
-    @NamedQuery(name = "TCodeGestion.findByStrCODEBAREME", query = "SELECT t FROM TCodeGestion t WHERE t.strCODEBAREME = :strCODEBAREME"),
-    @NamedQuery(name = "TCodeGestion.findByIntJOURSCOUVERTURESTOCK", query = "SELECT t FROM TCodeGestion t WHERE t.intJOURSCOUVERTURESTOCK = :intJOURSCOUVERTURESTOCK"),
-    @NamedQuery(name = "TCodeGestion.findByIntMOISHISTORIQUEVENTE", query = "SELECT t FROM TCodeGestion t WHERE t.intMOISHISTORIQUEVENTE = :intMOISHISTORIQUEVENTE"),
-    @NamedQuery(name = "TCodeGestion.findByIntDATEBUTOIRARTICLE", query = "SELECT t FROM TCodeGestion t WHERE t.intDATEBUTOIRARTICLE = :intDATEBUTOIRARTICLE"),
-    @NamedQuery(name = "TCodeGestion.findByIntDATELIMITEEXTRAPOLATION", query = "SELECT t FROM TCodeGestion t WHERE t.intDATELIMITEEXTRAPOLATION = :intDATELIMITEEXTRAPOLATION"),
-    @NamedQuery(name = "TCodeGestion.findByBoolOPTIMISATIONSEUILCMDE", query = "SELECT t FROM TCodeGestion t WHERE t.boolOPTIMISATIONSEUILCMDE = :boolOPTIMISATIONSEUILCMDE"),
-    @NamedQuery(name = "TCodeGestion.findByIntCOEFFICIENTPONDERATION", query = "SELECT t FROM TCodeGestion t WHERE t.intCOEFFICIENTPONDERATION = :intCOEFFICIENTPONDERATION"),
-    @NamedQuery(name = "TCodeGestion.findByStrSTATUT", query = "SELECT t FROM TCodeGestion t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TCodeGestion.findByDtCREATED", query = "SELECT t FROM TCodeGestion t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCodeGestion.findByDtUPDATED", query = "SELECT t FROM TCodeGestion t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TCodeGestion.findAll", query = "SELECT t FROM TCodeGestion t"),
+        @NamedQuery(name = "TCodeGestion.findByLgCODEGESTIONID", query = "SELECT t FROM TCodeGestion t WHERE t.lgCODEGESTIONID = :lgCODEGESTIONID"),
+        @NamedQuery(name = "TCodeGestion.findByStrCODEBAREME", query = "SELECT t FROM TCodeGestion t WHERE t.strCODEBAREME = :strCODEBAREME"),
+        @NamedQuery(name = "TCodeGestion.findByIntJOURSCOUVERTURESTOCK", query = "SELECT t FROM TCodeGestion t WHERE t.intJOURSCOUVERTURESTOCK = :intJOURSCOUVERTURESTOCK"),
+        @NamedQuery(name = "TCodeGestion.findByIntMOISHISTORIQUEVENTE", query = "SELECT t FROM TCodeGestion t WHERE t.intMOISHISTORIQUEVENTE = :intMOISHISTORIQUEVENTE"),
+        @NamedQuery(name = "TCodeGestion.findByIntDATEBUTOIRARTICLE", query = "SELECT t FROM TCodeGestion t WHERE t.intDATEBUTOIRARTICLE = :intDATEBUTOIRARTICLE"),
+        @NamedQuery(name = "TCodeGestion.findByIntDATELIMITEEXTRAPOLATION", query = "SELECT t FROM TCodeGestion t WHERE t.intDATELIMITEEXTRAPOLATION = :intDATELIMITEEXTRAPOLATION"),
+        @NamedQuery(name = "TCodeGestion.findByBoolOPTIMISATIONSEUILCMDE", query = "SELECT t FROM TCodeGestion t WHERE t.boolOPTIMISATIONSEUILCMDE = :boolOPTIMISATIONSEUILCMDE"),
+        @NamedQuery(name = "TCodeGestion.findByIntCOEFFICIENTPONDERATION", query = "SELECT t FROM TCodeGestion t WHERE t.intCOEFFICIENTPONDERATION = :intCOEFFICIENTPONDERATION"),
+        @NamedQuery(name = "TCodeGestion.findByStrSTATUT", query = "SELECT t FROM TCodeGestion t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TCodeGestion.findByDtCREATED", query = "SELECT t FROM TCodeGestion t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCodeGestion.findByDtUPDATED", query = "SELECT t FROM TCodeGestion t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TCodeGestion implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -183,7 +182,8 @@ public class TCodeGestion implements Serializable {
         return tCoefficientPonderationCollection;
     }
 
-    public void setTCoefficientPonderationCollection(Collection<TCoefficientPonderation> tCoefficientPonderationCollection) {
+    public void setTCoefficientPonderationCollection(
+            Collection<TCoefficientPonderation> tCoefficientPonderationCollection) {
         this.tCoefficientPonderationCollection = tCoefficientPonderationCollection;
     }
 
@@ -226,7 +226,8 @@ public class TCodeGestion implements Serializable {
             return false;
         }
         TCodeGestion other = (TCodeGestion) object;
-        if ((this.lgCODEGESTIONID == null && other.lgCODEGESTIONID != null) || (this.lgCODEGESTIONID != null && !this.lgCODEGESTIONID.equals(other.lgCODEGESTIONID))) {
+        if ((this.lgCODEGESTIONID == null && other.lgCODEGESTIONID != null)
+                || (this.lgCODEGESTIONID != null && !this.lgCODEGESTIONID.equals(other.lgCODEGESTIONID))) {
             return false;
         }
         return true;
@@ -236,5 +237,5 @@ public class TCodeGestion implements Serializable {
     public String toString() {
         return "dal.TCodeGestion[ lgCODEGESTIONID=" + lgCODEGESTIONID + " ]";
     }
-    
+
 }

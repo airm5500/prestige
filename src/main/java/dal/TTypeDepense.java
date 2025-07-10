@@ -26,12 +26,11 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_depense")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeDepense.findAll", query = "SELECT t FROM TTypeDepense t"),
-    @NamedQuery(name = "TTypeDepense.findByLgTYPEDEPENSEID", query = "SELECT t FROM TTypeDepense t WHERE t.lgTYPEDEPENSEID = :lgTYPEDEPENSEID"),
-    @NamedQuery(name = "TTypeDepense.findByStrTYPEDEPENSE", query = "SELECT t FROM TTypeDepense t WHERE t.strTYPEDEPENSE = :strTYPEDEPENSE"),
-    @NamedQuery(name = "TTypeDepense.findByStrNUMEROCOMPTE", query = "SELECT t FROM TTypeDepense t WHERE t.strNUMEROCOMPTE = :strNUMEROCOMPTE"),
-    @NamedQuery(name = "TTypeDepense.findByIsUSETVA", query = "SELECT t FROM TTypeDepense t WHERE t.isUSETVA = :isUSETVA")})
+@NamedQueries({ @NamedQuery(name = "TTypeDepense.findAll", query = "SELECT t FROM TTypeDepense t"),
+        @NamedQuery(name = "TTypeDepense.findByLgTYPEDEPENSEID", query = "SELECT t FROM TTypeDepense t WHERE t.lgTYPEDEPENSEID = :lgTYPEDEPENSEID"),
+        @NamedQuery(name = "TTypeDepense.findByStrTYPEDEPENSE", query = "SELECT t FROM TTypeDepense t WHERE t.strTYPEDEPENSE = :strTYPEDEPENSE"),
+        @NamedQuery(name = "TTypeDepense.findByStrNUMEROCOMPTE", query = "SELECT t FROM TTypeDepense t WHERE t.strNUMEROCOMPTE = :strNUMEROCOMPTE"),
+        @NamedQuery(name = "TTypeDepense.findByIsUSETVA", query = "SELECT t FROM TTypeDepense t WHERE t.isUSETVA = :isUSETVA") })
 public class TTypeDepense implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -109,7 +108,8 @@ public class TTypeDepense implements Serializable {
             return false;
         }
         TTypeDepense other = (TTypeDepense) object;
-        if ((this.lgTYPEDEPENSEID == null && other.lgTYPEDEPENSEID != null) || (this.lgTYPEDEPENSEID != null && !this.lgTYPEDEPENSEID.equals(other.lgTYPEDEPENSEID))) {
+        if ((this.lgTYPEDEPENSEID == null && other.lgTYPEDEPENSEID != null)
+                || (this.lgTYPEDEPENSEID != null && !this.lgTYPEDEPENSEID.equals(other.lgTYPEDEPENSEID))) {
             return false;
         }
         return true;
@@ -119,5 +119,5 @@ public class TTypeDepense implements Serializable {
     public String toString() {
         return "dal.TTypeDepense[ lgTYPEDEPENSEID=" + lgTYPEDEPENSEID + " ]";
     }
-    
+
 }

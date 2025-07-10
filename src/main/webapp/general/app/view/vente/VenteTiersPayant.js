@@ -72,6 +72,7 @@ Ext.define('testextjs.view.vente.VenteTiersPayant', {
                 }
 
             }
+            
 
         });
         var store = Ext.create('Ext.data.Store', {
@@ -182,7 +183,7 @@ Ext.define('testextjs.view.vente.VenteTiersPayant', {
                         {
                             xtype: 'tbseparator'
                         },
-                        
+
                         {
                             xtype: 'combo',
                             fieldLabel: 'Type tiers-payant',
@@ -260,26 +261,41 @@ Ext.define('testextjs.view.vente.VenteTiersPayant', {
                         }, {
                             xtype: 'tbseparator'
                         },
+
                         {
-                            text: 'imprimer',
-                            itemId: 'imprimer',
+                            xtype: 'splitbutton',
+                            text: 'Exporter',
                             iconCls: 'printable',
-                            tooltip: 'imprimer',
-                            scope: this
-                        }, {
-                            xtype: 'tbseparator'
-                        }
-                        , {
-                            text: 'Imprimer par groupe',
-                            tooltip: 'Imprimer par groupe',
+                            itemId: 'exporter',
+                            menu:
+                                    [
+                                        {text: 'PDF',
+                                            itemId: 'exporterpdf'
+
+                                        },
+                                        {text: 'EXCEL', itemId: 'exporterexcel'}
+                                    ]
+
+                        },
+
+                       
+
+                        {
+                            xtype: 'splitbutton',
+                            text: 'Exporter par groupe',
+                            tooltip: 'Exporter par groupe',
                             iconCls: 'importicon',
-                            itemId: 'importicon',
-                            scope: this
+                            itemId: 'exporterGroupe',
+                            menu:
+                                    [
+                                        {text: 'PDF',
+                                            itemId: 'exporterpdf'
+
+                                        },
+                                        {text: 'EXCEL', itemId: 'exporterexcel'}
+                                    ]
+
                         }
-
-
-
-
                     ]
                 },
 

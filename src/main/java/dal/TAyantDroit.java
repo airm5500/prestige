@@ -27,28 +27,17 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_ayant_droit")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TAyantDroit.findAll", query = "SELECT t FROM TAyantDroit t")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByLgAYANTSDROITSID", query = "SELECT t FROM TAyantDroit t WHERE t.lgAYANTSDROITSID = :lgAYANTSDROITSID")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByStrCODEINTERNE", query = "SELECT t FROM TAyantDroit t WHERE t.strCODEINTERNE = :strCODEINTERNE")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByStrFIRSTNAME", query = "SELECT t FROM TAyantDroit t WHERE t.strFIRSTNAME = :strFIRSTNAME")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByStrNUMEROSECURITESOCIAL", query = "SELECT t FROM TAyantDroit t WHERE t.strNUMEROSECURITESOCIAL = :strNUMEROSECURITESOCIAL")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByStrLASTNAME", query = "SELECT t FROM TAyantDroit t WHERE t.strLASTNAME = :strLASTNAME")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByDtNAISSANCE", query = "SELECT t FROM TAyantDroit t WHERE t.dtNAISSANCE = :dtNAISSANCE")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByStrSEXE", query = "SELECT t FROM TAyantDroit t WHERE t.strSEXE = :strSEXE")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByDtCREATED", query = "SELECT t FROM TAyantDroit t WHERE t.dtCREATED = :dtCREATED")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByDtUPDATED", query = "SELECT t FROM TAyantDroit t WHERE t.dtUPDATED = :dtUPDATED")
-    ,
-    @NamedQuery(name = "TAyantDroit.findByStrSTATUT", query = "SELECT t FROM TAyantDroit t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TAyantDroit.findAll", query = "SELECT t FROM TAyantDroit t"),
+        @NamedQuery(name = "TAyantDroit.findByLgAYANTSDROITSID", query = "SELECT t FROM TAyantDroit t WHERE t.lgAYANTSDROITSID = :lgAYANTSDROITSID"),
+        @NamedQuery(name = "TAyantDroit.findByStrCODEINTERNE", query = "SELECT t FROM TAyantDroit t WHERE t.strCODEINTERNE = :strCODEINTERNE"),
+        @NamedQuery(name = "TAyantDroit.findByStrFIRSTNAME", query = "SELECT t FROM TAyantDroit t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
+        @NamedQuery(name = "TAyantDroit.findByStrNUMEROSECURITESOCIAL", query = "SELECT t FROM TAyantDroit t WHERE t.strNUMEROSECURITESOCIAL = :strNUMEROSECURITESOCIAL"),
+        @NamedQuery(name = "TAyantDroit.findByStrLASTNAME", query = "SELECT t FROM TAyantDroit t WHERE t.strLASTNAME = :strLASTNAME"),
+        @NamedQuery(name = "TAyantDroit.findByDtNAISSANCE", query = "SELECT t FROM TAyantDroit t WHERE t.dtNAISSANCE = :dtNAISSANCE"),
+        @NamedQuery(name = "TAyantDroit.findByStrSEXE", query = "SELECT t FROM TAyantDroit t WHERE t.strSEXE = :strSEXE"),
+        @NamedQuery(name = "TAyantDroit.findByDtCREATED", query = "SELECT t FROM TAyantDroit t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TAyantDroit.findByDtUPDATED", query = "SELECT t FROM TAyantDroit t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TAyantDroit.findByStrSTATUT", query = "SELECT t FROM TAyantDroit t WHERE t.strSTATUT = :strSTATUT") })
 public class TAyantDroit implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -223,7 +212,8 @@ public class TAyantDroit implements Serializable {
             return false;
         }
         TAyantDroit other = (TAyantDroit) object;
-        if ((this.lgAYANTSDROITSID == null && other.lgAYANTSDROITSID != null) || (this.lgAYANTSDROITSID != null && !this.lgAYANTSDROITSID.equals(other.lgAYANTSDROITSID))) {
+        if ((this.lgAYANTSDROITSID == null && other.lgAYANTSDROITSID != null)
+                || (this.lgAYANTSDROITSID != null && !this.lgAYANTSDROITSID.equals(other.lgAYANTSDROITSID))) {
             return false;
         }
         return true;

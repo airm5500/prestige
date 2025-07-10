@@ -31,7 +31,7 @@ import toolkits.parameters.commonparameter;
  * @author user
  */
 public class JobLot implements Job {
-private final SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd") ;
+    private final SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
     dataManager OdaManager = null;
 
     public JobLot() {
@@ -60,10 +60,11 @@ private final SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd") ;
                 count++;
                 int qtyLot = lot.getIntNUMBER();
                 int stockAct = qteStock(em, lot.getLgFAMILLEID().getLgFAMILLEID());
-            
 
                 if (stockAct > 0) {
-                    int qteVendue = qteVendu(em, lot.getLgFAMILLEID().getLgFAMILLEID(), lot.getDtCREATED().toInstant().atZone(ZoneId.systemDefault()).toLocalDate(), LocalDate.now());
+                    int qteVendue = qteVendu(em, lot.getLgFAMILLEID().getLgFAMILLEID(),
+                            lot.getDtCREATED().toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
+                            LocalDate.now());
 
                     if (qtyLot <= qteVendue) {
                         updateLot(lot, em);
@@ -82,12 +83,10 @@ private final SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd") ;
             }
             em.getTransaction().commit();
             em.clear();
-//            em.close();
-           
+            // em.close();
 
         } catch (Exception e) {
 
-           
         }
 
     }
@@ -100,8 +99,10 @@ private final SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd") ;
             CriteriaQuery<TLot> cq = cb.createQuery(TLot.class);
             Root<TLot> root = cq.from(TLot.class);
             Predicate criteria = cb.conjunction();
-            criteria = cb.and(criteria, cb.or(cb.equal(root.get(TLot_.strSTATUT), Parameter.STATUT_ENCOURS_PEREMPTION), cb.equal(root.get(TLot_.strSTATUT), commonparameter.statut_is_Closed)));
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TLot_.dtPEREMPTION)), java.sql.Date.valueOf(now), java.sql.Date.valueOf(peremption));
+            criteria = cb.and(criteria, cb.or(cb.equal(root.get(TLot_.strSTATUT), Parameter.STATUT_ENCOURS_PEREMPTION),
+                    cb.equal(root.get(TLot_.strSTATUT), commonparameter.statut_is_Closed)));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TLot_.dtPEREMPTION)),
+                    java.sql.Date.valueOf(now), java.sql.Date.valueOf(peremption));
             Predicate notnull = cb.isNotNull(root.get(TLot_.dtPEREMPTION));
             Predicate pu = cb.greaterThan(root.get(TLot_.intNUMBER), root.get(TLot_.intQTYVENDUE));
             cq.where(criteria, btw, pu, notnull);
@@ -121,8 +122,10 @@ private final SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd") ;
             CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<Integer> cq = cb.createQuery(Integer.class);
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Predicate criteria = cb.equal(root.get(TPreenregistrementDetail_.strSTATUT), commonparameter.statut_is_Closed);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrementDetail_.dtUPDATED)), java.sql.Date.valueOf(dateentree), java.sql.Date.valueOf(now));
+            Predicate criteria = cb.equal(root.get(TPreenregistrementDetail_.strSTATUT),
+                    commonparameter.statut_is_Closed);
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrementDetail_.dtUPDATED)),
+                    java.sql.Date.valueOf(dateentree), java.sql.Date.valueOf(now));
             criteria = cb.and(criteria, cb.equal(root.get("lgFAMILLEID").get("lgFAMILLEID"), lg_FAMILLE_ID));
             cq.select(cb.sum(root.get(TPreenregistrementDetail_.intQUANTITYSERVED)));
             cq.where(criteria, btw);
@@ -130,7 +133,7 @@ private final SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd") ;
             qte = (Integer) q.getSingleResult();
 
         } catch (Exception e) {
-          
+
         }
         return qte;
     }
@@ -165,9 +168,11 @@ private final SimpleDateFormat format=new SimpleDateFormat("yyyy-MM-dd") ;
             CriteriaQuery<Integer> cq = cb.createQuery(Integer.class);
             Root<TFamilleStock> root = cq.from(TFamilleStock.class);
             Predicate criteria = cb.equal(root.get(TFamilleStock_.strSTATUT), commonparameter.statut_enable);
-//            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrementDetail_.dtUPDATED)), java.sql.Date.valueOf(dateentree), java.sql.Date.valueOf(now));
+            // Predicate btw = cb.between(cb.function("DATE", Date.class,
+            // root.get(TPreenregistrementDetail_.dtUPDATED)), java.sql.Date.valueOf(dateentree),
+            // java.sql.Date.valueOf(now));
             criteria = cb.and(criteria, cb.equal(root.get("lgFAMILLEID").get("lgFAMILLEID"), lg_FAMILLE_ID));
-             criteria = cb.and(criteria, cb.equal(root.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), "1"));
+            criteria = cb.and(criteria, cb.equal(root.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), "1"));
             cq.select(cb.sum(root.get(TFamilleStock_.intNUMBERAVAILABLE)));
             cq.where(criteria);
             Query q = em.createQuery(cq);

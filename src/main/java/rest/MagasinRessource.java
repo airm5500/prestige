@@ -20,6 +20,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.MagasinService;
 import toolkits.parameters.commonparameter;
+import util.Constant;
 
 /**
  *
@@ -37,14 +38,12 @@ public class MagasinRessource {
 
     @GET
     @Path("find-depots")
-    public Response findByType(
-            @QueryParam(value = "query") String query
-    ) throws JSONException {
+    public Response findByType(@QueryParam(value = "query") String query) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject jsono = magasinService.findAllDepots(query);
 
@@ -53,16 +52,14 @@ public class MagasinRessource {
 
     @GET
     @Path("find-by-type")
-    public Response find(
-            @QueryParam(value = "query") String query
-    ) throws JSONException {
+    public Response find(@QueryParam(value = "query") String query) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-       
+
         JSONObject jsono = magasinService.findAllDepots(query, "2");
 
         return Response.ok().entity(jsono.toString()).build();

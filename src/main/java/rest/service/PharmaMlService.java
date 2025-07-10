@@ -5,12 +5,9 @@
  */
 package rest.service;
 
-import commonTasks.dto.PharmaMLItemDTO;
 import dal.TUser;
 import java.time.LocalDate;
-import java.util.List;
 import javax.ejb.Local;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
@@ -20,19 +17,9 @@ import org.json.JSONObject;
 @Local
 public interface PharmaMlService {
 
-    JSONObject envoiPharmaCommande(String commandeId, LocalDate dateLivraisonSouhaitee, int typeCommande, String typeCommandeExecptionel, String commentaire);
-
     JSONObject envoiPharmaInfosProduit(String commandeId);
 
-    JSONObject lignesCommande(String commandeId) throws JSONException;
+    JSONObject envoiCommande(String commandeId, LocalDate dateLivraisonSouhaitee, int typeCommande,
+            String typeCommandeExecptionel, String commentaire);
 
-    List<PharmaMLItemDTO> lignesCommandeDto(String commandeId);
-
-    JSONObject lignesCommandeRetour(String commandeRef, String orderId);
-
-    JSONObject renvoiPharmaCommande(String ruptureId,String grossiste, LocalDate dateLivraisonSouhaitee, int typeCommande, String typeCommandeExecptionel, String commentaire);
-
-    JSONObject reponseRupture(String ruptureId, TUser u);
-
-    void test();
 }

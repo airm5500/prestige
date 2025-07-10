@@ -27,23 +27,21 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_sous_menu", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_SOUS_MENU_ID"})})
+@Table(name = "t_sous_menu", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_SOUS_MENU_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSousMenu.findAll", query = "SELECT t FROM TSousMenu t"),
-    @NamedQuery(name = "TSousMenu.findByLgSOUSMENUID", query = "SELECT t FROM TSousMenu t WHERE t.lgSOUSMENUID = :lgSOUSMENUID"),
-    @NamedQuery(name = "TSousMenu.findByStrVALUE", query = "SELECT t FROM TSousMenu t WHERE t.strVALUE = :strVALUE"),
-    @NamedQuery(name = "TSousMenu.findByStrIMAGECSS", query = "SELECT t FROM TSousMenu t WHERE t.strIMAGECSS = :strIMAGECSS"),
-    @NamedQuery(name = "TSousMenu.findByStrDESCRIPTION", query = "SELECT t FROM TSousMenu t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TSousMenu.findByStrCOMPOSANT", query = "SELECT t FROM TSousMenu t WHERE t.strCOMPOSANT = :strCOMPOSANT"),
-    @NamedQuery(name = "TSousMenu.findByIntPRIORITY", query = "SELECT t FROM TSousMenu t WHERE t.intPRIORITY = :intPRIORITY"),
-    @NamedQuery(name = "TSousMenu.findByStrURL", query = "SELECT t FROM TSousMenu t WHERE t.strURL = :strURL"),
-    @NamedQuery(name = "TSousMenu.findByStrStatus", query = "SELECT t FROM TSousMenu t WHERE t.strStatus = :strStatus"),
-    @NamedQuery(name = "TSousMenu.findByPKey", query = "SELECT t FROM TSousMenu t WHERE t.pKey = :pKey"),
-    @NamedQuery(name = "TSousMenu.findByDtCREATED", query = "SELECT t FROM TSousMenu t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSousMenu.findByDtUPDATED", query = "SELECT t FROM TSousMenu t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSousMenu.findByIconCLASS", query = "SELECT t FROM TSousMenu t WHERE t.iconCLASS = :iconCLASS")})
+@NamedQueries({ @NamedQuery(name = "TSousMenu.findAll", query = "SELECT t FROM TSousMenu t"),
+        @NamedQuery(name = "TSousMenu.findByLgSOUSMENUID", query = "SELECT t FROM TSousMenu t WHERE t.lgSOUSMENUID = :lgSOUSMENUID"),
+        @NamedQuery(name = "TSousMenu.findByStrVALUE", query = "SELECT t FROM TSousMenu t WHERE t.strVALUE = :strVALUE"),
+        @NamedQuery(name = "TSousMenu.findByStrIMAGECSS", query = "SELECT t FROM TSousMenu t WHERE t.strIMAGECSS = :strIMAGECSS"),
+        @NamedQuery(name = "TSousMenu.findByStrDESCRIPTION", query = "SELECT t FROM TSousMenu t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TSousMenu.findByStrCOMPOSANT", query = "SELECT t FROM TSousMenu t WHERE t.strCOMPOSANT = :strCOMPOSANT"),
+        @NamedQuery(name = "TSousMenu.findByIntPRIORITY", query = "SELECT t FROM TSousMenu t WHERE t.intPRIORITY = :intPRIORITY"),
+        @NamedQuery(name = "TSousMenu.findByStrURL", query = "SELECT t FROM TSousMenu t WHERE t.strURL = :strURL"),
+        @NamedQuery(name = "TSousMenu.findByStrStatus", query = "SELECT t FROM TSousMenu t WHERE t.strStatus = :strStatus"),
+        @NamedQuery(name = "TSousMenu.findByPKey", query = "SELECT t FROM TSousMenu t WHERE t.pKey = :pKey"),
+        @NamedQuery(name = "TSousMenu.findByDtCREATED", query = "SELECT t FROM TSousMenu t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSousMenu.findByDtUPDATED", query = "SELECT t FROM TSousMenu t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSousMenu.findByIconCLASS", query = "SELECT t FROM TSousMenu t WHERE t.iconCLASS = :iconCLASS") })
 public class TSousMenu implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -209,7 +207,8 @@ public class TSousMenu implements Serializable {
             return false;
         }
         TSousMenu other = (TSousMenu) object;
-        if ((this.lgSOUSMENUID == null && other.lgSOUSMENUID != null) || (this.lgSOUSMENUID != null && !this.lgSOUSMENUID.equals(other.lgSOUSMENUID))) {
+        if ((this.lgSOUSMENUID == null && other.lgSOUSMENUID != null)
+                || (this.lgSOUSMENUID != null && !this.lgSOUSMENUID.equals(other.lgSOUSMENUID))) {
             return false;
         }
         return true;
@@ -219,5 +218,5 @@ public class TSousMenu implements Serializable {
     public String toString() {
         return "dal.TSousMenu[ lgSOUSMENUID=" + lgSOUSMENUID + " ]";
     }
-    
+
 }

@@ -26,7 +26,7 @@ public class AjustementDetailDTO implements Serializable {
     private Integer intNUMBERCURRENTSTOCK;
     private Integer intNUMBERAFTERSTOCK, montantTotal, montantVente;
     private Date dateOperation;
-    private String operateur, motifAjustement,commentaire;
+    private String operateur, motifAjustement, commentaire;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private final SimpleDateFormat heureFormat = new SimpleDateFormat("HH:mm");
 
@@ -192,10 +192,10 @@ public class AjustementDetailDTO implements Serializable {
         this.montantVente = ajustementDetail.getIntNUMBER() * famille.getIntPRICE();
         this.dtCREATED = dateFormat.format(ajustementDetail.getDtUPDATED());
         this.HEURE = heureFormat.format(ajustementDetail.getDtUPDATED());
-        TAjustement a= ajustementDetail.getLgAJUSTEMENTID();
+        TAjustement a = ajustementDetail.getLgAJUSTEMENTID();
         TUser tu = a.getLgUSERID();
-        this.commentaire=a.getStrCOMMENTAIRE();
-        this.lgAJUSTEMENTID=a.getLgAJUSTEMENTID();
+        this.commentaire = a.getStrCOMMENTAIRE();
+        this.lgAJUSTEMENTID = a.getLgAJUSTEMENTID();
         this.operateur = tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
         this.dateOperation = ajustementDetail.getDtUPDATED();
         MotifAjustement ma = ajustementDetail.getTypeAjustement();

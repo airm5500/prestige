@@ -14,9 +14,9 @@ import java.text.SimpleDateFormat;
  */
 public class ErpFactureDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-  private String   dateFacture, tiersPayantId, tiersPayantLibelle, numFacturation;
-  private long montant;
-   private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
+    private String dateFacture, tiersPayantId, tiersPayantLibelle, numFacturation;
+    private long montant;
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
 
     public String getDateFacture() {
         return dateFacture;
@@ -61,18 +61,16 @@ public class ErpFactureDTO implements Serializable {
     public ErpFactureDTO() {
     }
 
-    public ErpFactureDTO(dal.TFacture f,dal.TTiersPayant p) {
+    public ErpFactureDTO(dal.TFacture f, dal.TTiersPayant p) {
         try {
-              this.dateFacture = dateFormat.format(f.getDtDATEFACTURE());
+            this.dateFacture = dateFormat.format(f.getDtDATEFACTURE());
         } catch (Exception e) {
         }
-      
+
         this.tiersPayantId = p.getLgTIERSPAYANTID();
         this.tiersPayantLibelle = p.getStrFULLNAME();
         this.numFacturation = f.getStrCODEFACTURE();
         this.montant = f.getDblMONTANTCMDE().longValue();
     }
-   
-   
-   
+
 }

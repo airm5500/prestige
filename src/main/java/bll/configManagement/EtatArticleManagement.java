@@ -37,12 +37,13 @@ public class EtatArticleManagement extends bllBase {
             OTEtatArticle.setLgETATARTICLEID(this.getKey().getComplexId());
             OTEtatArticle.setStrCODE(str_CODE);
             OTEtatArticle.setStrLIBELLEE(str_LIBELLEE);
-        
+
             OTEtatArticle.setStrSTATUT(commonparameter.statut_enable);
             OTEtatArticle.setDtCREATED(new Date());
 
             this.persiste(OTEtatArticle);
-            new logger().oCategory.info("Mise a jour OTEtatArticle " + OTEtatArticle.getLgETATARTICLEID()+ " StrName " + OTEtatArticle.getStrLIBELLEE());
+            new logger().oCategory.info("Mise a jour OTEtatArticle " + OTEtatArticle.getLgETATARTICLEID() + " StrName "
+                    + OTEtatArticle.getStrLIBELLEE());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
@@ -55,7 +56,7 @@ public class EtatArticleManagement extends bllBase {
 
         try {
 
-            new logger().oCategory.info("lg_ETAT_ARTICLE_ID     Create   " + lg_ETAT_ARTICLE_ID);            
+            new logger().oCategory.info("lg_ETAT_ARTICLE_ID     Create   " + lg_ETAT_ARTICLE_ID);
 
             dal.TEtatArticle OTEtatArticle = null;
 
@@ -67,7 +68,8 @@ public class EtatArticleManagement extends bllBase {
             OTEtatArticle.setDtUPDATED(new Date());
 
             this.persiste(OTEtatArticle);
-            new logger().oCategory.info("Mise a jour OTEtatArticle " + OTEtatArticle.getLgETATARTICLEID() + " StrLabel " + OTEtatArticle.getStrLIBELLEE());
+            new logger().oCategory.info("Mise a jour OTEtatArticle " + OTEtatArticle.getLgETATARTICLEID() + " StrLabel "
+                    + OTEtatArticle.getStrLIBELLEE());
 
         } catch (Exception e) {
 
@@ -77,7 +79,7 @@ public class EtatArticleManagement extends bllBase {
 
     }
 
-    //liste etat article
+    // liste etat article
     public List<TEtatArticle> getAllEtatArticle(String search_value) {
         List<TEtatArticle> lstTEtatArticle = new ArrayList<TEtatArticle>();
 
@@ -85,17 +87,16 @@ public class EtatArticleManagement extends bllBase {
             if (search_value.equalsIgnoreCase("") || search_value == null) {
                 search_value = "%%";
             }
-            lstTEtatArticle = this.getOdataManager().getEm().createQuery("SELECT t FROM TEtatArticle t WHERE (t.strCODE LIKE ?2 OR t.strLIBELLEE LIKE ?2) AND t.strSTATUT = ?1 ")
-            .setParameter(1, commonparameter.statut_enable)
-                    .setParameter(2, search_value+"%")
-            .getResultList();
-            
+            lstTEtatArticle = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TEtatArticle t WHERE (t.strCODE LIKE ?2 OR t.strLIBELLEE LIKE ?2) AND t.strSTATUT = ?1 ")
+                    .setParameter(1, commonparameter.statut_enable).setParameter(2, search_value + "%").getResultList();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
         new logger().OCategory.info("lstTEtatArticle taille " + lstTEtatArticle.size());
         return lstTEtatArticle;
     }
-    //fin liste etat article
-    
+    // fin liste etat article
+
 }

@@ -55,7 +55,7 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
             'monitoringproduct gridpanel pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
-            //tabchange:
+
             'monitoringproduct #fabricantId': {
                 select: this.doSearch
             },
@@ -73,11 +73,13 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
             },
             'monitoringproduct gridpanel': {
                 viewready: this.doInitStore,
-//                cellclick:this.cellClickHandler,
                 celldblclick: this.cellClickHandler
             },
             "monitoringproduct gridpanel actioncolumn": {
                 click: this.handleActionColumn
+            },
+            'monitoringproduct #imprimer': {
+                click: this.onPdfClick
             }
 
 
@@ -85,13 +87,13 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
     },
     onSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
-            var me = this;
+            const me = this;
             me.doSearch();
         }
     },
     doBeforechange: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getMvtGrid().getStore().getProxy();
+        const me = this;
+        const myProxy = me.getMvtGrid().getStore().getProxy();
         myProxy.params = {
             categorieId: null,
             fabricantId: null,
@@ -110,8 +112,8 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
         myProxy.setExtraParam('fabricantId', me.getFabricantId().getValue());
     },
     doBeforechangeItem: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getMvtGrid().getStore().getProxy();
+        const me = this;
+        const myProxy = me.getMvtGrid().getStore().getProxy();
         myProxy.params = {
             categorieId: null,
             fabricantId: null,
@@ -129,22 +131,47 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
         myProxy.setExtraParam('search', me.getQuery().getValue());
         myProxy.setExtraParam('fabricantId', me.getFabricantId().getValue());
     },
+    onPdfClick: function () {
+        const me = this;
+        let categorieId = me.getCategorieId().getValue();
+        const dtStart = me.getDtStart().getSubmitValue();
+        const dtEnd = me.getDtEnd().getSubmitValue();
+        let rayonId = me.getRayonId().getValue();
+        const search = me.getQuery().getValue();
+        let fabricantId = me.getFabricantId().getValue();
+
+        if (categorieId === null) {
+            categorieId = '';
+        }
+        if (rayonId === null) {
+            rayonId = '';
+        }
+
+        if (fabricantId === null) {
+            fabricantId = '';
+        }
+        const linkUrl = '../SockServlet?mode=SUIVI_MVT_PRODUIT&dtStart=' + dtStart + '&dtEnd=' + dtEnd
+                + '&rayonId=' + rayonId + '&categorieId=' + categorieId + '&search=' + search
+                + '&fabricantId=' + fabricantId
+                ;
+        window.open(linkUrl);
+    },
     handleActionColumn: function (view, rowIndex, colIndex, item, e, r, row) {
-        var me = this;
-        var store = me.getMvtGrid().getStore(),
-                rec = store.getAt(colIndex);
+        const me = this;
+        const store = me.getMvtGrid().getStore();
+        const rec = store.getAt(colIndex);
         me.produitId = rec.get('produitId');
         me.buildDetail(rec);
 
     },
 
     doInitStore: function () {
-        var me = this;
+        const me = this;
         me.doSearch();
     },
 
     doSearch: function () {
-        var me = this;
+        const me = this;
 
         me.getMvtGrid().getStore().load({
             params: {
@@ -220,7 +247,7 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
                             name: 'qtyEntree',
                             type: 'number'
                         },
-                         {
+                        {
                             name: 'ecartInventaire',
                             type: 'number'
                         }
@@ -239,7 +266,6 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
             }
         });
         storeProduits.addListener('metachange', function (store, rec) {
-//            console.log(form.query('#imprimer'));
             form.query('#qtyEntree')[0].setValue(rec.qtyEntree);
             form.query('#qtyDecondSortant')[0].setValue(rec.qtyDecondSortant);
             form.query('#qtyDeconEntrant')[0].setValue(rec.qtyDeconEntrant);
@@ -2185,12 +2211,9 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
     },
 
     cellClickHandler: function (view, cell, cellIndex, record, row, rowIndex, e) {
-        var me = this;
-        var clickedDataIndex = view.panel.headerCt.getHeaderAtIndex(cellIndex).dataIndex;
-        console.log(clickedDataIndex);
-        /*if(clickedDataIndex==='qtyVente'){
-         me.buildVenteItems(record);
-         }*/
+        const me = this;
+        const clickedDataIndex = view.panel.headerCt.getHeaderAtIndex(cellIndex).dataIndex;
+
         switch (clickedDataIndex) {
             case 'qtyVente':
                 me.buildVenteItems(record);

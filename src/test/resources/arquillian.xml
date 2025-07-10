@@ -14,7 +14,7 @@
     <configuration>
       <property name="allowConnectingToRunningServer">true</property> 
 <!--       <property name="glassFishHome">target/${glassfish.home}</property> -->
- <property name="glassFishHome">C:/Users/DICI/Payara_Server</property> 
+ <property name="glassFishHome">D:/Payara_Server5</property> 
 
       <property name="adminHost">localhost</property>
       <property name="adminPort">4848</property>
@@ -26,7 +26,7 @@
   <container qualifier="glassfish-auth">
     <configuration>
    
-      <property name="glassFishHome">C:/Users/DICI/Payara_Server</property>
+      <property name="glassFishHome">D:/Payara_Server5</property>
       <property name="adminHost">localhost</property>
       <property name="adminPort">4848</property>
      <!--  <property name="adminUser">admin</property>

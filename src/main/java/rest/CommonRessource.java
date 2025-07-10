@@ -20,6 +20,7 @@ import dal.TTypeVente;
 import dal.TUser;
 import dal.TVille;
 import dal.MotifAjustement;
+import dal.MotifRetourCarnet;
 import java.time.LocalDate;
 import java.util.List;
 import javax.ejb.EJB;
@@ -37,8 +38,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.CommonService;
 import rest.service.LogService;
-import toolkits.parameters.commonparameter;
-import util.DateConverter;
+import util.CommonUtils;
+
+import util.Constant;
 
 /**
  *
@@ -80,11 +82,11 @@ public class CommonRessource {
     @Path("autorisation-prix-vente")
     public Response autorisationPrixVente() {
         HttpSession hs = servletRequest.getSession();
-        Boolean bool_UPDATE_PRICE = (Boolean) hs.getAttribute(DateConverter.UPDATE_PRICE);
+        Boolean hasAutority = (Boolean) hs.getAttribute(Constant.UPDATE_PRICE);
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
         cc.setPrivate(true);
-        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(bool_UPDATE_PRICE, 1)).build();
+        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(hasAutority, 1)).build();
     }
 
     @GET
@@ -132,9 +134,6 @@ public class CommonRessource {
     public Response remisesclient() {
         List<RemiseDTO> data = commonService.findAllRemise();
         data.add(new RemiseDTO(null, "SANS REMISE"));
-//        CacheControl cc = new CacheControl();
-//        cc.setMaxAge(86400);
-//        cc.setPrivate(true);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
@@ -150,12 +149,12 @@ public class CommonRessource {
 
     @GET
     @Path("users")
-    public Response getUsers(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query) {
+    public Response getUsers(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query) {
         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         TEmplacement emplacement = tu.getLgEMPLACEMENTID();
         long total = commonService.findUsers(query, emplacement.getLgEMPLACEMENTID());
@@ -196,11 +195,11 @@ public class CommonRessource {
     @GET
     @Path("vente-sansbon")
     public Response venteSansBon() {
-        Boolean bool_UPDATE_PRICE = commonService.sansBon();
+        Boolean btn = commonService.sansBon();
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
         cc.setPrivate(true);
-        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(bool_UPDATE_PRICE, 1)).build();
+        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(btn, 1)).build();
     }
 
     @GET
@@ -231,7 +230,6 @@ public class CommonRessource {
         List<TTypeVente> data = commonService.typeventeDevis();
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
-//        cc.setPrivate(true);
         return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
@@ -241,7 +239,6 @@ public class CommonRessource {
 
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
-//        cc.setPrivate(true);
         JSONObject json = logService.filtres(query);
 
         return Response.ok().cacheControl(cc).entity(json.toString()).build();
@@ -249,12 +246,12 @@ public class CommonRessource {
 
     @GET
     @Path("logs")
-    public Response logs(@QueryParam(value = "query") String query, @QueryParam(value = "userId") String userId, @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit,
+    public Response logs(@QueryParam(value = "query") String query, @QueryParam(value = "userId") String userId,
+            @QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "criteria") int criteria
-    ) throws JSONException {
-        LocalDate dtSt = LocalDate.now(), dtEd = dtSt;
+            @QueryParam(value = "criteria") int criteria) throws JSONException {
+        LocalDate dtSt = LocalDate.now();
+        LocalDate dtEd = dtSt;
         if (dtStart != null && !"".equals(dtStart)) {
             dtSt = LocalDate.parse(dtStart);
         }
@@ -316,16 +313,6 @@ public class CommonRessource {
     }
 
     @GET
-    @Path("plafond-vente")
-    public Response plafondVente() {
-        Boolean bool_UPDATE_PRICE = commonService.plafondVenteIsActive();
-        CacheControl cc = new CacheControl();
-        cc.setMaxAge(86400);
-        cc.setPrivate(true);
-        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(bool_UPDATE_PRICE, 1)).build();
-    }
-
-    @GET
     @Path("datemisajour")
     public Response datemisajour() throws JSONException {
         JSONObject json = commonService.findDateMiseAJour();
@@ -339,8 +326,9 @@ public class CommonRessource {
     @Path("autorisations/showstock")
     public Response autorisationAfficherStock() {
         HttpSession hs = servletRequest.getSession();
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean afficherStockVente = DateConverter.hasAuthorityByName(LstTPrivilege, DateConverter.P_AFFICHER_STOCK_A_LA_VENTE);
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean afficherStockVente = CommonUtils.hasAuthorityByName(lstTPrivilege,
+                Constant.P_AFFICHER_STOCK_A_LA_VENTE);
         return Response.ok().entity(ResultFactory.getSuccessResult(afficherStockVente, 1)).build();
     }
 
@@ -372,5 +360,49 @@ public class CommonRessource {
         cc.setMaxAge(86400);
         cc.setPrivate(true);
         return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
+    @GET
+    @Path("motif-retour-carnet")
+    public Response motifRetourcarnet() {
+        List<MotifRetourCarnet> data = commonService.motifRetourCarnets();
+        CacheControl cc = new CacheControl();
+        cc.setMaxAge(86400);
+        cc.setPrivate(true);
+        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
+    @GET
+    @Path("common")
+    public Response gestionParticuliere() throws JSONException {
+        boolean checkug = commonService.isNormalUse();
+        CacheControl cc = new CacheControl();
+        cc.setMaxAge(86400);
+        cc.setPrivate(true);
+        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(checkug, 1)).build();
+    }
+
+    @GET
+    @Path("type-reglements")
+    public Response listeTypeReglements() {
+        List<ComboDTO> data = commonService.findAllTypeReglement();
+        CacheControl cc = new CacheControl();
+        cc.setMaxAge(86400);
+        cc.setPrivate(true);
+        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
+    @GET
+    @Path("is-authorized")
+    public Response checkAction(@QueryParam(value = "action") String action) {
+        HttpSession hs = servletRequest.getSession();
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean allowed = CommonUtils.hasAuthorityByName(lstTPrivilege, action);
+
+        CacheControl cc = new CacheControl();
+        cc.setMaxAge(86400);
+        cc.setPrivate(true);
+        return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(allowed)).build();
+
     }
 }

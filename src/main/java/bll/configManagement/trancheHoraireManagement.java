@@ -30,7 +30,8 @@ public class trancheHoraireManagement extends bllBase {
         try {
 
             TTrancheHoraire OTTrancheHoraire = new TTrancheHoraire();
-            OTTrancheHoraire.setLgTRANCHEHORAIREID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTTrancheHoraire.setLgTRANCHEHORAIREID(this.getKey().getComplexId()); // Génération automatique d'un ID à
+                                                                                  // partir de la date courante
             OTTrancheHoraire.setIntHEUREMIN(int_HEURE_MIN);
             OTTrancheHoraire.setIntHEUREMAX(int_HEURE_MAX);
 
@@ -55,11 +56,10 @@ public class trancheHoraireManagement extends bllBase {
         int heure = new Integer(this.getKey().getoHours(Odate));
         TTrancheHoraire OTTrancheHoraire = null;
         try {
-            OTTrancheHoraire = (TTrancheHoraire) this.getOdataManager().getEm().createQuery("SELECT t FROM TTrancheHoraire t WHERE  t.intHEUREMIN >= ?3  AND t.intHEUREMAX <= ?4 AND t.strSTATUT LIKE ?5 ").
-                    setParameter(3, heure).
-                    setParameter(4, heure+1).
-                    setParameter(5, commonparameter.statut_enable).
-                    getSingleResult();
+            OTTrancheHoraire = (TTrancheHoraire) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TTrancheHoraire t WHERE  t.intHEUREMIN >= ?3  AND t.intHEUREMAX <= ?4 AND t.strSTATUT LIKE ?5 ")
+                    .setParameter(3, heure).setParameter(4, heure + 1).setParameter(5, commonparameter.statut_enable)
+                    .getSingleResult();
         } catch (Exception e) {
             this.buildErrorTraceMessage(e.getMessage());
         }
@@ -67,8 +67,6 @@ public class trancheHoraireManagement extends bllBase {
     }
 
     /*
-     for(int i =0;i<24;i++){
-     new trancheHoraireManagement(OdataManager).create(i, i+1, i+"H00 a "+(i+1)+"H00");
-     }
+     * for(int i =0;i<24;i++){ new trancheHoraireManagement(OdataManager).create(i, i+1, i+"H00 a "+(i+1)+"H00"); }
      */
 }

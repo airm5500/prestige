@@ -7,6 +7,7 @@ package commonTasks.dto;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Objects;
@@ -20,43 +21,29 @@ import util.DateConverter;
 public class TableauBaordPhDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     private boolean vente;
     private String dateOperation;
-//    @JsonProperty("Total vente")
     private Integer montantTTC = 0;
-    // @JsonProperty("Ca net")
     private Integer montantNet = 0;
-    //  @JsonProperty("Remise")
     private Integer montantRemise = 0;
-    //  @JsonProperty("Comptant")
     private Integer montantEsp = 0;
-    //  @JsonProperty("Credit")
     private Integer montantCredit = 0;
-//    @JsonProperty("Nbre Clients")
     private Integer nbreVente = 0;
-//    @JsonProperty("LABOREX")
     private Integer montantAchatOne = 0;
-//    @JsonProperty("DPCI")
     private Integer montantAchatTwo = 0;
-//    @JsonProperty("COPHARMED")
     private Integer montantAchatThree = 0;
-//    @JsonProperty("TEDIS PHARMA")
     private Integer montantAchatFour = 0;
-//    @JsonProperty("AUTRES")
     private Integer montantAchatFive = 0;
-//    @JsonProperty("Achat net")
     private Integer montantAchat = 0;
     private Integer montantAchatNet = 0;
-//    @JsonProperty("AVOIR")
     private Integer montantAvoir = 0;
-//    @JsonProperty("RATIOVA")
     private double ratioVA = 0.0;
-//    @JsonProperty("RATIOACHV")
     private double rationAV = 0.0;
     private LocalDate mvtDate;
     private Integer mvtDateInt;
-  
+    private YearMonth yearMonth;
+    private int totalModeReglement;
 
     public Integer getMvtDateInt() {
         return mvtDateInt;
@@ -68,13 +55,24 @@ public class TableauBaordPhDTO implements Serializable {
 
     public String getDateOperation() {
         try {
-            if(dateOperation==null){
-                  this.dateOperation = mvtDate.format(dateFormat);
+            if (dateOperation == null) {
+                this.dateOperation = mvtDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
             }
-          
+
         } catch (Exception e) {
         }
         return dateOperation;
+    }
+
+    public YearMonth getYearMonth() {
+        if (mvtDate != null) {
+            yearMonth = YearMonth.from(mvtDate);
+        }
+        return yearMonth;
+    }
+
+    public void setYearMonth(YearMonth yearMonth) {
+        this.yearMonth = yearMonth;
     }
 
     public void setDateOperation(String dateOperation) {
@@ -103,11 +101,7 @@ public class TableauBaordPhDTO implements Serializable {
     }
 
     public void setMvtDate(LocalDate mvtDate) {
-        /*    try {
-              this.dateOperation=mvtDate.format(dateFormat);
-        } catch (Exception e) {
-        }
-         */
+
         this.mvtDate = mvtDate;
     }
 
@@ -172,7 +166,7 @@ public class TableauBaordPhDTO implements Serializable {
         this.montantRemise = montantRemise;
     }
 
-    @JSONPropertyName("Comptant")
+    @JSONPropertyName("ComptantOld")
     public Integer getMontantEsp() {
         return montantEsp;
     }
@@ -267,6 +261,15 @@ public class TableauBaordPhDTO implements Serializable {
         return montantCredit;
     }
 
+    @JSONPropertyName("Comptant")
+    public int getTotalModeReglement() {
+        return totalModeReglement;
+    }
+
+    public void setTotalModeReglement(int totalModeReglement) {
+        this.totalModeReglement = totalModeReglement;
+    }
+
     public void setMontantCredit(Integer montantCredit) {
         this.montantCredit = montantCredit;
     }
@@ -275,7 +278,8 @@ public class TableauBaordPhDTO implements Serializable {
 
     }
 
-    public TableauBaordPhDTO(long montantTTC, long montantRemise, Date dateOp, long nbreVente, long customPart, String typeVente) {
+    public TableauBaordPhDTO(long montantTTC, long montantRemise, Date dateOp, long nbreVente, long customPart,
+            String typeVente) {
         this.montantRemise = (int) montantRemise;
         this.montantTTC = (int) montantTTC;
         this.nbreVente = (int) nbreVente;
@@ -298,8 +302,8 @@ public class TableauBaordPhDTO implements Serializable {
         this.vente = true;
     }
 
-    public TableauBaordPhDTO(Date dateOp, long montantTTC, long montantRemise, long montantEsp, long montantCredit, long montantDiff) {
-//        System.out.println("montantTTC -- "+montantTTC+" montantRemise --"+montantRemise+" "+montantEsp+" montantCredit "+montantCredit);
+    public TableauBaordPhDTO(Date dateOp, long montantTTC, long montantRemise, long montantEsp, long montantCredit,
+            long montantDiff) {
         this.montantRemise -= (int) montantRemise;
         this.montantTTC -= (int) montantTTC;
         this.montantCredit -= (int) (montantCredit + montantDiff);

@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_type_bordereau")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeBordereau.findAll", query = "SELECT t FROM TTypeBordereau t"),
-    @NamedQuery(name = "TTypeBordereau.findByLgTYPEBORDEREAUID", query = "SELECT t FROM TTypeBordereau t WHERE t.lgTYPEBORDEREAUID = :lgTYPEBORDEREAUID"),
-    @NamedQuery(name = "TTypeBordereau.findByStrNUMEROETAT", query = "SELECT t FROM TTypeBordereau t WHERE t.strNUMEROETAT = :strNUMEROETAT"),
-    @NamedQuery(name = "TTypeBordereau.findByStrLIBELLETYPEBORDEREAU", query = "SELECT t FROM TTypeBordereau t WHERE t.strLIBELLETYPEBORDEREAU = :strLIBELLETYPEBORDEREAU"),
-    @NamedQuery(name = "TTypeBordereau.findByDtCREATED", query = "SELECT t FROM TTypeBordereau t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeBordereau.findByDtUPDATED", query = "SELECT t FROM TTypeBordereau t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypeBordereau.findByStrSTATUT", query = "SELECT t FROM TTypeBordereau t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypeBordereau.findAll", query = "SELECT t FROM TTypeBordereau t"),
+        @NamedQuery(name = "TTypeBordereau.findByLgTYPEBORDEREAUID", query = "SELECT t FROM TTypeBordereau t WHERE t.lgTYPEBORDEREAUID = :lgTYPEBORDEREAUID"),
+        @NamedQuery(name = "TTypeBordereau.findByStrNUMEROETAT", query = "SELECT t FROM TTypeBordereau t WHERE t.strNUMEROETAT = :strNUMEROETAT"),
+        @NamedQuery(name = "TTypeBordereau.findByStrLIBELLETYPEBORDEREAU", query = "SELECT t FROM TTypeBordereau t WHERE t.strLIBELLETYPEBORDEREAU = :strLIBELLETYPEBORDEREAU"),
+        @NamedQuery(name = "TTypeBordereau.findByDtCREATED", query = "SELECT t FROM TTypeBordereau t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeBordereau.findByDtUPDATED", query = "SELECT t FROM TTypeBordereau t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypeBordereau.findByStrSTATUT", query = "SELECT t FROM TTypeBordereau t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypeBordereau implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTypeBordereau implements Serializable {
             return false;
         }
         TTypeBordereau other = (TTypeBordereau) object;
-        if ((this.lgTYPEBORDEREAUID == null && other.lgTYPEBORDEREAUID != null) || (this.lgTYPEBORDEREAUID != null && !this.lgTYPEBORDEREAUID.equals(other.lgTYPEBORDEREAUID))) {
+        if ((this.lgTYPEBORDEREAUID == null && other.lgTYPEBORDEREAUID != null)
+                || (this.lgTYPEBORDEREAUID != null && !this.lgTYPEBORDEREAUID.equals(other.lgTYPEBORDEREAUID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTypeBordereau implements Serializable {
     public String toString() {
         return "dal.TTypeBordereau[ lgTYPEBORDEREAUID=" + lgTYPEBORDEREAUID + " ]";
     }
-    
+
 }

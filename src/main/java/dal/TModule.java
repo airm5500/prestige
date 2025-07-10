@@ -29,21 +29,20 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_module")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TModule.findAll", query = "SELECT t FROM TModule t"),
-    @NamedQuery(name = "TModule.findByLgMODULEID", query = "SELECT t FROM TModule t WHERE t.lgMODULEID = :lgMODULEID"),
-    @NamedQuery(name = "TModule.findByStrVALUE", query = "SELECT t FROM TModule t WHERE t.strVALUE = :strVALUE"),
-    @NamedQuery(name = "TModule.findByStrDESCRIPTION", query = "SELECT t FROM TModule t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TModule.findByIntPRIORITY", query = "SELECT t FROM TModule t WHERE t.intPRIORITY = :intPRIORITY"),
-    @NamedQuery(name = "TModule.findByStrStatus", query = "SELECT t FROM TModule t WHERE t.strStatus = :strStatus"),
-    @NamedQuery(name = "TModule.findByPKey", query = "SELECT t FROM TModule t WHERE t.pKey = :pKey"),
-    @NamedQuery(name = "TModule.findByStrLink", query = "SELECT t FROM TModule t WHERE t.strLink = :strLink"),
-    @NamedQuery(name = "TModule.findByStrIcone", query = "SELECT t FROM TModule t WHERE t.strIcone = :strIcone"),
-    @NamedQuery(name = "TModule.findByStrIconehover", query = "SELECT t FROM TModule t WHERE t.strIconehover = :strIconehover"),
-    @NamedQuery(name = "TModule.findByStrIconeout", query = "SELECT t FROM TModule t WHERE t.strIconeout = :strIconeout"),
-    @NamedQuery(name = "TModule.findByStrLinkdefault", query = "SELECT t FROM TModule t WHERE t.strLinkdefault = :strLinkdefault"),
-    @NamedQuery(name = "TModule.findByDtCREATED", query = "SELECT t FROM TModule t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TModule.findByDtUPDATED", query = "SELECT t FROM TModule t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TModule.findAll", query = "SELECT t FROM TModule t"),
+        @NamedQuery(name = "TModule.findByLgMODULEID", query = "SELECT t FROM TModule t WHERE t.lgMODULEID = :lgMODULEID"),
+        @NamedQuery(name = "TModule.findByStrVALUE", query = "SELECT t FROM TModule t WHERE t.strVALUE = :strVALUE"),
+        @NamedQuery(name = "TModule.findByStrDESCRIPTION", query = "SELECT t FROM TModule t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TModule.findByIntPRIORITY", query = "SELECT t FROM TModule t WHERE t.intPRIORITY = :intPRIORITY"),
+        @NamedQuery(name = "TModule.findByStrStatus", query = "SELECT t FROM TModule t WHERE t.strStatus = :strStatus"),
+        @NamedQuery(name = "TModule.findByPKey", query = "SELECT t FROM TModule t WHERE t.pKey = :pKey"),
+        @NamedQuery(name = "TModule.findByStrLink", query = "SELECT t FROM TModule t WHERE t.strLink = :strLink"),
+        @NamedQuery(name = "TModule.findByStrIcone", query = "SELECT t FROM TModule t WHERE t.strIcone = :strIcone"),
+        @NamedQuery(name = "TModule.findByStrIconehover", query = "SELECT t FROM TModule t WHERE t.strIconehover = :strIconehover"),
+        @NamedQuery(name = "TModule.findByStrIconeout", query = "SELECT t FROM TModule t WHERE t.strIconeout = :strIconeout"),
+        @NamedQuery(name = "TModule.findByStrLinkdefault", query = "SELECT t FROM TModule t WHERE t.strLinkdefault = :strLinkdefault"),
+        @NamedQuery(name = "TModule.findByDtCREATED", query = "SELECT t FROM TModule t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TModule.findByDtUPDATED", query = "SELECT t FROM TModule t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TModule implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -213,7 +212,8 @@ public class TModule implements Serializable {
             return false;
         }
         TModule other = (TModule) object;
-        if ((this.lgMODULEID == null && other.lgMODULEID != null) || (this.lgMODULEID != null && !this.lgMODULEID.equals(other.lgMODULEID))) {
+        if ((this.lgMODULEID == null && other.lgMODULEID != null)
+                || (this.lgMODULEID != null && !this.lgMODULEID.equals(other.lgMODULEID))) {
             return false;
         }
         return true;
@@ -223,5 +223,5 @@ public class TModule implements Serializable {
     public String toString() {
         return "dal.TModule[ lgMODULEID=" + lgMODULEID + " ]";
     }
-    
+
 }

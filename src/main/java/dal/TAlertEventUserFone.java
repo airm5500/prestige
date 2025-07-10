@@ -25,11 +25,10 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_alert_event_user_fone")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TAlertEventUserFone.findAll", query = "SELECT t FROM TAlertEventUserFone t"),
-    @NamedQuery(name = "TAlertEventUserFone.findByLgID", query = "SELECT t FROM TAlertEventUserFone t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TAlertEventUserFone.findByStrSTATUT", query = "SELECT t FROM TAlertEventUserFone t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TAlertEventUserFone.findByDtCREATED", query = "SELECT t FROM TAlertEventUserFone t WHERE t.dtCREATED = :dtCREATED")})
+@NamedQueries({ @NamedQuery(name = "TAlertEventUserFone.findAll", query = "SELECT t FROM TAlertEventUserFone t"),
+        @NamedQuery(name = "TAlertEventUserFone.findByLgID", query = "SELECT t FROM TAlertEventUserFone t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TAlertEventUserFone.findByStrSTATUT", query = "SELECT t FROM TAlertEventUserFone t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TAlertEventUserFone.findByDtCREATED", query = "SELECT t FROM TAlertEventUserFone t WHERE t.dtCREATED = :dtCREATED") })
 public class TAlertEventUserFone implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -118,5 +117,5 @@ public class TAlertEventUserFone implements Serializable {
     public String toString() {
         return "dal.TAlertEventUserFone[ lgID=" + lgID + " ]";
     }
-    
+
 }

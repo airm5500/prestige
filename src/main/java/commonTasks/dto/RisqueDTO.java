@@ -14,8 +14,8 @@ import java.util.Objects;
  */
 public class RisqueDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-     private String lgRISQUEID;
-      private String strLIBELLERISQUE,lgTYPERISQUEID,strNAME;
+    private String lgRISQUEID;
+    private String strLIBELLERISQUE, lgTYPERISQUEID, strNAME;
 
     public RisqueDTO() {
     }
@@ -83,5 +83,5 @@ public class RisqueDTO implements Serializable {
         this.lgTYPERISQUEID = lgTYPERISQUEID;
         this.strNAME = strNAME;
     }
-    
+
 }

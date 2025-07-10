@@ -6,6 +6,7 @@
 package commonTasks.dto;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Objects;
 import org.json.JSONPropertyName;
@@ -18,9 +19,20 @@ public class TvaDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private Integer taux = 0;
-    private long montantHt = 0, montantTva = 0, montantTtc = 0;
+    private long montantHt = 0;
+    private long montantTva = 0;
+    private long montantTtc = 0;
+    private long montantUg;
     private LocalDate localOperation;
     private String dateOperation;
+
+    public long getMontantUg() {
+        return montantUg;
+    }
+
+    public void setMontantUg(long montantUg) {
+        this.montantUg = montantUg;
+    }
 
     @JSONPropertyName("TAUX")
     public Integer getTaux() {
@@ -98,7 +110,8 @@ public class TvaDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "TvaDTO{" + "taux=" + taux + ", montantHt=" + montantHt + ", montantTva=" + montantTva + ", montantTtc=" + montantTtc + '}';
+        return "TvaDTO{" + "taux=" + taux + ", montantHt=" + montantHt + ", montantTva=" + montantTva + ", montantTtc="
+                + montantTtc + '}';
     }
 
     public TvaDTO() {
@@ -133,4 +146,10 @@ public class TvaDTO implements Serializable {
         this.montantTtc = montantTtc;
         this.localOperation = date;
     }
+
+    public TvaDTO(Integer taux, BigDecimal montantTtc) {
+        this.taux = taux;
+        this.montantTtc = montantTtc.longValue();
+    }
+
 }

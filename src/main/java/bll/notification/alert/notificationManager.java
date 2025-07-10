@@ -34,10 +34,9 @@ public class notificationManager extends bll.bllBase {
         Oprivilege.LoadDataManger(this.getOdataManager());
         Oprivilege.LoadMultilange(this.getOTranslate());
 
-        List<TUser> lstTUser = this.getOdataManager().getEm().
-                createQuery("SELECT t FROM TUser t WHERE t.strSTATUT LIKE ?1  ").
-                setParameter(1, commonparameter.statut_enable).
-                getResultList();
+        List<TUser> lstTUser = this.getOdataManager().getEm()
+                .createQuery("SELECT t FROM TUser t WHERE t.strSTATUT LIKE ?1  ")
+                .setParameter(1, commonparameter.statut_enable).getResultList();
 
         for (int i = 0; i < lstTUser.size(); i++) {
             Oprivilege.setOTUser(lstTUser.get(i));
@@ -69,32 +68,35 @@ public class notificationManager extends bll.bllBase {
         } else if (P_K_PRIVILEGE.equals("N_NEW_ORDER")) {
             data = this.getDataNotificationml_new_register_order(OTUser, P_K_PRIVILEGE, ListRessource);
         }
-        //N_NEW_ORDER
+        // N_NEW_ORDER
 
         return data;
     }
 
-    private String getDataNotificationml_validation_order(TUser OTUser, String P_K_PRIVILEGE, List<Object> ListRessource) {
+    private String getDataNotificationml_validation_order(TUser OTUser, String P_K_PRIVILEGE,
+            List<Object> ListRessource) {
         alertManagement OalertManagement = new alertManagement(this.getOdataManager());
-        OalertManagement.addParameter("[ml_USER]", OTUser.getStrFIRSTNAME().toUpperCase() + "  " + OTUser.getStrLASTNAME().toUpperCase());
-        String data = "";//OalertManagement.notify(P_K_PRIVILEGE, OTUser, null);
+        OalertManagement.addParameter("[ml_USER]",
+                OTUser.getStrFIRSTNAME().toUpperCase() + "  " + OTUser.getStrLASTNAME().toUpperCase());
+        String data = "";// OalertManagement.notify(P_K_PRIVILEGE, OTUser, null);
         return data;
     }
 
-    private String getDataNotificationml_new_register_order(TUser OTUser, String P_K_PRIVILEGE, List<Object> ListRessource) {
+    private String getDataNotificationml_new_register_order(TUser OTUser, String P_K_PRIVILEGE,
+            List<Object> ListRessource) {
         alertManagement OalertManagement = new alertManagement(this.getOdataManager());
-        OalertManagement.addParameter("[ml_USER]", OTUser.getStrFIRSTNAME().toUpperCase() + "  " + OTUser.getStrLASTNAME().toUpperCase());
+        OalertManagement.addParameter("[ml_USER]",
+                OTUser.getStrFIRSTNAME().toUpperCase() + "  " + OTUser.getStrLASTNAME().toUpperCase());
         OalertManagement.addParameter("[ml_PRODUCT]", (String) ListRessource.get(0));
-        String data = "";//OalertManagement.notify(P_K_PRIVILEGE, OTUser, null);
+        String data = "";// OalertManagement.notify(P_K_PRIVILEGE, OTUser, null);
         return data;
     }
 
     public void ProcessNotificationRessource(String P_K_PRIVILEGE, List<Object> ListRessource) {
-        List<TNotification> lstTNotification = this.getOdataManager().getEm().
-                createQuery("SELECT t FROM TNotification t WHERE t.strSTATUT LIKE ?1  AND t.strREFRESSOURCE LIKE ?2  ").
-                setParameter(1, commonparameter.statut_UnRead).
-                setParameter(2, ((String) ListRessource.get(0))).
-                getResultList();
+        List<TNotification> lstTNotification = this.getOdataManager().getEm()
+                .createQuery("SELECT t FROM TNotification t WHERE t.strSTATUT LIKE ?1  AND t.strREFRESSOURCE LIKE ?2  ")
+                .setParameter(1, commonparameter.statut_UnRead).setParameter(2, ((String) ListRessource.get(0)))
+                .getResultList();
 
         for (int i = 0; i < lstTNotification.size(); i++) {
             lstTNotification.get(i).setStrSTATUT(commonparameter.statut_Read);
@@ -103,7 +105,7 @@ public class notificationManager extends bll.bllBase {
 
     }
 
-    //creation de notification
+    // creation de notification
     private boolean buildNofication(String Description, String content, String str_TYPE) {
         List<TUserFone> lstTUserFone = new ArrayList<TUserFone>();
         boolean result = false;
@@ -144,12 +146,13 @@ public class notificationManager extends bll.bllBase {
         return result;
     }
 
-    //fin creation de notification
-    //liste des user abilité a recevoir des notification sms
+    // fin creation de notification
+    // liste des user abilité a recevoir des notification sms
     public List<TUserFone> lstUserAuthorizeToNofication() {
         List<TUserFone> lst = new ArrayList<TUserFone>();
         try {
-            lst = this.getOdataManager().getEm().createQuery("SELECT t FROM TUserFone t WHERE t.strSTATUT = ?1 AND t.lgUSERID.strSTATUT = ?1")
+            lst = this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TUserFone t WHERE t.strSTATUT = ?1 AND t.lgUSERID.strSTATUT = ?1")
                     .setParameter(1, commonparameter.statut_enable).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
@@ -157,5 +160,5 @@ public class notificationManager extends bll.bllBase {
         new logger().OCategory.info("liste lstUserAuthorizeToNofication " + lst.size());
         return lst;
     }
-    //fin liste des user abilité a recevoir des notification sms
+    // fin liste des user abilité a recevoir des notification sms
 }

@@ -16,13 +16,34 @@ import java.util.Objects;
  * @author DICI
  */
 public class Params implements Serializable {
+
     private static final long serialVersionUID = 1L;
     private String ref, description, refParent, refTwo;
     private Integer value, valueTwo, valueThree, valueFour;
     private String dtStart = LocalDate.now().toString();
     private String dtEnd = dtStart;
+    private String hrEnd;
+    private String hrStart;
     private TUser operateur;
-    boolean scheduled,checkug=false;
+    boolean scheduled;
+    boolean checkug;
+    private String userId;
+
+    public String getHrEnd() {
+        return hrEnd;
+    }
+
+    public void setHrEnd(String hrEnd) {
+        this.hrEnd = hrEnd;
+    }
+
+    public String getHrStart() {
+        return hrStart;
+    }
+
+    public void setHrStart(String hrStart) {
+        this.hrStart = hrStart;
+    }
 
     public String getRefParent() {
         return refParent;
@@ -120,6 +141,14 @@ public class Params implements Serializable {
         this.valueFour = valueFour;
     }
 
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
     @Override
     public int hashCode() {
         int hash = 7;
@@ -209,15 +238,19 @@ public class Params implements Serializable {
     public void setCheckug(boolean checkug) {
         this.checkug = checkug;
     }
-     public Params ref(String ref) {
+
+    public Params ref(String ref) {
         this.ref = ref;
         return this;
     }
 
     @Override
     public String toString() {
-        return "Params{" + "ref=" + ref + ", description=" + description + ", refParent=" + refParent + ", refTwo=" + refTwo + ", dtStart=" + dtStart + ", dtEnd=" + dtEnd + ", checkug=" + checkug + '}';
+        return "Params{" + "ref=" + ref + ", description=" + description + ", refParent=" + refParent + ", refTwo="
+                + refTwo + ", value=" + value + ", valueTwo=" + valueTwo + ", valueThree=" + valueThree + ", valueFour="
+                + valueFour + ", dtStart=" + dtStart + ", dtEnd=" + dtEnd + ", hrEnd=" + hrEnd + ", hrStart=" + hrStart
+                + ", operateur=" + operateur + ", scheduled=" + scheduled + ", checkug=" + checkug + ", userId="
+                + userId + '}';
     }
-     
-     
+
 }

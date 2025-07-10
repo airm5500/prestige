@@ -10,5 +10,5 @@ package commonTasks.dto;
  * @author kkoffi
  */
 public enum Mode {
-      ALL, TP, GROUP, SELECT,TYPETP,CODE_GROUP,BONS,ALL_TP
+    ALL, TP, GROUP, SELECT, TYPETP, CODE_GROUP, BONS, ALL_TP
 }

@@ -12,31 +12,34 @@ import java.io.Serializable;
  * @author DICI
  */
 public class AchatDTO implements Serializable {
+
     private static final long serialVersionUID = 1L;
-    private Integer montantTTC = 0, montantHT = 0, montantTVA = 0;
+    private long montantTTC = 0;
+    private long montantHT = 0;
+    private long montantTVA = 0;
     private String libelleGroupeGrossiste;
 
-    public Integer getMontantTTC() {
+    public long getMontantTTC() {
         return montantTTC;
     }
 
-    public void setMontantTTC(Integer montantTTC) {
+    public void setMontantTTC(long montantTTC) {
         this.montantTTC = montantTTC;
     }
 
-    public Integer getMontantHT() {
+    public long getMontantHT() {
         return montantHT;
     }
 
-    public void setMontantHT(Integer montantHT) {
+    public void setMontantHT(long montantHT) {
         this.montantHT = montantHT;
     }
 
-    public Integer getMontantTVA() {
+    public long getMontantTVA() {
         return montantTVA;
     }
 
-    public void setMontantTVA(Integer montantTVA) {
+    public void setMontantTVA(long montantTVA) {
         this.montantTVA = montantTVA;
     }
 
@@ -48,8 +51,10 @@ public class AchatDTO implements Serializable {
         this.libelleGroupeGrossiste = libelleGroupeGrossiste;
     }
 
-    public AchatDTO() {
+    @Override
+    public String toString() {
+        return "AchatDTO{" + "montantTTC=" + montantTTC + ", montantHT=" + montantHT + ", montantTVA=" + montantTVA
+                + ", libelleGroupeGrossiste=" + libelleGroupeGrossiste + '}';
     }
-    
-    
+
 }

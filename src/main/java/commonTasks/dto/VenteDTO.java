@@ -5,21 +5,23 @@
  */
 package commonTasks.dto;
 
-import dal.Medecin;
 import dal.MvtTransaction;
 import dal.TClient;
 import dal.TPreenregistrement;
 import dal.TPreenregistrementCompteClient;
 import dal.TPreenregistrementDetail;
 import dal.TRemise;
+import dal.TTypeReglement;
 import dal.TTypeVente;
 import dal.TUser;
+import dal.VenteReglement;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import util.DateConverter;
 
 /**
@@ -34,27 +36,78 @@ public class VenteDTO implements Serializable {
     private String lgPREENREGISTREMENTID;
     private String strREF;
     private String strREFTICKET;
-    private Integer intPRICE,montantTva;
+    private Integer intPRICE;
+    private Integer montantTva;
     private Integer intPRICEREMISE;
     private String strTYPEVENTE;
-    private Integer intCUSTPART, remiseDepot = 0;
-    private Integer montantPaye = 0;//arrondi de la caisse
-    private String dtUPDATED, heure;
-    private String strSTATUT, strREFBON, lgUPDATEDBY, dtCREATED, HEUREVENTE, lgREMISEID, lgUSERVENDEURID, lgTYPEVENTEID, lgNATUREVENTEID, userFullName, userVendeurName;
+    private Integer intCUSTPART;
+    private Integer remiseDepot = 0;
+    private Integer montantPaye = 0;// arrondi de la caisse
+    private String dtUPDATED;
+    private String heure;
+    private String strSTATUT;
+    private String strREFBON;
+    private String lgUPDATEDBY;
+    private String dtCREATED;
+    private String HEUREVENTE;
+    private String lgREMISEID;
+    private String lgUSERVENDEURID;
+    private String lgTYPEVENTEID;
+    private String lgNATUREVENTEID;
+    private String userFullName;
+    private String userVendeurName;
     private AyantDroitDTO ayantDroit;
     private ClientDTO client;
-    private boolean cancel, avoir, sansbon, beCancel = false, modification, canexport = false;
+    private boolean cancel;
+    private boolean avoir;
+    private boolean sansbon;
+    private boolean beCancel = false;
+    private boolean modification;
+    private boolean canexport = false;
     private String dateAnnulation;
-    private String typeRemiseId, details = " ", userCaissierName, lgUSERCAISSIERID;
+    private String typeRemiseId;
+    private String details = " ";
+    private String userCaissierName;
+    private String lgUSERCAISSIERID;
     private List<TiersPayantParams> tierspayants = new ArrayList<>();
     private List<VenteDetailsDTO> items = new ArrayList<>();
     private MagasinDTO magasin;
-    private String lgTYPEDEPOTID, lgCLIENTID, strNAME, gerantFullName, lgEMPLACEMENTID, desciptiontypedepot;
-    private String clientFullName, strTYPEVENTENAME, mvdate;
+    private String lgTYPEDEPOTID;
+    private String lgCLIENTID;
+    private String strNAME;
+    private String gerantFullName;
+    private String lgEMPLACEMENTID;
+    private String desciptiontypedepot;
+    private String clientFullName;
+    private String strTYPEVENTENAME;
+    private String mvdate;
     private boolean copy = false;
     private Integer intPRICERESTE;
-    private String medecinId, nom, numOrder, commentaire;
+    private String medecinId;
+    private String nom;
+    private String numOrder;
+    private String commentaire;
     private boolean modificationClientTp;
+    private List<VenteReglementReportDTO> reglements = new ArrayList<>();
+    private boolean modificationVenteDate;
+    private int caution;
+
+    public boolean isModificationVenteDate() {
+        return modificationVenteDate;
+    }
+
+    public VenteDTO setModificationVenteDate(boolean modificationVenteDate) {
+        this.modificationVenteDate = modificationVenteDate;
+        return this;
+    }
+
+    public List<VenteReglementReportDTO> getReglements() {
+        return reglements;
+    }
+
+    public void setReglements(List<VenteReglementReportDTO> reglements) {
+        this.reglements = reglements;
+    }
 
     public VenteDTO canexport(boolean canexport) {
         this.canexport = canexport;
@@ -470,7 +523,8 @@ public class VenteDTO implements Serializable {
     public VenteDTO() {
     }
 
-    public VenteDTO(TPreenregistrement tp, List<TiersPayantParams> tierspayants, AyantDroitDTO ayantDroit, ClientDTO client, List<TPreenregistrementDetail> tpds) {
+    public VenteDTO(TPreenregistrement tp, List<TiersPayantParams> tierspayants, AyantDroitDTO ayantDroit,
+            ClientDTO client, List<TPreenregistrementDetail> tpds) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();
@@ -518,9 +572,17 @@ public class VenteDTO implements Serializable {
             }
         }
         tpds.forEach((tpd) -> {
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrDESCRIPTION() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> " + this.details;
+            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                    + "</span><span style='display:inline-block;width: 25%;'>"
+                    + tpd.getLgFAMILLEID().getStrDESCRIPTION()
+                    + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY()
+                    + ")</span><span style='display:inline-block;width: 15%;'>"
+                    + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> "
+                    + this.details;
         });
+        this.reglements = tp.getVenteReglements().stream().map(this::buildFromEntity).collect(Collectors.toList());
     }
+
     private String heureAnnulation;
 
     public String getHeureAnnulation() {
@@ -581,8 +643,15 @@ public class VenteDTO implements Serializable {
             }
         }
         tpds.forEach((tpd) -> {
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrDESCRIPTION() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> " + this.details;
+            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                    + "</span><span style='display:inline-block;width: 25%;'>"
+                    + tpd.getLgFAMILLEID().getStrDESCRIPTION()
+                    + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY()
+                    + ")</span><span style='display:inline-block;width: 15%;'>"
+                    + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> "
+                    + this.details;
         });
+        this.reglements = tp.getVenteReglements().stream().map(this::buildFromEntity).collect(Collectors.toList());
     }
 
     public MagasinDTO getMagasin() {
@@ -632,6 +701,7 @@ public class VenteDTO implements Serializable {
         if (c != null) {
             this.clientFullName = c.getStrFIRSTNAME() + " " + c.getStrLASTNAME();
         }
+        this.reglements = tp.getVenteReglements().stream().map(this::buildFromEntity).collect(Collectors.toList());
     }
 
     public VenteDTO(TPreenregistrement tp, List<TPreenregistrementDetail> tpds, MvtTransaction mt) {
@@ -681,8 +751,15 @@ public class VenteDTO implements Serializable {
         }
 
         tpds.forEach((tpd) -> {
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrDESCRIPTION() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> " + this.details;
+            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                    + "</span><span style='display:inline-block;width: 25%;'>"
+                    + tpd.getLgFAMILLEID().getStrDESCRIPTION()
+                    + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY()
+                    + ")</span><span style='display:inline-block;width: 15%;'>"
+                    + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> "
+                    + this.details;
         });
+        this.reglements = tp.getVenteReglements().stream().map(this::buildFromEntity).collect(Collectors.toList());
     }
 
     public VenteDTO(TPreenregistrement tp, List<TPreenregistrementDetail> tpds) {
@@ -727,11 +804,19 @@ public class VenteDTO implements Serializable {
         }
 
         tpds.forEach((tpd) -> {
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrDESCRIPTION() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> " + this.details;
+            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                    + "</span><span style='display:inline-block;width: 25%;'>"
+                    + tpd.getLgFAMILLEID().getStrDESCRIPTION()
+                    + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY()
+                    + ")</span><span style='display:inline-block;width: 15%;'>"
+                    + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> "
+                    + this.details;
         });
+        this.reglements = tp.getVenteReglements().stream().map(this::buildFromEntity).collect(Collectors.toList());
     }
 
-    public VenteDTO(TPreenregistrement tp, List<TPreenregistrementDetail> tpds, boolean becancel, SalesStatsParams params, TPreenregistrementCompteClient tpcc) {
+    public VenteDTO(TPreenregistrement tp, List<TPreenregistrementDetail> tpds, boolean becancel,
+            SalesStatsParams params, TPreenregistrementCompteClient tpcc) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
         this.intPRICERESTE = 0;
         if (tpcc != null) {
@@ -781,12 +866,45 @@ public class VenteDTO implements Serializable {
             this.heureAnnulation = heureFormat.format(tp.getDtANNULER());
         } catch (Exception e) {
         }
-        tpds.forEach((tpd) -> {
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrDESCRIPTION() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> " + this.details;
+        tpds.forEach(tpd -> {
+            if (tpd.getIntPRICEREMISE() != null && tpd.getIntPRICEREMISE() > 0) {
+                this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                        + "</span><span style='display:inline-block;width: 25%;'>"
+                        + tpd.getLgFAMILLEID().getStrDESCRIPTION()
+                        + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY()
+                        + ")</span><span style='display:inline-block;width: 15%;'>"
+                        + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA "
+                        + "</span><span style='display:inline-block;width: 15%;'>"
+                        + DateConverter.amountFormat(tpd.getIntPRICEREMISE(), '.') + " F CFA " + "</span> </b><br> "
+                        + this.details;
+            } else {
+                this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                        + "</span><span style='display:inline-block;width: 25%;'>"
+                        + tpd.getLgFAMILLEID().getStrDESCRIPTION()
+                        + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY()
+                        + ")</span><span style='display:inline-block;width: 15%;'>"
+                        + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> "
+                        + this.details;
+            }
+
         });
+
+        this.reglements = tp.getVenteReglements().stream().map(this::buildFromEntity).collect(Collectors.toList());
+    }
+
+    private VenteReglementReportDTO buildFromEntity(VenteReglement reglement) {
+        TTypeReglement tTypeReglement = reglement.getTypeReglement();
+        VenteReglementReportDTO venteReglement = new VenteReglementReportDTO();
+        venteReglement.setLibelle(tTypeReglement.getStrNAME());
+        venteReglement.setTypeReglement(tTypeReglement.getLgTYPEREGLEMENTID());
+        venteReglement.setMontant(reglement.getMontant());
+        venteReglement.setMontantAttentu(reglement.getMontantAttentu());
+        venteReglement.setFlagedAmount(reglement.getFlagedAmount());
+        return venteReglement;
     }
 
     public VenteDTO(TPreenregistrement tp, MagasinDTO magasin, List<TPreenregistrementDetail> tpds) {
+        this.reglements = tp.getVenteReglements().stream().map(this::buildFromEntity).collect(Collectors.toList());
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();
@@ -826,11 +944,19 @@ public class VenteDTO implements Serializable {
             this.clientFullName = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
         }
         tpds.forEach((tpd) -> {
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrDESCRIPTION() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> " + this.details;
+
+            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                    + "</span><span style='display:inline-block;width: 25%;'>"
+                    + tpd.getLgFAMILLEID().getStrDESCRIPTION()
+                    + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntQUANTITY()
+                    + ")</span><span style='display:inline-block;width: 15%;'>"
+                    + DateConverter.amountFormat(tpd.getIntPRICEUNITAIR(), '.') + " F CFA " + "</span></b><br> "
+                    + this.details;
         });
     }
 
-    public VenteDTO(TPreenregistrement tp, List<TiersPayantParams> tierspayants, AyantDroitDTO ayantDroit, ClientDTO client) {
+    public VenteDTO(TPreenregistrement tp, List<TiersPayantParams> tierspayants, AyantDroitDTO ayantDroit,
+            ClientDTO client) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();
@@ -919,9 +1045,11 @@ public class VenteDTO implements Serializable {
     public void setUserVendeurName(String userVendeurName) {
         this.userVendeurName = userVendeurName;
     }
+
     private Date dateOperation;
 
-    public VenteDTO(TPreenregistrement tp, MvtTransaction mvtTransaction, List<VenteDetailsDTO> tpds, TClient tc, MagasinDTO dTO) {
+    public VenteDTO(TPreenregistrement tp, MvtTransaction mvtTransaction, List<VenteDetailsDTO> tpds, TClient tc,
+            MagasinDTO dTO) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();
@@ -1062,7 +1190,7 @@ public class VenteDTO implements Serializable {
             this.userFullName = op.getStrFIRSTNAME() + " " + op.getStrLASTNAME();
         } catch (Exception e) {
         }
-     
+
         return this;
 
     }
@@ -1074,16 +1202,13 @@ public class VenteDTO implements Serializable {
     public void setMontantTva(Integer montantTva) {
         this.montantTva = montantTva;
     }
-    
-    
-    
-    
-      public VenteDTO(TPreenregistrement tp, List<VenteDetailsDTO> tpds,ClientDTO client) {
+
+    public VenteDTO(TPreenregistrement tp, List<VenteDetailsDTO> tpds, ClientDTO client) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();
         this.intPRICE = tp.getIntPRICE();
-        this.montantTva=tp.getMontantTva();
+        this.montantTva = tp.getMontantTva();
         this.intPRICEREMISE = tp.getIntPRICEREMISE();
         this.strTYPEVENTE = tp.getStrTYPEVENTE();
         this.intCUSTPART = tp.getIntCUSTPART();
@@ -1091,11 +1216,11 @@ public class VenteDTO implements Serializable {
         this.cancel = tp.getBISCANCEL();
         this.sansbon = tp.getBWITHOUTBON();
         this.lgTYPEVENTEID = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
-      
+
         this.dateOperation = tp.getDtUPDATED();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         this.items = tpds;
-       this.client=client;
+        this.client = client;
         try {
 
             this.dateAnnulation = dateFormat.format(tp.getDtANNULER());
@@ -1115,4 +1240,110 @@ public class VenteDTO implements Serializable {
         }
 
     }
+
+    public VenteDTO(TPreenregistrement tp, List<TPreenregistrementDetail> tpds, SalesStatsParams params,
+            TPreenregistrementCompteClient tpcc) {
+        this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
+        this.intPRICERESTE = 0;
+        if (tpcc != null) {
+            this.intPRICERESTE = tpcc.getIntPRICERESTE();
+        }
+
+        this.strREF = tp.getStrREF();
+        this.strREFTICKET = tp.getStrREFTICKET();
+        this.intPRICE = tp.getIntPRICE();
+        this.intPRICEREMISE = tp.getIntPRICEREMISE();
+        this.strTYPEVENTE = tp.getStrTYPEVENTE();
+        this.intCUSTPART = tp.getIntCUSTPART();
+        this.dtUPDATED = dateFormat.format(tp.getDtUPDATED());
+        this.heure = heureFormat.format(tp.getDtUPDATED());
+        this.dtCREATED = dateFormat.format(tp.getDtUPDATED());
+        this.HEUREVENTE = heureFormat.format(tp.getDtUPDATED());
+        this.strSTATUT = tp.getStrSTATUT();
+        this.avoir = tp.getBISAVOIR();
+        this.cancel = tp.getBISCANCEL();
+
+        this.modification = params.isModification();
+        this.modificationClientTp = params.isModificationClientTp();
+        this.sansbon = tp.getBWITHOUTBON();
+        this.lgTYPEVENTEID = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
+        this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
+        TClient cl = tp.getClient();
+        this.copy = tp.getCopy();
+        if (cl != null) {
+            this.clientFullName = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
+        }
+
+        try {
+            TUser tu = tp.getLgUSERVENDEURID();
+            TUser c = tp.getLgUSERCAISSIERID();
+            TUser op = tp.getLgUSERID();
+            this.lgUSERVENDEURID = tu.getLgUSERID();
+            this.userCaissierName = c.getStrFIRSTNAME() + " " + c.getStrLASTNAME();
+            this.lgUSERCAISSIERID = c.getLgUSERID();
+            this.lgUPDATEDBY = op.getStrFIRSTNAME() + " " + op.getStrLASTNAME();
+            this.userVendeurName = tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
+
+            this.userFullName = op.getStrFIRSTNAME() + " " + op.getStrLASTNAME();
+        } catch (Exception e) {
+        }
+        try {
+            this.dateAnnulation = dateFormat.format(tp.getDtANNULER());
+            this.heureAnnulation = heureFormat.format(tp.getDtANNULER());
+        } catch (Exception e) {
+        }
+        this.items = tpds.stream().map(VenteDetailsDTO::new).collect(Collectors.toList());
+    }
+
+    public int getCaution() {
+        return caution;
+    }
+
+    public void setCaution(int caution) {
+        this.caution = caution;
+    }
+
+    public VenteDTO(TPreenregistrement tp) {
+        this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
+        this.strREF = tp.getStrREF();
+        this.strREFTICKET = tp.getStrREFTICKET();
+        this.intPRICE = tp.getIntPRICE();
+        this.intPRICEREMISE = tp.getIntPRICEREMISE();
+        this.strTYPEVENTE = tp.getStrTYPEVENTE();
+        this.intCUSTPART = tp.getIntCUSTPART();
+        this.dtUPDATED = dateFormat.format(tp.getDtUPDATED());
+        this.heure = heureFormat.format(tp.getDtUPDATED());
+        this.dtCREATED = dateFormat.format(tp.getDtUPDATED());
+        this.HEUREVENTE = heureFormat.format(tp.getDtUPDATED());
+        this.strSTATUT = tp.getStrSTATUT();
+        this.avoir = tp.getBISAVOIR();
+        this.cancel = tp.getBISCANCEL();
+        this.sansbon = tp.getBWITHOUTBON();
+        this.lgTYPEVENTEID = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
+        this.copy = tp.getCopy();
+        this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
+        TClient cl = tp.getClient();
+        if (cl != null) {
+            this.clientFullName = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
+        }
+        try {
+
+            this.dateAnnulation = dateFormat.format(tp.getDtANNULER());
+            this.heureAnnulation = heureFormat.format(tp.getDtANNULER());
+        } catch (Exception e) {
+        }
+        try {
+            TUser tu = tp.getLgUSERVENDEURID();
+            TUser c = tp.getLgUSERCAISSIERID();
+            TUser op = tp.getLgUSERID();
+            this.lgUSERVENDEURID = tu.getLgUSERID();
+            this.userVendeurName = tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
+            this.userCaissierName = c.getStrFIRSTNAME() + " " + c.getStrLASTNAME();
+            this.lgUSERCAISSIERID = c.getLgUSERID();
+            this.userFullName = op.getStrFIRSTNAME() + " " + op.getStrLASTNAME();
+        } catch (Exception e) {
+        }
+
+    }
+
 }

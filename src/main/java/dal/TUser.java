@@ -7,6 +7,7 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import javax.persistence.Basic;
@@ -31,32 +32,30 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_user", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"str_LOGIN"})})
+@Table(name = "t_user", uniqueConstraints = { @UniqueConstraint(columnNames = { "str_LOGIN" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TUser.findAll", query = "SELECT t FROM TUser t"),
-    @NamedQuery(name = "TUser.findByLgUSERID", query = "SELECT t FROM TUser t WHERE t.lgUSERID = :lgUSERID"),
-    @NamedQuery(name = "TUser.findByStrIDS", query = "SELECT t FROM TUser t WHERE t.strIDS = :strIDS"),
-    @NamedQuery(name = "TUser.findByStrLOGIN", query = "SELECT t FROM TUser t WHERE t.strLOGIN = :strLOGIN"),
-    @NamedQuery(name = "TUser.findByStrTYPE", query = "SELECT t FROM TUser t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TUser.findByStrPASSWORD", query = "SELECT t FROM TUser t WHERE t.strPASSWORD = :strPASSWORD"),
-    @NamedQuery(name = "TUser.findByStrCODE", query = "SELECT t FROM TUser t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TUser.findByDtCREATED", query = "SELECT t FROM TUser t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TUser.findByDtUPDATED", query = "SELECT t FROM TUser t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TUser.findByStrCREATEDBY", query = "SELECT t FROM TUser t WHERE t.strCREATEDBY = :strCREATEDBY"),
-    @NamedQuery(name = "TUser.findByStrUPDATEDBY", query = "SELECT t FROM TUser t WHERE t.strUPDATEDBY = :strUPDATEDBY"),
-    @NamedQuery(name = "TUser.findByStrLASTCONNECTIONDATE", query = "SELECT t FROM TUser t WHERE t.strLASTCONNECTIONDATE = :strLASTCONNECTIONDATE"),
-    @NamedQuery(name = "TUser.findByLgSKINID", query = "SELECT t FROM TUser t WHERE t.lgSKINID = :lgSKINID"),
-    @NamedQuery(name = "TUser.findByStrSTATUT", query = "SELECT t FROM TUser t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TUser.findByDtLASTACTIVITY", query = "SELECT t FROM TUser t WHERE t.dtLASTACTIVITY = :dtLASTACTIVITY"),
-    @NamedQuery(name = "TUser.findByStrFUNCTION", query = "SELECT t FROM TUser t WHERE t.strFUNCTION = :strFUNCTION"),
-    @NamedQuery(name = "TUser.findByStrPHONE", query = "SELECT t FROM TUser t WHERE t.strPHONE = :strPHONE"),
-    @NamedQuery(name = "TUser.findByStrMAIL", query = "SELECT t FROM TUser t WHERE t.strMAIL = :strMAIL"),
-    @NamedQuery(name = "TUser.findByIntCONNEXION", query = "SELECT t FROM TUser t WHERE t.intCONNEXION = :intCONNEXION"),
-    @NamedQuery(name = "TUser.findByBCHANGEPASSWORD", query = "SELECT t FROM TUser t WHERE t.bCHANGEPASSWORD = :bCHANGEPASSWORD"),
-    @NamedQuery(name = "TUser.findByBIsConnected", query = "SELECT t FROM TUser t WHERE t.bIsConnected = :bIsConnected"),
-    @NamedQuery(name = "TUser.findByStrPIC", query = "SELECT t FROM TUser t WHERE t.strPIC = :strPIC")})
+@NamedQueries({ @NamedQuery(name = "TUser.findAll", query = "SELECT t FROM TUser t"),
+        @NamedQuery(name = "TUser.findByLgUSERID", query = "SELECT t FROM TUser t WHERE t.lgUSERID = :lgUSERID"),
+        @NamedQuery(name = "TUser.findByStrIDS", query = "SELECT t FROM TUser t WHERE t.strIDS = :strIDS"),
+        @NamedQuery(name = "TUser.findByStrLOGIN", query = "SELECT t FROM TUser t WHERE t.strLOGIN = :strLOGIN"),
+        @NamedQuery(name = "TUser.findByStrTYPE", query = "SELECT t FROM TUser t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TUser.findByStrPASSWORD", query = "SELECT t FROM TUser t WHERE t.strPASSWORD = :strPASSWORD"),
+        @NamedQuery(name = "TUser.findByStrCODE", query = "SELECT t FROM TUser t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TUser.findByDtCREATED", query = "SELECT t FROM TUser t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TUser.findByDtUPDATED", query = "SELECT t FROM TUser t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TUser.findByStrCREATEDBY", query = "SELECT t FROM TUser t WHERE t.strCREATEDBY = :strCREATEDBY"),
+        @NamedQuery(name = "TUser.findByStrUPDATEDBY", query = "SELECT t FROM TUser t WHERE t.strUPDATEDBY = :strUPDATEDBY"),
+        @NamedQuery(name = "TUser.findByStrLASTCONNECTIONDATE", query = "SELECT t FROM TUser t WHERE t.strLASTCONNECTIONDATE = :strLASTCONNECTIONDATE"),
+        @NamedQuery(name = "TUser.findByLgSKINID", query = "SELECT t FROM TUser t WHERE t.lgSKINID = :lgSKINID"),
+        @NamedQuery(name = "TUser.findByStrSTATUT", query = "SELECT t FROM TUser t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TUser.findByDtLASTACTIVITY", query = "SELECT t FROM TUser t WHERE t.dtLASTACTIVITY = :dtLASTACTIVITY"),
+        @NamedQuery(name = "TUser.findByStrFUNCTION", query = "SELECT t FROM TUser t WHERE t.strFUNCTION = :strFUNCTION"),
+        @NamedQuery(name = "TUser.findByStrPHONE", query = "SELECT t FROM TUser t WHERE t.strPHONE = :strPHONE"),
+        @NamedQuery(name = "TUser.findByStrMAIL", query = "SELECT t FROM TUser t WHERE t.strMAIL = :strMAIL"),
+        @NamedQuery(name = "TUser.findByIntCONNEXION", query = "SELECT t FROM TUser t WHERE t.intCONNEXION = :intCONNEXION"),
+        @NamedQuery(name = "TUser.findByBCHANGEPASSWORD", query = "SELECT t FROM TUser t WHERE t.bCHANGEPASSWORD = :bCHANGEPASSWORD"),
+        @NamedQuery(name = "TUser.findByBIsConnected", query = "SELECT t FROM TUser t WHERE t.bIsConnected = :bIsConnected"),
+        @NamedQuery(name = "TUser.findByStrPIC", query = "SELECT t FROM TUser t WHERE t.strPIC = :strPIC") })
 public class TUser implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -113,19 +112,14 @@ public class TUser implements Serializable {
     private Boolean bIsConnected;
     @Column(name = "str_PIC", length = 50)
     private String strPIC;
-    @OneToMany(mappedBy = "lgUSERID",fetch = FetchType.EAGER)
-    private Collection<TRoleUser> tRoleUserCollection;
+    @OneToMany(mappedBy = "lgUSERID", fetch = FetchType.EAGER)
+    private Collection<TRoleUser> tRoleUserCollection = new ArrayList<>();
     @JoinColumn(name = "lg_EMPLACEMENT_ID", referencedColumnName = "lg_EMPLACEMENT_ID", nullable = false)
     @ManyToOne(optional = false)
     private TEmplacement lgEMPLACEMENTID;
     @JoinColumn(name = "lg_Language_ID", referencedColumnName = "lg_Language_ID")
     @ManyToOne
     private TLanguage lgLanguageID;
- 
-  
- 
-
-
 
     public TUser() {
     }
@@ -133,6 +127,7 @@ public class TUser implements Serializable {
     public TUser(String lgUSERID) {
         this.lgUSERID = lgUSERID;
     }
+
     public TUser(String lgUSERID, String strLOGIN, String strTYPE) {
         this.lgUSERID = lgUSERID;
         this.strLOGIN = strLOGIN;
@@ -323,15 +318,6 @@ public class TUser implements Serializable {
         this.strPIC = strPIC;
     }
 
-   
-
-   
-
-   
-
-  
-
-    
     @XmlTransient
     public Collection<TRoleUser> getTRoleUserCollection() {
         return tRoleUserCollection;
@@ -340,28 +326,6 @@ public class TUser implements Serializable {
     public void setTRoleUserCollection(Collection<TRoleUser> tRoleUserCollection) {
         this.tRoleUserCollection = tRoleUserCollection;
     }
-
-
-
-   
-
-
-
-    
-  
-
-
-    
-   
-
-    
-
-
-   
-   
-
-
-
 
     public TEmplacement getLgEMPLACEMENTID() {
         return lgEMPLACEMENTID;
@@ -379,8 +343,6 @@ public class TUser implements Serializable {
         this.lgLanguageID = lgLanguageID;
     }
 
-
-    
     @Override
     public int hashCode() {
         int hash = 0;
@@ -395,15 +357,13 @@ public class TUser implements Serializable {
             return false;
         }
         TUser other = (TUser) object;
-        if ((this.lgUSERID == null && other.lgUSERID != null) || (this.lgUSERID != null && !this.lgUSERID.equals(other.lgUSERID))) {
-            return false;
-        }
-        return true;
+        return !((this.lgUSERID == null && other.lgUSERID != null)
+                || (this.lgUSERID != null && !this.lgUSERID.equals(other.lgUSERID)));
     }
 
     @Override
     public String toString() {
         return "dal.TUser[ lgUSERID=" + lgUSERID + " ]";
     }
-    
+
 }

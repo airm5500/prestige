@@ -193,23 +193,47 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     fieldLabel: 'Nom Abrege',
                                     emptyText: 'Nom Abrege',
                                     name: 'str_NAME_ADD',
-                                    id: 'str_NAME_ADD'
+                                    id: 'str_NAME_ADD',
+                                    style: 'background-color: #ffffe0;',
+                                    listeners: {
+                                        change: function (field, newValue) {
+                                            // Récupérer les autres champs
+                                            var fullnameField = Ext.getCmp('str_FULLNAME');
+                                            var codeOrganismeField = Ext.getCmp('str_CODE_ORGANISME');
+
+                                            // Mettre à jour leur valeur
+                                            if (fullnameField) {
+                                                fullnameField.setValue(newValue);
+                                            }
+                                            if (codeOrganismeField) {
+                                                codeOrganismeField.setValue(newValue);
+                                            }
+                                        }
+                                    }
+                                    
                                 },
                                 {
                                     allowBlank: false,
                                     fieldLabel: 'Nom complet',
                                     emptyText: 'Nom complet',
                                     name: 'str_FULLNAME',
-                                    id: 'str_FULLNAME'
+                                    id: 'str_FULLNAME',
+                                    style: 'background-color: #ffffe0;',
+                                    //width: 500
                                 },
                                 {
-                                    //allowBlank: false,
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Mobile',
-                                    emptyText: 'Mobile',
-                                    name: 'str_MOBILE',
-                                    id: 'str_MOBILE'
+                                    xtype: 'combobox',
+                                    fieldLabel: 'Code.Edit.Bordereau',
+                                    displayField: 'str_VALUE',
+                                    valueField: 'str_VALUE',
+                                    id: 'str_CODE_EDIT_BORDEREAU',
+                                    emptyText: 'Code.Edit.Bordereau',
+                                    queryMode: 'remote',
+                                    store: store_modelfacture
+
+
                                 }
+                                
                             ]
                         }, {
                             xtype: 'container',
@@ -222,7 +246,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     fieldLabel: 'Adresse',
                                     emptyText: 'ADRESSE',
                                     name: 'str_ADRESSE',
-                                    id: 'str_ADRESSE'
+                                    id: 'str_ADRESSE',
+                                    style: 'background-color: #ffffe0;',
+                                    value: 'ABJ'
                                 },
                                 {
                                     allowBlank: false,
@@ -236,15 +262,18 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
 //                                    typeAhead: true,
                                     editable: false,
                                     queryMode: 'remote',
-                                    emptyText: 'Choisir un type tiers payant ...'
+                                    emptyText: 'Choisir un type tiers payant ...',
+                                    style: 'background-color: #ffffe0;'
                                 },
                                 {
-                                    // allowBlank: false,
-                                    fieldLabel: 'No IDF',
-                                    emptyText: 'No IDF',
-                                    name: 'str_NUMERO_IDF_ORGANISME',
-                                    id: 'str_NUMERO_IDF_ORGANISME'
-                                }
+                                            // allowBlank: false,
+                                            maskRe: /[0-9.]/,
+                                            fieldLabel: 'Nbre.Exemplaire.Bord',
+                                            emptyText: 'Nbre.Exemplaire.Bord',
+                                            name: 'int_NBRE_EXEMPLAIRE_BORD',
+                                            id: 'int_NBRE_EXEMPLAIRE_BORD',
+                                            minValue: 1
+                                        }
                             ]
                         },
                         {
@@ -259,39 +288,27 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     fieldLabel: 'Telephone',
                                     emptyText: 'TELEPHONE',
                                     name: 'str_TELEPHONE',
-                                    id: 'str_TELEPHONE'
+                                    id: 'str_TELEPHONE',
+                                    style: 'background-color: #ffffe0;',
+                                    value: '225'
                                 },
                                 {
                                     allowBlank: false,
                                     fieldLabel: 'Code.Organisme',
                                     emptyText: 'CODE ORGANISME',
                                     name: 'str_CODE_ORGANISME',
-                                    id: 'str_CODE_ORGANISME'
+                                    id: 'str_CODE_ORGANISME',
+                                    style: 'background-color: #ffffe0;',
+                                    //width: 500
+                                    
                                 },
                                 {
-                                    //allowBlank: false,
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Ville',
-                                    name: 'lg_VILLE_ID',
-                                    id: 'lg_VILLE_ID',
-                                    store: store_ville_tp,
-                                    valueField: 'lg_VILLE_ID',
-                                    displayField: 'STR_NAME',
-                                    typeAhead: true,
-//                                    width: 400,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir une ville...',
-                                    listeners: {
-                                        keypress: function (field, e) {
-                                            if (e.getKey() === e.BACKSPACE || e.getKey() === 46) {
 
-                                                if (field.getValue().length === 1) {
-                                                    field.getStore().load();
-                                                }
-                                            }
-
-                                        }
-                                    }
+                                    fieldLabel: 'Code Officine',
+                                    emptyText: 'Code Officine',
+                                    name: 'str_CODE_OFFICINE',
+                                    id: 'str_CODE_OFFICINE',
+                                    //width: 500
                                 }
                             ]
                         },
@@ -345,6 +362,39 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     id: 'montantFact'
                                 }
 
+
+                            ]
+                        },
+
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            defaultType: 'textfield',
+                            margin: '0 0 5 0',
+                            items: [
+
+                                {
+
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Grouper les factures par taux',
+                                    name: 'groupingByTaux',
+                                    id: 'groupingByTaux'
+                                },
+                                {
+
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Utilise la cmu',
+                                    name: 'cmu',
+                                    id: 'cmu'
+                                }
+                                ,
+                                {
+
+                                    maskRe: /[0-9.]/,
+                                    fieldLabel: 'Caution',
+                                    name: 'caution',
+                                    id: 'caution'
+                                }
 
                             ]
                         }
@@ -453,7 +503,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     maskRe: /[0-9.]/,
                                     fieldLabel: 'Date delai paiement',
                                     name: 'dt_DELAI_PAIEMENT',
-                                    id: 'dt_DELAI_PAIEMENT',
+                                    id: 'dt_DELAI_PAIEMENT'
                                     // allowBlank: false
                                 }
                             ]
@@ -482,16 +532,12 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     id: 'dbl_REMISE_FORFETAIRE'
                                 },
                                 {
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Code.Edit.Bordereau',
-                                    displayField: 'str_VALUE',
-                                    valueField: 'str_VALUE',
-                                    id: 'str_CODE_EDIT_BORDEREAU',
-                                    emptyText: 'Code.Edit.Bordereau',
-                                    queryMode: 'remote',
-                                    store: store_modelfacture
-
-
+                                    //allowBlank: false,
+                                    maskRe: /[0-9.]/,
+                                    fieldLabel: 'Mobile',
+                                    emptyText: 'Mobile',
+                                    name: 'str_MOBILE',
+                                    id: 'str_MOBILE'
                                 }
                                 /* {
                                  // allowBlank: false,
@@ -510,15 +556,14 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     margin: '0 0 5 0',
                                     items: [
                                         // dbl_POURCENTAGE_REMISE*
+                                        ,
                                         {
-                                            // allowBlank: false,
-                                            maskRe: /[0-9.]/,
-                                            fieldLabel: 'Nbre.Exemplaire.Bord',
-                                            emptyText: 'Nbre.Exemplaire.Bord',
-                                            name: 'int_NBRE_EXEMPLAIRE_BORD',
-                                            id: 'int_NBRE_EXEMPLAIRE_BORD',
-                                            minValue: 1
-                                        },
+                                    // allowBlank: false,
+                                    fieldLabel: 'No IDF',
+                                    emptyText: 'No IDF',
+                                    name: 'str_NUMERO_IDF_ORGANISME',
+                                    id: 'str_NUMERO_IDF_ORGANISME'
+                                },
                                         {
                                             // allowBlank: false,
                                             maskRe: /[0-9.]/,
@@ -699,11 +744,29 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             items: [
 
                                 {
+                                    //allowBlank: false,
+                                    xtype: 'combobox',
+                                    fieldLabel: 'Ville',
+                                    name: 'lg_VILLE_ID',
+                                    id: 'lg_VILLE_ID',
+                                    store: store_ville_tp,
+                                    valueField: 'lg_VILLE_ID',
+                                    displayField: 'STR_NAME',
+                                    typeAhead: true,
+//                                    width: 400,
+                                    queryMode: 'remote',
+                                    emptyText: 'Choisir une ville...',
+                                    listeners: {
+                                        keypress: function (field, e) {
+                                            if (e.getKey() === e.BACKSPACE || e.getKey() === 46) {
 
-                                    fieldLabel: 'Code Officine',
-                                    emptyText: 'Code Officine',
-                                    name: 'str_CODE_OFFICINE',
-                                    id: 'str_CODE_OFFICINE'
+                                                if (field.getValue().length === 1) {
+                                                    field.getStore().load();
+                                                }
+                                            }
+
+                                        }
+                                    }
                                 },
                                 {
 
@@ -845,7 +908,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.getCmp('dbl_BASE_REMISE').setValue(this.getOdatasource().dbl_BASE_REMISE);
             Ext.getCmp('str_CODE_DOC_COMPTOIRE').setValue(this.getOdatasource().str_CODE_DOC_COMPTOIRE);
             Ext.getCmp('bool_ENABLED').setValue(this.getOdatasource().bool_ENABLED);
-
             Ext.getCmp('lg_VILLE_ID').setValue(this.getOdatasource().lg_VILLE_ID);
             Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD').setValue(this.getOdatasource().lg_TYPE_TIERS_PAYANT_ID);
             Ext.getCmp('lg_TYPE_CONTRAT_ID').setValue(this.getOdatasource().lg_TYPE_CONTRAT_ID);
@@ -856,8 +918,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.getCmp('lg_GROUPE_ID').setValue(this.getOdatasource().lgGROUPEID);
             Ext.getCmp('montantFact').setValue(this.getOdatasource().montantFact);
             Ext.getCmp('nbrbons').setValue(this.getOdatasource().nbrbons);
-
-
+            Ext.getCmp('groupingByTaux').setValue(this.getOdatasource().groupingByTaux);
+            Ext.getCmp('cmu').setValue(this.getOdatasource().cmu);
+            Ext.getCmp('caution').setValue(this.getOdatasource().caution);
+            
             Ext.getCmp('dbl_CAUTION').disable();
 
             Ext.getCmp('bool_IsACCOUNT').hide();
@@ -894,16 +958,15 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                 formulaire = fenetre.down('form');
         var dbl_QUOTA_CONSO_MENSUELLE = 0;
         if (Ext.getCmp('bool_IsACCOUNT').getValue()) {
-            //alert("Ok "+Ext.getCmp('bool_IsACCOUNT').getValue());
+
             dbl_QUOTA_CONSO_MENSUELLE = Ext.getCmp('int_ACCOUNT').getValue();
         } else {
             dbl_QUOTA_CONSO_MENSUELLE = Ext.getCmp('dbl_QUOTA_CONSO_MENSUELLE').getValue();
-            //alert("Non "+Ext.getCmp('bool_IsACCOUNT').getValue());
+
         }
 
 
-        /*alert("dbl_QUOTA_CONSO_MENSUELLE "+Ext.getCmp('bool_IsACCOUNT').getValue());
-         return;*/
+
         if (formulaire.isValid()) {
 
             if (Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD').getValue() == "1" && Ext.getCmp('bool_IsACCOUNT').getValue() == "true") {
@@ -978,8 +1041,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                     b_IsAbsolute: Ext.getCmp('b_IsAbsolute').getValue(),
                     lg_GROUPE_ID: lg_GROUPE_ID,
                     montantFact: Ext.getCmp('montantFact').getValue(),
-                    nbrbons: Ext.getCmp('nbrbons').getValue()
-
+                    nbrbons: Ext.getCmp('nbrbons').getValue(),
+                    groupingByTaux: Ext.getCmp('groupingByTaux').getValue(),
+                    cmu: Ext.getCmp('cmu').getValue(),
+                    caution: Ext.getCmp('caution').getValue()
                 },
                 success: function (response)
                 {
@@ -1000,7 +1065,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                 {
                     testextjs.app.getController('App').StopWaitingProcess();
                     var object = Ext.JSON.decode(response.responseText, false);
-                    console.log("Bug " + response.responseText);
+
                     Ext.MessageBox.alert('Error Message', response.responseText);
 
                 }

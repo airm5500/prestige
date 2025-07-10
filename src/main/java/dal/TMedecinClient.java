@@ -28,13 +28,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_medecin_client")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMedecinClient.findAll", query = "SELECT t FROM TMedecinClient t"),
-    @NamedQuery(name = "TMedecinClient.findByLgMEDECINCLIENTID", query = "SELECT t FROM TMedecinClient t WHERE t.lgMEDECINCLIENTID = :lgMEDECINCLIENTID"),
-    @NamedQuery(name = "TMedecinClient.findByStrSOINS", query = "SELECT t FROM TMedecinClient t WHERE t.strSOINS = :strSOINS"),
-    @NamedQuery(name = "TMedecinClient.findByDtCREATED", query = "SELECT t FROM TMedecinClient t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMedecinClient.findByDtUPDATED", query = "SELECT t FROM TMedecinClient t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMedecinClient.findByStrSTATUT", query = "SELECT t FROM TMedecinClient t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TMedecinClient.findAll", query = "SELECT t FROM TMedecinClient t"),
+        @NamedQuery(name = "TMedecinClient.findByLgMEDECINCLIENTID", query = "SELECT t FROM TMedecinClient t WHERE t.lgMEDECINCLIENTID = :lgMEDECINCLIENTID"),
+        @NamedQuery(name = "TMedecinClient.findByStrSOINS", query = "SELECT t FROM TMedecinClient t WHERE t.strSOINS = :strSOINS"),
+        @NamedQuery(name = "TMedecinClient.findByDtCREATED", query = "SELECT t FROM TMedecinClient t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMedecinClient.findByDtUPDATED", query = "SELECT t FROM TMedecinClient t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMedecinClient.findByStrSTATUT", query = "SELECT t FROM TMedecinClient t WHERE t.strSTATUT = :strSTATUT") })
 public class TMedecinClient implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -135,7 +134,8 @@ public class TMedecinClient implements Serializable {
             return false;
         }
         TMedecinClient other = (TMedecinClient) object;
-        if ((this.lgMEDECINCLIENTID == null && other.lgMEDECINCLIENTID != null) || (this.lgMEDECINCLIENTID != null && !this.lgMEDECINCLIENTID.equals(other.lgMEDECINCLIENTID))) {
+        if ((this.lgMEDECINCLIENTID == null && other.lgMEDECINCLIENTID != null)
+                || (this.lgMEDECINCLIENTID != null && !this.lgMEDECINCLIENTID.equals(other.lgMEDECINCLIENTID))) {
             return false;
         }
         return true;
@@ -145,5 +145,5 @@ public class TMedecinClient implements Serializable {
     public String toString() {
         return "dal.TMedecinClient[ lgMEDECINCLIENTID=" + lgMEDECINCLIENTID + " ]";
     }
-    
+
 }

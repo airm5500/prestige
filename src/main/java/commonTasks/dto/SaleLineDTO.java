@@ -35,6 +35,7 @@ public class SaleLineDTO {
     private Instant effectiveUpdateDate;
     private Integer taxValue;
     private InventoryTransactionDTO snapshot;
+
     public Integer getTaxValue() {
         return taxValue;
     }

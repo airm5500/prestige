@@ -29,6 +29,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.MouvementProduitService;
 import toolkits.parameters.commonparameter;
+import util.Constant;
 import util.DateConverter;
 
 /**
@@ -43,8 +44,8 @@ public class AjustRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    MouvementProduitService mvtProduitService;
-    
+    private MouvementProduitService mvtProduitService;
+
     @POST
     @Path("creeation")
     public Response createAjustement(Params params) throws JSONException {
@@ -52,7 +53,7 @@ public class AjustRessource {
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setOperateur(tu);
         JSONObject json = mvtProduitService.creerAjustement(params);
@@ -63,7 +64,7 @@ public class AjustRessource {
     @Path("{id}")
     public Response cloreAjustement(@PathParam("id") String id, Params params) throws JSONException {
         params.setRefParent(id);
-        
+
         JSONObject json = mvtProduitService.cloreAjustement(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -96,14 +97,12 @@ public class AjustRessource {
         JSONObject json = mvtProduitService.annulerAjustement(id);
         return Response.ok().entity(json.toString()).build();
     }
-//
+    //
 
     @GET
     @Path("items")
-    public Response ajsutementsDetails(
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "ajustementId") String ajustementId
-    ) throws JSONException {
+    public Response ajsutementsDetails(@QueryParam(value = "query") String query,
+            @QueryParam(value = "ajustementId") String ajustementId) throws JSONException {
 
         SalesStatsParams body = new SalesStatsParams();
 
@@ -114,18 +113,17 @@ public class AjustRessource {
     }
 
     @GET
-    public Response allAjustement(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd
-    ) throws JSONException {
+    public Response allAjustement(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean canCancel = DateConverter.hasAuthorityByName(LstTPrivilege, DateConverter.ACTIONDELETEAJUSTEMENT);
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
+        boolean canCancel = DateConverter.hasAuthorityByName(lstTPrivilege, DateConverter.ACTIONDELETEAJUSTEMENT);
         SalesStatsParams body = new SalesStatsParams();
         body.setLimit(limit);
         body.setStart(start);

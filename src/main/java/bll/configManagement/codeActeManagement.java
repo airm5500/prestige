@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 package bll.configManagement;
- 
+
 import dal.TCodeActe;
 
 import bll.bllBase;
@@ -31,10 +31,11 @@ public class codeActeManagement extends bllBase {
 
             TCodeActe OTCodeActe = new TCodeActe();
 
-            OTCodeActe.setLgCODEACTEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTCodeActe.setLgCODEACTEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la
+                                                                      // date courante
             OTCodeActe.setStrLIBELLEE(str_LIBELLE);
-            
-            OTCodeActe.setStrSTATUT(commonparameter.statut_enable);           
+
+            OTCodeActe.setStrSTATUT(commonparameter.statut_enable);
             OTCodeActe.setDtCREATED(new Date());
 
             this.persiste(OTCodeActe);
@@ -46,15 +47,15 @@ public class codeActeManagement extends bllBase {
     }
 
     public void update(String lg_CODE_ACTE_ID, String str_LIBELLE) {
-        
+
         TCodeActe OTCodeActe = null;
         try {
 
             OTCodeActe = getOdataManager().getEm().find(TCodeActe.class, lg_CODE_ACTE_ID);
-            //OTCodeActe.setStrCODEGROUPEFAMILLE(str_CODE_GROUPE_FAMILLE);
+            // OTCodeActe.setStrCODEGROUPEFAMILLE(str_CODE_GROUPE_FAMILLE);
             OTCodeActe.setStrLIBELLEE(str_LIBELLE);
-            //OTCodeActe.setStrCOMMENTAIRE(str_COMMENTAIRE);
-            
+            // OTCodeActe.setStrCOMMENTAIRE(str_COMMENTAIRE);
+
             OTCodeActe.setStrSTATUT(commonparameter.statut_enable);
             OTCodeActe.setDtUPDATED(new Date());
 
@@ -64,6 +65,6 @@ public class codeActeManagement extends bllBase {
             this.buildErrorTraceMessage("Impossible de creer un " + Otable, e.getMessage());
         }
 
-    }  
-    
+    }
+
 }

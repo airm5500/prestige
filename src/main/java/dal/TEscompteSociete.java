@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_escompte_societe")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TEscompteSociete.findAll", query = "SELECT t FROM TEscompteSociete t"),
-    @NamedQuery(name = "TEscompteSociete.findByLgESCOMPTESOCIETEID", query = "SELECT t FROM TEscompteSociete t WHERE t.lgESCOMPTESOCIETEID = :lgESCOMPTESOCIETEID"),
-    @NamedQuery(name = "TEscompteSociete.findByIntCODEESCOMPTESOCIETE", query = "SELECT t FROM TEscompteSociete t WHERE t.intCODEESCOMPTESOCIETE = :intCODEESCOMPTESOCIETE"),
-    @NamedQuery(name = "TEscompteSociete.findByStrLIBELLEESCOMPTESOCIETE", query = "SELECT t FROM TEscompteSociete t WHERE t.strLIBELLEESCOMPTESOCIETE = :strLIBELLEESCOMPTESOCIETE"),
-    @NamedQuery(name = "TEscompteSociete.findByStrSTATUT", query = "SELECT t FROM TEscompteSociete t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TEscompteSociete.findByDtCREATED", query = "SELECT t FROM TEscompteSociete t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TEscompteSociete.findByDtUPDATED", query = "SELECT t FROM TEscompteSociete t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TEscompteSociete.findAll", query = "SELECT t FROM TEscompteSociete t"),
+        @NamedQuery(name = "TEscompteSociete.findByLgESCOMPTESOCIETEID", query = "SELECT t FROM TEscompteSociete t WHERE t.lgESCOMPTESOCIETEID = :lgESCOMPTESOCIETEID"),
+        @NamedQuery(name = "TEscompteSociete.findByIntCODEESCOMPTESOCIETE", query = "SELECT t FROM TEscompteSociete t WHERE t.intCODEESCOMPTESOCIETE = :intCODEESCOMPTESOCIETE"),
+        @NamedQuery(name = "TEscompteSociete.findByStrLIBELLEESCOMPTESOCIETE", query = "SELECT t FROM TEscompteSociete t WHERE t.strLIBELLEESCOMPTESOCIETE = :strLIBELLEESCOMPTESOCIETE"),
+        @NamedQuery(name = "TEscompteSociete.findByStrSTATUT", query = "SELECT t FROM TEscompteSociete t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TEscompteSociete.findByDtCREATED", query = "SELECT t FROM TEscompteSociete t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TEscompteSociete.findByDtUPDATED", query = "SELECT t FROM TEscompteSociete t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TEscompteSociete implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -120,7 +119,8 @@ public class TEscompteSociete implements Serializable {
         return tEscompteSocieteTrancheCollection;
     }
 
-    public void setTEscompteSocieteTrancheCollection(Collection<TEscompteSocieteTranche> tEscompteSocieteTrancheCollection) {
+    public void setTEscompteSocieteTrancheCollection(
+            Collection<TEscompteSocieteTranche> tEscompteSocieteTrancheCollection) {
         this.tEscompteSocieteTrancheCollection = tEscompteSocieteTrancheCollection;
     }
 
@@ -147,7 +147,8 @@ public class TEscompteSociete implements Serializable {
             return false;
         }
         TEscompteSociete other = (TEscompteSociete) object;
-        if ((this.lgESCOMPTESOCIETEID == null && other.lgESCOMPTESOCIETEID != null) || (this.lgESCOMPTESOCIETEID != null && !this.lgESCOMPTESOCIETEID.equals(other.lgESCOMPTESOCIETEID))) {
+        if ((this.lgESCOMPTESOCIETEID == null && other.lgESCOMPTESOCIETEID != null)
+                || (this.lgESCOMPTESOCIETEID != null && !this.lgESCOMPTESOCIETEID.equals(other.lgESCOMPTESOCIETEID))) {
             return false;
         }
         return true;
@@ -157,5 +158,5 @@ public class TEscompteSociete implements Serializable {
     public String toString() {
         return "dal.TEscompteSociete[ lgESCOMPTESOCIETEID=" + lgESCOMPTESOCIETEID + " ]";
     }
-    
+
 }

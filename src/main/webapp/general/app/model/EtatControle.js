@@ -111,6 +111,9 @@ Ext.define('testextjs.model.EtatControle', {
         {
             name: 'int_AMOUNT_AVOIR',
             type: 'int'
+        },
+        {
+            name:'RETURN_FULL_BL',type:'boolean'
         }
     ]
 });

@@ -30,22 +30,21 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_client")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TClient.findAll", query = "SELECT t FROM TClient t"),
-    @NamedQuery(name = "TClient.findByLgCLIENTID", query = "SELECT t FROM TClient t WHERE t.lgCLIENTID = :lgCLIENTID"),
-    @NamedQuery(name = "TClient.findByStrCODEINTERNE", query = "SELECT t FROM TClient t WHERE t.strCODEINTERNE = :strCODEINTERNE"),
-    @NamedQuery(name = "TClient.findByStrFIRSTNAME", query = "SELECT t FROM TClient t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
-    @NamedQuery(name = "TClient.findByStrLASTNAME", query = "SELECT t FROM TClient t WHERE t.strLASTNAME = :strLASTNAME"),
-    @NamedQuery(name = "TClient.findByStrNUMEROSECURITESOCIAL", query = "SELECT t FROM TClient t WHERE t.strNUMEROSECURITESOCIAL = :strNUMEROSECURITESOCIAL"),
-    @NamedQuery(name = "TClient.findByDtNAISSANCE", query = "SELECT t FROM TClient t WHERE t.dtNAISSANCE = :dtNAISSANCE"),
-    @NamedQuery(name = "TClient.findByStrSEXE", query = "SELECT t FROM TClient t WHERE t.strSEXE = :strSEXE"),
-    @NamedQuery(name = "TClient.findByStrADRESSE", query = "SELECT t FROM TClient t WHERE t.strADRESSE = :strADRESSE"),
-    @NamedQuery(name = "TClient.findByStrDOMICILE", query = "SELECT t FROM TClient t WHERE t.strDOMICILE = :strDOMICILE"),
-    @NamedQuery(name = "TClient.findByStrAUTREADRESSE", query = "SELECT t FROM TClient t WHERE t.strAUTREADRESSE = :strAUTREADRESSE"),
-    @NamedQuery(name = "TClient.findByStrCODEPOSTAL", query = "SELECT t FROM TClient t WHERE t.strCODEPOSTAL = :strCODEPOSTAL"),
-    @NamedQuery(name = "TClient.findByStrCOMMENTAIRE", query = "SELECT t FROM TClient t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
+@NamedQueries({ @NamedQuery(name = "TClient.findAll", query = "SELECT t FROM TClient t"),
+        @NamedQuery(name = "TClient.findByLgCLIENTID", query = "SELECT t FROM TClient t WHERE t.lgCLIENTID = :lgCLIENTID"),
+        @NamedQuery(name = "TClient.findByStrCODEINTERNE", query = "SELECT t FROM TClient t WHERE t.strCODEINTERNE = :strCODEINTERNE"),
+        @NamedQuery(name = "TClient.findByStrFIRSTNAME", query = "SELECT t FROM TClient t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
+        @NamedQuery(name = "TClient.findByStrLASTNAME", query = "SELECT t FROM TClient t WHERE t.strLASTNAME = :strLASTNAME"),
+        @NamedQuery(name = "TClient.findByStrNUMEROSECURITESOCIAL", query = "SELECT t FROM TClient t WHERE t.strNUMEROSECURITESOCIAL = :strNUMEROSECURITESOCIAL"),
+        @NamedQuery(name = "TClient.findByDtNAISSANCE", query = "SELECT t FROM TClient t WHERE t.dtNAISSANCE = :dtNAISSANCE"),
+        @NamedQuery(name = "TClient.findByStrSEXE", query = "SELECT t FROM TClient t WHERE t.strSEXE = :strSEXE"),
+        @NamedQuery(name = "TClient.findByStrADRESSE", query = "SELECT t FROM TClient t WHERE t.strADRESSE = :strADRESSE"),
+        @NamedQuery(name = "TClient.findByStrDOMICILE", query = "SELECT t FROM TClient t WHERE t.strDOMICILE = :strDOMICILE"),
+        @NamedQuery(name = "TClient.findByStrAUTREADRESSE", query = "SELECT t FROM TClient t WHERE t.strAUTREADRESSE = :strAUTREADRESSE"),
+        @NamedQuery(name = "TClient.findByStrCODEPOSTAL", query = "SELECT t FROM TClient t WHERE t.strCODEPOSTAL = :strCODEPOSTAL"),
+        @NamedQuery(name = "TClient.findByStrCOMMENTAIRE", query = "SELECT t FROM TClient t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
 
-    @NamedQuery(name = "TClient.findByStrSTATUT", query = "SELECT t FROM TClient t WHERE t.strSTATUT = :strSTATUT")})
+        @NamedQuery(name = "TClient.findByStrSTATUT", query = "SELECT t FROM TClient t WHERE t.strSTATUT = :strSTATUT") })
 public class TClient implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -330,7 +329,8 @@ public class TClient implements Serializable {
             return false;
         }
         TClient other = (TClient) object;
-        if ((this.lgCLIENTID == null && other.lgCLIENTID != null) || (this.lgCLIENTID != null && !this.lgCLIENTID.equals(other.lgCLIENTID))) {
+        if ((this.lgCLIENTID == null && other.lgCLIENTID != null)
+                || (this.lgCLIENTID != null && !this.lgCLIENTID.equals(other.lgCLIENTID))) {
             return false;
         }
         return true;
@@ -338,7 +338,13 @@ public class TClient implements Serializable {
 
     @Override
     public String toString() {
-        return "TClient{" + "lgCATEGORYCLIENTID=" + lgCATEGORYCLIENTID + ", lgCLIENTID=" + lgCLIENTID + ", strCODEINTERNE=" + strCODEINTERNE + ", strFIRSTNAME=" + strFIRSTNAME + ", strLASTNAME=" + strLASTNAME + ", strNUMEROSECURITESOCIAL=" + strNUMEROSECURITESOCIAL + ", dtNAISSANCE=" + dtNAISSANCE + ", strSEXE=" + strSEXE + ", strADRESSE=" + strADRESSE + ", strDOMICILE=" + strDOMICILE + ", strAUTREADRESSE=" + strAUTREADRESSE + ", strCODEPOSTAL=" + strCODEPOSTAL + ", strCOMMENTAIRE=" + strCOMMENTAIRE + ", dtCREATED=" + dtCREATED + ", dtUPDATED=" + dtUPDATED + ", strSTATUT=" + strSTATUT + '}';
+        return "TClient{" + "lgCATEGORYCLIENTID=" + lgCATEGORYCLIENTID + ", lgCLIENTID=" + lgCLIENTID
+                + ", strCODEINTERNE=" + strCODEINTERNE + ", strFIRSTNAME=" + strFIRSTNAME + ", strLASTNAME="
+                + strLASTNAME + ", strNUMEROSECURITESOCIAL=" + strNUMEROSECURITESOCIAL + ", dtNAISSANCE=" + dtNAISSANCE
+                + ", strSEXE=" + strSEXE + ", strADRESSE=" + strADRESSE + ", strDOMICILE=" + strDOMICILE
+                + ", strAUTREADRESSE=" + strAUTREADRESSE + ", strCODEPOSTAL=" + strCODEPOSTAL + ", strCOMMENTAIRE="
+                + strCOMMENTAIRE + ", dtCREATED=" + dtCREATED + ", dtUPDATED=" + dtUPDATED + ", strSTATUT=" + strSTATUT
+                + '}';
     }
 
     public TCategoryClient getLgCATEGORYCLIENTID() {

@@ -20,11 +20,21 @@ public class NotificationClientDTO implements Serializable {
     private String clientPhone;
     private String clientEmail;
     private String firstName;
-    private String LastName;
+    private String lastName;
     private String email;
+    private String userId;
+    private String clientId;
 
     public String getFullName() {
         return fullName;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public void setClientId(String clientId) {
+        this.clientId = clientId;
     }
 
     public void setFullName(String fullName) {
@@ -56,23 +66,31 @@ public class NotificationClientDTO implements Serializable {
     }
 
     public String getLastName() {
-        return LastName;
+        return lastName;
     }
 
-    public void setLastName(String LastName) {
-        this.LastName = LastName;
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
     }
 
     public NotificationClientDTO() {
     }
 
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
     public NotificationClientDTO(NotificationClient notificationClient) {
         TClient client = notificationClient.getClient();
-        this.LastName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
         this.email = client.getEmail();
         this.clientPhone = client.getStrADRESSE();
-        this.LastName = client.getStrLASTNAME();
+        this.lastName = client.getStrLASTNAME();
         this.firstName = client.getStrFIRSTNAME();
+        this.clientId = client.getLgCLIENTID();
     }
 
     public String getEmail() {

@@ -28,6 +28,7 @@ import rest.service.GenerateTicketService;
 import rest.service.SalesService;
 import toolkits.parameters.commonparameter;
 import util.DateConverter;
+import util.Constant;
 
 /**
  *
@@ -65,10 +66,10 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setUserId(tu);
-        params.setStatut(params.isPrevente()?DateConverter.STATUT_PENDING: DateConverter.STATUT_PROCESS);
+        params.setStatut(params.isPrevente() ? DateConverter.STATUT_PENDING : DateConverter.STATUT_PROCESS);
         JSONObject json = salesService.createPreVente(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -79,10 +80,10 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setUserId(tu);
-      params.setStatut(params.isPrevente()?DateConverter.STATUT_PENDING: DateConverter.STATUT_PROCESS);
+        params.setStatut(params.isPrevente() ? DateConverter.STATUT_PENDING : DateConverter.STATUT_PROCESS);
         JSONObject json = salesService.createPreVenteVo(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -95,7 +96,7 @@ public class VenteRessource {
             HttpSession hs = servletRequest.getSession();
             TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
             if (tu == null) {
-                return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+                return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
             }
             params.setUserId(tu);
             params.setDevis(true);
@@ -113,7 +114,7 @@ public class VenteRessource {
     public Response addRemise(SalesParams params) {
         JSONObject json = new JSONObject();
         try {
-            json = salesService.addRemisse(params);
+            json = salesService.addRemise(params);
 
         } catch (JSONException ex) {
 
@@ -142,7 +143,7 @@ public class VenteRessource {
     @POST
     @Path("net/assurance")
     public Response netPayerAssurance(SalesParams params) throws JSONException {
-        JSONObject json = salesService.shownetpayVo(params);
+        JSONObject json = salesService.computeVONet(params);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -193,7 +194,7 @@ public class VenteRessource {
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
 
         JSONObject jsono = salesService.annulerVente(tu, id);
@@ -206,7 +207,7 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject jsono = salesService.produits(id, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
         return Response.ok().entity(jsono.toString()).build();
@@ -214,13 +215,13 @@ public class VenteRessource {
 
     @GET
     @Path("search")
-    public Response searchProduct(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query) throws JSONException {
+    public Response searchProduct(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         QueryDTO body = new QueryDTO();
         body.setLimit(limit);
@@ -233,15 +234,14 @@ public class VenteRessource {
 
     @GET
     @Path("deatails")
-    public Response getDetails(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "venteId") String venteId, @QueryParam(value = "statut") String statut
-    ) throws JSONException {
+    public Response getDetails(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "venteId") String venteId,
+            @QueryParam(value = "statut") String statut) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         QueryDTO body = new QueryDTO();
         body.setLimit(limit);
@@ -261,7 +261,7 @@ public class VenteRessource {
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setUserId(tu);
         JSONObject json = salesService.addPreenregistrementItem(params);
@@ -274,7 +274,7 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         TPreenregistrement tp = salesService.removePreenregistrementDetail(itemId);
         JSONObject json = salesService.shownetpayVno(tp);
@@ -288,14 +288,12 @@ public class VenteRessource {
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setUserId(tu);
         JSONObject json = salesService.updateTPreenregistrementDetail(params);
         return Response.ok().entity(json.toString()).build();
     }
-
-  
 
     @GET
     @Path("quantite-vente/{id}")
@@ -304,7 +302,7 @@ public class VenteRessource {
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
 
         JSONObject jsono = new JSONObject();
@@ -318,7 +316,7 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setUserId(tu);
         params.setDepot(true);
@@ -334,7 +332,7 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
 
         JSONObject json = salesService.updatRemiseVenteDepot(params.getVenteId(), params.getRemiseDepot());
@@ -367,7 +365,7 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = new JSONObject();
         boolean b = salesService.checkCaisse(tu);
@@ -395,7 +393,7 @@ public class VenteRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject jsono = salesService.findOneproduit(id, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
         return Response.ok().entity(jsono.toString()).build();

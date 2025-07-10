@@ -14,21 +14,23 @@ import rest.service.RetourFourService;
  *
  * @author kkoffi
  */
-//@Stateless
-public class RetourFourImpl implements RetourFourService{
-// @PersistenceContext(unitName = "JTA_UNIT")
-//    private EntityManager em;
-//   public EntityManager getEntityManager() {
-//        return em;
-//    }
+// @Stateless
+public class RetourFourImpl implements RetourFourService {
+    // @PersistenceContext(unitName = "JTA_UNIT")
+    // private EntityManager em;
+    // public EntityManager getEntityManager() {
+    // return em;
+    // }
     @Override
     public JSONObject creerRetourFournisseur(SalesParams salesParams) throws JSONException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
 
     @Override
     public JSONObject ajouterProduit(SalesParams params) throws JSONException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
-    
+
 }

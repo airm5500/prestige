@@ -12,7 +12,7 @@ if (Ext.repoDevMode) {
     document.write('<link rel="stylesheet" type="text/css" href="../build/testextjs/ext-theme-' +
             Ext.themeName + '/resources/testextjs-all.css"/>');
 }
-//Ext.Loader.setPath('Ext.ux', 'extjs/ux');  
+
 Ext.application({
     name: 'testextjs',
     requires: [
@@ -43,12 +43,10 @@ Ext.application({
         'testextjs.view.sm_user.skin.action.add',
         'testextjs.view.sm_user.language.action.add',
         'testextjs.view.sm_user.language.LanguageManager',
-        'testextjs.model.dd.Simple',
         'testextjs.view.sm_user.role.action.addPrivilege',
         'testextjs.view.sm_user.role.action.addPrivilegeItem',
         'testextjs.model.Notification',
         'testextjs.view.sm_user.notification.NotificationManager',
-        'testextjs.view.sm_user.myaccount.MyaccountManager',
         'testextjs.view.sm_user.about.AboutManager',
         'testextjs.model.UserPhone',
         'testextjs.view.sm_user.user_phone.action.add',
@@ -81,21 +79,15 @@ Ext.application({
         'testextjs.view.sm_user.skin.action.add',
         'testextjs.view.sm_user.language.action.add',
         'testextjs.view.sm_user.language.LanguageManager',
-        'testextjs.model.dd.Simple',
         'testextjs.view.sm_user.role.action.addPrivilege',
         'testextjs.view.sm_user.role.action.addPrivilegeItem',
         'testextjs.model.Notification',
         'testextjs.view.sm_user.notification.NotificationManager',
-        'testextjs.view.sm_user.myaccount.MyaccountManager',
         'testextjs.view.sm_user.about.AboutManager',
         'testextjs.model.Preenregistrement',
         'testextjs.view.sm_user.detailsvente.DetailsVenteManager',
         'testextjs.model.DetailsVente',
         'testextjs.view.sm_user.detailsvente.action.add',
-//
-//
-//
-//        //groupefamille
         'testextjs.model.GroupeFamille',
         'testextjs.view.configmanagement.groupefamille.GroupeFamilleManager',
         'testextjs.view.configmanagement.groupefamille.action.add',
@@ -133,9 +125,6 @@ Ext.application({
         'testextjs.view.sm_user.about.AboutManager',
         'testextjs.model.Preenregistrement',
         'testextjs.view.sm_user.dovente.action.displayAyantDroit',
-
-//
-//        //famille
         'testextjs.model.Famille',
         'testextjs.view.configmanagement.famille.FamilleManager',
 
@@ -242,11 +231,6 @@ Ext.application({
         'testextjs.view.sm_user.caisse.CaisseManager',
         // 'testextjs.model.Caisse',
         'testextjs.model.ResumeCaisse',
-
-        //  'testextjs.model.ResumeCaisse'
-
-
-        // Gerer Famille Order
         'testextjs.model.Familleorder',
         'testextjs.view.sm_user.familleorder.FamilleOrderManager',
         'testextjs.view.sm_user.familleorder.action.add',
@@ -267,7 +251,7 @@ Ext.application({
         'testextjs.model.VPropositionCde',
         'testextjs.model.CodeGestion',
         'testextjs.model.CodeActe',
-        'testextjs.model.ZoneGeographique',
+      
         'testextjs.view.configmanagement.client.action.infoCompte',
 
         'testextjs.model.EscompteSocieteTranche',
@@ -313,8 +297,7 @@ Ext.application({
         'testextjs.view.configmanagement.famillearticle.FamilleArticleManager',
         'testextjs.model.FamilleGrossiste',
         'testextjs.view.configmanagement.famille.action.addgrossiste',
-        // Zone Geo 
-        'testextjs.model.ZoneGeographique',
+     
         'testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueManager',
         'testextjs.view.configmanagement.zonegeographique.action.add',
         // Representant grossiste
@@ -328,11 +311,6 @@ Ext.application({
         'testextjs.view.configmanagement.client.action.addcltayantdroit',
         'testextjs.view.configmanagement.client.action.showclttierspayant',
         'testextjs.view.configmanagement.compteclient.action.addclttierspayant',
-//        'testextjs.view.configmanagement.client.action.addComptecltTierpayant',
-//        'testextjs.view.configmanagement.client.action.addComptecltTierpayantItem',
-        // Grille Remise
-
-        //retrocession
         'testextjs.view.sm_user.retrocession.retrocessionManager',
         'testextjs.model.Retrocession',
 
@@ -362,9 +340,8 @@ Ext.application({
         'testextjs.model.VPropositionCde',
         'testextjs.model.CodeGestion',
         'testextjs.model.CodeActe',
-        'testextjs.model.ZoneGeographique',
+      
         'testextjs.view.configmanagement.client.action.infoCompte',
-        // 'testextjs.view.sm_user.contregisterorder.ContregisterorderManager'
         'testextjs.view.sm_user.retrocession.retrocessionManager',
         'testextjs.model.Retrocession',
 
@@ -373,9 +350,7 @@ Ext.application({
         'testextjs.model.FamilleArticle',
         'testextjs.view.configmanagement.famillearticle.FamilleArticleManager',
         'testextjs.view.configmanagement.famille.action.detailArticle',
-        // Zone Geo 
-        'testextjs.model.ZoneGeographique',
-        'testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueManager',
+       
         'testextjs.view.configmanagement.zonegeographique.action.add',
         // Representant grossiste
         'testextjs.model.Representantgrossiste',
@@ -388,9 +363,6 @@ Ext.application({
         'testextjs.view.configmanagement.client.action.addcltayantdroit',
         'testextjs.view.configmanagement.client.action.showclttierspayant',
         'testextjs.view.configmanagement.compteclient.action.addclttierspayant',
-//        'testextjs.view.configmanagement.client.action.addComptecltTierpayant',
-//        'testextjs.view.configmanagement.client.action.addComptecltTierpayantItem',
-        // Grille Remise
 
         'testextjs.model.GrilleRemise',
         'testextjs.view.configmanagement.grilleremise.GrilleRemiseManager',
@@ -422,7 +394,6 @@ Ext.application({
         'testextjs.view.commandemanagement.etats.EtatControleManager',
         'testextjs.model.EtatControle',
         'testextjs.view.configmanagement.grossiste.action.grossisteview',
-        'testextjs.view.commandemanagement.order.action.manageorderpass',
         'testextjs.view.commandemanagement.order.action.editgrossiste',
         'testextjs.view.commandemanagement.bonlivraison.action.editprice',
         'testextjs.view.commandemanagement.retourfournisseur.retourFrsManager',
@@ -434,7 +405,7 @@ Ext.application({
         'testextjs.view.configmanagement.motifretour.action.add',
         'testextjs.view.commandemanagement.cmde_passees.action.add',
         'testextjs.model.BonLivraison',
-        'testextjs.view.commandemanagement.suggestion.SuggestionManager',
+
         'testextjs.model.Suggestion',
         'testextjs.model.SuggestionOrder',
         'testextjs.model.Order',
@@ -443,11 +414,10 @@ Ext.application({
         'testextjs.view.commandemanagement.order.action.add',
         'testextjs.model.TSuggestionOrderDetails',
         'testextjs.model.OrderDetail',
-        'testextjs.view.commandemanagement.suivi_order.SuiviOrderManager',
+
         'testextjs.view.sm_user.suggerercde.SuggerercdeManager',
-        'testextjs.view.commandemanagement.suggestions_commandees.suggestionsCommandeesManager',
+
         'testextjs.view.commandemanagement.suggestion.Suggestion_Manager',
-        'testextjs.view.commandemanagement.suivi_order.action.add',
         'testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
         //  Fiche Societe
         'testextjs.model.FicheSociete',
@@ -470,15 +440,12 @@ Ext.application({
         'testextjs.view.configmanagement.dci.DciManager',
         'testextjs.model.Dci',
         'testextjs.view.configmanagement.dci.action.add',
-        //Etiquette      
-        // 'testextjs.view.configmanagement.etiquette.EtiquetteManager',
+
         'testextjs.model.Etiquette',
-        //'testextjs.view.configmanagement.etiquette.action.add',
-        //Taux de Marque
+
         'testextjs.view.configmanagement.tauxmarque.TauxmarqueManager',
         'testextjs.model.TauxMarque',
         'testextjs.view.configmanagement.tauxmarque.action.add',
-        'testextjs.view.sm_user.journalvente.JournalventeManager',
         'testextjs.model.Cashtransactiondata',
 
         //Forme Article
@@ -500,7 +467,6 @@ Ext.application({
         // WIZARD ARTICLE
         'testextjs.view.configmanagement.famille.action.infogenerale',
         'testextjs.view.configmanagement.famille.action.comptabilite',
-        'testextjs.view.configmanagement.famille.action.WizardForm',
         'testextjs.view.configmanagement.famille.action.autreinfos',
         // Specialite Medecin        
         'testextjs.model.Specialite',
@@ -528,8 +494,6 @@ Ext.application({
         'testextjs.model.NumeroCaisse',
         'testextjs.view.configmanagement.numerocaisse.action.add',
         'testextjs.view.configmanagement.numerocaisse.NumeroCaisseManager',
-        'testextjs.view.commandemanagement.cmde_passees.OrderPassManager',
-        'testextjs.view.commandemanagement.cmde_passees.action.livraison',
         'testextjs.model.CentrePayeur',
         'testextjs.view.configmanagement.centrepayeur.action.add',
         'testextjs.view.configmanagement.centrepayeur.CentrePayeurManager',
@@ -551,8 +515,6 @@ Ext.application({
         //gestion des deconditionnements
         'testextjs.view.configmanagement.famille.action.doDecondition',
         'testextjs.model.ModeReglement',
-        'testextjs.view.sm_user.dovente.action.checkdif',
-        'testextjs.view.sm_user.dovente.action.PayDebt',
         'testextjs.view.sm_user.dovente.action.displayArticle',
         'testextjs.view.sm_user.dovente.action.updateQuantity',
         'testextjs.view.sm_user.dovente.action.displayCustomer',
@@ -595,12 +557,10 @@ Ext.application({
         'testextjs.model.DetailBon',
         'testextjs.model.Reglement',
         'testextjs.view.sm_user.factureregle.FactureRegleManager',
-        // 'testextjs.view.sms_user.facturation.action.add'
 
         //Report
-       
+
         'testextjs.model.Statistiquefamille',
-//        'testextjs.view.Report.statistiquevente.statistiqueventemanager',
 
         'testextjs.model.Statistiquevente',
         'testextjs.model.Statistiqueunitevendue',
@@ -663,10 +623,9 @@ Ext.application({
         'testextjs.model.Dci_famille',
         //ajustement
         'testextjs.model.Ajustement',
-//        'testextjs.view.stockmanagement.ajustementmanagement.ajustementManager',
-//        'testextjs.view.stockmanagement.ajustementmanagement.action.add',
+
         'testextjs.model.DetailsAjustement',
-//        'testextjs.view.stockmanagement.ajustementmanagement.action.detailAjustement',
+
         'testextjs.view.stockmanagement.suivistockvente.action.detailOther',
         //fin ajustement
 
@@ -701,21 +660,14 @@ Ext.application({
         'testextjs.view.configmanagement.devise.action.add',
         'testextjs.view.tierspayantmanagement.tierspayant.TiersPayantDesactiveManager',
         'testextjs.view.configmanagement.client.ClientDesactiveManager',
-        'testextjs.view.sm_user.journalvente.FactureSubrogatoireBisManager',
         'testextjs.view.stockmanagement.dodepot.action.importOrder',
         'testextjs.view.stockmanagement.etiquette.action.addBis',
         'testextjs.view.configmanagement.famille.action.detailArticleOther',
         'testextjs.view.sm_user.reglement.FactureenAttendeEditionManager',
-        'testextjs.view.sm_user.vente.VenteManagerBis',
-        'testextjs.view.sm_user.vente.action.add',
         'testextjs.view.configmanagement.famille.action.updatezonegeo',
         'testextjs.view.stockmanagement.etatstock.action.removeLot',
         'testextjs.view.sm_user.outboudmessage.action.add',
         'testextjs.view.configmanagement.zonegeographique.action.changeProduitEmplacement',
-
-        'testextjs.view.sm_user.mvtcaisse.MvtCaisseBisManager',
-        'testextjs.view.sm_user.mvtcaisse.action.addBis',
-        'testextjs.view.sm_user.vente.VendeurCaissierManager',
         'testextjs.view.commandemanagement.evaluation.Evaluationoffreprix',
         'testextjs.view.commandemanagement.evaluation.action.add',
         'testextjs.view.configmanagement.famille.ArticleVenduBis',
@@ -762,23 +714,8 @@ Ext.application({
         'testextjs.view.configmanagement.logfile.logManager',
         'testextjs.view.configmanagement.company.company',
         'testextjs.view.actions.Doublons',
-        'testextjs.view.caisseManager.TicketzManager',
-        'testextjs.view.sm_user.ventecaisse.VentecaisseManager',
         'testextjs.view.Report.resultatstva.TvaManager',
-        'testextjs.view.sm_user.vente.VenteHistoriqueDepotManager',
-//        'testextjs.view.Report.TableauBordPharmacien.tableauBordPharmacienManager',
         'testextjs.view.produits.mvtproduit.*',
-
-//        'testextjs.view.actions.Balance',
-//        'testextjs.view.actions.TvaManager',
-//        'testextjs.view.sm_user.listecaisse.ListeCaisseManager'
-//        'testextjs.view.sm_user.visualisercaisse.VisualiserCaisseManager',
-
-        // Devis
-//        'testextjs.view.sm_user.devis.DevisManager',
-        // Entré en stock
-//        , 'testextjs.view.sm_user.balancevente.Balanceventemanager',
-//        'testextjs.view.Report.BalanceVenteCaisse.BalanceVenteCaisseManager',
         'testextjs.view.facturation.ModelFacture',
         'testextjs.view.facturation.FactureProvisoire',
         'testextjs.view.caisseManager.Importation',
@@ -786,12 +723,12 @@ Ext.application({
         'testextjs.view.configmanagement.famille.Products',
         'testextjs.view.depot.Export',
         'testextjs.view.depot.Import',
-        'testextjs.view.depot.Export'
-
-
-// 'testextjs.view.sm_user.gestcaisse.GestCaisseManager',
-
-//'testextjs.view.configmanagement.famille.FamilleStockComparaisonManager'
+        'testextjs.view.depot.Export',
+        'testextjs.view.achat',
+        'testextjs.view.chiffreAnnuel',
+        'testextjs.view.sm_user.mvtcaisse.action.Detail',
+        'testextjs.view.notification.RecapSms',
+        'testextjs.view.ticketzrecap'
     ],
     controllers: [
         'App',
@@ -819,7 +756,6 @@ Ext.application({
         'MvtArticleCtr',
         'DiffereCtr',
         'FaireReglementCtr',
-        'DashBoardCtr',
         'RecapCtr',
         'FactureCtr',
         'FamilleArticleStatsCtr',
@@ -846,7 +782,25 @@ Ext.application({
         'FamilleArticleStatVetoCtr',
         'ParaCtr',
         'CompteExploitationCtr',
-        'TiersPayantExclusCtrl'
+        'TiersPayantExclusCtrl',
+        'GestionCarnetDepotCtr',
+        'DoRetourCarnetCtr',
+        'CarnetRetourCtr',
+        'TierspAsDepotCtrl',
+        'TierspExclusCtrl',
+        'SuiviPerimesCtr',
+        'BalanceVenteCarnetCtr',
+        'MotifReglementCtr',
+        'EtatControlAnnuelCtr',
+        'TableauBoardCarnetCtr',
+        'FactureSubrogatoireCtr',
+        'ProuduitsVenteAnnulesCtr',
+        'NotificationCtr',
+        'CategorieNotificationCtr',
+        'RecapRecetteCaisseCtr',
+        'StatVenteDepotCtr',
+        'CautionCtr'
+
     ],
     stores: [
         'Menu'

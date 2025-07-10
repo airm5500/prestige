@@ -13,6 +13,7 @@ import java.io.Serializable;
  */
 public interface Imanager {
     public boolean delete(Serializable o);
+
     public Serializable find(Object o);
-    
+
 }

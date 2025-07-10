@@ -20,7 +20,7 @@ public class PharmaMLItemDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private String cip, ean, libelle;
-    boolean livraisonPartielle, reliquats, livraisonEquivalente,livre=true;
+    boolean livraisonPartielle, reliquats, livraisonEquivalente, livre = true;
     int quantite, prixUn, prixAchat, amount;
     private String typeCodification;
     private int codeRetour;
@@ -100,7 +100,8 @@ public class PharmaMLItemDTO implements Serializable {
     public PharmaMLItemDTO() {
     }
 
-    public PharmaMLItemDTO(String cip, String ean, String libelle, boolean livraisonPartielle, boolean reliquats, boolean livraisonEquivalente, int quantite, String typeCodification) {
+    public PharmaMLItemDTO(String cip, String ean, String libelle, boolean livraisonPartielle, boolean reliquats,
+            boolean livraisonEquivalente, int quantite, String typeCodification) {
         this.cip = cip;
         this.ean = ean;
         this.libelle = libelle;
@@ -143,9 +144,10 @@ public class PharmaMLItemDTO implements Serializable {
         this.amount = amount;
     }
 
-    public PharmaMLItemDTO(TOrderDetail o,TFamille famille , TFamilleGrossiste familleGrossiste, boolean livraisonPartielle, boolean reliquats, boolean livraisonEquivalente, String typeCodification) {
+    public PharmaMLItemDTO(TOrderDetail o, TFamille famille, TFamilleGrossiste familleGrossiste,
+            boolean livraisonPartielle, boolean reliquats, boolean livraisonEquivalente, String typeCodification) {
         this.cip = famille.getIntCIP();
-        if (familleGrossiste!=null && StringUtils.isEmpty(familleGrossiste.getStrCODEARTICLE())) {
+        if (familleGrossiste != null && StringUtils.isEmpty(familleGrossiste.getStrCODEARTICLE())) {
             this.cip = familleGrossiste.getStrCODEARTICLE();
         }
         this.ean = famille.getIntEAN13();
@@ -159,10 +161,11 @@ public class PharmaMLItemDTO implements Serializable {
         this.prixUn = o.getIntPRICEDETAIL();
         this.prixAchat = o.getIntPAFDETAIL();
     }
-    
-       public PharmaMLItemDTO(RuptureDetail o,TFamille famille , TFamilleGrossiste familleGrossiste, boolean livraisonPartielle, boolean reliquats, boolean livraisonEquivalente, String typeCodification) {
+
+    public PharmaMLItemDTO(RuptureDetail o, TFamille famille, TFamilleGrossiste familleGrossiste,
+            boolean livraisonPartielle, boolean reliquats, boolean livraisonEquivalente, String typeCodification) {
         this.cip = famille.getIntCIP();
-        if (familleGrossiste!=null && StringUtils.isEmpty(familleGrossiste.getStrCODEARTICLE())) {
+        if (familleGrossiste != null && StringUtils.isEmpty(familleGrossiste.getStrCODEARTICLE())) {
             this.cip = familleGrossiste.getStrCODEARTICLE();
         }
         this.ean = famille.getIntEAN13();
@@ -172,7 +175,7 @@ public class PharmaMLItemDTO implements Serializable {
         this.livraisonEquivalente = livraisonEquivalente;
         this.quantite = o.getQty();
         this.typeCodification = typeCodification;
-        this.amount = o.getPrixAchat()*o.getQty();
+        this.amount = o.getPrixAchat() * o.getQty();
         this.prixUn = o.getPrixVente();
         this.prixAchat = o.getPrixAchat();
     }

@@ -27,18 +27,17 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_officine")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TOfficine.findAll", query = "SELECT t FROM TOfficine t"),
-    @NamedQuery(name = "TOfficine.findByLgOFFICINEID", query = "SELECT t FROM TOfficine t WHERE t.lgOFFICINEID = :lgOFFICINEID"),
-    @NamedQuery(name = "TOfficine.findByLgMEDECINID", query = "SELECT t FROM TOfficine t WHERE t.lgMEDECINID = :lgMEDECINID"),
-    @NamedQuery(name = "TOfficine.findByLgVILLEID", query = "SELECT t FROM TOfficine t WHERE t.lgVILLEID = :lgVILLEID"),
-    @NamedQuery(name = "TOfficine.findByDtCREATED", query = "SELECT t FROM TOfficine t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TOfficine.findByDtUPDATED", query = "SELECT t FROM TOfficine t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TOfficine.findByStrSTATUT", query = "SELECT t FROM TOfficine t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TOfficine.findByStrFIRSTNAME", query = "SELECT t FROM TOfficine t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
-    @NamedQuery(name = "TOfficine.findByStrLASTNAME", query = "SELECT t FROM TOfficine t WHERE t.strLASTNAME = :strLASTNAME"),
-    @NamedQuery(name = "TOfficine.findByStrPHONE", query = "SELECT t FROM TOfficine t WHERE t.strPHONE = :strPHONE"),
-    @NamedQuery(name = "TOfficine.findByStrCOMPTEBANCAIRE", query = "SELECT t FROM TOfficine t WHERE t.strCOMPTEBANCAIRE = :strCOMPTEBANCAIRE")})
+@NamedQueries({ @NamedQuery(name = "TOfficine.findAll", query = "SELECT t FROM TOfficine t"),
+        @NamedQuery(name = "TOfficine.findByLgOFFICINEID", query = "SELECT t FROM TOfficine t WHERE t.lgOFFICINEID = :lgOFFICINEID"),
+        @NamedQuery(name = "TOfficine.findByLgMEDECINID", query = "SELECT t FROM TOfficine t WHERE t.lgMEDECINID = :lgMEDECINID"),
+        @NamedQuery(name = "TOfficine.findByLgVILLEID", query = "SELECT t FROM TOfficine t WHERE t.lgVILLEID = :lgVILLEID"),
+        @NamedQuery(name = "TOfficine.findByDtCREATED", query = "SELECT t FROM TOfficine t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TOfficine.findByDtUPDATED", query = "SELECT t FROM TOfficine t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TOfficine.findByStrSTATUT", query = "SELECT t FROM TOfficine t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TOfficine.findByStrFIRSTNAME", query = "SELECT t FROM TOfficine t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
+        @NamedQuery(name = "TOfficine.findByStrLASTNAME", query = "SELECT t FROM TOfficine t WHERE t.strLASTNAME = :strLASTNAME"),
+        @NamedQuery(name = "TOfficine.findByStrPHONE", query = "SELECT t FROM TOfficine t WHERE t.strPHONE = :strPHONE"),
+        @NamedQuery(name = "TOfficine.findByStrCOMPTEBANCAIRE", query = "SELECT t FROM TOfficine t WHERE t.strCOMPTEBANCAIRE = :strCOMPTEBANCAIRE") })
 public class TOfficine implements Serializable {
 
     @Column(name = "str_AUTRESPHONES")
@@ -78,25 +77,25 @@ public class TOfficine implements Serializable {
     @Lob
     @Column(name = "str_COMMENTAIRE2")
     private String strCOMMENTAIRE2;
-  
+
     @Column(name = "str_ENTETE")
     private String strENTETE;
-   
+
     @Column(name = "str_COMPTE_CONTRIBUABLE")
     private String strCOMPTECONTRIBUABLE;
-   
+
     @Column(name = "str_REGISTRE_COMMERCE")
     private String strREGISTRECOMMERCE;
-   
+
     @Column(name = "str_REGISTRE_IMPOSITION")
     private String strREGISTREIMPOSITION;
-  
+
     @Column(name = "str_CENTRE_IMPOSITION")
     private String strCENTREIMPOSITION;
-   
+
     @Column(name = "str_NUM_COMPTABLE")
     private String strNUMCOMPTABLE;
-   
+
     @Column(name = "str_COMMENTAIREOFFICINE")
     private String strCOMMENTAIREOFFICINE;
     @Column(name = "str_COMPTE_BANCAIRE", length = 100)
@@ -299,7 +298,8 @@ public class TOfficine implements Serializable {
             return false;
         }
         TOfficine other = (TOfficine) object;
-        if ((this.lgOFFICINEID == null && other.lgOFFICINEID != null) || (this.lgOFFICINEID != null && !this.lgOFFICINEID.equals(other.lgOFFICINEID))) {
+        if ((this.lgOFFICINEID == null && other.lgOFFICINEID != null)
+                || (this.lgOFFICINEID != null && !this.lgOFFICINEID.equals(other.lgOFFICINEID))) {
             return false;
         }
         return true;
@@ -307,10 +307,17 @@ public class TOfficine implements Serializable {
 
     @Override
     public String toString() {
-        return "TOfficine{" + "strAUTRESPHONES=" + strAUTRESPHONES + ", lgOFFICINEID=" + lgOFFICINEID + ", strNOMABREGE=" + strNOMABREGE + ", strNOMCOMPLET=" + strNOMCOMPLET + ", strADRESSSEPOSTALE=" + strADRESSSEPOSTALE + ", lgMEDECINID=" + lgMEDECINID + ", lgVILLEID=" + lgVILLEID + ", dtCREATED=" + dtCREATED + ", dtUPDATED=" + dtUPDATED + ", strSTATUT=" + strSTATUT + ", strFIRSTNAME=" + strFIRSTNAME + ", strLASTNAME=" + strLASTNAME + ", strPHONE=" + strPHONE + ", strCOMMENTAIRE1=" + strCOMMENTAIRE1 + ", strCOMMENTAIRE2=" + strCOMMENTAIRE2 + ", strENTETE=" + strENTETE + ", strCOMPTECONTRIBUABLE=" + strCOMPTECONTRIBUABLE + ", strREGISTRECOMMERCE=" + strREGISTRECOMMERCE + ", strREGISTREIMPOSITION=" + strREGISTREIMPOSITION + ", strCENTREIMPOSITION=" + strCENTREIMPOSITION + ", strNUMCOMPTABLE=" + strNUMCOMPTABLE + ", strCOMMENTAIREOFFICINE=" + strCOMMENTAIREOFFICINE + ", strCOMPTEBANCAIRE=" + strCOMPTEBANCAIRE + '}';
+        return "TOfficine{" + "strAUTRESPHONES=" + strAUTRESPHONES + ", lgOFFICINEID=" + lgOFFICINEID
+                + ", strNOMABREGE=" + strNOMABREGE + ", strNOMCOMPLET=" + strNOMCOMPLET + ", strADRESSSEPOSTALE="
+                + strADRESSSEPOSTALE + ", lgMEDECINID=" + lgMEDECINID + ", lgVILLEID=" + lgVILLEID + ", dtCREATED="
+                + dtCREATED + ", dtUPDATED=" + dtUPDATED + ", strSTATUT=" + strSTATUT + ", strFIRSTNAME=" + strFIRSTNAME
+                + ", strLASTNAME=" + strLASTNAME + ", strPHONE=" + strPHONE + ", strCOMMENTAIRE1=" + strCOMMENTAIRE1
+                + ", strCOMMENTAIRE2=" + strCOMMENTAIRE2 + ", strENTETE=" + strENTETE + ", strCOMPTECONTRIBUABLE="
+                + strCOMPTECONTRIBUABLE + ", strREGISTRECOMMERCE=" + strREGISTRECOMMERCE + ", strREGISTREIMPOSITION="
+                + strREGISTREIMPOSITION + ", strCENTREIMPOSITION=" + strCENTREIMPOSITION + ", strNUMCOMPTABLE="
+                + strNUMCOMPTABLE + ", strCOMMENTAIREOFFICINE=" + strCOMMENTAIREOFFICINE + ", strCOMPTEBANCAIRE="
+                + strCOMPTEBANCAIRE + '}';
     }
-
-  
 
     public String getStrAUTRESPHONES() {
         return strAUTRESPHONES;
@@ -319,5 +326,5 @@ public class TOfficine implements Serializable {
     public void setStrAUTRESPHONES(String strAUTRESPHONES) {
         this.strAUTRESPHONES = strAUTRESPHONES;
     }
-    
+
 }

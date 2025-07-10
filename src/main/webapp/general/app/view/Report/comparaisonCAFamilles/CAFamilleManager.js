@@ -52,17 +52,17 @@ Ext.define('testextjs.view.Report.comparaisonCAFamilles.CAFamilleManager', {
                             store:'FamilleCAStore',
                             listeners: {
                                 select: function () {
-                                    var store = this.getStore();
-                                    var dt_start = Ext.Date.format(new Date(), 'd/m/Y');
+                                    const store = this.getStore();
+                                    let  dt_start = Ext.Date.format(new Date(), 'd/m/Y');
 
                                     if (Ext.getCmp('dt_start_CA').getValue() !== null) {
                                         dt_start = Ext.Date.format(Ext.getCmp('dt_start_CA').getValue(), 'd/m/Y');
                                     }
 
-                                    var year = dt_start.split('/')[2];
-                                    var linechartstore = Ext.getCmp('famillecalignechartID').getStore();
+                                    let year = dt_start.split('/')[2];
+                                    const linechartstore = Ext.getCmp('famillecalignechartID').getStore();
                                     linechartstore.clearData();
-                                    var record = store.findRecord('id', this.getValue());
+                                    const record = store.findRecord('id', this.getValue());
                                     linechartstore.add({periode: '01/' + year, CA: record.get('janvier'), CAP: record.get('janvier_1')});
                                     linechartstore.add({periode: '02/' + year, CA: record.get('fevrier'), CAP: record.get('fevrier_1')});
                                     linechartstore.add({periode: '03/' + year, CA: record.get('mars'), CAP: record.get('mars_1')});
@@ -610,18 +610,15 @@ Ext.define('testextjs.view.Report.comparaisonCAFamilles.CAFamilleManager', {
                             ];
 
 
-                            // store.loadPage(1);
+                           
                             grid.reconfigure(null, columns);
 
                             grid.getStore().load({
                                 params: {
-                                    dt_start_vente: dt_start_vente,
-//                                    search_value: search_value
+                                    dt_start_vente: dt_start_vente
                                 }
                             });
-                            // store.loadPage(1);
-                            // Ext.getCmp('pagindCA').bindStore(store);
-
+                            
                             var combofamilleca = Ext.getCmp('CombofamilleCa');
                             combofamilleca.clearValue();
                             combofamilleca.bindStore(grid.getStore());

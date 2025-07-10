@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package dal;
 
 import java.io.Serializable;
@@ -31,22 +30,22 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_warehouse")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TWarehouse.findAll", query = "SELECT t FROM TWarehouse t"),
-    @NamedQuery(name = "TWarehouse.findByLgWAREHOUSEID", query = "SELECT t FROM TWarehouse t WHERE t.lgWAREHOUSEID = :lgWAREHOUSEID"),
-    @NamedQuery(name = "TWarehouse.findByIntNUMLOT", query = "SELECT t FROM TWarehouse t WHERE t.intNUMLOT = :intNUMLOT"),
-    @NamedQuery(name = "TWarehouse.findByIntNUMBER", query = "SELECT t FROM TWarehouse t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TWarehouse.findByDtCREATED", query = "SELECT t FROM TWarehouse t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TWarehouse.findByDtUPDATED", query = "SELECT t FROM TWarehouse t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TWarehouse.findByStrREFLIVRAISON", query = "SELECT t FROM TWarehouse t WHERE t.strREFLIVRAISON = :strREFLIVRAISON"),
-    @NamedQuery(name = "TWarehouse.findByDtSORTIEUSINE", query = "SELECT t FROM TWarehouse t WHERE t.dtSORTIEUSINE = :dtSORTIEUSINE"),
-    @NamedQuery(name = "TWarehouse.findByDtPEREMPTION", query = "SELECT t FROM TWarehouse t WHERE t.dtPEREMPTION = :dtPEREMPTION"),
-    @NamedQuery(name = "TWarehouse.findByIntNUMBERGRATUIT", query = "SELECT t FROM TWarehouse t WHERE t.intNUMBERGRATUIT = :intNUMBERGRATUIT"),
-    @NamedQuery(name = "TWarehouse.findByStrSTATUT", query = "SELECT t FROM TWarehouse t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TWarehouse.findByStrREFORDER", query = "SELECT t FROM TWarehouse t WHERE t.strREFORDER = :strREFORDER"),
-    @NamedQuery(name = "TWarehouse.findByStrCODEETIQUETTE", query = "SELECT t FROM TWarehouse t WHERE t.strCODEETIQUETTE = :strCODEETIQUETTE"),
-    @NamedQuery(name = "TWarehouse.findByIntNUMBERDELETE", query = "SELECT t FROM TWarehouse t WHERE t.intNUMBERDELETE = :intNUMBERDELETE")})
+@NamedQueries({ @NamedQuery(name = "TWarehouse.findAll", query = "SELECT t FROM TWarehouse t"),
+        @NamedQuery(name = "TWarehouse.findByLgWAREHOUSEID", query = "SELECT t FROM TWarehouse t WHERE t.lgWAREHOUSEID = :lgWAREHOUSEID"),
+        @NamedQuery(name = "TWarehouse.findByIntNUMLOT", query = "SELECT t FROM TWarehouse t WHERE t.intNUMLOT = :intNUMLOT"),
+        @NamedQuery(name = "TWarehouse.findByIntNUMBER", query = "SELECT t FROM TWarehouse t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TWarehouse.findByDtCREATED", query = "SELECT t FROM TWarehouse t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TWarehouse.findByDtUPDATED", query = "SELECT t FROM TWarehouse t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TWarehouse.findByStrREFLIVRAISON", query = "SELECT t FROM TWarehouse t WHERE t.strREFLIVRAISON = :strREFLIVRAISON"),
+        @NamedQuery(name = "TWarehouse.findByDtSORTIEUSINE", query = "SELECT t FROM TWarehouse t WHERE t.dtSORTIEUSINE = :dtSORTIEUSINE"),
+        @NamedQuery(name = "TWarehouse.findByDtPEREMPTION", query = "SELECT t FROM TWarehouse t WHERE t.dtPEREMPTION = :dtPEREMPTION"),
+        @NamedQuery(name = "TWarehouse.findByIntNUMBERGRATUIT", query = "SELECT t FROM TWarehouse t WHERE t.intNUMBERGRATUIT = :intNUMBERGRATUIT"),
+        @NamedQuery(name = "TWarehouse.findByStrSTATUT", query = "SELECT t FROM TWarehouse t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TWarehouse.findByStrREFORDER", query = "SELECT t FROM TWarehouse t WHERE t.strREFORDER = :strREFORDER"),
+        @NamedQuery(name = "TWarehouse.findByStrCODEETIQUETTE", query = "SELECT t FROM TWarehouse t WHERE t.strCODEETIQUETTE = :strCODEETIQUETTE"),
+        @NamedQuery(name = "TWarehouse.findByIntNUMBERDELETE", query = "SELECT t FROM TWarehouse t WHERE t.intNUMBERDELETE = :intNUMBERDELETE") })
 public class TWarehouse implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -94,8 +93,28 @@ public class TWarehouse implements Serializable {
     private TFamille lgFAMILLEID;
     @OneToMany(mappedBy = "lgWAREHOUSEID")
     private Collection<TWarehousedetail> tWarehousedetailCollection;
+    @Column(name = "stock_initial")
+    private Integer stockInitial;
+    @Column(name = "stock_final")
+    private Integer stockFinal;
 
     public TWarehouse() {
+    }
+
+    public Integer getStockInitial() {
+        return stockInitial;
+    }
+
+    public void setStockInitial(Integer stockInitial) {
+        this.stockInitial = stockInitial;
+    }
+
+    public Integer getStockFinal() {
+        return stockFinal;
+    }
+
+    public void setStockFinal(Integer stockFinal) {
+        this.stockFinal = stockFinal;
     }
 
     public TWarehouse(String lgWAREHOUSEID) {
@@ -261,7 +280,8 @@ public class TWarehouse implements Serializable {
             return false;
         }
         TWarehouse other = (TWarehouse) object;
-        if ((this.lgWAREHOUSEID == null && other.lgWAREHOUSEID != null) || (this.lgWAREHOUSEID != null && !this.lgWAREHOUSEID.equals(other.lgWAREHOUSEID))) {
+        if ((this.lgWAREHOUSEID == null && other.lgWAREHOUSEID != null)
+                || (this.lgWAREHOUSEID != null && !this.lgWAREHOUSEID.equals(other.lgWAREHOUSEID))) {
             return false;
         }
         return true;
@@ -271,5 +291,5 @@ public class TWarehouse implements Serializable {
     public String toString() {
         return "dal.TWarehouse[ lgWAREHOUSEID=" + lgWAREHOUSEID + " ]";
     }
-    
+
 }

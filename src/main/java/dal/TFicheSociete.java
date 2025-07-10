@@ -28,36 +28,35 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_fiche_societe")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFicheSociete.findAll", query = "SELECT t FROM TFicheSociete t"),
-    @NamedQuery(name = "TFicheSociete.findByLgFICHESOCIETEID", query = "SELECT t FROM TFicheSociete t WHERE t.lgFICHESOCIETEID = :lgFICHESOCIETEID"),
-    @NamedQuery(name = "TFicheSociete.findByStrCODEINTERNE", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEINTERNE = :strCODEINTERNE"),
-    @NamedQuery(name = "TFicheSociete.findByStrLIBELLEENTREPRISE", query = "SELECT t FROM TFicheSociete t WHERE t.strLIBELLEENTREPRISE = :strLIBELLEENTREPRISE"),
-    @NamedQuery(name = "TFicheSociete.findByStrTYPESOCIETE", query = "SELECT t FROM TFicheSociete t WHERE t.strTYPESOCIETE = :strTYPESOCIETE"),
-    @NamedQuery(name = "TFicheSociete.findByStrCODEREGROUPEMENT", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEREGROUPEMENT = :strCODEREGROUPEMENT"),
-    @NamedQuery(name = "TFicheSociete.findByStrCONTACTSTELEPHONIQUES", query = "SELECT t FROM TFicheSociete t WHERE t.strCONTACTSTELEPHONIQUES = :strCONTACTSTELEPHONIQUES"),
-    @NamedQuery(name = "TFicheSociete.findByStrCOMPTECOMPTABLE", query = "SELECT t FROM TFicheSociete t WHERE t.strCOMPTECOMPTABLE = :strCOMPTECOMPTABLE"),
-    @NamedQuery(name = "TFicheSociete.findByDblCHIFFREAFFAIRE", query = "SELECT t FROM TFicheSociete t WHERE t.dblCHIFFREAFFAIRE = :dblCHIFFREAFFAIRE"),
-    @NamedQuery(name = "TFicheSociete.findByStrDOMICIALIATIONBANCAIRE", query = "SELECT t FROM TFicheSociete t WHERE t.strDOMICIALIATIONBANCAIRE = :strDOMICIALIATIONBANCAIRE"),
-    @NamedQuery(name = "TFicheSociete.findByStrRIBSOCIETE", query = "SELECT t FROM TFicheSociete t WHERE t.strRIBSOCIETE = :strRIBSOCIETE"),
-    @NamedQuery(name = "TFicheSociete.findByStrCODEEXONERATIONTVA", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEEXONERATIONTVA = :strCODEEXONERATIONTVA"),
-    @NamedQuery(name = "TFicheSociete.findByStrCODEREMISE", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEREMISE = :strCODEREMISE"),
-    @NamedQuery(name = "TFicheSociete.findByBoolCLIENTENCOMPTE", query = "SELECT t FROM TFicheSociete t WHERE t.boolCLIENTENCOMPTE = :boolCLIENTENCOMPTE"),
-    @NamedQuery(name = "TFicheSociete.findByBoolLIVRE", query = "SELECT t FROM TFicheSociete t WHERE t.boolLIVRE = :boolLIVRE"),
-    @NamedQuery(name = "TFicheSociete.findByDblREMISESUPPLEMENTAIRE", query = "SELECT t FROM TFicheSociete t WHERE t.dblREMISESUPPLEMENTAIRE = :dblREMISESUPPLEMENTAIRE"),
-    @NamedQuery(name = "TFicheSociete.findByDblMONTANTPORT", query = "SELECT t FROM TFicheSociete t WHERE t.dblMONTANTPORT = :dblMONTANTPORT"),
-    @NamedQuery(name = "TFicheSociete.findByIntECHEANCEPAIEMENT", query = "SELECT t FROM TFicheSociete t WHERE t.intECHEANCEPAIEMENT = :intECHEANCEPAIEMENT"),
-    @NamedQuery(name = "TFicheSociete.findByBoolEDITFACTIONFINVENTE", query = "SELECT t FROM TFicheSociete t WHERE t.boolEDITFACTIONFINVENTE = :boolEDITFACTIONFINVENTE"),
-    @NamedQuery(name = "TFicheSociete.findByStrCODEFACTURE", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEFACTURE = :strCODEFACTURE"),
-    @NamedQuery(name = "TFicheSociete.findByStrCODEBONLIVRAISON", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEBONLIVRAISON = :strCODEBONLIVRAISON"),
-    @NamedQuery(name = "TFicheSociete.findByStrRAISONSOCIALE", query = "SELECT t FROM TFicheSociete t WHERE t.strRAISONSOCIALE = :strRAISONSOCIALE"),
-    @NamedQuery(name = "TFicheSociete.findByStrADRESSEPRINCIPALE", query = "SELECT t FROM TFicheSociete t WHERE t.strADRESSEPRINCIPALE = :strADRESSEPRINCIPALE"),
-    @NamedQuery(name = "TFicheSociete.findByStrAUTREADRESSE", query = "SELECT t FROM TFicheSociete t WHERE t.strAUTREADRESSE = :strAUTREADRESSE"),
-    @NamedQuery(name = "TFicheSociete.findByStrCODEPOSTAL", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEPOSTAL = :strCODEPOSTAL"),
-    @NamedQuery(name = "TFicheSociete.findByStrBUREAUDISTRIBUTEUR", query = "SELECT t FROM TFicheSociete t WHERE t.strBUREAUDISTRIBUTEUR = :strBUREAUDISTRIBUTEUR"),
-    @NamedQuery(name = "TFicheSociete.findByDtCREATED", query = "SELECT t FROM TFicheSociete t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFicheSociete.findByDtUPDATED", query = "SELECT t FROM TFicheSociete t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TFicheSociete.findByStrSTATUT", query = "SELECT t FROM TFicheSociete t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TFicheSociete.findAll", query = "SELECT t FROM TFicheSociete t"),
+        @NamedQuery(name = "TFicheSociete.findByLgFICHESOCIETEID", query = "SELECT t FROM TFicheSociete t WHERE t.lgFICHESOCIETEID = :lgFICHESOCIETEID"),
+        @NamedQuery(name = "TFicheSociete.findByStrCODEINTERNE", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEINTERNE = :strCODEINTERNE"),
+        @NamedQuery(name = "TFicheSociete.findByStrLIBELLEENTREPRISE", query = "SELECT t FROM TFicheSociete t WHERE t.strLIBELLEENTREPRISE = :strLIBELLEENTREPRISE"),
+        @NamedQuery(name = "TFicheSociete.findByStrTYPESOCIETE", query = "SELECT t FROM TFicheSociete t WHERE t.strTYPESOCIETE = :strTYPESOCIETE"),
+        @NamedQuery(name = "TFicheSociete.findByStrCODEREGROUPEMENT", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEREGROUPEMENT = :strCODEREGROUPEMENT"),
+        @NamedQuery(name = "TFicheSociete.findByStrCONTACTSTELEPHONIQUES", query = "SELECT t FROM TFicheSociete t WHERE t.strCONTACTSTELEPHONIQUES = :strCONTACTSTELEPHONIQUES"),
+        @NamedQuery(name = "TFicheSociete.findByStrCOMPTECOMPTABLE", query = "SELECT t FROM TFicheSociete t WHERE t.strCOMPTECOMPTABLE = :strCOMPTECOMPTABLE"),
+        @NamedQuery(name = "TFicheSociete.findByDblCHIFFREAFFAIRE", query = "SELECT t FROM TFicheSociete t WHERE t.dblCHIFFREAFFAIRE = :dblCHIFFREAFFAIRE"),
+        @NamedQuery(name = "TFicheSociete.findByStrDOMICIALIATIONBANCAIRE", query = "SELECT t FROM TFicheSociete t WHERE t.strDOMICIALIATIONBANCAIRE = :strDOMICIALIATIONBANCAIRE"),
+        @NamedQuery(name = "TFicheSociete.findByStrRIBSOCIETE", query = "SELECT t FROM TFicheSociete t WHERE t.strRIBSOCIETE = :strRIBSOCIETE"),
+        @NamedQuery(name = "TFicheSociete.findByStrCODEEXONERATIONTVA", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEEXONERATIONTVA = :strCODEEXONERATIONTVA"),
+        @NamedQuery(name = "TFicheSociete.findByStrCODEREMISE", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEREMISE = :strCODEREMISE"),
+        @NamedQuery(name = "TFicheSociete.findByBoolCLIENTENCOMPTE", query = "SELECT t FROM TFicheSociete t WHERE t.boolCLIENTENCOMPTE = :boolCLIENTENCOMPTE"),
+        @NamedQuery(name = "TFicheSociete.findByBoolLIVRE", query = "SELECT t FROM TFicheSociete t WHERE t.boolLIVRE = :boolLIVRE"),
+        @NamedQuery(name = "TFicheSociete.findByDblREMISESUPPLEMENTAIRE", query = "SELECT t FROM TFicheSociete t WHERE t.dblREMISESUPPLEMENTAIRE = :dblREMISESUPPLEMENTAIRE"),
+        @NamedQuery(name = "TFicheSociete.findByDblMONTANTPORT", query = "SELECT t FROM TFicheSociete t WHERE t.dblMONTANTPORT = :dblMONTANTPORT"),
+        @NamedQuery(name = "TFicheSociete.findByIntECHEANCEPAIEMENT", query = "SELECT t FROM TFicheSociete t WHERE t.intECHEANCEPAIEMENT = :intECHEANCEPAIEMENT"),
+        @NamedQuery(name = "TFicheSociete.findByBoolEDITFACTIONFINVENTE", query = "SELECT t FROM TFicheSociete t WHERE t.boolEDITFACTIONFINVENTE = :boolEDITFACTIONFINVENTE"),
+        @NamedQuery(name = "TFicheSociete.findByStrCODEFACTURE", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEFACTURE = :strCODEFACTURE"),
+        @NamedQuery(name = "TFicheSociete.findByStrCODEBONLIVRAISON", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEBONLIVRAISON = :strCODEBONLIVRAISON"),
+        @NamedQuery(name = "TFicheSociete.findByStrRAISONSOCIALE", query = "SELECT t FROM TFicheSociete t WHERE t.strRAISONSOCIALE = :strRAISONSOCIALE"),
+        @NamedQuery(name = "TFicheSociete.findByStrADRESSEPRINCIPALE", query = "SELECT t FROM TFicheSociete t WHERE t.strADRESSEPRINCIPALE = :strADRESSEPRINCIPALE"),
+        @NamedQuery(name = "TFicheSociete.findByStrAUTREADRESSE", query = "SELECT t FROM TFicheSociete t WHERE t.strAUTREADRESSE = :strAUTREADRESSE"),
+        @NamedQuery(name = "TFicheSociete.findByStrCODEPOSTAL", query = "SELECT t FROM TFicheSociete t WHERE t.strCODEPOSTAL = :strCODEPOSTAL"),
+        @NamedQuery(name = "TFicheSociete.findByStrBUREAUDISTRIBUTEUR", query = "SELECT t FROM TFicheSociete t WHERE t.strBUREAUDISTRIBUTEUR = :strBUREAUDISTRIBUTEUR"),
+        @NamedQuery(name = "TFicheSociete.findByDtCREATED", query = "SELECT t FROM TFicheSociete t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFicheSociete.findByDtUPDATED", query = "SELECT t FROM TFicheSociete t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TFicheSociete.findByStrSTATUT", query = "SELECT t FROM TFicheSociete t WHERE t.strSTATUT = :strSTATUT") })
 public class TFicheSociete implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -76,7 +75,8 @@ public class TFicheSociete implements Serializable {
     private String strCONTACTSTELEPHONIQUES;
     @Column(name = "str_COMPTE_COMPTABLE", length = 50)
     private String strCOMPTECOMPTABLE;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_CHIFFRE_AFFAIRE", precision = 13, scale = 3)
     private Double dblCHIFFREAFFAIRE;
     @Column(name = "str_DOMICIALIATION_BANCAIRE", length = 50)
@@ -389,7 +389,8 @@ public class TFicheSociete implements Serializable {
             return false;
         }
         TFicheSociete other = (TFicheSociete) object;
-        if ((this.lgFICHESOCIETEID == null && other.lgFICHESOCIETEID != null) || (this.lgFICHESOCIETEID != null && !this.lgFICHESOCIETEID.equals(other.lgFICHESOCIETEID))) {
+        if ((this.lgFICHESOCIETEID == null && other.lgFICHESOCIETEID != null)
+                || (this.lgFICHESOCIETEID != null && !this.lgFICHESOCIETEID.equals(other.lgFICHESOCIETEID))) {
             return false;
         }
         return true;
@@ -399,5 +400,5 @@ public class TFicheSociete implements Serializable {
     public String toString() {
         return "dal.TFicheSociete[ lgFICHESOCIETEID=" + lgFICHESOCIETEID + " ]";
     }
-    
+
 }

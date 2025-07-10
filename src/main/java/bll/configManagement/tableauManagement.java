@@ -24,14 +24,15 @@ public class tableauManagement extends bllBase {
         this.checkDatamanager();
     }
 
-     public void create(String STR_CODE, String STR_NAME) {
+    public void create(String STR_CODE, String STR_NAME) {
 
         try {
 
             TTableau OTTableau = new TTableau();
-            OTTableau.setLgTABLEAUID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTTableau.setLgTABLEAUID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la
+                                                                    // date courante
             OTTableau.setStrNAME(STR_NAME);
-            OTTableau.setStrCODE(STR_CODE);            
+            OTTableau.setStrCODE(STR_CODE);
             OTTableau.setStrSTATUT(commonparameter.statut_enable);
             OTTableau.setDtCREATED(new Date());
 
@@ -43,7 +44,8 @@ public class tableauManagement extends bllBase {
         }
 
     }
-public void update(String lg_TABLEAU_ID, String STR_CODE, String STR_NAME) {
+
+    public void update(String lg_TABLEAU_ID, String STR_CODE, String STR_NAME) {
 
         try {
 
@@ -52,8 +54,8 @@ public void update(String lg_TABLEAU_ID, String STR_CODE, String STR_NAME) {
 
             OTTableau.setLgTABLEAUID(lg_TABLEAU_ID);
             OTTableau.setStrNAME(STR_NAME);
-            OTTableau.setStrCODE(STR_CODE);            
-            OTTableau.setStrSTATUT(commonparameter.statut_enable);           
+            OTTableau.setStrCODE(STR_CODE);
+            OTTableau.setStrSTATUT(commonparameter.statut_enable);
             OTTableau.setDtUPDATED(new Date());
 
             this.persiste(OTTableau);
@@ -63,6 +65,5 @@ public void update(String lg_TABLEAU_ID, String STR_CODE, String STR_NAME) {
         }
 
     }
-    
 
 }

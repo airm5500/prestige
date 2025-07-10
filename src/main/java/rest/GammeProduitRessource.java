@@ -24,6 +24,7 @@ import javax.ws.rs.core.Response;
 import rest.query.repo.ProduitQueryRepo;
 import rest.repo.GammeProduitRepo;
 import toolkits.parameters.commonparameter;
+import util.Constant;
 
 /**
  *
@@ -42,11 +43,11 @@ public class GammeProduitRessource {
     private GammeProduitRepo gammeProduitRepo;
 
     @GET
-    public Response findAllGammeProduit(
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query) {
+    public Response findAllGammeProduit(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query) {
         List<GammeProduit> data = produitQueryRepo.findAllGammeProduit(query, start, limit, false);
-        return Response.ok().entity(ResultFactory.getSuccessResult(data, produitQueryRepo.countGammeProduit(query))).build();
+        return Response.ok().entity(ResultFactory.getSuccessResult(data, produitQueryRepo.countGammeProduit(query)))
+                .build();
     }
 
     @POST
@@ -54,7 +55,7 @@ public class GammeProduitRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         gammeProduit = gammeProduitRepo.saveOrUpdate(gammeProduit);
         if (gammeProduit != null) {
@@ -69,7 +70,7 @@ public class GammeProduitRessource {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         int result = gammeProduitRepo.deleteById(id);
         if (result > 0) {

@@ -10,8 +10,9 @@ package enumeration;
  * @author Kobena
  */
 public enum Reglement {
-  ESPECE("1"),CHEQUE("2"),CARTE_BANQUAIRE("3"),VIREMENT("6"),DIFFERE("4"),DEVISE("5");
-  private  final String value;  
+    ESPECE("1"), CHEQUE("2"), CARTE_BANQUAIRE("3"), VIREMENT("6"), DIFFERE("4"), DEVISE("5");
+
+    private final String value;
 
     public String getValue() {
         return value;
@@ -20,8 +21,8 @@ public enum Reglement {
     private Reglement(String value) {
         this.value = value;
     }
-  
-  public static Reglement getByString(String text) {
+
+    public static Reglement getByString(String text) {
         for (Reglement nc : values()) {
             if (nc.value.equals(text)) {
                 return nc;

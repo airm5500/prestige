@@ -70,12 +70,16 @@ public class StatisticSales extends bll.bllBase {
             CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
             Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
             Predicate criteria = cb.conjunction();
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(finalStartDate), java.sql.Date.valueOf(finalEndDate));
-            criteria = cb.and(criteria, cb.equal(root.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(finalStartDate), java.sql.Date.valueOf(finalEndDate));
+            criteria = cb.and(criteria,
+                    cb.equal(root.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
             criteria = cb.and(criteria, cb.equal(root.get(TPreenregistrement_.bISCANCEL), false));
-            criteria = cb.and(criteria, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_EXTENSION));
+            criteria = cb.and(criteria,
+                    cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_EXTENSION));
             Predicate pu = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            criteria = cb.and(criteria, cb.equal(root.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
+            criteria = cb.and(criteria,
+                    cb.equal(root.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
             cq.select(root);
             cq.where(criteria, btw, pu);
             Query q = em.createQuery(cq);
@@ -97,13 +101,16 @@ public class StatisticSales extends bll.bllBase {
                 json.put("month", next);
                 json.put("num", month);
                 json.put("year", year);
-                double amount = 0, montant_brut_cumul = 0, remise_cumul = 0, montant_net_cumul = 0, montant_vno_cumul = 0;
+                double amount = 0, montant_brut_cumul = 0, remise_cumul = 0, montant_net_cumul = 0,
+                        montant_vno_cumul = 0;
                 double amount_vo = 0, montant_vo_cumul = 0;
                 double amount_vno = 0;
-                int count = 0, count_vo = 0, count_vno = 0, nbreclients_cumul = 0, count_vo_cumul = 0, count_vno_cumul = 0;
+                int count = 0, count_vo = 0, count_vno = 0, nbreclients_cumul = 0, count_vo_cumul = 0,
+                        count_vno_cumul = 0;
                 double net_ttc = 0;
                 double remise = 0;
-                double panier_moy_vo = 0, panier_moy_vno = 0, panier_moy_vno_cumul = 0, panier_moy_vo_cumul = 0, vno_month_percent = 0, vno_cumul_percent = 0, vo_month_percent = 0, vo_cumul_percent = 0;
+                double panier_moy_vo = 0, panier_moy_vno = 0, panier_moy_vno_cumul = 0, panier_moy_vo_cumul = 0,
+                        vno_month_percent = 0, vno_cumul_percent = 0, vo_month_percent = 0, vo_cumul_percent = 0;
                 for (TPreenregistrement listprePreenregistrement : listprePreenregistrements) {
                     if (next.equals(date.FORMATTERMOUNTHFULLYEAR.format(listprePreenregistrement.getDtCREATED()))) {
                         count++;
@@ -111,11 +118,13 @@ public class StatisticSales extends bll.bllBase {
                         remise += listprePreenregistrement.getIntPRICEREMISE();
                         if (Parameter.KEY_VENTE_ORDONNANCE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
                             count_vo++;
-                            amount_vo += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                            amount_vo += (listprePreenregistrement.getIntPRICE()
+                                    - listprePreenregistrement.getIntPRICEREMISE());
                         }
                         if (Parameter.KEY_VENTE_NON_ORDONNANCEE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
                             count_vno++;
-                            amount_vno += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                            amount_vno += (listprePreenregistrement.getIntPRICE()
+                                    - listprePreenregistrement.getIntPRICEREMISE());
                         }
                     }
 
@@ -138,7 +147,8 @@ public class StatisticSales extends bll.bllBase {
                     json.put("PANIER_MOYEN_M_VNO", Math.round(panier_moy_vno));
                     json.put("PANIER_MOYEN_M_VO", Math.round(panier_moy_vo));
 
-                    String[] formatdate = date.FORMATTERMOUNTHFULLYEAR.format(listprePreenregistrement.getDtCREATED()).split("/");
+                    String[] formatdate = date.FORMATTERMOUNTHFULLYEAR.format(listprePreenregistrement.getDtCREATED())
+                            .split("/");
                     int month_value = Integer.parseInt(formatdate[0]);
                     int year_value = Integer.parseInt(formatdate[1]);
                     if (month >= month_value) {
@@ -146,12 +156,14 @@ public class StatisticSales extends bll.bllBase {
                         montant_brut_cumul += listprePreenregistrement.getIntPRICE();
                         remise_cumul += listprePreenregistrement.getIntPRICEREMISE();
                         if (Parameter.KEY_VENTE_NON_ORDONNANCEE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
-                            montant_vno_cumul += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                            montant_vno_cumul += (listprePreenregistrement.getIntPRICE()
+                                    - listprePreenregistrement.getIntPRICEREMISE());
                             count_vno_cumul++;
                         }
                         if (Parameter.KEY_VENTE_ORDONNANCE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
                             count_vo_cumul++;
-                            montant_vo_cumul += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                            montant_vo_cumul += (listprePreenregistrement.getIntPRICE()
+                                    - listprePreenregistrement.getIntPRICEREMISE());
                         }
 
                     }
@@ -202,7 +214,8 @@ public class StatisticSales extends bll.bllBase {
 
     }
 
-    public List<TPreenregistrement> getPreenregistrementsForSalesStatistics(String dt_start, String dt_end, String emp) {
+    public List<TPreenregistrement> getPreenregistrementsForSalesStatistics(String dt_start, String dt_end,
+            String emp) {
         List<TPreenregistrement> list = new ArrayList<>();
         EntityManager em = this.getOdataManager().getEm();
         try {
@@ -214,20 +227,24 @@ public class StatisticSales extends bll.bllBase {
             CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
             Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
             Predicate criteria = cb.conjunction();
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(finalStartDate), java.sql.Date.valueOf(finalEndDate));
-            criteria = cb.and(criteria, cb.equal(root.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(finalStartDate), java.sql.Date.valueOf(finalEndDate));
+            criteria = cb.and(criteria,
+                    cb.equal(root.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
             criteria = cb.and(criteria, cb.equal(root.get(TPreenregistrement_.bISCANCEL), false));
-            criteria = cb.and(criteria, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_EXTENSION));
+            criteria = cb.and(criteria,
+                    cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_EXTENSION));
             Predicate pu = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            criteria = cb.and(criteria, cb.equal(root.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
+            criteria = cb.and(criteria,
+                    cb.equal(root.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
             cq.select(root);
             cq.where(criteria, btw, pu);
             Query q = em.createQuery(cq);
             list = q.getResultList();
 
         } finally {
-//           if(em!=null)
-//            
+            // if(em!=null)
+            //
         }
 
         return list;
@@ -242,19 +259,17 @@ public class StatisticSales extends bll.bllBase {
             try {
                 if (!"".equals(dt_end) && !dt_start.equals(dt_end)) {
                     Date dtend = java.sql.Date.valueOf(dt_end);
-                    listprePreenregistrements = this.getOdataManager().getEm().createQuery("SELECT o FROM  TPreenregistrement o WHERE o.dtCREATED BETWEEN ?1 AND ?2  AND o.intPRICE >0 AND o.bISCANCEL = FALSE AND o.strSTATUT =?3 AND (o.lgUSERVENDEURID.strFIRSTNAME LIKE ?4 OR  o.lgUSERVENDEURID.strLASTNAME LIKE ?4 ) ORDER BY o.lgUSERVENDEURID.strFIRSTNAME,o.lgUSERVENDEURID.strLASTNAME ")
-                            .setParameter(1, dtstart)
-                            .setParameter(2, dtend)
-                            .setParameter(3, commonparameter.statut_is_Closed).
-                            setParameter(4, search_value + "%").
-                            getResultList();
+                    listprePreenregistrements = this.getOdataManager().getEm().createQuery(
+                            "SELECT o FROM  TPreenregistrement o WHERE o.dtCREATED BETWEEN ?1 AND ?2  AND o.intPRICE >0 AND o.bISCANCEL = FALSE AND o.strSTATUT =?3 AND (o.lgUSERVENDEURID.strFIRSTNAME LIKE ?4 OR  o.lgUSERVENDEURID.strLASTNAME LIKE ?4 ) ORDER BY o.lgUSERVENDEURID.strFIRSTNAME,o.lgUSERVENDEURID.strLASTNAME ")
+                            .setParameter(1, dtstart).setParameter(2, dtend)
+                            .setParameter(3, commonparameter.statut_is_Closed).setParameter(4, search_value + "%")
+                            .getResultList();
                 } else {
 
-                    listprePreenregistrements = this.getOdataManager().getEm().createQuery("SELECT o FROM  TPreenregistrement o WHERE o.dtCREATED >= ?1 AND o.intPRICE >0 AND o.strSTATUT =?2 AND o.bISCANCEL = FALSE AND (o.lgUSERVENDEURID.strFIRSTNAME LIKE ?3 OR  o.lgUSERVENDEURID.strLASTNAME LIKE ?3 ) ORDER BY o.dtCREATED DESC")
-                            .setParameter(1, dtstart)
-                            .setParameter(2, commonparameter.statut_is_Closed).
-                            setParameter(3, search_value + "%").
-                            getResultList();
+                    listprePreenregistrements = this.getOdataManager().getEm().createQuery(
+                            "SELECT o FROM  TPreenregistrement o WHERE o.dtCREATED >= ?1 AND o.intPRICE >0 AND o.strSTATUT =?2 AND o.bISCANCEL = FALSE AND (o.lgUSERVENDEURID.strFIRSTNAME LIKE ?3 OR  o.lgUSERVENDEURID.strLASTNAME LIKE ?3 ) ORDER BY o.dtCREATED DESC")
+                            .setParameter(1, dtstart).setParameter(2, commonparameter.statut_is_Closed)
+                            .setParameter(3, search_value + "%").getResultList();
                     for (TPreenregistrement tPreenregistrement : listprePreenregistrements) {
                         this.refresh(tPreenregistrement);
 
@@ -266,7 +281,8 @@ public class StatisticSales extends bll.bllBase {
                 int totalcount = 0;
                 double totalamount = 0;
                 for (TPreenregistrement listprePreenregistrement : listprePreenregistrements) {
-                    totalamount += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                    totalamount += (listprePreenregistrement.getIntPRICE()
+                            - listprePreenregistrement.getIntPRICEREMISE());
                     totalcount++;
 
                     operateur.add(listprePreenregistrement.getLgUSERVENDEURID());
@@ -278,7 +294,8 @@ public class StatisticSales extends bll.bllBase {
                     id++;
                     TUser next = iterator.next();
 
-                    json.put("Operateur", next.getStrFIRSTNAME().substring(0, 1).toUpperCase() + "." + next.getStrLASTNAME());
+                    json.put("Operateur",
+                            next.getStrFIRSTNAME().substring(0, 1).toUpperCase() + "." + next.getStrLASTNAME());
                     double amount = 0;
                     double amount_vo = 0, amount_vop = 0;
                     double amount_vno = 0;
@@ -296,15 +313,19 @@ public class StatisticSales extends bll.bllBase {
 
                                 if (listprePreenregistrement.getIntCUSTPART() == 0) {
                                     count_vo++;
-                                    amount_vo += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                                    amount_vo += (listprePreenregistrement.getIntPRICE()
+                                            - listprePreenregistrement.getIntPRICEREMISE());
                                 } else {
                                     count_vop++;
-                                    amount_vop += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                                    amount_vop += (listprePreenregistrement.getIntPRICE()
+                                            - listprePreenregistrement.getIntPRICEREMISE());
                                 }
                             }
-                            if (Parameter.KEY_VENTE_NON_ORDONNANCEE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
+                            if (Parameter.KEY_VENTE_NON_ORDONNANCEE
+                                    .equals(listprePreenregistrement.getStrTYPEVENTE())) {
                                 count_vno++;
-                                amount_vno += (listprePreenregistrement.getIntPRICE() - listprePreenregistrement.getIntPRICEREMISE());
+                                amount_vno += (listprePreenregistrement.getIntPRICE()
+                                        - listprePreenregistrement.getIntPRICEREMISE());
                             }
                         }
 
@@ -366,16 +387,14 @@ public class StatisticSales extends bll.bllBase {
             Date dtstart = java.sql.Date.valueOf(dt_start);
             if (!"".equals(dt_end) && !dt_start.equals(dt_end)) {
                 Date dtend = date.formatterMysql.parse(dt_end);
-                list = this.getOdataManager().getEm().createQuery("SELECT SUM(p.intPRICE),SUM(p.intPRICEREMISE),SUM(p.intQUANTITY), o.strNAME,o.lgFAMILLEID,o.intCIP,o.intPRICE FROM TFamille o ,TPreenregistrementDetail p WHERE  o.lgFAMILLEID =p.lgFAMILLEID.lgFAMILLEID AND p.dtCREATED >=?1 AND p.dtCREATED <=?2 AND p.lgPREENREGISTREMENTID.bISCANCEL = FALSE AND (o.strNAME LIKE ?3 OR o.intCIP LIKE ?3) GROUP BY o.strNAME,o.lgFAMILLEID,o.intCIP,o.intPRICE ORDER BY SUM(p.intQUANTITY) DESC")
-                        .setParameter(1, dtstart)
-                        .setParameter(2, dtend)
-                        .setParameter(3, search_value + "%")
+                list = this.getOdataManager().getEm().createQuery(
+                        "SELECT SUM(p.intPRICE),SUM(p.intPRICEREMISE),SUM(p.intQUANTITY), o.strNAME,o.lgFAMILLEID,o.intCIP,o.intPRICE FROM TFamille o ,TPreenregistrementDetail p WHERE  o.lgFAMILLEID =p.lgFAMILLEID.lgFAMILLEID AND p.dtCREATED >=?1 AND p.dtCREATED <=?2 AND p.lgPREENREGISTREMENTID.bISCANCEL = FALSE AND (o.strNAME LIKE ?3 OR o.intCIP LIKE ?3) GROUP BY o.strNAME,o.lgFAMILLEID,o.intCIP,o.intPRICE ORDER BY SUM(p.intQUANTITY) DESC")
+                        .setParameter(1, dtstart).setParameter(2, dtend).setParameter(3, search_value + "%")
                         .getResultList();
             } else {
-                list = this.getOdataManager().getEm().createQuery("SELECT SUM(p.intPRICE),SUM(p.intPRICEREMISE),SUM(p.intQUANTITY), o.strNAME,o.lgFAMILLEID ,o.intCIP,o.intPRICE FROM TFamille o ,TPreenregistrementDetail p WHERE  o.lgFAMILLEID =p.lgFAMILLEID.lgFAMILLEID  AND p.dtCREATED >=?1  AND p.lgPREENREGISTREMENTID.bISCANCEL=FALSE   AND (o.strNAME LIKE ?2 OR o.intCIP LIKE ?2) GROUP BY o.strNAME,o.lgFAMILLEID,o.intCIP,o.intPRICE ORDER BY SUM(p.intQUANTITY) DESC")
-                        .setParameter(1, dtstart)
-                        .setParameter(2, search_value + "%")
-                        .getResultList();
+                list = this.getOdataManager().getEm().createQuery(
+                        "SELECT SUM(p.intPRICE),SUM(p.intPRICEREMISE),SUM(p.intQUANTITY), o.strNAME,o.lgFAMILLEID ,o.intCIP,o.intPRICE FROM TFamille o ,TPreenregistrementDetail p WHERE  o.lgFAMILLEID =p.lgFAMILLEID.lgFAMILLEID  AND p.dtCREATED >=?1  AND p.lgPREENREGISTREMENTID.bISCANCEL=FALSE   AND (o.strNAME LIKE ?2 OR o.intCIP LIKE ?2) GROUP BY o.strNAME,o.lgFAMILLEID,o.intCIP,o.intPRICE ORDER BY SUM(p.intQUANTITY) DESC")
+                        .setParameter(1, dtstart).setParameter(2, search_value + "%").getResultList();
             }
             for (Object object : list) {
                 Object[] datas = (Object[]) object;
@@ -407,11 +426,13 @@ public class StatisticSales extends bll.bllBase {
     }
 
     private TFamilleStock getFamilleStock(String lg_FAMILLE_ID) {
-        return this.getOdataManager().getEm().
-                createQuery("SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID=?1", TFamilleStock.class).setParameter(1, lg_FAMILLE_ID).getSingleResult();
+        return this.getOdataManager().getEm()
+                .createQuery("SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID=?1", TFamilleStock.class)
+                .setParameter(1, lg_FAMILLE_ID).getSingleResult();
     }
 
-    public JSONObject dataJsonArticleVenduACredi(String search_value, String dt_start, String dt_end) throws JSONException {
+    public JSONObject dataJsonArticleVenduACredi(String search_value, String dt_start, String dt_end)
+            throws JSONException {
         List<EntityData> list = this.getListArticleVendu(search_value, dt_start, dt_end);
         JSONObject object = new JSONObject();
 
@@ -450,7 +471,8 @@ public class StatisticSales extends bll.bllBase {
         return object;
     }
 
-    public List<EntityData> getListArticleVendufinal(String lg_USER_ID, String lg_TYPE_VENTE, String str_TYPE_VENTE, String search_value, String dt_start, String dt_end) {
+    public List<EntityData> getListArticleVendufinal(String lg_USER_ID, String lg_TYPE_VENTE, String str_TYPE_VENTE,
+            String search_value, String dt_start, String dt_end) {
         List<EntityData> entityDatas = new ArrayList<>();
         List list = null;
         try {
@@ -458,10 +480,14 @@ public class StatisticSales extends bll.bllBase {
             System.out.println("search_value  " + search_value);
             String req = "SELECT DATE_FORMAT(pr.`dt_CREATED`,'%m-%d-%Y'),`pr`.`int_QUANTITY`,p.`str_TYPE_VENTE`,f.`lg_FAMILLE_ID`,f.`str_NAME`,f.`int_CIP`,f.`int_PRICE` ,p.`str_REF`,CONCAT(u.`str_FIRST_NAME`, ' ', u.`str_LAST_NAME`),DATE_FORMAT(pr.`dt_CREATED`,'%h:%i') FROM  `t_preenregistrement_detail`  pr, `t_preenregistrement` p,`t_famille` f ,`t_user` u WHERE ";
             req += "f.`lg_FAMILLE_ID` =pr.`lg_FAMILLE_ID` AND p.`lg_PREENREGISTREMENT_ID`=`pr`.`lg_PREENREGISTREMENT_ID`  AND u.`lg_USER_ID`=p.`lg_USER_VENDEUR_ID`";
-            req += "AND p.`dt_CREATED` >='" + dt_start + "' AND p.`dt_CREATED` <='" + dt_end + "' AND p.`str_TYPE_VENTE` LIKE '" + str_TYPE_VENTE + "' AND p.`int_PRICE`>0 AND p.`str_STATUT`='is_Closed' AND  p.`lg_USER_VENDEUR_ID` LIKE '" + lg_USER_ID + "' AND p.`lg_TYPE_VENTE_ID` LIKE '" + lg_TYPE_VENTE + "' AND (f.`str_NAME` LIKE '" + search_value + "' OR f.`int_CIP` LIKE '" + search_value + "' OR u.`str_FIRST_NAME` LIKE '" + search_value + "' OR u.`str_LAST_NAME` LIKE '" + search_value + "') ";
+            req += "AND p.`dt_CREATED` >='" + dt_start + "' AND p.`dt_CREATED` <='" + dt_end
+                    + "' AND p.`str_TYPE_VENTE` LIKE '" + str_TYPE_VENTE
+                    + "' AND p.`int_PRICE`>0 AND p.`str_STATUT`='is_Closed' AND  p.`lg_USER_VENDEUR_ID` LIKE '"
+                    + lg_USER_ID + "' AND p.`lg_TYPE_VENTE_ID` LIKE '" + lg_TYPE_VENTE + "' AND (f.`str_NAME` LIKE '"
+                    + search_value + "' OR f.`int_CIP` LIKE '" + search_value + "' OR u.`str_FIRST_NAME` LIKE '"
+                    + search_value + "' OR u.`str_LAST_NAME` LIKE '" + search_value + "') ";
 
-            list = this.getOdataManager().getEm().createNativeQuery(req)
-                    .getResultList();
+            list = this.getOdataManager().getEm().createNativeQuery(req).getResultList();
 
             for (Object object : list) {
                 Object[] datas = (Object[]) object;
@@ -469,7 +495,7 @@ public class StatisticSales extends bll.bllBase {
                 // System.out.println("sql date value of "+java.sql.Date.valueOf(datas[0].toString()));
                 // String[]dataArray=String.valueOf(datas[0]).split(" ");
                 OEntityData.setStr_value1(datas[0] + "");
-//                OEntityData.setStr_value11(dataArray[1].substring(0, dataArray[1].length()-1));
+                // OEntityData.setStr_value11(dataArray[1].substring(0, dataArray[1].length()-1));
                 OEntityData.setStr_value2(datas[1] + "");
                 OEntityData.setStr_value3(datas[2] + "");
                 OEntityData.setStr_value4(datas[3] + "");
@@ -491,84 +517,69 @@ public class StatisticSales extends bll.bllBase {
         }
         return entityDatas;
     }
-//49559729 49559729
+    // 49559729 49559729
 
-    public List<EntityData> getTableauPharmacienData(String dt_start, String dt_end,String empalcementId) {
+    public List<EntityData> getTableauPharmacienData(String dt_start, String dt_end, String empalcementId) {
         List<EntityData> datas = new ArrayList<>();
 
-        TParameters OTParameter ;
+        TParameters OTParameter;
         int isOk = 0;
         try {
             String query = "CALL `proc_tableaupharmacien`(?,?,?)";
             try {
                 OTParameter = this.getOdataManager().getEm().getReference(TParameters.class, "KEY_PARAMS");
                 if (OTParameter != null) {
-//                    isOk = Integer.valueOf(OTParameter.getStrVALUE().trim());22 12 2019 a revoir
+                    // isOk = Integer.valueOf(OTParameter.getStrVALUE().trim());22 12 2019 a revoir
                 }
 
             } catch (Exception e) {
             }
-//            List<Object[]> list = new ArrayList();
-             List<Object[]> list  = this.getOdataManager().getEm().createNativeQuery(query)
-                                .setParameter(1, dt_start)
-                                .setParameter(2, dt_end)
-                                 .setParameter(3, empalcementId)
-                                .getResultList();
-            
-            
-           /* if (isOk == 1) {
-                query = "CALL `proc_pharmacistsdashboard`(?,?)";
-                list = this.getOdataManager().getEm().createNativeQuery(query)
-                        .setParameter(1, dt_start)
-                        .setParameter(2, dt_end)
-                        .getResultList();
-            } else {
-                try {
-                    OTParameter = this.getOdataManager().getEm().getReference(TParameters.class, "KEY_TAKE_INTO_ACCOUNT");
-                    if (OTParameter != null) {
-                        if (Boolean.valueOf(OTParameter.getStrVALUE())) {
-                            query = "CALL `proc_pharmacistsdashboardexcluse`(?,?)";
-                            list = this.getOdataManager().getEm().createNativeQuery(query)
-                                    .setParameter(1, dt_start)
-                                    .setParameter(2, dt_end)
-                                    .getResultList();
-                        }
-                    } else {
-                        list = this.getOdataManager().getEm().createNativeQuery(query)
-                                .setParameter(1, dt_start)
-                                .setParameter(2, dt_end)
-                                 .setParameter(3, empalcementId)
-                                .getResultList();
-                    }
+            // List<Object[]> list = new ArrayList();
+            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).setParameter(1, dt_start)
+                    .setParameter(2, dt_end).setParameter(3, empalcementId).getResultList();
 
-                } catch (Exception e) {
-                }
-
-            }*/
+            /*
+             * if (isOk == 1) { query = "CALL `proc_pharmacistsdashboard`(?,?)"; list =
+             * this.getOdataManager().getEm().createNativeQuery(query) .setParameter(1, dt_start) .setParameter(2,
+             * dt_end) .getResultList(); } else { try { OTParameter =
+             * this.getOdataManager().getEm().getReference(TParameters.class, "KEY_TAKE_INTO_ACCOUNT"); if (OTParameter
+             * != null) { if (Boolean.valueOf(OTParameter.getStrVALUE())) { query =
+             * "CALL `proc_pharmacistsdashboardexcluse`(?,?)"; list =
+             * this.getOdataManager().getEm().createNativeQuery(query) .setParameter(1, dt_start) .setParameter(2,
+             * dt_end) .getResultList(); } } else { list = this.getOdataManager().getEm().createNativeQuery(query)
+             * .setParameter(1, dt_start) .setParameter(2, dt_end) .setParameter(3, empalcementId) .getResultList(); }
+             *
+             * } catch (Exception e) { }
+             *
+             * }
+             */
 
             TParameters OTParameters = null;
 
             for (Object[] objects : list) {
                 EntityData entityData = new EntityData();
                 entityData.setStr_value1(objects[0].toString());
-                //entityData.setStr_value2(String.valueOf(objects[1])); // a decommenter en cas de probleme 09/08/2016
-                entityData.setStr_value2((OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1 && !dt_start.equals(dt_end))
-                        ? String.valueOf(Double.parseDouble(String.valueOf(objects[13]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0 ? Double.parseDouble(String.valueOf(objects[13]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) : String.valueOf(objects[13]))
-                        : String.valueOf(objects[1]));
+                // entityData.setStr_value2(String.valueOf(objects[1])); // a decommenter en cas de probleme 09/08/2016
+                entityData.setStr_value2((OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1
+                        && !dt_start.equals(dt_end))
+                                ? String.valueOf(Double.parseDouble(String.valueOf(objects[13]))
+                                        - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0
+                                                ? Double.parseDouble(String.valueOf(objects[13])) - Double.parseDouble(
+                                                        String.valueOf(objects[14] != null ? objects[14] : 0))
+                                                : String.valueOf(objects[13]))
+                                : String.valueOf(objects[1]));
                 entityData.setStr_value3(String.valueOf(objects[2]));
                 entityData.setStr_value4(String.valueOf(objects[3]));
-//                entityData.setStr_value5(String.valueOf(objects[4]));  // a decommenter en cas de probleme 09/08/2016
+                // entityData.setStr_value5(String.valueOf(objects[4])); // a decommenter en cas de probleme 09/08/2016
 
-                entityData.setStr_value5(
-                        (OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1 && !dt_start.equals(dt_end))
-                        ? String.valueOf(Double.parseDouble(String.valueOf(objects[15]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0
-                                ? Double.parseDouble(String.valueOf(objects[15]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0))
-                                : String.valueOf(objects[15]))
-                        : String.valueOf(objects[4]));
+                entityData.setStr_value5((OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1
+                        && !dt_start.equals(dt_end))
+                                ? String.valueOf(Double.parseDouble(String.valueOf(objects[15]))
+                                        - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0
+                                                ? Double.parseDouble(String.valueOf(objects[15])) - Double.parseDouble(
+                                                        String.valueOf(objects[14] != null ? objects[14] : 0))
+                                                : String.valueOf(objects[15]))
+                                : String.valueOf(objects[4]));
                 entityData.setStr_value6(String.valueOf(objects[5]));
                 entityData.setStr_value7(String.valueOf(objects[6]));
                 entityData.setStr_value8(String.valueOf(objects[7]));
@@ -578,7 +589,7 @@ public class StatisticSales extends bll.bllBase {
                 entityData.setStr_value12(String.valueOf(objects[11]));
                 entityData.setStr_value13(String.valueOf(objects[12]));
                 entityData.setStr_value14(String.valueOf(objects[13]));
-                entityData.setStr_value15(String.valueOf(objects[14] != null ? objects[14] : 0));  //08/09/2016
+                entityData.setStr_value15(String.valueOf(objects[14] != null ? objects[14] : 0)); // 08/09/2016
                 datas.add(entityData);
             }
         } catch (Exception e) {
@@ -591,11 +602,11 @@ public class StatisticSales extends bll.bllBase {
         JSONArray array = new JSONArray();
         TSnapShopDalyVente dalyVente = null;
         TSnapShopDalyStat dalyStat = null;
-        String query = "select o.*  from v_rp_frequentation_pharmacie o WHERE o.`dt_DAY`>='" + dt_start + "' AND o.`dt_DAY` <='" + dt_end + "';";
+        String query = "select o.*  from v_rp_frequentation_pharmacie o WHERE o.`dt_DAY`>='" + dt_start
+                + "' AND o.`dt_DAY` <='" + dt_end + "';";
 
         try {
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query)
-                    .getResultList();
+            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
             for (Object[] objects : list) {
                 JSONObject json = new JSONObject();
 
@@ -628,7 +639,8 @@ public class StatisticSales extends bll.bllBase {
                 if (keyvalue.length() > 0) {
                     for (int f = 0; f < keyvalue.length(); f++) {
 
-                        if ((keyvalue.getJSONObject(f).get("JOUR").toString().equals(json.get("JOUR").toString())) && (keyvalue.getJSONObject(f).get("OP").toString().equals(json.get("OP").toString()))) {
+                        if ((keyvalue.getJSONObject(f).get("JOUR").toString().equals(json.get("JOUR").toString()))
+                                && (keyvalue.getJSONObject(f).get("OP").toString().equals(json.get("OP").toString()))) {
 
                             keyvalue.remove(f);
                             break;
@@ -647,20 +659,16 @@ public class StatisticSales extends bll.bllBase {
                 String JOUR = _json.getString("JOUR");
                 String OP = _json.getString("OP");
 
-                double UN_AMONT = 0, DEUX_AMONT = 0, TROIS_AMONT = 0, QUATRE_AMONT = 0, CINQ_AMONT = 0, SIX_AMONT = 0, SEPT_AMONT = 0, HUIT_AMONT = 0, NEUF_AMONT = 0, DIX_AMONT = 0;
+                double UN_AMONT = 0, DEUX_AMONT = 0, TROIS_AMONT = 0, QUATRE_AMONT = 0, CINQ_AMONT = 0, SIX_AMONT = 0,
+                        SEPT_AMONT = 0, HUIT_AMONT = 0, NEUF_AMONT = 0, DIX_AMONT = 0;
                 double UN_COUNT = 0, DEUX_COUNT = 0, TROIS_COUNT = 0, QUATRE_COUNT = 0, TOTAL_AMOUNT = 0,
-                        VALUES_COUNT = 0, CINQ_COUNT = 0,
-                        SIX_COUNT = 0, SEPT_COUNT = 0, HUIT_COUNT = 0, NEUF_COUNT = 0, DIX_COUNT = 0, TOTAL_COUNT = 0;
-                long UN_REFERNCEVALUE = 0, DEUX_REFERNCEVALUE = 0, TROIS_REFERNCEVALUE = 0,
-                        QUATRE_REFERNCEVALUE = 0,
-                        CINQ_REFERNCEVALUE = 0,
-                        SIX_REFERNCEVALUE = 0, SEPT_REFERNCEVALUE = 0, HUIT_REFERNCEVALUE = 0,
+                        VALUES_COUNT = 0, CINQ_COUNT = 0, SIX_COUNT = 0, SEPT_COUNT = 0, HUIT_COUNT = 0, NEUF_COUNT = 0,
+                        DIX_COUNT = 0, TOTAL_COUNT = 0;
+                long UN_REFERNCEVALUE = 0, DEUX_REFERNCEVALUE = 0, TROIS_REFERNCEVALUE = 0, QUATRE_REFERNCEVALUE = 0,
+                        CINQ_REFERNCEVALUE = 0, SIX_REFERNCEVALUE = 0, SEPT_REFERNCEVALUE = 0, HUIT_REFERNCEVALUE = 0,
                         NEUF_REFERNCEVALUE = 0, DIX_REFERNCEVALUE = 0, TOTAL_REFERNCEVALUE = 0;
-                double UN_PAN = 0, DEUX_PAN = 0, TROIS_PAN = 0,
-                        QUATRE_PAN = 0,
-                        CINQ_PAN = 0,
-                        SIX_PAN = 0, SEPT_PAN = 0, HUIT_PAN = 0,
-                        NEUF_PAN = 0, DIX_PAN = 0, TOTAL_PAN = 0;
+                double UN_PAN = 0, DEUX_PAN = 0, TROIS_PAN = 0, QUATRE_PAN = 0, CINQ_PAN = 0, SIX_PAN = 0, SEPT_PAN = 0,
+                        HUIT_PAN = 0, NEUF_PAN = 0, DIX_PAN = 0, TOTAL_PAN = 0;
 
                 for (int i = 0; i < array.length(); i++) {
                     JSONObject json = array.getJSONObject(i);
@@ -762,17 +770,28 @@ public class StatisticSales extends bll.bllBase {
                 entityData.setStr_value1(JOUR);
                 entityData.setStr_value2(OP);
                 entityData.setStr_value3("val_nbre_pan_lig");
-                entityData.setStr_value13(Math.round(DIX_AMONT) + "_" + Math.round(DIX_COUNT) + "_" + Math.round(DIX_PAN) + "_" + DIX_REFERNCEVALUE);
-                entityData.setStr_value12(Math.round(NEUF_AMONT) + "_" + Math.round(NEUF_COUNT) + "_" + Math.round(NEUF_PAN) + "_" + NEUF_REFERNCEVALUE);
-                entityData.setStr_value11(Math.round(HUIT_AMONT) + "_" + Math.round(HUIT_COUNT) + "_" + Math.round(HUIT_PAN) + "_" + HUIT_REFERNCEVALUE);
-                entityData.setStr_value10(Math.round(SEPT_AMONT) + "_" + Math.round(SEPT_COUNT) + "_" + Math.round(SEPT_PAN) + "_" + SEPT_REFERNCEVALUE);
-                entityData.setStr_value9(Math.round(SIX_AMONT) + "_" + Math.round(SIX_COUNT) + "_" + Math.round(SIX_PAN) + "_" + SIX_REFERNCEVALUE);
-                entityData.setStr_value8(Math.round(CINQ_AMONT) + "_" + Math.round(CINQ_COUNT) + "_" + Math.round(CINQ_PAN) + "_" + CINQ_REFERNCEVALUE);
-                entityData.setStr_value7(Math.round(QUATRE_AMONT) + "_" + Math.round(QUATRE_COUNT) + "_" + Math.round(QUATRE_PAN) + "_" + QUATRE_REFERNCEVALUE);
-                entityData.setStr_value6(Math.round(TROIS_AMONT) + "_" + Math.round(TROIS_COUNT) + "_" + Math.round(TROIS_PAN) + "_" + TROIS_REFERNCEVALUE);
-                entityData.setStr_value5(Math.round(DEUX_AMONT) + "_" + Math.round(DEUX_COUNT) + "_" + Math.round(DEUX_PAN) + "_" + DEUX_REFERNCEVALUE);
-                entityData.setStr_value4(Math.round(UN_AMONT) + "_" + Math.round(UN_COUNT) + "_" + Math.round(UN_PAN) + "_" + UN_REFERNCEVALUE);
-                entityData.setStr_value14(Math.round(TOTAL_AMOUNT) + "_" + Math.round(TOTAL_COUNT) + "_" + Math.round(TOTAL_PAN) + "_" + TOTAL_REFERNCEVALUE);
+                entityData.setStr_value13(Math.round(DIX_AMONT) + "_" + Math.round(DIX_COUNT) + "_"
+                        + Math.round(DIX_PAN) + "_" + DIX_REFERNCEVALUE);
+                entityData.setStr_value12(Math.round(NEUF_AMONT) + "_" + Math.round(NEUF_COUNT) + "_"
+                        + Math.round(NEUF_PAN) + "_" + NEUF_REFERNCEVALUE);
+                entityData.setStr_value11(Math.round(HUIT_AMONT) + "_" + Math.round(HUIT_COUNT) + "_"
+                        + Math.round(HUIT_PAN) + "_" + HUIT_REFERNCEVALUE);
+                entityData.setStr_value10(Math.round(SEPT_AMONT) + "_" + Math.round(SEPT_COUNT) + "_"
+                        + Math.round(SEPT_PAN) + "_" + SEPT_REFERNCEVALUE);
+                entityData.setStr_value9(Math.round(SIX_AMONT) + "_" + Math.round(SIX_COUNT) + "_" + Math.round(SIX_PAN)
+                        + "_" + SIX_REFERNCEVALUE);
+                entityData.setStr_value8(Math.round(CINQ_AMONT) + "_" + Math.round(CINQ_COUNT) + "_"
+                        + Math.round(CINQ_PAN) + "_" + CINQ_REFERNCEVALUE);
+                entityData.setStr_value7(Math.round(QUATRE_AMONT) + "_" + Math.round(QUATRE_COUNT) + "_"
+                        + Math.round(QUATRE_PAN) + "_" + QUATRE_REFERNCEVALUE);
+                entityData.setStr_value6(Math.round(TROIS_AMONT) + "_" + Math.round(TROIS_COUNT) + "_"
+                        + Math.round(TROIS_PAN) + "_" + TROIS_REFERNCEVALUE);
+                entityData.setStr_value5(Math.round(DEUX_AMONT) + "_" + Math.round(DEUX_COUNT) + "_"
+                        + Math.round(DEUX_PAN) + "_" + DEUX_REFERNCEVALUE);
+                entityData.setStr_value4(Math.round(UN_AMONT) + "_" + Math.round(UN_COUNT) + "_" + Math.round(UN_PAN)
+                        + "_" + UN_REFERNCEVALUE);
+                entityData.setStr_value14(Math.round(TOTAL_AMOUNT) + "_" + Math.round(TOTAL_COUNT) + "_"
+                        + Math.round(TOTAL_PAN) + "_" + TOTAL_REFERNCEVALUE);
                 datas.add(entityData);
 
             }
@@ -791,22 +810,16 @@ public class StatisticSales extends bll.bllBase {
         JSONArray data = new JSONArray();
         try {
             JSONArray array = this.getVisitorStatisticData(dt_start, dt_end);
-            JSONArray keyvalue = new JSONArray();
 
-            double UN_AMONT = 0, DEUX_AMONT = 0, TROIS_AMONT = 0, QUATRE_AMONT = 0, CINQ_AMONT = 0, SIX_AMONT = 0, SEPT_AMONT = 0, HUIT_AMONT = 0, NEUF_AMONT = 0, DIX_AMONT = 0;
-            double UN_COUNT = 0, DEUX_COUNT = 0, TROIS_COUNT = 0, QUATRE_COUNT = 0,
-                    VALUES_COUNT = 0, CINQ_COUNT = 0,
+            double UN_AMONT = 0, DEUX_AMONT = 0, TROIS_AMONT = 0, QUATRE_AMONT = 0, CINQ_AMONT = 0, SIX_AMONT = 0,
+                    SEPT_AMONT = 0, HUIT_AMONT = 0, NEUF_AMONT = 0, DIX_AMONT = 0;
+            double UN_COUNT = 0, DEUX_COUNT = 0, TROIS_COUNT = 0, QUATRE_COUNT = 0, VALUES_COUNT = 0, CINQ_COUNT = 0,
                     SIX_COUNT = 0, SEPT_COUNT = 0, HUIT_COUNT = 0, NEUF_COUNT = 0, DIX_COUNT = 0;
-            long UN_REFERNCEVALUE = 0, DEUX_REFERNCEVALUE = 0, TROIS_REFERNCEVALUE = 0,
-                    QUATRE_REFERNCEVALUE = 0,
-                    CINQ_REFERNCEVALUE = 0,
-                    SIX_REFERNCEVALUE = 0, SEPT_REFERNCEVALUE = 0, HUIT_REFERNCEVALUE = 0,
+            long UN_REFERNCEVALUE = 0, DEUX_REFERNCEVALUE = 0, TROIS_REFERNCEVALUE = 0, QUATRE_REFERNCEVALUE = 0,
+                    CINQ_REFERNCEVALUE = 0, SIX_REFERNCEVALUE = 0, SEPT_REFERNCEVALUE = 0, HUIT_REFERNCEVALUE = 0,
                     NEUF_REFERNCEVALUE = 0, DIX_REFERNCEVALUE = 0;
-            double UN_PAN = 0, DEUX_PAN = 0, TROIS_PAN = 0,
-                    QUATRE_PAN = 0,
-                    CINQ_PAN = 0,
-                    SIX_PAN = 0, SEPT_PAN = 0, HUIT_PAN = 0,
-                    NEUF_PAN = 0, DIX_PAN = 0;
+            double UN_PAN = 0, DEUX_PAN = 0, TROIS_PAN = 0, QUATRE_PAN = 0, CINQ_PAN = 0, SIX_PAN = 0, SEPT_PAN = 0,
+                    HUIT_PAN = 0, NEUF_PAN = 0, DIX_PAN = 0;
 
             for (int i = 0; i < array.length(); i++) {
                 JSONObject json = array.getJSONObject(i);
@@ -823,7 +836,8 @@ public class StatisticSales extends bll.bllBase {
                     DEUX_REFERNCEVALUE += Long.valueOf(json.get("REFERNCEVALUE") + "");
                 }
                 if (th.getIntHEUREMIN() >= 11 && th.getIntHEUREMAX() <= 14) {
-                    System.out.println(" th.getIntHEUREMIN() " + th.getIntHEUREMIN() + " th.getIntHEUREMAX() " + th.getIntHEUREMAX() + " " + json.get("AMOUNT"));
+                    System.out.println(" th.getIntHEUREMIN() " + th.getIntHEUREMIN() + " th.getIntHEUREMAX() "
+                            + th.getIntHEUREMAX() + " " + json.get("AMOUNT"));
                     TROIS_AMONT += Double.valueOf(json.get("AMOUNT") + "");
                     TROIS_COUNT += Double.valueOf(json.get("COUNT") + "");
                     TROIS_REFERNCEVALUE += Long.valueOf(json.get("REFERNCEVALUE") + "");
@@ -992,25 +1006,24 @@ public class StatisticSales extends bll.bllBase {
         return data;
     }
 
-    public List<EntityData> getFactureFournisseursData(String dt_start, String dt_end, String search_value, String lg_GROSSISTE) {
+    public List<EntityData> getFactureFournisseursData(String dt_start, String dt_end, String search_value,
+            String lg_GROSSISTE) {
         List<EntityData> datas = new ArrayList<>();
         try {
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery("CALL  `pro_factures_fournisseurs`(?1,?2,?3,?4)")
-                    .setParameter(1, dt_start)
-                    .setParameter(2, dt_end)
-                    .setParameter(3, search_value + "%")
-                    .setParameter(4, lg_GROSSISTE)
+            List<Object[]> list = this.getOdataManager().getEm()
+                    .createNativeQuery("CALL  `pro_factures_fournisseurs`(?1,?2,?3,?4)").setParameter(1, dt_start)
+                    .setParameter(2, dt_end).setParameter(3, search_value + "%").setParameter(4, lg_GROSSISTE)
                     .getResultList();
             for (Object[] objects : list) {
                 EntityData entityData = new EntityData();
-                entityData.setStr_value1(objects[0] + "");//datebl
-                entityData.setStr_value2(objects[1] + "");//LIBELLE
-                entityData.setStr_value3(objects[2] + "");//GROSSISTE
-                entityData.setStr_value4(objects[3] + "");//MONTANTFACTURED
-                entityData.setStr_value5(objects[4] + "");//MONTANTAVOIR
-                entityData.setStr_value6(objects[5] + "");//TVA
-                entityData.setStr_value7(objects[6] + "");//ECHEANCE
-                entityData.setStr_value8(objects[7] + "");//FACTURE OR AVOIR
+                entityData.setStr_value1(objects[0] + "");// datebl
+                entityData.setStr_value2(objects[1] + "");// LIBELLE
+                entityData.setStr_value3(objects[2] + "");// GROSSISTE
+                entityData.setStr_value4(objects[3] + "");// MONTANTFACTURED
+                entityData.setStr_value5(objects[4] + "");// MONTANTAVOIR
+                entityData.setStr_value6(objects[5] + "");// TVA
+                entityData.setStr_value7(objects[6] + "");// ECHEANCE
+                entityData.setStr_value8(objects[7] + "");// FACTURE OR AVOIR
                 datas.add(entityData);
             }
         } catch (Exception e) {
@@ -1022,10 +1035,9 @@ public class StatisticSales extends bll.bllBase {
     public List<EntityData> getRapportGestionData(String dt_start, String dt_end) {
         List<EntityData> datas = new ArrayList<>();
         try {
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery("CALL  `proc_rapport_gestion`(?1,?2)")
-                    .setParameter(1, dt_start)
-                    .setParameter(2, dt_end)
-                    .getResultList();
+            List<Object[]> list = this.getOdataManager().getEm()
+                    .createNativeQuery("CALL  `proc_rapport_gestion`(?1,?2)").setParameter(1, dt_start)
+                    .setParameter(2, dt_end).getResultList();
             for (Object[] objects : list) {
                 EntityData entityData = new EntityData();
                 entityData.setStr_value1(objects[0] + "");
@@ -1043,9 +1055,13 @@ public class StatisticSales extends bll.bllBase {
     public long getFrequentationCount(String dt_start, String dt_end) {
         long count = 0l;
         try {
-            List obj = this.getOdataManager().getEm().createNativeQuery("SELECT COUNT(*) FROM t_preenregistrement p WHERE  p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)>='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end + "' GROUP BY p.`lg_USER_VENDEUR_ID`,DATE(p.`dt_CREATED`)").getResultList();
+            List obj = this.getOdataManager().getEm().createNativeQuery(
+                    "SELECT COUNT(*) FROM t_preenregistrement p WHERE  p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)>='"
+                            + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end
+                            + "' GROUP BY p.`lg_USER_VENDEUR_ID`,DATE(p.`dt_CREATED`)")
+                    .getResultList();
             for (Object object : obj) {
-//                  System.out.println("object "+object);
+                // System.out.println("object "+object);
                 count++;
             }
 
@@ -1132,7 +1148,8 @@ public class StatisticSales extends bll.bllBase {
                 + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23'),1, NULL)),0) AS `PAN_MOY_NEUF` \n"
                 + "FROM t_preenregistrement o,t_user u WHERE  u.`lg_USER_ID`=o.`lg_USER_VENDEUR_ID` AND "
                 + "DATE(o.`dt_CREATED`)>='" + dt_start + "' AND DATE(o.`dt_CREATED`)<='" + dt_end + "' "
-                + "AND o.`int_PRICE`>0 AND o.`b_IS_CANCEL`=0 AND o.`str_STATUT`='is_Closed' GROUP BY o.`lg_USER_VENDEUR_ID` ,DATE(o.`dt_CREATED`) ORDER BY DATE(o.`dt_CREATED`) DESC  LIMIT " + start + "," + limit + "   ";
+                + "AND o.`int_PRICE`>0 AND o.`b_IS_CANCEL`=0 AND o.`str_STATUT`='is_Closed' GROUP BY o.`lg_USER_VENDEUR_ID` ,DATE(o.`dt_CREATED`) ORDER BY DATE(o.`dt_CREATED`) DESC  LIMIT "
+                + start + "," + limit + "   ";
 
         try {
             List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
@@ -1142,8 +1159,10 @@ public class StatisticSales extends bll.bllBase {
                 entityData.setStr_value1(objects[0] + "");
                 entityData.setStr_value2(objects[1] + "");
                 entityData.setStr_value3("val_nbre_pan_lig");
-                String _1ref = "", _2ref = "", _3ref = "", _4ref = "", _5ref = "", _6ref = "", _7ref = "", _8ref = "", _9ref = "", _10ref = "", _11ref = "";
-                String _1rep = "", _2rep = "", _3rep = "", _4rep = "", _5rep = "", _6rep = "", _7rep = "", _8rep = "", _9rep = "", _10rep = "", _11rep = "";
+                String _1ref = "", _2ref = "", _3ref = "", _4ref = "", _5ref = "", _6ref = "", _7ref = "", _8ref = "",
+                        _9ref = "", _10ref = "", _11ref = "";
+                String _1rep = "", _2rep = "", _3rep = "", _4rep = "", _5rep = "", _6rep = "", _7rep = "", _8rep = "",
+                        _9rep = "", _10rep = "", _11rep = "";
                 _10rep = (objects[32] != null ? objects[32] : 0) + "";
                 _10ref = (objects[22] != null ? objects[22] : 0) + "";
                 _1rep = (objects[33] != null ? objects[33] : 0) + "";
@@ -1176,10 +1195,22 @@ public class StatisticSales extends bll.bllBase {
                 entityData.setStr_value11(objects[19] + "_" + objects[18] + "_" + _8rep + "_" + _8ref + "");
                 entityData.setStr_value12(objects[21] + "_" + objects[20] + "_" + _9rep + "_" + _9ref + "");
 
-                long totalAmont = Long.valueOf(objects[3] + "") + Long.valueOf(objects[5] + "") + Long.valueOf(objects[7] + "") + Long.valueOf(objects[9] + "") + Long.valueOf(objects[11] + "") + Long.valueOf(objects[13] + "") + Long.valueOf(objects[15] + "") + Long.valueOf(objects[17] + "") + Long.valueOf(objects[19] + "") + Long.valueOf(objects[21] + "");
-                long totalCount = Long.valueOf(objects[2] + "") + Long.valueOf(objects[4] + "") + Long.valueOf(objects[6] + "") + Long.valueOf(objects[8] + "") + Long.valueOf(objects[10] + "") + Long.valueOf(objects[12] + "") + Long.valueOf(objects[14] + "") + Long.valueOf(objects[16] + "") + Long.valueOf(objects[18] + "") + Long.valueOf(objects[20] + "");
-                long totalPMOY = Long.valueOf(_10rep) + Long.valueOf(_1rep) + Long.valueOf(_2rep) + Long.valueOf(_3rep) + Long.valueOf(_4rep) + Long.valueOf(_5rep) + Long.valueOf(_6rep) + Long.valueOf(_7rep) + Long.valueOf(_8rep) + Long.valueOf(_9rep);
-                long totalREF = Long.valueOf(_10ref) + Long.valueOf(_1ref) + Long.valueOf(_2ref) + Long.valueOf(_3ref) + Long.valueOf(_4ref) + Long.valueOf(_5ref) + Long.valueOf(_6ref) + Long.valueOf(_7ref) + Long.valueOf(_8ref) + Long.valueOf(_9ref);
+                long totalAmont = Long.valueOf(objects[3] + "") + Long.valueOf(objects[5] + "")
+                        + Long.valueOf(objects[7] + "") + Long.valueOf(objects[9] + "") + Long.valueOf(objects[11] + "")
+                        + Long.valueOf(objects[13] + "") + Long.valueOf(objects[15] + "")
+                        + Long.valueOf(objects[17] + "") + Long.valueOf(objects[19] + "")
+                        + Long.valueOf(objects[21] + "");
+                long totalCount = Long.valueOf(objects[2] + "") + Long.valueOf(objects[4] + "")
+                        + Long.valueOf(objects[6] + "") + Long.valueOf(objects[8] + "") + Long.valueOf(objects[10] + "")
+                        + Long.valueOf(objects[12] + "") + Long.valueOf(objects[14] + "")
+                        + Long.valueOf(objects[16] + "") + Long.valueOf(objects[18] + "")
+                        + Long.valueOf(objects[20] + "");
+                long totalPMOY = Long.valueOf(_10rep) + Long.valueOf(_1rep) + Long.valueOf(_2rep) + Long.valueOf(_3rep)
+                        + Long.valueOf(_4rep) + Long.valueOf(_5rep) + Long.valueOf(_6rep) + Long.valueOf(_7rep)
+                        + Long.valueOf(_8rep) + Long.valueOf(_9rep);
+                long totalREF = Long.valueOf(_10ref) + Long.valueOf(_1ref) + Long.valueOf(_2ref) + Long.valueOf(_3ref)
+                        + Long.valueOf(_4ref) + Long.valueOf(_5ref) + Long.valueOf(_6ref) + Long.valueOf(_7ref)
+                        + Long.valueOf(_8ref) + Long.valueOf(_9ref);
 
                 entityData.setStr_value14(totalAmont + "_" + totalCount + "_" + totalPMOY + "_" + totalREF + "");
                 data.add(entityData);
@@ -1198,10 +1229,12 @@ public class StatisticSales extends bll.bllBase {
     public List<EntityData> geVingtQuatreVingtParCa(String dt_start, String dt_end) {
         List<EntityData> datas = new ArrayList<>();
         privilege Oprivilege = new privilege(this.getOdataManager(), this.getOTUser());
-//        String lg_EMPLACEMENT_ID = "";
+        // String lg_EMPLACEMENT_ID = "";
         try {
             String lg_EMPLACEMENT_ID = this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-            String CAquery = "SELECT ROUND(SUM( p.`int_PRICE`)*(80/100),0) AS  MONTANTQUATREVINT FROM t_preenregistrement p WHERE DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end + "' AND p.`b_IS_CANCEL`=0 AND p.`int_PRICE`>0 AND p.`str_STATUT`='is_Closed'";
+            String CAquery = "SELECT ROUND(SUM( p.`int_PRICE`)*(80/100),0) AS  MONTANTQUATREVINT FROM t_preenregistrement p WHERE DATE(p.`dt_CREATED`) >='"
+                    + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end
+                    + "' AND p.`b_IS_CANCEL`=0 AND p.`int_PRICE`>0 AND p.`str_STATUT`='is_Closed'";
             Object obj = this.getOdataManager().getEm().createNativeQuery(CAquery).getSingleResult();
             long CA = 0, _CA = 0;
 
@@ -1210,8 +1243,10 @@ public class StatisticSales extends bll.bllBase {
                 String query = "SELECT SUM( d.`int_PRICE`) AS MONTANTCA ,f.`str_NAME`,f.`int_CIP` ,SUM(d.`int_QUANTITY`) AS QTY ,f.`lg_FAMILLE_ID`,f.`lg_GROSSISTE_ID`  "
                         + "FROM t_preenregistrement p,t_preenregistrement_detail d, t_famille f , t_user u "
                         + "WHERE p.`lg_PREENREGISTREMENT_ID`=d.`lg_PREENREGISTREMENT_ID` AND p.lg_USER_ID = u.lg_USER_ID AND f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` AND "
-                        + "DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end + "' AND p.`b_IS_CANCEL`=0 AND p.`int_PRICE`>0 AND p.`str_STATUT`='" + commonparameter.statut_is_Closed + "' AND u.lg_EMPLACEMENT_ID LIKE '" + lg_EMPLACEMENT_ID + "'"
-                        + "GROUP BY f.`lg_FAMILLE_ID` ORDER BY SUM( d.`int_PRICE`) DESC";
+                        + "DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end
+                        + "' AND p.`b_IS_CANCEL`=0 AND p.`int_PRICE`>0 AND p.`str_STATUT`='"
+                        + commonparameter.statut_is_Closed + "' AND u.lg_EMPLACEMENT_ID LIKE '" + lg_EMPLACEMENT_ID
+                        + "'" + "GROUP BY f.`lg_FAMILLE_ID` ORDER BY SUM( d.`int_PRICE`) DESC";
 
                 List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
 
@@ -1247,7 +1282,9 @@ public class StatisticSales extends bll.bllBase {
         List<EntityData> datas = new ArrayList<>();
 
         try {
-            String CAquery = "SELECT ROUND(SUM( p.`int_QUANTITY`)*(80/100),0) AS  MONTANTQUATREVINT FROM t_preenregistrement_detail p,t_preenregistrement pd WHERE pd.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID` AND DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end + "' AND pd.`b_IS_CANCEL`=0 AND pd.`int_PRICE`>0 AND pd.`str_STATUT`='is_Closed'";
+            String CAquery = "SELECT ROUND(SUM( p.`int_QUANTITY`)*(80/100),0) AS  MONTANTQUATREVINT FROM t_preenregistrement_detail p,t_preenregistrement pd WHERE pd.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID` AND DATE(p.`dt_CREATED`) >='"
+                    + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end
+                    + "' AND pd.`b_IS_CANCEL`=0 AND pd.`int_PRICE`>0 AND pd.`str_STATUT`='is_Closed'";
             Object obj = this.getOdataManager().getEm().createNativeQuery(CAquery).getSingleResult();
             long CA = 0, _CA = 0;
 
@@ -1255,7 +1292,8 @@ public class StatisticSales extends bll.bllBase {
                 CA = Long.valueOf(obj + "");
                 String query = "SELECT SUM( d.`int_PRICE`) AS MONTANTCA ,f.`str_NAME`,f.`int_CIP` ,SUM(d.`int_QUANTITY`) AS QTY,f.`lg_FAMILLE_ID` , f.`lg_GROSSISTE_ID` FROM t_preenregistrement p,t_preenregistrement_detail d, "
                         + "t_famille f WHERE p.`lg_PREENREGISTREMENT_ID`=d.`lg_PREENREGISTREMENT_ID` AND f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` AND "
-                        + "DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end + "' AND p.`b_IS_CANCEL`=0 AND p.`int_PRICE`>0 AND p.`str_STATUT`='is_Closed' "
+                        + "DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end
+                        + "' AND p.`b_IS_CANCEL`=0 AND p.`int_PRICE`>0 AND p.`str_STATUT`='is_Closed' "
                         + "GROUP BY f.`lg_FAMILLE_ID` ORDER BY SUM( d.`int_QUANTITY`) DESC";
                 List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
 
@@ -1304,32 +1342,33 @@ public class StatisticSales extends bll.bllBase {
             }
 
             String query = "CALL `proc_tableaupharmacien`(?,?)";
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query)
-                    .setParameter(1, dt_start)
-                    .setParameter(2, dt_end)
-                    .getResultList();
+            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).setParameter(1, dt_start)
+                    .setParameter(2, dt_end).getResultList();
 
             for (Object[] objects : list) {
                 EntityData entityData = new EntityData();
                 entityData.setStr_value1(objects[0].toString());
-                //entityData.setStr_value2(String.valueOf(objects[1])); // a decommenter en cas de probleme 09/08/2016
-                entityData.setStr_value2((OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1 && !dt_start.equals(dt_end))
-                        ? String.valueOf(Double.parseDouble(String.valueOf(objects[13]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0 ? Double.parseDouble(String.valueOf(objects[13]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) : String.valueOf(objects[13]))
-                        : String.valueOf(objects[1]));
+                // entityData.setStr_value2(String.valueOf(objects[1])); // a decommenter en cas de probleme 09/08/2016
+                entityData.setStr_value2((OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1
+                        && !dt_start.equals(dt_end))
+                                ? String.valueOf(Double.parseDouble(String.valueOf(objects[13]))
+                                        - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0
+                                                ? Double.parseDouble(String.valueOf(objects[13])) - Double.parseDouble(
+                                                        String.valueOf(objects[14] != null ? objects[14] : 0))
+                                                : String.valueOf(objects[13]))
+                                : String.valueOf(objects[1]));
                 entityData.setStr_value3(String.valueOf(objects[2]));
                 entityData.setStr_value4(String.valueOf(objects[3]));
-//                entityData.setStr_value5(String.valueOf(objects[4]));  // a decommenter en cas de probleme 09/08/2016
+                // entityData.setStr_value5(String.valueOf(objects[4])); // a decommenter en cas de probleme 09/08/2016
 
-                entityData.setStr_value5(
-                        (OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1 && !dt_start.equals(dt_end))
-                        ? String.valueOf(Double.parseDouble(String.valueOf(objects[15]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0
-                                ? Double.parseDouble(String.valueOf(objects[15]))
-                                - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0))
-                                : String.valueOf(objects[15]))
-                        : String.valueOf(objects[4]));
+                entityData.setStr_value5((OTParameters != null && Integer.parseInt(OTParameters.getStrVALUE()) == 1
+                        && !dt_start.equals(dt_end))
+                                ? String.valueOf(Double.parseDouble(String.valueOf(objects[15]))
+                                        - Double.parseDouble(String.valueOf(objects[14] != null ? objects[14] : 0)) >= 0
+                                                ? Double.parseDouble(String.valueOf(objects[15])) - Double.parseDouble(
+                                                        String.valueOf(objects[14] != null ? objects[14] : 0))
+                                                : String.valueOf(objects[15]))
+                                : String.valueOf(objects[4]));
                 entityData.setStr_value6(String.valueOf(objects[5]));
                 entityData.setStr_value7(String.valueOf(objects[6]));
                 entityData.setStr_value8(String.valueOf(objects[7]));
@@ -1339,7 +1378,7 @@ public class StatisticSales extends bll.bllBase {
                 entityData.setStr_value12(String.valueOf(objects[11]));
                 entityData.setStr_value13(String.valueOf(objects[12]));
                 entityData.setStr_value14(String.valueOf(objects[13]));
-                entityData.setStr_value15(String.valueOf(objects[14] != null ? objects[14] : 0));  //08/09/2016
+                entityData.setStr_value15(String.valueOf(objects[14] != null ? objects[14] : 0)); // 08/09/2016
                 datas.add(entityData);
             }
         } catch (Exception e) {
@@ -1351,7 +1390,8 @@ public class StatisticSales extends bll.bllBase {
     public int getStock(String idProduct, String emp) {
         Integer stock = 0;
         try {
-            stock = (Integer) this.getOdataManager().getEm().createQuery("SELECT o.intNUMBERAVAILABLE FROM TFamilleStock o WHERE o.strSTATUT='enable' AND o.lgEMPLACEMENTID.lgEMPLACEMENTID=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 ")
+            stock = (Integer) this.getOdataManager().getEm().createQuery(
+                    "SELECT o.intNUMBERAVAILABLE FROM TFamilleStock o WHERE o.strSTATUT='enable' AND o.lgEMPLACEMENTID.lgEMPLACEMENTID=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 ")
                     .setMaxResults(1).setParameter(1, emp).setParameter(2, idProduct).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();

@@ -38,13 +38,16 @@ public class EmplacementManagement extends bllBase {
         this.checkDatamanager();
     }
 
-    //creation d'un emplacement
-    public TEmplacement createEmplacement(String str_NAME, String str_DESCRIPTION, String str_LOCALITE, String str_FIRST_NAME, String str_LAST_NAME, String str_PHONE, TCompteClient OTCompteClient, String lg_TYPEDEPOT_ID, boolean bool_SAME_LOCATION) {
+    // creation d'un emplacement
+    public TEmplacement createEmplacement(String str_NAME, String str_DESCRIPTION, String str_LOCALITE,
+            String str_FIRST_NAME, String str_LAST_NAME, String str_PHONE, TCompteClient OTCompteClient,
+            String lg_TYPEDEPOT_ID, boolean bool_SAME_LOCATION) {
         TTypedepot OTTypedepot = null;
         familleManagement OfamilleManagement = new familleManagement(this.getOdataManager(), this.getOTUser());
         try {
             OTTypedepot = this.getTTypedepot(lg_TYPEDEPOT_ID);
-            OTEmplacement.setLgEMPLACEMENTID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTEmplacement.setLgEMPLACEMENTID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir
+                                                                            // de la date courante
             OTEmplacement.setStrNAME(str_NAME);
             OTEmplacement.setStrDESCRIPTION(str_DESCRIPTION);
             OTEmplacement.setStrFIRSTNAME(str_FIRST_NAME);
@@ -57,8 +60,10 @@ public class EmplacementManagement extends bllBase {
             OTEmplacement.setDtCREATED(new Date());
             OTEmplacement.setBoolSAMELOCATION(bool_SAME_LOCATION);
             if (this.persiste(OTEmplacement)) {
-                if (OTEmplacement.getLgTYPEDEPOTID().getLgTYPEDEPOTID().equalsIgnoreCase(Parameter.TYPE_DEPOT_EXTENSION)) {
-                    if (OfamilleManagement.createTZoneGeographiqueBis(this.getKey().getShortId(10), Parameter.DEFAUL_EMPLACEMENT, OTEmplacement)) {
+                if (OTEmplacement.getLgTYPEDEPOTID().getLgTYPEDEPOTID()
+                        .equalsIgnoreCase(Parameter.TYPE_DEPOT_EXTENSION)) {
+                    if (OfamilleManagement.createTZoneGeographiqueBis(this.getKey().getShortId(10),
+                            Parameter.DEFAUL_EMPLACEMENT, OTEmplacement)) {
                         this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
                     } else {
                         this.buildErrorTraceMessage(OfamilleManagement.getDetailmessage());
@@ -79,10 +84,12 @@ public class EmplacementManagement extends bllBase {
         }
 
     }
-    //fin creation d'un emplacement
+    // fin creation d'un emplacement
 
-    //update d'un emplacement
-    public boolean updateEmplacement(String lg_EMPLACEMENT_ID, String str_NAME, String str_DESCRIPTION, String str_LOCALITE, String str_FIRST_NAME, String str_LAST_NAME, String str_PHONE, String lg_TYPEDEPOT_ID, boolean bool_SAME_LOCATION) {
+    // update d'un emplacement
+    public boolean updateEmplacement(String lg_EMPLACEMENT_ID, String str_NAME, String str_DESCRIPTION,
+            String str_LOCALITE, String str_FIRST_NAME, String str_LAST_NAME, String str_PHONE, String lg_TYPEDEPOT_ID,
+            boolean bool_SAME_LOCATION) {
         boolean result = false;
         TTypedepot OTTypedepot = null;
         try {
@@ -98,7 +105,7 @@ public class EmplacementManagement extends bllBase {
             if (OTTypedepot != null) {
                 OTEmplacement.setLgTYPEDEPOTID(OTTypedepot);
             }
-//           
+            //
             OTEmplacement.setDtUPDATED(new Date());
 
             this.persiste(OTEmplacement);
@@ -110,9 +117,9 @@ public class EmplacementManagement extends bllBase {
         }
         return result;
     }
-    //fin update d'un emplacement
+    // fin update d'un emplacement
 
-    //supprimer d'un emplacement
+    // supprimer d'un emplacement
     public boolean deleteEmplacement(String lg_EMPLACEMENT_ID) {
         boolean result = false;
         try {
@@ -134,10 +141,11 @@ public class EmplacementManagement extends bllBase {
         }
         return result;
     }
-    //fin supprimer d'un emplacement
+    // fin supprimer d'un emplacement
 
-    //liste des emplacements possible de l'office
-    public List<TEmplacement> showAllOrOneEmplacement(String search_value, String lg_EMPLACEMENT_ID, String lg_TYPEDEPOT_ID) {
+    // liste des emplacements possible de l'office
+    public List<TEmplacement> showAllOrOneEmplacement(String search_value, String lg_EMPLACEMENT_ID,
+            String lg_TYPEDEPOT_ID) {
         List<TEmplacement> lstTEmplacement = new ArrayList<TEmplacement>();
         try {
 
@@ -145,12 +153,10 @@ public class EmplacementManagement extends bllBase {
                 search_value = "%%";
             }
 
-            lstTEmplacement = this.getOdataManager().getEm().createQuery("SELECT t FROM TEmplacement t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strFIRSTNAME LIKE ?1 OR t.strLOCALITE LIKE ?1 OR t.strLASTNAME LIKE ?1) AND t.lgEMPLACEMENTID LIKE ?2 AND t.strSTATUT LIKE ?3 AND t.lgTYPEDEPOTID.lgTYPEDEPOTID LIKE ?4 ORDER BY t.strDESCRIPTION ASC").
-                    setParameter(1, search_value + "%").
-                    setParameter(2, lg_EMPLACEMENT_ID).
-                    setParameter(3, commonparameter.statut_enable).
-                    setParameter(4, lg_TYPEDEPOT_ID).
-                    getResultList();
+            lstTEmplacement = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TEmplacement t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strFIRSTNAME LIKE ?1 OR t.strLOCALITE LIKE ?1 OR t.strLASTNAME LIKE ?1) AND t.lgEMPLACEMENTID LIKE ?2 AND t.strSTATUT LIKE ?3 AND t.lgTYPEDEPOTID.lgTYPEDEPOTID LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
+                    .setParameter(1, search_value + "%").setParameter(2, lg_EMPLACEMENT_ID)
+                    .setParameter(3, commonparameter.statut_enable).setParameter(4, lg_TYPEDEPOT_ID).getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -159,7 +165,8 @@ public class EmplacementManagement extends bllBase {
         return lstTEmplacement;
     }
 
-    public List<TEmplacement> showAllOrOneEmplacementSansOfficine(String search_value, String lg_EMPLACEMENT_ID, String lg_TYPEDEPOT_ID) {
+    public List<TEmplacement> showAllOrOneEmplacementSansOfficine(String search_value, String lg_EMPLACEMENT_ID,
+            String lg_TYPEDEPOT_ID) {
         List<TEmplacement> lstTEmplacement = new ArrayList<TEmplacement>();
         try {
 
@@ -167,12 +174,10 @@ public class EmplacementManagement extends bllBase {
                 search_value = "%%";
             }
 
-            lstTEmplacement = this.getOdataManager().getEm().createQuery("SELECT t FROM TEmplacement t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strFIRSTNAME LIKE ?1 OR t.strLOCALITE LIKE ?1 OR t.strLASTNAME LIKE ?1) AND t.lgEMPLACEMENTID NOT LIKE ?2 AND t.strSTATUT LIKE ?3 AND t.lgTYPEDEPOTID.lgTYPEDEPOTID LIKE ?4 ORDER BY t.strNAME ASC").
-                    setParameter(1, search_value + "%").
-                    setParameter(2, "1").
-                    setParameter(3, commonparameter.statut_enable).
-                    setParameter(4, lg_TYPEDEPOT_ID).
-                    getResultList();
+            lstTEmplacement = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TEmplacement t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strFIRSTNAME LIKE ?1 OR t.strLOCALITE LIKE ?1 OR t.strLASTNAME LIKE ?1) AND t.lgEMPLACEMENTID NOT LIKE ?2 AND t.strSTATUT LIKE ?3 AND t.lgTYPEDEPOTID.lgTYPEDEPOTID LIKE ?4 ORDER BY t.strNAME ASC")
+                    .setParameter(1, search_value + "%").setParameter(2, "1")
+                    .setParameter(3, commonparameter.statut_enable).setParameter(4, lg_TYPEDEPOT_ID).getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -180,19 +185,18 @@ public class EmplacementManagement extends bllBase {
         new logger().OCategory.info("lstTEmplacement taille " + lstTEmplacement.size());
         return lstTEmplacement;
     }
-    //fin liste des emplacements possible de l'office
+    // fin liste des emplacements possible de l'office
 
-    //recuperation d'un emplacement
+    // recuperation d'un emplacement
     public TEmplacement getEmplacement(String search_value) {
         TEmplacement _OTEmplacement = null;
         try {
 
-            _OTEmplacement = (TEmplacement) this.getOdataManager().getEm().createQuery("SELECT t FROM TEmplacement t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strNAME LIKE ?1 OR t.lgEMPLACEMENTID LIKE ?1 OR t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1) AND t.strSTATUT LIKE ?2").
-                    setParameter(1, search_value).
-                    setParameter(2, commonparameter.statut_enable)
-                    .setFirstResult(0).setMaxResults(1).
-                    getSingleResult();
-////new logger().OCategory.info("Emplacement " + OTEmplacement.getStrFIRSTNAME());
+            _OTEmplacement = (TEmplacement) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TEmplacement t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strNAME LIKE ?1 OR t.lgEMPLACEMENTID LIKE ?1 OR t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1) AND t.strSTATUT LIKE ?2")
+                    .setParameter(1, search_value).setParameter(2, commonparameter.statut_enable).setFirstResult(0)
+                    .setMaxResults(1).getSingleResult();
+            //// new logger().OCategory.info("Emplacement " + OTEmplacement.getStrFIRSTNAME());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -203,10 +207,10 @@ public class EmplacementManagement extends bllBase {
     public TEmplacement getEmplacementByCompteClient(String lg_COMPTE_CLIENT_ID) {
         TEmplacement OTEmplacement = null;
         try {
-            OTEmplacement = (TEmplacement) this.getOdataManager().getEm().createQuery("SELECT t FROM TEmplacement t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1 AND t.strSTATUT = ?2").
-                    setParameter(1, lg_COMPTE_CLIENT_ID).
-                    setParameter(2, commonparameter.statut_enable).
-                    getSingleResult();
+            OTEmplacement = (TEmplacement) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TEmplacement t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1 AND t.strSTATUT = ?2")
+                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(2, commonparameter.statut_enable)
+                    .getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -216,28 +220,34 @@ public class EmplacementManagement extends bllBase {
     public TEmplacement getEmplacementByOwner(String str_FIRST_LAST_NAME) {
         TEmplacement OTEmplacement = null;
         try {
-            OTEmplacement = (TEmplacement) this.getOdataManager().getEm().createQuery("SELECT t FROM TEmplacement t WHERE CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) = ?1 AND t.strSTATUT = ?2").
-                    setParameter(1, str_FIRST_LAST_NAME).
-                    setParameter(2, commonparameter.statut_enable).
-                    getSingleResult();
+            OTEmplacement = (TEmplacement) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TEmplacement t WHERE CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) = ?1 AND t.strSTATUT = ?2")
+                    .setParameter(1, str_FIRST_LAST_NAME).setParameter(2, commonparameter.statut_enable)
+                    .getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return OTEmplacement;
     }
 
-    //fin recuperation d'un emplacement
+    // fin recuperation d'un emplacement
     public TOfficine getOfficine() {
         TOfficine officine = null;
         try {
-            officine = (TOfficine) this.getOdataManager().getEm().createQuery("SELECT o FROM  TOfficine o").setMaxResults(1).getSingleResult();
+            officine = (TOfficine) this.getOdataManager().getEm().createQuery("SELECT o FROM  TOfficine o")
+                    .setMaxResults(1).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return officine;
     }
 
-    public boolean updateOfficne(String lg_OFFICINE_ID, String str_FIRST_NAME, String str_NOM_ABREGE, String str_NOM_COMPLET, String str_LAST_NAME, String str_ADRESSSE_POSTALE, String str_PHONE, String str_COMMENTAIRE1, String str_COMMENTAIRE2, String str_ENTETE, String str_PHONE_OFFICINE, String str_COMPTE_CONTRIBUABLE, String str_REGISTRE_COMMERCE, String str_REGISTRE_IMPOSITION, String str_CENTRE_IMPOSITION, String str_NUM_COMPTABLE, String str_COMMENTAIREOFFICINE, String str_COMPTE_BANCAIRE) {
+    public boolean updateOfficne(String lg_OFFICINE_ID, String str_FIRST_NAME, String str_NOM_ABREGE,
+            String str_NOM_COMPLET, String str_LAST_NAME, String str_ADRESSSE_POSTALE, String str_PHONE,
+            String str_COMMENTAIRE1, String str_COMMENTAIRE2, String str_ENTETE, String str_PHONE_OFFICINE,
+            String str_COMPTE_CONTRIBUABLE, String str_REGISTRE_COMMERCE, String str_REGISTRE_IMPOSITION,
+            String str_CENTRE_IMPOSITION, String str_NUM_COMPTABLE, String str_COMMENTAIREOFFICINE,
+            String str_COMPTE_BANCAIRE) {
         boolean result = false;
 
         TOfficine officine = null;
@@ -253,16 +263,16 @@ public class EmplacementManagement extends bllBase {
             officine.setStrCOMMENTAIRE2(str_COMMENTAIRE2);
             officine.setStrENTETE(str_ENTETE);
             officine.setStrLASTNAME(str_LAST_NAME);
-            String [] phonestring = null;
-            String setStrAUTRESPHONES="";
-            if(str_PHONE.length()>0){
-                phonestring=str_PHONE.split(";");
-                 
+            String[] phonestring = null;
+            String setStrAUTRESPHONES = "";
+            if (str_PHONE.length() > 0) {
+                phonestring = str_PHONE.split(";");
+
             }
-            setStrAUTRESPHONES=str_PHONE.substring(str_PHONE.indexOf(";")+1, str_PHONE.length());
+            setStrAUTRESPHONES = str_PHONE.substring(str_PHONE.indexOf(";") + 1, str_PHONE.length());
             officine.setStrAUTRESPHONES(setStrAUTRESPHONES);
             officine.setStrPHONE(phonestring[0]);
-           
+
             officine.setStrNOMCOMPLET(str_NOM_COMPLET);
             officine.setDtUPDATED(new Date());
             officine.setStrREGISTREIMPOSITION(str_REGISTRE_IMPOSITION);
@@ -285,20 +295,21 @@ public class EmplacementManagement extends bllBase {
         return result;
     }
 
-    //recuperation de type depot
+    // recuperation de type depot
     public TTypedepot getTTypedepot(String search_value) {
         TTypedepot OTTypedepot = null;
         try {
-            OTTypedepot = (TTypedepot) this.getOdataManager().getEm().createQuery("SELECT t FROM TTypedepot t WHERE (t.lgTYPEDEPOTID = ?1 OR t.strDESCRIPTION = ?1 OR t.strNAME = ?1) AND t.strSTATUT = ?2")
+            OTTypedepot = (TTypedepot) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TTypedepot t WHERE (t.lgTYPEDEPOTID = ?1 OR t.strDESCRIPTION = ?1 OR t.strNAME = ?1) AND t.strSTATUT = ?2")
                     .setParameter(1, search_value).setParameter(2, commonparameter.statut_enable).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return OTTypedepot;
     }
-    //fin recuperation de type depot
+    // fin recuperation de type depot
 
-    //liste des depots
+    // liste des depots
     public List<TTypedepot> showAllOrOneTypedepot(String search_value, String lg_TYPEDEPOT_ID) {
         List<TTypedepot> lstTTypedepot = new ArrayList<TTypedepot>();
         try {
@@ -307,12 +318,10 @@ public class EmplacementManagement extends bllBase {
                 search_value = "%%";
             }
 
-            lstTTypedepot = this.getOdataManager().getEm().createQuery("SELECT t FROM TTypedepot t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strNAME LIKE ?1) AND t.lgTYPEDEPOTID LIKE ?2 AND t.strSTATUT LIKE ?3 AND t.lgTYPEDEPOTID NOT LIKE ?4 ORDER BY t.strDESCRIPTION ASC").
-                    setParameter(1, search_value + "%").
-                    setParameter(2, lg_TYPEDEPOT_ID).
-                    setParameter(3, commonparameter.statut_enable).
-                    setParameter(4, "0").
-                    getResultList();
+            lstTTypedepot = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TTypedepot t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strNAME LIKE ?1) AND t.lgTYPEDEPOTID LIKE ?2 AND t.strSTATUT LIKE ?3 AND t.lgTYPEDEPOTID NOT LIKE ?4 ORDER BY t.strDESCRIPTION ASC")
+                    .setParameter(1, search_value + "%").setParameter(2, lg_TYPEDEPOT_ID)
+                    .setParameter(3, commonparameter.statut_enable).setParameter(4, "0").getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -320,5 +329,5 @@ public class EmplacementManagement extends bllBase {
         new logger().OCategory.info("lstTTypedepot taille " + lstTTypedepot.size());
         return lstTTypedepot;
     }
-    //fin liste des depots
+    // fin liste des depots
 }

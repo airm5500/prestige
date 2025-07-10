@@ -30,17 +30,15 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_mode_reglement", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_MODE_REGLEMENT_ID"})})
+@Table(name = "t_mode_reglement", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_MODE_REGLEMENT_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TModeReglement.findAll", query = "SELECT t FROM TModeReglement t"),
-    @NamedQuery(name = "TModeReglement.findByLgMODEREGLEMENTID", query = "SELECT t FROM TModeReglement t WHERE t.lgMODEREGLEMENTID = :lgMODEREGLEMENTID"),
-    @NamedQuery(name = "TModeReglement.findByStrNAME", query = "SELECT t FROM TModeReglement t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TModeReglement.findByStrDESCRIPTION", query = "SELECT t FROM TModeReglement t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TModeReglement.findByDtCREATED", query = "SELECT t FROM TModeReglement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TModeReglement.findByDtUPDATED", query = "SELECT t FROM TModeReglement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TModeReglement.findByStrSTATUT", query = "SELECT t FROM TModeReglement t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TModeReglement.findAll", query = "SELECT t FROM TModeReglement t"),
+        @NamedQuery(name = "TModeReglement.findByLgMODEREGLEMENTID", query = "SELECT t FROM TModeReglement t WHERE t.lgMODEREGLEMENTID = :lgMODEREGLEMENTID"),
+        @NamedQuery(name = "TModeReglement.findByStrNAME", query = "SELECT t FROM TModeReglement t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TModeReglement.findByStrDESCRIPTION", query = "SELECT t FROM TModeReglement t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TModeReglement.findByDtCREATED", query = "SELECT t FROM TModeReglement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TModeReglement.findByDtUPDATED", query = "SELECT t FROM TModeReglement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TModeReglement.findByStrSTATUT", query = "SELECT t FROM TModeReglement t WHERE t.strSTATUT = :strSTATUT") })
 public class TModeReglement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -173,7 +171,8 @@ public class TModeReglement implements Serializable {
             return false;
         }
         TModeReglement other = (TModeReglement) object;
-        if ((this.lgMODEREGLEMENTID == null && other.lgMODEREGLEMENTID != null) || (this.lgMODEREGLEMENTID != null && !this.lgMODEREGLEMENTID.equals(other.lgMODEREGLEMENTID))) {
+        if ((this.lgMODEREGLEMENTID == null && other.lgMODEREGLEMENTID != null)
+                || (this.lgMODEREGLEMENTID != null && !this.lgMODEREGLEMENTID.equals(other.lgMODEREGLEMENTID))) {
             return false;
         }
         return true;
@@ -183,5 +182,5 @@ public class TModeReglement implements Serializable {
     public String toString() {
         return "dal.TModeReglement[ lgMODEREGLEMENTID=" + lgMODEREGLEMENTID + " ]";
     }
-    
+
 }

@@ -1,6 +1,6 @@
 /* global Ext */
 
-var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
+
 var url_services_transaction_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
 var url_services_data_ville = '../webservices/configmanagement/ville/ws_data.jsp';
 var url_services_data_typetierspayant = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
@@ -45,7 +45,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                     '<p> {str_FAMILLE_ITEM}</p>',
                     {
                         formatChange: function (v) {
-                            var color = v >= 0 ? 'green' : 'red';
+                            const color = v >= 0 ? 'green' : 'red';
                             return '<span style="color: ' + color + ';">' + Ext.util.Format.usMoney(v) + '</span>';
                         }
                     })
@@ -54,20 +54,19 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
 
         Me_Workflow = this;
         lg_TYPE_TIERS_PAYANT_ID = "";
-        url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
-        url_services_pdf_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_generate_pdf.jsp';
-        var itemsPerPage = 20;
 
-        var store = new Ext.data.Store({
+        url_services_pdf_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_generate_pdf.jsp';
+        let itemsPerPage = 20;
+
+        const store = new Ext.data.Store({
             model: 'testextjs.model.TiersPayant',
             pageSize: itemsPerPage,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-               // url: url_services_data_tierspayant,
-                  url: '../tierspayant',
+                url: '../api/v1/tierspayant/list',
                 reader: {
-                    type: 'json',
+                     type: 'json',
                     root: 'results',
                     totalProperty: 'total'
                 }
@@ -94,13 +93,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
         this.cellEditing = new Ext.grid.plugin.CellEditing({
             clicksToEdit: 1
         });
-
-
         Ext.apply(this, {
             width: '98%',
             height: 580,
             id: 'OGrid',
-//            plugins: [this.cellEditing],
             store: store,
             columns: [{
                     header: 'lg_TIERS_PAYANT_ID',
@@ -138,29 +134,39 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                     header: 'Plafond',
                     dataIndex: 'dbl_PLAFOND_CREDIT',
                     flex: 1,
-                    align:'right',
-                    renderer:function (v){
-                      if(v===0){
+                    align: 'right',
+                    renderer: function (v) {
+                        if (v === 0) {
                             return '<span style="color:blue;"> Plafond non défini </span>';
-                      }else{
-                        return amountformat(v);  
-                      }  
+                        } else {
+                            return amountformat(v);
+                        }
                     }
                 },
-                 {
+                {
                     header: 'Encours',
                     dataIndex: 'db_CONSOMMATION_MENSUELLE',
-                    flex: 1,
-                    align:'right',
-                    renderer:function (v){
-                       return amountformat(v);  
+                    flex: 0.7,
+                    align: 'right',
+                    renderer: function (v) {
+                        return amountformat(v);
+                    }
+                },
+                {
+                    header: 'Caution',
+                    dataIndex: 'caution',
+                    flex: 0.7,
+                    align: 'right',
+                    renderer: function (v) {
+                        return amountformat(v);
                     }
                 },
 
                 {
                     header: 'Code.Edit',
                     dataIndex: 'lg_MODEL_FACTURE_ID',
-                    flex: 0.7
+                    flex: 0.7,
+                    align: 'right'
                 }, {
                     header: 'T&eacute;l&eacute;phone',
                     dataIndex: 'str_TELEPHONE',
@@ -231,7 +237,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                             icon: 'resources/images/icons/fam/disable.png',
                             tooltip: 'Desactiver le tiers payant',
                             scope: this,
-                             getClass: function (value, metadata, record) {
+                            getClass: function (value, metadata, record) {
                                 if (record.get('P_BTN_DESACTIVER_TIERS_PAYANT')) {
                                     return 'x-display-hide';
                                 } else {
@@ -280,16 +286,16 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                     listeners: {
                         select: function (cmp) {
                             lg_TYPE_TIERS_PAYANT_ID = cmp.getValue();
-                             var search_value = Ext.getCmp('rechecher').getValue();
+                            var search_value = Ext.getCmp('rechecher').getValue();
 
                             Ext.getCmp('OGrid').getStore().load({
-                                
-                                params:{
-                                  lg_TYPE_TIERS_PAYANT_ID:lg_TYPE_TIERS_PAYANT_ID, 
-                                  search_value:search_value
+
+                                params: {
+                                    lg_TYPE_TIERS_PAYANT_ID: lg_TYPE_TIERS_PAYANT_ID,
+                                    search_value: search_value
                                 }
                             });
-                          
+
                         }
                     }
                 }, '-', {
@@ -353,7 +359,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                 dock: 'bottom',
                 displayInfo: true,
                 plugins: new Ext.ux.ProgressBarPager(),
-                  listeners: {
+                listeners: {
                     beforechange: function (page, currentPage) {
                         var myProxy = this.store.getProxy();
                         myProxy.params = {
@@ -363,8 +369,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                         };
                         var search_value = Ext.getCmp('rechecher').getValue(), lg_TYPE_TIERS_PAYANT_ID = Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID').getValue();
 
-                        if (lg_TYPE_TIERS_PAYANT_ID== null ) {
-                            lg_TYPE_TIERS_PAYANT_ID="";
+                        if (lg_TYPE_TIERS_PAYANT_ID == null) {
+                            lg_TYPE_TIERS_PAYANT_ID = "";
                         }
 
 
@@ -471,14 +477,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
         var extension = "xls";
         window.location = '../MigrationServlet?table_name=TABLE_TIERS_PAYANTS' + "&extension=" + extension;
     },
-    onManageFoneClick: function (grid, rowIndex) {
 
-//        var rec = grid.getStore().getAt(rowIndex);
-//        var xtype = "userphonemanager";
-//        var  alias ='widget.' + xtype;
-//        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype,"",rec.get('str_FIRST_NAME'),rec.data);
-//        
-    },
     onAddClick: function () {
 
         new testextjs.view.tierspayantmanagement.tierspayant.action.add({
@@ -538,7 +537,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
 
     },
     onEditClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
         new testextjs.view.tierspayantmanagement.tierspayant.action.add({
             odatasource: rec.data,
             parentview: this,
@@ -547,7 +546,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
         });
     },
     onEditPhotoClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
         new testextjs.view.tierspayantmanagement.tierspayant.action.addPhoto({
             odatasource: rec.data,
             parentview: this,
@@ -559,12 +558,12 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
 
     },
     onRechClick: function () {
-        var val = Ext.getCmp('rechecher');
-       var lg_TYPE= Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID').getValue();
+        const val = Ext.getCmp('rechecher');
+        let lg_TYPE = Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID').getValue();
 
-                        if (lg_TYPE== null ) {
-                            lg_TYPE="";
-                        }
+        if (lg_TYPE == null) {
+            lg_TYPE = "";
+        }
         this.getStore().load({
             params: {
                 search_value: val.getValue(),
@@ -623,7 +622,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
 
     onDetailClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-//       alert(JSON.stringify( rec.data));
         new testextjs.view.tierspayantmanagement.tierspayant.action.detailstierspayant({
             odatasource: rec.data,
             parentview: this,

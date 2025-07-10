@@ -21,7 +21,6 @@ import toolkits.utils.logger;
  */
 public class EscompteManagement extends bllBase {
 
-    
     public EscompteManagement(dataManager OdataManager, TUser OTuser) {
         this.setOTUser(OTuser);
         this.setOdataManager(OdataManager);
@@ -33,9 +32,7 @@ public class EscompteManagement extends bllBase {
         this.checkDatamanager();
     }
 
-  
-
-    //Liste des escomptes societes tranches
+    // Liste des escomptes societes tranches
     public List<TEscompteSocieteTranche> SearchAllOrOneEscompteSocieteTranche(String search_value) {
         List<TEscompteSocieteTranche> lstTEscompteSocieteTranche = null;
         try {
@@ -43,10 +40,16 @@ public class EscompteManagement extends bllBase {
                 search_value = "%%";
             }
             new logger().OCategory.info("search_value ----->   " + search_value);
-            lstTEscompteSocieteTranche = this.getOdataManager().getEm().createQuery("SELECT t FROM TEscompteSocieteTranche t WHERE t.lgESCOMPTESOCIETETRANCHEID LIKE ?1 AND t.strSTATUT = ?2")
+            lstTEscompteSocieteTranche = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TEscompteSocieteTranche t WHERE t.lgESCOMPTESOCIETETRANCHEID LIKE ?1 AND t.strSTATUT = ?2")
                     .setParameter(1, search_value).setParameter(2, commonparameter.statut_enable).getResultList();
             for (int i = 0; i < lstTEscompteSocieteTranche.size(); i++) {
-                new logger().OCategory.info("Escompte societe : " + lstTEscompteSocieteTranche.get(i).getLgESCOMPTESOCIETEID().getStrLIBELLEESCOMPTESOCIETE() + " Tranche taux"+lstTEscompteSocieteTranche.get(i).getLgTRANCHEID().getDblPOURCENTAGETRANCHE());
+                new logger().OCategory
+                        .info("Escompte societe : "
+                                + lstTEscompteSocieteTranche.get(i).getLgESCOMPTESOCIETEID()
+                                        .getStrLIBELLEESCOMPTESOCIETE()
+                                + " Tranche taux"
+                                + lstTEscompteSocieteTranche.get(i).getLgTRANCHEID().getDblPOURCENTAGETRANCHE());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -54,13 +57,13 @@ public class EscompteManagement extends bllBase {
         }
         return lstTEscompteSocieteTranche;
     }
-    //fin Liste des escomptes societes tranches
+    // fin Liste des escomptes societes tranches
 
-    
     public TEscompteSociete getTEscompteSociete(String lg_ESCOMPTE_SOCIETE_ID) {
-        TEscompteSociete OTEscompteSociete = (TEscompteSociete) this.getOdataManager().getEm().createQuery("SELECT t FROM TEscompteSociete t WHERE t.lgESCOMPTESOCIETEID = ?1 OR t.strLIBELLEESCOMPTESOCIETE = ?2")
+        TEscompteSociete OTEscompteSociete = (TEscompteSociete) this.getOdataManager().getEm().createQuery(
+                "SELECT t FROM TEscompteSociete t WHERE t.lgESCOMPTESOCIETEID = ?1 OR t.strLIBELLEESCOMPTESOCIETE = ?2")
                 .setParameter(1, lg_ESCOMPTE_SOCIETE_ID).setParameter(2, lg_ESCOMPTE_SOCIETE_ID).getSingleResult();
         return OTEscompteSociete;
     }
-    
+
 }

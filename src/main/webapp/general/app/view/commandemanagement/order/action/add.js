@@ -1,18 +1,11 @@
 /* global Ext */
 
-
-var url_services_transaction_order = '../webservices/commandemanagement/order/ws_transaction.jsp?mode=';
-var url_services_data_grossiste_suggerer = '../webservices/configmanagement/grossiste/ws_data.jsp';
-var url_services_data_orderdetails_process = '../webservices/commandemanagement/orderdetail/ws_data.jsp';
-var url_services_data_famille_select_dovente = '../webservices/sm_user/famille/ws_data_jdbc.jsp';
-var url_services_pdf = '../webservices/commandemanagement/order/ws_generate_pdf.jsp';
 var Me_Window;
 var Omode;
 var ref;
 var ref_final;
 var famille_id_search;
 var LaborexWorkFlow;
-var store_famille_commande = null;
 var int_montant_vente;
 var int_montant_achat;
 var str_STATUT;
@@ -21,6 +14,7 @@ var comboDefaultvalue;
 var store_details_order;
 Ext.util.Format.decimalSeparator = ',';
 Ext.util.Format.thousandSeparator = '.';
+
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
@@ -35,7 +29,8 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         'testextjs.model.Famille',
         'testextjs.controller.LaborexWorkFlow',
         'testextjs.model.Grossiste',
-        'testextjs.model.OrderDetail'
+        'testextjs.model.OrderDetail',
+        'testextjs.view.configmanagement.famille.action.detailArticle'
     ],
     config: {
         odatasource: '',
@@ -45,45 +40,73 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         plain: true,
         maximizable: true,
         closable: false,
-        nameintern: ''
+        nameintern: '',
+        orderRef: null,
+        prixAchat: null
     },
     xtype: 'ordermanagerlist',
     id: 'ordermanagerlistID',
-    frame: true,
+
     title: 'Modifier les informations de la commande',
+    bodyStyle: 'background-color: #E5E9EC;',
     bodyPadding: 5,
     layout: 'column',
+    width: '97%',
+    height: 'auto',
+    minHeight: 570,
     initComponent: function () {
         Me_Window = this;
-        var itemsPerPage = 20;
-        var itemsPerPageGrid = 10;
+        let itemsPerPage = 100;
+        let itemsPerPageGrid = 10;
         famille_id_search = "";
 
         LaborexWorkFlow = Ext.create('testextjs.controller.LaborexWorkFlow', {});
-        ref = this.getNameintern();
+        ref = Me_Window.getNameintern();
         if (ref === "0") {
             str_STATUT = this.getOdatasource();
         }
         ref_final = ref;
         titre = this.getTitre();
+        this.prixAchat = this.getOdatasource()?.PRIX_ACHAT_TOTAL;
         this.title = titre;
-        var store = Ext.create('testextjs.store.Search');
+        let produitStore = new Ext.data.Store({
+            model: 'testextjs.model.caisse.Produit',
+            pageSize: 10,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/vente/search',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        let store = Ext.create('testextjs.store.Search');
         comboDefaultvalue = this.getOdatasource().lg_GROSSISTE_ID;
-        var store_type = new Ext.data.Store({
+        let store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
             data: [
-                {str_TYPE_TRANSACTION: 'PRIX', str_desc: 'PRIX DE VENTE BL DIFFERENT DU PRIX EN MACHINE'},
+
+                {str_TYPE_TRANSACTION: 'PRIX_VENTE_DIFF', str_desc: 'PRIX DE VENTE BL DIFFERENT DU PRIX EN MACHINE'},
+                {
+                    str_TYPE_TRANSACTION: 'PRIX_VENTE_PLUS_30',
+                    str_desc: 'PRIX DE VENTE BL DIFFERENT DU PRIX EN MACHINE DE 30F'
+                },
                 {str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}
+
             ]
         });
 
         storerepartiteur = new Ext.data.Store({
             model: 'testextjs.model.Grossiste',
-            pageSize: itemsPerPage,
+            pageSize: 999,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste_suggerer,
+                url: '../api/v1/grossiste/all',
+
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -100,35 +123,36 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_orderdetails_process + "?lg_ORDER_ID=" + ref,
+
+                url: '../api/v1/commande/commande-en-cours-items',
                 reader: {
                     type: 'json',
-                    root: 'results',
+                    root: 'data',
                     totalProperty: 'total'
                 },
                 timeout: 180000
             }
 
         });
-        var int_VENTE = new Ext.form.field.Display(
+        let int_VENTE = new Ext.form.field.Display(
                 {
                     xtype: 'displayfield',
                     fieldLabel: 'Valeur Vente ::',
                     labelWidth: 95,
                     name: 'int_VENTE',
                     id: 'int_VENTE',
-                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
+                    fieldStyle: "color:red;font-weight:bold;font-size:1.5em",
                     margin: '0 15 0 0',
                     value: "0"
                 });
-        var int_ACHAT = new Ext.form.field.Display(
+        let int_ACHAT = new Ext.form.field.Display(
                 {
                     xtype: 'displayfield',
                     fieldLabel: 'Valeur Achat ::',
                     labelWidth: 95,
                     name: 'int_ACHAT',
                     id: 'int_ACHAT',
-                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
+                    fieldStyle: "color:red;font-weight:bold;font-size:1.5em",
                     margin: '0 15 0 0',
                     value: "0"
                 });
@@ -136,7 +160,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         this.cellEditing = new Ext.grid.plugin.CellEditing({
             clicksToEdit: 1
         });
-        var me = this;
+        const me = this;
         Ext.apply(me, {
             width: '98%',
             fieldDefaults: {
@@ -184,7 +208,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     valueField: 'lg_GROSSISTE_ID',
                                     displayField: 'str_LIBELLE',
                                     typeAhead: true,
-                                    pageSize: itemsPerPage,
+                                    pageSize: 999,
                                     queryMode: 'remote',
                                     width: 450,
                                     emptyText: 'Choisir un repartiteur...',
@@ -193,9 +217,8 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             field.focus(true, 50);
                                         },
                                         select: function (cmp) {
-                                            var value = cmp.getValue();
+
                                             if (titre === 'Modifier les informations de la commande') {
-                                                // alert("Titre 2" + titre);
                                                 Me_Window.onchangeGrossiste();
                                             } else {
                                                 Ext.getCmp('str_NAME').focus(true, 100, function () {
@@ -236,15 +259,63 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 {
                                     xtype: 'combobox',
                                     fieldLabel: 'Article',
+                                    // id: 'str_NAME',
+                                    store: produitStore,
+                                    pageSize: 10,
+                                    valueField: 'lgFAMILLEID',
+                                    displayField: 'strNAME',
+                                    width: 600,
+                                    margins: '0 10 5 10',
+                                    queryMode: 'remote',
+                                    autoSelect: true,
+                                    typeAhead: false,
+                                    typeAheadDelay: 0,
+                                    forceSelection: true,
+                                    enableKeyEvents: true,
+                                    minChars: 3,
+                                    queryCaching: false,
+//                                    selectOnFocus: true,
+                                    hidden: true,
+                                    emptyText: 'Choisir un article par Nom ou Cip...',
+//                                    triggerAction: 'all',
+                                    listConfig: {
+                                        loadingText: 'Recherche...',
+                                        emptyText: 'Pas de données trouvées.',
+                                        getInnerTpl: function () {
+                                            return '<tpl for="."><tpl if="intNUMBERAVAILABLE <=0"><span style="color:#17987e;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right;"> ( {intPRICE} )</span></span><tpl else><span style="font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right; "> ( {intPRICE} )</span></span></tpl></tpl>';
+
+                                        }
+                                    },
+                                    listeners: {
+                                        select: function (cmp) {
+                                            let value = cmp.getValue();
+                                            let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
+                                            Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(record.get('lg_FAMILLE_ID'));
+                                            if (value === "0" || value === "Ajouter un nouvel article") {
+                                                Me_Window.onbtnaddArticle();
+                                            } else {
+                                                Ext.getCmp('int_QUANTITE').focus(true, 100, function () {
+                                                    Ext.getCmp('int_QUANTITE').selectText(0, 1);
+                                                });
+                                            }
+                                            Ext.getCmp('btn_detail').enable();
+
+                                        }
+                                    }
+
+                                },
+                                {
+                                    xtype: 'combobox',
+                                    fieldLabel: 'Article',
                                     name: 'str_NAME',
                                     id: 'str_NAME',
                                     store: store,
                                     margins: '0 10 5 10',
+
                                     valueField: 'CIP',
                                     displayField: 'str_DESCRIPTION',
-//                                    displayField: 'str_DESCRIPTION_PLUS',
                                     enableKeyEvents: true,
-                                    pageSize: 20, //ajout la barre de pagination
+                                    pageSize: 20,
                                     typeAhead: true,
                                     width: 600,
 //                                    flex:2
@@ -258,8 +329,8 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     },
                                     listeners: {
                                         select: function (cmp) {
-                                            var value = cmp.getValue();
-                                            var record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
+                                            let value = cmp.getValue();
+                                            let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
                                             Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(record.get('lg_FAMILLE_ID'));
                                             if (value === "0" || value === "Ajouter un nouvel article") {
                                                 Me_Window.onbtnaddArticle();
@@ -293,7 +364,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     xtype: 'numberfield',
                                     margin: '0 15 0 10',
                                     minValue: 1,
-                                    width: 250,
+                                    width: 75,
                                     value: 1,
                                     allowBlank: false,
                                     enableKeyEvents: true,
@@ -305,19 +376,20 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                                 if (Ext.getCmp('str_NAME').getValue() !== "") {
 
                                                     if (Ext.getCmp('int_QUANTITE').getValue() > 0) {
-                                                        // alert(ref_final);
-                                                        onbtnaddCommande(ref_final);
+                                                        Me_Window.onAddNewItem();
+
                                                     } else {
                                                         Ext.MessageBox.alert('Error Message', 'La quantité doit être supérieure à 0 ');
                                                     }
 
                                                 } else {
                                                     Ext.MessageBox.alert('Error Message', 'Verifiez votre selection svp');
-                                                    return;
+
                                                 }
 
                                             }
-                                        }}
+                                        }
+                                    }
 
                                 },
                                 {
@@ -327,7 +399,6 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     hidden: true,
                                     xtype: 'button',
                                     handler: this.onbtnaddArticle
-//                                            disabled: true
                                 },
                                 {
                                     text: 'Voir detail',
@@ -414,30 +485,37 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 },
                                 {
                                     text: 'STOCK',
-                                    flex: 1,
+                                    flex: 0.5,
                                     sortable: true,
+                                    renderer: function (value) {
+                                        return '<span style="color:purple; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    },
                                     dataIndex: 'lg_FAMILLE_QTE_STOCK',
                                     align: 'right'
                                 },
 
                                 {
-                                    text: 'PU.MACHINE',
+                                    text: 'PV.MACHINE',
                                     flex: 1,
 //                                    hidden: true,
                                     align: 'right',
                                     sortable: true,
                                     dataIndex: 'int_PRICE_MACHINE',
-                                    renderer: amountformat
+                                    renderer: function (value) {
+                                        return '<span style="color:black; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    }
 
                                 },
 
                                 {
-                                    text: 'PRIX.VENTE',
+                                    text: 'PV IMPORT',
                                     flex: 1,
                                     sortable: true,
                                     align: 'right',
                                     dataIndex: 'lg_FAMILLE_PRIX_VENTE',
-                                    renderer: amountformat,
+                                    renderer: function (value) {
+                                        return '<span style="color:blue; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    },
                                     editor: {
                                         xtype: 'numberfield',
                                         minValue: 1,
@@ -456,16 +534,20 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     align: 'right',
                                     sortable: true,
                                     dataIndex: 'lg_FAMILLE_PRIX_ACHAT',
-                                    renderer: amountformat
+                                    renderer: function (value) {
+                                        return '<span style="color:black; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    }
 
                                 },
                                 {
-                                    text: 'PA.FACT',
+                                    text: 'PA.IMPORT',
                                     flex: 1,
                                     sortable: true,
                                     align: 'right',
                                     dataIndex: 'int_PAF',
-                                    renderer: amountformat,
+                                    renderer: function (value) {
+                                        return '<span style="color:blue; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    },
                                     editor: {
                                         xtype: 'numberfield',
                                         minValue: 1,
@@ -493,7 +575,10 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 {
                                     header: 'QTE',
                                     dataIndex: 'int_NUMBER',
-                                    flex: 1,
+                                    flex: 0.5,
+                                    renderer: function (value) {
+                                        return '<span style="color:green; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    },
                                     align: 'right',
                                     editor: {
                                         minValue: 1,
@@ -503,12 +588,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         maskRe: /[0-9.]/
                                     }
                                 },
-                                {
-                                    header: 'QTE A LIVRER',
-                                    align: 'right',
-                                    dataIndex: 'int_QTE_REP_GROSSISTE',
-                                    flex: 1
-                                },
+
                                 {
                                     text: 'MONTANT',
                                     flex: 1,
@@ -516,6 +596,36 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     renderer: amountformat,
                                     sortable: true,
                                     dataIndex: 'int_PRICE'
+                                }, {
+                                    header: 'LOTS',
+                                    dataIndex: 'lotNums',
+                                    flex: 1.1
+                                },
+                                {
+                                    header: 'DATE DE PEREMPTION',
+
+                                    dataIndex: 'datePeremption',
+                                    flex: 1.1
+                                },
+
+                                {
+                                    xtype: 'actioncolumn',
+                                    width: 30,
+                                    sortable: false,
+                                    menuDisabled: true,
+                                    items: [{
+                                            icon: 'resources/images/duplicate_3671686.png',
+                                            tooltip: 'Voir lots',
+                                            scope: this,
+                                            handler: this.onVoirLots,
+                                            getClass: function (value, metadata, record) {
+                                                if (record.get('lots').length > 0) {
+                                                    return 'x-display-hide'; //affiche l'icone
+                                                } else {
+                                                    return 'x-hide-display'; //cache l'icone
+                                                }
+                                            }
+                                        }]
                                 },
                                 {
                                     xtype: 'actioncolumn',
@@ -588,19 +698,15 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     typeAhead: true,
                                     queryMode: 'local',
                                     emptyText: 'Filtre article...',
+                                    value: 'ALL',
                                     flex: 1,
                                     listeners: {
                                         select: function (cmp) {
-                                            var value = cmp.getValue();
+                                            const value = cmp.getValue();
                                             str_TYPE_TRANSACTION = value;
-//                                            ../webservices/commandemanagement/orderdetail/ws_data.jsp
-                                            var val = Ext.getCmp('rechercherDetail');
-                                            Ext.getCmp('gridpanelID').getStore().load({
-                                                params: {
-                                                    search_value: val.getValue(),
-                                                    filtre: value
-                                                }
-                                            });
+
+
+                                            Me_Window.onRechClick();
                                         }
                                     }
                                 }
@@ -612,10 +718,31 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                 pageSize: itemsPerPageGrid,
                                 store: store_details_order,
                                 displayInfo: true,
-                                plugins: new Ext.ux.ProgressBarPager()
+                                plugins: new Ext.ux.ProgressBarPager(),
+                                listeners: {
+                                    beforechange: function (page, currentPage) {
+
+                                        const myProxy = this.store.getProxy();
+                                        const val = Ext.getCmp('rechercherDetail');
+                                        const filtre = Ext.getCmp('str_TYPE_TRANSACTION');
+
+                                        myProxy.params = {
+                                            query: '',
+                                            filtre: 'ALL',
+                                            orderId: Me_Window.getNameintern()
+
+                                        };
+                                        myProxy.setExtraParam('query', val.getValue());
+                                        myProxy.setExtraParam('filtre', filtre.getValue());
+                                        myProxy.setExtraParam('orderId', Me_Window.getNameintern());
+                                    }
+
+                                }
+
                             },
                             listeners: {
                                 scope: this
+
                             }
                         }
 
@@ -629,20 +756,19 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     border: '0',
                     items: ['->',
                         {
-                            text: 'Enregistrer',
-                            id: 'btn_save',
+                            text: 'CREER BL',
+                            id: 'btn_creerbl',
                             iconCls: 'icon-clear-group',
                             scope: this,
-                            hidden: true,
-                            handler: this.onbtnsave
+                            handler: this.onCreateBLClick
                         },
+
                         {
                             text: 'Retour',
                             id: 'btn_cancel',
                             iconCls: 'icon-clear-group',
                             scope: this,
                             hidden: false,
-                            //disabled: true,
                             handler: this.onbtncancel
                         }
                     ]
@@ -659,7 +785,6 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         }
 
         if (titre === "Modifier les informations de la commande") {
-            var OgridpanelID = Ext.getCmp('gridpanelID');
             Ext.getCmp('lgGROSSISTEID').setValue(this.getOdatasource().str_GROSSISTE_LIBELLE);
             int_montant_achat = Ext.util.Format.number(this.getOdatasource().PRIX_ACHAT_TOTAL, '0,000.');
             int_montant_vente = Ext.util.Format.number(this.getOdatasource().PRIX_VENTE_TOTAL, '0,000.');
@@ -671,11 +796,14 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
 
         Ext.getCmp('gridpanelID').on('edit', function (editor, e) {
-            var qte = Number(e.record.data.int_NUMBER);
+            let qte = Number(e.record.data.int_NUMBER);
+            let url = '../api/v1/commande/updateorderitem';
             testextjs.app.getController('App').ShowWaitingProcess();
+            if (e.field === 'lg_FAMILLE_PRIX_VENTE') {
+                url = '../api/v1/commande/orderitem-prix-vente';
+            }
             Ext.Ajax.request({
-//                url: '../webservices/commandemanagement/order/ws_transaction.jsp?mode=update',
-                url: '../api/v1/commande/updateorderitem',
+                url: url,
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 params: Ext.JSON.encode({
@@ -685,44 +813,26 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     prixVente: e.record.data.lg_FAMILLE_PRIX_VENTE,
                     stock: qte
                 }),
-
-                /*params: {
-                 lg_ORDERDETAIL_ID: e.record.data.lg_ORDERDETAIL_ID,
-                 lg_ORDER_ID: e.record.data.lg_ORDER_ID,
-                 lg_FAMILLE_ID: e.record.data.lg_FAMILLE_ID,
-                 lg_GROSSISTE_ID: Ext.getCmp('lgGROSSISTEID').getValue(),
-                 int_NUMBER: qte,
-                 int_PRIX_REFERENCE: e.record.data.int_PRIX_REFERENCE,
-                 int_PAF: e.record.data.int_PAF,
-                 lg_FAMILLE_PRIX_ACHAT: e.record.data.lg_FAMILLE_PRIX_ACHAT,
-                 lg_FAMILLE_PRIX_VENTE: e.record.data.lg_FAMILLE_PRIX_VENTE,
-                 str_STATUT: e.record.data.str_STATUT
-                 },*/
-                success: function (response)
-                {
+                success: function (response) {
                     testextjs.app.getController('App').StopWaitingProcess();
-//                    var object = Ext.JSON.decode(response.responseText, false);
-                    var object = Ext.JSON.decode(response.responseText, true);
+                    const object = Ext.JSON.decode(response.responseText, true);
                     if (!object.success) {
                         Ext.MessageBox.alert('Error Message', "L'opération a échoué");
-                        OGrid.getStore().reload();
+                        Ext.getCmp('gridpanelID').getStore().reload();
                         return;
                     }
 
                     e.record.commit();
-                    var OGrid = Ext.getCmp('gridpanelID');
-                    OGrid.getStore().reload();
+                    Ext.getCmp('gridpanelID').getStore().reload();
+
                     Ext.getCmp('str_NAME').focus(true, 100, function () {
                         Ext.getCmp('str_NAME').setValue("");
                         Ext.getCmp('str_NAME').selectText(0, 1);
                     });
-                    int_montant_achat = Ext.util.Format.number(object.prixAchat, '0,000.');
-                    int_montant_vente = Ext.util.Format.number(object.prixVente, '0,000.');
-                    Ext.getCmp('int_VENTE').setValue(int_montant_vente);
-                    Ext.getCmp('int_ACHAT').setValue(int_montant_achat);
+
+                    Me_Window.getCommandeAmount(Me_Window.getNameintern());
                 },
-                failure: function (response)
-                {
+                failure: function (response) {
                     testextjs.app.getController('App').StopWaitingProcess();
                     console.log("Bug " + response.responseText);
                     Ext.MessageBox.alert('Error Message', response.responseText);
@@ -731,66 +841,55 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         });
     },
     loadStore: function () {
-        Ext.getCmp('gridpanelID').getStore().load();
+        Me_Window.onRechClick();
     },
 
     onbtndetail: function () {
-//        alert(Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue());
-        new testextjs.view.configmanagement.famille.action.detailArticleOther({
-            odatasource: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
+
+        new testextjs.view.configmanagement.famille.action.detailArticle({
+
+            produitId: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
             parentview: this,
             mode: "detail",
             titre: "Detail sur l'article [" + Ext.getCmp('str_NAME').getValue() + "]"
         });
     },
     onchangeGrossiste: function () {
-        //alert("HELLO WORLD");
         testextjs.app.getController('App').ShowWaitingProcess();
+
         Ext.Ajax.request({
-            url: '../webservices/commandemanagement/order/ws_transaction.jsp?mode=changeGrossiste',
+            url: '../api/v1/commande/change-grossiste',
+            method: 'GET',
+            timeout: 2400000,
             params: {
-                lg_ORDER_ID: ref,
-                lg_GROSSISTE_ID: Ext.getCmp('lgGROSSISTEID').getValue()
+                orderId: Me_Window.getNameintern(),
+                grossisteId: Ext.getCmp('lgGROSSISTEID').getValue()
             },
-            success: function (response)
-            {
+            success: function (response) {
                 testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success === "0") {
-                    Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
-                }
+
                 Ext.getCmp('str_NAME').focus(true, 100, function () {
                     Ext.getCmp('str_NAME').selectText(0, 1);
                 });
+
             },
-            failure: function (response)
-            {
-                testextjs.app.getController('App').StopWaitingProcess();
+            failure: function (response) {
+
                 console.log("Bug " + response.responseText);
                 Ext.MessageBox.alert('Error Message', response.responseText);
+                testextjs.app.getController('App').StopWaitingProcess();
             }
         });
     },
     onbtncancel: function () {
 
-        var xtype = "";
-        if (str_STATUT === "is_Process" || str_STATUT === "is_Process") {
-            xtype = "i_order_manager";
-        } else {
-            xtype = "orderpassmanager";
-        }
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource("i_order_manager", "", "", "");
+    },
 
-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
-    },
-    checkIfGridIsEmpty: function () {
-        var gridTotalCount = Ext.getCmp('gridpanelID').getStore().getTotalCount();
-        return gridTotalCount;
-    },
     updateCip: function (win, formulaire) {
-        var me = this;
+        let me = this;
         if (formulaire.isValid()) {
-            var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            let progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
             Ext.Ajax.request({
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -798,7 +897,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                 params: Ext.JSON.encode(formulaire.getValues()),
                 success: function (response, options) {
                     progress.hide();
-                    var result = Ext.JSON.decode(response.responseText, true);
+                    let result = Ext.JSON.decode(response.responseText, true);
                     if (result.success) {
                         win.destroy();
                         me.loadStore();
@@ -824,12 +923,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         }
     },
     onAddGrossisteClick: function (grid, rowIndex) {
-        var me = this;
-        var rec = grid.getStore().getAt(rowIndex);
-        var fam = rec.get('lg_FAMILLE_NAME');
-        var lg_FAMILLE_ID1 = rec.get('lg_FAMILLE_ID');
-        var lg_GROSSISTE_LIBELLE = rec.get('lg_GROSSISTE_LIBELLE');
-        var win = Ext.create("Ext.window.Window", {
+        let me = this;
+        let rec = grid.getStore().getAt(rowIndex);
+        let fam = rec.get('lg_FAMILLE_NAME');
+        let lg_FAMILLE_ID1 = rec.get('lg_FAMILLE_ID');
+        let lg_GROSSISTE_LIBELLE = rec.get('lg_GROSSISTE_LIBELLE');
+        let win = Ext.create("Ext.window.Window", {
             titre: "Ajouter un code article  [" + fam + "]",
             modal: true,
             width: 500,
@@ -842,8 +941,6 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                 {
                     xtype: 'form',
                     region: 'center',
-//                    url: '../Grossiste',
-//                    waitMsg: 'En cours  ...',
                     bodyPadding: 10,
                     fieldDefaults: {
                         labelAlign: 'right',
@@ -885,7 +982,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         },
                                         specialKey: function (field, e) {
                                             if (e.getKey() === e.ENTER) {
-                                                var formulaire = field.up('form');
+                                                let formulaire = field.up('form');
                                                 if (formulaire.isValid()) {
                                                     me.updateCip(win, formulaire);
                                                 }
@@ -919,7 +1016,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     xtype: 'button',
                                     text: 'Save',
                                     handler: function (btn) {
-                                        var formulaire = btn.up("form");
+                                        let formulaire = btn.up("form");
                                         console.log(formulaire);
                                         if (formulaire.isValid()) {
                                             me.updateCip(win, formulaire);
@@ -946,259 +1043,263 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         win.show();
 
 
-
     },
     onbtnaddArticle: function () {
         new testextjs.view.configmanagement.famille.action.add2({
-//        new testextjs.view.configmanagement.famille.action.add({
             odatasource: "",
             parentview: this,
             mode: "create",
-            titre: "Ajouter un nouvel article",
+            titre: "Creer un nouveau produit",
             type: "commande"
         });
     },
     onRemoveClick: function (grid, rowIndex) {
-        //alert('Suppression clickée');
-        //return;
-        var message = "Confirmer la suppresssion";
-        var mode = "deleteDetail";
-        var nbreRow = grid.getStore().getCount();
-        var detailGridCount = Ext.getCmp('gridpanelID').getStore().getCount();
-        console.log("nbreRow: ", nbreRow);
-        console.log("details grid Count: ", detailGridCount);
+        let message = "Confirmer la suppresssion";
         Ext.MessageBox.confirm('Message',
                 message,
                 function (btn) {
                     if (btn === 'yes') {
-                        var rec = grid.getStore().getAt(rowIndex);
+                        const rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_order + mode,
-                            params: {
-                                lg_ORDERDETAIL_ID: rec.get('lg_ORDERDETAIL_ID'),
-                                lg_ORDER_ID: ref
-                            },
-                            success: function (response)
-                            {
+                            method: 'DELETE',
+                            url: '../api/v1/commande/item/' + rec.get('lg_ORDERDETAIL_ID'),
+                            success: function (response) {
                                 testextjs.app.getController('App').StopWaitingProcess();
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == "0") {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                    return;
-                                }
-                                if (object.total_lineproduct == 0) {
-                                    Me_Window.onbtncancel();
-                                    return;
-                                }
-                                int_montant_achat = Ext.util.Format.number(object.PRIX_ACHAT_TOTAL, '0,000.');
-                                int_montant_vente = Ext.util.Format.number(object.PRIX_VENTE_TOTAL, '0,000.');
-                                Ext.getCmp('int_VENTE').setValue(int_montant_vente + '  CFA');
-                                Ext.getCmp('int_ACHAT').setValue(int_montant_achat + '  CFA');
-
-                                var gridStore = grid.getStore();
-                                console.log(gridStore);
-                                if (gridStore.getTotalCount() > 1) {
-                                    if (gridStore.getCount() === 1) {
-                                        gridStore.loadPage(gridStore.currentPage - 1);
-
-
-
-                                    } else {
-                                        gridStore.load();
-                                    }
-                                } else {
-                                    gridStore.load();
-                                }
+                                grid.getStore().reload();
                                 Ext.getCmp('str_NAME').focus(true, 100, function () {
                                     Ext.getCmp('str_NAME').selectText(0, 1);
                                 });
+                                Me_Window.getCommandeAmount(Me_Window.getNameintern());
+
                             },
-                            failure: function (response)
-                            {
+                            failure: function (response) {
                                 testextjs.app.getController('App').StopWaitingProcess();
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                console.log("Bug " + response.responseText);
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });
-                        return;
+
+
                     }
                 });
     },
-    onSelectionChange: function (model, records) {
-        var rec = records[0];
-        if (rec) {
-            this.getForm().loadRecord(rec);
-        }
-    },
-    onbtnsave: function () {
 
-        Ext.MessageBox.confirm('Message',
-                'Confirmer l\'enregistrement de la commande',
-                function (btn) {
-                    if (btn === 'yes') {
-
-                        Ext.Ajax.request({
-                            url: url_services_transaction_order + 'passeorder',
-                            params: {
-                                lg_ORDER_ID: ref
-                            },
-                            success: function (response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == "0") {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                    return;
-                                }
-
-                                Ext.MessageBox.confirm('Message',
-                                        'Imprimer le bon de commande?',
-                                        function (btn) {
-                                            if (btn === 'yes') {
-                                                Me_Window.onPdfClick(ref);
-                                                return;
-                                            }
-                                            Me_Window.onbtncancel();
-                                        });
-                            },
-                            failure: function (response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                console.log("Bug " + response.responseText);
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-                            }
-                        });
-                    }
-                });
-//        this.up('window').close();
-    },
     onDetailClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-        new testextjs.view.configmanagement.famille.action.detailArticleOther({
-            odatasource: rec.get('lg_FAMILLE_ID'),
+        const rec = grid.getStore().getAt(rowIndex);
+        new testextjs.view.configmanagement.famille.action.detailArticle({
+            odatasource: rec.data,
+            produitId: rec.get('lg_FAMILLE_ID'),
             parentview: this,
             mode: "detail",
-            titre: "Detail sur l'article [" + rec.get('lg_FAMILLE_NAME') + "]"
+            titre: "Detail sur l'article [" + rec.get('str_DESCRIPTION') + "]"
         });
     },
-    onPdfClick: function (lg_ORDER_ID) {
-        var chaine = location.pathname;
-        var reg = new RegExp("[/]+", "g");
-        var tableau = chaine.split(reg);
-        var sitename = tableau[1];
-        var linkUrl = url_services_pdf + '?lg_ORDER_ID=' + lg_ORDER_ID;
-        //alert("Ok ca marche " + linkUrl);
-        window.open(linkUrl);
-        Me_Window.onbtncancel();
+    onVoirLots: function (grid, rowIndex) {
+
+        const rec = grid.getStore().getAt(rowIndex);
+
+        const achatsStore = Ext.create('Ext.data.Store', {
+            fields: [
+                {name: 'numeroLot', type: 'string'},
+                {name: 'datePeremption', type: 'string'},
+                {name: 'quantity', type: 'int'}
+            ],
+            data: rec.get('lots')
+
+
+        });
+
+
+        const form = Ext.create('Ext.window.Window',
+                {
+                    xtype: 'detailLot',
+                    alias: 'widget.detailLot',
+                    autoShow: true,
+                    height: 400,
+                    width: '50%',
+                    modal: true,
+                    title: '<span style="font-size:14px;"> DETAILS LOTS ' + rec.get('lg_FAMILLE_NAME') + '</span>',
+
+                    closeAction: 'hide',
+
+                    closable: true,
+                    maximizable: true,
+                    layout: {
+                        type: 'fit'
+
+                    },
+                    dockedItems: [
+
+                        {
+                            xtype: 'toolbar',
+                            dock: 'bottom',
+                            ui: 'footer',
+                            layout: {
+                                pack: 'end',
+                                type: 'hbox'
+                            },
+                            items: [
+
+                                {
+                                    xtype: 'button',
+                                    itemId: 'btnCancel',
+                                    text: 'Fermer',
+                                    handler: function () {
+                                        form.destroy();
+                                    }
+
+                                }
+                            ]
+                        }
+                    ],
+                    items: [
+                        {
+                            xtype: 'gridpanel',
+                            store: achatsStore,
+                            viewConfig: {
+                                forceFit: true,
+                                columnLines: true,
+                                enableColumnHide: false
+
+                            },
+
+                            columns: [
+                                {
+                                    xtype: 'rownumberer',
+                                    width: 50
+                                },
+
+                                {
+                                    header: 'Numéro de lot',
+                                    dataIndex: 'numeroLot',
+                                    flex: 1,
+                                    sortable: false,
+                                    menuDisabled: true
+                                }, {
+                                    header: 'Quantité',
+                                    xtype: 'numbercolumn',
+                                    dataIndex: 'quantity',
+                                    align: 'right',
+                                    sortable: false,
+                                    menuDisabled: true,
+                                    flex: 1,
+                                    format: '0,000.'
+
+                                }, {
+                                    header: 'Date de péremption',
+                                    dataIndex: 'datePeremption',
+                                    sortable: false,
+                                    menuDisabled: true,
+                                    flex: 1
+                                }
+                            ]
+
+
+                        }
+                    ]
+                });
+
     },
     onRechClick: function () {
-        var val = Ext.getCmp('rechercherDetail');
+        const me = this;
+        const val = Ext.getCmp('rechercherDetail');
+        const filtre = Ext.getCmp('str_TYPE_TRANSACTION');
         Ext.getCmp('gridpanelID').getStore().load({
             params: {
-                search_value: val.getValue()
+                query: val.getValue(),
+                filtre: filtre.getValue(),
+                orderId: me.getNameintern()
             }
-        }, url_services_data_orderdetails_process);
-    }
-});
-function onfiltercheckingCommande() {
-    var OComponent = Ext.getCmp('str_NAME');
-    var OComponent_val = OComponent.getValue();
-    var OFamille_store = OComponent;
-    if (OComponent_val !== null && OComponent_val !== "" && OComponent_val !== undefined) {
-        var OComponent_length = OComponent_val.length;
-        if (OComponent_length >= 3) {
+        });
+    },
 
-            OFamille_store.getStore().getProxy().url = url_services_data_famille_select_order + "?search_value=" + OComponent_val;
-            OFamille_store.getStore().reload();
-        }
-    } else {
-
-        //alert('ici');
-        OFamille_store.getStore().getProxy().url = url_services_data_famille_select_order;
-        OFamille_store.getStore().reload();
-    }
-}
-;
-
-function onbtnaddCommande(ref_f) {
-    var internal_url = "";
-    if (ref === "") {
-        ref = null;
-    } else if (ref === undefined) {
-        ref = null;
-    }
-    ref = ref_f;
-    /*alert("ref " + ref_f);
-     return;*/
-
-    if (Ext.getCmp('lgGROSSISTEID').getValue() == null) {
-
-        Ext.MessageBox.alert('Error Message', 'Renseignez le Grossiste ');
-    } else {
-
-        testextjs.app.getController('App').ShowWaitingProcess();
+    getCommandeAmount: function (id) {
+        const me = this;
         Ext.Ajax.request({
-            url: '../webservices/commandemanagement/order/ws_transaction.jsp?mode=create',
-            params: {
-//                lg_FAMILLE_ID: Ext.getCmp('str_NAME').getValue(),
-                lg_FAMILLE_ID: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
-                lg_ORDER_ID: ref,
-                lg_ORDERDETAIL_ID: null,
-                lg_GROSSISTE_ID: Ext.getCmp('lgGROSSISTEID').getValue(),
-                int_NUMBER: Ext.getCmp('int_QUANTITE').getValue(),
-                str_STATUT: str_STATUT
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/commande/amount/' + id,
+            success: function (response, options) {
+                const data = Ext.JSON.decode(response.responseText, true);
 
-            },
-            success: function (response)
-            {
-                testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success == "0") {
-                    Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
-                } else {
-                    ref = object.ref;
-                    ref_final = ref;
-                    // url_services_data_orderdetails = '../webservices/commandemanagement/orderdetail/ws_data.jsp?lg_ORDER_ID=' + ref;
-                    setTitleFrame(object.ref);
-                    var OGrid = Ext.getCmp('gridpanelID');
-                    OGrid.getStore().reload();
+                me.updateAmountFields(data);
+
+            }
+        });
+
+    },
+    updateAmountFields: function (data) {
+        const me = this;
+        if (data) {
+            int_montant_achat = Ext.util.Format.number(data.prixAchat, '0,000.');
+            int_montant_vente = Ext.util.Format.number(data.prixVente, '0,000.');
+            Ext.getCmp('int_VENTE').setValue(int_montant_vente + '  CFA');
+            Ext.getCmp('int_ACHAT').setValue(int_montant_achat + '  CFA');
+            me.orderRef = data.orderRef;
+            me.prixAchat = data.prixAchat;
+
+
+        }
+
+    },
+    onPdfClick: function () {
+        const me = this;
+        const linkUrl = '../EditionCommandeServlet?orderId=' + me.getNameintern() + '&refCommande=' + me.getOdatasource().str_REF_ORDER;
+        window.open(linkUrl);
+    },
+    onAddNewItem: function () {
+        const  me = this;
+        if (Ext.getCmp('lgGROSSISTEID').getValue() === null) {
+            Ext.MessageBox.alert('Error Message', 'Renseignez le Grossiste ');
+        } else {
+            testextjs.app.getController('App').ShowWaitingProcess();
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/commande/item/add',
+                params: Ext.JSON.encode({
+                    familleId: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
+                    orderId: me.getNameintern(),
+                    grossisteId: Ext.getCmp('lgGROSSISTEID').getValue(),
+                    statut: str_STATUT,
+                    qte: Ext.getCmp('int_QUANTITE').getValue()
+                }),
+
+                success: function (response) {
+                    const data = Ext.JSON.decode(response.responseText, true);
+                    me.nameintern = data.orderId;
+
+                    testextjs.app.getController('App').StopWaitingProcess();
+                    me.onRechClick();
                     Ext.getCmp('int_QUANTITE').setValue(1);
                     Ext.getCmp('str_NAME').focus(true, 100, function () {
                         Ext.getCmp('str_NAME').setValue("");
                         Ext.getCmp('str_NAME').selectText(0, 1);
+                        me.getCommandeAmount(data.orderId);
                     });
-                    int_montant_achat = Ext.util.Format.number(object.PRIX_ACHAT_TOTAL, '0,000.');
-                    int_montant_vente = Ext.util.Format.number(object.PRIX_VENTE_TOTAL, '0,000.');
 
-                    Ext.getCmp('btn_detail').disable();
-
-                    Ext.getCmp('int_VENTE').setValue(int_montant_vente + '  CFA');
-                    Ext.getCmp('int_ACHAT').setValue(int_montant_achat + '  CFA');
+                },
+                failure: function (response) {
+                    testextjs.app.getController('App').StopWaitingProcess();
+                    Ext.MessageBox.alert('Error Message', response.responseText);
                 }
-
-
-            },
-            failure: function (response)
-            {
-                testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
-            }
+            });
+        }
+    },
+    onCreateBLClick: function () {
+        const me = this;//
+        const orderId = me.getOdatasource()?.lg_ORDER_ID ? me.getOdatasource().lg_ORDER_ID : me.getNameintern();
+        const  montantAchat = me.getPrixAchat();
+        const orderRef = me.getOdatasource()?.str_REF_ORDER ? me.getOdatasource().str_REF_ORDER : me.getOrderRef();
+        new testextjs.view.commandemanagement.cmde_passees.action.add({
+            idOrder: orderId,
+            odatasource: orderRef,
+            montantachat: montantAchat,
+            parentview: this,
+            mode: "create",
+            titre: "Creation bon de livraison"
         });
     }
+});
 
-}
 
-
-function setTitleFrame(str_data) {
-    this.title = this.title + " :: Ref " + str_data;
-    ref = str_data;
-    // url_services_data_orderdetails_process = '../webservices/commandemanagement/orderdetail/ws_data.jsp?lg_ORDER_ID=' + ref;
-    var OGrid = Ext.getCmp('gridpanelID');
-    //   url_services_data_orderdetails_process = '../webservices/commandemanagement/orderdetail/ws_data.jsp?lg_ORDER_ID=' + ref;
-    OGrid.getStore().getProxy().url = url_services_data_orderdetails_process + '?lg_ORDER_ID=' + ref;
-    OGrid.getStore().reload();
-}

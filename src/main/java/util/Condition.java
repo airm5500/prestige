@@ -24,8 +24,7 @@ public final class Condition {
         EQUAL, NOT_EQUAL, GREATER_THAN, LESS_THAN, LIKE
     }
 
-    public Condition(String leftHand, String rightHand,
-            OperationType operation, LogicalOperatorType operator) {
+    public Condition(String leftHand, String rightHand, OperationType operation, LogicalOperatorType operator) {
         this.leftHand = leftHand;
         this.rightHand = rightHand;
         this.operation = operation;
@@ -47,6 +46,5 @@ public final class Condition {
     public LogicalOperatorType getOperator() {
         return operator;
     }
-    
-    
+
 }

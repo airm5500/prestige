@@ -5,7 +5,6 @@
  */
 package rest;
 
-import bll.common.Parameter;
 import commonTasks.dto.ArticleHeader;
 import commonTasks.dto.ClotureVenteParams;
 import commonTasks.dto.Params;
@@ -23,11 +22,13 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -43,12 +44,12 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.json.JSONException;
 import org.json.JSONObject;
-import rest.service.CommonService;
 import rest.service.GenerateTicketService;
 import rest.service.SalesStatsService;
-import rest.service.impl.ImportationVente;
-import toolkits.parameters.commonparameter;
-import util.DateConverter;
+import rest.service.TvaService;
+import util.CommonUtils;
+import util.Constant;
+import util.FunctionUtils;
 
 /**
  *
@@ -64,66 +65,47 @@ public class SalesStatsRessource {
     @EJB
     SalesStatsService salesService;
     @EJB
-    CommonService commonService;
-    @EJB
     GenerateTicketService generateTicketService;
+
     @EJB
-    ImportationVente importationVente;
+    private TvaService tvaService;
 
     @GET
     @Path("preventes")
-    public Response getDetails(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "typeVenteId") String typeVenteId, @QueryParam(value = "statut") String statut
-    ) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean asAuthority = DateConverter.hasAuthorityByName(LstTPrivilege, commonparameter.str_SHOW_VENTE);
-        boolean allActivitis = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_SHOW_ALL_ACTIVITY);
+    public Response getDetails(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "typeVenteId") String typeVenteId,
+            @DefaultValue(value = "is_Process") @QueryParam(value = "statut") String statut,
+            @QueryParam(value = "nature") String nature) throws JSONException {
         SalesStatsParams body = new SalesStatsParams();
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
         body.setStatut(statut);
+        body.setNature(nature);
         body.setAll(false);
         body.setTypeVenteId(typeVenteId);
-        body.setShowAll(asAuthority);
-        body.setShowAllActivities(allActivitis);
-        body.setUserId(tu);
-        JSONObject jsono = salesService.getListeTPreenregistrement(body);
+        JSONObject jsono = salesService.getPreVentes(body);
         return Response.ok().entity(jsono.toString()).build();
     }
 
     @GET
     @Path("annulations")
-    public Response annulations(
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "statut") String statut
-    ) throws JSONException {
+    public Response annulations(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "statut") String statut)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean asAuthority = DateConverter.hasAuthorityByName(LstTPrivilege, commonparameter.str_SHOW_VENTE);
-        boolean allActivitis = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_SHOW_ALL_ACTIVITY);
+        List<TPrivilege> hsAttribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean asAuthority = CommonUtils.hasAuthorityByName(hsAttribute, Constant.SHOW_VENTE);
+        boolean allActivitis = CommonUtils.hasAuthorityByName(hsAttribute, Constant.P_SHOW_ALL_ACTIVITY);
         SalesStatsParams body = new SalesStatsParams();
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
-        body.setStatut(commonparameter.statut_is_Closed);
+        body.setStatut(Constant.STATUT_IS_CLOSED);
         body.setAll(false);
         body.setShowAll(asAuthority);
         body.setShowAllActivities(allActivitis);
@@ -141,43 +123,32 @@ public class SalesStatsRessource {
     @POST
     @Path("remove/{id}")
     public Response delete(@PathParam("id") String id) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+
         JSONObject json = salesService.delete(id);
         return Response.ok().entity(json.toString()).build();
     }
 
-    @POST
-    @Path("update/{venteId}")
-    public Response update(@PathParam("venteId") String venteId, String statut) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+    @PUT
+    @Path("update/{venteId}/{statut}")
+    public Response update(@PathParam("venteId") String venteId, @PathParam("statut") String statut)
+            throws JSONException {
         JSONObject json = salesService.trash(venteId, statut);
-        return Response.ok().entity(json).build();
+        return Response.ok().entity(json.toString()).build();
     }
 
     @GET
     @Path("devis")
-    public Response allDevis(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "statut") String statut
-    ) throws JSONException {
+    public Response allDevis(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "statut") String statut)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean asAuthority = DateConverter.hasAuthorityByName(LstTPrivilege, commonparameter.str_SHOW_VENTE);
-        boolean allActivitis = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_SHOW_ALL_ACTIVITY);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean asAuthority = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.SHOW_VENTE);
+        boolean allActivitis = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_SHOW_ALL_ACTIVITY);
         SalesStatsParams body = new SalesStatsParams();
         body.setLimit(limit);
         body.setStart(start);
@@ -200,19 +171,14 @@ public class SalesStatsRessource {
 
     @GET
     @Path("preventes-depot")
-    public Response preventeDepotOnly(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "typeVenteId") String typeVenteId, @QueryParam(value = "statut") String statut
-    ) throws JSONException {
+    public Response preventeDepotOnly(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "typeVenteId") String typeVenteId,
+            @QueryParam(value = "statut") String statut) throws JSONException {
         HttpSession hs = servletRequest.getSession();
-
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean asAuthority = DateConverter.hasAuthorityByName(LstTPrivilege, commonparameter.str_SHOW_VENTE);
-        boolean allActivitis = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_SHOW_ALL_ACTIVITY);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean asAuthority = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.SHOW_VENTE);
+        boolean allActivitis = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_SHOW_ALL_ACTIVITY);
         SalesStatsParams body = new SalesStatsParams();
         body.setLimit(limit);
         body.setStart(start);
@@ -230,13 +196,8 @@ public class SalesStatsRessource {
 
     @GET
     @Path("depot/{id}")
-    public Response getOne(@PathParam("id") String id) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
+    public Response getDepot(@PathParam("id") String id) throws JSONException {
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
         JSONObject json = salesService.findVenteById(id);
         return Response.ok().entity(json.toString()).build();
     }
@@ -244,56 +205,49 @@ public class SalesStatsRessource {
     @GET
     @Path("{id}")
     public Response findOne(@PathParam("id") String id) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
         JSONObject json = salesService.reloadVenteById(id);
         return Response.ok().entity(json.toString()).build();
     }
 
-    @GET
-    public Response getAlls(
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "hStart") String hStart,
-            @QueryParam(value = "hEnd") String hEnd,
-            @QueryParam(value = "sansBon") boolean sansBon,
-            @QueryParam(value = "onlyAvoir") boolean onlyAvoir,
-            @QueryParam(value = "typeVenteId") String typeVenteId
-    ) throws JSONException {
+    private SalesStatsParams buildParams(int start, int limit, String query, String dtStart, String dtEnd,
+            String hStart, String hEnd, boolean sansBon, boolean onlyAvoir, String typeVenteId, String nature,
+            Boolean depotOnly, String typeDepotId, String depotId) {
         HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean asAuthority = DateConverter.hasAuthorityByName(LstTPrivilege, commonparameter.str_SHOW_VENTE);
-        boolean allActivitis = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_SHOW_ALL_ACTIVITY);
-        boolean canCancel = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_BT_ANNULER_VENTE);
-        boolean modification = DateConverter.hasAuthorityByName(LstTPrivilege, DateConverter.P_BT_MODIFICATION_DE_VENTE);
-        boolean modificationClientTp = DateConverter.hasAuthorityByName(LstTPrivilege, DateConverter.P_BTN_UPDATE_VENTE_CLIENT_TP);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean asAuthority = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.SHOW_VENTE);
+        boolean allActivitis = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_SHOW_ALL_ACTIVITY);
+        boolean canCancel = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_BT_ANNULER_VENTE);
+        boolean modification = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_BT_MODIFICATION_DE_VENTE);
+        boolean modificationClientTp = CommonUtils.hasAuthorityByName(lstTPrivilege,
+                Constant.P_BTN_UPDATE_VENTE_CLIENT_TP);
+        boolean modificationVenteDate = CommonUtils.hasAuthorityByName(lstTPrivilege,
+                Constant.P_BTN_UPDATE_VENTE_CLIENT_DATE);
         SalesStatsParams body = new SalesStatsParams();
+        if (Objects.nonNull(depotOnly)) {
+            body.setDepotOnly(depotOnly);
+        }
         body.setCanCancel(canCancel);
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
         body.setTypeVenteId(typeVenteId);
-        body.setStatut(commonparameter.statut_is_Closed);
+        body.setStatut(Constant.STATUT_IS_CLOSED);
         body.setAll(false);
         body.setSansBon(sansBon);
+        body.setNature(nature);
         body.setOnlyAvoir(onlyAvoir);
         body.setShowAll(asAuthority);
         body.setShowAllActivities(allActivitis);
         body.setUserId(tu);
         body.setModification(modification);
         body.setModificationClientTp(modificationClientTp);
+        body.setModificationVenteDate(modificationVenteDate);
+        body.setTypeDepotId(typeDepotId);
+        body.setDepotId(depotId);
         try {
             body.sethEnd(LocalTime.parse(hEnd));
         } catch (Exception e) {
@@ -307,6 +261,20 @@ public class SalesStatsRessource {
             body.setDtStart(LocalDate.parse(dtStart));
         } catch (Exception e) {
         }
+        return body;
+    }
+
+    @GET
+    public Response getAlls(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "hStart") String hStart,
+            @QueryParam(value = "hEnd") String hEnd, @QueryParam(value = "sansBon") boolean sansBon,
+            @QueryParam(value = "onlyAvoir") boolean onlyAvoir, @QueryParam(value = "typeVenteId") String typeVenteId,
+            @QueryParam(value = "nature") String nature, @QueryParam(value = "depotOnly") Boolean depotOnly,
+            @QueryParam(value = "typeDepotId") String typeDepotId, @QueryParam(value = "depotId") String depotId)
+            throws JSONException {
+        SalesStatsParams body = buildParams(start, limit, query, dtStart, dtEnd, hStart, hEnd, sansBon, onlyAvoir,
+                typeVenteId, nature, depotOnly, typeDepotId, depotId);
         JSONObject jsono = salesService.listeVentes(body);
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -327,23 +295,19 @@ public class SalesStatsRessource {
 
     @GET
     @Path("avoirs")
-    public Response getAllsAvoir(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "hStart") String hStart,
-            @QueryParam(value = "hEnd") String hEnd,
-            @QueryParam(value = "typeVenteId") String typeVenteId
-    ) throws JSONException {
+    public Response getAllsAvoir(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "hStart") String hStart,
+            @QueryParam(value = "hEnd") String hEnd, @QueryParam(value = "typeVenteId") String typeVenteId,
+            @QueryParam(value = "nature") String nature) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
-        List<TPrivilege> LstTPrivilege = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean asAuthority = DateConverter.hasAuthorityByName(LstTPrivilege, commonparameter.str_SHOW_VENTE);
-        boolean allActivitis = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_SHOW_ALL_ACTIVITY);
-        boolean canCancel = DateConverter.hasAuthorityByName(LstTPrivilege, Parameter.P_BT_ANNULER_VENTE);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
+        List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean asAuthority = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.SHOW_VENTE);
+        boolean allActivitis = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_SHOW_ALL_ACTIVITY);
+        boolean canCancel = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_BT_ANNULER_VENTE);
 
         SalesStatsParams body = new SalesStatsParams();
         body.setCanCancel(canCancel);
@@ -351,7 +315,8 @@ public class SalesStatsRessource {
         body.setStart(start);
         body.setQuery(query);
         body.setTypeVenteId(null);
-        body.setStatut(commonparameter.statut_is_Closed);
+        body.setNature(nature);
+        body.setStatut(Constant.STATUT_IS_CLOSED);
         body.setAll(false);
         body.setSansBon(false);
         body.setOnlyAvoir(true);
@@ -378,29 +343,37 @@ public class SalesStatsRessource {
 
     @GET
     @Path("tvastat")
-    public Response tvastat(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "typeVente") String typeVente) throws JSONException {
+    @Deprecated
+    public Response tvastat(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "typeVente") String typeVente) throws JSONException {
         HttpSession hs = servletRequest.getSession();
-
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        Params params = new Params();
-        params.setDtEnd(dtEnd);
-        params.setDtStart(dtStart);
-        params.setOperateur(tu);
-        params.setRef(typeVente);
-        JSONObject json = salesService.tvasViewData2(params);
-        return Response.ok().entity(json.toString()).build();
+        if (!tvaService.isExcludTiersPayantActive()) {
+            Params params = new Params();
+            params.setDtEnd(dtEnd);
+            params.setDtStart(dtStart);
+            params.setOperateur(tu);
+            params.setRef(typeVente);
+            JSONObject json = salesService.tvasViewData2(params);
+            return Response.ok().entity(json.toString()).build();
+        } else {
+            JSONObject json = tvaService.tvaData(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), false, null);
+            return Response.ok().entity(json.toString()).build();
+        }
+
     }
 
     @PUT
     @Path("modifiertierspayant/{id}")
-    public Response modifiertpayantvente(@PathParam("id") String venteId, ClotureVenteParams params) throws JSONException {
+    public Response modifiertpayantvente(@PathParam("id") String venteId, ClotureVenteParams params)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = salesService.modifiertypevente(venteId, params);
         return Response.ok().entity(json.toString()).build();
@@ -409,11 +382,7 @@ public class SalesStatsRessource {
     @GET
     @Path("venteTierspayantData/{id}")
     public Response venteTierspayantData(@PathParam("id") String venteId) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+
         List<TiersPayantParams> data = salesService.venteTierspayantData(venteId);
         JSONObject json = new JSONObject();
         json.put("total", data.size());
@@ -426,8 +395,7 @@ public class SalesStatsRessource {
     public Response findAllVenteOrdonnancier(@QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
             @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "medecinId") String medecinId
-    ) throws JSONException {
+            @QueryParam(value = "medecinId") String medecinId) throws JSONException {
 
         JSONObject jsono = salesService.findAllVenteOrdonnancier(medecinId, dtStart, dtEnd, query, start, limit);
         return Response.ok().entity(jsono.toString()).build();
@@ -435,29 +403,19 @@ public class SalesStatsRessource {
 
     @GET
     @Path("article-vendus")
-    public Response articlesVendus(
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "hStart") String hStart,
-            @QueryParam(value = "hEnd") String hEnd,
-            @QueryParam(value = "user") String user,
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "typeTransaction") String typeTransaction,
-            @QueryParam(value = "nbre") int nbre,
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "stock") int stock,
+    public Response articlesVendus(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "hStart") String hStart,
+            @QueryParam(value = "hEnd") String hEnd, @QueryParam(value = "user") String user,
+            @QueryParam(value = "query") String query, @QueryParam(value = "typeTransaction") String typeTransaction,
+            @QueryParam(value = "nbre") int nbre, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit, @QueryParam(value = "stock") Integer stock,
             @QueryParam(value = "prixachatFiltre") String prixachatFiltre,
-            @QueryParam(value = "stockFiltre") String stockFiltre,
-            @QueryParam(value = "rayonId") String rayonId,
-            @QueryParam(value = "produitId") String produitId
-    ) throws JSONException {
+            @QueryParam(value = "stockFiltre") String stockFiltre, @QueryParam(value = "rayonId") String rayonId,
+            @QueryParam(value = "produitId") String produitId) throws JSONException {
 
         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
         SalesStatsParams body = new SalesStatsParams();
         body.setUserId(tu);
         body.setUser(user);
@@ -465,7 +423,7 @@ public class SalesStatsRessource {
         body.setStart(start);
         body.setQuery(query);
         body.setTypeVenteId(null);
-        body.setStatut(commonparameter.statut_is_Closed);
+        body.setStatut(Constant.STATUT_IS_CLOSED);
         body.setAll(false);
         body.setStock(stock);
         body.setRayonId(rayonId);
@@ -497,27 +455,20 @@ public class SalesStatsRessource {
 
     @GET
     @Path("article-vendus-recap")
-    public Response articlesVendusRecap(
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "hStart") String hStart,
-            @QueryParam(value = "hEnd") String hEnd,
-            @QueryParam(value = "user") String user,
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "typeTransaction") String typeTransaction,
-            @QueryParam(value = "nbre") int nbre,
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "stock") int stock,
+    public Response articlesVendusRecap(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "hStart") String hStart,
+            @QueryParam(value = "hEnd") String hEnd, @QueryParam(value = "user") String user,
+            @QueryParam(value = "query") String query, @QueryParam(value = "typeTransaction") String typeTransaction,
+            @QueryParam(value = "nbre") int nbre, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit, @QueryParam(value = "stock") Integer stock,
             @QueryParam(value = "prixachatFiltre") String prixachatFiltre,
-            @QueryParam(value = "stockFiltre") String stockFiltre,
-            @QueryParam(value = "rayonId") String rayonId
-    ) throws JSONException {
+            @QueryParam(value = "stockFiltre") String stockFiltre, @QueryParam(value = "rayonId") String rayonId,
+            @QueryParam(value = "qteVendu") Integer qteVendu) throws JSONException {
 
         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         SalesStatsParams body = new SalesStatsParams();
         body.setUserId(tu);
@@ -526,13 +477,14 @@ public class SalesStatsRessource {
         body.setStart(start);
         body.setQuery(query);
         body.setTypeVenteId(null);
-        body.setStatut(commonparameter.statut_is_Closed);
+        body.setStatut(Constant.STATUT_IS_CLOSED);
         body.setAll(false);
         body.setStock(stock);
         body.setRayonId(rayonId);
         body.setTypeTransaction(typeTransaction);
         body.setStockFiltre(stockFiltre);
         body.setPrixachatFiltre(prixachatFiltre);
+        body.setQteVendu(qteVendu);
         body.setNbre(nbre);
         try {
             body.setDtEnd(LocalDate.parse(dtEnd));
@@ -558,35 +510,21 @@ public class SalesStatsRessource {
 
     @GET
     @Path("suggerer")
-    public Response addVente(
-     @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "hStart") String hStart,
-            @QueryParam(value = "hEnd") String hEnd,
-            @QueryParam(value = "user") String user,
-            @QueryParam(value = "query") String query,
-            @QueryParam(value = "typeTransaction") String typeTransaction,
-            @QueryParam(value = "nbre") int nbre,
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "stock") int stock,
-            @QueryParam(value = "prixachatFiltre") String prixachatFiltre,
-            @QueryParam(value = "stockFiltre") String stockFiltre,
-            @QueryParam(value = "rayonId") String rayonId
-    ) {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
-         SalesStatsParams body = new SalesStatsParams();
-        body.setUserId(tu);
+    public Response suggerer(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "hStart") String hStart, @QueryParam(value = "hEnd") String hEnd,
+            @QueryParam(value = "user") String user, @QueryParam(value = "query") String query,
+            @QueryParam(value = "typeTransaction") String typeTransaction, @QueryParam(value = "nbre") int nbre,
+            @QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "stock") Integer stock, @QueryParam(value = "prixachatFiltre") String prixachatFiltre,
+            @QueryParam(value = "stockFiltre") String stockFiltre, @QueryParam(value = "rayonId") String rayonId,
+            @QueryParam(value = "qteVendu") Integer qteVendu, @QueryParam(value = "isReappro") Boolean isReappro) {
+        SalesStatsParams body = new SalesStatsParams();
         body.setUser(user);
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
         body.setTypeVenteId(null);
-        body.setStatut(commonparameter.statut_is_Closed);
+        body.setStatut(Constant.STATUT_IS_CLOSED);
         body.setAll(false);
         body.setStock(stock);
         body.setRayonId(rayonId);
@@ -594,6 +532,7 @@ public class SalesStatsRessource {
         body.setStockFiltre(stockFiltre);
         body.setPrixachatFiltre(prixachatFiltre);
         body.setNbre(nbre);
+        body.setQteVendu(qteVendu);
         try {
             body.setDtEnd(LocalDate.parse(dtEnd));
         } catch (Exception e) {
@@ -611,22 +550,21 @@ public class SalesStatsRessource {
 
         } catch (Exception e) {
         }
-        JSONObject json = salesService.articleVendusASuggerer(body);
+        JSONObject json = salesService.articleVendusASuggerer(body, Objects.requireNonNullElse(isReappro, false));
         return Response.ok().entity(json.toString()).build();
     }
-    
-    
-     @GET
+
+    @GET
     @Path("devis/csv")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
-    public Response exportToCsv(@QueryParam("id") String venteId,@QueryParam("ref") String ref) {
-         StreamingOutput output = (OutputStream out) -> {
+    public Response exportToCsv(@QueryParam("id") String venteId, @QueryParam("ref") String ref) {
+        StreamingOutput output = (OutputStream out) -> {
             try {
                 List<TPreenregistrementDetail> detailses = salesService.venteDetailByVenteId(venteId);
                 Writer writer = new OutputStreamWriter(out, "UTF-8");
 
-                try (CSVPrinter printer = CSVFormat.EXCEL
-                        .withDelimiter(';').withHeader(ArticleHeader.class).print(writer)) {
+                try (CSVPrinter printer = CSVFormat.EXCEL.withDelimiter(';').withHeader(ArticleHeader.class)
+                        .print(writer)) {
 
                     detailses.forEach(f -> {
                         try {
@@ -642,12 +580,37 @@ public class SalesStatsRessource {
                 throw new WebApplicationException("File Not Found !!");
             }
         };
-        String filename = "devis_"+ref+"_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".csv";
-        return Response
-                .ok(output, MediaType.APPLICATION_OCTET_STREAM)
-                .header("content-disposition", "attachment; filename = " + filename)
-                .build();
+        String filename = "devis_" + ref + "_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".csv";
+        return Response.ok(output, MediaType.APPLICATION_OCTET_STREAM)
+                .header("content-disposition", "attachment; filename = " + filename).build();
 
     }
-    
+
+    @GET
+    @Path("find-one/{id}")
+    public Response getOne(@PathParam("id") String venteId) {
+
+        JSONObject json = FunctionUtils.returnData(salesService.getOne(venteId));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("depot-amount")
+    public Response getDepotAmount(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "hStart") String hStart,
+            @QueryParam(value = "hEnd") String hEnd, @QueryParam(value = "sansBon") boolean sansBon,
+            @QueryParam(value = "onlyAvoir") boolean onlyAvoir, @QueryParam(value = "typeVenteId") String typeVenteId,
+            @QueryParam(value = "nature") String nature, @QueryParam(value = "depotOnly") Boolean depotOnly,
+            @QueryParam(value = "typeDepotId") String typeDepotId, @QueryParam(value = "depotId") String depotId)
+            throws JSONException {
+        SalesStatsParams body = buildParams(start, limit, query, dtStart, dtEnd, hStart, hEnd, sansBon, onlyAvoir,
+                typeVenteId, nature, depotOnly, typeDepotId, depotId);
+        JSONObject jsono = new JSONObject();
+        long amount = salesService.montantDepot(body);
+        jsono.put("amount", amount);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
 }

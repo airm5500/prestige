@@ -19,8 +19,8 @@ import util.DateConverter;
  */
 public class HistoriqueImportationDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-    private String user,id;
-//    private List<HistoriqueImportValue> deatils = new ArrayList<>();
+    private String user, id;
+    // private List<HistoriqueImportValue> deatils = new ArrayList<>();
     private String createdAt;
     private Integer montantAchat;
     private Integer montantVente;
@@ -101,33 +101,33 @@ public class HistoriqueImportationDTO implements Serializable {
         this.nbreLigne = nbreLigne;
     }
 
-//    public List<HistoriqueImportValue> getDeatils() {
-//        if (this.deatils == null) {
-//            this.deatils = new ArrayList<>();
-//        }
-//        return deatils;
-//    }
-//
-//    public void setDeatils(List<HistoriqueImportValue> deatils) {
-//        if (this.deatils == null) {
-//            this.deatils = new ArrayList<>();
-//        }
-//        this.deatils = deatils;
-//    }
-//
-//    public HistoriqueImportationDTO deatils(List<HistoriqueImportValue> deatils) {
-//        this.deatils = deatils;
-//        return this;
-//    }
+    // public List<HistoriqueImportValue> getDeatils() {
+    // if (this.deatils == null) {
+    // this.deatils = new ArrayList<>();
+    // }
+    // return deatils;
+    // }
+    //
+    // public void setDeatils(List<HistoriqueImportValue> deatils) {
+    // if (this.deatils == null) {
+    // this.deatils = new ArrayList<>();
+    // }
+    // this.deatils = deatils;
+    // }
+    //
+    // public HistoriqueImportationDTO deatils(List<HistoriqueImportValue> deatils) {
+    // this.deatils = deatils;
+    // return this;
+    // }
 
-//    public HistoriqueImportationDTO addDetail(HistoriqueImportValue details) {
-//        if (this.deatils == null) {
-//            this.deatils = new ArrayList<>();
-//
-//        }
-//        getDeatils().add(details);
-//        return this;
-//    }
+    // public HistoriqueImportationDTO addDetail(HistoriqueImportValue details) {
+    // if (this.deatils == null) {
+    // this.deatils = new ArrayList<>();
+    //
+    // }
+    // getDeatils().add(details);
+    // return this;
+    // }
 
     public HistoriqueImportationDTO(HistoriqueImportation hi) {
         TUser u = hi.getUser();
@@ -139,15 +139,22 @@ public class HistoriqueImportationDTO implements Serializable {
         this.id = hi.getId();
         hi.getDeatils().sort(Comparator.comparing(HistoriqueImportValue::getLibelle));
         hi.getDeatils().forEach((tpd) -> {
-            this.details = "<span style='display:inline-block;width: 7%; margin-right:10px;'>" + tpd.getCip() + "</span><span style='display:inline-block;width: 20%;'>" + tpd.getLibelle() + "</span><span style='display:inline-block;width: 7%;'>(" + tpd.getQty() + ")</span><span style='display:inline-block;width: 10%;'>" + DateConverter.amountFormat(tpd.getMontantAchat(), '.') + " </span><span style='display:inline-block;width: 10%;'>" + DateConverter.amountFormat(tpd.getMontantVente(), '.') + " </span><br> " + this.details;
+            this.details = "<span style='display:inline-block;width: 7%; margin-right:10px;'>" + tpd.getCip()
+                    + "</span><span style='display:inline-block;width: 20%;'>" + tpd.getLibelle()
+                    + "</span><span style='display:inline-block;width: 7%;'>(" + tpd.getQty()
+                    + ")</span><span style='display:inline-block;width: 10%;'>"
+                    + DateConverter.amountFormat(tpd.getMontantAchat(), '.')
+                    + " </span><span style='display:inline-block;width: 10%;'>"
+                    + DateConverter.amountFormat(tpd.getMontantVente(), '.') + " </span><br> " + this.details;
         });
     }
-     
+
     public String getId() {
         return id;
     }
+
     public void setId(String id) {
         this.id = id;
     }
-    
+
 }

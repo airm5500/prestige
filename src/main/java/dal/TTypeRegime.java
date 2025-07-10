@@ -27,8 +27,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_type_regime")
 @XmlRootElement
 @NamedQueries({
-    
-    @NamedQuery(name = "TTypeRegime.findByStrSTATUT", query = "SELECT t FROM TTypeRegime t WHERE t.strSTATUT = :strSTATUT")})
+
+        @NamedQuery(name = "TTypeRegime.findByStrSTATUT", query = "SELECT t FROM TTypeRegime t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypeRegime implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -107,7 +107,8 @@ public class TTypeRegime implements Serializable {
             return false;
         }
         TTypeRegime other = (TTypeRegime) object;
-        if ((this.lgTYPEREGIMEID == null && other.lgTYPEREGIMEID != null) || (this.lgTYPEREGIMEID != null && !this.lgTYPEREGIMEID.equals(other.lgTYPEREGIMEID))) {
+        if ((this.lgTYPEREGIMEID == null && other.lgTYPEREGIMEID != null)
+                || (this.lgTYPEREGIMEID != null && !this.lgTYPEREGIMEID.equals(other.lgTYPEREGIMEID))) {
             return false;
         }
         return true;
@@ -117,5 +118,5 @@ public class TTypeRegime implements Serializable {
     public String toString() {
         return "dal.TTypeRegime[ lgTYPEREGIMEID=" + lgTYPEREGIMEID + " ]";
     }
-    
+
 }

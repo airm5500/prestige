@@ -257,9 +257,8 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.reglementGrou
                                     var grid = Ext.getCmp('reglementGROUPID');
 
                                     if (value === "1") {
-
-                                        grid.columns[7].setVisible(true);
                                         grid.columns[8].setVisible(true);
+                                        grid.columns[9].setVisible(true);
                                         Ext.getCmp('int_MONTANT_REGLEMENT').setValue(0);
                                         Ext.getCmp('selectALL').show();
 
@@ -267,7 +266,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.reglementGrou
                                     } else {
 
                                         if (grid.columns[7].isVisible()) {
-                                            grid.columns[7].setVisible(false);
+                                            grid.columns[7].setVisible(false); 
                                             grid.columns[8].setVisible(false);
                                         }
                                         Ext.getCmp('int_MONTANT_REGLEMENT').setValue(Ext.getCmp('MONTANTRESTANT').getValue());
@@ -451,6 +450,13 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.reglementGrou
                                     dataIndex: 'str_PERIODE'
 
                                 }, {
+                                    text: 'Num.Facture',
+                                    dataIndex: 'str_CODE_FACTURE',
+                                    flex: 0.8
+                                }
+                                ,
+
+                                {
                                     header: 'Nbre.Dossiers',
                                     dataIndex: 'int_NB_DOSSIER',
                                     flex: 0.8,

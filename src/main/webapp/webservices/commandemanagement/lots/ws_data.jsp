@@ -59,7 +59,7 @@
 
 
 <%    dataManager OdataManager = new dataManager();
-    List<TLot> lstdetails = new ArrayList<TLot>();
+    List<TLot> lstdetails = new ArrayList<>();
     String dt_start = date.formatterMysqlShort.format(new Date());
     String dt_end = date.formatterMysqlShort.format(new Date());
     String search_value = "%%", lg_LOT_ID = "%%";

@@ -1189,10 +1189,8 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                     Ext.Msg.confirm("Information", "Voulez-vous imprimer ?",
                             function (btn) {
                                 if (btn === "yes") {
-                                    var url_services_pdf_reglement = "../webservices/sm_user/reglement/ws_generate_pdf.jsp?lg_DOSSIER_REGLEMENT_ID=" + object.lg_DOSSIER_REGLEMENT_ID;
-//           
-                                    //testextjs.app.getController('App').onLunchPrinter(url_services_pdf_reglement);
-                                    Me.lunchPrinter(url_services_pdf_reglement);
+                                   
+                                    Me.lunchPrinter(object.lg_DOSSIER_REGLEMENT_ID);
 //                                  
                                 } else {
                                     var xtype = "facturemanager";
@@ -1227,17 +1225,19 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
 
 
     },
-    lunchPrinter: function (url) {
+    lunchPrinter: function (id) {
         testextjs.app.getController('App').ShowWaitingProcess();
         Ext.Ajax.request({
-            url: url,
+           method: 'GET',
+            url: '../api/v1/facturation/ticket-facture/' + id,
+
             success: function (response)
             {
                 boxWaitingProcess.hide();
                 var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success == "0") {
+                if (!object.success ) {
                     Ext.MessageBox.alert('Error Message', object.errors);
-//                    return;
+                    return;
                 }
                 var xtype = "facturemanager";
                 var alias = 'widget.' + xtype;
@@ -1375,15 +1375,15 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                 {
                     myAppController.StopWaitingProcess();
                     var object = Ext.JSON.decode(response.responseText, false);
-//                alert(object.success);
+
                     if (object.errors === "1") {
                         checkedList = [];
                         listProductSelected = [];
                         Ext.Msg.confirm("Confirme", "Voulez-vous imprimer ?",
                                 function (btn) {
                                     if (btn === "yes") {
-                                        var url_services_pdf_reglement = "../webservices/sm_user/reglement/ws_generate_pdf.jsp?lg_DOSSIER_REGLEMENT_ID=" + object.lg_DOSSIER_REGLEMENT_ID;
-                                        Me.lunchPrinter(url_services_pdf_reglement);
+                                    
+                                        Me.lunchPrinter(object.lg_DOSSIER_REGLEMENT_ID);
                                     } else {
                                         var xtype = "facturemanager";
                                         var alias = 'widget.' + xtype;

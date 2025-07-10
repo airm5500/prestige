@@ -127,8 +127,7 @@ Ext.define('testextjs.view.Report.BalanceAgeDetaille.BalanceAgeDetailleManager',
                     emptyText: 'Choisissez la periode...',  
                     listeners: {
                         select: function (p) {
-                            Periode = p.getValue(); //this.select(). store.selectedValue();
-                            //alert("periode selectioné " + Periode);
+                            Periode = p.getValue(); 
                         }
                     }
                 },

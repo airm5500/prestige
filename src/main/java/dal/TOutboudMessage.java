@@ -27,14 +27,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_outboud_message")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TOutboudMessage.findAll", query = "SELECT t FROM TOutboudMessage t"),
-    @NamedQuery(name = "TOutboudMessage.findByLgOUTBOUNDMESSAGEID", query = "SELECT t FROM TOutboudMessage t WHERE t.lgOUTBOUNDMESSAGEID = :lgOUTBOUNDMESSAGEID"),
-    @NamedQuery(name = "TOutboudMessage.findByDtCREATED", query = "SELECT t FROM TOutboudMessage t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TOutboudMessage.findByDtUPDATED", query = "SELECT t FROM TOutboudMessage t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TOutboudMessage.findByStrSTATUT", query = "SELECT t FROM TOutboudMessage t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TOutboudMessage.findByStrPHONE", query = "SELECT t FROM TOutboudMessage t WHERE t.strPHONE = :strPHONE"),
-    @NamedQuery(name = "TOutboudMessage.findByStrREF", query = "SELECT t FROM TOutboudMessage t WHERE t.strREF = :strREF")})
+@NamedQueries({ @NamedQuery(name = "TOutboudMessage.findAll", query = "SELECT t FROM TOutboudMessage t"),
+        @NamedQuery(name = "TOutboudMessage.findByLgOUTBOUNDMESSAGEID", query = "SELECT t FROM TOutboudMessage t WHERE t.lgOUTBOUNDMESSAGEID = :lgOUTBOUNDMESSAGEID"),
+        @NamedQuery(name = "TOutboudMessage.findByDtCREATED", query = "SELECT t FROM TOutboudMessage t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TOutboudMessage.findByDtUPDATED", query = "SELECT t FROM TOutboudMessage t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TOutboudMessage.findByStrSTATUT", query = "SELECT t FROM TOutboudMessage t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TOutboudMessage.findByStrPHONE", query = "SELECT t FROM TOutboudMessage t WHERE t.strPHONE = :strPHONE"),
+        @NamedQuery(name = "TOutboudMessage.findByStrREF", query = "SELECT t FROM TOutboudMessage t WHERE t.strREF = :strREF") })
 public class TOutboudMessage implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -139,7 +138,8 @@ public class TOutboudMessage implements Serializable {
             return false;
         }
         TOutboudMessage other = (TOutboudMessage) object;
-        if ((this.lgOUTBOUNDMESSAGEID == null && other.lgOUTBOUNDMESSAGEID != null) || (this.lgOUTBOUNDMESSAGEID != null && !this.lgOUTBOUNDMESSAGEID.equals(other.lgOUTBOUNDMESSAGEID))) {
+        if ((this.lgOUTBOUNDMESSAGEID == null && other.lgOUTBOUNDMESSAGEID != null)
+                || (this.lgOUTBOUNDMESSAGEID != null && !this.lgOUTBOUNDMESSAGEID.equals(other.lgOUTBOUNDMESSAGEID))) {
             return false;
         }
         return true;
@@ -149,5 +149,5 @@ public class TOutboudMessage implements Serializable {
     public String toString() {
         return "dal.TOutboudMessage[ lgOUTBOUNDMESSAGEID=" + lgOUTBOUNDMESSAGEID + " ]";
     }
-    
+
 }

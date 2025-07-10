@@ -1,3 +1,4 @@
+<%@page import="util.Constant"%>
 <%@page import="dal.TUser"%>
 <%@page import="toolkits.utils.logger"%>
 <%@page import="toolkits.parameters.commonparameter"%>
@@ -9,17 +10,10 @@
     jdom.InitRessource();
     jdom.LoadRessource();
 
-    if (request.getParameter("action") != null) {
-        if (request.getParameter("action").equals("logout")) {
-            //Kill session iser  
-          //  session.setAttribute(commonparameter.AIRTIME_USER, null);
-            
-        }
-    }
     TUser OTUser = null;
     try {
-        OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
-
+        OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
+       
     } catch (Exception e) {
 
     }

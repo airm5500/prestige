@@ -35,12 +35,13 @@ public class TauxRembourssementManagement extends bllBase {
             TTauxRembourssement.setLgTAUXREMBOURID(this.getKey().getComplexId());
             TTauxRembourssement.setStrCODEREMB(str_CODE_REMB);
             TTauxRembourssement.setStrLIBELLEE(str_LIBELLEE);
-        
+
             TTauxRembourssement.setStrSTATUT(commonparameter.statut_enable);
             TTauxRembourssement.setDtCREATED(new Date());
 
             this.persiste(TTauxRembourssement);
-            new logger().oCategory.info("Mise a jour TTauxRembourssement " + TTauxRembourssement.getLgTAUXREMBOURID()+ " StrName " + TTauxRembourssement.getStrLIBELLEE());
+            new logger().oCategory.info("Mise a jour TTauxRembourssement " + TTauxRembourssement.getLgTAUXREMBOURID()
+                    + " StrName " + TTauxRembourssement.getStrLIBELLEE());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
@@ -53,7 +54,7 @@ public class TauxRembourssementManagement extends bllBase {
 
         try {
 
-            new logger().oCategory.info("lg_TAUX_REMBOUR_ID     Create   " + lg_TAUX_REMBOUR_ID);            
+            new logger().oCategory.info("lg_TAUX_REMBOUR_ID     Create   " + lg_TAUX_REMBOUR_ID);
 
             dal.TTauxRembourssement TTauxRembourssement = null;
 
@@ -65,7 +66,8 @@ public class TauxRembourssementManagement extends bllBase {
             TTauxRembourssement.setDtUPDATED(new Date());
 
             this.persiste(TTauxRembourssement);
-            new logger().oCategory.info("Mise a jour TTauxRembourssement " + TTauxRembourssement.getLgTAUXREMBOURID() + " StrLabel " + TTauxRembourssement.getStrLIBELLEE());
+            new logger().oCategory.info("Mise a jour TTauxRembourssement " + TTauxRembourssement.getLgTAUXREMBOURID()
+                    + " StrLabel " + TTauxRembourssement.getStrLIBELLEE());
 
         } catch (Exception e) {
 
@@ -75,5 +77,4 @@ public class TauxRembourssementManagement extends bllBase {
 
     }
 
-    
 }

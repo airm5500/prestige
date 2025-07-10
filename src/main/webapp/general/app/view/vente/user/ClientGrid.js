@@ -145,15 +145,7 @@ Ext.define('testextjs.view.vente.user.ClientGrid', {
                                     height: 35,
                                     enableKeyEvents: true,
                                     emptyText: 'Taper ici pour rechercher un client'
-                                }/*, '-',
-                                 
-                                 {
-                                 text: 'rechercher',
-                                 tooltip: 'rechercher',
-                                 itemId: 'btnSearchClientAss',
-                                 scope: this,
-                                 iconCls: 'searchicon'
-                                 }*/
+                                }
                             ]
                         }
 

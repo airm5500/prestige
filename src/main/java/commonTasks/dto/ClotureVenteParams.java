@@ -8,7 +8,9 @@ package commonTasks.dto;
 import dal.TUser;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  *
@@ -27,6 +29,16 @@ public class ClotureVenteParams implements Serializable {
     private TiersPayantParams compteTp, compteTpNouveau;
     private List<TiersPayantParams> tierspayants = new ArrayList<>();
     private MontantAPaye data;
+    private Set<VenteReglementDTO> reglements = new HashSet<>();
+
+    public Set<VenteReglementDTO> getReglements() {
+        return reglements;
+    }
+
+    public ClotureVenteParams setReglements(Set<VenteReglementDTO> reglements) {
+        this.reglements = reglements;
+        return this;
+    }
 
     public MontantAPaye getData() {
         return data;
@@ -230,7 +242,13 @@ public class ClotureVenteParams implements Serializable {
 
     @Override
     public String toString() {
-        return "ClotureVenteParams {" + "typeRegleId=" + typeRegleId + ", compteClientId=" + compteClientId + ", remiseId=" + remiseId + ", userVendeurId=" + userVendeurId + ", commentaire=" + commentaire + ", clientId=" + clientId + ", ayantDroitId=" + ayantDroitId + ", banque=" + banque + ", lieux=" + lieux + ", nom=" + nom + ", montantRecu=" + montantRecu + ", montantRemis=" + montantRemis + ", totalRecap=" + totalRecap + ", montantPaye=" + montantPaye + ", partTP=" + partTP + ", userId=" + userId + ", venteId=" + venteId + ", sansBon=" + sansBon + ", typeVenteId=" + typeVenteId + ", natureVenteId=" + natureVenteId + '}';
+        return "ClotureVenteParams {" + "typeRegleId=" + typeRegleId + ", compteClientId=" + compteClientId
+                + ", remiseId=" + remiseId + ", userVendeurId=" + userVendeurId + ", commentaire=" + commentaire
+                + ", clientId=" + clientId + ", ayantDroitId=" + ayantDroitId + ", banque=" + banque + ", lieux="
+                + lieux + ", nom=" + nom + ", montantRecu=" + montantRecu + ", montantRemis=" + montantRemis
+                + ", totalRecap=" + totalRecap + ", montantPaye=" + montantPaye + ", partTP=" + partTP + ", userId="
+                + userId + ", venteId=" + venteId + ", sansBon=" + sansBon + ", typeVenteId=" + typeVenteId
+                + ", natureVenteId=" + natureVenteId + '}';
     }
 
 }

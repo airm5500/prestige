@@ -343,169 +343,107 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 //                                        hideTrigger: true,
                                         enableKeyEvents: true,
                                         listeners: {
+    specialKey: function(field, e, options) {
+        var grid = Ext.getCmp('gridpanelInventaireID');
+        var position = grid.getSelectionModel().getCurrentPosition();
 
-                                            specialKey: function (field, e, options) {
-                                                if (e.getKey() === e.ENTER)
-                                                {
-                                                    var grid = Ext.getCmp('gridpanelInventaireID');
-                                                    var record = grid.getSelectionModel().getSelection();
-                                                    var position = grid.getSelectionModel().getCurrentPosition();
+        // Ne rien faire si aucune cellule n'est sélectionnée
+        if (!position) return;
 
+        // Gérer la navigation avec les flèches HAUT et BAS
+        if (e.getKey() === e.UP) {
+            grid.getPlugin('inventaireEditor').startEdit(Number(position.row) - 1, Number(position.column));
+            return;
+        }
+        if (e.getKey() === e.DOWN) {
+            grid.getPlugin('inventaireEditor').startEdit(Number(position.row) + 1, Number(position.column));
+            return;
+        }
 
-                                                    var val_init, val_modif;
-                                                    var lg_INVENTAIRE_FAMILLE_ID = record[0].get("lg_INVENTAIRE_FAMILLE_ID");
+        // Gérer la validation et la navigation avec la touche ENTREE
+        if (e.getKey() === e.ENTER) {
+            
+            // --- VALIDATION DE LA SAISIE ---
+            var int_NUMBER = field.getValue();
+            if (isNaN(int_NUMBER) || String(int_NUMBER).trim() === '' || Number(int_NUMBER) < 0) {
+                Ext.Msg.alert('Erreur', 'La quantité saisie est invalide.');
+                grid.getPlugin('inventaireEditor').startEdit(position.row, position.column);
+                return;
+            }
 
-                                                    var int_NUMBER = record[0].get('int_NUMBER_AVAILABLE');
+            // --- FONCTION DE MISE A JOUR ET NAVIGATION ---
+            var ajaxUpdateAndNavigate = function() {
+                var record = grid.getStore().getAt(position.row);
+                var lg_INVENTAIRE_FAMILLE_ID = record.get("lg_INVENTAIRE_FAMILLE_ID");
+                var int_NUMBER_INIT = record.get("int_TAUX_MARQUE"); // Stock machine
 
-//                                                    var int_NUMBER = record[0].get('int_NUMBER_AVAILABLE');
-                                                    var int_NUMBER = this.getValue();
+                Ext.Ajax.request({
+                    url: url_services_transaction_inventaire + 'updateinventairefamille',
+                    params: {
+                        lg_INVENTAIRE_FAMILLE_ID: lg_INVENTAIRE_FAMILLE_ID,
+                        int_NUMBER: Number(int_NUMBER)
+                    },
+                    success: function(response) {
+                        var object = Ext.JSON.decode(response.responseText, false);
+                        if (object.success === 0) {
+                            Ext.MessageBox.alert('Erreur', object.errors);
+                            grid.getPlugin('inventaireEditor').startEdit(position.row, position.column);
+                            return;
+                        }
 
-                                                    if (isNaN(int_NUMBER)) {
+                        record.set("int_QTE_SORTIE", Number(int_NUMBER) - int_NUMBER_INIT);
+                        grid.getStore().commitChanges();
 
-                                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row), column: Number(position.column)});
-                                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row), Number(position.column));
+                        //Ma Pagination
+                        var totalOnPage = grid.getStore().getCount();
+                        var currentRowIndex = position.row;
 
+                        // On vérifie si c'est bien la dernière ligne de la page actuelle
+                        if (currentRowIndex === totalOnPage - 1) {
+                            var pagingToolbar = grid.getDockedItems('toolbar[dock="bottom"]')[0];
 
-                                                        return false;
+                            // On vérifie que la barre de pagination et le bouton "suivant" existent et sont actifs
+                            if (pagingToolbar && pagingToolbar.down('#next') && !pagingToolbar.down('#next').isDisabled()) {
+                                // Si oui, on passe à la page suivante
+                                pagingToolbar.moveNext();
+                            } else {
+                                // Sinon (dernière page), on retourne à la première page
+                            pagingToolbar.moveFirst();
+                            }
+                        } else {
+                            // Si ce n'est pas la dernière ligne, on passe simplement à la ligne du dessous
+                            grid.getPlugin('inventaireEditor').startEdit(currentRowIndex + 1, position.column);
+                        }
+                        //fin ma pagination
+                    },
+                    failure: function(response) {
+                        Ext.MessageBox.alert('Erreur', 'Erreur serveur: ' + response.status);
+                        grid.getPlugin('inventaireEditor').startEdit(position.row, position.column);
+                    }
+                });
+            };
 
-                                                    }
-                                                    var int_NUMBER_INIT = record[0].get("int_TAUX_MARQUE");
-                                                    if (int_NUMBER < 0) {
-                                                        /* Ext.MessageBox.show({
-                                                         title: 'Alerte',
-                                                         msg: 'La quantite doit etre superieur ou egale a 0',
-                                                         width: 400,
-                                                         buttons: Ext.MessageBox.OK
-                                                         });*/
-                                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row), column: Number(position.column)});
-                                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row), Number(position.column));
-                                                        return false;
-
-                                                    } else if (int_NUMBER > KEY_MAX_VALUE_INVENTAIRE) {
-                                                        Ext.MessageBox.show({
-                                                            title: 'Alerte Quantit&eacute;',
-                                                            msg: 'Attenttion, quantit&eacute; alerte atteinte. Voulez-vous continuer?',
-                                                            buttons: Ext.MessageBox.YESNO,
-                                                            icon: Ext.MessageBox.QUESTION,
-                                                            width: 400,
-                                                            fn: function (btn) {
-                                                                if (btn === 'yes') {
-                                                                    Ext.Ajax.request({
-                                                                        url: url_services_transaction_inventaire + 'updateinventairefamille',
-                                                                        params: {
-                                                                            lg_INVENTAIRE_FAMILLE_ID: lg_INVENTAIRE_FAMILLE_ID,
-                                                                            int_NUMBER: int_NUMBER
-                                                                        },
-                                                                        success: function (response)
-                                                                        {
-                                                                            var object = Ext.JSON.decode(response.responseText, false);
-                                                                            if (object.success === 0) {
-//                                                                                Ext.MessageBox.alert('Error Message', object.errors);
-                                                                                Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row), column: Number(position.column)});
-                                                                                Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row), Number(position.column));
-                                                                                return false;
-                                                                            } else {
-                                                                                record[0].set("int_QTE_SORTIE", Number(int_NUMBER - int_NUMBER_INIT));
-                                                                                grid.getStore().commitChanges();
-                                                                                if (grid.getStore().getCount() === 1) {
-
-                                                                                    Ext.getCmp('rechecher').focus();
-
-                                                                                } else {
-
-                                                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row) + 1, column: Number(position.column)});
-                                                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row) + 1, Number(position.column));
-                                                                                    return false;
-                                                                                }
-                                                                            }
-
-                                                                        },
-                                                                        failure: function (response)
-                                                                        {
-                                                                        }
-                                                                    });
-                                                                } else {
-                                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row), column: Number(position.column)});
-                                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row), Number(position.column));
-                                                                    return false;
-                                                                }
-                                                            }
-                                                        });
-                                                    } else {
-
-                                                        Ext.Ajax.request({
-                                                            url: url_services_transaction_inventaire + 'updateinventairefamille',
-                                                            params: {
-                                                                lg_INVENTAIRE_FAMILLE_ID: lg_INVENTAIRE_FAMILLE_ID,
-                                                                int_NUMBER: int_NUMBER
-
-                                                            },
-                                                            success: function (response)
-                                                            {
-
-                                                                var object = Ext.JSON.decode(response.responseText, false);
-                                                                if (object.success === 0) {
-//                                                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row), column: Number(position.column)});
-                                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row), Number(position.column));
-                                                                    return false;
-                                                                } else {
-                                                                    record[0].set("int_QTE_SORTIE", Number(int_NUMBER - int_NUMBER_INIT))
-                                                                    grid.getStore().commitChanges();
-                                                                    if (grid.getStore().getCount() === 1) {
-
-                                                                        Ext.getCmp('rechecher').focus();
-
-                                                                    } else {
-
-                                                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row) + 1, column: Number(position.column)});
-                                                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row) + 1, Number(position.column));
-                                                                        return false;
-                                                                    }
-                                                                }
-
-
-
-                                                                /*  Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row) + 1, column: Number(position.column)});
-                                                                 Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row) + 1, Number(position.column));
-                                                                 return false;*/
-
-
-                                                            },
-                                                            failure: function (response)
-                                                            {
-//                                                                console.log("Bug " + response.responseText);
-//                                                                Ext.MessageBox.alert('Error Message', response.responseText);
-                                                                Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row), column: Number(position.column)});
-                                                                Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row), Number(position.column));
-                                                                return false;
-
-                                                            }
-                                                        });
-                                                    }
-
-
-                                                } else if (e.getKey() === e.DOWN) {
-                                                    var grid = Ext.getCmp('gridpanelInventaireID');
-                                                    var record = grid.getSelectionModel().getSelection();
-                                                    var position = grid.getSelectionModel().getCurrentPosition();
-
-                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row) + 1, column: Number(position.column)});
-                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row) + 1, Number(position.column));
-                                                    return false;
-                                                } else if (e.getKey() === e.UP) {
-                                                    var grid = Ext.getCmp('gridpanelInventaireID');
-                                                    var record = grid.getSelectionModel().getSelection();
-                                                    var position = grid.getSelectionModel().getCurrentPosition();
-
-                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(position.row) - 1, column: Number(position.column)});
-                                                    Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(Number(position.row) - 1, Number(position.column));
-                                                    return false;
-                                                }
-
-
-                                            }
-                                        }
+            // --- GESTION DE L'ALERTE DE QUANTITE ---
+            if (Number(int_NUMBER) > KEY_MAX_VALUE_INVENTAIRE) {
+                Ext.MessageBox.show({
+                    title: 'Alerte Quantité',
+                    msg: 'Attention, quantité alerte atteinte. Voulez-vous continuer?',
+                    buttons: Ext.MessageBox.YESNO,
+                    icon: Ext.MessageBox.QUESTION,
+                    fn: function(btn) {
+                        if (btn === 'yes') {
+                            ajaxUpdateAndNavigate();
+                        } else {
+                            grid.getPlugin('inventaireEditor').startEdit(position.row, position.column);
+                        }
+                    }
+                });
+            } else {
+                ajaxUpdateAndNavigate();
+            }
+        }
+    }
+}
 
 
                                     }
@@ -819,8 +757,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             hidden: true,
                             handler: this.onbtnprintalert
                         },
-
                         {
+                            text: 'Importer csv',
+
+                            iconCls: 'icon-clear-group',
+                            scope: this,
                             handler: function () {
                                 var win = new Ext.window.Window({
                                     autoShow: false,
@@ -871,6 +812,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                 win.show();
                             }
                         },
+
                         {
                             text: 'Exporter excel',
                             id: 'btn_export_txt',
@@ -1044,7 +986,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                 });
 
 
-    },
+    }
+    
+    ,
     onbtnexportExcel: function () {
 
         window.location = '../ExportInventaire?lg_INVENTAIRE_ID=' + ref + "&format=Excel";
@@ -1061,16 +1005,48 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             return;
         }
         formulaire.submit({
-            url: '../ExportInventaire?lg_INVENTAIRE_ID=' + ref,
+            url: '../ImportInventaire?lg_INVENTAIRE_ID=' + ref,
             waitMsg: 'Veuillez patienter le temps du telechargemetnt du fichier...',
             timeout: 2400000,
-            success: function (formulaire, action) {
+            success:  function (formulaire, action) {
+                const result = Ext.JSON.decode(action.response.responseText, true);
+                console.log(result);
+                if (result.statut === 1) {/*
+                 Ext.MessageBox.alert('Confirmation', result.success);
+                 Oview.getStore().reload();*/
+                    Ext.Msg.show({
+                        title: 'Confirmation',
+                        msg: result.success,
+                        buttons: Ext.Msg.OK,
+                        icon: Ext.Msg.INFO,
+                        fn: function () {
+                            // Recharger le store et fermer la fenêtre
+                            var OGridStore = Ext.getCmp('gridpanelInventaireID').getStore();
+                            OGridStore.load();
+                            OGridStore.loadPage(1);
+                            fenetre.close();
 
-                if (action.result.success === "1") {
-                    Ext.MessageBox.alert('Confirmation', action.result.errors);
-                    Oview.getStore().reload();
-                } else {
-                    Ext.MessageBox.alert('Erreur', action.result.errors);
+                            // Vérifier et traiter les lignes ignorées
+                            if (result.ignored && result.ignored > 0 && result.ignoredCsv) {
+                                setTimeout(function () {
+                                    var filename = 'lignes_ignorees_' + new Date().toISOString().slice(0, 10) + '.csv';
+                                    var csvContent = result.ignoredCsv;
+
+                                    // Téléchargement automatique
+                                    var hiddenElement = document.createElement('a');
+                                    hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csvContent);
+                                    hiddenElement.target = '_blank';
+                                    hiddenElement.download = filename;
+                                    hiddenElement.click();
+
+                                }, 500);
+                            }
+                        }
+                    });
+                } 
+                
+                else {
+                    Ext.MessageBox.alert('Erreur', result.success);
                 }
 
                 var bouton = button.up('window');
@@ -1082,6 +1058,36 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         });
 
     },
+    // Fonction pour télécharger le CSV
+    downloadIgnoredCsv: function (csvData, filename) {
+    try {
+        // Créer un blob à partir des données CSV
+        var blob = new Blob(["\uFEFF" + csvData], { type: 'text/csv;charset=utf-8;' });
+        
+        // Créer un lien de téléchargement
+        var link = document.createElement('a');
+        var url = URL.createObjectURL(blob);
+        
+        // Configurer le lien
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        
+        // Ajouter le lien au DOM et déclencher le clic
+        document.body.appendChild(link);
+        link.click();
+        
+        // Nettoyer
+        setTimeout(function() {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+    } catch (e) {
+        console.error("Erreur lors du téléchargement du CSV:", e);
+        Ext.Msg.alert('Erreur', 'Impossible de générer le fichier des lignes ignorées.');
+    }
+}
+    ,
     onbtncloturer: function (button) {
         Ext.MessageBox.confirm('Message',
                 'Confirmer la cloture de l\'inventare',

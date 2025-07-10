@@ -29,16 +29,16 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_snap_shop_daly_sortie_famille")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findAll", query = "SELECT t FROM TSnapShopDalySortieFamille t"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByLgID", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntBALANCE", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intBALANCE = :intBALANCE"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByDtDAY", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByDtCREATED", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntNUMBERENTREE", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intNUMBERENTREE = :intNUMBERENTREE"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntNUMBERSORTIE", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intNUMBERSORTIE = :intNUMBERSORTIE"),
-    @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION")})
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findAll", query = "SELECT t FROM TSnapShopDalySortieFamille t"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByLgID", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntBALANCE", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intBALANCE = :intBALANCE"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByDtDAY", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByDtCREATED", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntNUMBERENTREE", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intNUMBERENTREE = :intNUMBERENTREE"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntNUMBERSORTIE", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intNUMBERSORTIE = :intNUMBERSORTIE"),
+        @NamedQuery(name = "TSnapShopDalySortieFamille.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalySortieFamille t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION") })
 public class TSnapShopDalySortieFamille implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -179,5 +179,5 @@ public class TSnapShopDalySortieFamille implements Serializable {
     public String toString() {
         return "dal.TSnapShopDalySortieFamille[ lgID=" + lgID + " ]";
     }
-    
+
 }

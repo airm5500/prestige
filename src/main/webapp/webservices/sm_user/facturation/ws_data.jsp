@@ -1,3 +1,4 @@
+<%@page import="org.apache.commons.lang3.StringUtils"%>
 <%@page import="util.DateConverter"%>
 <%@page import="dal.TPrivilege"%>
 <%@page import="dal.TGroupeFactures"%>
@@ -22,13 +23,18 @@
 
 
 
-<% Translate oTranslate = new Translate();
+<%
     dataManager OdataManager = new dataManager();
 
     date key = new date();
 
     Date dt_debut, dt_fin;
     String lg_FACTURE_ID = "%%", lg_customer_id = "%%", lg_TYPE_FACTURE_ID = "%%", search_value = "", CODEGROUPE = "";
+    String impayes = null;
+    if (StringUtils.isNotEmpty(request.getParameter("impayes"))) {
+        impayes = request.getParameter("impayes");
+
+    }
     if (request.getParameter("search_value") != null) {
         search_value = request.getParameter("search_value");
 
@@ -61,12 +67,17 @@
 
     if (request.getParameter("dt_debut") != null && request.getParameter("dt_debut") != "") {
         dt_debut = key.stringToDate(request.getParameter("dt_debut"), key.formatterMysqlShort);
-        //dt_debut = new date().stringToDate(request.getParameter("dt_debut"), new date().formatterMysqlShort);
+
     } else {
-        //  dt_debut = date.getPreviousMonth(new Date());
+
         dt_debut = date.getPreviousMonth(0);
 
     }
+    if (request.getParameter("CODEGROUPE") != null && request.getParameter("CODEGROUPE") != "") {
+        CODEGROUPE = request.getParameter("CODEGROUPE");
+
+    }
+
     String OdateFin = key.DateToString(dt_fin, key.formatterMysqlShort2), OdateDebut = key.DateToString(dt_debut, key.formatterMysqlShort2);;
     dt_debut = key.getDate(OdateDebut, "00:00");
     dt_fin = key.getDate(OdateFin, "23:59");
@@ -75,8 +86,8 @@
     OdataManager.initEntityManager();
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     factureManagement OfactureManagement = new factureManagement(OdataManager, OTUser);
-    List<TFacture> lstTFacture = OfactureManagement.getListFacture(search_value, lg_FACTURE_ID, lg_TYPE_FACTURE_ID, dt_debut, dt_fin, lg_customer_id, CODEGROUPE, start, limit);
-    int count = OfactureManagement.getListFacturesCount(search_value, lg_FACTURE_ID, lg_TYPE_FACTURE_ID, dt_debut, dt_fin, lg_customer_id, CODEGROUPE);
+    List<TFacture> lstTFacture = OfactureManagement.getListFacture(search_value, lg_FACTURE_ID, lg_TYPE_FACTURE_ID, dt_debut, dt_fin, lg_customer_id, CODEGROUPE, impayes, start, limit);
+    int count = OfactureManagement.getListFacturesCount(search_value, lg_FACTURE_ID, lg_TYPE_FACTURE_ID, dt_debut, dt_fin, lg_customer_id, CODEGROUPE, impayes);
     JSONArray arrayObj = new JSONArray();
     //   boolean isALLOWED = Util.isAllowed(OdataManager.getEm(), Util.ACTIONDELETEINVOICE, OTUser.getTRoleUserCollection().stream().findFirst().get().getLgROLEID().getLgROLEID());
     //  boolean ACTION_REGLER_FACTURE = Util.isAllowed(OdataManager.getEm(), Util.ACTION_REGLER_FACTURE, OTUser.getTRoleUserCollection().stream().findFirst().get().getLgROLEID().getLgROLEID());

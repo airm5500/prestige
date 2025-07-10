@@ -202,7 +202,8 @@ public class TEventLog implements Serializable {
             return false;
         }
         TEventLog other = (TEventLog) object;
-        if ((this.lgEVENTLOGID == null && other.lgEVENTLOGID != null) || (this.lgEVENTLOGID != null && !this.lgEVENTLOGID.equals(other.lgEVENTLOGID))) {
+        if ((this.lgEVENTLOGID == null && other.lgEVENTLOGID != null)
+                || (this.lgEVENTLOGID != null && !this.lgEVENTLOGID.equals(other.lgEVENTLOGID))) {
             return false;
         }
         return true;

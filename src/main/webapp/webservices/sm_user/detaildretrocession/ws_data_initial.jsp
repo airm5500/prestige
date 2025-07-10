@@ -117,7 +117,8 @@
 
     OdataManager.initEntityManager();
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
-    familleManagement OfamilleManagement = new familleManagement(OdataManager, OTUser);
+      TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
+    familleManagement OfamilleManagement = new familleManagement(OdataManager, user);
     // TparameterManager OTparameterManager = new TparameterManager(OdataManager);
     // TParameters OTParameters = OTparameterManager.getParameter(str_KEY);
 

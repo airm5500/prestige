@@ -24,7 +24,7 @@ Ext.define('testextjs.view.commandemanagement.rupturefournisseur.RuptureFourniss
     title: 'Liste des ruptures de stock',
     iconCls: 'icon-grid',
     initComponent: function () {
-        var url_services_data_grossiste = "../webservices/configmanagement/grossiste/ws_data.jsp";
+      
         url_services_data_rupturefournisseur_list = '../webservices/commandemanagement/rupturefournisseur/ws_data.jsp';
         url_services_pdf = '../webservices/commandemanagement/rupturefournisseur/ws_rp_EtatControle.jsp';
         myAppController = Ext.create('testextjs.controller.App', {});
@@ -39,7 +39,7 @@ Ext.define('testextjs.view.commandemanagement.rupturefournisseur.RuptureFourniss
             autoLoad: false,
             proxy: {
                 type: "ajax",
-                url: url_services_data_grossiste,
+                 url: '../api/v1/grossiste/all',
                 reader: {
                     type: "json",
                     root: "results",

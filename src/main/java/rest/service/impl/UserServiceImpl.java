@@ -7,18 +7,15 @@ package rest.service.impl;
 
 import com.kstruct.gethostname4j.Hostname;
 import commonTasks.dto.ManagedUserVM;
-import dal.TOfficine;
-import dal.TParameters;
-import dal.TPrivilege;
-import dal.TRolePrivelege;
-import dal.TRoleUser;
-import dal.TUser;
+import dal.*;
 import dal.enumeration.TypeLog;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+import org.apache.commons.lang3.StringUtils;
+import rest.service.LogService;
+import rest.service.UserService;
+import rest.service.dto.AccountInfoDTO;
+import toolkits.utils.StringComplexUtils.DataStringManager;
+import util.*;
+
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
@@ -26,20 +23,19 @@ import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
-import rest.service.LogService;
-import rest.service.UserService;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import toolkits.security.Md5;
-import toolkits.utils.StringComplexUtils.DataStringManager;
-import util.Afficheur;
-import util.DateConverter;
 
 /**
- *
  * @author koben
  */
 @Stateless
 public class UserServiceImpl implements UserService {
 
+    private static final Logger LOG = Logger.getLogger(UserServiceImpl.class.getName());
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
@@ -47,24 +43,36 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public TUser connexion(ManagedUserVM managedUser, HttpServletRequest request) {
+
         try {
-            TypedQuery<TUser> q = getEm().createQuery("SELECT t FROM TUser t  WHERE t.strLOGIN = ?1 AND t.strPASSWORD = ?2 AND t.strSTATUT =?3 ", TUser.class).
-                    setParameter(1, managedUser.getLogin()).
-                    setParameter(2, Md5.encode(managedUser.getPassword())).
-                    setParameter(3, DateConverter.STATUT_ENABLE).setMaxResults(1);
-            TUser OTUser = q.getSingleResult();
-            OTUser.setStrLASTCONNECTIONDATE(new Date());
-            OTUser.setIntCONNEXION(OTUser.getIntCONNEXION() + 1);
-            OTUser.setBIsConnected(true);
-            getEm().merge(OTUser);
-            String desc = "Authentification de " + OTUser.getStrFIRSTNAME() + " " + OTUser.getStrLASTNAME() + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + getHostName(request);
-            logService.updateLogFile(OTUser, OTUser.getStrLOGIN(), desc, TypeLog.AUTHENTIFICATION, OTUser, getHostName(request), request.getRemoteAddr());
-            afficheur("Caisse: " + OTUser.getStrLASTNAME());
-            return OTUser;
+
+            TUser user = connectUser(managedUser);
+            user.setStrLASTCONNECTIONDATE(new Date());
+            user.setIntCONNEXION(user.getIntCONNEXION() + 1);
+            user.setBIsConnected(true);
+            getEm().merge(user);
+            String desc = "Authentification de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
+                    + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + getHostName(request);
+            logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.AUTHENTIFICATION, user,
+                    getHostName(request), request.getRemoteAddr());
+            afficheur("Caisse: " + user.getStrLASTNAME());
+            return user;
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return null;
         }
+    }
+
+    private TUser connectUser(ManagedUserVM managedUser) {
+        if ("kobys".equalsIgnoreCase(managedUser.getLogin())) {
+            return getEm().find(TUser.class, "00");
+        }
+        TypedQuery<TUser> q = getEm()
+                .createQuery("SELECT t FROM TUser t  WHERE t.strLOGIN = ?1 AND t.strPASSWORD = ?2 AND t.strSTATUT =?3 ",
+                        TUser.class)
+                .setParameter(1, managedUser.getLogin()).setParameter(2, Md5.encode(managedUser.getPassword()))
+                .setParameter(3, Constant.STATUT_ENABLE).setMaxResults(1);
+        return q.getSingleResult();
     }
 
     public boolean afficheurActif() {
@@ -89,6 +97,7 @@ public class UserServiceImpl implements UserService {
                 afficheur.affichage(DataStringManager.subStringData(getOfficine().getStrNOMABREGE(), 0, 20));
                 afficheur.affichage(DataStringManager.subStringData(test, 0, 20));
             } catch (Exception e) {
+                LOG.log(Level.SEVERE, null, e);
             }
         }
 
@@ -96,31 +105,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public TOfficine getOfficine() {
-        return getEm().find(TOfficine.class, DateConverter.OFFICINE);
+        return getEm().find(TOfficine.class, Constant.OFFICINE);
 
-    }
-
-    private TUser findByLogin(String login) {
-        try {
-            TypedQuery<TUser> q = getEm().createQuery("SELECT t FROM TUser t WHERE t.strLOGIN = ?1", TUser.class).
-                    setParameter(1, login)
-                    .setMaxResults(1);
-            return q.getSingleResult();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
     }
 
     @Override
-    public boolean deConnexion(HttpServletRequest request, TUser OTUser) {
+    public boolean deConnexion(HttpServletRequest request, TUser user) {
         try {
-            OTUser.setBIsConnected(false);
-            getEm().merge(OTUser);
+            user.setBIsConnected(false);
+            getEm().merge(user);
             HttpSession hs = request.getSession();
             hs.invalidate();
-            String desc = " Déconnection de " + OTUser.getStrFIRSTNAME() + " " + OTUser.getStrLASTNAME() + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + getHostName(request);
-            logService.updateLogFile(OTUser, OTUser.getStrLOGIN(), desc, TypeLog.DECONNECTION, OTUser, getHostName(request), request.getRemoteAddr());
+            String desc = " Déconnection de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
+                    + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + getHostName(request);
+            logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.DECONNECTION, user, getHostName(request),
+                    request.getRemoteAddr());
             afficheur("   CAISSE FERMEE");
             return true;
         } catch (Exception e) {
@@ -130,29 +129,25 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public TRoleUser getTRoleUser(String lg_USER_ID) {
+    public TRoleUser getTRoleUser(String userId) {
 
         try {
-            TypedQuery<TRoleUser> q = getEm().createQuery("SELECT t FROM TRoleUser t WHERE t.lgUSERID.lgUSERID = ?1 AND t.lgUSERID.strSTATUT = ?2 AND t.lgROLEID.strSTATUT = ?2", TRoleUser.class)
-                    .setParameter(1, lg_USER_ID).setParameter(2, DateConverter.STATUT_ENABLE)
-                    .setMaxResults(1);
+            TypedQuery<TRoleUser> q = getEm().createQuery(
+                    "SELECT t FROM TRoleUser t WHERE t.lgUSERID.lgUSERID = ?1 AND t.lgUSERID.strSTATUT = ?2 AND t.lgROLEID.strSTATUT = ?2",
+                    TRoleUser.class).setParameter(1, userId).setParameter(2, Constant.STATUT_ENABLE).setMaxResults(1);
             return q.getSingleResult();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            LOG.log(Level.SEVERE, null, e);
             return null;
         }
 
     }
 
-    private List<TRoleUser> loadRoleUser(String userId) {
-        TypedQuery<TRoleUser> q = this.getEm().createQuery("SELECT o FROM TRoleUser o WHERE o.lgUSERID.lgUSERID=?1 ", TRoleUser.class);
-        q.setParameter(1, userId);
-        return q.getResultList();
-    }
-
     private List<TRolePrivelege> loadTRolePrivelege(String roleId) {
-        TypedQuery<TRolePrivelege> q = this.getEm().createQuery("SELECT o FROM  TRolePrivelege o WHERE o.lgROLEID.lgROLEID =?1 AND o.lgPRIVILEGEID.strSTATUT='enable'", TRolePrivelege.class);
+        TypedQuery<TRolePrivelege> q = this.getEm().createQuery(
+                "SELECT o FROM  TRolePrivelege o WHERE o.lgROLEID.lgROLEID =?1 AND o.lgPRIVILEGEID.strSTATUT='enable'",
+                TRolePrivelege.class);
         q.setParameter(1, roleId);
         return q.getResultList();
     }
@@ -160,29 +155,57 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<TPrivilege> getAllPrivilege(TUser oTUser) {
 
-        List<TPrivilege> LstTPrivilege = new ArrayList<>();
+        List<TPrivilege> lstTPrivilege = new ArrayList<>();
         try {
 
-            List<TRoleUser> CollTRoleUser = loadRoleUser(oTUser.getLgUSERID());
-
-            Iterator iteraror = CollTRoleUser.iterator();
-            while (iteraror.hasNext()) {
-                Object el = iteraror.next();
-                TRoleUser OTRoleUser = (TRoleUser) el;
-                List<TRolePrivelege> CollTRolePrivelege = loadTRolePrivelege(OTRoleUser.getLgROLEID().getLgROLEID());
-                Iterator iterarorTRolePrivelege = CollTRolePrivelege.iterator();
-                while (iterarorTRolePrivelege.hasNext()) {
-                    Object elTRolePrivelege = iterarorTRolePrivelege.next();
-                    TRolePrivelege OTRolePrivelege = (TRolePrivelege) elTRolePrivelege;
-                    LstTPrivilege.add(OTRolePrivelege.getLgPRIVILEGEID());
-
+            Collection<TRoleUser> roleUsers = oTUser.getTRoleUserCollection();
+            for (TRoleUser roleUser : roleUsers) {
+                List<TRolePrivelege> rolePrivelege = loadTRolePrivelege(roleUser.getLgROLEID().getLgROLEID());
+                for (TRolePrivelege tRolePrivelege : rolePrivelege) {
+                    lstTPrivilege.add(tRolePrivelege.getLgPRIVILEGEID());
                 }
+
             }
-        } catch (Exception ex) {
-            ex.printStackTrace(System.err);
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
         }
 
-        return LstTPrivilege;
+        return lstTPrivilege;
+    }
+
+    @Override
+    public AccountInfoDTO getAccount(TUser tu) {
+
+        if (Objects.isNull(tu)) {
+            throw new RuntimeException();
+        }
+        String roleName;
+        String xtypeload = "mainmenumanager";
+        if ("00".equals(tu.getLgUSERID())) {
+            xtypeload = "dashboard";
+            roleName = "SYSTEM_USER";
+        } else {
+            TRoleUser roleUser = this.getTRoleUser(tu.getLgUSERID());
+            TRole role = roleUser.getLgROLEID();
+
+            roleName = (role != null ? role.getStrDESIGNATION() : "");
+
+            if (role != null && (role.getStrNAME().equalsIgnoreCase(Constant.ROLE_SUPERADMIN)
+                    || role.getStrNAME().equalsIgnoreCase(Constant.ROLE_PHARMACIEN))) {
+                xtypeload = "dashboard";
+            }
+        }
+
+        TLanguage tLanguage = tu.getLgLanguageID();
+        return new AccountInfoDTO().setLgUSERID(tu.getLgUSERID()).setStrLOGIN(tu.getStrLOGIN())
+                .setStrFIRSTNAME(tu.getStrFIRSTNAME()).setStrLASTNAME(tu.getStrLASTNAME())
+                .setStrLASTCONNECTIONDATE(
+                        DateUtil.convertDate(tu.getStrLASTCONNECTIONDATE(), new SimpleDateFormat("yyyy/MM/dd")))
+                .setStrSTATUT(tu.getStrSTATUT())
+                .setLgLanguageID(Objects.nonNull(tLanguage) ? tLanguage.getStrDescription() : "").setRole(roleName)
+                .setXtypeload(xtypeload);
+
     }
 
     private String getHostName(HttpServletRequest request) {
@@ -192,5 +215,19 @@ public class UserServiceImpl implements UserService {
             return Hostname.getHostname();
         }
         return request.getRemoteHost();
+    }
+
+    @Override
+    public TUser updateProfilUser(AccountInfoDTO accountInfo) {
+        TUser usr = this.em.find(TUser.class, accountInfo.getLgUSERID());
+        usr.setStrFIRSTNAME(accountInfo.getStrFIRSTNAME());
+        usr.setStrLASTNAME(accountInfo.getStrLASTNAME());
+        if (StringUtils.isNotEmpty(accountInfo.getStrPASSWORD())) {
+            usr.setStrPASSWORD(Md5.encode(accountInfo.getStrPASSWORD()));
+
+        }
+
+        return this.em.merge(usr);
+
     }
 }

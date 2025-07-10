@@ -26,18 +26,16 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_parameters", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"str_KEY"})})
+@Table(name = "t_parameters", uniqueConstraints = { @UniqueConstraint(columnNames = { "str_KEY" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TParameters.findAll", query = "SELECT t FROM TParameters t"),
-    @NamedQuery(name = "TParameters.findByStrKEY", query = "SELECT t FROM TParameters t WHERE t.strKEY = :strKEY"),
-    @NamedQuery(name = "TParameters.findByStrTYPE", query = "SELECT t FROM TParameters t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TParameters.findByStrSTATUT", query = "SELECT t FROM TParameters t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TParameters.findByStrISENKRYPTED", query = "SELECT t FROM TParameters t WHERE t.strISENKRYPTED = :strISENKRYPTED"),
-    @NamedQuery(name = "TParameters.findByStrSECTIONKEY", query = "SELECT t FROM TParameters t WHERE t.strSECTIONKEY = :strSECTIONKEY"),
-    @NamedQuery(name = "TParameters.findByDtCREATED", query = "SELECT t FROM TParameters t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TParameters.findByDtUPDATED", query = "SELECT t FROM TParameters t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TParameters.findAll", query = "SELECT t FROM TParameters t"),
+        @NamedQuery(name = "TParameters.findByStrKEY", query = "SELECT t FROM TParameters t WHERE t.strKEY = :strKEY"),
+        @NamedQuery(name = "TParameters.findByStrTYPE", query = "SELECT t FROM TParameters t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TParameters.findByStrSTATUT", query = "SELECT t FROM TParameters t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TParameters.findByStrISENKRYPTED", query = "SELECT t FROM TParameters t WHERE t.strISENKRYPTED = :strISENKRYPTED"),
+        @NamedQuery(name = "TParameters.findByStrSECTIONKEY", query = "SELECT t FROM TParameters t WHERE t.strSECTIONKEY = :strSECTIONKEY"),
+        @NamedQuery(name = "TParameters.findByDtCREATED", query = "SELECT t FROM TParameters t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TParameters.findByDtUPDATED", query = "SELECT t FROM TParameters t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TParameters implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -158,7 +156,8 @@ public class TParameters implements Serializable {
             return false;
         }
         TParameters other = (TParameters) object;
-        if ((this.strKEY == null && other.strKEY != null) || (this.strKEY != null && !this.strKEY.equals(other.strKEY))) {
+        if ((this.strKEY == null && other.strKEY != null)
+                || (this.strKEY != null && !this.strKEY.equals(other.strKEY))) {
             return false;
         }
         return true;
@@ -166,9 +165,9 @@ public class TParameters implements Serializable {
 
     @Override
     public String toString() {
-        return "TParameters{" + "strKEY=" + strKEY + ", strVALUE=" + strVALUE + ", strDESCRIPTION=" + strDESCRIPTION + ", strTYPE=" + strTYPE + ", strSTATUT=" + strSTATUT + ", strISENKRYPTED=" + strISENKRYPTED + ", strSECTIONKEY=" + strSECTIONKEY + ", dtCREATED=" + dtCREATED + ", dtUPDATED=" + dtUPDATED + '}';
+        return "TParameters{" + "strKEY=" + strKEY + ", strVALUE=" + strVALUE + ", strDESCRIPTION=" + strDESCRIPTION
+                + ", strTYPE=" + strTYPE + ", strSTATUT=" + strSTATUT + ", strISENKRYPTED=" + strISENKRYPTED
+                + ", strSECTIONKEY=" + strSECTIONKEY + ", dtCREATED=" + dtCREATED + ", dtUPDATED=" + dtUPDATED + '}';
     }
 
-  
-    
 }

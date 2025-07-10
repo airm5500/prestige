@@ -17,8 +17,8 @@ import java.util.stream.Collectors;
  */
 public class TypeRemiseDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-    private String lgTYPEREMISEID,strNAME,strDESCRIPTION;
-    private List<RemiseDTO> remises=new ArrayList<>();
+    private String lgTYPEREMISEID, strNAME, strDESCRIPTION;
+    private List<RemiseDTO> remises = new ArrayList<>();
 
     public String getLgTYPEREMISEID() {
         return lgTYPEREMISEID;
@@ -58,12 +58,12 @@ public class TypeRemiseDTO implements Serializable {
     public TypeRemiseDTO(TTypeRemise typeRemise) {
         this.lgTYPEREMISEID = typeRemise.getLgTYPEREMISEID();
         this.strNAME = typeRemise.getStrNAME();
-        this.strDESCRIPTION=typeRemise.getStrDESCRIPTION();
+        this.strDESCRIPTION = typeRemise.getStrDESCRIPTION();
         try {
-           this.remises=typeRemise.getTRemiseCollection().stream().map(RemiseDTO::new).collect(Collectors.toList()); 
+            this.remises = typeRemise.getTRemiseCollection().stream().map(RemiseDTO::new).collect(Collectors.toList());
         } catch (Exception e) {
         }
-        
+
     }
-    
+
 }

@@ -119,6 +119,7 @@
         json.put("str_NAME", OTTypeStockFamille.getLgFAMILLEID().getStrNAME());
         json.put("lg_FAMILLEARTICLE_ID", OTTypeStockFamille.getLgFAMILLEID().getLgFAMILLEARTICLEID().getStrLIBELLE());
         json.put("int_CIP", OTTypeStockFamille.getLgFAMILLEID().getIntCIP());
+        json.put("int_STOCK",  OSnapshotManager.getStockProduitByIdProduitAndEmplacement( OTTypeStockFamille.getLgFAMILLEID().getLgFAMILLEID()) );
 
         
         int_VALUE3 = OSnapshotManager.getQauntityVenteByArticle(OTTypeStockFamille.getLgFAMILLEID().getIntCIP(), date.DateToString(date.getFirstDayofSomeMonth(Integer.parseInt(date.getoMois(dtDEBUT)) - (3 + Integer.parseInt(date.getoMois(dtDEBUT)))), date.formatterMysqlShort), date.DateToString(date.getLastDayofSomeMonth(Integer.parseInt(date.getoMois(dtDEBUT)) - (3 + Integer.parseInt(date.getoMois(dtDEBUT)))), date.formatterMysqlShort), OTTypeStockFamille.getLgFAMILLEID().getLgFAMILLEID(), lg_USER_ID, lg_PREENREGISTREMENT_ID);

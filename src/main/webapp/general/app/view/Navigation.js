@@ -25,9 +25,9 @@ Ext.define('testextjs.view.Navigation', {
     xtype: 'navigation',
 //    title: 'Menu',
     rootVisible: false,
-    useArrows: true,
+    useArrows: false,
     frame: true,
-    title: 'Prestige Navigation',
+    title: 'Prestige Navigation Menu',
     width: 350,
     height: 300,
     initComponent: function() {

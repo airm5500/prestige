@@ -16,7 +16,7 @@ import org.json.JSONObject;
 
 public interface RetourFourService {
 
-    JSONObject creerRetourFournisseur(SalesParams salesParams)throws JSONException;
+    JSONObject creerRetourFournisseur(SalesParams salesParams) throws JSONException;
 
-    JSONObject ajouterProduit(SalesParams params)throws JSONException;
+    JSONObject ajouterProduit(SalesParams params) throws JSONException;
 }

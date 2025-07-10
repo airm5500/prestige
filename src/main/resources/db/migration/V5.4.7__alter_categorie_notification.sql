@@ -1,0 +1,1 @@
+ALTER TABLE `notification` MODIFY COLUMN `donnees` VARCHAR(3000) NULL DEFAULT NULL COLLATE 'utf8_general_ci';

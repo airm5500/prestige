@@ -4,7 +4,7 @@ Ext.define('testextjs.controller.PendingCtr', {
     extend: 'Ext.app.Controller',
     requires: [
 
-        'testextjs.model.caisse.Vente'
+        'testextjs.model.caisse.Vente', 'testextjs.view.vente.PreventeDetail'
 
 
     ],
@@ -38,6 +38,9 @@ Ext.define('testextjs.controller.PendingCtr', {
         , {
             ref: 'queryField',
             selector: 'cloturerventemanager #query'
+        }, {
+            ref: 'preventeDetail',
+            selector: 'preventeDetail'
         }
 
 
@@ -58,15 +61,37 @@ Ext.define('testextjs.controller.PendingCtr', {
                 viewready: this.doInitStore
             },
             "cloturerventemanager gridpanel actioncolumn": {
-                click: this.handleActionColumn
+                toEdit: this.edit,
+                toDelete: this.delete,
+                toTrash: this.corbeille,
+                goto: this.goto
             },
             'cloturerventemanager #query': {
                 specialkey: this.onSpecialKey
             },
             'cloturerventemanager #addBtn': {
                 click: this.onAddClick
+            },
+            'preventeDetail #btnCancel': {
+                click: this.onClosePreventeDetail
             }
         });
+    },
+    onClosePreventeDetail: function () {
+        const me = this;
+        me.getPreventeDetail().destroy();
+
+    },
+    edit: function (view, rowIndex, colIndex, item, e, record, row) {
+        const me = this;
+        me.onEdite(record);
+    },
+    delete: function (view, rowIndex, colIndex, item, e, record, row) {
+        const me = this;
+        me.onDelete(record.get('lgPREENREGISTREMENTID'));
+    }, corbeille: function (view, rowIndex, colIndex, item, e, record, row) {
+        const me = this;
+        me.onCorbeille(record.get('lgPREENREGISTREMENTID'));
     },
 
     handleActionColumn: function (view, rowIndex, colIndex, item, e) {
@@ -74,7 +99,7 @@ Ext.define('testextjs.controller.PendingCtr', {
 
         var store = me.getPendingGrid().getStore(),
                 rec = store.getAt(colIndex);
-        
+
         if (parseInt(item) === 9) {
             me.onDelete(rec.get('lgPREENREGISTREMENTID'));
         } else if (parseInt(item) === 7) {
@@ -85,14 +110,14 @@ Ext.define('testextjs.controller.PendingCtr', {
     },
     onAddClick: function () {
         var xtype = "doventemanager";
-        var data = {'isEdit': false,'categorie':'VENTE', 'record': {}};
+        var data = {'isEdit': false, 'categorie': 'VENTE', 'record': {}};
         testextjs.app.getController('App').onRedirectTo(xtype, data);
 
     },
 
     onDelete: function (id) {
         var me = this;
-          var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
 //            headers: {'Content-Type': 'application/json'},
@@ -121,14 +146,26 @@ Ext.define('testextjs.controller.PendingCtr', {
 
         });
     },
+    goto: function (view, rowIndex, colIndex, item, e, rec, row) {
+
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ventestats/find-one/' + rec.get('lgPREENREGISTREMENTID'),
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                Ext.create('testextjs.view.vente.PreventeDetail', {vente: result.data}).show();
+            }
+
+        });
+
+
+    },
     onCorbeille: function (id) {
         var me = this;
-         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
-            method: 'POST',
-//            headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/ventestats/update/' + id,
-            params: {'statut': 'is_Trash'},
+            method: 'PUT',
+            url: '../api/v1/ventestats/update/' + id + '/is_Trash',
             success: function (response, options) {
                 progress.hide();
                 var result = Ext.JSON.decode(response.responseText, true);
@@ -154,7 +191,7 @@ Ext.define('testextjs.controller.PendingCtr', {
     },
 
     onEdite: function (rec) {
-        var data = {'isEdit': true, 'record': rec.data, 'isDevis': false,'categorie':'VENTE'};
+        var data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'VENTE'};
         var xtype = "doventemanager";
         testextjs.app.getController('App').onRedirectTo(xtype, data);
     },
@@ -190,8 +227,8 @@ Ext.define('testextjs.controller.PendingCtr', {
     },
     onSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
-                var me = this;
-                me.doSearch();
+            var me = this;
+            me.doSearch();
         }
     },
     doSearch: function () {

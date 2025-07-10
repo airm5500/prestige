@@ -72,16 +72,18 @@ public class clientManagement extends bllBase {
         this.checkDatamanager();
     }
 
-    public boolean isAuthorize(TCompteClient OTCompteClient, String lg_PREENREGISTREMENT_ID, String lg_TYPE_REGLEMENT_ID) {
-        //verrifiation de lautoo  
+    public boolean isAuthorize(TCompteClient OTCompteClient, String lg_PREENREGISTREMENT_ID,
+            String lg_TYPE_REGLEMENT_ID) {
+        // verrifiation de lautoo
 
-        //verifi solde
-        //verrif du droit au type ddfdfd
+        // verifi solde
+        // verrif du droit au type ddfdfd
         return true;
     }
 
     public void addToMytransaction(TCompteClient OTCompteClient, String lg_PREENREGISTREMENT_ID) {
-        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID, new TPreenregistrement());
+        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID,
+                new TPreenregistrement());
 
         TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient();
         oTPreenregistrementCompteClient.setLgPREENREGISTREMENTCOMPTECLIENTID(this.getKey().getComplexId());
@@ -94,24 +96,23 @@ public class clientManagement extends bllBase {
     }
 
     public void createByAssurance(String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
-            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
-            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
+            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE, String str_ADRESSE,
+            String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL, String str_COMMENTAIRE,
             String lg_VILLE_ID, String lg_MEDECIN_ID, String lg_CATEGORIE_AYANTDROIT_ID, String lg_RISQUE_ID) {
         String str_type = "1";
         Double dbl_QUOTA_CONSO_MENSUELLE = 0.0;
         Double dbl_CAUTION = 0.0;
         Double dbl_SOLDE = 0.0;
-        this.create(str_FIRST_NAME, str_LAST_NAME, str_NUMERO_SECURITE_SOCIAL, dt_NAISSANCE, str_SEXE, str_ADRESSE, str_DOMICILE, str_AUTRE_ADRESSE, str_CODE_POSTAL, str_COMMENTAIRE, lg_VILLE_ID, dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, str_type, lg_CATEGORIE_AYANTDROIT_ID, lg_RISQUE_ID);
+        this.create(str_FIRST_NAME, str_LAST_NAME, str_NUMERO_SECURITE_SOCIAL, dt_NAISSANCE, str_SEXE, str_ADRESSE,
+                str_DOMICILE, str_AUTRE_ADRESSE, str_CODE_POSTAL, str_COMMENTAIRE, lg_VILLE_ID,
+                dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, str_type, lg_CATEGORIE_AYANTDROIT_ID, lg_RISQUE_ID);
     }
 
-    public void create(String str_FIRST_NAME, String str_LAST_NAME,
-            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
-            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
-            String lg_VILLE_ID, Double dbl_QUOTA_CONSO_MENSUELLE, Double dbl_CAUTION, Double dbl_SOLDE, String lg_TYPE_CLIENT_ID,
-            String lg_CATEGORIE_AYANTDROIT_ID, String lg_RISQUE_ID
-    ) {
+    public void create(String str_FIRST_NAME, String str_LAST_NAME, String str_NUMERO_SECURITE_SOCIAL,
+            Date dt_NAISSANCE, String str_SEXE, String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
+            String str_CODE_POSTAL, String str_COMMENTAIRE, String lg_VILLE_ID, Double dbl_QUOTA_CONSO_MENSUELLE,
+            Double dbl_CAUTION, Double dbl_SOLDE, String lg_TYPE_CLIENT_ID, String lg_CATEGORIE_AYANTDROIT_ID,
+            String lg_RISQUE_ID) {
         try {
             new logger().OCategory.info("**********************  CALLAA  -----");
             TClient OTClient = new TClient();
@@ -134,7 +135,8 @@ public class clientManagement extends bllBase {
             TVille OTVille = this.getOdataManager().getEm().find(TVille.class, lg_VILLE_ID);
             if (OTVille == null) {
                 System.out.println("***************  " + OTVille);
-                this.buildErrorTraceMessage("Impossible de creer un " + Otable, " Ref VILLE : " + OTVille + "  Invalide ");
+                this.buildErrorTraceMessage("Impossible de creer un " + Otable,
+                        " Ref VILLE : " + OTVille + "  Invalide ");
                 return;
             }
             OTClient.setLgVILLEID(OTVille);
@@ -142,9 +144,12 @@ public class clientManagement extends bllBase {
             OTClient.setDtCREATED(new Date());
 
             this.persiste(OTClient);
-            new compteClientManagement(this.getOdataManager()).create("", dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, OTClient);
+            new compteClientManagement(this.getOdataManager()).create("", dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION,
+                    dbl_SOLDE, OTClient);
 
-            new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(), lg_CATEGORIE_AYANTDROIT_ID, str_FIRST_NAME, str_LAST_NAME, str_SEXE, dt_NAISSANCE, lg_VILLE_ID, lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE());
+            new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(),
+                    lg_CATEGORIE_AYANTDROIT_ID, str_FIRST_NAME, str_LAST_NAME, str_SEXE, dt_NAISSANCE, lg_VILLE_ID,
+                    lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
@@ -153,18 +158,20 @@ public class clientManagement extends bllBase {
 
     }
 
-//    public void update(String lg_CLIENT_ID, String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
-//            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
-//            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-//            String str_CODE_POSTAL, String str_COMMENTAIRE,
-//            String lg_VILLE_ID, String lg_MEDECIN_ID, Double dbl_QUOTA_CONSO_MENSUELLE, Double dbl_CAUTION, Double dbl_SOLDE, String lg_TYPE_CLIENT_ID,
-//            String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID, String lg_RISQUE_ID) {
-    public TCompteClient update(String lg_CLIENT_ID, String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
-            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
-            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
-            String lg_VILLE_ID, String lg_MEDECIN_ID, Double dbl_QUOTA_CONSO_MENSUELLE, Double dbl_CAUTION, String lg_TYPE_CLIENT_ID,
-            String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID, String lg_RISQUE_ID, String lg_TIERS_PAYANT_ID, int int_POURCENTAGE, int int_PRIORITY, double dbl_QUOTA_CONSO_VENTE, String lg_CATEGORY_CLIENT_ID) {
+    // public void update(String lg_CLIENT_ID, String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
+    // String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
+    // String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
+    // String str_CODE_POSTAL, String str_COMMENTAIRE,
+    // String lg_VILLE_ID, String lg_MEDECIN_ID, Double dbl_QUOTA_CONSO_MENSUELLE, Double dbl_CAUTION, Double dbl_SOLDE,
+    // String lg_TYPE_CLIENT_ID,
+    // String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID, String lg_RISQUE_ID) {
+    public TCompteClient update(String lg_CLIENT_ID, String str_CODE_INTERNE, String str_FIRST_NAME,
+            String str_LAST_NAME, String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
+            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL,
+            String str_COMMENTAIRE, String lg_VILLE_ID, String lg_MEDECIN_ID, Double dbl_QUOTA_CONSO_MENSUELLE,
+            Double dbl_CAUTION, String lg_TYPE_CLIENT_ID, String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID,
+            String lg_RISQUE_ID, String lg_TIERS_PAYANT_ID, int int_POURCENTAGE, int int_PRIORITY,
+            double dbl_QUOTA_CONSO_VENTE, String lg_CATEGORY_CLIENT_ID) {
         TCompteClient OTCompteClient = null;
         try {
 
@@ -189,11 +196,12 @@ public class clientManagement extends bllBase {
             OTClient.setStrCOMMENTAIRE(str_COMMENTAIRE);
 
             /*
-             
+
              */
             try {
-                //TVille OTVille = getOdataManager().getEm().find(dal.TVille.class, lg_VILLE_ID);
-                TVille OTVille = (TVille) this.getOdataManager().getEm().createQuery("SELECT t FROM TVille t WHERE t.lgVILLEID LIKE ?1 OR t.strName LIKE ?2")
+                // TVille OTVille = getOdataManager().getEm().find(dal.TVille.class, lg_VILLE_ID);
+                TVille OTVille = (TVille) this.getOdataManager().getEm()
+                        .createQuery("SELECT t FROM TVille t WHERE t.lgVILLEID LIKE ?1 OR t.strName LIKE ?2")
                         .setParameter(1, lg_VILLE_ID).setParameter(2, lg_VILLE_ID).getSingleResult();
                 if (OTVille != null) {
                     new logger().oCategory.info("Ville  " + OTVille.getStrName());
@@ -202,12 +210,15 @@ public class clientManagement extends bllBase {
 
             } catch (Exception e) {
 
-                new logger().oCategory.info("Impossible de mettre a jour les donnees vennant de la cle etrangere TVille   ");
+                new logger().oCategory
+                        .info("Impossible de mettre a jour les donnees vennant de la cle etrangere TVille   ");
             }
 
             try {
-                TTypeClient OTTypeClient = (TTypeClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TTypeClient t WHERE (t.lgTYPECLIENTID LIKE ?1 OR t.strNAME LIKE ?2) AND t.strSTATUT = ?3")
-                        .setParameter(1, lg_TYPE_CLIENT_ID).setParameter(2, lg_TYPE_CLIENT_ID).setParameter(3, commonparameter.statut_enable).getSingleResult();
+                TTypeClient OTTypeClient = (TTypeClient) this.getOdataManager().getEm().createQuery(
+                        "SELECT t FROM TTypeClient t WHERE (t.lgTYPECLIENTID LIKE ?1 OR t.strNAME LIKE ?2) AND t.strSTATUT = ?3")
+                        .setParameter(1, lg_TYPE_CLIENT_ID).setParameter(2, lg_TYPE_CLIENT_ID)
+                        .setParameter(3, commonparameter.statut_enable).getSingleResult();
                 if (OTTypeClient != null) {
                     new logger().oCategory.info("Type client  " + OTTypeClient.getStrDESCRIPTION());
                     OTClient.setLgTYPECLIENTID(OTTypeClient);
@@ -215,7 +226,8 @@ public class clientManagement extends bllBase {
 
             } catch (Exception e) {
 
-                new logger().oCategory.info("Impossible de mettre a jour les donnees vennant de la cle etrangere Type client   ");
+                new logger().oCategory
+                        .info("Impossible de mettre a jour les donnees vennant de la cle etrangere Type client   ");
             }
 
             OTClient.setStrSTATUT(commonparameter.statut_enable);
@@ -223,24 +235,43 @@ public class clientManagement extends bllBase {
 
             this.persiste(OTClient);
 
-            TTiersPayant OTTiersPayant = new tierspayantManagement(this.getOdataManager()).getTTiersPayant(lg_TIERS_PAYANT_ID);
+            TTiersPayant OTTiersPayant = new tierspayantManagement(this.getOdataManager())
+                    .getTTiersPayant(lg_TIERS_PAYANT_ID);
             OTCompteClient = this.getTCompteClientByClient(OTClient.getLgCLIENTID());
             try {
-                TCompteClientTiersPayant OTCompteClientTiersPayant = new tierspayantManagement(this.getOdataManager()).isRegimeExistForCptltTiersPBis(OTCompteClient.getLgCOMPTECLIENTID(), 1, commonparameter.statut_enable);
-                new logger().OCategory.info("Pourcentage " + OTCompteClientTiersPayant.getIntPOURCENTAGE() + "----" + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID());
-                if (OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equalsIgnoreCase("1")) {
-                    new ayantDroitManagement(this.getOdataManager()).updateAyantdroit(lg_AYANTS_DROITS_ID, OTClient.getLgCLIENTID(), lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(), OTClient.getLgVILLEID().getLgVILLEID(), lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL());
+                TCompteClientTiersPayant OTCompteClientTiersPayant = new tierspayantManagement(this.getOdataManager())
+                        .isRegimeExistForCptltTiersPBis(OTCompteClient.getLgCOMPTECLIENTID(), 1,
+                                commonparameter.statut_enable);
+                new logger().OCategory.info("Pourcentage " + OTCompteClientTiersPayant.getIntPOURCENTAGE() + "----"
+                        + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID()
+                                .getLgTYPETIERSPAYANTID());
+                if (OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID()
+                        .equalsIgnoreCase("1")) {
+                    new ayantDroitManagement(this.getOdataManager()).updateAyantdroit(lg_AYANTS_DROITS_ID,
+                            OTClient.getLgCLIENTID(), lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(),
+                            OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(),
+                            OTClient.getLgVILLEID().getLgVILLEID(), lg_RISQUE_ID,
+                            OTClient.getStrNUMEROSECURITESOCIAL());
                 } else {
                     if (OTTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equalsIgnoreCase("1")) {
-                        new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(), lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(), OTClient.getLgVILLEID().getLgVILLEID(), lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE());
+                        new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(),
+                                lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(),
+                                OTClient.getStrSEXE(), OTClient.getDtCREATED(), OTClient.getLgVILLEID().getLgVILLEID(),
+                                lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE());
                     }
                 }
-                new tierspayantManagement(this.getOdataManager()).updateComptecltTierspayant(OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID(), OTCompteClient.getLgCOMPTECLIENTID(), OTTiersPayant.getLgTIERSPAYANTID(), int_POURCENTAGE, int_PRIORITY, dbl_QUOTA_CONSO_MENSUELLE, dbl_QUOTA_CONSO_VENTE, str_NUMERO_SECURITE_SOCIAL, null, false, false);
+                new tierspayantManagement(this.getOdataManager()).updateComptecltTierspayant(
+                        OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID(),
+                        OTCompteClient.getLgCOMPTECLIENTID(), OTTiersPayant.getLgTIERSPAYANTID(), int_POURCENTAGE,
+                        int_PRIORITY, dbl_QUOTA_CONSO_MENSUELLE, dbl_QUOTA_CONSO_VENTE, str_NUMERO_SECURITE_SOCIAL,
+                        null, false, false);
             } catch (Exception e) {
             }
 
-            /*OTCompteClient = OTClient.getTCompteClientCollection().iterator().next();
-             new compteClientManagement(this.getOdataManager()).update(OTCompteClient.getLgCOMPTECLIENTID(), "", dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION);
+            /*
+             * OTCompteClient = OTClient.getTCompteClientCollection().iterator().next(); new
+             * compteClientManagement(this.getOdataManager()).update(OTCompteClient.getLgCOMPTECLIENTID(), "",
+             * dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION);
              */
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             return OTCompteClient;
@@ -257,12 +288,16 @@ public class clientManagement extends bllBase {
 
             OTClient = getOdataManager().getEm().find(TClient.class, lg_CLIENT_ID);
             if (this.isDeleteIsAuthorize(OTClient.getLgCLIENTID())) {
-                this.buildErrorTraceMessage("Impossible de supprimer un client qui a déjà realisé des actions dans le système");
+                this.buildErrorTraceMessage(
+                        "Impossible de supprimer un client qui a déjà realisé des actions dans le système");
                 return null;
             }
             OTClient.setStrSTATUT(commonparameter.statut_delete);
             this.persiste(OTClient);
-            this.do_event_log(this.getOdataManager(), "", "Suppression du client " + OTClient.getStrFIRSTNAME() + " " + OTClient.getStrLASTNAME(), this.getOTUser().getStrFIRSTNAME(), commonparameter.statut_enable, "t_client", "t_client", "Mouvement sur Client", this.getOTUser().getLgUSERID());
+            this.do_event_log(this.getOdataManager(), "",
+                    "Suppression du client " + OTClient.getStrFIRSTNAME() + " " + OTClient.getStrLASTNAME(),
+                    this.getOTUser().getStrFIRSTNAME(), commonparameter.statut_enable, "t_client", "t_client",
+                    "Mouvement sur Client", this.getOTUser().getLgUSERID());
 
             try {
 
@@ -278,13 +313,15 @@ public class clientManagement extends bllBase {
                     OTCompteClient.setStrSTATUT(commonparameter.statut_delete);
                     this.persiste(OTCompteClient);
 
-                    Collection<TCompteClientTiersPayant> CollTCompteClientTiersPayant = OTCompteClient.getTCompteClientTiersPayantCollection();
+                    Collection<TCompteClientTiersPayant> CollTCompteClientTiersPayant = OTCompteClient
+                            .getTCompteClientTiersPayantCollection();
                     Iterator iterarorTCompteClientTiersPayant = CollTCompteClientTiersPayant.iterator();
 
                     while (iterarorTCompteClientTiersPayant.hasNext()) {
                         Object elTCompteClientTiersPayant = iterarorTCompteClientTiersPayant.next();
                         TCompteClientTiersPayant OTCompteClientTiersPayant = (TCompteClientTiersPayant) elTCompteClientTiersPayant;
-                        new logger().OCategory.info("Tiers payant " + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getStrFULLNAME());
+                        new logger().OCategory.info(
+                                "Tiers payant " + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getStrFULLNAME());
                         this.refresh(OTCompteClientTiersPayant);
                         OTCompteClientTiersPayant.setStrSTATUT(commonparameter.statut_delete);
                         this.persiste(OTCompteClientTiersPayant);
@@ -309,9 +346,8 @@ public class clientManagement extends bllBase {
 
         try {
 
-            lstTClient = getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE  t.strSTATUT LIKE ?1 ").
-                    setParameter(1, commonparameter.statut_enable).
-                    getResultList();
+            lstTClient = getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE  t.strSTATUT LIKE ?1 ")
+                    .setParameter(1, commonparameter.statut_enable).getResultList();
             new logger().OCategory.info(lstTClient.size());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -331,10 +367,10 @@ public class clientManagement extends bllBase {
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.strSTATUT LIKE ?2").
-                    setParameter(1, "%" + lg_VILLE_ID + "%").
-                    setParameter(2, commonparameter.statut_enable).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.strSTATUT LIKE ?2")
+                    .setParameter(1, "%" + lg_VILLE_ID + "%").setParameter(2, commonparameter.statut_enable)
+                    .getResultList();
             new logger().OCategory.info(lstTClient.size());
 
             for (TClient lstTClient1 : lstTClient) {
@@ -351,26 +387,22 @@ public class clientManagement extends bllBase {
 
     }
 
-    /* public TCompteClient getCompteClient(String lg_CLIENT_ID) {
-     TCompteClient OTCompteClient = null;
-     try {
-     OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClient t WHERE t.lgCLIENTID.lgCLIENTID = ?1")
-     .setParameter(1, lg_CLIENT_ID).getSingleResult();
-     } catch (Exception e) {
-     e.printStackTrace();
-     }
-     return OTCompteClient;
-     }*/
+    /*
+     * public TCompteClient getCompteClient(String lg_CLIENT_ID) { TCompteClient OTCompteClient = null; try {
+     * OTCompteClient = (TCompteClient)
+     * this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClient t WHERE t.lgCLIENTID.lgCLIENTID = ?1")
+     * .setParameter(1, lg_CLIENT_ID).getSingleResult(); } catch (Exception e) { e.printStackTrace(); } return
+     * OTCompteClient; }
+     */
     public List<TClient> showOnorAllClient(String search_value) {
 
         List<TClient> lstTClient = new ArrayList<>();
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1)  AND t.strSTATUT LIKE ?4").
-                    setParameter(1, search_value + "%").
-                    setParameter(4, commonparameter.statut_enable).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1)  AND t.strSTATUT LIKE ?4")
+                    .setParameter(1, search_value + "%").setParameter(4, commonparameter.statut_enable).getResultList();
             new logger().OCategory.info("lstTClient size " + lstTClient.size());
 
             this.buildSuccesTraceMessage("Client(s) Existant(s)   :: " + lstTClient);
@@ -385,13 +417,13 @@ public class clientManagement extends bllBase {
 
         try {
 
-            Query q = this.getOdataManager().getEm().createQuery("SELECT COUNT(t) FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1)  AND t.strSTATUT LIKE ?4").
-                    setParameter(1, search_value + "%").
-                    setParameter(4, commonparameter.statut_enable);
+            Query q = this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(t) FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1)  AND t.strSTATUT LIKE ?4")
+                    .setParameter(1, search_value + "%").setParameter(4, commonparameter.statut_enable);
 
             return ((Long) q.getSingleResult()).intValue();
         } finally {
-//            this.getOdataManager().getEm().close();
+            // this.getOdataManager().getEm().close();
         }
 
     }
@@ -402,11 +434,10 @@ public class clientManagement extends bllBase {
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1)  AND t.strSTATUT LIKE ?4  ORDER BY t.strFIRSTNAME,t.strLASTNAME   ").
-                    setParameter(1, search_value + "%").
-                    setParameter(4, commonparameter.statut_enable).
-                    setFirstResult(start).setMaxResults(limit).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1)  AND t.strSTATUT LIKE ?4  ORDER BY t.strFIRSTNAME,t.strLASTNAME   ")
+                    .setParameter(1, search_value + "%").setParameter(4, commonparameter.statut_enable)
+                    .setFirstResult(start).setMaxResults(limit).getResultList();
             for (TClient OTClient : lstTClient) {
                 this.refresh(OTClient);
 
@@ -426,46 +457,44 @@ public class clientManagement extends bllBase {
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1) AND t.lgTYPECLIENTID.lgTYPECLIENTID LIKE ?3 AND t.strSTATUT LIKE ?4 ORDER BY t.lgTYPECLIENTID.strDESCRIPTION, t.strFIRSTNAME ").
-                    setParameter(1, search_value + "%").
-                    setParameter(3, lg_TYPE_CLIENT_ID).
-                    setParameter(4, str_STATUT).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1) AND t.lgTYPECLIENTID.lgTYPECLIENTID LIKE ?3 AND t.strSTATUT LIKE ?4 ORDER BY t.lgTYPECLIENTID.strDESCRIPTION, t.strFIRSTNAME ")
+                    .setParameter(1, search_value + "%").setParameter(3, lg_TYPE_CLIENT_ID).setParameter(4, str_STATUT)
+                    .getResultList();
 
-            // this.buildSuccesTraceMessage("Client(s) Existant(s)  Taille :: " + lstTClient.size());
+            // this.buildSuccesTraceMessage("Client(s) Existant(s) Taille :: " + lstTClient.size());
         } catch (Exception e) {
             e.printStackTrace();
-            //this.buildErrorTraceMessage("Client Inexistant ", e.getMessage());
+            // this.buildErrorTraceMessage("Client Inexistant ", e.getMessage());
         }
         new logger().OCategory.info("lstTClient taille " + lstTClient.size());
         return lstTClient;
     }
 
-    public List<TClient> showOnorAllClientByType(String search_value, String lg_TYPE_CLIENT_ID, String str_STATUT, int start, int limit) {
+    public List<TClient> showOnorAllClientByType(String search_value, String lg_TYPE_CLIENT_ID, String str_STATUT,
+            int start, int limit) {
 
         List<TClient> lstTClient = new ArrayList<>();
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1) AND t.lgTYPECLIENTID.lgTYPECLIENTID LIKE ?3 AND t.strSTATUT LIKE ?4 ORDER BY t.lgTYPECLIENTID.strDESCRIPTION, t.strFIRSTNAME,t.strLASTNAME ").
-                    setParameter(1, search_value + "%").
-                    setParameter(3, lg_TYPE_CLIENT_ID).
-                    setParameter(4, str_STATUT).
-                    setFirstResult(start).setMaxResults(limit).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1) AND t.lgTYPECLIENTID.lgTYPECLIENTID LIKE ?3 AND t.strSTATUT LIKE ?4 ORDER BY t.lgTYPECLIENTID.strDESCRIPTION, t.strFIRSTNAME,t.strLASTNAME ")
+                    .setParameter(1, search_value + "%").setParameter(3, lg_TYPE_CLIENT_ID).setParameter(4, str_STATUT)
+                    .setFirstResult(start).setMaxResults(limit).getResultList();
             for (TClient tClient : lstTClient) {
                 this.refresh(tClient);
             }
-            // this.buildSuccesTraceMessage("Client(s) Existant(s)  Taille :: " + lstTClient.size());
+            // this.buildSuccesTraceMessage("Client(s) Existant(s) Taille :: " + lstTClient.size());
         } catch (Exception e) {
             e.printStackTrace();
-            //this.buildErrorTraceMessage("Client Inexistant ", e.getMessage());
+            // this.buildErrorTraceMessage("Client Inexistant ", e.getMessage());
         }
         new logger().OCategory.info("lstTClient taille " + lstTClient.size());
         return lstTClient;
     }
 
-    //liste des tiers payants d'un client
+    // liste des tiers payants d'un client
     public List<TTiersPayant> GetAllTierspayantgeAuthorize_To_Client(String lg_COMPTE_CLIENT_ID) {
         List<TTiersPayant> LstTTiersPayant = new ArrayList<>();
         String qry = "";
@@ -473,9 +502,11 @@ public class clientManagement extends bllBase {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            new logger().OCategory.info("GetAllTierspayantgeAuthorize_To_Client lg_COMPTE_CLIENT_ID  " + lg_COMPTE_CLIENT_ID);
+            new logger().OCategory
+                    .info("GetAllTierspayantgeAuthorize_To_Client lg_COMPTE_CLIENT_ID  " + lg_COMPTE_CLIENT_ID);
 
-            qry = "select t_tiers_payant.lg_TIERS_PAYANT_ID, t_tiers_payant.str_NAME, t_tiers_payant.str_CODE_ORGANISME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '" + lg_COMPTE_CLIENT_ID + "') ORDER BY t_tiers_payant.str_NAME DESC";
+            qry = "select t_tiers_payant.lg_TIERS_PAYANT_ID, t_tiers_payant.str_NAME, t_tiers_payant.str_CODE_ORGANISME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '"
+                    + lg_COMPTE_CLIENT_ID + "') ORDER BY t_tiers_payant.str_NAME DESC";
             Ojconnexion.set_Request(qry);
             new logger().OCategory.info(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -490,12 +521,13 @@ public class clientManagement extends bllBase {
         } catch (Exception ex) {
             new logger().OCategory.fatal(ex.getMessage());
         }
-        new logger().OCategory.info("size LstTTiersPayant dans GetAllTierspayantgeAuthorize_To_Client:" + LstTTiersPayant.size());
+        new logger().OCategory
+                .info("size LstTTiersPayant dans GetAllTierspayantgeAuthorize_To_Client:" + LstTTiersPayant.size());
         return LstTTiersPayant;
     }
-    //fin liste des tiers pays d'un client
+    // fin liste des tiers pays d'un client
 
-    //liste des tiers payants qui ne sont pas encore associé à un client
+    // liste des tiers payants qui ne sont pas encore associé à un client
     public List<TTiersPayant> GetAllTierspayantgeUnAuthorize_To_Client(String lg_COMPTE_CLIENT_ID) {
         List<TTiersPayant> LstTTiersPayant = new ArrayList<TTiersPayant>();
         String qry = "";
@@ -503,9 +535,11 @@ public class clientManagement extends bllBase {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            new logger().OCategory.info("GetAllTierspayantgeUnAuthorize_To_Client lg_COMPTE_CLIENT_ID  " + lg_COMPTE_CLIENT_ID);
+            new logger().OCategory
+                    .info("GetAllTierspayantgeUnAuthorize_To_Client lg_COMPTE_CLIENT_ID  " + lg_COMPTE_CLIENT_ID);
 
-            qry = "select t_tiers_payant.lg_TIERS_PAYANT_ID, t_tiers_payant.str_NAME, t_tiers_payant.str_CODE_ORGANISME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID NOT IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '" + lg_COMPTE_CLIENT_ID + "') ORDER BY t_tiers_payant.str_NAME DESC";
+            qry = "select t_tiers_payant.lg_TIERS_PAYANT_ID, t_tiers_payant.str_NAME, t_tiers_payant.str_CODE_ORGANISME FROM t_tiers_payant WHERE t_tiers_payant.lg_TIERS_PAYANT_ID NOT IN (SELECT t_compte_client_tiers_payant.lg_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant WHERE t_compte_client_tiers_payant.lg_COMPTE_CLIENT_ID LIKE '"
+                    + lg_COMPTE_CLIENT_ID + "') ORDER BY t_tiers_payant.str_NAME DESC";
             Ojconnexion.set_Request(qry);
             new logger().OCategory.info(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -520,20 +554,26 @@ public class clientManagement extends bllBase {
         } catch (Exception ex) {
             new logger().OCategory.fatal(ex.getMessage());
         }
-        new logger().OCategory.info("size LstTTiersPayant dans GetAllTierspayantgeUnAuthorize_To_Client:" + LstTTiersPayant.size());
+        new logger().OCategory
+                .info("size LstTTiersPayant dans GetAllTierspayantgeUnAuthorize_To_Client:" + LstTTiersPayant.size());
         return LstTTiersPayant;
     }
-    //fin liste des tiers payants qui ne sont pas encore associé à un client
+    // fin liste des tiers payants qui ne sont pas encore associé à un client
 
-    //liste des tiers payants d'un client
-    public List<TCompteClientTiersPayant> getTiersPayantsByClient(String lg_COMPTE_CLIENT_ID, String lg_TIERS_PAYANT_ID) {
+    // liste des tiers payants d'un client
+    public List<TCompteClientTiersPayant> getTiersPayantsByClient(String lg_COMPTE_CLIENT_ID,
+            String lg_TIERS_PAYANT_ID) {
         List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = new ArrayList<TCompteClientTiersPayant>();
         try {
-            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1 AND t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?2 AND t.lgCOMPTECLIENTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strSTATUT = ?3")
-                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(2, lg_TIERS_PAYANT_ID).setParameter(3, commonparameter.statut_enable).getResultList();
+            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1 AND t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?2 AND t.lgCOMPTECLIENTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strSTATUT = ?3")
+                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(2, lg_TIERS_PAYANT_ID)
+                    .setParameter(3, commonparameter.statut_enable).getResultList();
             for (TCompteClientTiersPayant OTCompteClientTiersPayant : lstTCompteClientTiersPayant) {
                 this.refresh(OTCompteClientTiersPayant);
-                new logger().OCategory.info("Client " + OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME() + " Tiers payants " + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getStrFULLNAME());
+                new logger().OCategory.info(
+                        "Client " + OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME()
+                                + " Tiers payants " + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getStrFULLNAME());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -541,39 +581,47 @@ public class clientManagement extends bllBase {
         return lstTCompteClientTiersPayant;
     }
 
-    public List<TCompteClientTiersPayant> getTiersPayantsByClient(String search_value, String lg_COMPTE_CLIENT_ID, String lg_TIERS_PAYANT_ID) {
+    public List<TCompteClientTiersPayant> getTiersPayantsByClient(String search_value, String lg_COMPTE_CLIENT_ID,
+            String lg_TIERS_PAYANT_ID) {
         List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = new ArrayList<>();
         try {
             if (search_value.equalsIgnoreCase("") || search_value == null) {
                 search_value = "%%";
             }
-            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1 AND t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?2 AND t.lgCOMPTECLIENTID.strSTATUT = ?3 AND t.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strFULLNAME LIKE ?4 ORDER BY t.intPRIORITY ASC")
-                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(4, search_value + "%").setParameter(2, lg_TIERS_PAYANT_ID).setParameter(3, commonparameter.statut_enable).getResultList();
-            /*for (TCompteClientTiersPayant OTCompteClientTiersPayant : lstTCompteClientTiersPayant) {
-             this.refresh(OTCompteClientTiersPayant);
-             new logger().OCategory.info("Client " + OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME() + " Tiers payants " + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getStrFULLNAME());
-             }*/
+            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1 AND t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?2 AND t.lgCOMPTECLIENTID.strSTATUT = ?3 AND t.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strFULLNAME LIKE ?4 ORDER BY t.intPRIORITY ASC")
+                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(4, search_value + "%")
+                    .setParameter(2, lg_TIERS_PAYANT_ID).setParameter(3, commonparameter.statut_enable).getResultList();
+            /*
+             * for (TCompteClientTiersPayant OTCompteClientTiersPayant : lstTCompteClientTiersPayant) {
+             * this.refresh(OTCompteClientTiersPayant); new logger().OCategory.info("Client " +
+             * OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME() + " Tiers payants " +
+             * OTCompteClientTiersPayant.getLgTIERSPAYANTID().getStrFULLNAME()); }
+             */
         } catch (Exception e) {
             e.printStackTrace();
         }
         return lstTCompteClientTiersPayant;
     }
 
-    public List<TCompteClientTiersPayant> getTiersPayantsByClient(String search_value, String lg_COMPTE_CLIENT_ID, String lg_TIERS_PAYANT_ID, String str_STATUT) {
+    public List<TCompteClientTiersPayant> getTiersPayantsByClient(String search_value, String lg_COMPTE_CLIENT_ID,
+            String lg_TIERS_PAYANT_ID, String str_STATUT) {
         List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = new ArrayList<TCompteClientTiersPayant>();
         try {
             if (search_value.equalsIgnoreCase("") || search_value == null) {
                 search_value = "%%";
             }
-            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1 AND t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?2 AND t.lgCOMPTECLIENTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strFULLNAME LIKE ?4 ORDER BY t.intPRIORITY ASC")
-                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(4, search_value + "%").setParameter(2, lg_TIERS_PAYANT_ID).setParameter(3, str_STATUT).getResultList();
+            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?1 AND t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?2 AND t.lgCOMPTECLIENTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strFULLNAME LIKE ?4 ORDER BY t.intPRIORITY ASC")
+                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(4, search_value + "%")
+                    .setParameter(2, lg_TIERS_PAYANT_ID).setParameter(3, str_STATUT).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return lstTCompteClientTiersPayant;
     }
 
-//fin liste des tiers payants d'un client
+    // fin liste des tiers payants d'un client
     // DEBUT LES MEDECINS D'UN CLIENT DONNE
     public List<TMedecin> GetAllMedecingeAuthorize_To_Client(String lg_CLIENT_ID) {
         List<TMedecin> LstTMedecin = new ArrayList<TMedecin>();
@@ -584,7 +632,8 @@ public class clientManagement extends bllBase {
             Ojconnexion.OpenConnexion();
             new logger().OCategory.info("GetAllMedecingeAuthorize_To_Client lg_CLIENT_ID  " + lg_CLIENT_ID);
 
-            qry = "select t_medecin.lg_MEDECIN_ID,t_medecin.str_FIRST_NAME, t_medecin.str_LAST_NAME FROM t_medecin WHERE t_medecin.lg_MEDECIN_ID IN (SELECT t_medecin_client.lg_MEDECIN_ID FROM t_medecin_client WHERE t_medecin_client.lg_CLIENT_ID  LIKE '" + lg_CLIENT_ID + "') ORDER BY t_medecin.str_FIRST_NAME DESC";
+            qry = "select t_medecin.lg_MEDECIN_ID,t_medecin.str_FIRST_NAME, t_medecin.str_LAST_NAME FROM t_medecin WHERE t_medecin.lg_MEDECIN_ID IN (SELECT t_medecin_client.lg_MEDECIN_ID FROM t_medecin_client WHERE t_medecin_client.lg_CLIENT_ID  LIKE '"
+                    + lg_CLIENT_ID + "') ORDER BY t_medecin.str_FIRST_NAME DESC";
             Ojconnexion.set_Request(qry);
             new logger().OCategory.info(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -614,7 +663,8 @@ public class clientManagement extends bllBase {
             Ojconnexion.OpenConnexion();
             new logger().OCategory.info("GetAllMedecingeAuthorize_To_Client lg_CLIENT_ID  " + lg_CLIENT_ID);
 
-            qry = "select t_medecin.lg_MEDECIN_ID,t_medecin.str_FIRST_NAME, t_medecin.str_LAST_NAME FROM t_medecin WHERE t_medecin.lg_MEDECIN_ID NOT IN (SELECT t_medecin_client.lg_MEDECIN_ID FROM t_medecin_client WHERE t_medecin_client.lg_CLIENT_ID  LIKE '" + lg_CLIENT_ID + "') ORDER BY t_medecin.str_FIRST_NAME DESC";
+            qry = "select t_medecin.lg_MEDECIN_ID,t_medecin.str_FIRST_NAME, t_medecin.str_LAST_NAME FROM t_medecin WHERE t_medecin.lg_MEDECIN_ID NOT IN (SELECT t_medecin_client.lg_MEDECIN_ID FROM t_medecin_client WHERE t_medecin_client.lg_CLIENT_ID  LIKE '"
+                    + lg_CLIENT_ID + "') ORDER BY t_medecin.str_FIRST_NAME DESC";
             Ojconnexion.set_Request(qry);
             new logger().OCategory.info(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -639,10 +689,13 @@ public class clientManagement extends bllBase {
         try {
 
             try {
-                OTMedecinClient = (TMedecinClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TMedecinClient t WHERE t.lgMEDECINID.lgMEDECINID = ?1 AND t.lgCLIENTID.lgCLIENTID = ?2")
+                OTMedecinClient = (TMedecinClient) this.getOdataManager().getEm().createQuery(
+                        "SELECT t FROM TMedecinClient t WHERE t.lgMEDECINID.lgMEDECINID = ?1 AND t.lgCLIENTID.lgCLIENTID = ?2")
                         .setParameter(1, lg_MEDECIN_ID).setParameter(2, lg_CLIENT_ID).getSingleResult();
-                new logger().OCategory.info("Client " + OTMedecinClient.getLgCLIENTID().getStrFIRSTNAME() + " Medecin " + OTMedecinClient.getLgMEDECINID().getStrFIRSTNAME());
-                this.buildSuccesTraceMessage(this.getOTranslate().getValue("Ce medecin a été déjà enregistré pour ce client"));
+                new logger().OCategory.info("Client " + OTMedecinClient.getLgCLIENTID().getStrFIRSTNAME() + " Medecin "
+                        + OTMedecinClient.getLgMEDECINID().getStrFIRSTNAME());
+                this.buildSuccesTraceMessage(
+                        this.getOTranslate().getValue("Ce medecin a été déjà enregistré pour ce client"));
             } catch (Exception e) {
                 OTMedecinClient = new TMedecinClient();
 
@@ -682,16 +735,16 @@ public class clientManagement extends bllBase {
 
             new logger().OCategory.info(" ID Client " + lg_MEDECIN_ID);
             new logger().OCategory.info(" ID Tiers Payant " + lg_CLIENT_ID);
-            lstTMedecinClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TMedecinClient t WHERE t.lgMEDECINID.lgMEDECINID = ?1 AND t.lgCLIENTID.lgCLIENTID = ?2")
-                    .setParameter(1, lg_MEDECIN_ID)
-                    .setParameter(2, lg_CLIENT_ID).getResultList();
+            lstTMedecinClient = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TMedecinClient t WHERE t.lgMEDECINID.lgMEDECINID = ?1 AND t.lgCLIENTID.lgCLIENTID = ?2")
+                    .setParameter(1, lg_MEDECIN_ID).setParameter(2, lg_CLIENT_ID).getResultList();
 
             for (TMedecinClient OTMedecinClient : lstTMedecinClient) {
                 this.refresh(OTMedecinClient);
                 this.delete(OTMedecinClient);
             }
 
-            //OTCompteClientTiersPayant.setStrSTATUT(commonparameter.statut_delete);
+            // OTCompteClientTiersPayant.setStrSTATUT(commonparameter.statut_delete);
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
             e.printStackTrace();
@@ -711,17 +764,13 @@ public class clientManagement extends bllBase {
         }
     }
 
-    public TCompteClient createClient(String str_FIRST_NAME, String str_LAST_NAME,
-            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE,
-            String str_SEXE, String str_ADRESSE,
-            String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
-            String lg_VILLE_ID, Double dbl_QUOTA_CONSO_MENSUELLE,
-            Double dbl_CAUTION, int dbl_SOLDE,
-            String lg_TYPE_CLIENT_ID, String lg_CATEGORIE_AYANTDROIT_ID,
-            String lg_RISQUE_ID, String lg_TIERS_PAYANT_ID,
-            int int_POURCENTAGE, int int_PRIORITY,
-            String str_CODE_INTERNE, Double dbl_QUOTA_CONSO_VENTE, String lg_COMPANY_ID, Integer dbPLAFONDENCOURS, boolean b_IsAbsolute, String remiseId) {
+    public TCompteClient createClient(String str_FIRST_NAME, String str_LAST_NAME, String str_NUMERO_SECURITE_SOCIAL,
+            Date dt_NAISSANCE, String str_SEXE, String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
+            String str_CODE_POSTAL, String str_COMMENTAIRE, String lg_VILLE_ID, Double dbl_QUOTA_CONSO_MENSUELLE,
+            Double dbl_CAUTION, int dbl_SOLDE, String lg_TYPE_CLIENT_ID, String lg_CATEGORIE_AYANTDROIT_ID,
+            String lg_RISQUE_ID, String lg_TIERS_PAYANT_ID, int int_POURCENTAGE, int int_PRIORITY,
+            String str_CODE_INTERNE, Double dbl_QUOTA_CONSO_VENTE, String lg_COMPANY_ID, Integer dbPLAFONDENCOURS,
+            boolean b_IsAbsolute, String remiseId) {
 
         TClient OTClient = null;
         TCompteClient OTCompteClient = null;
@@ -778,7 +827,8 @@ public class clientManagement extends bllBase {
 
             if (!str_NUMERO_SECURITE_SOCIAL.equalsIgnoreCase("")) {
                 if (doesNumeroSecuriteSocialExist(str_NUMERO_SECURITE_SOCIAL)) {
-                    this.buildErrorTraceMessage("Impossible de créer ce client. Le numéro de sécurité social existe déjà");
+                    this.buildErrorTraceMessage(
+                            "Impossible de créer ce client. Le numéro de sécurité social existe déjà");
                     return null;
 
                 }
@@ -786,49 +836,58 @@ public class clientManagement extends bllBase {
 
             this.persiste(OTClient);
             try {
-                //OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("", dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT, OTClient.getLgCLIENTID()); // a decommenter en cas de probleme
-                OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("", 0.0, dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT, OTClient.getLgCLIENTID());
+                // OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("",
+                // dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT,
+                // OTClient.getLgCLIENTID()); // a decommenter en cas de probleme
+                OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("", 0.0,
+                        dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT, OTClient.getLgCLIENTID());
 
                 OTCompteClient.setLgCLIENTID(OTClient);
                 this.persiste(OTCompteClient);
                 if (!OTTypeClient.getLgTYPECLIENTID().equals("6")) {
                     if (OTTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equalsIgnoreCase("1")) {
-                        new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(), lg_CATEGORIE_AYANTDROIT_ID, str_FIRST_NAME, str_LAST_NAME, str_SEXE, dt_NAISSANCE, lg_VILLE_ID, lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE());
+                        new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(),
+                                lg_CATEGORIE_AYANTDROIT_ID, str_FIRST_NAME, str_LAST_NAME, str_SEXE, dt_NAISSANCE,
+                                lg_VILLE_ID, lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(),
+                                OTClient.getStrCODEINTERNE());
                     }
 
-                    if (new tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY, dbl_QUOTA_CONSO_VENTE, dbl_QUOTA_CONSO_VENTE, str_NUMERO_SECURITE_SOCIAL, dbPLAFONDENCOURS, b_IsAbsolute) != null) {
+                    if (new tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(
+                            OTCompteClient.getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY,
+                            dbl_QUOTA_CONSO_VENTE, dbl_QUOTA_CONSO_VENTE, str_NUMERO_SECURITE_SOCIAL, dbPLAFONDENCOURS,
+                            b_IsAbsolute) != null) {
                         this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
                     }
                 }
 
-
-                /*if (new tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY, bool_REGIME_add)) {
-                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-                 }*/
+                /*
+                 * if (new tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(OTCompteClient.
+                 * getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY, bool_REGIME_add)) {
+                 * this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES")); }
+                 */
             } catch (Exception e) {
             }
 
-
-            /* 
-             Client(lg_CATEGORIE_AYANTDROIT_ID,lg_RISQUE_ID
-             String lg_CATEGORIE_AYANTDROIT_ID = " ";
-             String lg_RISQUE_ID = "1";
+            /*
+             * Client(lg_CATEGORIE_AYANTDROIT_ID,lg_RISQUE_ID String lg_CATEGORIE_AYANTDROIT_ID = " "; String
+             * lg_RISQUE_ID = "1";
              */
             return OTCompteClient;
-            //return null;
+            // return null;
         } catch (Exception e) {
             this.buildErrorTraceMessage("Impossible de creer un " + Otable, e.getMessage());
         }
         return null;
-        //return OTCompteClient;
+        // return OTCompteClient;
     }
 
-    //verifier si le client a deja une fois un achat dans la pharmacie
+    // verifier si le client a deja une fois un achat dans la pharmacie
     public boolean isDeleteIsAuthorize(String lg_CLIENT_ID) {
         boolean result = false;
         List<TPreenregistrementCompteClient> lstTPreenregistrementCompteClients = new ArrayList<>();
         try {
-            lstTPreenregistrementCompteClients = this.getOdataManager().getEm().createQuery("SELECT t FROM TPreenregistrementCompteClient t WHERE t.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID LIKE ?1")
+            lstTPreenregistrementCompteClients = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TPreenregistrementCompteClient t WHERE t.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID LIKE ?1")
                     .setParameter(1, lg_CLIENT_ID).getResultList();
             new logger().OCategory.info("taille " + lstTPreenregistrementCompteClients.size());
             if (lstTPreenregistrementCompteClients.size() > 0) {
@@ -841,18 +900,16 @@ public class clientManagement extends bllBase {
         new logger().OCategory.info("result dans checkVenteClt " + result);
         return result;
     }
-    //fin verifier si le client a deja une fois un achat dans la pharmacie
+    // fin verifier si le client a deja une fois un achat dans la pharmacie
 
-    //liste des types clients
+    // liste des types clients
     public List<TTypeClient> getListTypeClientByType(String search_value, String lg_TYPE_CLIENT_ID, String str_TYPE) {
         List<TTypeClient> lstTTypeClient = new ArrayList<>();
         try {
-            lstTTypeClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TTypeClient t WHERE t.lgTYPECLIENTID LIKE ?1 AND t.strNAME LIKE ?2 AND t.strSTATUT = ?3 AND t.strTYPE LIKE ?4").
-                    setParameter(1, lg_TYPE_CLIENT_ID)
-                    .setParameter(2, search_value)
-                    .setParameter(3, commonparameter.statut_enable)
-                    .setParameter(4, str_TYPE)
-                    .getResultList();
+            lstTTypeClient = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TTypeClient t WHERE t.lgTYPECLIENTID LIKE ?1 AND t.strNAME LIKE ?2 AND t.strSTATUT = ?3 AND t.strTYPE LIKE ?4")
+                    .setParameter(1, lg_TYPE_CLIENT_ID).setParameter(2, search_value)
+                    .setParameter(3, commonparameter.statut_enable).setParameter(4, str_TYPE).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -861,21 +918,22 @@ public class clientManagement extends bllBase {
 
     }
 
-    //fin liste des types clients
-    //liste des clients par type de tiers payants
-    public List<TCompteClientTiersPayant> getListTypeClientByTypeTierspayant(String search_value, String lg_TYPE_TIERS_PAYANT_ID) {
+    // fin liste des types clients
+    // liste des clients par type de tiers payants
+    public List<TCompteClientTiersPayant> getListTypeClientByTypeTierspayant(String search_value,
+            String lg_TYPE_TIERS_PAYANT_ID) {
         List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = new ArrayList<>();
         try {
-            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgTIERSPAYANTID.lgTYPETIERSPAYANTID.lgTYPETIERSPAYANTID LIKE ?1 AND (t.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME LIKE ?2 OR t.lgCOMPTECLIENTID.lgCLIENTID.strLASTNAME LIKE ?4 OR t.lgTIERSPAYANTID.strFULLNAME LIKE ?5) AND t.strSTATUT = ?3 AND t.lgCOMPTECLIENTID.lgCLIENTID.strSTATUT = ?6 ORDER BY t.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME ASC").
-                    setParameter(1, lg_TYPE_TIERS_PAYANT_ID)
-                    .setParameter(2, search_value + "%")
-                    .setParameter(3, commonparameter.statut_enable)
-                    .setParameter(6, commonparameter.statut_enable)
-                    .setParameter(4, search_value + "%")
-                    .setParameter(5, search_value + "%")
-                    .getResultList();
+            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgTIERSPAYANTID.lgTYPETIERSPAYANTID.lgTYPETIERSPAYANTID LIKE ?1 AND (t.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME LIKE ?2 OR t.lgCOMPTECLIENTID.lgCLIENTID.strLASTNAME LIKE ?4 OR t.lgTIERSPAYANTID.strFULLNAME LIKE ?5) AND t.strSTATUT = ?3 AND t.lgCOMPTECLIENTID.lgCLIENTID.strSTATUT = ?6 ORDER BY t.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME ASC")
+                    .setParameter(1, lg_TYPE_TIERS_PAYANT_ID).setParameter(2, search_value + "%")
+                    .setParameter(3, commonparameter.statut_enable).setParameter(6, commonparameter.statut_enable)
+                    .setParameter(4, search_value + "%").setParameter(5, search_value + "%").getResultList();
             for (TCompteClientTiersPayant OTCompteClientTiersPayant : lstTCompteClientTiersPayant) {
-                new logger().OCategory.info("Client " + OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME() + " Type client " + OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID().getLgTYPECLIENTID().getStrNAME());
+                new logger().OCategory.info(
+                        "Client " + OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME()
+                                + " Type client " + OTCompteClientTiersPayant.getLgCOMPTECLIENTID().getLgCLIENTID()
+                                        .getLgTYPECLIENTID().getStrNAME());
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -885,13 +943,11 @@ public class clientManagement extends bllBase {
 
     }
 
-    //fin liste des clients par type de tiers payants
-    //autre creation de client
-    public TCompteClient createClient(String str_FIRST_NAME, String str_LAST_NAME,
-            String str_SEXE, String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
-            String lg_VILLE_ID, Double dbl_QUOTA_CONSO_MENSUELLE,
-            Double dbl_CAUTION, int dbl_SOLDE,
+    // fin liste des clients par type de tiers payants
+    // autre creation de client
+    public TCompteClient createClient(String str_FIRST_NAME, String str_LAST_NAME, String str_SEXE, String str_ADRESSE,
+            String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL, String str_COMMENTAIRE,
+            String lg_VILLE_ID, Double dbl_QUOTA_CONSO_MENSUELLE, Double dbl_CAUTION, int dbl_SOLDE,
             String lg_TYPE_CLIENT_ID) {
         try {
 
@@ -921,8 +977,10 @@ public class clientManagement extends bllBase {
 
             this.persiste(OTClient);
             try {
-                TCompteClient OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("", dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT, OTClient.getLgCLIENTID());
-                //String lg_CLIENT_ID = OTClient.getLgCLIENTID();
+                TCompteClient OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("",
+                        dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT,
+                        OTClient.getLgCLIENTID());
+                // String lg_CLIENT_ID = OTClient.getLgCLIENTID();
                 OTCompteClient.setLgCLIENTID(OTClient);
                 this.persiste(OTCompteClient);
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -938,13 +996,12 @@ public class clientManagement extends bllBase {
         }
 
     }
-    //fin autre creation de client
+    // fin autre creation de client
 
-    //autre update de client
-    public void updateClient(String lg_CLIENT_ID, String str_FIRST_NAME, String str_LAST_NAME,
-            String str_SEXE, String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
-            String lg_VILLE_ID, String lg_TYPE_CLIENT_ID, String str_CODE_INTERNE) {
+    // autre update de client
+    public void updateClient(String lg_CLIENT_ID, String str_FIRST_NAME, String str_LAST_NAME, String str_SEXE,
+            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL,
+            String str_COMMENTAIRE, String lg_VILLE_ID, String lg_TYPE_CLIENT_ID, String str_CODE_INTERNE) {
         try {
 
             TClient OTClient = this.getOdataManager().getEm().find(TClient.class, lg_CLIENT_ID);
@@ -966,7 +1023,8 @@ public class clientManagement extends bllBase {
             OTClient.setStrCODEPOSTAL(str_CODE_POSTAL);
             OTClient.setStrCOMMENTAIRE(str_COMMENTAIRE);
 
-            TVille OTVille = (TVille) this.getOdataManager().getEm().createQuery("SELECT t FROM TVille t WHERE t.lgVILLEID LIKE ?1 OR t.strName LIKE ?2")
+            TVille OTVille = (TVille) this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TVille t WHERE t.lgVILLEID LIKE ?1 OR t.strName LIKE ?2")
                     .setParameter(1, lg_VILLE_ID).setParameter(2, lg_VILLE_ID).getSingleResult();
             new logger().OCategory.info("Ville " + OTVille.getStrName());
             OTClient.setLgVILLEID(OTVille);
@@ -982,32 +1040,31 @@ public class clientManagement extends bllBase {
         }
 
     }
-    //fin autre update client
+    // fin autre update client
 
-    //recupereation d'un client
+    // recupereation d'un client
     public TClient getClient(String lg_CLIENT_ID) {
         TClient OTClient = null;
         try {
-            OTClient = (TClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE (CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.lgCLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4").
-                    setParameter(1, lg_CLIENT_ID).
-                    setParameter(4, commonparameter.statut_enable).
-                    getSingleResult();
-            //  new logger().OCategory.info("Client " + OTClient.getStrFIRSTNAME());
+            OTClient = (TClient) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TClient t WHERE (CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.lgCLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4")
+                    .setParameter(1, lg_CLIENT_ID).setParameter(4, commonparameter.statut_enable).getSingleResult();
+            // new logger().OCategory.info("Client " + OTClient.getStrFIRSTNAME());
         } catch (Exception e) {
             e.printStackTrace();
         }
         return OTClient;
     }
 
-    //fin recuperation de client
-    //recupereation d'un compte client 
+    // fin recuperation de client
+    // recupereation d'un compte client
     public TCompteClient getTCompteClient(String lg_COMPTE_CLIENT_ID) {
         TCompteClient OTCompteClient = null;
         try {
-            OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClient t WHERE (CONCAT(t.lgCLIENTID.strFIRSTNAME,' ',t.lgCLIENTID.strLASTNAME) LIKE ?1 OR t.lgCOMPTECLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4 AND t.lgCLIENTID.strSTATUT LIKE ?4").
-                    setParameter(1, lg_COMPTE_CLIENT_ID).
-                    setParameter(4, commonparameter.statut_enable).
-                    getSingleResult();
+            OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClient t WHERE (CONCAT(t.lgCLIENTID.strFIRSTNAME,' ',t.lgCLIENTID.strLASTNAME) LIKE ?1 OR t.lgCOMPTECLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4 AND t.lgCLIENTID.strSTATUT LIKE ?4")
+                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(4, commonparameter.statut_enable)
+                    .getSingleResult();
             // new logger().OCategory.info("Client " + OTCompteClient.getLgCLIENTID().getStrFIRSTNAME());
         } catch (Exception e) {
             e.printStackTrace();
@@ -1018,10 +1075,9 @@ public class clientManagement extends bllBase {
     public TCompteClient getTCompteClientByClient(String lg_CLIENT_ID) {
         TCompteClient _OTCompteClient = null;
         try {
-            _OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClient t WHERE (CONCAT(t.lgCLIENTID.strFIRSTNAME,' ',t.lgCLIENTID.strLASTNAME) LIKE ?1 OR t.lgCLIENTID.lgCLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4 AND t.lgCLIENTID.strSTATUT LIKE ?4 AND t.strSTATUT LIKE ?4").
-                    setParameter(1, lg_CLIENT_ID).
-                    setParameter(4, commonparameter.statut_enable).
-                    getSingleResult();
+            _OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClient t WHERE (CONCAT(t.lgCLIENTID.strFIRSTNAME,' ',t.lgCLIENTID.strLASTNAME) LIKE ?1 OR t.lgCLIENTID.lgCLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4 AND t.lgCLIENTID.strSTATUT LIKE ?4 AND t.strSTATUT LIKE ?4")
+                    .setParameter(1, lg_CLIENT_ID).setParameter(4, commonparameter.statut_enable).getSingleResult();
             new logger().OCategory.info("Client " + _OTCompteClient.getLgCLIENTID().getStrFIRSTNAME());
         } catch (Exception e) {
             e.printStackTrace();
@@ -1032,10 +1088,9 @@ public class clientManagement extends bllBase {
     public TCompteClient getTCompteClientByClient(String lg_CLIENT_ID, String str_STATUT) {
         TCompteClient _OTCompteClient = null;
         try {
-            _OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClient t WHERE (CONCAT(t.lgCLIENTID.strFIRSTNAME,' ',t.lgCLIENTID.strLASTNAME) LIKE ?1 OR t.lgCLIENTID.lgCLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4 AND t.lgCLIENTID.strSTATUT LIKE ?4 AND t.strSTATUT LIKE ?4").
-                    setParameter(1, lg_CLIENT_ID).
-                    setParameter(4, str_STATUT).
-                    getSingleResult();
+            _OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClient t WHERE (CONCAT(t.lgCLIENTID.strFIRSTNAME,' ',t.lgCLIENTID.strLASTNAME) LIKE ?1 OR t.lgCLIENTID.lgCLIENTID LIKE ?1) AND t.strSTATUT LIKE ?4 AND t.lgCLIENTID.strSTATUT LIKE ?4 AND t.strSTATUT LIKE ?4")
+                    .setParameter(1, lg_CLIENT_ID).setParameter(4, str_STATUT).getSingleResult();
             if (_OTCompteClient != null) {
                 this.refresh(_OTCompteClient);
             }
@@ -1046,30 +1101,38 @@ public class clientManagement extends bllBase {
         return _OTCompteClient;
     }
 
-    //fin recupereation d'un compte client 
-    //creation en masse des clients
+    // fin recupereation d'un compte client
+    // creation en masse des clients
     public boolean createMasseClient(List<String> lstData) {
         boolean result = false;
         int count = 0;
         TCompteClient OTCompteClient = null;
         try {
-            for (int i = 0; i < lstData.size(); i++) { //lstData:  liste des lignes du fichier xls ou csv
-                new logger().OCategory.info("i " + i + " valeur " + lstData.get(i)); //ligne courant
-                String[] tabString = lstData.get(i).split(";"); // on case la ligne courante pour recuperer les differentes colonnes
-//                OTCompteClient = this.createClient(tabString[1], tabString[2], tabString[3], new Date(), "", tabString[4], tabString[4], "", tabString[5], "", "2", 0.0, 0.0, 0, (tabString[6].trim().equalsIgnoreCase("X") ? "2" : "1"), tabString[7].trim(), tabString[8].trim(), tabString[9].trim(), Integer.parseInt(tabString[10]), 1, tabString[0].trim()); // a decommenter en cas de probleme
-                OTCompteClient = this.createClient(tabString[1].trim(), tabString[2].trim(), tabString[3].trim(), new Date(), "", tabString[4].trim(), tabString[4].trim(), "", tabString[5].trim(), "", "2", 0.0, 0.0, 0, (tabString[7].trim().equalsIgnoreCase("X") ? "2" : "1"),
-                        tabString[7].trim().equalsIgnoreCase("X") ? "2" : "555146116095894790", tabString[7].trim().equalsIgnoreCase("X") ? "2" : "55181642844215217016",
-                        tabString[8].trim(), Integer.parseInt(tabString[9]), 1, tabString[0].trim(), 0.0, "", 0, false, null);
+            for (int i = 0; i < lstData.size(); i++) { // lstData: liste des lignes du fichier xls ou csv
+                new logger().OCategory.info("i " + i + " valeur " + lstData.get(i)); // ligne courant
+                String[] tabString = lstData.get(i).split(";"); // on case la ligne courante pour recuperer les
+                                                                // differentes colonnes
+                // OTCompteClient = this.createClient(tabString[1], tabString[2], tabString[3], new Date(), "",
+                // tabString[4], tabString[4], "", tabString[5], "", "2", 0.0, 0.0, 0,
+                // (tabString[6].trim().equalsIgnoreCase("X") ? "2" : "1"), tabString[7].trim(), tabString[8].trim(),
+                // tabString[9].trim(), Integer.parseInt(tabString[10]), 1, tabString[0].trim()); // a decommenter en
+                // cas de probleme
+                OTCompteClient = this.createClient(tabString[1].trim(), tabString[2].trim(), tabString[3].trim(),
+                        new Date(), "", tabString[4].trim(), tabString[4].trim(), "", tabString[5].trim(), "", "2", 0.0,
+                        0.0, 0, (tabString[7].trim().equalsIgnoreCase("X") ? "2" : "1"),
+                        tabString[7].trim().equalsIgnoreCase("X") ? "2" : "555146116095894790",
+                        tabString[7].trim().equalsIgnoreCase("X") ? "2" : "55181642844215217016", tabString[8].trim(),
+                        Integer.parseInt(tabString[9]), 1, tabString[0].trim(), 0.0, "", 0, false, null);
                 if (OTCompteClient != null) {
-                    /*if (Integer.parseInt(tabString[12]) > 0) {
-                     OtierspayantManagement.create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(), tabString[11].trim(), Integer.parseInt(tabString[12]), 2);
-                     }
-                     if (Integer.parseInt(tabString[14]) > 0) {
-                     OtierspayantManagement.create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(), tabString[13].trim(), Integer.parseInt(tabString[14]), 3);
-                     }
-                     if (Integer.parseInt(tabString[16]) > 0) {
-                     OtierspayantManagement.create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(), tabString[15].trim(), Integer.parseInt(tabString[16]), 4);
-                     }*/
+                    /*
+                     * if (Integer.parseInt(tabString[12]) > 0) {
+                     * OtierspayantManagement.create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(),
+                     * tabString[11].trim(), Integer.parseInt(tabString[12]), 2); } if (Integer.parseInt(tabString[14])
+                     * > 0) { OtierspayantManagement.create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(),
+                     * tabString[13].trim(), Integer.parseInt(tabString[14]), 3); } if (Integer.parseInt(tabString[16])
+                     * > 0) { OtierspayantManagement.create_compteclt_tierspayant(OTCompteClient.getLgCOMPTECLIENTID(),
+                     * tabString[15].trim(), Integer.parseInt(tabString[16]), 4); }
+                     */
                     count++;
                 }
 
@@ -1085,14 +1148,14 @@ public class clientManagement extends bllBase {
         }
         return result;
     }
-    //fin creation en masse des clients
+    // fin creation en masse des clients
 
-    //exportation des clients
+    // exportation des clients
     public String generateEnteteForFile() {
         return "IDENTIFIANT;CODE INTERNE;NOM(S);PRENOM(S);MATRICULE;SEXE;ADRESSE;CODE POSTAL;TYPE CLIENT;CATEGORIE;RISQUE;RO;%RO;RC1;%RC1;RC2;%RC2;RC3;%RC3";
     }
 
-    //generation des données à exporter
+    // generation des données à exporter
     public List<String> generateDataToExport() {
         List<String> lst = new ArrayList<String>();
         List<TClient> lstTClient = new ArrayList<TClient>();
@@ -1104,19 +1167,28 @@ public class clientManagement extends bllBase {
         try {
             lstTClient = this.showOnorAllClientByType("", "%%", commonparameter.statut_enable);
             for (TClient OTClient : lstTClient) {
-                if (OTClient.getLgTYPECLIENTID().getLgTYPECLIENTID().equalsIgnoreCase("1") || OTClient.getLgTYPECLIENTID().getLgTYPECLIENTID().equalsIgnoreCase("2")) {
-//                    return "IDENTIFIANT;CODE INTERNE;NOM(S);PRENOM(S);MATRICULE;"
-                    lstTCompteClientTiersPayant = OtierspayantManagement.getListCompteClientTiersPayants(OTClient.getLgCLIENTID());
-                    row += OTClient.getLgCLIENTID() + ";" + OTClient.getStrCODEINTERNE() + ";" + OTClient.getStrFIRSTNAME() + ";" + OTClient.getStrLASTNAME() + ";" + OTClient.getStrNUMEROSECURITESOCIAL() + ";";
+                if (OTClient.getLgTYPECLIENTID().getLgTYPECLIENTID().equalsIgnoreCase("1")
+                        || OTClient.getLgTYPECLIENTID().getLgTYPECLIENTID().equalsIgnoreCase("2")) {
+                    // return "IDENTIFIANT;CODE INTERNE;NOM(S);PRENOM(S);MATRICULE;"
+                    lstTCompteClientTiersPayant = OtierspayantManagement
+                            .getListCompteClientTiersPayants(OTClient.getLgCLIENTID());
+                    row += OTClient.getLgCLIENTID() + ";" + OTClient.getStrCODEINTERNE() + ";"
+                            + OTClient.getStrFIRSTNAME() + ";" + OTClient.getStrLASTNAME() + ";"
+                            + OTClient.getStrNUMEROSECURITESOCIAL() + ";";
                     row += (OTClient.getStrSEXE() != null ? OTClient.getStrSEXE() : " ") + ";";
                     row += (OTClient.getStrADRESSE() != null ? OTClient.getStrADRESSE() : " ") + ";";
                     row += (OTClient.getStrCODEPOSTAL() != null ? OTClient.getStrCODEPOSTAL() : " ") + ";";
-                    row += (OTClient.getLgTYPECLIENTID() != null ? OTClient.getLgTYPECLIENTID().getStrDESCRIPTION() : " ") + ";";
+                    row += (OTClient.getLgTYPECLIENTID() != null ? OTClient.getLgTYPECLIENTID().getStrDESCRIPTION()
+                            : " ") + ";";
                     if (OTClient.getLgTYPECLIENTID().getLgTYPECLIENTID().equalsIgnoreCase("1")) {
-                        OTAyantDroit = OayantDroitManagement.getAyantDroitByNameClient(OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME());
+                        OTAyantDroit = OayantDroitManagement.getAyantDroitByNameClient(OTClient.getStrFIRSTNAME(),
+                                OTClient.getStrLASTNAME());
                         if (OTAyantDroit != null) {
-                            row += (OTAyantDroit.getLgCATEGORIEAYANTDROITID() != null ? OTAyantDroit.getLgCATEGORIEAYANTDROITID().getStrLIBELLECATEGORIEAYANTDROIT() : " ") + ";";
-                            row += (OTAyantDroit.getLgRISQUEID() != null ? OTAyantDroit.getLgRISQUEID().getStrLIBELLERISQUE() : " ") + ";";
+                            row += (OTAyantDroit.getLgCATEGORIEAYANTDROITID() != null
+                                    ? OTAyantDroit.getLgCATEGORIEAYANTDROITID().getStrLIBELLECATEGORIEAYANTDROIT()
+                                    : " ") + ";";
+                            row += (OTAyantDroit.getLgRISQUEID() != null
+                                    ? OTAyantDroit.getLgRISQUEID().getStrLIBELLERISQUE() : " ") + ";";
                         } else {
                             row += " ; ;";
                         }
@@ -1126,7 +1198,7 @@ public class clientManagement extends bllBase {
 
                     for (int k = 0; k < lstTCompteClientTiersPayant.size(); k++) {
 
-                        //code 
+                        // code
                         if (lstTCompteClientTiersPayant.get(k).getIntPRIORITY() == 1) {
                             row += lstTCompteClientTiersPayant.get(k).getLgTIERSPAYANTID().getStrNAME() + ";";
                             row += lstTCompteClientTiersPayant.get(k).getIntPOURCENTAGE() + ";";
@@ -1151,9 +1223,9 @@ public class clientManagement extends bllBase {
         return lst;
     }
 
-    //fin generation des données à exporter
-    //fin exportation des clients
-    //desactivation et activation de tiers payants
+    // fin generation des données à exporter
+    // fin exportation des clients
+    // desactivation et activation de tiers payants
     public boolean enableOrDisableClient(String lg_COMPTE_CLIENT_ID, String str_STATUT) {
         boolean result = false;
         TTiersPayant OTTiersPayant = null;
@@ -1163,11 +1235,13 @@ public class clientManagement extends bllBase {
         clientManagement OclientManagement = new clientManagement(this.getOdataManager());
         String state = "";
         try {
-            state = (str_STATUT.equalsIgnoreCase(commonparameter.statut_enable) ? commonparameter.statut_disable : commonparameter.statut_enable);
+            state = (str_STATUT.equalsIgnoreCase(commonparameter.statut_enable) ? commonparameter.statut_disable
+                    : commonparameter.statut_enable);
             OTCompteClient = this.getOdataManager().getEm().find(TCompteClient.class, lg_COMPTE_CLIENT_ID);
 
             if (OTCompteClient != null) {
-                lstTCompteClientTiersPayant = OclientManagement.getTiersPayantsByClient("", "%%", lg_COMPTE_CLIENT_ID, state);
+                lstTCompteClientTiersPayant = OclientManagement.getTiersPayantsByClient("", "%%", lg_COMPTE_CLIENT_ID,
+                        state);
 
                 for (TCompteClientTiersPayant OTCompteClientTiersPayant : lstTCompteClientTiersPayant) {
                     OTCompteClientTiersPayant.setStrSTATUT(str_STATUT);
@@ -1180,8 +1254,12 @@ public class clientManagement extends bllBase {
                 OTClient.setStrSTATUT(str_STATUT);
                 OTClient.setDtUPDATED(new Date());
                 this.merge(OTClient);
-                String desc = (state.equals(commonparameter.statut_enable) ? "Désactivation du client " : "Activation du client ");
-                this.do_event_log(this.getOdataManager(), "", desc + OTClient.getStrFIRSTNAME() + " " + OTClient.getStrLASTNAME(), this.getOTUser().getStrFIRSTNAME(), commonparameter.statut_enable, "t_client", "t_client", "Mouvement sur Client", this.getOTUser().getLgUSERID());
+                String desc = (state.equals(commonparameter.statut_enable) ? "Désactivation du client "
+                        : "Activation du client ");
+                this.do_event_log(this.getOdataManager(), "",
+                        desc + OTClient.getStrFIRSTNAME() + " " + OTClient.getStrLASTNAME(),
+                        this.getOTUser().getStrFIRSTNAME(), commonparameter.statut_enable, "t_client", "t_client",
+                        "Mouvement sur Client", this.getOTUser().getLgUSERID());
                 if (this.merge(OTCompteClient)) {
 
                     this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -1218,7 +1296,10 @@ public class clientManagement extends bllBase {
         try {
             String query = "SELECT SUM(p.`int_PRICE`) MONTANTCA,COUNT(p.`lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID`) AS NB,c.`dec_Balance_InDisponible` AS ACCOUNT FROM t_compte_client c,t_preenregistrement_compte_client_tiers_payent p,t_tiers_payant t,t_compte_client_tiers_payant cp, t_preenregistrement pp\n"
                     + "WHERE c.`lg_COMPTE_CLIENT_ID`=cp.`lg_COMPTE_CLIENT_ID` AND t.`lg_TIERS_PAYANT_ID`=cp.`lg_TIERS_PAYANT_ID`\n"
-                    + "AND cp.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID`=p.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID` AND p.lg_PREENREGISTREMENT_ID = pp.lg_PREENREGISTREMENT_ID AND t.`lg_TIERS_PAYANT_ID` ='" + lg_TIERSPAYANT_ID + "' AND DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end + "' AND p.`int_PRICE`>0 AND p.str_STATUT = '" + commonparameter.statut_is_Closed + "' AND pp.b_IS_CANCEL = 0";
+                    + "AND cp.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID`=p.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID` AND p.lg_PREENREGISTREMENT_ID = pp.lg_PREENREGISTREMENT_ID AND t.`lg_TIERS_PAYANT_ID` ='"
+                    + lg_TIERSPAYANT_ID + "' AND DATE(p.`dt_CREATED`) >='" + dt_start + "' AND DATE(p.`dt_CREATED`)<='"
+                    + dt_end + "' AND p.`int_PRICE`>0 AND p.str_STATUT = '" + commonparameter.statut_is_Closed
+                    + "' AND pp.b_IS_CANCEL = 0";
             new logger().OCategory.info("query:" + query);
             List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
             for (Object[] objects : list) {
@@ -1234,12 +1315,14 @@ public class clientManagement extends bllBase {
         return array;
     }
 
-    public TCompteClient update2(String lg_CLIENT_ID, String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
-            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
-            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
-            String lg_VILLE_ID, String lg_MEDECIN_ID, Double dbl_QUOTA_CONSO_MENSUELLE, Double dbl_CAUTION, String lg_TYPE_CLIENT_ID,
-            String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID, String lg_RISQUE_ID, String lg_TIERS_PAYANT_ID, int int_POURCENTAGE, int int_PRIORITY, double dbl_QUOTA_CONSO_VENTE, String lg_COMPANY_ID, Integer plafond, Integer encours, boolean isAbsolut, String remiseId) {
+    public TCompteClient update2(String lg_CLIENT_ID, String str_CODE_INTERNE, String str_FIRST_NAME,
+            String str_LAST_NAME, String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
+            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL,
+            String str_COMMENTAIRE, String lg_VILLE_ID, String lg_MEDECIN_ID, Double dbl_QUOTA_CONSO_MENSUELLE,
+            Double dbl_CAUTION, String lg_TYPE_CLIENT_ID, String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID,
+            String lg_RISQUE_ID, String lg_TIERS_PAYANT_ID, int int_POURCENTAGE, int int_PRIORITY,
+            double dbl_QUOTA_CONSO_VENTE, String lg_COMPANY_ID, Integer plafond, Integer encours, boolean isAbsolut,
+            String remiseId) {
         TCompteClient _OTCompteClient = null;
         EntityManager em = this.getOdataManager().getEm();
         try {
@@ -1271,10 +1354,12 @@ public class clientManagement extends bllBase {
             OTClient.setStrCODEPOSTAL(str_CODE_POSTAL);
             OTClient.setStrCOMMENTAIRE(str_COMMENTAIRE);
             OTClient.setRemise(findRemiseById(remiseId));
-            TTiersPayant OTTiersPayant = new tierspayantManagement(this.getOdataManager()).getTTiersPayant(lg_TIERS_PAYANT_ID);
+            TTiersPayant OTTiersPayant = new tierspayantManagement(this.getOdataManager())
+                    .getTTiersPayant(lg_TIERS_PAYANT_ID);
             try {
 
-                TVille OTVille = (TVille) em.createQuery("SELECT t FROM TVille t WHERE t.lgVILLEID LIKE ?1 OR t.strName LIKE ?2")
+                TVille OTVille = (TVille) em
+                        .createQuery("SELECT t FROM TVille t WHERE t.lgVILLEID LIKE ?1 OR t.strName LIKE ?2")
                         .setParameter(1, lg_VILLE_ID).setParameter(2, lg_VILLE_ID).getSingleResult();
                 if (OTVille != null) {
                     new logger().oCategory.info("Ville  " + OTVille.getStrName());
@@ -1283,19 +1368,24 @@ public class clientManagement extends bllBase {
 
             } catch (Exception e) {
 
-                new logger().oCategory.info("Impossible de mettre a jour les donnees vennant de la cle etrangere TVille   ");
+                new logger().oCategory
+                        .info("Impossible de mettre a jour les donnees vennant de la cle etrangere TVille   ");
             }
 
             try {
-                TTypeClient OTTypeClient = (TTypeClient) em.createQuery("SELECT t FROM TTypeClient t WHERE (t.lgTYPECLIENTID LIKE ?1 OR t.strNAME LIKE ?2) AND t.strSTATUT = ?3")
-                        .setParameter(1, lg_TYPE_CLIENT_ID).setParameter(2, lg_TYPE_CLIENT_ID).setParameter(3, commonparameter.statut_enable).getSingleResult();
+                TTypeClient OTTypeClient = (TTypeClient) em.createQuery(
+                        "SELECT t FROM TTypeClient t WHERE (t.lgTYPECLIENTID LIKE ?1 OR t.strNAME LIKE ?2) AND t.strSTATUT = ?3")
+                        .setParameter(1, lg_TYPE_CLIENT_ID).setParameter(2, lg_TYPE_CLIENT_ID)
+                        .setParameter(3, commonparameter.statut_enable).getSingleResult();
                 if (OTTypeClient != null) {
                     new logger().oCategory.info("Type client  " + OTTypeClient.getStrDESCRIPTION());
                     OTClient.setLgTYPECLIENTID(OTTypeClient);
                 }
 
             } catch (Exception e) {
-                new logger().oCategory.info("Impossible de mettre a jour les donnees vennant de la cle etrangere Type client  --> " + e.getLocalizedMessage());
+                new logger().oCategory
+                        .info("Impossible de mettre a jour les donnees vennant de la cle etrangere Type client  --> "
+                                + e.getLocalizedMessage());
             }
 
             OTClient.setStrSTATUT(commonparameter.statut_enable);
@@ -1308,35 +1398,53 @@ public class clientManagement extends bllBase {
             em.merge(OTClient);
             try {
                 TVille _vill = OTClient.getLgVILLEID();
-                TCompteClientTiersPayant OTCompteClientTiersPayant = new tierspayantManagement(this.getOdataManager()).isRegimeExistForCptltTiersPBis(_OTCompteClient.getLgCOMPTECLIENTID(), 1, commonparameter.statut_enable);
-                new logger().OCategory.info("Pourcentage " + OTCompteClientTiersPayant.getIntPOURCENTAGE() + "----" + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID());
-                if (OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equals("1")) {
-                    updateAyantdroitPrincipal(lg_AYANTS_DROITS_ID, lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(), _vill, lg_RISQUE_ID, olstr_NUMERO_SECURITE_SOCIAL, OTClient, em);
+                TCompteClientTiersPayant OTCompteClientTiersPayant = new tierspayantManagement(this.getOdataManager())
+                        .isRegimeExistForCptltTiersPBis(_OTCompteClient.getLgCOMPTECLIENTID(), 1,
+                                commonparameter.statut_enable);
+                new logger().OCategory.info("Pourcentage " + OTCompteClientTiersPayant.getIntPOURCENTAGE() + "----"
+                        + OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID()
+                                .getLgTYPETIERSPAYANTID());
+                if (OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID()
+                        .equals("1")) {
+                    updateAyantdroitPrincipal(lg_AYANTS_DROITS_ID, lg_CATEGORIE_AYANTDROIT_ID,
+                            OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(), OTClient.getStrSEXE(),
+                            OTClient.getDtCREATED(), _vill, lg_RISQUE_ID, olstr_NUMERO_SECURITE_SOCIAL, OTClient, em);
                 } else {
                     if (OTTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equals("1")) {
-                        createAyantdroit(OTClient, lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(), OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(), _vill, lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE(), em);
+                        createAyantdroit(OTClient, lg_CATEGORIE_AYANTDROIT_ID, OTClient.getStrFIRSTNAME(),
+                                OTClient.getStrLASTNAME(), OTClient.getStrSEXE(), OTClient.getDtCREATED(), _vill,
+                                lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(), OTClient.getStrCODEINTERNE(), em);
                     }
                 }
                 if (em.getTransaction().isActive()) {
                     em.getTransaction().commit();
                 }
 
-                new tierspayantManagement(this.getOdataManager()).updateComptecltTierspayant(OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID(), _OTCompteClient.getLgCOMPTECLIENTID(), OTTiersPayant.getLgTIERSPAYANTID(), int_POURCENTAGE, int_PRIORITY, plafond, dbl_QUOTA_CONSO_VENTE, OTClient.getStrNUMEROSECURITESOCIAL(), encours, mode, isAbsolut);
+                new tierspayantManagement(this.getOdataManager()).updateComptecltTierspayant(
+                        OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID(),
+                        _OTCompteClient.getLgCOMPTECLIENTID(), OTTiersPayant.getLgTIERSPAYANTID(), int_POURCENTAGE,
+                        int_PRIORITY, plafond, dbl_QUOTA_CONSO_VENTE, OTClient.getStrNUMEROSECURITESOCIAL(), encours,
+                        mode, isAbsolut);
             } catch (Exception e) {
                 this.buildErrorTraceMessage("Impossible de mettre à jour  ", e.getMessage());
                 e.printStackTrace();
             }
 
-            /*OTCompteClient = OTClient.getTCompteClientCollection().iterator().next();
-             new compteClientManagement(this.getOdataManager()).update(OTCompteClient.getLgCOMPTECLIENTID(), "", dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION);
+            /*
+             * OTCompteClient = OTClient.getTCompteClientCollection().iterator().next(); new
+             * compteClientManagement(this.getOdataManager()).update(OTCompteClient.getLgCOMPTECLIENTID(), "",
+             * dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION);
              */
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-            this.do_event_log(this.getOdataManager(), "", "Modification des infos du client " + OTClient.getStrFIRSTNAME() + " " + OTClient.getStrLASTNAME(), this.getOTUser().getStrFIRSTNAME(), commonparameter.statut_enable, "t_client", "t_client", "Mouvement sur Client", this.getOTUser().getLgUSERID());
+            this.do_event_log(this.getOdataManager(), "",
+                    "Modification des infos du client " + OTClient.getStrFIRSTNAME() + " " + OTClient.getStrLASTNAME(),
+                    this.getOTUser().getStrFIRSTNAME(), commonparameter.statut_enable, "t_client", "t_client",
+                    "Mouvement sur Client", this.getOTUser().getLgUSERID());
             return _OTCompteClient;
         } catch (Exception e) {
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().getEm().getTransaction().rollback();
-//                this.getOdataManager().getEm().close();
+                // this.getOdataManager().getEm().close();
             }
             e.printStackTrace();
             this.buildErrorTraceMessage("Impossible de mettre à jour  " + Otable, e.getMessage());
@@ -1347,22 +1455,25 @@ public class clientManagement extends bllBase {
     public TCategorieAyantdroit getTCategorieAyantdroit(String lg_CATEGORIE_AYANTDROIT_ID) {
         TCategorieAyantdroit OTCategorieAyantdroit = null;
         try {
-            OTCategorieAyantdroit = (TCategorieAyantdroit) this.getOdataManager().getEm().createQuery("SELECT t FROM TCategorieAyantdroit t WHERE t.lgCATEGORIEAYANTDROITID LIKE ?1 OR t.strLIBELLECATEGORIEAYANTDROIT LIKE ?1 OR t.strCODE LIKE ?1")
+            OTCategorieAyantdroit = (TCategorieAyantdroit) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCategorieAyantdroit t WHERE t.lgCATEGORIEAYANTDROITID LIKE ?1 OR t.strLIBELLECATEGORIEAYANTDROIT LIKE ?1 OR t.strCODE LIKE ?1")
                     .setParameter(1, lg_CATEGORIE_AYANTDROIT_ID).getSingleResult();
         } catch (Exception e) {
         }
         return OTCategorieAyantdroit;
     }
 
-    public boolean createAyantdroit(TClient OTClient, String lg_CATEGORIE_AYANTDROIT_ID, String str_FIRST_NAME, String str_LAST_NAME, String str_SEXE,
-            Date dt_NAISSANCE, TVille OTVille, String lg_RISQUE_ID, String str_NUMERO_SECURITE_SOCIAL, String str_CODE_INTERNE, EntityManager em) throws Exception {
+    public boolean createAyantdroit(TClient OTClient, String lg_CATEGORIE_AYANTDROIT_ID, String str_FIRST_NAME,
+            String str_LAST_NAME, String str_SEXE, Date dt_NAISSANCE, TVille OTVille, String lg_RISQUE_ID,
+            String str_NUMERO_SECURITE_SOCIAL, String str_CODE_INTERNE, EntityManager em) throws Exception {
         boolean result = false;
         TAyantDroit OTAyantDroit;
 
         if (!str_NUMERO_SECURITE_SOCIAL.equalsIgnoreCase("")) {
             OTAyantDroit = this.getAyantDroitByNum(str_NUMERO_SECURITE_SOCIAL);
             if (OTAyantDroit != null) {
-                this.buildErrorTraceMessage("Echec de création. Ce matricule est déjà utilisé par " + OTAyantDroit.getStrFIRSTNAME() + " " + OTAyantDroit.getStrLASTNAME());
+                this.buildErrorTraceMessage("Echec de création. Ce matricule est déjà utilisé par "
+                        + OTAyantDroit.getStrFIRSTNAME() + " " + OTAyantDroit.getStrLASTNAME());
                 return false;
             }
         }
@@ -1390,7 +1501,7 @@ public class clientManagement extends bllBase {
         }
         OTAyantDroit.setLgCLIENTID(OTClient);
 
-        //lg_CATEGORIE_AYANTDROIT_ID
+        // lg_CATEGORIE_AYANTDROIT_ID
         TCategorieAyantdroit OTCategorieAyantdroit = this.getTCategorieAyantdroit(lg_CATEGORIE_AYANTDROIT_ID);
         if (OTCategorieAyantdroit != null) {
             OTAyantDroit.setLgCATEGORIEAYANTDROITID(OTCategorieAyantdroit);
@@ -1402,7 +1513,7 @@ public class clientManagement extends bllBase {
 
         }
 
-        //lg_RISQUE_ID
+        // lg_RISQUE_ID
         TRisque OTRisque = em.find(TRisque.class, lg_RISQUE_ID);
         if (OTRisque != null) {
             OTAyantDroit.setLgRISQUEID(OTRisque);
@@ -1419,9 +1530,9 @@ public class clientManagement extends bllBase {
         return result;
     }
 
-    public void updateAyantdroit(String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID,
-            String str_FIRST_NAME, String str_LAST_NAME, String str_SEXE,
-            Date dt_NAISSANCE, TVille lg_VILLE_ID, String lg_RISQUE_ID, String str_NUMERO_SECURITE_SOCIAL, TClient client, EntityManager em) throws Exception {
+    public void updateAyantdroit(String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID, String str_FIRST_NAME,
+            String str_LAST_NAME, String str_SEXE, Date dt_NAISSANCE, TVille lg_VILLE_ID, String lg_RISQUE_ID,
+            String str_NUMERO_SECURITE_SOCIAL, TClient client, EntityManager em) throws Exception {
         TAyantDroit OTAyantDroitOld = null;
 
         if (!str_NUMERO_SECURITE_SOCIAL.equals("")) {
@@ -1430,8 +1541,8 @@ public class clientManagement extends bllBase {
         TAyantDroit OTAyantDroit = em.find(TAyantDroit.class, lg_AYANTS_DROITS_ID);
         if (OTAyantDroit == null) {
             OTAyantDroit = em.createNamedQuery("TAyantDroit.findByStrNUMEROSECURITESOCIAL", TAyantDroit.class)
-                    .setMaxResults(1)
-                    .setParameter("strNUMEROSECURITESOCIAL", client.getStrNUMEROSECURITESOCIAL()).getSingleResult();
+                    .setMaxResults(1).setParameter("strNUMEROSECURITESOCIAL", client.getStrNUMEROSECURITESOCIAL())
+                    .getSingleResult();
 
         }
 
@@ -1441,8 +1552,10 @@ public class clientManagement extends bllBase {
         OTAyantDroit.setLgCLIENTID(client);
 
         try {
-            TCategorieAyantdroit OTCategorieAyantdroit = em.find(TCategorieAyantdroit.class, lg_CATEGORIE_AYANTDROIT_ID);
-            System.out.println("------------------------  ----WW  " + OTCategorieAyantdroit + "   lg_CATEGORIE_AYANTDROIT_ID " + lg_CATEGORIE_AYANTDROIT_ID);
+            TCategorieAyantdroit OTCategorieAyantdroit = em.find(TCategorieAyantdroit.class,
+                    lg_CATEGORIE_AYANTDROIT_ID);
+            System.out.println("------------------------  ----WW  " + OTCategorieAyantdroit
+                    + "   lg_CATEGORIE_AYANTDROIT_ID " + lg_CATEGORIE_AYANTDROIT_ID);
             if (OTCategorieAyantdroit != null) {
                 OTAyantDroit.setLgCATEGORIEAYANTDROITID(OTCategorieAyantdroit);
             }
@@ -1461,7 +1574,8 @@ public class clientManagement extends bllBase {
         }
 
         if (OTAyantDroitOld != null && !OTAyantDroitOld.equals(OTAyantDroit)) {
-            this.buildErrorTraceMessage("Echec de mise à jour. Ce matricule est utilisé par " + OTAyantDroitOld.getStrFIRSTNAME() + " " + OTAyantDroitOld.getStrLASTNAME());
+            this.buildErrorTraceMessage("Echec de mise à jour. Ce matricule est utilisé par "
+                    + OTAyantDroitOld.getStrFIRSTNAME() + " " + OTAyantDroitOld.getStrLASTNAME());
             return;
         }
 
@@ -1483,9 +1597,9 @@ public class clientManagement extends bllBase {
     public List<TTiersPayant> getClientTiersPayants(String lgCMP) {
         List<TTiersPayant> list = new ArrayList<>();
         try {
-            list = this.getOdataManager().getEm().createQuery("SELECT o.lgTIERSPAYANTID FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID =?1 AND o.lgTIERSPAYANTID.strSTATUT='enable' ")
-                    .setParameter(1, lgCMP)
-                    .getResultList();
+            list = this.getOdataManager().getEm().createQuery(
+                    "SELECT o.lgTIERSPAYANTID FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID =?1 AND o.lgTIERSPAYANTID.strSTATUT='enable' ")
+                    .setParameter(1, lgCMP).getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1493,22 +1607,22 @@ public class clientManagement extends bllBase {
         return list;
     }
 
-    public List<TPreenregistrementCompteClientTiersPayent> getClientAchats(String lgCMP, String dt_start, String dt_end, String lgTP, String criteria, int start, int limit) {
+    public List<TPreenregistrementCompteClientTiersPayent> getClientAchats(String lgCMP, String dt_start, String dt_end,
+            String lgTP, String criteria, int start, int limit) {
         List<TPreenregistrementCompteClientTiersPayent> list = new ArrayList<>();
         if ("".equals(criteria)) {
             criteria = "%%";
         }
         try {
-            list = this.getOdataManager().getEm().createQuery("SELECT o FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID =?1 AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.lgPREENREGISTREMENTID.bISCANCEL=FALSE AND  FUNCTION('DATE',o.lgPREENREGISTREMENTID.dtUPDATED) BETWEEN ?2 AND ?3 AND o.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?4 AND o.lgPREENREGISTREMENTID.strREF LIKE ?5 AND o.intPRICE>0 AND o.lgPREENREGISTREMENTID.strSTATUT='is_Closed'")
-                    // list = this.getOdataManager().getEm().createQuery("SELECT o FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID =?1  AND o.lgPREENREGISTREMENTID.strREF LIKE ?5 ")
-                    .setParameter(1, lgCMP.trim())
-                    .setParameter(2, java.sql.Date.valueOf(dt_start))
-                    .setParameter(3, java.sql.Date.valueOf(dt_end))
-                    .setParameter(4, lgTP)
-                    .setParameter(5, criteria)
-                    .setFirstResult(start)
-                    .setMaxResults(limit)
-                    .getResultList();
+            list = this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID =?1 AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.lgPREENREGISTREMENTID.bISCANCEL=FALSE AND  FUNCTION('DATE',o.lgPREENREGISTREMENTID.dtUPDATED) BETWEEN ?2 AND ?3 AND o.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?4 AND o.lgPREENREGISTREMENTID.strREF LIKE ?5 AND o.intPRICE>0 AND o.lgPREENREGISTREMENTID.strSTATUT='is_Closed'")
+                    // list = this.getOdataManager().getEm().createQuery("SELECT o FROM
+                    // TPreenregistrementCompteClientTiersPayent o WHERE
+                    // o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID =?1 AND
+                    // o.lgPREENREGISTREMENTID.strREF LIKE ?5 ")
+                    .setParameter(1, lgCMP.trim()).setParameter(2, java.sql.Date.valueOf(dt_start))
+                    .setParameter(3, java.sql.Date.valueOf(dt_end)).setParameter(4, lgTP).setParameter(5, criteria)
+                    .setFirstResult(start).setMaxResults(limit).getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1523,12 +1637,10 @@ public class clientManagement extends bllBase {
             criteria = "%%";
         }
         try {
-            count = (long) this.getOdataManager().getEm().createQuery("SELECT COUNT(o) FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID  =?1 AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.lgPREENREGISTREMENTID.bISCANCEL=FALSE AND  FUNCTION('DATE',o.lgPREENREGISTREMENTID.dtUPDATED) BETWEEN ?2 AND ?3 AND o.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?4 AND o.lgPREENREGISTREMENTID.strREF LIKE ?5  AND o.lgPREENREGISTREMENTID.strSTATUT='is_Closed' AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.intPRICE >0 ")
-                    .setParameter(1, lgCMP)
-                    .setParameter(2, java.sql.Date.valueOf(dt_start))
-                    .setParameter(3, java.sql.Date.valueOf(dt_end))
-                    .setParameter(4, lgTP)
-                    .setParameter(5, criteria)
+            count = (long) this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(o) FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID  =?1 AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.lgPREENREGISTREMENTID.bISCANCEL=FALSE AND  FUNCTION('DATE',o.lgPREENREGISTREMENTID.dtUPDATED) BETWEEN ?2 AND ?3 AND o.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?4 AND o.lgPREENREGISTREMENTID.strREF LIKE ?5  AND o.lgPREENREGISTREMENTID.strSTATUT='is_Closed' AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.intPRICE >0 ")
+                    .setParameter(1, lgCMP).setParameter(2, java.sql.Date.valueOf(dt_start))
+                    .setParameter(3, java.sql.Date.valueOf(dt_end)).setParameter(4, lgTP).setParameter(5, criteria)
                     .getSingleResult();
 
         } catch (Exception e) {
@@ -1541,7 +1653,9 @@ public class clientManagement extends bllBase {
     public String getFatucreRef(String id) {
         String ref = "";
         try {
-            TFacture p = (TFacture) this.getOdataManager().getEm().createQuery("SELECT o.lgFACTUREID FROM TFactureDetail o WHERE o.strREF=?1 ").setParameter(1, id).setMaxResults(1).getSingleResult();
+            TFacture p = (TFacture) this.getOdataManager().getEm()
+                    .createQuery("SELECT o.lgFACTUREID FROM TFactureDetail o WHERE o.strREF=?1 ").setParameter(1, id)
+                    .setMaxResults(1).getSingleResult();
             ref = p.getStrCODEFACTURE();
         } catch (Exception e) {
 
@@ -1555,12 +1669,10 @@ public class clientManagement extends bllBase {
             criteria = "%%";
         }
         try {
-            List<Object[]> list = this.getOdataManager().getEm().createQuery("SELECT SUM( DISTINCT o.intPRICE) AS TOTALTP, SUM(DISTINCT o.lgPREENREGISTREMENTID.intPRICE) AS TOTALVENTE,SUM(DISTINCT o.lgPREENREGISTREMENTID.intCUSTPART) AS TOTALCLIENT FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID  =?1 AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.lgPREENREGISTREMENTID.bISCANCEL=FALSE AND  FUNCTION('DATE',o.lgPREENREGISTREMENTID.dtUPDATED) BETWEEN ?2 AND ?3 AND o.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?4 AND o.lgPREENREGISTREMENTID.strREF LIKE ?5 AND o.lgPREENREGISTREMENTID.strSTATUT='is_Closed' ")
-                    .setParameter(1, lgCMP)
-                    .setParameter(2, java.sql.Date.valueOf(dt_start))
-                    .setParameter(3, java.sql.Date.valueOf(dt_end))
-                    .setParameter(4, lgTP)
-                    .setParameter(5, criteria)
+            List<Object[]> list = this.getOdataManager().getEm().createQuery(
+                    "SELECT SUM( DISTINCT o.intPRICE) AS TOTALTP, SUM(DISTINCT o.lgPREENREGISTREMENTID.intPRICE) AS TOTALVENTE,SUM(DISTINCT o.lgPREENREGISTREMENTID.intCUSTPART) AS TOTALCLIENT FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCOMPTECLIENTID  =?1 AND o.lgPREENREGISTREMENTID.intPRICE >0 AND o.lgPREENREGISTREMENTID.bISCANCEL=FALSE AND  FUNCTION('DATE',o.lgPREENREGISTREMENTID.dtUPDATED) BETWEEN ?2 AND ?3 AND o.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?4 AND o.lgPREENREGISTREMENTID.strREF LIKE ?5 AND o.lgPREENREGISTREMENTID.strSTATUT='is_Closed' ")
+                    .setParameter(1, lgCMP).setParameter(2, java.sql.Date.valueOf(dt_start))
+                    .setParameter(3, java.sql.Date.valueOf(dt_end)).setParameter(4, lgTP).setParameter(5, criteria)
                     .getResultList();
             if (!list.isEmpty()) {
                 for (Object[] objects : list) {
@@ -1586,8 +1698,9 @@ public class clientManagement extends bllBase {
 
         try {
 
-            details = this.getOdataManager().getEm().createQuery("SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID =?1 AND (o.lgFAMILLEID.intCIP LIKE ?2 OR  o.lgFAMILLEID.strNAME LIKE ?2 )   ").setParameter(1, id)
-                    .setParameter(2, serach + "%").getResultList();
+            details = this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID =?1 AND (o.lgFAMILLEID.intCIP LIKE ?2 OR  o.lgFAMILLEID.strNAME LIKE ?2 )   ")
+                    .setParameter(1, id).setParameter(2, serach + "%").getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1598,7 +1711,9 @@ public class clientManagement extends bllBase {
     public Integer getDiffere(String cmptID) {
         Long amount = 0l;
         try {
-            amount = (Long) this.getOdataManager().getEm().createQuery("SELECT SUM(o.intPRICERESTE) FROM TPreenregistrementCompteClient o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID=?1  ").setParameter(1, cmptID).getSingleResult();
+            amount = (Long) this.getOdataManager().getEm().createQuery(
+                    "SELECT SUM(o.intPRICERESTE) FROM TPreenregistrementCompteClient o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID=?1  ")
+                    .setParameter(1, cmptID).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1609,14 +1724,13 @@ public class clientManagement extends bllBase {
 
         try {
 
-            Query q = this.getOdataManager().getEm().createQuery("SELECT COUNT(t) FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1) AND t.lgTYPECLIENTID.lgTYPECLIENTID LIKE ?3 AND t.strSTATUT LIKE ?4 ORDER BY t.lgTYPECLIENTID.strDESCRIPTION, t.strFIRSTNAME ").
-                    setParameter(1, search_value + "%").
-                    setParameter(3, lg_TYPE_CLIENT_ID).
-                    setParameter(4, str_STATUT);
+            Query q = this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(t) FROM TClient t WHERE (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1 OR CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) LIKE ?1 OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1) AND t.lgTYPECLIENTID.lgTYPECLIENTID LIKE ?3 AND t.strSTATUT LIKE ?4 ORDER BY t.lgTYPECLIENTID.strDESCRIPTION, t.strFIRSTNAME ")
+                    .setParameter(1, search_value + "%").setParameter(3, lg_TYPE_CLIENT_ID).setParameter(4, str_STATUT);
             return ((Long) q.getSingleResult()).intValue();
-            // this.buildSuccesTraceMessage("Client(s) Existant(s)  Taille :: " + lstTClient.size());
+            // this.buildSuccesTraceMessage("Client(s) Existant(s) Taille :: " + lstTClient.size());
         } finally {
-//            this.getOdataManager().getEm().close();
+            // this.getOdataManager().getEm().close();
 
         }
 
@@ -1628,12 +1742,17 @@ public class clientManagement extends bllBase {
             EntityManager em = this.getOdataManager().getEm();
             CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<Integer> cq = cb.createQuery(Integer.class);
-            Root<TPreenregistrementCompteClientTiersPayent> root = cq.from(TPreenregistrementCompteClientTiersPayent.class);
-            Join<TPreenregistrementCompteClientTiersPayent, TCompteClientTiersPayant> cmp = root.join("lgCOMPTECLIENTTIERSPAYANTID", JoinType.INNER);
+            Root<TPreenregistrementCompteClientTiersPayent> root = cq
+                    .from(TPreenregistrementCompteClientTiersPayent.class);
+            Join<TPreenregistrementCompteClientTiersPayent, TCompteClientTiersPayant> cmp = root
+                    .join("lgCOMPTECLIENTTIERSPAYANTID", JoinType.INNER);
             Predicate criteria = cb.conjunction();
             criteria = cb.and(criteria, cb.equal(cmp.get("lgCOMPTECLIENTID").get("lgCOMPTECLIENTID"), OTCompteClient));
-            criteria = cb.and(criteria, cb.notEqual(root.get(TPreenregistrementCompteClientTiersPayent_.strSTATUTFACTURE), commonparameter.statut_paid));
-            criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("strSTATUT"), commonparameter.statut_is_Closed));
+            criteria = cb.and(criteria,
+                    cb.notEqual(root.get(TPreenregistrementCompteClientTiersPayent_.strSTATUTFACTURE),
+                            commonparameter.statut_paid));
+            criteria = cb.and(criteria,
+                    cb.equal(root.get("lgPREENREGISTREMENTID").get("strSTATUT"), commonparameter.statut_is_Closed));
             criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("bISCANCEL"), false));
             Predicate ge = cb.greaterThan(root.get("lgPREENREGISTREMENTID").get("intPRICE"), 0);
             cq.select(cb.sum(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICERESTE)));
@@ -1646,7 +1765,8 @@ public class clientManagement extends bllBase {
         return account;
     }
 
-    public JSONObject getClients(String search_value, String lg_TYPE_CLIENT_ID, String str_STATUT, int start, int limit) {
+    public JSONObject getClients(String search_value, String lg_TYPE_CLIENT_ID, String str_STATUT, int start,
+            int limit) {
         JSONObject _json = new JSONObject();
         try {
 
@@ -1661,10 +1781,19 @@ public class clientManagement extends bllBase {
                 criteria = cb.and(criteria, cb.equal(cmp.get(TTypeClient_.lgTYPECLIENTID), lg_TYPE_CLIENT_ID));
             }
             if (!"".equals(search_value)) {
-                criteria = cb.and(criteria, cb.or(cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"), cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"), cb.like(root.get(TClient_.strNUMEROSECURITESOCIAL), search_value + "%"), cb.like(root.get(TClient_.strCODEINTERNE), search_value + "%"), cb.like(cb.concat(cb.concat(root.get(TClient_.strFIRSTNAME), " "), root.get(TClient_.strLASTNAME)), search_value + "%"), cb.like(cb.concat(cb.concat(root.get(TClient_.strLASTNAME), " "), root.get(TClient_.strFIRSTNAME)), search_value + "%")));
+                criteria = cb.and(criteria,
+                        cb.or(cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"),
+                                cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"),
+                                cb.like(root.get(TClient_.strNUMEROSECURITESOCIAL), search_value + "%"),
+                                cb.like(root.get(TClient_.strCODEINTERNE), search_value + "%"),
+                                cb.like(cb.concat(cb.concat(root.get(TClient_.strFIRSTNAME), " "),
+                                        root.get(TClient_.strLASTNAME)), search_value + "%"),
+                                cb.like(cb.concat(cb.concat(root.get(TClient_.strLASTNAME), " "),
+                                        root.get(TClient_.strFIRSTNAME)), search_value + "%")));
             }
 
-            cq.select(root).orderBy(cb.asc(root.get("lgTYPECLIENTID").get("strDESCRIPTION")), cb.asc(root.get(TClient_.strFIRSTNAME)));
+            cq.select(root).orderBy(cb.asc(root.get("lgTYPECLIENTID").get("strDESCRIPTION")),
+                    cb.asc(root.get(TClient_.strFIRSTNAME)));
             cq.where(criteria);
             Query q = em.createQuery(cq);
             q.setFirstResult(start);
@@ -1673,8 +1802,9 @@ public class clientManagement extends bllBase {
             Integer dbl_total_differe = 0;
             JSONArray array = new JSONArray();
             boolean isALLOWED = DateConverter.hasAuthorityById(getUsersPrivileges(), Util.ACTIONDELETE);
-            boolean P_BTN_DESACTIVER_CLIENT = DateConverter.hasAuthorityByName(getUsersPrivileges(), DateConverter.P_BTN_DESACTIVER_CLIENT);
-          
+            boolean P_BTN_DESACTIVER_CLIENT = DateConverter.hasAuthorityByName(getUsersPrivileges(),
+                    DateConverter.P_BTN_DESACTIVER_CLIENT);
+
             for (TClient c : list) {
                 JSONObject json = new JSONObject();
                 String lg_CATEGORIE_AYANTDROIT_ID = "";
@@ -1682,18 +1812,20 @@ public class clientManagement extends bllBase {
                 String lg_COMPTE_CLIENT_ID = "";
                 json.put("BTNDELETE", isALLOWED);
                 json.put("P_BTN_DESACTIVER_CLIENT", P_BTN_DESACTIVER_CLIENT);
-             
 
                 try {
                     TCompteClient tCompteClient = getCompteClientt(c.getLgCLIENTID());
 
-                    //   dbl_total_differe = ODiffereManagement.func_beneficiaireTotalDiffere(OTCompteClient.getLgCOMPTECLIENTID());
+                    // dbl_total_differe =
+                    // ODiffereManagement.func_beneficiaireTotalDiffere(OTCompteClient.getLgCOMPTECLIENTID());
                     lg_COMPTE_CLIENT_ID = tCompteClient.getLgCOMPTECLIENTID();
                     json.put("dbl_SOLDE", conversion.AmountFormat(tCompteClient.getDecBalance().intValue(), '.'));
                     json.put("dbl_SOLDE_BIS", tCompteClient.getDecBalance().intValue());
                     json.put("dbl_CAUTION", tCompteClient.getDblCAUTION());
-                    /* json.put("dbl_PLAFOND", OTCompteClient.getDblPLAFOND()); a decommenter en cas de probleme. 16/08/2016
-                json.put("dbl_QUOTA_CONSO_MENSUELLE", OTCompteClient.getDblQUOTACONSOMENSUELLE());*/
+                    /*
+                     * json.put("dbl_PLAFOND", OTCompteClient.getDblPLAFOND()); a decommenter en cas de probleme.
+                     * 16/08/2016 json.put("dbl_QUOTA_CONSO_MENSUELLE", OTCompteClient.getDblQUOTACONSOMENSUELLE());
+                     */
                     json.put("lg_COMPTE_CLIENT_ID", lg_COMPTE_CLIENT_ID);
                     TRemise remise = c.getRemise();
                     if (remise != null) {
@@ -1701,10 +1833,12 @@ public class clientManagement extends bllBase {
                     }
 
                     Integer account = getDiffere(lg_COMPTE_CLIENT_ID) + getAccount(lg_COMPTE_CLIENT_ID);
-                    //  json.put("dbl_total_differe", OclientManagement.getDiffere(OTCompteClient.getLgCOMPTECLIENTID()));
+                    // json.put("dbl_total_differe",
+                    // OclientManagement.getDiffere(OTCompteClient.getLgCOMPTECLIENTID()));
                     json.put("dbl_total_differe", account);
 
-                    dbl_total_differe = (OTCompteClient.getDecBalanceInDisponible() > 0 ? OTCompteClient.getDecBalanceInDisponible() : 0);
+                    dbl_total_differe = (OTCompteClient.getDecBalanceInDisponible() > 0
+                            ? OTCompteClient.getDecBalanceInDisponible() : 0);
 
                 } catch (Exception e) {
                 }
@@ -1712,8 +1846,10 @@ public class clientManagement extends bllBase {
                 if (c.getLgTYPECLIENTID().getLgTYPECLIENTID().equals("1")) {
                     try {
                         TAyantDroit ayantDroit = getAyantDroit(c.getLgCLIENTID());
-                        lg_CATEGORIE_AYANTDROIT_ID = (ayantDroit.getLgCATEGORIEAYANTDROITID() != null ? ayantDroit.getLgCATEGORIEAYANTDROITID().getStrLIBELLECATEGORIEAYANTDROIT() : "");
-                        lg_RISQUE_ID = (ayantDroit.getLgRISQUEID() != null ? ayantDroit.getLgRISQUEID().getStrLIBELLERISQUE() : "");
+                        lg_CATEGORIE_AYANTDROIT_ID = (ayantDroit.getLgCATEGORIEAYANTDROITID() != null
+                                ? ayantDroit.getLgCATEGORIEAYANTDROITID().getStrLIBELLECATEGORIEAYANTDROIT() : "");
+                        lg_RISQUE_ID = (ayantDroit.getLgRISQUEID() != null
+                                ? ayantDroit.getLgRISQUEID().getStrLIBELLERISQUE() : "");
                     } catch (Exception e) {
 
                     }
@@ -1721,15 +1857,21 @@ public class clientManagement extends bllBase {
                 }
 
                 try {
-                    TCompteClientTiersPayant OTCompteClientTiersPayant = getCompteClientTiersPayant(lg_COMPTE_CLIENT_ID);
-                    json.put("lg_TYPE_TIERS_PAYANT_ID", OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTYPETIERSPAYANTID().getStrLIBELLETYPETIERSPAYANT());
+                    TCompteClientTiersPayant OTCompteClientTiersPayant = getCompteClientTiersPayant(
+                            lg_COMPTE_CLIENT_ID);
+                    json.put("lg_TYPE_TIERS_PAYANT_ID", OTCompteClientTiersPayant.getLgTIERSPAYANTID()
+                            .getLgTYPETIERSPAYANTID().getStrLIBELLETYPETIERSPAYANT());
                     json.put("lg_TIERS_PAYANT_ID", OTCompteClientTiersPayant.getLgTIERSPAYANTID().getStrFULLNAME());
                     json.put("int_POURCENTAGE", OTCompteClientTiersPayant.getIntPOURCENTAGE());
                     json.put("int_PRIORITY", OTCompteClientTiersPayant.getIntPRIORITY());
-                    json.put("dbl_QUOTA_CONSO_MENSUELLE", OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() != null ? OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() : 0);
-                    json.put("dbl_QUOTA_CONSO_VENTE", OTCompteClientTiersPayant.getDblQUOTACONSOVENTE() != null ? OTCompteClientTiersPayant.getDblQUOTACONSOVENTE() : 0);
-                    json.put("dbl_PLAFOND", OTCompteClientTiersPayant.getDblPLAFOND() != null ? OTCompteClientTiersPayant.getDblPLAFOND() : 0);
-                    json.put("db_PLAFOND_ENCOURS", OTCompteClientTiersPayant.getDbPLAFONDENCOURS() != null ? OTCompteClientTiersPayant.getDbPLAFONDENCOURS() : 0);
+                    json.put("dbl_QUOTA_CONSO_MENSUELLE", OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() != null
+                            ? OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() : 0);
+                    json.put("dbl_QUOTA_CONSO_VENTE", OTCompteClientTiersPayant.getDblQUOTACONSOVENTE() != null
+                            ? OTCompteClientTiersPayant.getDblQUOTACONSOVENTE() : 0);
+                    json.put("dbl_PLAFOND", OTCompteClientTiersPayant.getDblPLAFOND() != null
+                            ? OTCompteClientTiersPayant.getDblPLAFOND() : 0);
+                    json.put("db_PLAFOND_ENCOURS", OTCompteClientTiersPayant.getDbPLAFONDENCOURS() != null
+                            ? OTCompteClientTiersPayant.getDbPLAFONDENCOURS() : 0);
                     json.put("b_IsAbsolute", OTCompteClientTiersPayant.getBIsAbsolute());
                 } catch (Exception e) {
 
@@ -1740,7 +1882,8 @@ public class clientManagement extends bllBase {
                 json.put("str_CODE_INTERNE", c.getStrCODEINTERNE());
                 // str_FIRST_NAME
                 json.put("str_FIRST_NAME", c.getStrFIRSTNAME());
-                json.put("lg_CATEGORY_CLIENT_ID", (c.getLgCATEGORYCLIENTID() != null ? c.getLgCATEGORYCLIENTID().getStrLIBELLE() : ""));
+                json.put("lg_CATEGORY_CLIENT_ID",
+                        (c.getLgCATEGORYCLIENTID() != null ? c.getLgCATEGORYCLIENTID().getStrLIBELLE() : ""));
                 json.put("lg_COMPANY_ID", (c.getLgCOMPANYID() != null ? c.getLgCOMPANYID().getStrRAISONSOCIALE() : ""));
 
                 // str_LAST_NAME
@@ -1796,8 +1939,10 @@ public class clientManagement extends bllBase {
         TAyantDroit OTAyantDroit = null;
 
         try {
-            OTAyantDroit = (TAyantDroit) this.getOdataManager().getEm().createQuery("SELECT t FROM TAyantDroit t WHERE (CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) = ?1 OR t.strCODEINTERNE = ?1 OR t.strNUMEROSECURITESOCIAL = ?1) AND t.strSTATUT = ?2")
-                    .setParameter(1, lg_AYANT_DROIT_ID).setParameter(2, commonparameter.statut_enable).getSingleResult();
+            OTAyantDroit = (TAyantDroit) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TAyantDroit t WHERE (CONCAT(t.strFIRSTNAME,' ',t.strLASTNAME) = ?1 OR t.strCODEINTERNE = ?1 OR t.strNUMEROSECURITESOCIAL = ?1) AND t.strSTATUT = ?2")
+                    .setParameter(1, lg_AYANT_DROIT_ID).setParameter(2, commonparameter.statut_enable)
+                    .getSingleResult();
 
         } catch (Exception e) {
         }
@@ -1806,9 +1951,11 @@ public class clientManagement extends bllBase {
 
     private TAyantDroit getAyantDroit(String lgCLIENT_ID) {
         try {
-            return this.getOdataManager().getEm().createQuery("SELECT o FROM TAyantDroit o WHERE o.lgCLIENTID.lgCLIENTID=?1 ORDER BY o.dtCREATED ASC ", TAyantDroit.class)
-                    .setParameter(1, lgCLIENT_ID).setMaxResults(1)
-                    .getSingleResult();
+            return this.getOdataManager().getEm()
+                    .createQuery(
+                            "SELECT o FROM TAyantDroit o WHERE o.lgCLIENTID.lgCLIENTID=?1 ORDER BY o.dtCREATED ASC ",
+                            TAyantDroit.class)
+                    .setParameter(1, lgCLIENT_ID).setMaxResults(1).getSingleResult();
         } catch (Exception e) {
             return null;
         }
@@ -1817,9 +1964,9 @@ public class clientManagement extends bllBase {
 
     private TCompteClient getCompteClientt(String lgCLIENT_ID) {
         try {
-            return this.getOdataManager().getEm().createQuery("SELECT o FROM TCompteClient o WHERE o.lgCLIENTID.lgCLIENTID=?1 ", TCompteClient.class)
-                    .setParameter(1, lgCLIENT_ID).setMaxResults(1)
-                    .getSingleResult();
+            return this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM TCompteClient o WHERE o.lgCLIENTID.lgCLIENTID=?1 ", TCompteClient.class)
+                    .setParameter(1, lgCLIENT_ID).setMaxResults(1).getSingleResult();
         } catch (Exception e) {
             return null;
         }
@@ -1828,9 +1975,9 @@ public class clientManagement extends bllBase {
 
     private TCompteClientTiersPayant getCompteClientTiersPayant(String lgCLIENT_ID) {
         try {
-            return this.getOdataManager().getEm().createQuery("SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID  =?1 AND o.intPRIORITY=1", TCompteClientTiersPayant.class)
-                    .setParameter(1, lgCLIENT_ID).setMaxResults(1)
-                    .getSingleResult();
+            return this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID  =?1 AND o.intPRIORITY=1",
+                    TCompteClientTiersPayant.class).setParameter(1, lgCLIENT_ID).setMaxResults(1).getSingleResult();
         } catch (Exception e) {
             return null;
         }
@@ -1851,7 +1998,13 @@ public class clientManagement extends bllBase {
                 criteria = cb.and(criteria, cb.equal(cmp.get(TTypeClient_.lgTYPECLIENTID), lg_TYPE_CLIENT_ID));
             }
             if (!"".equals(search_value)) {
-                criteria = cb.and(criteria, cb.or(cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"), cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"), cb.like(root.get(TClient_.strNUMEROSECURITESOCIAL), search_value + "%"), cb.like(root.get(TClient_.strCODEINTERNE), search_value + "%"), cb.like(cb.concat(cb.concat(root.get(TClient_.strFIRSTNAME), " "), root.get(TClient_.strLASTNAME)), search_value + "%")));
+                criteria = cb.and(criteria,
+                        cb.or(cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"),
+                                cb.like(root.get(TClient_.strFIRSTNAME), search_value + "%"),
+                                cb.like(root.get(TClient_.strNUMEROSECURITESOCIAL), search_value + "%"),
+                                cb.like(root.get(TClient_.strCODEINTERNE), search_value + "%"),
+                                cb.like(cb.concat(cb.concat(root.get(TClient_.strFIRSTNAME), " "),
+                                        root.get(TClient_.strLASTNAME)), search_value + "%")));
             }
 
             cq.select(cb.count(root));
@@ -1867,14 +2020,14 @@ public class clientManagement extends bllBase {
     }
 
     public void updateAyantdroitPrincipal(String lg_AYANTS_DROITS_ID, String lg_CATEGORIE_AYANTDROIT_ID,
-            String str_FIRST_NAME, String str_LAST_NAME, String str_SEXE,
-            Date dt_NAISSANCE, TVille lg_VILLE_ID, String lg_RISQUE_ID, String str_NUMERO_SECURITE_SOCIAL, TClient client, EntityManager em) throws Exception {
+            String str_FIRST_NAME, String str_LAST_NAME, String str_SEXE, Date dt_NAISSANCE, TVille lg_VILLE_ID,
+            String lg_RISQUE_ID, String str_NUMERO_SECURITE_SOCIAL, TClient client, EntityManager em) throws Exception {
 
         TAyantDroit OTAyantDroit = em.find(TAyantDroit.class, lg_AYANTS_DROITS_ID);
         if (OTAyantDroit == null) {
             OTAyantDroit = em.createNamedQuery("TAyantDroit.findByStrNUMEROSECURITESOCIAL", TAyantDroit.class)
-                    .setMaxResults(1)
-                    .setParameter("strNUMEROSECURITESOCIAL", str_NUMERO_SECURITE_SOCIAL).getSingleResult();
+                    .setMaxResults(1).setParameter("strNUMEROSECURITESOCIAL", str_NUMERO_SECURITE_SOCIAL)
+                    .getSingleResult();
 
         }
 
@@ -1884,8 +2037,10 @@ public class clientManagement extends bllBase {
         OTAyantDroit.setLgCLIENTID(client);
 
         try {
-            TCategorieAyantdroit OTCategorieAyantdroit = em.find(TCategorieAyantdroit.class, lg_CATEGORIE_AYANTDROIT_ID);
-            System.out.println("------------------------  ----WW  " + OTCategorieAyantdroit + "   lg_CATEGORIE_AYANTDROIT_ID " + lg_CATEGORIE_AYANTDROIT_ID);
+            TCategorieAyantdroit OTCategorieAyantdroit = em.find(TCategorieAyantdroit.class,
+                    lg_CATEGORIE_AYANTDROIT_ID);
+            System.out.println("------------------------  ----WW  " + OTCategorieAyantdroit
+                    + "   lg_CATEGORIE_AYANTDROIT_ID " + lg_CATEGORIE_AYANTDROIT_ID);
             if (OTCategorieAyantdroit != null) {
                 OTAyantDroit.setLgCATEGORIEAYANTDROITID(OTCategorieAyantdroit);
             }

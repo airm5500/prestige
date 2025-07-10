@@ -17,7 +17,7 @@ public class RapportDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     private String id = UUID.randomUUID().toString();
     private String categorie, libelle;
-    private Integer montant=0, oder,display;
+    private Integer montant = 0, oder, display;
 
     public Integer getDisplay() {
         return display;
@@ -26,7 +26,6 @@ public class RapportDTO implements Serializable {
     public void setDisplay(Integer display) {
         this.display = display;
     }
-    
 
     public String getId() {
         return id;
@@ -95,7 +94,8 @@ public class RapportDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "RapportDTO{" + "categorie=" + categorie + ", libelle=" + libelle + ", montant=" + montant + ", oder=" + oder + '}';
+        return "RapportDTO{" + "categorie=" + categorie + ", libelle=" + libelle + ", montant=" + montant + ", oder="
+                + oder + '}';
     }
 
 }

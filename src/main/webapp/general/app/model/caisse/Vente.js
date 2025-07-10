@@ -14,6 +14,10 @@ Ext.define('testextjs.model.caisse.Vente', {
             name: 'lgPREENREGISTREMENTID',
             type: 'string'
         },
+          {
+            name: 'caution',
+            type: 'number'
+        },
         {
             name: 'strREF',
             type: 'string'
@@ -215,6 +219,10 @@ Ext.define('testextjs.model.caisse.Vente', {
          {
             name: 'canexport',
             type: 'boolean'
+        },{
+            name: 'modificationVenteDate',
+            type: 'boolean'
         }
+        
     ]
 });

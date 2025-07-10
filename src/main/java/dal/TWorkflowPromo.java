@@ -25,17 +25,15 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_workflow_promo", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_WORKFLOW_PROMO_ID"})})
+@Table(name = "t_workflow_promo", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_WORKFLOW_PROMO_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TWorkflowPromo.findAll", query = "SELECT t FROM TWorkflowPromo t"),
-    @NamedQuery(name = "TWorkflowPromo.findByLgWORKFLOWPROMOID", query = "SELECT t FROM TWorkflowPromo t WHERE t.lgWORKFLOWPROMOID = :lgWORKFLOWPROMOID"),
-    @NamedQuery(name = "TWorkflowPromo.findByStrNAME", query = "SELECT t FROM TWorkflowPromo t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TWorkflowPromo.findByStrDESCRIPTION", query = "SELECT t FROM TWorkflowPromo t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TWorkflowPromo.findByDtCREATED", query = "SELECT t FROM TWorkflowPromo t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TWorkflowPromo.findByDtUPDATED", query = "SELECT t FROM TWorkflowPromo t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TWorkflowPromo.findByStrSTATUT", query = "SELECT t FROM TWorkflowPromo t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TWorkflowPromo.findAll", query = "SELECT t FROM TWorkflowPromo t"),
+        @NamedQuery(name = "TWorkflowPromo.findByLgWORKFLOWPROMOID", query = "SELECT t FROM TWorkflowPromo t WHERE t.lgWORKFLOWPROMOID = :lgWORKFLOWPROMOID"),
+        @NamedQuery(name = "TWorkflowPromo.findByStrNAME", query = "SELECT t FROM TWorkflowPromo t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TWorkflowPromo.findByStrDESCRIPTION", query = "SELECT t FROM TWorkflowPromo t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TWorkflowPromo.findByDtCREATED", query = "SELECT t FROM TWorkflowPromo t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TWorkflowPromo.findByDtUPDATED", query = "SELECT t FROM TWorkflowPromo t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TWorkflowPromo.findByStrSTATUT", query = "SELECT t FROM TWorkflowPromo t WHERE t.strSTATUT = :strSTATUT") })
 public class TWorkflowPromo implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -124,7 +122,8 @@ public class TWorkflowPromo implements Serializable {
             return false;
         }
         TWorkflowPromo other = (TWorkflowPromo) object;
-        if ((this.lgWORKFLOWPROMOID == null && other.lgWORKFLOWPROMOID != null) || (this.lgWORKFLOWPROMOID != null && !this.lgWORKFLOWPROMOID.equals(other.lgWORKFLOWPROMOID))) {
+        if ((this.lgWORKFLOWPROMOID == null && other.lgWORKFLOWPROMOID != null)
+                || (this.lgWORKFLOWPROMOID != null && !this.lgWORKFLOWPROMOID.equals(other.lgWORKFLOWPROMOID))) {
             return false;
         }
         return true;
@@ -134,5 +133,5 @@ public class TWorkflowPromo implements Serializable {
     public String toString() {
         return "dal.TWorkflowPromo[ lgWORKFLOWPROMOID=" + lgWORKFLOWPROMOID + " ]";
     }
-    
+
 }

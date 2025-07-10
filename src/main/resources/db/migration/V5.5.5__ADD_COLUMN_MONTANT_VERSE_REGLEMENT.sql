@@ -1,0 +1,1 @@
+ALTER  TABLE `vente_reglement` ADD COLUMN IF NOT EXISTS  `montant_verse` INT(11) NULL;

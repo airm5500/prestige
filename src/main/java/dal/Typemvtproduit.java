@@ -25,10 +25,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "typemvtproduit")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "Typemvtproduit.findAll", query = "SELECT t FROM Typemvtproduit t"),
-    @NamedQuery(name = "Typemvtproduit.findById", query = "SELECT t FROM Typemvtproduit t WHERE t.id = :id"),
-    @NamedQuery(name = "Typemvtproduit.findByCategorie", query = "SELECT t FROM Typemvtproduit t WHERE t.categorieTypeMvt = :categorie")})
+@NamedQueries({ @NamedQuery(name = "Typemvtproduit.findAll", query = "SELECT t FROM Typemvtproduit t"),
+        @NamedQuery(name = "Typemvtproduit.findById", query = "SELECT t FROM Typemvtproduit t WHERE t.id = :id"),
+        @NamedQuery(name = "Typemvtproduit.findByCategorie", query = "SELECT t FROM Typemvtproduit t WHERE t.categorieTypeMvt = :categorie") })
 public class Typemvtproduit implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -37,7 +36,7 @@ public class Typemvtproduit implements Serializable {
     @Column(name = "ID")
     private String id;
     @Basic(optional = false)
-    @Column(name = "description",length = 255,nullable = false)
+    @Column(name = "description", length = 255, nullable = false)
     private String description;
     @Enumerated(EnumType.ORDINAL)
     @Column(name = "categorie", nullable = false)
@@ -49,8 +48,6 @@ public class Typemvtproduit implements Serializable {
     public Typemvtproduit(String id) {
         this.id = id;
     }
-
-
 
     public String getId() {
         return id;
@@ -76,15 +73,11 @@ public class Typemvtproduit implements Serializable {
         this.categorieTypeMvt = categorieTypeMvt;
     }
 
-   
-
     public Typemvtproduit(String id, String description, CategorieTypeMvt typeMvt) {
         this.id = id;
         this.description = description;
         this.categorieTypeMvt = typeMvt;
     }
-
-   
 
     @Override
     public int hashCode() {

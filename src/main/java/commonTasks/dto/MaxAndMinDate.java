@@ -10,7 +10,7 @@ package commonTasks.dto;
  * @author koben
  */
 public class MaxAndMinDate {
-    private String minDate,maxDate;
+    private String minDate, maxDate;
 
     public String getMinDate() {
         return minDate;
@@ -27,5 +27,5 @@ public class MaxAndMinDate {
     public void setMaxDate(String maxDate) {
         this.maxDate = maxDate;
     }
-    
+
 }

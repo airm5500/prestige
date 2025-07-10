@@ -35,6 +35,7 @@ public class VisualisationCaisseDTO implements Serializable {
     private String id = UUID.randomUUID().toString();
     private String modeRegle, typeMvt;
     private String operateurId;
+    private List<VisualisationCaisseDTO> datas = new ArrayList<>();
 
     public String getOperateurId() {
         return operateurId;
@@ -43,8 +44,6 @@ public class VisualisationCaisseDTO implements Serializable {
     public void setOperateurId(String operateurId) {
         this.operateurId = operateurId;
     }
-
-    private List<VisualisationCaisseDTO> datas = new ArrayList<>();
 
     public void setDatas(List<VisualisationCaisseDTO> datas) {
         this.datas = datas;
@@ -180,7 +179,8 @@ public class VisualisationCaisseDTO implements Serializable {
     public VisualisationCaisseDTO() {
     }
 
-    public VisualisationCaisseDTO(String typeMouvement, String reference, String operateur, String client, String modeReglement, LocalDateTime dateOperation) {
+    public VisualisationCaisseDTO(String typeMouvement, String reference, String operateur, String client,
+            String modeReglement, LocalDateTime dateOperation) {
         this.typeMouvement = typeMouvement;
         this.reference = reference;
         this.operateur = operateur;
@@ -191,7 +191,10 @@ public class VisualisationCaisseDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "VisualisationCaisseDTO{" + "typeMouvement=" + typeMouvement + ", reference=" + reference + ", operateur=" + operateur + ", client=" + client + ", modeReglement=" + modeReglement + ", dateOperation=" + dateOperation + ", montant=" + montant + ", numeroComptable=" + numeroComptable + '}';
+        return "VisualisationCaisseDTO{" + "typeMouvement=" + typeMouvement + ", reference=" + reference
+                + ", operateur=" + operateur + ", client=" + client + ", modeReglement=" + modeReglement
+                + ", dateOperation=" + dateOperation + ", montant=" + montant + ", numeroComptable=" + numeroComptable
+                + '}';
     }
 
     public VisualisationCaisseDTO(MvtTransaction m, TClient cl) {
@@ -207,21 +210,21 @@ public class VisualisationCaisseDTO implements Serializable {
             this.client = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
         }
         switch (mvt.getLgTYPEMVTCAISSEID()) {
-            case DateConverter.MVT_REGLE_VNO:
-            case DateConverter.MVT_REGLE_VO:
-                this.montant = m.getMontantRegle();
-                this.montantBrut = m.getMontant();
-                this.montantNet = m.getMontantNet();
-                this.montantCaisse = m.getMontantPaye();
-                this.montantCredit = m.getMontantRestant();
-//                this.credit = m.getCategoryTransaction().ordinal();
-                break;
-            default:
-                this.montant = m.getMontant();
-                this.montantBrut = m.getMontant();
-                this.montantNet = m.getMontant();
-//                this.montantCaisse = m.getMontant();
-                break;
+        case DateConverter.MVT_REGLE_VNO:
+        case DateConverter.MVT_REGLE_VO:
+            this.montant = m.getMontantRegle();
+            this.montantBrut = m.getMontant();
+            this.montantNet = m.getMontantNet();
+            this.montantCaisse = m.getMontantPaye();
+            this.montantCredit = m.getMontantRestant();
+            // this.credit = m.getCategoryTransaction().ordinal();
+            break;
+        default:
+            this.montant = m.getMontant();
+            this.montantBrut = m.getMontant();
+            this.montantNet = m.getMontant();
+            // this.montantCaisse = m.getMontant();
+            break;
 
         }
 
@@ -250,7 +253,8 @@ public class VisualisationCaisseDTO implements Serializable {
         this.montantBrut = montantBrut;
     }
 
-    public VisualisationCaisseDTO(String typeMouvement, String typeMvt, String modeRegle, String libele, long montantNet) {
+    public VisualisationCaisseDTO(String typeMouvement, String typeMvt, String modeRegle, String libele,
+            long montantNet) {
         this.typeMouvement = typeMouvement;
         this.typeMvt = typeMvt;
         this.montantNet = (int) montantNet;
@@ -259,7 +263,7 @@ public class VisualisationCaisseDTO implements Serializable {
     }
 
     public VisualisationCaisseDTO(MvtTransaction m, TClient cl, TTiersPayant payant) {
-        System.out.println("cl ----------------------->>  "+cl);
+
         TTypeMvtCaisse mvt = m.gettTypeMvtCaisse();
         this.typeMouvement = mvt.getStrNAME();
         this.typeMvt = mvt.getLgTYPEMVTCAISSEID();
@@ -274,19 +278,19 @@ public class VisualisationCaisseDTO implements Serializable {
             this.client = payant.getStrFULLNAME();
         }
         switch (mvt.getLgTYPEMVTCAISSEID()) {
-            case DateConverter.MVT_REGLE_VNO:
-            case DateConverter.MVT_REGLE_VO:
-                this.montant = m.getMontantRegle();
-                this.montantBrut = m.getMontant();
-                this.montantNet = m.getMontantNet();
-                this.montantCaisse = m.getMontantPaye();
-                this.montantCredit = m.getMontantRestant();
-                break;
-            default:
-                this.montant = m.getMontant();
-                this.montantBrut = m.getMontant();
-                this.montantNet = m.getMontant();
-                break;
+        case DateConverter.MVT_REGLE_VNO:
+        case DateConverter.MVT_REGLE_VO:
+            this.montant = m.getMontantRegle();
+            this.montantBrut = m.getMontant();
+            this.montantNet = m.getMontantNet();
+            this.montantCaisse = m.getMontantPaye();
+            this.montantCredit = m.getMontantRestant();
+            break;
+        default:
+            this.montant = m.getMontant();
+            this.montantBrut = m.getMontant();
+            this.montantNet = m.getMontant();
+            break;
 
         }
 
@@ -297,7 +301,7 @@ public class VisualisationCaisseDTO implements Serializable {
         this.taskDate = m.getMvtDate().format(dateFormat);
         this.taskHeure = m.getCreatedAt().format(heureFormat);
         this.numeroComptable = mvt.getStrCODECOMPTABLE();
-        this.id=UUID.randomUUID().toString();
+        this.id = UUID.randomUUID().toString();
 
     }
 }

@@ -7,7 +7,6 @@ var url_services_transaction_facturation = '../webservices/sm_user/facturation/w
 var url_services_pdf_tiers_payant = '../webservices/sm_user/facturation/ws_rp_facture_tiers_payant.jsp?lg_FACTURE_ID=';
 var url_services_pdf_fournisseurs = '../webservices/sm_user/facturation/ws_rp_facture_fournisseur.jsp?lg_FACTURE_ID=';
 var url_services_data_tiers_payant = '../webservices/tierspayantmanagement/tierspayant/ws_search_data.jsp';
-var url_services_data_grossiste = "../webservices/configmanagement/grossiste/ws_data.jsp";
 var Me;
 var valdatedebut;
 var valdatefin;

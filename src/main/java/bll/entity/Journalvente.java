@@ -31,7 +31,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_ref the str_ref to set
+     * @param str_ref
+     *            the str_ref to set
      */
     public void setStr_ref(String str_ref) {
         this.str_ref = str_ref;
@@ -45,7 +46,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_type_vente the str_type_vente to set
+     * @param str_type_vente
+     *            the str_type_vente to set
      */
     public void setStr_type_vente(String str_type_vente) {
         this.str_type_vente = str_type_vente;
@@ -59,7 +61,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_date the str_date to set
+     * @param str_date
+     *            the str_date to set
      */
     public void setStr_date(String str_date) {
         this.str_date = str_date;
@@ -73,7 +76,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_vendeur the str_vendeur to set
+     * @param str_vendeur
+     *            the str_vendeur to set
      */
     public void setStr_vendeur(String str_vendeur) {
         this.str_vendeur = str_vendeur;
@@ -87,7 +91,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_client the str_client to set
+     * @param str_client
+     *            the str_client to set
      */
     public void setStr_client(String str_client) {
         this.str_client = str_client;
@@ -101,7 +106,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_mt_vente the str_mt_vente to set
+     * @param str_mt_vente
+     *            the str_mt_vente to set
      */
     public void setStr_mt_vente(String str_mt_vente) {
         this.str_mt_vente = str_mt_vente;
@@ -115,7 +121,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_mt_tp the str_mt_tp to set
+     * @param str_mt_tp
+     *            the str_mt_tp to set
      */
     public void setStr_mt_tp(String str_mt_tp) {
         this.str_mt_tp = str_mt_tp;
@@ -129,7 +136,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_mt_clt the str_mt_clt to set
+     * @param str_mt_clt
+     *            the str_mt_clt to set
      */
     public void setStr_mt_clt(String str_mt_clt) {
         this.str_mt_clt = str_mt_clt;
@@ -143,7 +151,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_mt_rem the str_mt_rem to set
+     * @param str_mt_rem
+     *            the str_mt_rem to set
      */
     public void setStr_mt_rem(String str_mt_rem) {
         this.str_mt_rem = str_mt_rem;
@@ -157,7 +166,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_client_infos the str_client_infos to set
+     * @param str_client_infos
+     *            the str_client_infos to set
      */
     public void setStr_client_infos(String str_client_infos) {
         this.str_client_infos = str_client_infos;
@@ -171,7 +181,8 @@ public class Journalvente {
     }
 
     /**
-     * @param str_type_reglement the str_type_reglement to set
+     * @param str_type_reglement
+     *            the str_type_reglement to set
      */
     public void setStr_type_reglement(String str_type_reglement) {
         this.str_type_reglement = str_type_reglement;

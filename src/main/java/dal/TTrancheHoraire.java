@@ -29,15 +29,14 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_tranche_horaire")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTrancheHoraire.findAll", query = "SELECT t FROM TTrancheHoraire t"),
-    @NamedQuery(name = "TTrancheHoraire.findByLgTRANCHEHORAIREID", query = "SELECT t FROM TTrancheHoraire t WHERE t.lgTRANCHEHORAIREID = :lgTRANCHEHORAIREID"),
-    @NamedQuery(name = "TTrancheHoraire.findByIntHEUREMIN", query = "SELECT t FROM TTrancheHoraire t WHERE t.intHEUREMIN = :intHEUREMIN"),
-    @NamedQuery(name = "TTrancheHoraire.findByIntHEUREMAX", query = "SELECT t FROM TTrancheHoraire t WHERE t.intHEUREMAX = :intHEUREMAX"),
-    @NamedQuery(name = "TTrancheHoraire.findByStrLIBELLE", query = "SELECT t FROM TTrancheHoraire t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TTrancheHoraire.findByStrSTATUT", query = "SELECT t FROM TTrancheHoraire t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTrancheHoraire.findByDtCREATED", query = "SELECT t FROM TTrancheHoraire t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTrancheHoraire.findByDtUPDATED", query = "SELECT t FROM TTrancheHoraire t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTrancheHoraire.findAll", query = "SELECT t FROM TTrancheHoraire t"),
+        @NamedQuery(name = "TTrancheHoraire.findByLgTRANCHEHORAIREID", query = "SELECT t FROM TTrancheHoraire t WHERE t.lgTRANCHEHORAIREID = :lgTRANCHEHORAIREID"),
+        @NamedQuery(name = "TTrancheHoraire.findByIntHEUREMIN", query = "SELECT t FROM TTrancheHoraire t WHERE t.intHEUREMIN = :intHEUREMIN"),
+        @NamedQuery(name = "TTrancheHoraire.findByIntHEUREMAX", query = "SELECT t FROM TTrancheHoraire t WHERE t.intHEUREMAX = :intHEUREMAX"),
+        @NamedQuery(name = "TTrancheHoraire.findByStrLIBELLE", query = "SELECT t FROM TTrancheHoraire t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TTrancheHoraire.findByStrSTATUT", query = "SELECT t FROM TTrancheHoraire t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTrancheHoraire.findByDtCREATED", query = "SELECT t FROM TTrancheHoraire t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTrancheHoraire.findByDtUPDATED", query = "SELECT t FROM TTrancheHoraire t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTrancheHoraire implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -140,7 +139,8 @@ public class TTrancheHoraire implements Serializable {
         return tSnapShopDalyStatFrequentationCollection;
     }
 
-    public void setTSnapShopDalyStatFrequentationCollection(Collection<TSnapShopDalyStatFrequentation> tSnapShopDalyStatFrequentationCollection) {
+    public void setTSnapShopDalyStatFrequentationCollection(
+            Collection<TSnapShopDalyStatFrequentation> tSnapShopDalyStatFrequentationCollection) {
         this.tSnapShopDalyStatFrequentationCollection = tSnapShopDalyStatFrequentationCollection;
     }
 
@@ -158,7 +158,8 @@ public class TTrancheHoraire implements Serializable {
             return false;
         }
         TTrancheHoraire other = (TTrancheHoraire) object;
-        if ((this.lgTRANCHEHORAIREID == null && other.lgTRANCHEHORAIREID != null) || (this.lgTRANCHEHORAIREID != null && !this.lgTRANCHEHORAIREID.equals(other.lgTRANCHEHORAIREID))) {
+        if ((this.lgTRANCHEHORAIREID == null && other.lgTRANCHEHORAIREID != null)
+                || (this.lgTRANCHEHORAIREID != null && !this.lgTRANCHEHORAIREID.equals(other.lgTRANCHEHORAIREID))) {
             return false;
         }
         return true;
@@ -168,5 +169,5 @@ public class TTrancheHoraire implements Serializable {
     public String toString() {
         return "dal.TTrancheHoraire[ lgTRANCHEHORAIREID=" + lgTRANCHEHORAIREID + " ]";
     }
-    
+
 }

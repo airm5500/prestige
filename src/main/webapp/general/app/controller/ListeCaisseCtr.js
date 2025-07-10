@@ -32,10 +32,7 @@ Ext.define('testextjs.controller.ListeCaisseCtr', {
             selector: 'listecaissemanager #reglement'
         }, {ref: 'userComboField',
             selector: 'listecaissemanager #user'
-        }, /* {
-         ref: 'usernameField',
-         selector: 'listecaissemanager userform textfield[name=username]'
-         },*/
+        }, 
         {ref: 'rechercherButton',
             selector: 'listecaissemanager #rechercher'
 
@@ -80,20 +77,22 @@ Ext.define('testextjs.controller.ListeCaisseCtr', {
         });
     },
     onPdfClick: function () {
-        var me = this;
-        var user = me.getUserComboField().getValue();
+        const me = this;
+        let user = me.getUserComboField().getValue();
         if (!user) {
             user = '';
         }
-        var startDate = me.getStartDateField().getSubmitValue();
-        var endDate = me.getEndDateField().getSubmitValue();
-        var startH = me.getStartField().getSubmitValue();
-        var endH = me.getEndField().getSubmitValue();
-        var reglement = me.getReglementComboField().getValue();
+        const startDate = me.getStartDateField().getSubmitValue();
+        const endDate = me.getEndDateField().getSubmitValue();
+        const startH = me.getStartField().getSubmitValue();
+        const endH = me.getEndField().getSubmitValue();
+        let reglement = me.getReglementComboField().getValue();
         if (!reglement) {
             reglement = '';
         }
-        var linkUrl = '../BalancePdfServlet?mode=LISTECAISSE&user=' + user + '&startDate=' + startDate + '&endDate=' + endDate + '&startH=' + startH + '&endH=' + endH + '&reglement=' + reglement;
+        
+//        const linkUrl = '../BalancePdfServlet?mode=LISTECAISSE&user=' + user + '&startDate=' + startDate + '&endDate=' + endDate + '&startH=' + startH + '&endH=' + endH + '&reglement=' + reglement;
+        const linkUrl = '../BalancePdfServlet?mode=LISTECAISSE_V2&user=' + user + '&startDate=' + startDate + '&endDate=' + endDate + '&startH=' + startH + '&endH=' + endH + '&reglement=' + reglement;
         window.open(linkUrl);
     },
     doMetachange: function (store, meta) {
@@ -113,7 +112,8 @@ Ext.define('testextjs.controller.ListeCaisseCtr', {
 
                 }
 
-                items.push({
+                items.push(
+                        {
                     xtype: 'displayfield',
                     fieldLabel: e.modeReglement,
 //                    labelWidth: e.modeReglement.toString().length * 8,

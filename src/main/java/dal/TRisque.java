@@ -31,15 +31,14 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_risque")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRisque.findAll", query = "SELECT t FROM TRisque t"),
-    @NamedQuery(name = "TRisque.findByLgRISQUEID", query = "SELECT t FROM TRisque t WHERE t.lgRISQUEID = :lgRISQUEID"),
-    @NamedQuery(name = "TRisque.findByStrCODERISQUE", query = "SELECT t FROM TRisque t WHERE t.strCODERISQUE = :strCODERISQUE"),
-    @NamedQuery(name = "TRisque.findByStrLIBELLERISQUE", query = "SELECT t FROM TRisque t WHERE t.strLIBELLERISQUE = :strLIBELLERISQUE"),
-    @NamedQuery(name = "TRisque.findByStrRISQUEOFFICIEL", query = "SELECT t FROM TRisque t WHERE t.strRISQUEOFFICIEL = :strRISQUEOFFICIEL"),
-    @NamedQuery(name = "TRisque.findByStrSTATUT", query = "SELECT t FROM TRisque t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TRisque.findByDtCREATED", query = "SELECT t FROM TRisque t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRisque.findByDtUPDATED", query = "SELECT t FROM TRisque t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TRisque.findAll", query = "SELECT t FROM TRisque t"),
+        @NamedQuery(name = "TRisque.findByLgRISQUEID", query = "SELECT t FROM TRisque t WHERE t.lgRISQUEID = :lgRISQUEID"),
+        @NamedQuery(name = "TRisque.findByStrCODERISQUE", query = "SELECT t FROM TRisque t WHERE t.strCODERISQUE = :strCODERISQUE"),
+        @NamedQuery(name = "TRisque.findByStrLIBELLERISQUE", query = "SELECT t FROM TRisque t WHERE t.strLIBELLERISQUE = :strLIBELLERISQUE"),
+        @NamedQuery(name = "TRisque.findByStrRISQUEOFFICIEL", query = "SELECT t FROM TRisque t WHERE t.strRISQUEOFFICIEL = :strRISQUEOFFICIEL"),
+        @NamedQuery(name = "TRisque.findByStrSTATUT", query = "SELECT t FROM TRisque t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TRisque.findByDtCREATED", query = "SELECT t FROM TRisque t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRisque.findByDtUPDATED", query = "SELECT t FROM TRisque t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TRisque implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -171,7 +170,8 @@ public class TRisque implements Serializable {
             return false;
         }
         TRisque other = (TRisque) object;
-        if ((this.lgRISQUEID == null && other.lgRISQUEID != null) || (this.lgRISQUEID != null && !this.lgRISQUEID.equals(other.lgRISQUEID))) {
+        if ((this.lgRISQUEID == null && other.lgRISQUEID != null)
+                || (this.lgRISQUEID != null && !this.lgRISQUEID.equals(other.lgRISQUEID))) {
             return false;
         }
         return true;
@@ -181,5 +181,5 @@ public class TRisque implements Serializable {
     public String toString() {
         return "dal.TRisque[ lgRISQUEID=" + lgRISQUEID + " ]";
     }
-    
+
 }

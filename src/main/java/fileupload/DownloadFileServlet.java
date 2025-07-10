@@ -28,13 +28,12 @@ public class DownloadFileServlet extends HttpServlet {
     String filePath = "", lg_INVENTAIRE_ID = "", str_TYPEREPORT = "", search_value = "", str_TYPE_ACTION = "";
     String lg_GROSSISTE_ID = "%%", lg_FAMILLEARTICLE_ID = "%%", lg_ZONE_GEO_ID = "%%", lg_ORDER_ID = "%%";
 
-  
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         dataManager ODataManager = new dataManager();
         ODataManager.initEntityManager();
-//        InventaireManager OInventaireManager = null;
+        // InventaireManager OInventaireManager = null;
         orderManagement OorderManagement = null;
 
         if (request.getParameter("lg_GROSSISTE_ID") != null && request.getParameter("lg_GROSSISTE_ID") != "") {
@@ -64,7 +63,8 @@ public class DownloadFileServlet extends HttpServlet {
                 new logger().OCategory.info("lg_INVENTAIRE_ID " + lg_INVENTAIRE_ID);
             }
 
-            if (request.getParameter("lg_FAMILLEARTICLE_ID") != null && request.getParameter("lg_FAMILLEARTICLE_ID") != "") {
+            if (request.getParameter("lg_FAMILLEARTICLE_ID") != null
+                    && request.getParameter("lg_FAMILLEARTICLE_ID") != "") {
                 lg_FAMILLEARTICLE_ID = request.getParameter("lg_FAMILLEARTICLE_ID");
                 new logger().OCategory.info("lg_FAMILLEARTICLE_ID " + lg_FAMILLEARTICLE_ID);
             }
@@ -74,8 +74,9 @@ public class DownloadFileServlet extends HttpServlet {
                 new logger().OCategory.info("lg_ZONE_GEO_ID " + lg_ZONE_GEO_ID);
             }
 
-//            OInventaireManager = new InventaireManager(ODataManager);
-//            filePath = OInventaireManager.getFilePathToExportTxtOrCsv(str_TYPEREPORT, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID);
+            // OInventaireManager = new InventaireManager(ODataManager);
+            // filePath = OInventaireManager.getFilePathToExportTxtOrCsv(str_TYPEREPORT, lg_INVENTAIRE_ID,
+            // lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID);
 
         } else if (str_TYPE_ACTION.equalsIgnoreCase(commonparameter.code_action_commande)) {
             if (request.getParameter("lg_ORDER_ID") != null) {
@@ -136,7 +137,6 @@ public class DownloadFileServlet extends HttpServlet {
         outStream.close();
     }
 
-   
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -146,10 +146,15 @@ public class DownloadFileServlet extends HttpServlet {
     /**
      * Handles the HTTP <code>POST</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)

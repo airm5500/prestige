@@ -12,7 +12,7 @@ Ext.define('testextjs.view.reglement.Items', {
     closeAction: 'hide',
     closable: true,
     maximizable: true,
-    bodyPadding:'10px',
+    bodyPadding: '10px',
     layout: {
         type: 'fit',
         align: 'stretch'
@@ -88,7 +88,7 @@ Ext.define('testextjs.view.reglement.Items', {
                     xtype: 'fieldset',
                     title: 'Detail du reglement',
                     collapsible: false,
-                    flex:1,
+                    flex: 1,
                     defaultType: 'textfield',
                     layout: 'fit',
                     items: [

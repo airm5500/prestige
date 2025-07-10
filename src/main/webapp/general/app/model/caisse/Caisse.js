@@ -51,6 +51,14 @@ Ext.define('testextjs.model.caisse.Caisse', {
         {
             name: 'credit',
             type: 'number'
+        },
+         {
+            name: 'taskHeure',
+            type: 'string'
+        },
+         {
+            name: 'items',
+            type: 'string'
         }
 
     ]

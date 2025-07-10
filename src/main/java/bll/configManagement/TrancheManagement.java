@@ -20,7 +20,7 @@ import toolkits.utils.logger;
  *
  * @author AMETCH
  */
-public class TrancheManagement extends bllBase implements Imanager{
+public class TrancheManagement extends bllBase implements Imanager {
 
     int intMAX = 200;
 
@@ -32,9 +32,7 @@ public class TrancheManagement extends bllBase implements Imanager{
 
     public void fixintMax(int intMAXTemp) {
         intMAX = intMAXTemp;
-        
-        
-        
+
     }
 
     public TTranche create(Double dbl_POURCENTAGE_TRANCHE, Integer int_MONTANT_MIN, Integer int_MONTANT_MAX) {
@@ -58,7 +56,8 @@ public class TrancheManagement extends bllBase implements Imanager{
 
     }
 
-    public TTranche update(String lg_TRANCHE_ID, Double dbl_POURCENTAGE_TRANCHE, Integer int_MONTANT_MIN, Integer int_MONTANT_MAX) {
+    public TTranche update(String lg_TRANCHE_ID, Double dbl_POURCENTAGE_TRANCHE, Integer int_MONTANT_MIN,
+            Integer int_MONTANT_MAX) {
 
         TTranche OTTranche = null;
         OTTranche = (TTranche) this.find(lg_TRANCHE_ID, new TTranche());
@@ -184,7 +183,8 @@ public class TrancheManagement extends bllBase implements Imanager{
                 return true;
             }
 
-            if (min < OTTrancheTemp.getIntMONTANTMIN() && max < OTTrancheTemp.getIntMONTANTMAX() && max > OTTrancheTemp.getIntMONTANTMIN()) {
+            if (min < OTTrancheTemp.getIntMONTANTMIN() && max < OTTrancheTemp.getIntMONTANTMAX()
+                    && max > OTTrancheTemp.getIntMONTANTMIN()) {
 
                 this.buildErrorTraceMessage(" ***  MONTANT MAX   deja compris dans un intervalle *** ");
                 return true;
@@ -218,10 +218,9 @@ public class TrancheManagement extends bllBase implements Imanager{
 
     public List<TTranche> getTTranche() {
 
-        List<TTranche> lstTTranche = this.getOdataManager().getEm().
-                createQuery("SELECT t FROM TTranche t WHERE  t.strSTATUT LIKE ?2 ORDER BY t.intMONTANTMIN ").
-                setParameter(2, commonparameter.statut_enable).
-                getResultList();
+        List<TTranche> lstTTranche = this.getOdataManager().getEm()
+                .createQuery("SELECT t FROM TTranche t WHERE  t.strSTATUT LIKE ?2 ORDER BY t.intMONTANTMIN ")
+                .setParameter(2, commonparameter.statut_enable).getResultList();
 
         for (int i = 0; i < lstTTranche.size(); i++) {
             TTranche oTTranche = lstTTranche.get(i);
@@ -290,7 +289,8 @@ public class TrancheManagement extends bllBase implements Imanager{
                 return true;
             }
 
-            if (min < OTTrancheTemp.getIntMONTANTMIN() && max < OTTrancheTemp.getIntMONTANTMAX() && max > OTTrancheTemp.getIntMONTANTMIN()) {
+            if (min < OTTrancheTemp.getIntMONTANTMIN() && max < OTTrancheTemp.getIntMONTANTMAX()
+                    && max > OTTrancheTemp.getIntMONTANTMIN()) {
 
                 this.buildErrorTraceMessage(" ***  MONTANT MAX   deja compris dans un intervalle *** ");
                 return true;
@@ -324,8 +324,8 @@ public class TrancheManagement extends bllBase implements Imanager{
 
     @Override
     public Serializable find(Object o) {
-      return this.find(o, new TTranche());
-       
+        return this.find(o, new TTranche());
+
     }
 
 }

@@ -17,7 +17,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
-import util.DateConverter;
+import util.Constant;
 
 /**
  *
@@ -35,7 +35,7 @@ public class Rupture implements Serializable {
     @Column(name = "dtCreated")
     private LocalDate dtCreated = LocalDate.now();
     @Column(name = "statut", length = 20)
-    private String statut = DateConverter.STATUT_ENABLE;
+    private String statut = Constant.STATUT_ENABLE;
     @Column(name = "dtUpdated")
     private LocalDate dtUpdated = LocalDate.now();
     @JoinColumn(name = "grossisteId", referencedColumnName = "lg_GROSSISTE_ID")
@@ -95,7 +95,8 @@ public class Rupture implements Serializable {
 
     @Override
     public String toString() {
-        return "Rupture{" + "id=" + id + ", dtCreated=" + dtCreated + ", statut=" + statut + ", dtUpdated=" + dtUpdated + ", grossiste=" + grossiste + '}';
+        return "Rupture{" + "id=" + id + ", dtCreated=" + dtCreated + ", statut=" + statut + ", dtUpdated=" + dtUpdated
+                + ", grossiste=" + grossiste + '}';
     }
 
     @Override

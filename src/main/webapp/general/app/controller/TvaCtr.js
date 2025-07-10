@@ -41,7 +41,7 @@ Ext.define('testextjs.controller.TvaCtr', {
         {ref: 'comboRation',
             selector: 'tvastat #comboRation'
         },
-          {ref: 'typeVente',
+        {ref: 'typeVente',
             selector: 'tvastat #typeVente'
         }
 
@@ -78,14 +78,17 @@ Ext.define('testextjs.controller.TvaCtr', {
         let dtStart = me.getDtStart().getSubmitValue();
         let dtEnd = me.getDtEnd().getSubmitValue();
         let checkug = me.getCheckUg();
-        let typeVente=me.getTypeVente().getValue();
-        if(typeVente==='TOUT'){
-            typeVente='';
+        let typeVente = me.getTypeVente().getValue();
+        if (typeVente === 'TOUT') {
+            typeVente = ''; 
         }
-        let linkUrl = '../BalancePdfServlet?mode=TVA&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&checkug=' + checkug+'&typeVente='+typeVente;
+        let linkUrl = '../TvaServlet?mode=TVA&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&checkug=' + checkug + '&ref=' + typeVente;
+        if (checkug) {
+            linkUrl = '../TvaServlet?mode=TVA_WITH_CRITERIA&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&checkug=' + checkug + '&ref=' + typeVente;
+        }
         let comboRation = me.getComboRation().getValue();
         if (comboRation === 'Journalier') {
-            linkUrl = '../BalancePdfServlet?mode=TVA_JOUR&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&checkug=' + checkug+'&typeVente='+typeVente;
+            linkUrl = '../TvaServlet?mode=TVA_JOUR&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&checkug=' + checkug + '&ref=' + typeVente;
         }
         window.open(linkUrl);
     },
@@ -96,11 +99,14 @@ Ext.define('testextjs.controller.TvaCtr', {
         myProxy.params = {
             dtEnd: null,
             dtStart: null,
-            typeVente:null
+            typeVente: null
 
         };
         if (me.getCheckUg()) {
-            myProxy.url = '../api/v2/caisse/tvas';
+           
+            myProxy.url = '../api/v3/tvas/criterion';
+        } else {
+            myProxy.url = '../api/v3/tvas';
         }
         let typeVente = me.getTypeVente().getValue();
         myProxy.setExtraParam('typeVente', typeVente);
@@ -119,7 +125,9 @@ Ext.define('testextjs.controller.TvaCtr', {
         var me = this;
         let store = me.getTvaGrid().getStore();
         if (me.getCheckUg()) {
-            store.getProxy().url = '../api/v2/caisse/tvas';
+            store.getProxy().url = '../api/v3/tvas/criterion';
+        } else {
+            store.getProxy().url = '../api/v3/tvas';
         }
 
         store.load({
@@ -131,14 +139,13 @@ Ext.define('testextjs.controller.TvaCtr', {
             }
 
         });
-    }, 
-    
-    
+    },
+
     oncheckUg: function () {
         var me = this;
         Ext.Ajax.request({
             method: 'GET',
-            url: '../api/v1/common/checkug',
+            url: '../api/v1/common/common',
             success: function (response, options) {
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {

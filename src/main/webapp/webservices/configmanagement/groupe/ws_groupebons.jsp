@@ -43,7 +43,7 @@
     
     
     if (request.getParameter("lg_GROUPE_ID") != null && !"".equals(request.getParameter("lg_GROUPE_ID"))) {
-        lg_GROUPE_ID = new Integer(request.getParameter("lg_GROUPE_ID"));
+        lg_GROUPE_ID =  Integer.valueOf(request.getParameter("lg_GROUPE_ID"));
     }
     if (request.getParameter("lgTP_ID") != null && !"".equals(request.getParameter("lgTP_ID"))) {
         lgTP_ID = request.getParameter("lgTP_ID");

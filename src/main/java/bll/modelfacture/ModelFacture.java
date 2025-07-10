@@ -23,9 +23,10 @@ public class ModelFacture extends bllBase {
         super.setOdataManager(manager);
         super.checkDatamanager();
     }
-    
-    public List<TModelFacture> getAllModelFacture(){
-      return this.getOdataManager().getEm().createQuery("SELECT o FROM TModelFacture o WHERE o.strSTATUT =?1",TModelFacture.class)
-              .setParameter(1, commonparameter.statut_enable).getResultList();
+
+    public List<TModelFacture> getAllModelFacture() {
+        return this.getOdataManager().getEm()
+                .createQuery("SELECT o FROM TModelFacture o WHERE o.strSTATUT =?1", TModelFacture.class)
+                .setParameter(1, commonparameter.statut_enable).getResultList();
     }
 }

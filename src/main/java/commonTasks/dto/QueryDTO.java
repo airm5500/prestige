@@ -16,9 +16,9 @@ import java.util.Date;
 public class QueryDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String query,emplacementId,venteId;
+    private String query, emplacementId, venteId;
     private int start = 0, limit;
-    private String dtStart, dtEnd,statut;
+    private String dtStart, dtEnd, statut;
     private Date utilDateStart, utilDateEnd;
     private LocalDate localDateStart, localDateEnd;
 
@@ -120,11 +120,9 @@ public class QueryDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "QueryDTO{" + "query=" + query + ", start=" + start + ", limit=" + limit + ", dtStart=" + dtStart + ", dtEnd=" + dtEnd + ", utilDateStart=" + utilDateStart + ", utilDateEnd=" + utilDateEnd + ", localDateStart=" + localDateStart + ", localDateEnd=" + localDateEnd + '}';
+        return "QueryDTO{" + "query=" + query + ", start=" + start + ", limit=" + limit + ", dtStart=" + dtStart
+                + ", dtEnd=" + dtEnd + ", utilDateStart=" + utilDateStart + ", utilDateEnd=" + utilDateEnd
+                + ", localDateStart=" + localDateStart + ", localDateEnd=" + localDateEnd + '}';
     }
-
-
-
-
 
 }

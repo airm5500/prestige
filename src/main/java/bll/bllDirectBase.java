@@ -59,7 +59,6 @@ public class bllDirectBase extends bll.bllBase {
 
         oConnection = Ojconnexion.get_StringConnexion();
 
-
     }
 
     public void closeConnexion() {
@@ -75,7 +74,8 @@ public class bllDirectBase extends bll.bllBase {
     }
 
     /**
-     * @param key the key to set
+     * @param key
+     *            the key to set
      */
     public void setKey(date key) {
         this.key = key;

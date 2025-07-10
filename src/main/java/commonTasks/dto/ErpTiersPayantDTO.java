@@ -20,7 +20,8 @@ import java.text.SimpleDateFormat;
  */
 public class ErpTiersPayantDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-    private String mvtDate, tiersPayantId, tiersPayantLibelle, numFacturation, clientId, clientName, ayantDroitId, ayantDroitName;
+    private String mvtDate, tiersPayantId, tiersPayantLibelle, numFacturation, clientId, clientName, ayantDroitId,
+            ayantDroitName;
     private long montant;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyyMMdd");
 
@@ -107,7 +108,7 @@ public class ErpTiersPayantDTO implements Serializable {
             this.ayantDroitName = ayantDroit.getStrFIRSTNAME().concat(" ").concat(ayantDroit.getStrLASTNAME());
         }
         this.montant = p.getIntPRICE();
-        this.numFacturation="0";
+        this.numFacturation = "0";
     }
 
     public String getNumFacturation() {

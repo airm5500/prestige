@@ -1,0 +1,4 @@
+ALTER TABLE t_tiers_payant  ADD COLUMN IF NOT EXISTS is_cmus  TINYINT(1) NULL DEFAULT '0';
+
+
+

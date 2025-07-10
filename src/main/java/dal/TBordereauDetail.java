@@ -28,12 +28,11 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_bordereau_detail")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TBordereauDetail.findAll", query = "SELECT t FROM TBordereauDetail t"),
-    @NamedQuery(name = "TBordereauDetail.findByLgBORDEREAUDETAILID", query = "SELECT t FROM TBordereauDetail t WHERE t.lgBORDEREAUDETAILID = :lgBORDEREAUDETAILID"),
-    @NamedQuery(name = "TBordereauDetail.findByStrSTATUT", query = "SELECT t FROM TBordereauDetail t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TBordereauDetail.findByDtCREATED", query = "SELECT t FROM TBordereauDetail t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TBordereauDetail.findByDtUPDATED", query = "SELECT t FROM TBordereauDetail t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TBordereauDetail.findAll", query = "SELECT t FROM TBordereauDetail t"),
+        @NamedQuery(name = "TBordereauDetail.findByLgBORDEREAUDETAILID", query = "SELECT t FROM TBordereauDetail t WHERE t.lgBORDEREAUDETAILID = :lgBORDEREAUDETAILID"),
+        @NamedQuery(name = "TBordereauDetail.findByStrSTATUT", query = "SELECT t FROM TBordereauDetail t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TBordereauDetail.findByDtCREATED", query = "SELECT t FROM TBordereauDetail t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TBordereauDetail.findByDtUPDATED", query = "SELECT t FROM TBordereauDetail t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TBordereauDetail implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -124,7 +123,8 @@ public class TBordereauDetail implements Serializable {
             return false;
         }
         TBordereauDetail other = (TBordereauDetail) object;
-        if ((this.lgBORDEREAUDETAILID == null && other.lgBORDEREAUDETAILID != null) || (this.lgBORDEREAUDETAILID != null && !this.lgBORDEREAUDETAILID.equals(other.lgBORDEREAUDETAILID))) {
+        if ((this.lgBORDEREAUDETAILID == null && other.lgBORDEREAUDETAILID != null)
+                || (this.lgBORDEREAUDETAILID != null && !this.lgBORDEREAUDETAILID.equals(other.lgBORDEREAUDETAILID))) {
             return false;
         }
         return true;
@@ -134,5 +134,5 @@ public class TBordereauDetail implements Serializable {
     public String toString() {
         return "dal.TBordereauDetail[ lgBORDEREAUDETAILID=" + lgBORDEREAUDETAILID + " ]";
     }
-    
+
 }

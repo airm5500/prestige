@@ -22,8 +22,8 @@ import javax.ws.rs.core.Response;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.PharmaMlService;
-import shedule.Reapprovisionnement;
-import toolkits.parameters.commonparameter;
+
+import util.Constant;
 
 /**
  *
@@ -38,29 +38,23 @@ public class PharmaMlResource {
     private HttpServletRequest servletRequest;
     @EJB
     PharmaMlService pharmaMlService;
-    @EJB
-    Reapprovisionnement reapprovisionnement;
 
     @PUT
     @Path("{id}")
     public Response envoiPharmaCommande(@PathParam("id") String commandeId) throws JSONException {
         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = pharmaMlService.envoiPharmaCommande(commandeId, LocalDate.now().plusDays(1), 0, null, null);
+        JSONObject json = pharmaMlService.envoiCommande(commandeId, LocalDate.now().plusDays(1), 0, null, null);
         return Response.ok().entity(json.toString()).build();
     }
 
     @PUT
     @Path("infos/{id}")
     public Response envoiPharmaInfosProduit(@PathParam("id") String commandeId) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
-        }
+
         JSONObject json = pharmaMlService.envoiPharmaInfosProduit(commandeId);
         return Response.ok().entity(json.toString()).build();
     }
@@ -68,31 +62,33 @@ public class PharmaMlResource {
     @GET
     @Path("responseorder")
     public Response verificationCommandeReponse(@QueryParam("orderId") String orderId) throws JSONException {
-        JSONObject json = pharmaMlService.lignesCommandeRetour(null, orderId);
-        return Response.ok().entity(json.toString()).build();
+        // JSONObject json = pharmaMlService.lignesCommandeRetour(null, orderId);
+        return Response.ok().build();
     }
 
     @PUT
     @Path("rupture/{id}/{grossiste}")
-    public Response renvoiPharmaCommande(@PathParam("id") String ruptureId,@PathParam("grossiste") String grossiste) throws JSONException {
+    public Response renvoiPharmaCommande(@PathParam("id") String ruptureId, @PathParam("grossiste") String grossiste)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = pharmaMlService.renvoiPharmaCommande(ruptureId,  grossiste,LocalDate.now().plusDays(1), 0, null, null);
-        return Response.ok().entity(json.toString()).build();
+        /*
+         * JSONObject json = pharmaMlService.renvoiPharmaCommande(ruptureId, grossiste, LocalDate.now().plusDays(1), 0,
+         * null, null);
+         */
+        return Response.ok().build();
     }
 
-     @GET
+    @GET
     @Path("rupture/responseorder")
     public Response reponseRupture(@QueryParam("ruptureId") String orderId) throws JSONException {
-         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        JSONObject json = pharmaMlService.reponseRupture(orderId, tu);
-        return Response.ok().entity(json.toString()).build();
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        /* JSONObject json = pharmaMlService.reponseRupture(orderId, tu); */
+        return Response.ok().build();
     }
-    
-   
 
 }

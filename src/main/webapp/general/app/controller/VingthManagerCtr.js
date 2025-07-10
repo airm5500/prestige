@@ -7,10 +7,7 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             ref: 'vingtquatrevingt',
             selector: 'vingtquatrevingt'
         },
-        {
-            ref: 'imprimerBtn',
-            selector: 'vingtquatrevingt #imprimer'
-        },
+       
         {
             ref: 'myGrid',
             selector: 'vingtquatrevingt gridpanel'
@@ -60,9 +57,7 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             'vingtquatrevingt #rechercher': {
                 click: this.doSearch
             },
-            'vingtquatrevingt #imprimer': {
-                click: this.onPdfClick
-            },
+            
             'vingtquatrevingt #rayons': {
                 select: this.doSearch
             },
@@ -81,7 +76,13 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             },
             'vingtquatrevingt #suggestion': {
                 click: this.onSuggere
-            }
+            },
+            'vingtquatrevingt #exporter #exporterpdf': {
+                click: this.onPdfClick
+            },
+            'vingtquatrevingt #exporter #exporterexcel': {
+                click: this.onExportExcel
+            } 
 
         });
     },
@@ -104,11 +105,36 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             codeGrossiste = '';
         }
         var qtyOrCa = (comboVingt === 'Quantite');
-        var linkUrl = '../BalancePdfServlet?mode=EDITION20_80&dtStart=' + dtStart + '&dtEnd=' + dtEnd
+        var linkUrl = '../Vinght20x80?mode=pdf&dtStart=' + dtStart + '&dtEnd=' + dtEnd
                 + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&codeFamile=' + codeFamile
                 + '&qtyOrCa=' + qtyOrCa;
         window.open(linkUrl);
     },
+    onExportExcel: function () {
+
+        const me = this;
+        const dtStart = me.getDtStart().getSubmitValue();
+        const dtEnd = me.getDtEnd().getSubmitValue();
+        let codeRayon = me.getRayons().getValue();
+        let codeGrossiste = me.getGrossiste().getValue();
+        let comboVingt = me.getComboVingt().getValue();
+        let codeFamile = me.getCodeFamile().getValue();
+        if (codeFamile == null) {
+            codeFamile = '';
+        }
+        if (codeRayon == null) {
+            codeRayon = '';
+        }
+        if (codeGrossiste == null) {
+            codeGrossiste = '';
+        }
+        const qtyOrCa = (comboVingt === 'Quantite');
+
+        window.location = '../Vinght20x80?mode=excel&dtStart=' + dtStart + '&dtEnd=' + dtEnd
+                + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&codeFamile=' + codeFamile
+                + '&qtyOrCa=' + qtyOrCa;
+    },
+
     onSuggere: function () {
         var me = this;
         var dtStart = me.getDtStart().getSubmitValue();
@@ -156,7 +182,7 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             codeGrossiste: null,
             codeRayon: null,
             qtyOrCa: true,
-            codeFamile:null
+            codeFamile: null
 
         };
         var codeRayon = me.getRayons().getValue();

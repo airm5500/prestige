@@ -36,17 +36,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
         //alert("idOrder 2  " + idOrder);
         Me = this;
 
-        /*var str_REF_ = new Ext.form.field.Display(
-         {
-         xtype: 'displayfield',
-         fieldLabel: 'REF CMD:',
-         //                    labelWidth: 95,
-         name: 'str_REF_',
-         id: 'str_REF_',
-         fieldStyle: "color:blue;",
-         //                    margin: '0 15 0 0',
-         value: "0"
-         });*/
+
 
 
         var form = new Ext.form.Panel({
@@ -82,8 +72,8 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
                             value: "0"
                         },
                         {
-                            fieldLabel: 'REF BL',
-                            emptyText: 'REF BL',
+                            fieldLabel: 'NUMERO BL:',
+                            emptyText: 'NUMERO BL',
                             name: 'str_REF_LIVRAISON',
                             allowBlank: false,
                             id: 'str_REF_LIVRAISON'
@@ -190,11 +180,7 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
             return;
         }
 
-//        if (dt_DATE_LIVRAISON > today) {
-//            Ext.MessageBox.alert('Erreur au niveau date', 'La date de livraison doit &ecirc;tre inf&eacute;rieur &agrave; ou &eacute;gale la date du jour');
-//            return;
-//        }
-//        alert(int_MHT+" "+montantachat);
+
         if (Omode == "create") {
             if (int_MHT != montantachat) {
                 Ext.MessageBox.confirm('Attention!',
@@ -234,24 +220,12 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
             success: function (response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();
-                var result = Ext.JSON.decode(response.responseText, true);
-                if (!result.success) {
+                const result = Ext.JSON.decode(response.responseText, true);
 
-                    Ext.MessageBox.alert('Error Message', result.msg);
-                    return;
-                } else {
-                    var nb = result.nb, data = result.data;
-                    var message = result.msg;
-                    if (nb > 0) {
-                        message = nb + ' ne sont pas pris en compte [ ' + data + ' ] , vérifier si ces produits ne sont pas désactivés';
-                    }
-                    Ext.MessageBox.alert('confirmation', message);
-                    button.up('window').close();
-                    var xtype = "orderpassmanager";
-//                    xtype = Omode == "create" ? "orderpassmanager" : "etatscontrolemanager";
-                    testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
+                Ext.MessageBox.alert('confirmation', result.msg);
+                button.up('window').close();
 
-                }
+                testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
 
             },
             failure: function (response)

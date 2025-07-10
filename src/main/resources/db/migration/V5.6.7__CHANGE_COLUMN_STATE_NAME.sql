@@ -1,0 +1,1 @@
+ALTER TABLE `product_state` CHANGE COLUMN `state` `produit_state` VARCHAR(25) NOT NULL ,DROP INDEX `state_index`,ADD INDEX `produit_state_index` (`produit_state`) USING BTREE;

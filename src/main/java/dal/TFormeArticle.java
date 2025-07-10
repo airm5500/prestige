@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_forme_article")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFormeArticle.findAll", query = "SELECT t FROM TFormeArticle t"),
-    @NamedQuery(name = "TFormeArticle.findByLgFORMEARTICLEID", query = "SELECT t FROM TFormeArticle t WHERE t.lgFORMEARTICLEID = :lgFORMEARTICLEID"),
-    @NamedQuery(name = "TFormeArticle.findByStrCODE", query = "SELECT t FROM TFormeArticle t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TFormeArticle.findByStrLIBELLE", query = "SELECT t FROM TFormeArticle t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TFormeArticle.findByDtCREATED", query = "SELECT t FROM TFormeArticle t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFormeArticle.findByDtUPDATED", query = "SELECT t FROM TFormeArticle t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TFormeArticle.findByStrSTATUT", query = "SELECT t FROM TFormeArticle t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TFormeArticle.findAll", query = "SELECT t FROM TFormeArticle t"),
+        @NamedQuery(name = "TFormeArticle.findByLgFORMEARTICLEID", query = "SELECT t FROM TFormeArticle t WHERE t.lgFORMEARTICLEID = :lgFORMEARTICLEID"),
+        @NamedQuery(name = "TFormeArticle.findByStrCODE", query = "SELECT t FROM TFormeArticle t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TFormeArticle.findByStrLIBELLE", query = "SELECT t FROM TFormeArticle t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TFormeArticle.findByDtCREATED", query = "SELECT t FROM TFormeArticle t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFormeArticle.findByDtUPDATED", query = "SELECT t FROM TFormeArticle t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TFormeArticle.findByStrSTATUT", query = "SELECT t FROM TFormeArticle t WHERE t.strSTATUT = :strSTATUT") })
 public class TFormeArticle implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +135,8 @@ public class TFormeArticle implements Serializable {
             return false;
         }
         TFormeArticle other = (TFormeArticle) object;
-        if ((this.lgFORMEARTICLEID == null && other.lgFORMEARTICLEID != null) || (this.lgFORMEARTICLEID != null && !this.lgFORMEARTICLEID.equals(other.lgFORMEARTICLEID))) {
+        if ((this.lgFORMEARTICLEID == null && other.lgFORMEARTICLEID != null)
+                || (this.lgFORMEARTICLEID != null && !this.lgFORMEARTICLEID.equals(other.lgFORMEARTICLEID))) {
             return false;
         }
         return true;
@@ -146,5 +146,5 @@ public class TFormeArticle implements Serializable {
     public String toString() {
         return "dal.TFormeArticle[ lgFORMEARTICLEID=" + lgFORMEARTICLEID + " ]";
     }
-    
+
 }

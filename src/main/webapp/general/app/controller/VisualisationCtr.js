@@ -69,25 +69,7 @@ Ext.define('testextjs.controller.VisualisationCtr', {
 //                doMetachange: this.doMetachange,
                 viewready: this.doInitStore
             }
-//            'visualisercaissemanager visualisationGrid #caisseStore': {
-//                metachange: this.doMetachange
-//                
-//            }
 
-
-            /*,
-             'visualisercaissemanager userform #saveBtn': {
-             click: this.doSaveUser
-             },
-             'visualisercaissemanager userform #deleteBtn': {
-             click: this.doDeleteUser
-             },
-             'visualisercaissemanager userform': {
-             afterrender: this.doAddUser
-             },
-             'userlist header tool[type="refresh"]': {
-             click: this.doRefreshUserList
-             }*/
         });
     },
 
@@ -122,7 +104,6 @@ Ext.define('testextjs.controller.VisualisationCtr', {
                             return Ext.util.Format.number(v, '0,000.');
 
                         }
-//                        return  Ext.util.Format.number(v, '0,000.');
                     },
                     fieldStyle: style,
 
@@ -172,74 +153,9 @@ Ext.define('testextjs.controller.VisualisationCtr', {
         var me = this;
         me.getVisualisationGrid().getStore().addListener('metachange', this.doMetachange, this);
         me.doSearch();
-//        this.getVisualisationGrid().getStore().load();
+
     },
-    /*  doAddUser: function () {
-     var me = this;
-     me.getUserFormFieldset().setTitle('Add New User');
-     me.getUsernameField().enable();
-     var newUserRec = Ext.create('TTT.model.User', {
-     adminRole: 'N'
-     });
-     me.getUserForm().loadRecord(newUserRec);
-     me.getDeleteUserButton().disable();
-     },
-     doSelectUser: function (grid, record) {
-     var me = this;
-     me.getUserForm().loadRecord(record);
-     me.getUserFormFieldset().setTitle('Edit User ' +
-     record.get('username'));
-     me.getUsernameField().disable();
-     me.getDeleteUserButton().enable();
-     },*/
-    /*   doSaveUser: function () {
-     var me = this;
-     var rec = me.getUserForm().getRecord();
-     if (rec !== null) {
-     me.getUserForm().updateRecord();
-     var errs = rec.validate();
-     if (errs.isValid()) {
-     rec.save({
-     success: function (record, operation) {
-     
-     if (typeof record.store === 'undefined') {
-     // the record is not yet in a store
-     me.getUserList().
-     getStore().add(record);
-     }
-     me.getUserFormFieldset().setTitle('Edit User ' + record.get('username'));
-     me.getUsernameField().disable();
-     me.getDeleteUserButton().enable();
-     },
-     failure: function (rec, operation) {
-     Ext.Msg.alert('Save Failure',
-     operation.request.scope.
-     reader.jsonData.msg);
-     }
-     });
-     } else {
-     me.getUserForm().getForm().markInvalid(errs);
-     Ext.Msg.alert('Invalid Fields', 'Please fix the invalid entries!');
-     }
-     }
-     },*/
-    /* doDeleteUser: function () {
-     var me = this;
-     var rec = me.getUserForm().getRecord();
-     Ext.Msg.confirm('Confirm Delete User', 'Are you sure you want to delete user ' + rec.get('fullName') + '?',
-     function (btn) {
-     if (btn === 'yes') {
-     rec.destroy({
-     failure: function (rec, operation) {
-     Ext.Msg.alert('Delete Failure',
-     operation.request.scope.
-     reader.jsonData.msg);
-     }
-     });
-     me.doAddUser();
-     }
-     });
-     },*/
+   
     doSearch: function () {
         var me = this;
 

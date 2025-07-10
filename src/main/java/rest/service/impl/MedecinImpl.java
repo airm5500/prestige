@@ -37,7 +37,8 @@ public class MedecinImpl implements MedecinService {
         try {
             Medecin m = findByNumOrder(dTO.getNumOrdre());
             if (m != null) {
-                return new JSONObject().put("success", false).put("msg", "Le numéro ordre " + dTO.getNumOrdre() + " est utilisé par " + m.getNom());
+                return new JSONObject().put("success", false).put("msg",
+                        "Le numéro ordre " + dTO.getNumOrdre() + " est utilisé par " + m.getNom());
             }
             m = save(dTO);
 
@@ -92,7 +93,8 @@ public class MedecinImpl implements MedecinService {
     @Override
     public JSONObject findAllByNonOrNumOrder(String query) throws JSONException {
         try {
-            TypedQuery<Medecin> tq = getEntityManager().createNamedQuery("Medecin.findAllByNonOrNumOrder", Medecin.class);
+            TypedQuery<Medecin> tq = getEntityManager().createNamedQuery("Medecin.findAllByNonOrNumOrder",
+                    Medecin.class);
             tq.setParameter("numorder", query + "%");
             tq.setParameter("nom", query + "%");
 

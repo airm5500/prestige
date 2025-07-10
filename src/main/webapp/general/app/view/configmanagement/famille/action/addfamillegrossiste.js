@@ -45,7 +45,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.addfamillegrossiste',
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste_famille,
+                    url: '../api/v1/grossiste/all',
                 reader: {
                     type: 'json',
                     root: 'results',

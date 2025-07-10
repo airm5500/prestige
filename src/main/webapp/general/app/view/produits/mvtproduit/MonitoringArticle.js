@@ -247,6 +247,14 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
+                        }, {
+                            xtype: 'tbseparator'
+                        }, {
+                            text: 'imprimer',
+                            itemId: 'imprimer',
+                            iconCls: 'printable',
+                            tooltip: 'imprimer',
+                            scope: this
                         }
 
                     ]
@@ -272,24 +280,24 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                             dataIndex: 'cip',
                             sortable: false,
                             menuDisabled: true,
-                            flex: 0.7
+                            width: 85
                         },
                         {
                             header: 'Désignation',
                             sortable: false,
                             menuDisabled: true,
                             dataIndex: 'produitName',
-                            flex: 1.5
+                            width: 296
                         },
                         {
-                            text: 'Sortie',
+                            text: 'Mouvements Sortie',
                             columns:
                                     [
                                         {
                                             text: 'Vente',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyVente',
-                                            flex: 0.7,
+                                            width: 57,
                                             align: 'right',
                                             format: '0,000.'/*,
                                              renderer: function (v, m, r) {
@@ -308,7 +316,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Ret.four',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyRetour',
-                                            flex: 0.7,
+                                            width: 71,
                                             align: 'right',
                                             format: '0,000.'
                                         },
@@ -316,7 +324,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Qté.périmée',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyPerime',
-                                            flex: 0.7,
+                                            width: 78,
                                             align: 'right',
                                             format: '0,000.'
                                         },
@@ -324,7 +332,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Qté.Ajustée',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyAjustSortie',
-                                            flex: 0.7,
+                                            width: 83,
                                             align: 'right',
                                             format: '0,000.'
                                         },
@@ -332,21 +340,21 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Qté.Décon',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyDecondSortant',
-                                            flex: 0.7,
+                                            width: 74,
                                             align: 'right',
                                             format: '0,000.'
                                         }
                                     ]
                         },
                         {
-                            text: 'Entrée',
+                            text: 'Mouvements Entrée',
                             columns:
                                     [
                                         {
                                             text: 'Qté.Entrée',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyEntree',
-                                            flex: 0.7,
+                                            width: 76,
                                             align: 'right',
                                             format: '0,000.'
                                         },
@@ -354,7 +362,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Qté.Ajustée',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyAjust',
-                                            flex: 0.7,
+                                            width: 77,
                                             align: 'right',
                                             format: '0,000.'
                                         },
@@ -362,7 +370,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Qté.Décon',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyDeconEntrant',
-                                            flex: 0.7,
+                                            width: 79,
                                             align: 'right',
                                             format: '0,000.'
                                         },
@@ -370,7 +378,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Qté.Annulée',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyAnnulation',
-                                            flex: 0.7,
+                                            width: 76,
                                             align: 'right',
                                             format: '0,000.'
                                         },
@@ -378,7 +386,7 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                                             text: 'Qté.Ret.Depôt',
                                             xtype: 'numbercolumn',
                                             dataIndex: 'qtyRetourDepot',
-                                            flex: 0.7,
+                                            width: 0,
                                             align: 'right',
                                             format: '0,000.'
                                         }
@@ -389,25 +397,24 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticle', {
                             text: 'Qté.Inv',
                             xtype: 'numbercolumn',
                             dataIndex: 'qtyInv',
-                            flex: 0.7,
+                            width: 57,
                             align: 'right',
                             format: '0,000.'
                         },
-                         {
+                        {
                             text: 'écart.Inv',
                             xtype: 'numbercolumn',
                             dataIndex: 'ecartInventaire',
-                            flex: 0.7,
+                            width: 57,
                             align: 'right',
                             format: '0,000.'
                         },
-                        
-                        
+
                         {
                             text: 'Stock',
                             xtype: 'numbercolumn',
                             dataIndex: 'currentStock',
-                            flex: 0.7,
+                            width: 57,
                             align: 'right',
                             format: '0,000.'
                         },

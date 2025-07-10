@@ -500,7 +500,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.addclt', {
         // win_add_clt.close();
     },
     onDiffereClick: function(Ocust_id, Ocust_name, Ocust_total_diff) {
-        oclient_idval = Ocust_id;
+      /*  oclient_idval = Ocust_id;
         oclient_nameval = Ocust_name;
         total_cust_dif = Ocust_total_diff;
         new testextjs.view.sm_user.dovente.action.checkdif({
@@ -510,7 +510,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.addclt', {
             parentview: this,
             mode: "create",
             titre: "by_addclt"
-        });
+        });*/
     },
     onRechClick: function() {
 

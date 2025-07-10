@@ -157,7 +157,7 @@ Ext.define('testextjs.view.sm_user.coffrecaisse.action.add', {
                 var object = Ext.JSON.decode(response.responseText, false);
                 if (!object.success) {
                     Ext.MessageBox.alert('Error Message', object.msg);
-                    return;
+             
                 } else {
                     Ext.MessageBox.alert('Confirmation', object.msg);
                     var bouton = button.up('window');

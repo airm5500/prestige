@@ -30,21 +30,19 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_menu", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_MENU_ID"})})
+@Table(name = "t_menu", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_MENU_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMenu.findAll", query = "SELECT t FROM TMenu t"),
-    @NamedQuery(name = "TMenu.findByLgMENUID", query = "SELECT t FROM TMenu t WHERE t.lgMENUID = :lgMENUID"),
-    @NamedQuery(name = "TMenu.findByStrVALUE", query = "SELECT t FROM TMenu t WHERE t.strVALUE = :strVALUE"),
-    @NamedQuery(name = "TMenu.findByStrIMAGECSS", query = "SELECT t FROM TMenu t WHERE t.strIMAGECSS = :strIMAGECSS"),
-    @NamedQuery(name = "TMenu.findByStrDESCRIPTION", query = "SELECT t FROM TMenu t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TMenu.findByIntPRIORITY", query = "SELECT t FROM TMenu t WHERE t.intPRIORITY = :intPRIORITY"),
-    @NamedQuery(name = "TMenu.findByStrStatus", query = "SELECT t FROM TMenu t WHERE t.strStatus = :strStatus"),
-    @NamedQuery(name = "TMenu.findByPKey", query = "SELECT t FROM TMenu t WHERE t.pKey = :pKey"),
-    @NamedQuery(name = "TMenu.findByDtCREATED", query = "SELECT t FROM TMenu t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMenu.findByDtUPDATED", query = "SELECT t FROM TMenu t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMenu.findByIconCLASS", query = "SELECT t FROM TMenu t WHERE t.iconCLASS = :iconCLASS")})
+@NamedQueries({ @NamedQuery(name = "TMenu.findAll", query = "SELECT t FROM TMenu t"),
+        @NamedQuery(name = "TMenu.findByLgMENUID", query = "SELECT t FROM TMenu t WHERE t.lgMENUID = :lgMENUID"),
+        @NamedQuery(name = "TMenu.findByStrVALUE", query = "SELECT t FROM TMenu t WHERE t.strVALUE = :strVALUE"),
+        @NamedQuery(name = "TMenu.findByStrIMAGECSS", query = "SELECT t FROM TMenu t WHERE t.strIMAGECSS = :strIMAGECSS"),
+        @NamedQuery(name = "TMenu.findByStrDESCRIPTION", query = "SELECT t FROM TMenu t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TMenu.findByIntPRIORITY", query = "SELECT t FROM TMenu t WHERE t.intPRIORITY = :intPRIORITY"),
+        @NamedQuery(name = "TMenu.findByStrStatus", query = "SELECT t FROM TMenu t WHERE t.strStatus = :strStatus"),
+        @NamedQuery(name = "TMenu.findByPKey", query = "SELECT t FROM TMenu t WHERE t.pKey = :pKey"),
+        @NamedQuery(name = "TMenu.findByDtCREATED", query = "SELECT t FROM TMenu t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMenu.findByDtUPDATED", query = "SELECT t FROM TMenu t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMenu.findByIconCLASS", query = "SELECT t FROM TMenu t WHERE t.iconCLASS = :iconCLASS") })
 public class TMenu implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -195,7 +193,8 @@ public class TMenu implements Serializable {
             return false;
         }
         TMenu other = (TMenu) object;
-        if ((this.lgMENUID == null && other.lgMENUID != null) || (this.lgMENUID != null && !this.lgMENUID.equals(other.lgMENUID))) {
+        if ((this.lgMENUID == null && other.lgMENUID != null)
+                || (this.lgMENUID != null && !this.lgMENUID.equals(other.lgMENUID))) {
             return false;
         }
         return true;
@@ -205,5 +204,5 @@ public class TMenu implements Serializable {
     public String toString() {
         return "dal.TMenu[ lgMENUID=" + lgMENUID + " ]";
     }
-    
+
 }

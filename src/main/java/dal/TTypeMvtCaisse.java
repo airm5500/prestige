@@ -33,25 +33,21 @@ import javax.xml.bind.annotation.XmlTransient;
  */
 @Entity
 @Table(name = "t_type_mvt_caisse", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_TYPE_MVT_CAISSE_ID"})},
-         indexes = {
-           @Index(name = "mvtIndexCategorie", columnList = "categorie")
-            ,
-            @Index(name = "mvtIndexCodeComp", columnList = "str_CODE_COMPTABLE")
-            
-        }
-        )
+        @UniqueConstraint(columnNames = { "lg_TYPE_MVT_CAISSE_ID" }) }, indexes = {
+                @Index(name = "mvtIndexCategorie", columnList = "categorie"),
+                @Index(name = "mvtIndexCodeComp", columnList = "str_CODE_COMPTABLE")
+
+})
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeMvtCaisse.findAll", query = "SELECT t FROM TTypeMvtCaisse t"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByLgTYPEMVTCAISSEID", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.lgTYPEMVTCAISSEID = :lgTYPEMVTCAISSEID"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByStrNAME", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByStrDESCRIPTION", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByDtCREATED", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByDtUPDATED", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByStrSTATUT", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByStrCODECOMPTABLE", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strCODECOMPTABLE = :strCODECOMPTABLE"),
-    @NamedQuery(name = "TTypeMvtCaisse.findByStrCODEREGROUPEMENT", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strCODEREGROUPEMENT = :strCODEREGROUPEMENT")})
+@NamedQueries({ @NamedQuery(name = "TTypeMvtCaisse.findAll", query = "SELECT t FROM TTypeMvtCaisse t"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByLgTYPEMVTCAISSEID", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.lgTYPEMVTCAISSEID = :lgTYPEMVTCAISSEID"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByStrNAME", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByStrDESCRIPTION", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByDtCREATED", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByDtUPDATED", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByStrSTATUT", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByStrCODECOMPTABLE", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strCODECOMPTABLE = :strCODECOMPTABLE"),
+        @NamedQuery(name = "TTypeMvtCaisse.findByStrCODEREGROUPEMENT", query = "SELECT t FROM TTypeMvtCaisse t WHERE t.strCODEREGROUPEMENT = :strCODEREGROUPEMENT") })
 public class TTypeMvtCaisse implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -88,7 +84,7 @@ public class TTypeMvtCaisse implements Serializable {
     public void setCategorieMvtCaisse(CategorieMvtCaisse categorieMvtCaisse) {
         this.categorieMvtCaisse = categorieMvtCaisse;
     }
-    
+
     public TTypeMvtCaisse() {
     }
 
@@ -183,7 +179,8 @@ public class TTypeMvtCaisse implements Serializable {
             return false;
         }
         TTypeMvtCaisse other = (TTypeMvtCaisse) object;
-        if ((this.lgTYPEMVTCAISSEID == null && other.lgTYPEMVTCAISSEID != null) || (this.lgTYPEMVTCAISSEID != null && !this.lgTYPEMVTCAISSEID.equals(other.lgTYPEMVTCAISSEID))) {
+        if ((this.lgTYPEMVTCAISSEID == null && other.lgTYPEMVTCAISSEID != null)
+                || (this.lgTYPEMVTCAISSEID != null && !this.lgTYPEMVTCAISSEID.equals(other.lgTYPEMVTCAISSEID))) {
             return false;
         }
         return true;

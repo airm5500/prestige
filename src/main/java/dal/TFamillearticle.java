@@ -31,17 +31,15 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_famillearticle", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_FAMILLEARTICLE_ID"})})
+@Table(name = "t_famillearticle", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_FAMILLEARTICLE_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFamillearticle.findAll", query = "SELECT t FROM TFamillearticle t"),
-    @NamedQuery(name = "TFamillearticle.findByLgFAMILLEARTICLEID", query = "SELECT t FROM TFamillearticle t WHERE t.lgFAMILLEARTICLEID = :lgFAMILLEARTICLEID"),
-    @NamedQuery(name = "TFamillearticle.findByStrLIBELLE", query = "SELECT t FROM TFamillearticle t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TFamillearticle.findByStrCODEFAMILLE", query = "SELECT t FROM TFamillearticle t WHERE t.strCODEFAMILLE = :strCODEFAMILLE"),
-    @NamedQuery(name = "TFamillearticle.findByStrSTATUT", query = "SELECT t FROM TFamillearticle t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TFamillearticle.findByDtCREATED", query = "SELECT t FROM TFamillearticle t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFamillearticle.findByDtUPDATED", query = "SELECT t FROM TFamillearticle t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TFamillearticle.findAll", query = "SELECT t FROM TFamillearticle t"),
+        @NamedQuery(name = "TFamillearticle.findByLgFAMILLEARTICLEID", query = "SELECT t FROM TFamillearticle t WHERE t.lgFAMILLEARTICLEID = :lgFAMILLEARTICLEID"),
+        @NamedQuery(name = "TFamillearticle.findByStrLIBELLE", query = "SELECT t FROM TFamillearticle t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TFamillearticle.findByStrCODEFAMILLE", query = "SELECT t FROM TFamillearticle t WHERE t.strCODEFAMILLE = :strCODEFAMILLE"),
+        @NamedQuery(name = "TFamillearticle.findByStrSTATUT", query = "SELECT t FROM TFamillearticle t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TFamillearticle.findByDtCREATED", query = "SELECT t FROM TFamillearticle t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFamillearticle.findByDtUPDATED", query = "SELECT t FROM TFamillearticle t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TFamillearticle implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -163,7 +161,8 @@ public class TFamillearticle implements Serializable {
             return false;
         }
         TFamillearticle other = (TFamillearticle) object;
-        if ((this.lgFAMILLEARTICLEID == null && other.lgFAMILLEARTICLEID != null) || (this.lgFAMILLEARTICLEID != null && !this.lgFAMILLEARTICLEID.equals(other.lgFAMILLEARTICLEID))) {
+        if ((this.lgFAMILLEARTICLEID == null && other.lgFAMILLEARTICLEID != null)
+                || (this.lgFAMILLEARTICLEID != null && !this.lgFAMILLEARTICLEID.equals(other.lgFAMILLEARTICLEID))) {
             return false;
         }
         return true;
@@ -173,5 +172,5 @@ public class TFamillearticle implements Serializable {
     public String toString() {
         return "dal.TFamillearticle[ lgFAMILLEARTICLEID=" + lgFAMILLEARTICLEID + " ]";
     }
-    
+
 }

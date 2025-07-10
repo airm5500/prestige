@@ -26,16 +26,15 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_language")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TLanguage.findAll", query = "SELECT t FROM TLanguage t"),
-    @NamedQuery(name = "TLanguage.findByLgLanguageID", query = "SELECT t FROM TLanguage t WHERE t.lgLanguageID = :lgLanguageID"),
-    @NamedQuery(name = "TLanguage.findByStrLocalCty", query = "SELECT t FROM TLanguage t WHERE t.strLocalCty = :strLocalCty"),
-    @NamedQuery(name = "TLanguage.findByStrLocalLg", query = "SELECT t FROM TLanguage t WHERE t.strLocalLg = :strLocalLg"),
-    @NamedQuery(name = "TLanguage.findByStrCode", query = "SELECT t FROM TLanguage t WHERE t.strCode = :strCode"),
-    @NamedQuery(name = "TLanguage.findByStrDescription", query = "SELECT t FROM TLanguage t WHERE t.strDescription = :strDescription"),
-    @NamedQuery(name = "TLanguage.findByDtCREATED", query = "SELECT t FROM TLanguage t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TLanguage.findByDtUPDATED", query = "SELECT t FROM TLanguage t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TLanguage.findByStrSTATUT", query = "SELECT t FROM TLanguage t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TLanguage.findAll", query = "SELECT t FROM TLanguage t"),
+        @NamedQuery(name = "TLanguage.findByLgLanguageID", query = "SELECT t FROM TLanguage t WHERE t.lgLanguageID = :lgLanguageID"),
+        @NamedQuery(name = "TLanguage.findByStrLocalCty", query = "SELECT t FROM TLanguage t WHERE t.strLocalCty = :strLocalCty"),
+        @NamedQuery(name = "TLanguage.findByStrLocalLg", query = "SELECT t FROM TLanguage t WHERE t.strLocalLg = :strLocalLg"),
+        @NamedQuery(name = "TLanguage.findByStrCode", query = "SELECT t FROM TLanguage t WHERE t.strCode = :strCode"),
+        @NamedQuery(name = "TLanguage.findByStrDescription", query = "SELECT t FROM TLanguage t WHERE t.strDescription = :strDescription"),
+        @NamedQuery(name = "TLanguage.findByDtCREATED", query = "SELECT t FROM TLanguage t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TLanguage.findByDtUPDATED", query = "SELECT t FROM TLanguage t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TLanguage.findByStrSTATUT", query = "SELECT t FROM TLanguage t WHERE t.strSTATUT = :strSTATUT") })
 public class TLanguage implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -58,7 +57,7 @@ public class TLanguage implements Serializable {
     private Date dtUPDATED;
     @Column(name = "str_STATUT", length = 40)
     private String strSTATUT;
-  
+
     public TLanguage() {
     }
 
@@ -130,7 +129,6 @@ public class TLanguage implements Serializable {
         this.strSTATUT = strSTATUT;
     }
 
-   
     @Override
     public int hashCode() {
         int hash = 0;
@@ -145,7 +143,8 @@ public class TLanguage implements Serializable {
             return false;
         }
         TLanguage other = (TLanguage) object;
-        if ((this.lgLanguageID == null && other.lgLanguageID != null) || (this.lgLanguageID != null && !this.lgLanguageID.equals(other.lgLanguageID))) {
+        if ((this.lgLanguageID == null && other.lgLanguageID != null)
+                || (this.lgLanguageID != null && !this.lgLanguageID.equals(other.lgLanguageID))) {
             return false;
         }
         return true;
@@ -155,5 +154,5 @@ public class TLanguage implements Serializable {
     public String toString() {
         return "dal.TLanguage[ lgLanguageID=" + lgLanguageID + " ]";
     }
-    
+
 }

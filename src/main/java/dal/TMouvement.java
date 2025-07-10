@@ -28,18 +28,17 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_mouvement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMouvement.findAll", query = "SELECT t FROM TMouvement t"),
-    @NamedQuery(name = "TMouvement.findByLgMOUVEMENTID", query = "SELECT t FROM TMouvement t WHERE t.lgMOUVEMENTID = :lgMOUVEMENTID"),
-    @NamedQuery(name = "TMouvement.findByPKey", query = "SELECT t FROM TMouvement t WHERE t.pKey = :pKey"),
-    @NamedQuery(name = "TMouvement.findByStrTYPEACTION", query = "SELECT t FROM TMouvement t WHERE t.strTYPEACTION = :strTYPEACTION"),
-    @NamedQuery(name = "TMouvement.findByStrACTION", query = "SELECT t FROM TMouvement t WHERE t.strACTION = :strACTION"),
-    @NamedQuery(name = "TMouvement.findByDtDAY", query = "SELECT t FROM TMouvement t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TMouvement.findByDtCREATED", query = "SELECT t FROM TMouvement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMouvement.findByDtUPDATED", query = "SELECT t FROM TMouvement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMouvement.findByStrSTATUT", query = "SELECT t FROM TMouvement t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TMouvement.findByIntNUMBER", query = "SELECT t FROM TMouvement t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TMouvement.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TMouvement t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION")})
+@NamedQueries({ @NamedQuery(name = "TMouvement.findAll", query = "SELECT t FROM TMouvement t"),
+        @NamedQuery(name = "TMouvement.findByLgMOUVEMENTID", query = "SELECT t FROM TMouvement t WHERE t.lgMOUVEMENTID = :lgMOUVEMENTID"),
+        @NamedQuery(name = "TMouvement.findByPKey", query = "SELECT t FROM TMouvement t WHERE t.pKey = :pKey"),
+        @NamedQuery(name = "TMouvement.findByStrTYPEACTION", query = "SELECT t FROM TMouvement t WHERE t.strTYPEACTION = :strTYPEACTION"),
+        @NamedQuery(name = "TMouvement.findByStrACTION", query = "SELECT t FROM TMouvement t WHERE t.strACTION = :strACTION"),
+        @NamedQuery(name = "TMouvement.findByDtDAY", query = "SELECT t FROM TMouvement t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TMouvement.findByDtCREATED", query = "SELECT t FROM TMouvement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMouvement.findByDtUPDATED", query = "SELECT t FROM TMouvement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMouvement.findByStrSTATUT", query = "SELECT t FROM TMouvement t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TMouvement.findByIntNUMBER", query = "SELECT t FROM TMouvement t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TMouvement.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TMouvement t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION") })
 public class TMouvement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -212,7 +211,8 @@ public class TMouvement implements Serializable {
             return false;
         }
         TMouvement other = (TMouvement) object;
-        if ((this.lgMOUVEMENTID == null && other.lgMOUVEMENTID != null) || (this.lgMOUVEMENTID != null && !this.lgMOUVEMENTID.equals(other.lgMOUVEMENTID))) {
+        if ((this.lgMOUVEMENTID == null && other.lgMOUVEMENTID != null)
+                || (this.lgMOUVEMENTID != null && !this.lgMOUVEMENTID.equals(other.lgMOUVEMENTID))) {
             return false;
         }
         return true;
@@ -222,5 +222,5 @@ public class TMouvement implements Serializable {
     public String toString() {
         return "dal.TMouvement[ lgMOUVEMENTID=" + lgMOUVEMENTID + " ]";
     }
-    
+
 }

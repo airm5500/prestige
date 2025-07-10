@@ -22,24 +22,40 @@ import org.json.JSONObject;
 @Local
 public interface DataReporingService {
 
-    Pair<Long, List<FamilleArticleStatDTO>> margeProduitsVendus(String dtStart, String dtEnd, String codeFamile, Integer critere, String query, TUser u, String codeRayon, String codeGrossiste, int start, int limit, boolean all, MargeEnum filtre);
+    Pair<Long, List<FamilleArticleStatDTO>> margeProduitsVendus(String dtStart, String dtEnd, String codeFamile,
+            Integer critere, String query, TUser u, String codeRayon, String codeGrossiste, int start, int limit,
+            boolean all, MargeEnum filtre);
 
-    JSONObject margeProduitsVendus(String dtStart, String dtEnd, String codeFamile, Integer critere, String query, TUser u, String codeRayon, String codeGrossiste, int start, int limit, MargeEnum filtre) throws JSONException;
+    JSONObject margeProduitsVendus(String dtStart, String dtEnd, String codeFamile, Integer critere, String query,
+            TUser u, String codeRayon, String codeGrossiste, int start, int limit, MargeEnum filtre)
+            throws JSONException;
 
-    Pair<Long, List<FamilleArticleStatDTO>> statsUnintesVendues(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, int start, int limit, boolean all);
+    Pair<Long, List<FamilleArticleStatDTO>> statsUnintesVendues(String dtStart, String dtEnd, String codeFamile,
+            String query, TUser u, String codeRayon, String codeGrossiste, int start, int limit, boolean all);
 
-    JSONObject statsUnintesVendues(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, int start, int limit) throws JSONException;
+    JSONObject statsUnintesVendues(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int start, int limit) throws JSONException;
 
-    Pair<Long, List<FamilleArticleStatDTO>> statsUnintesVenduesparGamme(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, String gammeId, int start, int limit, boolean all);
+    Pair<Long, List<FamilleArticleStatDTO>> statsUnintesVenduesparGamme(String dtStart, String dtEnd, String codeFamile,
+            String query, TUser u, String codeRayon, String codeGrossiste, String gammeId, int start, int limit,
+            boolean all);
 
-    Pair<Long, List<FamilleArticleStatDTO>> statsUnintesVenduesparLaboratoire(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, String laboratoireId, int start, int limit, boolean all);
+    Pair<Long, List<FamilleArticleStatDTO>> statsUnintesVenduesparLaboratoire(String dtStart, String dtEnd,
+            String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, String laboratoireId,
+            int start, int limit, boolean all);
 
-    JSONObject statsUnintesVenduesparLaboratoire(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, String laboratoireId, int start, int limit) throws JSONException;
+    JSONObject statsUnintesVenduesparLaboratoire(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, String laboratoireId, int start, int limit) throws JSONException;
 
-    JSONObject statsUnintesVenduesparGamme(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, String gammeId, int start, int limit) throws JSONException;
+    JSONObject statsUnintesVenduesparGamme(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, String gammeId, int start, int limit) throws JSONException;
 
-    List<ArticleDTO> statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum  stockFiltre, int start, int limit, boolean all);
+    List<ArticleDTO> statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit,
+            boolean all);
 
-    JSONObject statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit) throws JSONException;
+    JSONObject statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit)
+            throws JSONException;
 
 }

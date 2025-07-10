@@ -166,7 +166,7 @@ public class FamilleGrossisteDTO {
         t.setStrSTATUT(o.getStrSTATUT());
         t.setDtCREATED(new Date());
         t.setLgGROSSISTEID(fromId(o.getLgGROSSISTEID()));
-       
+
         return t;
     }
 

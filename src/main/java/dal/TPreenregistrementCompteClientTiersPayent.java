@@ -29,18 +29,18 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_preenregistrement_compte_client_tiers_payent")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findAll", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByLgPREENREGISTREMENTCOMPTECLIENTPAYENTID", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID = :lgPREENREGISTREMENTCOMPTECLIENTPAYENTID"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrSTATUT", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByDtCREATED", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByDtUPDATED", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByIntPERCENT", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.intPERCENT = :intPERCENT"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByIntPRICE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.intPRICE = :intPRICE"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByIntPRICERESTE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.intPRICERESTE = :intPRICERESTE"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrLASTTRANSACTION", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strLASTTRANSACTION = :strLASTTRANSACTION"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrSTATUTFACTURE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strSTATUTFACTURE = :strSTATUTFACTURE"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrREFBON", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strREFBON = :strREFBON"),
-    @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByDblQUOTACONSOVENTE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.dblQUOTACONSOVENTE = :dblQUOTACONSOVENTE")})
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findAll", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByLgPREENREGISTREMENTCOMPTECLIENTPAYENTID", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID = :lgPREENREGISTREMENTCOMPTECLIENTPAYENTID"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrSTATUT", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByDtCREATED", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByDtUPDATED", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByIntPERCENT", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.intPERCENT = :intPERCENT"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByIntPRICE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.intPRICE = :intPRICE"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByIntPRICERESTE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.intPRICERESTE = :intPRICERESTE"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrLASTTRANSACTION", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strLASTTRANSACTION = :strLASTTRANSACTION"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrSTATUTFACTURE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strSTATUTFACTURE = :strSTATUTFACTURE"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByStrREFBON", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.strREFBON = :strREFBON"),
+        @NamedQuery(name = "TPreenregistrementCompteClientTiersPayent.findByDblQUOTACONSOVENTE", query = "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.dblQUOTACONSOVENTE = :dblQUOTACONSOVENTE") })
 public class TPreenregistrementCompteClientTiersPayent implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -78,6 +78,7 @@ public class TPreenregistrementCompteClientTiersPayent implements Serializable {
     @JoinColumn(name = "lg_PREENREGISTREMENT_ID", referencedColumnName = "lg_PREENREGISTREMENT_ID")
     @ManyToOne
     private TPreenregistrement lgPREENREGISTREMENTID;
+
     public TPreenregistrementCompteClientTiersPayent() {
     }
 
@@ -200,7 +201,8 @@ public class TPreenregistrementCompteClientTiersPayent implements Serializable {
     @Override
     public int hashCode() {
         int hash = 0;
-        hash += (lgPREENREGISTREMENTCOMPTECLIENTPAYENTID != null ? lgPREENREGISTREMENTCOMPTECLIENTPAYENTID.hashCode() : 0);
+        hash += (lgPREENREGISTREMENTCOMPTECLIENTPAYENTID != null ? lgPREENREGISTREMENTCOMPTECLIENTPAYENTID.hashCode()
+                : 0);
         return hash;
     }
 
@@ -211,7 +213,11 @@ public class TPreenregistrementCompteClientTiersPayent implements Serializable {
             return false;
         }
         TPreenregistrementCompteClientTiersPayent other = (TPreenregistrementCompteClientTiersPayent) object;
-        if ((this.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID == null && other.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID != null) || (this.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID != null && !this.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID.equals(other.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID))) {
+        if ((this.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID == null
+                && other.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID != null)
+                || (this.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID != null
+                        && !this.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID
+                                .equals(other.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID))) {
             return false;
         }
         return true;
@@ -219,7 +225,8 @@ public class TPreenregistrementCompteClientTiersPayent implements Serializable {
 
     @Override
     public String toString() {
-        return "dal.TPreenregistrementCompteClientTiersPayent[ lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=" + lgPREENREGISTREMENTCOMPTECLIENTPAYENTID + " ]";
+        return "dal.TPreenregistrementCompteClientTiersPayent[ lgPREENREGISTREMENTCOMPTECLIENTPAYENTID="
+                + lgPREENREGISTREMENTCOMPTECLIENTPAYENTID + " ]";
     }
 
     public TPreenregistrementCompteClientTiersPayent(TPreenregistrementCompteClientTiersPayent p) {
@@ -238,6 +245,5 @@ public class TPreenregistrementCompteClientTiersPayent implements Serializable {
         this.lgCOMPTECLIENTTIERSPAYANTID = p.getLgCOMPTECLIENTTIERSPAYANTID();
         this.lgPREENREGISTREMENTID = p.getLgPREENREGISTREMENTID();
     }
-
 
 }

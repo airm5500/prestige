@@ -7,34 +7,29 @@ package rest.service;
 
 import commonTasks.dto.ClotureVenteParams;
 import commonTasks.dto.Params;
-import dal.MvtTransaction;
 import dal.TPreenregistrement;
 import dal.TPreenregistrementCompteClientTiersPayent;
 import dal.TPreenregistrementDetail;
 import dal.TUser;
-import java.io.File;
 import java.util.List;
 import javax.ejb.Local;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.dto.TicketRecapWrapper;
 
 /**
  *
  * @author Kobena
  */
 @Local
-//@Remote
+
 public interface GenerateTicketService {
 
     JSONObject lunchPrinterForTicket(String idVente) throws JSONException;
 
     String buildLineBarecode(String data);
 
-    File buildBarecode(String data);
-
     JSONObject printerForTicket(String p, TUser user) throws JSONException;
-
-    List<String> generateDataSummaryVno(TPreenregistrement p, MvtTransaction mvtTransaction);
 
     JSONObject lunchPrinterForTicket(ClotureVenteParams clotureVenteParams) throws JSONException;
 
@@ -52,37 +47,26 @@ public interface GenerateTicketService {
 
     List<String> generateDataSeller(TPreenregistrement p);
 
-    List<String> generateData(TPreenregistrement p);
-
     List<String> generateDataVenteSupprime(TPreenregistrement p);
 
     List<String> generateDataTiersPayant(TPreenregistrement p);
 
     List<String> generateDataTiersPayant(TPreenregistrement p, List<TPreenregistrementCompteClientTiersPayent> lstT);
 
-    List<String> generateDataSummaryVno(TPreenregistrement p);
-
-    List<String> generateDataSummaryVo(TPreenregistrement p);
-
-    List<String> generateDataSummaryVo(TPreenregistrement p, ClotureVenteParams clotureVenteParams);
-
-    List<String> generateCommentaire(TPreenregistrement p, MvtTransaction mvtTransaction);
-
     JSONObject lunchPrinterForTicketDepot(String id) throws JSONException;
 
     JSONObject ticketZ(Params params) throws JSONException;
 
-    JSONObject generateticket10(String venteId);
+    JSONObject ticketReglementCarnet(String idDossier) throws JSONException;
 
-    void printReceintWithJasper(String venteId);
+    void printMvtCaisse(String mvtCaisseId, TUser user);
 
-    JSONObject generateTicketOnFly(ClotureVenteParams clotureVenteParams) throws  JSONException;
+    JSONObject fetchTicketZ(Params params) throws JSONException;
 
-    JSONObject generateTicketOnFly(String venteId) throws  JSONException;
+    TicketRecapWrapper buildTicketZ(Params params);
 
-    JSONObject generateVoTicketOnFly(ClotureVenteParams clotureVenteParams);
+    JSONObject printReglementFacture(String lgDossierReglementId, TUser user);
 
-    JSONObject generateVoTicketOnFly(String venteId);
-    
-    JSONObject generateDepotTicketOnFly(String venteId);
+    void sendToSms(Params params) throws JSONException;
+
 }

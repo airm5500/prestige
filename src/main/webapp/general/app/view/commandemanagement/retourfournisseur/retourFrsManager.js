@@ -55,7 +55,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste,
+                  url: '../api/v1/grossiste/all',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -71,7 +71,6 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-//                url: url_services_data_retourfournisseur_list,
                 url: '../api/v1/produit/retours-data',
                 reader: {
                     type: 'json',
@@ -199,7 +198,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             scope: this,
                             handler: this.Response,
                             getClass: function (value, metadata, record) {
-                                if (record.get('str_REPONSE_FRS') === "") {  //read your condition from the record
+                                if (!record.get('closed')) {  //read your condition from the record
                                     return 'x-display-hide'; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
@@ -256,7 +255,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
             },
             tbar: [
                 {
-                    text: 'Ajouter',
+                    text: 'NOUVEAU RETOUR',
                     scope: this,
                     handler: this.onAddClick
                 }, '-', {
@@ -280,6 +279,29 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     }
 
                 },
+                      {
+                            xtype: 'combo',
+                            emptyText: 'Filtre',
+                            labelWidth: 1,
+                            flex: 1,
+                            editable: false,
+                            id: 'filtre',
+                            valueField: 'ID',
+                            displayField: 'VALUE',
+                            value: 'ALL',
+                            store: Ext.create("Ext.data.Store", {
+                                fields: ["ID", "VALUE"],
+
+                                data: [{'ID': "NOT", "VALUE": "SANS REPONSE"},
+                                    {'ID': "WITH", "VALUE": "AVEC REPONSE"},
+                                
+                                    {'ID': "ALL", "VALUE": "Tous"}
+
+                                ]
+                            })
+                        },
+                
+                
                 {
                     xtype: 'datefield',
                     id: 'datedebut',
@@ -291,7 +313,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     format: 'd/m/Y',
                     listeners: {
                         'change': function (me) {
-                            // alert(me.getSubmitValue());
+                           
                             valdatedebut = me.getSubmitValue();
                         }
                     }
@@ -306,7 +328,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     format: 'd/m/Y',
                     listeners: {
                         'change': function (me) {
-                            //alert(me.getSubmitValue());
+                          
                             valdatefin = me.getSubmitValue();
                         }
                     }
@@ -326,12 +348,19 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             });
                         }
                     }
-                },
+                }, '',
                 {
                     text: 'rechercher',
                     tooltip: 'rechercher',
                     scope: this,
                     handler: this.onRechClick
+                }, '',
+                {
+                    text: 'Imprimer',
+                    iconCls: 'printable',
+                    tooltip: 'imprimer',
+                    scope: this,
+                    handler: this.printLitToPDF
                 }
             ],
             bbar: {
@@ -347,10 +376,12 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             dtStart: null,
                             query: null,
                             dtEnd: null,
-                            fourId: null
+                            fourId: null,
+                            filtre:null
                         };
 
                         var query = Ext.getCmp('rechecher').getValue();
+                           var filtre = Ext.getCmp('filtre').getValue();
                         var dtStart = Ext.getCmp('datedebut').getSubmitValue();
                         var dtEnd = Ext.getCmp('datefin').getSubmitValue();
                         var fourId = Ext.getCmp('lg_GROSSISTE_ID').getValue();
@@ -358,6 +389,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                         myProxy.setExtraParam('dtEnd', dtEnd);
                         myProxy.setExtraParam('fourId', fourId);
                         myProxy.setExtraParam('query', query);
+                         myProxy.setExtraParam('filtre', filtre);
 
                     }
 
@@ -372,13 +404,13 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
     onManageDetailsClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
         var xtype = "retourfournisseurmanagerlist";
-        var alias = 'widget.' + xtype;
+ 
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Modification fiche retour fournisseur", rec.get('lg_RETOUR_FRS_ID'), rec.data);
         //alert("test"+rec.get('lg_RETOUR_FRS_ID'));
     },
     onAddClick: function () {
         var xtype = "retourfournisseurmanagerlist";
-        var alias = 'widget.' + xtype;
+    
         testextjs.app.getController('App').onLoadNewComponent(xtype, "Ajouter detail retour fournisseur", "0");
 
     },
@@ -477,6 +509,23 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                 });
 
     },
+    printLitToPDF: function () {
+
+        var query = Ext.getCmp('rechecher').getValue();
+        var dtStart = Ext.getCmp('datedebut').getSubmitValue();
+        var dtEnd = Ext.getCmp('datefin').getSubmitValue();
+        var fourId = Ext.getCmp('lg_GROSSISTE_ID').getValue();
+           var filtre = Ext.getCmp('filtre').getValue();
+        if(fourId===null || fourId===undefined ){
+            fourId='';
+        }
+        if(filtre===null || filtre===undefined ){
+            filtre='';
+        }
+        var linkUrl = '../DataReportingServlet?dtStart=' + dtStart + "&dtEnd=" + dtEnd + "&query=" + query + "&mode=RETOUR_FOURNISSEUR" + "&fourId=" + fourId+ "&filtre=" + filtre;
+
+        window.open(linkUrl);
+    },
     onRechClick: function () {
 
         if (new Date(valdatedebut) > new Date(valdatefin)) {
@@ -494,6 +543,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
             params: {
                 query: val.value,
                 fourId: lg_GROSSISTE_ID,
+                filtre:Ext.getCmp('filtre').getValue(),
                 dtEnd: Ext.getCmp('datefin').getSubmitValue(),
                 dtStart: Ext.getCmp('datedebut').getSubmitValue()
             }

@@ -13,7 +13,8 @@ import java.util.Map;
  * @author JZAGO
  */
 public interface SalesService {
-     List<Object[]> getSalesPerMonth(String lg_FAMILLE_ID);
-     List<Map<String, Object>> getSalesMapPerMonth(String lg_FAMILLE_ID);
-     
+    List<Object[]> getSalesPerMonth(String lg_FAMILLE_ID);
+
+    List<Map<String, Object>> getSalesMapPerMonth(String lg_FAMILLE_ID);
+
 }

@@ -29,21 +29,22 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_snap_shop_daly_stat_frequentation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findAll", query = "SELECT t FROM TSnapShopDalyStatFrequentation t"),
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByLgID", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByIntAMOUNT", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.intAMOUNT = :intAMOUNT"),
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByDtDAY", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByDtCREATED", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION")})
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findAll", query = "SELECT t FROM TSnapShopDalyStatFrequentation t"),
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByLgID", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByIntAMOUNT", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.intAMOUNT = :intAMOUNT"),
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByDtDAY", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByDtCREATED", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSnapShopDalyStatFrequentation.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalyStatFrequentation t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION") })
 public class TSnapShopDalyStatFrequentation implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
     @Column(name = "lg_ID", nullable = false, length = 50)
     private String lgID;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_AMOUNT", precision = 15, scale = 3)
     private Double intAMOUNT;
     @Column(name = "dt_DAY")
@@ -169,5 +170,5 @@ public class TSnapShopDalyStatFrequentation implements Serializable {
     public String toString() {
         return "dal.TSnapShopDalyStatFrequentation[ lgID=" + lgID + " ]";
     }
-    
+
 }

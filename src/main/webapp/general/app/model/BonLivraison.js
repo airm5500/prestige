@@ -79,6 +79,10 @@ Ext.define('testextjs.model.BonLivraison', {
         {
             name: 'DISPLAYFILTER',
             type: 'boolean'
+        }, {
+            name: 'directImport',
+            type: 'boolean'
         }
+        
     ]
 });

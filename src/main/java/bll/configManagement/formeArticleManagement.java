@@ -29,7 +29,8 @@ public class formeArticleManagement extends bllBase {
         try {
 
             TFormeArticle OTFormeArticle = new TFormeArticle();
-            OTFormeArticle.setLgFORMEARTICLEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTFormeArticle.setLgFORMEARTICLEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir
+                                                                              // de la date courante
             OTFormeArticle.setStrLIBELLE(str_LIBELLE);
             OTFormeArticle.setStrCODE(str_CODE);
             OTFormeArticle.setStrSTATUT(commonparameter.statut_enable);
@@ -56,7 +57,7 @@ public class formeArticleManagement extends bllBase {
             OTFormeArticle.setStrCODE(str_CODE);
             OTFormeArticle.setDtUPDATED(new Date());
 
-             if (this.persiste(OTFormeArticle)) {
+            if (this.persiste(OTFormeArticle)) {
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             } else {
                 this.buildErrorTraceMessage("Echec de mise à jour de la forme d'article");
@@ -67,13 +68,14 @@ public class formeArticleManagement extends bllBase {
         }
 
     }
-    
-     //supprimer forme article 
+
+    // supprimer forme article
     public boolean deleteFormeArticle(String lg_FORME_ARTICLE_ID) {
         boolean result = false;
         try {
-            TFormeArticle OTFormeArticle = this.getOdataManager().getEm().find(TFormeArticle.class, lg_FORME_ARTICLE_ID);
-            if(this.delete(OTFormeArticle)) {
+            TFormeArticle OTFormeArticle = this.getOdataManager().getEm().find(TFormeArticle.class,
+                    lg_FORME_ARTICLE_ID);
+            if (this.delete(OTFormeArticle)) {
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             } else {
                 this.buildErrorTraceMessage("Echec de suppression de la forme article");
@@ -84,6 +86,6 @@ public class formeArticleManagement extends bllBase {
         }
         return result;
     }
-    //fin supprimer forme article 
+    // fin supprimer forme article
 
 }

@@ -22,7 +22,7 @@
 
 <%
     dataManager OdataManager = new dataManager();
-    List<TInventaireFamille> lstTInventaireFamille = new ArrayList<TInventaireFamille>();
+    List<TInventaireFamille> lstTInventaireFamille = new ArrayList<>();
     TParameters OTParameters = null;
 %>
 

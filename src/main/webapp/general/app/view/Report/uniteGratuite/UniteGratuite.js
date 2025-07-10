@@ -212,19 +212,17 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuite', {
                     }
                 }, {
                     xtype: 'combobox',
-                    //fieldLabel: 'Tiers payant',
-                    //allowBlank: false,
-
+                   
                     margins: '0 0 0 10',
                     id: 'lg_GROSSISTE_ID_CB',
-                    //  store: store_client,
+                   
                     store: searchstore,
                     //disabled: true,
                     valueField: 'lg_GROSSISTE_ID',
                     displayField: 'str_LIBELLE',
                     typeAhead: false,
                     queryMode: 'remote',
-                    pageSize: 10,
+                    pageSize: 999,
                     minChars: 2,
                     flex: 1,
                     enableKeyEvents: true,

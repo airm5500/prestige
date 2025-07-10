@@ -25,14 +25,11 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author Kobena
  */
 @Entity
-@Table(name = "HMvtProduit",
-        indexes = {
-            @Index(name = "HMvtProduit7", columnList = "mvtdate"),
-            @Index(name = "HMvtPkey", columnList = "pkey")
-        }
-)
+@Table(name = "HMvtProduit", indexes = { @Index(name = "HMvtProduit7", columnList = "mvtdate"),
+        @Index(name = "HMvtPkey", columnList = "pkey") })
 @XmlRootElement
 public class HMvtProduit implements Serializable {
+
     private static final long serialVersionUID = 1L;
 
     @Id
@@ -73,20 +70,37 @@ public class HMvtProduit implements Serializable {
     private Boolean checked = true;
     @Column(name = "ug", nullable = false)
     private Integer ug = 0;
-   /* @Formula("qteMvt*prixUn")
-    private double montantTtc;
-    @Formula("(qteMvt*prixUn)/(1+(valeurTva/100))")
-    private double montantHt;*/
+    @Column(name = "cmu_price")
+    private Integer cmuPrice;
+    @ManyToOne
+    @JoinColumn(name = "lg_PREENREGISTREMENT_DETAIL_ID", referencedColumnName = "lg_PREENREGISTREMENT_DETAIL_ID")
+    private TPreenregistrementDetail preenregistrementDetail;
 
-    /*@Transient
-    public double getMontantHt() {
-        return montantHt;
+    public Integer getCmuPrice() {
+        return cmuPrice;
     }
 
-    @Transient
-    public double getMontantTtc() {
-        return montantTtc;
-    }*/
+    /*
+     * @Formula("qteMvt*prixUn") private double montantTtc;
+     *
+     * @Formula("(qteMvt*prixUn)/(1+(valeurTva/100))") private double montantHt;
+     */
+    /*
+     * @Transient public double getMontantHt() { return montantHt; }
+     *
+     * @Transient public double getMontantTtc() { return montantTtc; }
+     */
+    public void setCmuPrice(Integer cmuPrice) {
+        this.cmuPrice = cmuPrice;
+    }
+
+    public TPreenregistrementDetail getPreenregistrementDetail() {
+        return preenregistrementDetail;
+    }
+
+    public void setPreenregistrementDetail(TPreenregistrementDetail preenregistrementDetail) {
+        this.preenregistrementDetail = preenregistrementDetail;
+    }
 
     public Integer getValeurTva() {
         return valeurTva;
@@ -131,7 +145,6 @@ public class HMvtProduit implements Serializable {
         this.pkey = pkey;
     }
 
- 
     public String getUuid() {
         return uuid;
     }

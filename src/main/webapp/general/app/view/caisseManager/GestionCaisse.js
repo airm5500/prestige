@@ -83,7 +83,21 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                         {name: 'statut',
                             type: 'string'
 
+                        },
+                        {name: 'montantMobile',
+                            type: 'number'
+
+                        },
+                        {name: 'ligneResumeCaisses',
+                            type: 'auto'
+
                         }
+                        ,
+                        {name: 'ligneReglements',
+                            type: 'auto'
+
+                        }
+
 
                     ],
             autoLoad: false,
@@ -191,7 +205,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                             dataIndex: 'intSOLDEMATIN',
                             xtype: 'numbercolumn',
                             format: '0,000.',
-                            flex: 1,
+                            flex: 0.8,
                             align: 'right',
                             sortable: false,
                             menuDisabled: true
@@ -201,17 +215,28 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                             dataIndex: 'intSOLDESOIR',
                             xtype: 'numbercolumn',
                             format: '0,000.',
-                            flex: 1,
+                            flex: 0.8,
                             align: 'right',
                             sortable: false,
                             menuDisabled: true
                         }, {
+                            header: 'Montant mobile',
+                            dataIndex: 'montantMobile',
+                            xtype: 'numbercolumn',
+                            format: '0,000.',
+                            flex: 0.8,
+                            align: 'right',
+                            sortable: false,
+                            menuDisabled: true
+                        },
+
+                        {
                             header: 'Total Caisse',
                             dataIndex: 'soldeTotal',
                             xtype: 'numbercolumn',
                             format: '0,000.',
                             align: 'right',
-                            flex: 1,
+                            flex: 0.8,
                             sortable: false,
                             menuDisabled: true
                         },
@@ -221,7 +246,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                             xtype: 'numbercolumn',
                             format: '0,000.',
                             align: 'right',
-                            flex: 1,
+                            flex: 0.8,
                             sortable: false,
                             menuDisabled: true
                         },
@@ -232,7 +257,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                             xtype: 'numbercolumn',
                             format: '0,000.',
                             align: 'right',
-                            flex: 1,
+                            flex: 0.7,
                             sortable: false,
                             menuDisabled: true,
                             renderer: function (value, metadata, record) {
@@ -249,7 +274,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                             dataIndex: 'montantAnnule',
                             xtype: 'numbercolumn',
                             format: '0,000.',
-                            flex: 1,
+                            flex: 0.8,
                             align: 'right',
                             sortable: false,
                             menuDisabled: true
@@ -277,9 +302,33 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                         {
                             header: 'Statut',
                             dataIndex: 'strSTATUT',
-                            flex: 1
+                            flex: 1.2
+
+                        },
+                        {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/grid.png',
+                                    tooltip: 'Détail Règlement',
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('showReglment', view, rowIndex, colIndex, item, e, record, row);
+                                    },
+
+                                    getClass: function (value, metadata, record) {
+
+                                        if (record.get('ligneResumeCaisses').length > 0 || record.get('ligneReglements').length) {  //read your condition from the record
+                                            return 'x-display-hide'; //affiche l'icone
+                                        } else {
+                                            return 'x-hide-display'; //cache l'icone
+                                        }
+                                    }
+                                }]
 
                         }
+
                         ,
                         {
                             xtype: 'actioncolumn',
@@ -312,7 +361,7 @@ Ext.define('testextjs.view.caisseManager.GestionCaisse', {
                             items: [{
                                     icon: 'resources/images/icons/fam/printer.png',
                                     tooltip: 'Imprimer le billetage de cette caisse',
-                                   handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('toprint', view, rowIndex, colIndex, item, e, record, row);
                                     },
                                     getClass: function (value, metadata, record) {

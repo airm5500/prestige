@@ -26,15 +26,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_devise")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TDevise.findAll", query = "SELECT t FROM TDevise t"),
-    @NamedQuery(name = "TDevise.findByLgDEVISEID", query = "SELECT t FROM TDevise t WHERE t.lgDEVISEID = :lgDEVISEID"),
-    @NamedQuery(name = "TDevise.findByStrNAME", query = "SELECT t FROM TDevise t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TDevise.findByStrDESCRIPTION", query = "SELECT t FROM TDevise t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TDevise.findByIntTAUX", query = "SELECT t FROM TDevise t WHERE t.intTAUX = :intTAUX"),
-    @NamedQuery(name = "TDevise.findByStrSTATUT", query = "SELECT t FROM TDevise t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TDevise.findByDtCREATED", query = "SELECT t FROM TDevise t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TDevise.findByDtUPDATED", query = "SELECT t FROM TDevise t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TDevise.findAll", query = "SELECT t FROM TDevise t"),
+        @NamedQuery(name = "TDevise.findByLgDEVISEID", query = "SELECT t FROM TDevise t WHERE t.lgDEVISEID = :lgDEVISEID"),
+        @NamedQuery(name = "TDevise.findByStrNAME", query = "SELECT t FROM TDevise t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TDevise.findByStrDESCRIPTION", query = "SELECT t FROM TDevise t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TDevise.findByIntTAUX", query = "SELECT t FROM TDevise t WHERE t.intTAUX = :intTAUX"),
+        @NamedQuery(name = "TDevise.findByStrSTATUT", query = "SELECT t FROM TDevise t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TDevise.findByDtCREATED", query = "SELECT t FROM TDevise t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TDevise.findByDtUPDATED", query = "SELECT t FROM TDevise t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TDevise implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,7 +44,8 @@ public class TDevise implements Serializable {
     private String strNAME;
     @Column(name = "str_DESCRIPTION", length = 40)
     private String strDESCRIPTION;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_TAUX", precision = 22)
     private Double intTAUX;
     @Column(name = "str_STATUT", length = 20)
@@ -134,7 +134,8 @@ public class TDevise implements Serializable {
             return false;
         }
         TDevise other = (TDevise) object;
-        if ((this.lgDEVISEID == null && other.lgDEVISEID != null) || (this.lgDEVISEID != null && !this.lgDEVISEID.equals(other.lgDEVISEID))) {
+        if ((this.lgDEVISEID == null && other.lgDEVISEID != null)
+                || (this.lgDEVISEID != null && !this.lgDEVISEID.equals(other.lgDEVISEID))) {
             return false;
         }
         return true;
@@ -144,5 +145,5 @@ public class TDevise implements Serializable {
     public String toString() {
         return "dal.TDevise[ lgDEVISEID=" + lgDEVISEID + " ]";
     }
-    
+
 }

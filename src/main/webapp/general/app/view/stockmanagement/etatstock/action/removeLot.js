@@ -4,7 +4,7 @@ var Oview;
 var Omode;
 var Me;
 var ref;
-var lg_BON_LIVRAISON_DETAIL;
+
 
 
 Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
@@ -13,8 +13,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
     id: 'removeStockID',
     requires: [
         'Ext.form.*',
-        'Ext.window.Window',
-        'testextjs.view.commandemanagement.cmde_passees.action.livraison'
+        'Ext.window.Window'
     ],
     config: {
         odatasource: '',
@@ -23,7 +22,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
         titre: '',
         reference: ''
     },
-    initComponent: function() {
+    initComponent: function () {
 
         Oview = this.getParentview();
         Omode = this.getMode();
@@ -58,18 +57,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
             ]
         });
 
-
-
-        //Initialisation des valeur 
-
-
-        if (Omode === "remove") {
-            lg_BON_LIVRAISON_DETAIL = this.getOdatasource().lg_BON_LIVRAISON_DETAIL;
-        }
-
-
-
-        var win = new Ext.window.Window({
+        const win = new Ext.window.Window({
             autoShow: true,
             title: this.getTitre(),
             width: 500,
@@ -84,58 +72,55 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
                     handler: this.onbtnsave
                 }, {
                     text: 'Annuler',
-                    handler: function() {
+                    handler: function () {
                         win.close();
                     }
                 }]
         });
 
     },
-    onbtnsave: function(button) {
-        Me_Workflow = Oview;
-        var fenetre = button.up('window'),
+    onbtnsave: function (button) {
+        const me = Me;
+        console.log('.getOdatasource()', me.getOdatasource());
+        const fenetre = button.up('window'),
                 formulaire = fenetre.down('form');
-        
+
         testextjs.app.getController('App').ShowWaitingProcess();
         Ext.MessageBox.confirm('Message',
                 'Confirmer la suppression du lot ' + Ext.getCmp('int_NUM_LOT').getValue(),
-                function(btn) {
+                function (btn) {
                     if (btn === 'yes') {
                         if (formulaire.isValid()) {
-                            
+
                             Ext.Ajax.request({
-                                url: url_services_transaction_entreestock + Omode,
-                                params: {
-                                    lg_BON_LIVRAISON_DETAIL: lg_BON_LIVRAISON_DETAIL,
-                                    int_NUM_LOT: Ext.getCmp('int_NUM_LOT').getValue()
-                                },
-                                success: function(response)
+                                method: 'PUT',
+                                url: '../api/v1/commande/remove-lots',
+                                headers: {'Content-Type': 'application/json'},
+                                params: Ext.JSON.encode({
+                                    idBonDetail: me.lg_BON_LIVRAISON_DETAIL,
+                                    idProduit: me.lg_FAMILLE_ID,
+                                    refBon: me.str_REF_LIVRAISON,
+                                    numLot: Ext.getCmp('int_NUM_LOT').getValue()
+                                }),
+                                success: function (response)
                                 {
                                     testextjs.app.getController('App').StopWaitingProcess();
-                                    var object = Ext.JSON.decode(response.responseText, false);
-                                    if (object.success == 0) {
-                                        Ext.MessageBox.alert('Error Message', object.errors);
-                                        return;
-                                    } else {
-                                        var gridpanelID = Ext.getCmp('gridpanelID');
-                                        gridpanelID.getStore().reload();
-                                    }
-                                    var bouton = button.up('window');
-                                    bouton.close();
+                                    Ext.getCmp('gridpanelID').getStore().reload();
+                                   button.up('window').close();
+                                   
 
                                 },
-                                failure: function(response)
+                                failure: function (response)
                                 {
                                     testextjs.app.getController('App').StopWaitingProcess();
-                                    var object = Ext.JSON.decode(response.responseText, false);
+                                   
                                     console.log("Bug " + response.responseText);
                                     Ext.MessageBox.alert('Error Message', response.responseText);
 
                                 }
                             });
 
-                        }
-                        else {
+                        } else {
                             Ext.MessageBox.alert('Echec', 'Formulaire non valide. Verifiez votre saisie');
                             return;
                         }

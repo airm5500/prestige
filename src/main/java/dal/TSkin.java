@@ -23,13 +23,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_skin")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSkin.findAll", query = "SELECT t FROM TSkin t"),
-    @NamedQuery(name = "TSkin.findByLgSKINID", query = "SELECT t FROM TSkin t WHERE t.lgSKINID = :lgSKINID"),
-    @NamedQuery(name = "TSkin.findByStrRESOURCE", query = "SELECT t FROM TSkin t WHERE t.strRESOURCE = :strRESOURCE"),
-    @NamedQuery(name = "TSkin.findByStrSTATUT", query = "SELECT t FROM TSkin t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSkin.findByStrDESCRIPTION", query = "SELECT t FROM TSkin t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TSkin.findByStrDETAILPATH", query = "SELECT t FROM TSkin t WHERE t.strDETAILPATH = :strDETAILPATH")})
+@NamedQueries({ @NamedQuery(name = "TSkin.findAll", query = "SELECT t FROM TSkin t"),
+        @NamedQuery(name = "TSkin.findByLgSKINID", query = "SELECT t FROM TSkin t WHERE t.lgSKINID = :lgSKINID"),
+        @NamedQuery(name = "TSkin.findByStrRESOURCE", query = "SELECT t FROM TSkin t WHERE t.strRESOURCE = :strRESOURCE"),
+        @NamedQuery(name = "TSkin.findByStrSTATUT", query = "SELECT t FROM TSkin t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSkin.findByStrDESCRIPTION", query = "SELECT t FROM TSkin t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TSkin.findByStrDETAILPATH", query = "SELECT t FROM TSkin t WHERE t.strDETAILPATH = :strDETAILPATH") })
 public class TSkin implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -106,7 +105,8 @@ public class TSkin implements Serializable {
             return false;
         }
         TSkin other = (TSkin) object;
-        if ((this.lgSKINID == null && other.lgSKINID != null) || (this.lgSKINID != null && !this.lgSKINID.equals(other.lgSKINID))) {
+        if ((this.lgSKINID == null && other.lgSKINID != null)
+                || (this.lgSKINID != null && !this.lgSKINID.equals(other.lgSKINID))) {
             return false;
         }
         return true;
@@ -116,5 +116,5 @@ public class TSkin implements Serializable {
     public String toString() {
         return "dal.TSkin[ lgSKINID=" + lgSKINID + " ]";
     }
-    
+
 }

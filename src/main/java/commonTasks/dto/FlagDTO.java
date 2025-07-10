@@ -52,8 +52,11 @@ public class FlagDTO {
 
     public FlagDTO(Flag f) {
         this.id = f.getId();
-        this.dateStart = LocalDate.parse(String.valueOf(f.getDateStart()), DateTimeFormatter.ofPattern("yyyyMMdd")).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        this.dateEnd = LocalDate.parse(String.valueOf(f.getDateEnd()), DateTimeFormatter.ofPattern("yyyyMMdd")).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));;
+        this.dateStart = LocalDate.parse(String.valueOf(f.getDateStart()), DateTimeFormatter.ofPattern("yyyyMMdd"))
+                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        this.dateEnd = LocalDate.parse(String.valueOf(f.getDateEnd()), DateTimeFormatter.ofPattern("yyyyMMdd"))
+                .format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        ;
         this.montant = f.getMontant();
     }
 

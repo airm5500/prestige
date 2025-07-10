@@ -52,8 +52,8 @@
 <%
     Translate OTranslate = new Translate();
     dataManager OdataManager = new dataManager();
-
-    bllBase ObllBase = new bllBase();
+   OdataManager.initEntityManager();
+   
     factureManagement facManagement = null;
     TUser OTUser = null;
 %>
@@ -73,12 +73,10 @@
     Ojconnexion.OpenConnexion();
     date key = new date();
     reportManager OreportManager = new reportManager();
-
-    bllBase obllBase = new bllBase();
-    obllBase.checkDatamanager();
+     OTUser=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     facManagement = new factureManagement(OdataManager, OTUser);
     GroupeTierspayantController controller = new GroupeTierspayantController(OdataManager.getEmf());
-    TOfficine oTOfficine = obllBase.getOdataManager().getEm().find(dal.TOfficine.class, "1");
+    TOfficine oTOfficine = OdataManager.getEm().find(dal.TOfficine.class, "1");
     String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
     String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
 
@@ -132,7 +130,7 @@
     parameters.put("P_FOOTER_RC", P_FOOTER_RC);
     TParameters recapParam = null;
     try {
-        recapParam = obllBase.getOdataManager().getEm().find(dal.TParameters.class, "KEY_IMPRESSION_RECAP_FACTURE");
+        recapParam = OdataManager.getEm().find(dal.TParameters.class, "KEY_IMPRESSION_RECAP_FACTURE");
     } catch (Exception e) {
     }
     for (Map.Entry<String, LinkedHashSet<TFacture>> en : invoicesToPrint.entrySet()) {
@@ -173,8 +171,8 @@
             String tauxpath = "";
             CODEFATUREGROUPE += OFacture.getStrCODEFACTURE() + ",";
             String scr_report_file = "rp_facturerecap";
-            TTiersPayant OTiersPayant = obllBase.getOdataManager().getEm().find(TTiersPayant.class, OFacture.getStrCUSTOMER());
-            TTypeMvtCaisse OTypeMvtCaisse = obllBase.getOdataManager().getEm().find(TTypeMvtCaisse.class, OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
+            TTiersPayant OTiersPayant = OdataManager.getEm().find(TTiersPayant.class, OFacture.getStrCUSTOMER());
+            TTypeMvtCaisse OTypeMvtCaisse = OdataManager.getEm().find(TTypeMvtCaisse.class, OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
             String report_generate_file = key.GetNumberRandom();
             report_generate_file = report_generate_file + ".pdf";
             if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
@@ -353,11 +351,7 @@
     PdfFiles.mergePdfFiles(inputPdfList, outputStream);
     //response.sendRedirect(str_file_name);
 
-    ObllBase.setKey(
-            new date());
-    ObllBase.setOTranslate(OTranslate);
 
-    ObllBase.setOTUser(OTUser);
 
     Ojconnexion.CloseConnexion();
 

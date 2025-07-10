@@ -105,7 +105,7 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
     },
     onQuery: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
-            var me = this;
+            const me = this;
             me.doSearch();
         }
     },
@@ -133,15 +133,15 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
         if (codeGrossiste == null) {
             codeGrossiste = '';
         }
-        var linkUrl = '../BalancePdfServlet?mode=PERIMES&nbre=' + nbreMois + '&query=' + query
+        const linkUrl = '../BalancePdfServlet?mode=PERIMES&nbre=' + nbreMois + '&query=' + query
                 + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon +
                 '&codeFamile=' + codeFamile + '&dtEnd=' + dtEnd + '&dtStart=' + dtStart;
         window.open(linkUrl);
     },
 
     doBeforechange: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getPeremptionGrid().getStore().getProxy();
+        const me = this;
+        const myProxy = me.getPeremptionGrid().getStore().getProxy();
         myProxy.params = {
             nbreMois: -1,
             codeFamile: null,
@@ -168,17 +168,17 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
         myProxy.setExtraParam('dtEnd', dtEnd);
     },
     doInitStore: function () {
-        var me = this;
+        const me = this;
         me.getPeremptionGrid().getStore().addListener('metachange', this.doMetachange, this);
         me.doSearch();
     },
     doSearch: function () {
-        var me = this;
-        var nbreMois = me.getNbreMois().getValue();
-        var codeRayon = me.getRayons().getValue();
-        var codeGrossiste = me.getGrossiste().getValue();
-        var codeFamile = me.getCodeFamile().getValue();
-        var query = me.getQuery().getValue();
+        const me = this;
+        let nbreMois = me.getNbreMois().getValue();
+        let codeRayon = me.getRayons().getValue();
+        let codeGrossiste = me.getGrossiste().getValue();
+        let codeFamile = me.getCodeFamile().getValue();
+        let query = me.getQuery().getValue();
         let dtStart = me.getDtStart().getSubmitValue();
         let dtEnd = me.getDtEnd().getSubmitValue();
         me.getPeremptionGrid().getStore().load({
@@ -195,11 +195,11 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
         });
     },
     doMetachange: function (store, meta) {
-        var me = this;
+        const me = this;
         me.buildSummary(meta);
     },
     buildSummary: function (rec) {
-        var me = this;
+        const me = this;
         me.getStock().setValue(rec.intQUANTITY);
         me.getAchat().setValue(rec.intPRICEREMISE);
         me.getVente().setValue(rec.intPRICE);

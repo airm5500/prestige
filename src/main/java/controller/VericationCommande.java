@@ -22,7 +22,7 @@ import javax.servlet.http.HttpServletResponse;
  *
  * @author Kobena
  */
-@WebServlet(name = "VericationCommande", urlPatterns = {"/VericationCommande"})
+@WebServlet(name = "VericationCommande", urlPatterns = { "/VericationCommande" })
 public class VericationCommande extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)

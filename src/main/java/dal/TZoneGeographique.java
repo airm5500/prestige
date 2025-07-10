@@ -31,14 +31,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_zone_geographique")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TZoneGeographique.findAll", query = "SELECT t FROM TZoneGeographique t"),
-    @NamedQuery(name = "TZoneGeographique.findByLgZONEGEOID", query = "SELECT t FROM TZoneGeographique t WHERE t.lgZONEGEOID = :lgZONEGEOID"),
-    @NamedQuery(name = "TZoneGeographique.findByStrLIBELLEE", query = "SELECT t FROM TZoneGeographique t WHERE t.strLIBELLEE = :strLIBELLEE"),
-    @NamedQuery(name = "TZoneGeographique.findByStrCODE", query = "SELECT t FROM TZoneGeographique t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TZoneGeographique.findByDtCREATED", query = "SELECT t FROM TZoneGeographique t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TZoneGeographique.findByDtUPDATED", query = "SELECT t FROM TZoneGeographique t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TZoneGeographique.findByStrSTATUT", query = "SELECT t FROM TZoneGeographique t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TZoneGeographique.findAll", query = "SELECT t FROM TZoneGeographique t"),
+        @NamedQuery(name = "TZoneGeographique.findByLgZONEGEOID", query = "SELECT t FROM TZoneGeographique t WHERE t.lgZONEGEOID = :lgZONEGEOID"),
+        @NamedQuery(name = "TZoneGeographique.findByStrLIBELLEE", query = "SELECT t FROM TZoneGeographique t WHERE t.strLIBELLEE = :strLIBELLEE"),
+        @NamedQuery(name = "TZoneGeographique.findByStrCODE", query = "SELECT t FROM TZoneGeographique t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TZoneGeographique.findByDtCREATED", query = "SELECT t FROM TZoneGeographique t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TZoneGeographique.findByDtUPDATED", query = "SELECT t FROM TZoneGeographique t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TZoneGeographique.findByStrSTATUT", query = "SELECT t FROM TZoneGeographique t WHERE t.strSTATUT = :strSTATUT") })
 public class TZoneGeographique implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -66,7 +65,7 @@ public class TZoneGeographique implements Serializable {
     private Collection<TBonLivraisonDetail> tBonLivraisonDetailCollection;
     @OneToMany(mappedBy = "lgZONEGEOID")
     private Collection<TFamille> tFamilleCollection;
-     @Column(name = "bool_ACCOUNT")
+    @Column(name = "bool_ACCOUNT")
     private Boolean boolACCOUNT;
 
     public TZoneGeographique() {
@@ -173,7 +172,8 @@ public class TZoneGeographique implements Serializable {
             return false;
         }
         TZoneGeographique other = (TZoneGeographique) object;
-        if ((this.lgZONEGEOID == null && other.lgZONEGEOID != null) || (this.lgZONEGEOID != null && !this.lgZONEGEOID.equals(other.lgZONEGEOID))) {
+        if ((this.lgZONEGEOID == null && other.lgZONEGEOID != null)
+                || (this.lgZONEGEOID != null && !this.lgZONEGEOID.equals(other.lgZONEGEOID))) {
             return false;
         }
         return true;
@@ -191,5 +191,5 @@ public class TZoneGeographique implements Serializable {
     public void setBoolACCOUNT(Boolean boolACCOUNT) {
         this.boolACCOUNT = boolACCOUNT;
     }
-    
+
 }

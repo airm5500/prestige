@@ -31,16 +31,15 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_retour_fournisseur")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRetourFournisseur.findAll", query = "SELECT t FROM TRetourFournisseur t"),
-    @NamedQuery(name = "TRetourFournisseur.findByLgRETOURFRSID", query = "SELECT t FROM TRetourFournisseur t WHERE t.lgRETOURFRSID = :lgRETOURFRSID"),
-    @NamedQuery(name = "TRetourFournisseur.findByStrREFRETOURFRS", query = "SELECT t FROM TRetourFournisseur t WHERE t.strREFRETOURFRS = :strREFRETOURFRS"),
-    @NamedQuery(name = "TRetourFournisseur.findByDtDATE", query = "SELECT t FROM TRetourFournisseur t WHERE t.dtDATE = :dtDATE"),
-    @NamedQuery(name = "TRetourFournisseur.findByStrCOMMENTAIRE", query = "SELECT t FROM TRetourFournisseur t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
-    @NamedQuery(name = "TRetourFournisseur.findByStrSTATUT", query = "SELECT t FROM TRetourFournisseur t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TRetourFournisseur.findByDtUPDATED", query = "SELECT t FROM TRetourFournisseur t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TRetourFournisseur.findByDtCREATED", query = "SELECT t FROM TRetourFournisseur t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRetourFournisseur.findByDlAMOUNT", query = "SELECT t FROM TRetourFournisseur t WHERE t.dlAMOUNT = :dlAMOUNT")})
+@NamedQueries({ @NamedQuery(name = "TRetourFournisseur.findAll", query = "SELECT t FROM TRetourFournisseur t"),
+        @NamedQuery(name = "TRetourFournisseur.findByLgRETOURFRSID", query = "SELECT t FROM TRetourFournisseur t WHERE t.lgRETOURFRSID = :lgRETOURFRSID"),
+        @NamedQuery(name = "TRetourFournisseur.findByStrREFRETOURFRS", query = "SELECT t FROM TRetourFournisseur t WHERE t.strREFRETOURFRS = :strREFRETOURFRS"),
+        @NamedQuery(name = "TRetourFournisseur.findByDtDATE", query = "SELECT t FROM TRetourFournisseur t WHERE t.dtDATE = :dtDATE"),
+        @NamedQuery(name = "TRetourFournisseur.findByStrCOMMENTAIRE", query = "SELECT t FROM TRetourFournisseur t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
+        @NamedQuery(name = "TRetourFournisseur.findByStrSTATUT", query = "SELECT t FROM TRetourFournisseur t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TRetourFournisseur.findByDtUPDATED", query = "SELECT t FROM TRetourFournisseur t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TRetourFournisseur.findByDtCREATED", query = "SELECT t FROM TRetourFournisseur t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRetourFournisseur.findByDlAMOUNT", query = "SELECT t FROM TRetourFournisseur t WHERE t.dlAMOUNT = :dlAMOUNT") })
 public class TRetourFournisseur implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -52,7 +51,6 @@ public class TRetourFournisseur implements Serializable {
     @Column(name = "dt_DATE")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtDATE;
-   
     @Column(name = "str_REPONSE_FRS", length = 255)
     private String strREPONSEFRS;
     @Column(name = "str_COMMENTAIRE", length = 50)
@@ -65,7 +63,8 @@ public class TRetourFournisseur implements Serializable {
     @Column(name = "dt_CREATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCREATED;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dl_AMOUNT", precision = 15, scale = 0)
     private Double dlAMOUNT;
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID")
@@ -188,7 +187,8 @@ public class TRetourFournisseur implements Serializable {
         return tRetourFournisseurDetailCollection;
     }
 
-    public void setTRetourFournisseurDetailCollection(Collection<TRetourFournisseurDetail> tRetourFournisseurDetailCollection) {
+    public void setTRetourFournisseurDetailCollection(
+            Collection<TRetourFournisseurDetail> tRetourFournisseurDetailCollection) {
         this.tRetourFournisseurDetailCollection = tRetourFournisseurDetailCollection;
     }
 
@@ -206,7 +206,8 @@ public class TRetourFournisseur implements Serializable {
             return false;
         }
         TRetourFournisseur other = (TRetourFournisseur) object;
-        if ((this.lgRETOURFRSID == null && other.lgRETOURFRSID != null) || (this.lgRETOURFRSID != null && !this.lgRETOURFRSID.equals(other.lgRETOURFRSID))) {
+        if ((this.lgRETOURFRSID == null && other.lgRETOURFRSID != null)
+                || (this.lgRETOURFRSID != null && !this.lgRETOURFRSID.equals(other.lgRETOURFRSID))) {
             return false;
         }
         return true;
@@ -216,5 +217,5 @@ public class TRetourFournisseur implements Serializable {
     public String toString() {
         return "dal.TRetourFournisseur[ lgRETOURFRSID=" + lgRETOURFRSID + " ]";
     }
-    
+
 }

@@ -26,21 +26,20 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_reglement_bordereau")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TReglementBordereau.findAll", query = "SELECT t FROM TReglementBordereau t"),
-    @NamedQuery(name = "TReglementBordereau.findByLgREGLEMENTBORDEREAUID", query = "SELECT t FROM TReglementBordereau t WHERE t.lgREGLEMENTBORDEREAUID = :lgREGLEMENTBORDEREAUID"),
-    @NamedQuery(name = "TReglementBordereau.findByStrREFRESSOURCE", query = "SELECT t FROM TReglementBordereau t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
-    @NamedQuery(name = "TReglementBordereau.findByDblMONTANT", query = "SELECT t FROM TReglementBordereau t WHERE t.dblMONTANT = :dblMONTANT"),
-    @NamedQuery(name = "TReglementBordereau.findByDblMONTANTRESTANT", query = "SELECT t FROM TReglementBordereau t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
-    @NamedQuery(name = "TReglementBordereau.findByDblMONTANTPAYE", query = "SELECT t FROM TReglementBordereau t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
-    @NamedQuery(name = "TReglementBordereau.findByStrSTATUT", query = "SELECT t FROM TReglementBordereau t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TReglementBordereau.findByBISPARTIEL", query = "SELECT t FROM TReglementBordereau t WHERE t.bISPARTIEL = :bISPARTIEL"),
-    @NamedQuery(name = "TReglementBordereau.findByLgMODEREGLEMENT", query = "SELECT t FROM TReglementBordereau t WHERE t.lgMODEREGLEMENT = :lgMODEREGLEMENT"),
-    @NamedQuery(name = "TReglementBordereau.findByStrBANQUE", query = "SELECT t FROM TReglementBordereau t WHERE t.strBANQUE = :strBANQUE"),
-    @NamedQuery(name = "TReglementBordereau.findByDtDATEREGLEMENT", query = "SELECT t FROM TReglementBordereau t WHERE t.dtDATEREGLEMENT = :dtDATEREGLEMENT"),
-    @NamedQuery(name = "TReglementBordereau.findByStrPEREREGLEMENTBRDEREAU", query = "SELECT t FROM TReglementBordereau t WHERE t.strPEREREGLEMENTBRDEREAU = :strPEREREGLEMENTBRDEREAU"),
-    @NamedQuery(name = "TReglementBordereau.findByDtCREATED", query = "SELECT t FROM TReglementBordereau t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TReglementBordereau.findByDtUPDATED", query = "SELECT t FROM TReglementBordereau t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TReglementBordereau.findAll", query = "SELECT t FROM TReglementBordereau t"),
+        @NamedQuery(name = "TReglementBordereau.findByLgREGLEMENTBORDEREAUID", query = "SELECT t FROM TReglementBordereau t WHERE t.lgREGLEMENTBORDEREAUID = :lgREGLEMENTBORDEREAUID"),
+        @NamedQuery(name = "TReglementBordereau.findByStrREFRESSOURCE", query = "SELECT t FROM TReglementBordereau t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
+        @NamedQuery(name = "TReglementBordereau.findByDblMONTANT", query = "SELECT t FROM TReglementBordereau t WHERE t.dblMONTANT = :dblMONTANT"),
+        @NamedQuery(name = "TReglementBordereau.findByDblMONTANTRESTANT", query = "SELECT t FROM TReglementBordereau t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
+        @NamedQuery(name = "TReglementBordereau.findByDblMONTANTPAYE", query = "SELECT t FROM TReglementBordereau t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
+        @NamedQuery(name = "TReglementBordereau.findByStrSTATUT", query = "SELECT t FROM TReglementBordereau t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TReglementBordereau.findByBISPARTIEL", query = "SELECT t FROM TReglementBordereau t WHERE t.bISPARTIEL = :bISPARTIEL"),
+        @NamedQuery(name = "TReglementBordereau.findByLgMODEREGLEMENT", query = "SELECT t FROM TReglementBordereau t WHERE t.lgMODEREGLEMENT = :lgMODEREGLEMENT"),
+        @NamedQuery(name = "TReglementBordereau.findByStrBANQUE", query = "SELECT t FROM TReglementBordereau t WHERE t.strBANQUE = :strBANQUE"),
+        @NamedQuery(name = "TReglementBordereau.findByDtDATEREGLEMENT", query = "SELECT t FROM TReglementBordereau t WHERE t.dtDATEREGLEMENT = :dtDATEREGLEMENT"),
+        @NamedQuery(name = "TReglementBordereau.findByStrPEREREGLEMENTBRDEREAU", query = "SELECT t FROM TReglementBordereau t WHERE t.strPEREREGLEMENTBRDEREAU = :strPEREREGLEMENTBRDEREAU"),
+        @NamedQuery(name = "TReglementBordereau.findByDtCREATED", query = "SELECT t FROM TReglementBordereau t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TReglementBordereau.findByDtUPDATED", query = "SELECT t FROM TReglementBordereau t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TReglementBordereau implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -49,7 +48,8 @@ public class TReglementBordereau implements Serializable {
     private String lgREGLEMENTBORDEREAUID;
     @Column(name = "str_REF_RESSOURCE", length = 40)
     private String strREFRESSOURCE;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_MONTANT", precision = 15, scale = 3)
     private Double dblMONTANT;
     @Column(name = "dbl_MONTANT_RESTANT", precision = 15, scale = 3)
@@ -201,7 +201,9 @@ public class TReglementBordereau implements Serializable {
             return false;
         }
         TReglementBordereau other = (TReglementBordereau) object;
-        if ((this.lgREGLEMENTBORDEREAUID == null && other.lgREGLEMENTBORDEREAUID != null) || (this.lgREGLEMENTBORDEREAUID != null && !this.lgREGLEMENTBORDEREAUID.equals(other.lgREGLEMENTBORDEREAUID))) {
+        if ((this.lgREGLEMENTBORDEREAUID == null && other.lgREGLEMENTBORDEREAUID != null)
+                || (this.lgREGLEMENTBORDEREAUID != null
+                        && !this.lgREGLEMENTBORDEREAUID.equals(other.lgREGLEMENTBORDEREAUID))) {
             return false;
         }
         return true;
@@ -211,5 +213,5 @@ public class TReglementBordereau implements Serializable {
     public String toString() {
         return "dal.TReglementBordereau[ lgREGLEMENTBORDEREAUID=" + lgREGLEMENTBORDEREAUID + " ]";
     }
-    
+
 }

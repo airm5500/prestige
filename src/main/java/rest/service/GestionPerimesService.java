@@ -15,11 +15,14 @@ import org.json.JSONObject;
  */
 public interface GestionPerimesService {
 
-    JSONObject addPerime(String lg_FAMILLE_ID, Integer int_NUMBER, String int_NUM_LOT, String dt_peremption, TUser user);
+    JSONObject addPerime(String lg_FAMILLE_ID, Integer int_NUMBER, String int_NUM_LOT, String dt_peremption,
+            TUser user);
 
     JSONObject updatePerime(Params params);
 
     void removePerime(String id);
 
-    JSONObject completePerimes(String id,TUser user);
+    JSONObject completePerimes(String id, TUser user);
+
+    JSONObject getPerimesSaisiEnCours(int start, int limit);
 }

@@ -23,7 +23,8 @@ public class MvtCaisseDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     private String idMvt, numCmp, numPieceComptable, commentaire;
     Integer amount = 0;
-    private String dateMvt, codeMonnaie, banque, lieux, mvtDate , refTicket, idTypeRegl, libelleRegl, idTypeMvt, libelleTypeMvt, userFullName, idModeRegle;
+    private String dateMvt, codeMonnaie, banque, lieux, mvtDate, refTicket, idTypeRegl, libelleRegl, idTypeMvt,
+            libelleTypeMvt, userFullName, idModeRegle;
     private double taux = 0.0;
 
     public String getCodeMonnaie() {
@@ -41,8 +42,6 @@ public class MvtCaisseDTO implements Serializable {
     public void setBanque(String banque) {
         this.banque = banque;
     }
-
-   
 
     public String getLieux() {
         return lieux;

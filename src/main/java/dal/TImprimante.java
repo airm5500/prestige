@@ -31,17 +31,16 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_imprimante")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TImprimante.findAll", query = "SELECT t FROM TImprimante t"),
-    @NamedQuery(name = "TImprimante.findByLgIMPRIMANTEID", query = "SELECT t FROM TImprimante t WHERE t.lgIMPRIMANTEID = :lgIMPRIMANTEID"),
-    @NamedQuery(name = "TImprimante.findByDtCREATED", query = "SELECT t FROM TImprimante t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TImprimante.findByDtUPDATED", query = "SELECT t FROM TImprimante t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TImprimante.findByStrSTATUT", query = "SELECT t FROM TImprimante t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TImprimante.findByIntBEGIN", query = "SELECT t FROM TImprimante t WHERE t.intBEGIN = :intBEGIN"),
-    @NamedQuery(name = "TImprimante.findByIntCOLUMN1", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN1 = :intCOLUMN1"),
-    @NamedQuery(name = "TImprimante.findByIntCOLUMN2", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN2 = :intCOLUMN2"),
-    @NamedQuery(name = "TImprimante.findByIntCOLUMN3", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN3 = :intCOLUMN3"),
-    @NamedQuery(name = "TImprimante.findByIntCOLUMN4", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN4 = :intCOLUMN4")})
+@NamedQueries({ @NamedQuery(name = "TImprimante.findAll", query = "SELECT t FROM TImprimante t"),
+        @NamedQuery(name = "TImprimante.findByLgIMPRIMANTEID", query = "SELECT t FROM TImprimante t WHERE t.lgIMPRIMANTEID = :lgIMPRIMANTEID"),
+        @NamedQuery(name = "TImprimante.findByDtCREATED", query = "SELECT t FROM TImprimante t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TImprimante.findByDtUPDATED", query = "SELECT t FROM TImprimante t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TImprimante.findByStrSTATUT", query = "SELECT t FROM TImprimante t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TImprimante.findByIntBEGIN", query = "SELECT t FROM TImprimante t WHERE t.intBEGIN = :intBEGIN"),
+        @NamedQuery(name = "TImprimante.findByIntCOLUMN1", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN1 = :intCOLUMN1"),
+        @NamedQuery(name = "TImprimante.findByIntCOLUMN2", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN2 = :intCOLUMN2"),
+        @NamedQuery(name = "TImprimante.findByIntCOLUMN3", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN3 = :intCOLUMN3"),
+        @NamedQuery(name = "TImprimante.findByIntCOLUMN4", query = "SELECT t FROM TImprimante t WHERE t.intCOLUMN4 = :intCOLUMN4") })
 public class TImprimante implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -74,7 +73,7 @@ public class TImprimante implements Serializable {
     private Integer intCOLUMN4;
     @Column(name = "int_FONT")
     private Integer intFONT;
-    @OneToMany( mappedBy = "lgIMPRIMANTEID")
+    @OneToMany(mappedBy = "lgIMPRIMANTEID")
     private Collection<TUserImprimante> tUserImprimanteCollection;
 
     public TImprimante() {
@@ -99,7 +98,7 @@ public class TImprimante implements Serializable {
     public void setIntFONT(Integer intFONT) {
         this.intFONT = intFONT;
     }
-    
+
     public String getStrNAME() {
         return strNAME;
     }
@@ -203,7 +202,8 @@ public class TImprimante implements Serializable {
             return false;
         }
         TImprimante other = (TImprimante) object;
-        if ((this.lgIMPRIMANTEID == null && other.lgIMPRIMANTEID != null) || (this.lgIMPRIMANTEID != null && !this.lgIMPRIMANTEID.equals(other.lgIMPRIMANTEID))) {
+        if ((this.lgIMPRIMANTEID == null && other.lgIMPRIMANTEID != null)
+                || (this.lgIMPRIMANTEID != null && !this.lgIMPRIMANTEID.equals(other.lgIMPRIMANTEID))) {
             return false;
         }
         return true;
@@ -213,5 +213,5 @@ public class TImprimante implements Serializable {
     public String toString() {
         return "dal.TImprimante[ lgIMPRIMANTEID=" + lgIMPRIMANTEID + " ]";
     }
-    
+
 }

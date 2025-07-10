@@ -31,18 +31,17 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_retrocession")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRetrocession.findAll", query = "SELECT t FROM TRetrocession t"),
-    @NamedQuery(name = "TRetrocession.findByLgRETROCESSIONID", query = "SELECT t FROM TRetrocession t WHERE t.lgRETROCESSIONID = :lgRETROCESSIONID"),
-    @NamedQuery(name = "TRetrocession.findByStrREFERENCE", query = "SELECT t FROM TRetrocession t WHERE t.strREFERENCE = :strREFERENCE"),
-    @NamedQuery(name = "TRetrocession.findByStrCOMMENTAIRE", query = "SELECT t FROM TRetrocession t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
-    @NamedQuery(name = "TRetrocession.findByIntMONTANTHT", query = "SELECT t FROM TRetrocession t WHERE t.intMONTANTHT = :intMONTANTHT"),
-    @NamedQuery(name = "TRetrocession.findByIntMONTANTTTC", query = "SELECT t FROM TRetrocession t WHERE t.intMONTANTTTC = :intMONTANTTTC"),
-    @NamedQuery(name = "TRetrocession.findByIntREMISE", query = "SELECT t FROM TRetrocession t WHERE t.intREMISE = :intREMISE"),
-    @NamedQuery(name = "TRetrocession.findByIntESCOMPTESOCIETE", query = "SELECT t FROM TRetrocession t WHERE t.intESCOMPTESOCIETE = :intESCOMPTESOCIETE"),
-    @NamedQuery(name = "TRetrocession.findByStrSTATUT", query = "SELECT t FROM TRetrocession t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TRetrocession.findByDtCREATED", query = "SELECT t FROM TRetrocession t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRetrocession.findByDtUPDATED", query = "SELECT t FROM TRetrocession t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TRetrocession.findAll", query = "SELECT t FROM TRetrocession t"),
+        @NamedQuery(name = "TRetrocession.findByLgRETROCESSIONID", query = "SELECT t FROM TRetrocession t WHERE t.lgRETROCESSIONID = :lgRETROCESSIONID"),
+        @NamedQuery(name = "TRetrocession.findByStrREFERENCE", query = "SELECT t FROM TRetrocession t WHERE t.strREFERENCE = :strREFERENCE"),
+        @NamedQuery(name = "TRetrocession.findByStrCOMMENTAIRE", query = "SELECT t FROM TRetrocession t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
+        @NamedQuery(name = "TRetrocession.findByIntMONTANTHT", query = "SELECT t FROM TRetrocession t WHERE t.intMONTANTHT = :intMONTANTHT"),
+        @NamedQuery(name = "TRetrocession.findByIntMONTANTTTC", query = "SELECT t FROM TRetrocession t WHERE t.intMONTANTTTC = :intMONTANTTTC"),
+        @NamedQuery(name = "TRetrocession.findByIntREMISE", query = "SELECT t FROM TRetrocession t WHERE t.intREMISE = :intREMISE"),
+        @NamedQuery(name = "TRetrocession.findByIntESCOMPTESOCIETE", query = "SELECT t FROM TRetrocession t WHERE t.intESCOMPTESOCIETE = :intESCOMPTESOCIETE"),
+        @NamedQuery(name = "TRetrocession.findByStrSTATUT", query = "SELECT t FROM TRetrocession t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TRetrocession.findByDtCREATED", query = "SELECT t FROM TRetrocession t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRetrocession.findByDtUPDATED", query = "SELECT t FROM TRetrocession t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TRetrocession implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -204,7 +203,8 @@ public class TRetrocession implements Serializable {
             return false;
         }
         TRetrocession other = (TRetrocession) object;
-        if ((this.lgRETROCESSIONID == null && other.lgRETROCESSIONID != null) || (this.lgRETROCESSIONID != null && !this.lgRETROCESSIONID.equals(other.lgRETROCESSIONID))) {
+        if ((this.lgRETROCESSIONID == null && other.lgRETROCESSIONID != null)
+                || (this.lgRETROCESSIONID != null && !this.lgRETROCESSIONID.equals(other.lgRETROCESSIONID))) {
             return false;
         }
         return true;
@@ -214,5 +214,5 @@ public class TRetrocession implements Serializable {
     public String toString() {
         return "dal.TRetrocession[ lgRETROCESSIONID=" + lgRETROCESSIONID + " ]";
     }
-    
+
 }

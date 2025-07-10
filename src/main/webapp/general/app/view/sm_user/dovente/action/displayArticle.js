@@ -1,6 +1,3 @@
-var url_services_data_dovente_checkdif__ = '../webservices/sm_user/diffclient/ws_data.jsp';
-var url_services_data_typereglement__ = '../webservices/sm_user/typereglement/ws_data.jsp';
-var url_services_data_modereglement__ = '../webservices/sm_user/modereglement/ws_data.jsp';
 
 
 var url_services_data_famille_displayArticle = '../webservices/sm_user/famille/ws_data.jsp';

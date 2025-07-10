@@ -21,8 +21,8 @@ import javax.persistence.Table;
 @Entity
 @Table(name = "t_stock_snapshot")
 @NamedQueries({
-    @NamedQuery(name = "TStockSnapshot.findAll", query = " SELECT o FROM TStockSnapshot o ORDER BY o.tStockSnapshotPK.familleId ASC ")
-    
+        @NamedQuery(name = "TStockSnapshot.findAll", query = " SELECT o FROM TStockSnapshot o ORDER BY o.tStockSnapshotPK.familleId ASC ")
+
 })
 public class TStockSnapshot implements Serializable {
 
@@ -109,8 +109,6 @@ public class TStockSnapshot implements Serializable {
         this.prixMoyentpondere = prixMoyentpondere;
     }
 
-    
-    
     @Override
     public int hashCode() {
         int hash = 0;
@@ -125,7 +123,8 @@ public class TStockSnapshot implements Serializable {
             return false;
         }
         TStockSnapshot other = (TStockSnapshot) object;
-        if ((this.tStockSnapshotPK == null && other.tStockSnapshotPK != null) || (this.tStockSnapshotPK != null && !this.tStockSnapshotPK.equals(other.tStockSnapshotPK))) {
+        if ((this.tStockSnapshotPK == null && other.tStockSnapshotPK != null)
+                || (this.tStockSnapshotPK != null && !this.tStockSnapshotPK.equals(other.tStockSnapshotPK))) {
             return false;
         }
         return true;

@@ -24,8 +24,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "groupefournisseur")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "Groupefournisseur.findAll", query = "SELECT g FROM Groupefournisseur g")})
+@NamedQueries({ @NamedQuery(name = "Groupefournisseur.findAll", query = "SELECT g FROM Groupefournisseur g") })
 public class Groupefournisseur implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -91,14 +90,14 @@ public class Groupefournisseur implements Serializable {
         return "dal.Groupefournisseur[ id=" + id + " ]";
     }
 
-//    @XmlTransient
-//    @JsonIgnore
-//    public Set<TGrossiste> gettGrossisteCollection() {
-//        return tGrossisteCollection;
-//    }
-//
-//    public void settGrossisteCollection(Set<TGrossiste> tGrossisteCollection) {
-//        this.tGrossisteCollection = tGrossisteCollection;
-//    }
+    // @XmlTransient
+    // @JsonIgnore
+    // public Set<TGrossiste> gettGrossisteCollection() {
+    // return tGrossisteCollection;
+    // }
+    //
+    // public void settGrossisteCollection(Set<TGrossiste> tGrossisteCollection) {
+    // this.tGrossisteCollection = tGrossisteCollection;
+    // }
 
 }

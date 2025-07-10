@@ -30,25 +30,24 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_snapshot_famillesell")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSnapshotFamillesell.findAll", query = "SELECT t FROM TSnapshotFamillesell t"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByLgSNAPSHOTPRODUCTSELLID", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.lgSNAPSHOTPRODUCTSELLID = :lgSNAPSHOTPRODUCTSELLID"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERJANUARY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERJANUARY = :intNUMBERJANUARY"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERFEBRUARY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERFEBRUARY = :intNUMBERFEBRUARY"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERMARCH", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERMARCH = :intNUMBERMARCH"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERAPRIL", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERAPRIL = :intNUMBERAPRIL"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERMAY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERMAY = :intNUMBERMAY"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERJUNE", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERJUNE = :intNUMBERJUNE"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERJULY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERJULY = :intNUMBERJULY"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERAUGUST", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERAUGUST = :intNUMBERAUGUST"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERSEPTEMBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERSEPTEMBER = :intNUMBERSEPTEMBER"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBEROCTOBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBEROCTOBER = :intNUMBEROCTOBER"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERNOVEMBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERNOVEMBER = :intNUMBERNOVEMBER"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERDECEMBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERDECEMBER = :intNUMBERDECEMBER"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByIntYEAR", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intYEAR = :intYEAR"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByLgFAMILLEID", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.lgFAMILLEID = :lgFAMILLEID"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByDtCREATED", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapshotFamillesell.findByDtUPDATED", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TSnapshotFamillesell.findAll", query = "SELECT t FROM TSnapshotFamillesell t"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByLgSNAPSHOTPRODUCTSELLID", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.lgSNAPSHOTPRODUCTSELLID = :lgSNAPSHOTPRODUCTSELLID"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERJANUARY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERJANUARY = :intNUMBERJANUARY"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERFEBRUARY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERFEBRUARY = :intNUMBERFEBRUARY"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERMARCH", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERMARCH = :intNUMBERMARCH"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERAPRIL", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERAPRIL = :intNUMBERAPRIL"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERMAY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERMAY = :intNUMBERMAY"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERJUNE", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERJUNE = :intNUMBERJUNE"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERJULY", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERJULY = :intNUMBERJULY"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERAUGUST", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERAUGUST = :intNUMBERAUGUST"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERSEPTEMBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERSEPTEMBER = :intNUMBERSEPTEMBER"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBEROCTOBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBEROCTOBER = :intNUMBEROCTOBER"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERNOVEMBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERNOVEMBER = :intNUMBERNOVEMBER"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntNUMBERDECEMBER", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intNUMBERDECEMBER = :intNUMBERDECEMBER"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByIntYEAR", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.intYEAR = :intYEAR"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByLgFAMILLEID", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.lgFAMILLEID = :lgFAMILLEID"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByDtCREATED", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapshotFamillesell.findByDtUPDATED", query = "SELECT t FROM TSnapshotFamillesell t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TSnapshotFamillesell implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -106,15 +105,14 @@ public class TSnapshotFamillesell implements Serializable {
     public void setLgSNAPSHOTPRODUCTSELLID(Integer lgSNAPSHOTPRODUCTSELLID) {
         this.lgSNAPSHOTPRODUCTSELLID = lgSNAPSHOTPRODUCTSELLID;
     }
-    
-     public TFamille getLgFAMILLEID() {
+
+    public TFamille getLgFAMILLEID() {
         return lgFAMILLEID;
     }
 
     public void setLgFAMILLEID(TFamille lgFAMILLEID) {
         this.lgFAMILLEID = lgFAMILLEID;
     }
-
 
     public Integer getIntNUMBERJANUARY() {
         return intNUMBERJANUARY;
@@ -250,7 +248,9 @@ public class TSnapshotFamillesell implements Serializable {
             return false;
         }
         TSnapshotFamillesell other = (TSnapshotFamillesell) object;
-        if ((this.lgSNAPSHOTPRODUCTSELLID == null && other.lgSNAPSHOTPRODUCTSELLID != null) || (this.lgSNAPSHOTPRODUCTSELLID != null && !this.lgSNAPSHOTPRODUCTSELLID.equals(other.lgSNAPSHOTPRODUCTSELLID))) {
+        if ((this.lgSNAPSHOTPRODUCTSELLID == null && other.lgSNAPSHOTPRODUCTSELLID != null)
+                || (this.lgSNAPSHOTPRODUCTSELLID != null
+                        && !this.lgSNAPSHOTPRODUCTSELLID.equals(other.lgSNAPSHOTPRODUCTSELLID))) {
             return false;
         }
         return true;
@@ -260,5 +260,5 @@ public class TSnapshotFamillesell implements Serializable {
     public String toString() {
         return "dal.TSnapshotFamillesell[ lgSNAPSHOTPRODUCTSELLID=" + lgSNAPSHOTPRODUCTSELLID + " ]";
     }
-    
+
 }

@@ -28,18 +28,17 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_mouvementprice")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMouvementprice.findAll", query = "SELECT t FROM TMouvementprice t"),
-    @NamedQuery(name = "TMouvementprice.findByLgMOUVEMENTPRICEID", query = "SELECT t FROM TMouvementprice t WHERE t.lgMOUVEMENTPRICEID = :lgMOUVEMENTPRICEID"),
-    @NamedQuery(name = "TMouvementprice.findByStrACTION", query = "SELECT t FROM TMouvementprice t WHERE t.strACTION = :strACTION"),
-    @NamedQuery(name = "TMouvementprice.findByStrREF", query = "SELECT t FROM TMouvementprice t WHERE t.strREF = :strREF"),
-    @NamedQuery(name = "TMouvementprice.findByDtDAY", query = "SELECT t FROM TMouvementprice t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TMouvementprice.findByDtCREATED", query = "SELECT t FROM TMouvementprice t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMouvementprice.findByDtUPDATED", query = "SELECT t FROM TMouvementprice t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMouvementprice.findByStrSTATUT", query = "SELECT t FROM TMouvementprice t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TMouvementprice.findByIntPRICEOLD", query = "SELECT t FROM TMouvementprice t WHERE t.intPRICEOLD = :intPRICEOLD"),
-    @NamedQuery(name = "TMouvementprice.findByIntPRICENEW", query = "SELECT t FROM TMouvementprice t WHERE t.intPRICENEW = :intPRICENEW"),
-    @NamedQuery(name = "TMouvementprice.findByIntECART", query = "SELECT t FROM TMouvementprice t WHERE t.intECART = :intECART")})
+@NamedQueries({ @NamedQuery(name = "TMouvementprice.findAll", query = "SELECT t FROM TMouvementprice t"),
+        @NamedQuery(name = "TMouvementprice.findByLgMOUVEMENTPRICEID", query = "SELECT t FROM TMouvementprice t WHERE t.lgMOUVEMENTPRICEID = :lgMOUVEMENTPRICEID"),
+        @NamedQuery(name = "TMouvementprice.findByStrACTION", query = "SELECT t FROM TMouvementprice t WHERE t.strACTION = :strACTION"),
+        @NamedQuery(name = "TMouvementprice.findByStrREF", query = "SELECT t FROM TMouvementprice t WHERE t.strREF = :strREF"),
+        @NamedQuery(name = "TMouvementprice.findByDtDAY", query = "SELECT t FROM TMouvementprice t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TMouvementprice.findByDtCREATED", query = "SELECT t FROM TMouvementprice t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMouvementprice.findByDtUPDATED", query = "SELECT t FROM TMouvementprice t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMouvementprice.findByStrSTATUT", query = "SELECT t FROM TMouvementprice t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TMouvementprice.findByIntPRICEOLD", query = "SELECT t FROM TMouvementprice t WHERE t.intPRICEOLD = :intPRICEOLD"),
+        @NamedQuery(name = "TMouvementprice.findByIntPRICENEW", query = "SELECT t FROM TMouvementprice t WHERE t.intPRICENEW = :intPRICENEW"),
+        @NamedQuery(name = "TMouvementprice.findByIntECART", query = "SELECT t FROM TMouvementprice t WHERE t.intECART = :intECART") })
 public class TMouvementprice implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -199,7 +198,8 @@ public class TMouvementprice implements Serializable {
             return false;
         }
         TMouvementprice other = (TMouvementprice) object;
-        if ((this.lgMOUVEMENTPRICEID == null && other.lgMOUVEMENTPRICEID != null) || (this.lgMOUVEMENTPRICEID != null && !this.lgMOUVEMENTPRICEID.equals(other.lgMOUVEMENTPRICEID))) {
+        if ((this.lgMOUVEMENTPRICEID == null && other.lgMOUVEMENTPRICEID != null)
+                || (this.lgMOUVEMENTPRICEID != null && !this.lgMOUVEMENTPRICEID.equals(other.lgMOUVEMENTPRICEID))) {
             return false;
         }
         return true;
@@ -209,5 +209,5 @@ public class TMouvementprice implements Serializable {
     public String toString() {
         return "dal.TMouvementprice[ lgMOUVEMENTPRICEID=" + lgMOUVEMENTPRICEID + " ]";
     }
-    
+
 }

@@ -18,14 +18,22 @@ public class TiersPayantParams implements Serializable {
 
     private String compteTp, message;
     private int taux;
-    private String numBon, tpFullName, lgTIERSPAYANTID, lgCOMPTECLIENTID;
+    private String numBon;
+    private String tpFullName;
+    private String lgTIERSPAYANTID;
+    private String lgCOMPTECLIENTID;
     private Integer tpnet = 0, discount = 0;
     private boolean principal, enabled, activeTiersPayant;
     private String numSecurity = "";
     private int order;
-    private Integer dbPLAFONDENCOURS = 0, dbCONSOMMATIONMENSUELLE, dblPLAFOND = 0, dblQUOTACONSOMENSUELLE = 0;
+    private Integer dbPLAFONDENCOURS = 0;
+    private Integer dbCONSOMMATIONMENSUELLE;
+    private Integer dblPLAFOND = 0;
+    private Integer dblQUOTACONSOMENSUELLE = 0;
     private boolean bIsAbsolute;
-    private String ancienTierPayant,itemId;
+    private String ancienTierPayant;
+    private String itemId;
+    private boolean cmu;
 
     public String getCompteTp() {
         return compteTp;
@@ -166,8 +174,8 @@ public class TiersPayantParams implements Serializable {
             TCompteClientTiersPayant cp = c.getLgCOMPTECLIENTTIERSPAYANTID();
             TTiersPayant payant = cp.getLgTIERSPAYANTID();
             this.compteTp = cp.getLgCOMPTECLIENTTIERSPAYANTID();
-            this.ancienTierPayant=cp.getLgCOMPTECLIENTTIERSPAYANTID();
-             this.itemId = c.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID();
+            this.ancienTierPayant = cp.getLgCOMPTECLIENTTIERSPAYANTID();
+            this.itemId = c.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID();
             this.tpFullName = payant.getStrNAME();
             this.principal = cp.getIntPRIORITY() == 1;
             this.lgTIERSPAYANTID = payant.getLgTIERSPAYANTID();
@@ -216,7 +224,6 @@ public class TiersPayantParams implements Serializable {
 
     public TiersPayantParams(TCompteClientTiersPayant cp) {
         try {
-
             TTiersPayant payant = cp.getLgTIERSPAYANTID();
             this.compteTp = cp.getLgCOMPTECLIENTTIERSPAYANTID();
             this.tpFullName = payant.getStrNAME();
@@ -230,16 +237,9 @@ public class TiersPayantParams implements Serializable {
             this.lgCOMPTECLIENTID = cp.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID();
             this.bIsAbsolute = cp.getBIsAbsolute();
             this.enabled = cp.getBCANBEUSE();
-            try {
-                this.dblQUOTACONSOMENSUELLE = cp.getDblPLAFOND().intValue();
-            } catch (Exception e) {
-            }
-
+            this.dblQUOTACONSOMENSUELLE = cp.getDblPLAFOND().intValue();
             this.activeTiersPayant = payant.getBCANBEUSE();
-            try {
-                this.dblPLAFOND = cp.getDblPLAFOND().intValue();
-            } catch (Exception e) {
-            }
+            this.dblPLAFOND = cp.getDblPLAFOND().intValue();
 
         } catch (Exception e) {
         }
@@ -261,6 +261,13 @@ public class TiersPayantParams implements Serializable {
     public void setItemId(String itemId) {
         this.itemId = itemId;
     }
-    
-    
+
+    public boolean isCmu() {
+        return cmu;
+    }
+
+    public void setCmu(boolean cmu) {
+        this.cmu = cmu;
+    }
+
 }

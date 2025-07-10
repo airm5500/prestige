@@ -6,7 +6,7 @@ Ext.define('testextjs.controller.AvoirCtr', {
     models: [
         'testextjs.model.caisse.Produit',
         'testextjs.model.caisse.VenteItem'
-      
+
     ],
     views: [
         'testextjs.view.vente.TerminerAvoir'
@@ -180,8 +180,6 @@ Ext.define('testextjs.controller.AvoirCtr', {
         me.getNumAssure().setValue('');
     },
 
-   
-
     onSpecialSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
             var me = this;
@@ -234,7 +232,7 @@ Ext.define('testextjs.controller.AvoirCtr', {
         var me = this;
         me.refresh();
     },
-  
+
     updateComboxFields: function (venteId) {
         var me = this;
 
@@ -262,14 +260,15 @@ Ext.define('testextjs.controller.AvoirCtr', {
     },
 
     updateClientStandard: function (client) {
-        var me = this, clientStandard = me.getInfosClientStandard();
+        const me = this;
+        const clientStandard = me.getInfosClientStandard();
         clientStandard.show();
         me.getNom().setValue(client.strFIRSTNAME + ' ' + client.strLASTNAME);
         me.getMobile().setValue(client.strADRESSE);
 
     },
     updateAyantCmp: function (ayantDroit) {
-        var me = this;
+        const me = this;
         if (ayantDroit) {
             me.getAyantCmp().show();
             me.getNomAyant().setValue(ayantDroit.strFIRSTNAME + ' ' + ayantDroit.strLASTNAME);
@@ -277,8 +276,9 @@ Ext.define('testextjs.controller.AvoirCtr', {
         }
     },
     updateAssurerCmp: function (client) {
-        var me = this, assureCmp = me.getAssureCmp();
-//        var client = me.getClient();
+        const me = this;
+        const assureCmp = me.getAssureCmp();
+
         assureCmp.show();
         if (client) {
             me.getNomAssure().setValue(client.strFIRSTNAME + ' ' + client.strLASTNAME);
@@ -286,29 +286,29 @@ Ext.define('testextjs.controller.AvoirCtr', {
         }
     },
     resetAyantCmp: function () {
-        var me = this;
+        const me = this;
         me.getNomAyant().setValue('');
         me.getNumAyant().setValue('');
 
     },
     resteAssurerCmp: function () {
-        var me = this;
+        const me = this;
         me.getNomAssure().setValue('');
         me.getNumAssure().setValue('');
     },
     resetClientStandard: function () {
-        var me = this;
+        const me = this;
         me.getNom().setValue('');
         me.getMobile().setValue('');
 
     },
     loadVenteData: function (venteId) {
-        var me = this;
+        const me = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/ventestats/' + venteId,
             success: function (response, options) {
-                var result = Ext.JSON.decode(response.responseText, true);
+                const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
                     var record = result.data;
                     var lgTYPEVENTEID = record.lgTYPEVENTEID,
@@ -319,7 +319,7 @@ Ext.define('testextjs.controller.AvoirCtr', {
                     };
 
                     me.ayantDroit = ayantDroit;
-                            
+
                     me.updateAmountFields(record);
                     if (lgTYPEVENTEID === '2' || lgTYPEVENTEID === '3') {
                         me.updateAssurerCmp(client);
@@ -354,17 +354,16 @@ Ext.define('testextjs.controller.AvoirCtr', {
             } else {
                 me.current = null;
                 me.client = null;
-//                me.updateComboxFields(null);
+
             }
         } else {
             me.current = null;
-            me.client = null;
-//            me.updateComboxFields(null);
+
         }
     },
 
     resetAlls: function () {
-        var me = this;
+        const me = this;
         me.current = null;
         me.client = null;
         me.getVnogrid().getStore().load();
@@ -387,18 +386,18 @@ Ext.define('testextjs.controller.AvoirCtr', {
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
                     Ext.MessageBox.show({
-                            title: 'Message',
-                            width: 320,
-                            msg: result.msg,
-                            buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.INFO,
-                            fn: function (buttonId) {
-                                if (buttonId === "ok") {
-                                     me.goBack();
-                                }
+                        title: 'Message',
+                        width: 320,
+                        msg: result.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.INFO,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.goBack();
                             }
-                        });
-                   
+                        }
+                    });
+
                 } else {
                     Ext.Msg.alert("Message", 'Un problème avec le serveur');
 

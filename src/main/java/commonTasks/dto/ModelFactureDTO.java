@@ -15,7 +15,7 @@ import java.io.Serializable;
 public class ModelFactureDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String id, libelle, valeur,nomFichier,nomFichierRemiseTierspayant;
+    private String id, libelle, valeur, nomFichier, nomFichierRemiseTierspayant;
 
     public String getId() {
         return id;
@@ -64,7 +64,7 @@ public class ModelFactureDTO implements Serializable {
         this.id = facture.getLgMODELFACTUREID();
         this.libelle = facture.getStrDESCRIPTION();
         this.valeur = facture.getStrVALUE();
-        this.nomFichier=facture.getNomFichier();
+        this.nomFichier = facture.getNomFichier();
     }
 
 }

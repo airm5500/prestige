@@ -30,18 +30,17 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_inventaire_famille")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TInventaireFamille.findAll", query = "SELECT t FROM TInventaireFamille t"),
-    @NamedQuery(name = "TInventaireFamille.findByLgINVENTAIREFAMILLEID", query = "SELECT t FROM TInventaireFamille t WHERE t.lgINVENTAIREFAMILLEID = :lgINVENTAIREFAMILLEID"),
-    @NamedQuery(name = "TInventaireFamille.findByIntNUMBER", query = "SELECT t FROM TInventaireFamille t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TInventaireFamille.findByIntNUMBERINIT", query = "SELECT t FROM TInventaireFamille t WHERE t.intNUMBERINIT = :intNUMBERINIT"),
-    @NamedQuery(name = "TInventaireFamille.findByStrSTATUT", query = "SELECT t FROM TInventaireFamille t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TInventaireFamille.findByDtCREATED", query = "SELECT t FROM TInventaireFamille t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TInventaireFamille.findByDtUPDATED", query = "SELECT t FROM TInventaireFamille t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TInventaireFamille.findByBoolINVENTAIRE", query = "SELECT t FROM TInventaireFamille t WHERE t.boolINVENTAIRE = :boolINVENTAIRE"),
-    @NamedQuery(name = "TInventaireFamille.findByStrUPDATEDID", query = "SELECT t FROM TInventaireFamille t WHERE t.strUPDATEDID = :strUPDATEDID")})
+@NamedQueries({ @NamedQuery(name = "TInventaireFamille.findAll", query = "SELECT t FROM TInventaireFamille t"),
+        @NamedQuery(name = "TInventaireFamille.findByLgINVENTAIREFAMILLEID", query = "SELECT t FROM TInventaireFamille t WHERE t.lgINVENTAIREFAMILLEID = :lgINVENTAIREFAMILLEID"),
+        @NamedQuery(name = "TInventaireFamille.findByIntNUMBER", query = "SELECT t FROM TInventaireFamille t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TInventaireFamille.findByIntNUMBERINIT", query = "SELECT t FROM TInventaireFamille t WHERE t.intNUMBERINIT = :intNUMBERINIT"),
+        @NamedQuery(name = "TInventaireFamille.findByStrSTATUT", query = "SELECT t FROM TInventaireFamille t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TInventaireFamille.findByDtCREATED", query = "SELECT t FROM TInventaireFamille t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TInventaireFamille.findByDtUPDATED", query = "SELECT t FROM TInventaireFamille t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TInventaireFamille.findByBoolINVENTAIRE", query = "SELECT t FROM TInventaireFamille t WHERE t.boolINVENTAIRE = :boolINVENTAIRE"),
+        @NamedQuery(name = "TInventaireFamille.findByStrUPDATEDID", query = "SELECT t FROM TInventaireFamille t WHERE t.strUPDATEDID = :strUPDATEDID") })
 public class TInventaireFamille implements Serializable {
- private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
     @JoinColumn(name = "lg_FAMILLE_STOCK_ID", referencedColumnName = "lg_FAMILLE_STOCK_ID")
     @ManyToOne
     private TFamilleStock lgFAMILLESTOCKID;
@@ -174,7 +173,9 @@ public class TInventaireFamille implements Serializable {
             return false;
         }
         TInventaireFamille other = (TInventaireFamille) object;
-        if ((this.lgINVENTAIREFAMILLEID == null && other.lgINVENTAIREFAMILLEID != null) || (this.lgINVENTAIREFAMILLEID != null && !this.lgINVENTAIREFAMILLEID.equals(other.lgINVENTAIREFAMILLEID))) {
+        if ((this.lgINVENTAIREFAMILLEID == null && other.lgINVENTAIREFAMILLEID != null)
+                || (this.lgINVENTAIREFAMILLEID != null
+                        && !this.lgINVENTAIREFAMILLEID.equals(other.lgINVENTAIREFAMILLEID))) {
             return false;
         }
         return true;
@@ -192,5 +193,5 @@ public class TInventaireFamille implements Serializable {
     public void setLgFAMILLESTOCKID(TFamilleStock lgFAMILLESTOCKID) {
         this.lgFAMILLESTOCKID = lgFAMILLESTOCKID;
     }
-    
+
 }

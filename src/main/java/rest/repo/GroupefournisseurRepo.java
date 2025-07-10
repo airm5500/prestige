@@ -28,19 +28,21 @@ public class GroupefournisseurRepo extends AbstractRepoImpl<Groupefournisseur> {
     public GroupefournisseurRepo() {
         super(Groupefournisseur.class);
     }
-   public Groupefournisseur saveOrUpdate(Groupefournisseur groupefournisseur) {
+
+    public Groupefournisseur saveOrUpdate(Groupefournisseur groupefournisseur) {
+
         try {
-            if (groupefournisseur.getId()==null || groupefournisseur.getId()== 0) {
+            if (groupefournisseur.getId() == null || groupefournisseur.getId() == 0) {
                 groupefournisseur.setId(null);
                 this.save(groupefournisseur);
                 return groupefournisseur;
             }
             return this.update(groupefournisseur);
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+
             return null;
         }
 
     }
-   
+
 }

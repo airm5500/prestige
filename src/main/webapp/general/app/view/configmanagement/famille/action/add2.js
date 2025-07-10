@@ -114,7 +114,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste_famille,
+                    url: '../api/v1/grossiste/all',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -139,9 +139,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             }
 
         });
-
-
-
+        
+        
         var form = new Ext.form.Panel({
             bodyPadding: 10,
             fieldDefaults: {
@@ -225,6 +224,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                             queryMode: 'remote',
                             emptyText: 'Choisir un code TVA...'
                         },
+                        
                         {
                             fieldLabel: 'Prix Achat Facture',
                             xtype: 'textfield',
@@ -297,6 +297,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
 //                            allowBlank: false,
 
                         }
+                        
 
                     ]
                 }]
@@ -310,8 +311,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
 
             Ext.getCmp('lg_GROSSISTE_QUICK_ID').setValue(this.getOdatasource().lg_GROSSISTE_ID);
 
-
-
             Ext.getCmp('int_PAT').setValue(this.getOdatasource().int_PAT);
             Ext.getCmp('int_PAF').setValue(this.getOdatasource().int_PAF);
 
@@ -324,17 +323,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             Ext.getCmp('lg_CODE_TVA_ID').setValue(this.getOdatasource().lg_CODE_TVA_ID);
 
             Ext.getCmp('lg_CODE_TVA_ID').hide();
-            //alert(this.getOdatasource().bool_RESERVE);
-
-
-            // Ext.getCmp('int_PRICE_DETAIL').setValue(this.getOdatasource().int_PRICE_DETAIL);
-            //Ext.getCmp('bool_DECONDITIONNE').setValue(isBoolT_F);
-            // alert('ref '+int_NUMBERDETAIL);
-
-
+           
         }
-
-
 
         var win = new Ext.window.Window({
             autoShow: true,
@@ -382,7 +372,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                 Ext.MessageBox.alert('Impossible', 'Le prix d\'achat doit etre inferieur au prix de vente');
                 return;
             }
-
+            
+           
+            
             var str_DESCRIPTION = Ext.getCmp('str_DESCRIPTION').getValue();
 
             Ext.Ajax.request({
@@ -398,6 +390,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                     str_DESCRIPTION: Ext.getCmp('str_DESCRIPTION').getValue(),
                     int_CIP: Ext.getCmp('int_CIP').getValue(),
                     lg_CODE_TVA_ID: Ext.getCmp('lg_CODE_TVA_ID').getValue(),
+                    //lg_WORKFLOW_REMISE_ARTICLE_ID: Ext.getCmp('lg_WORKFLOW_REMISE_ARTICLE_ID').getValue(),
                     int_T: Ext.getCmp('int_T').getValue(),
                     int_EAN13: Ext.getCmp('EAN').getValue()
                 },
@@ -454,6 +447,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             });
         }
 
-        ;
+
     }
 });

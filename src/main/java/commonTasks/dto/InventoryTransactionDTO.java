@@ -12,13 +12,13 @@ import java.time.Instant;
  * @author koben
  */
 public class InventoryTransactionDTO {
-     private Integer quantity;
+    private Integer quantity;
     private Integer quantityBefor;
     private Integer quantityAfter;
     private Instant updatedAt;
-    private  String transactionType;
-    private  String produitLibelle;
-    private  String userFullName;
+    private String transactionType;
+    private String produitLibelle;
+    private String userFullName;
 
     public Integer getQuantity() {
         return quantity;
@@ -75,5 +75,7 @@ public class InventoryTransactionDTO {
     public void setUserFullName(String userFullName) {
         this.userFullName = userFullName;
     }
-    public InventoryTransactionDTO(){}
+
+    public InventoryTransactionDTO() {
+    }
 }

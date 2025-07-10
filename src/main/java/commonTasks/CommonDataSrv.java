@@ -10,7 +10,7 @@ package commonTasks;
  * @author Kobena
  */
 public interface CommonDataSrv {
-    
+
     final String MODE_DIFFERE = "4";
     final String MODE_ESP = "1";
     final String VENTE_COMPTANT = "VNO";

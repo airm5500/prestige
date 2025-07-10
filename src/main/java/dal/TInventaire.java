@@ -32,20 +32,18 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_inventaire")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TInventaire.findAll", query = "SELECT t FROM TInventaire t"),
-    @NamedQuery(name = "TInventaire.findByLgINVENTAIREID", query = "SELECT t FROM TInventaire t WHERE t.lgINVENTAIREID = :lgINVENTAIREID"),
-    @NamedQuery(name = "TInventaire.findByStrNAME", query = "SELECT t FROM TInventaire t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TInventaire.findByStrSTATUT", query = "SELECT t FROM TInventaire t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TInventaire.findByDtCREATED", query = "SELECT t FROM TInventaire t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TInventaire.findByDtUPDATED", query = "SELECT t FROM TInventaire t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TInventaire.findAll", query = "SELECT t FROM TInventaire t"),
+        @NamedQuery(name = "TInventaire.findByLgINVENTAIREID", query = "SELECT t FROM TInventaire t WHERE t.lgINVENTAIREID = :lgINVENTAIREID"),
+        @NamedQuery(name = "TInventaire.findByStrNAME", query = "SELECT t FROM TInventaire t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TInventaire.findByStrSTATUT", query = "SELECT t FROM TInventaire t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TInventaire.findByDtCREATED", query = "SELECT t FROM TInventaire t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TInventaire.findByDtUPDATED", query = "SELECT t FROM TInventaire t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TInventaire implements Serializable {
 
     @JoinColumn(name = "lg_EMPLACEMENT_ID", referencedColumnName = "lg_EMPLACEMENT_ID")
     @ManyToOne
     private TEmplacement lgEMPLACEMENTID;
 
-   
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -167,7 +165,8 @@ public class TInventaire implements Serializable {
             return false;
         }
         TInventaire other = (TInventaire) object;
-        if ((this.lgINVENTAIREID == null && other.lgINVENTAIREID != null) || (this.lgINVENTAIREID != null && !this.lgINVENTAIREID.equals(other.lgINVENTAIREID))) {
+        if ((this.lgINVENTAIREID == null && other.lgINVENTAIREID != null)
+                || (this.lgINVENTAIREID != null && !this.lgINVENTAIREID.equals(other.lgINVENTAIREID))) {
             return false;
         }
         return true;
@@ -178,8 +177,6 @@ public class TInventaire implements Serializable {
         return "dal.TInventaire[ lgINVENTAIREID=" + lgINVENTAIREID + " ]";
     }
 
-  
-
     public TEmplacement getLgEMPLACEMENTID() {
         return lgEMPLACEMENTID;
     }
@@ -187,5 +184,5 @@ public class TInventaire implements Serializable {
     public void setLgEMPLACEMENTID(TEmplacement lgEMPLACEMENTID) {
         this.lgEMPLACEMENTID = lgEMPLACEMENTID;
     }
-    
+
 }

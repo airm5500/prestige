@@ -10,5 +10,5 @@ package rest.service;
  * @author koben
  */
 public interface MenuPharmacienService {
-    
+
 }

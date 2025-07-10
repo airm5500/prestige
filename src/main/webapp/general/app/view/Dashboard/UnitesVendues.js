@@ -36,7 +36,6 @@ Ext.define('testextjs.view.Dashboard.UnitesVendues', {
                     type: 'json',
                     root: 'data',
                     totalProperty: 'total'
-//                    metaProperty: 'metaData'
                 },
                 timeout: 2400000
             }

@@ -1,0 +1,16 @@
+
+h	java:S112»"FDefine and throw a dedicated exception instead of using a generic one.(ô½œ½ıÿÿÿÿ8•…³º‘1
+R
+java:S3740¤"/Provide the parametrized type for this generic.(£»Ë¦øÿÿÿÿ8–…³º‘1
+L
+java:S3740©"/Provide the parametrized type for this generic.(ÃÍÍ8–…³º‘1
+m	java:S1172"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(Ôíº’8—…³º‘1
+m	java:S117p"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(éŸÛ½8—…³º‘1
+s	java:S117"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(³Ò˜¨øÿÿÿÿ8—…³º‘1
+s	java:S117Ÿ"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(­³ƒ›úÿÿÿÿ8—…³º‘1
+s	java:S117¢"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(ë…×‡ùÿÿÿÿ8—…³º‘1
+s	java:S117§"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(ãßæçùÿÿÿÿ8—…³º‘1
+s	java:S117¨"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(øÄÜÇıÿÿÿÿ8—…³º‘1
+s	java:S117¬"QRename this local variable to match the regular expression '^[a-z][a-zA-Z0-9]*$'.(çú‘ıÿÿÿÿ8—…³º‘1
+M
+java:S1144c"0Remove this unused private "findByLogin" method.(µ«Ø°8Ï…³º‘1

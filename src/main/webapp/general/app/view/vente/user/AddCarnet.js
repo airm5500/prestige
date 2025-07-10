@@ -299,11 +299,12 @@ Ext.define('testextjs.view.vente.user.AddCarnet', {
                                                             flex: 1, height: 30,
                                                             fieldLabel: 'Pourcentage',
                                                             allowDecimals: false,
-                                                            readOnly: true,
                                                             hideTrigger: true,
                                                             name: 'intPOURCENTAGE',
+                                                            maskRe: /^(0|100)$/,
                                                             maxValue: 100,
-                                                            value: 100
+                                                            value: 100,
+                                                            allowBlank: false
 
                                                         },
                                                         {xtype: 'splitter'},

@@ -23,10 +23,11 @@ import java.util.List;
 public class TicketDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private Date dateOperation,sortedDate;
-    private String lgPREENREGISTREMENTID, magasin, gerantName,
-            strREFTICKET, lgTYPEVENTEID, refBon, clientFullName, userVendeurName, userCaissierName, userFullName, matricule, modeReglement;
-    private Integer montantVente, montantRemise, montantClient, montantTp, montantRestant, montantVerse, montantRendu, montantDu, montantNet, montantPaye, montantTva;
+    private Date dateOperation, sortedDate;
+    private String lgPREENREGISTREMENTID, magasin, gerantName, strREFTICKET, lgTYPEVENTEID, refBon, clientFullName,
+            userVendeurName, userCaissierName, userFullName, matricule, modeReglement;
+    private Integer montantVente, montantRemise, montantClient, montantTp, montantRestant, montantVerse, montantRendu,
+            montantDu, montantNet, montantPaye, montantTva;
     private boolean cancel, avoir, copy;
     private List<TiersPayantParams> payants;
     private List<VenteDetailsDTO> items;
@@ -179,20 +180,22 @@ public class TicketDTO implements Serializable {
         this.items = items;
     }
 
-    public TicketDTO(TPreenregistrement p, List<VenteDetailsDTO> items, MvtTransaction transaction, List<TiersPayantParams> payants, TEmplacement te) {
+    public TicketDTO(TPreenregistrement p, List<VenteDetailsDTO> items, MvtTransaction transaction,
+            List<TiersPayantParams> payants, TEmplacement te) {
         this.dateOperation = p.getDtUPDATED();
         this.lgPREENREGISTREMENTID = p.getLgPREENREGISTREMENTID();
         this.strREFTICKET = p.getStrREFTICKET();
         this.lgTYPEVENTEID = p.getLgTYPEVENTEID().getLgTYPEVENTEID();
         this.refBon = p.getStrREFBON();
-        this.sortedDate=p.getDtCREATED();
+        this.sortedDate = p.getDtCREATED();
         TClient c = p.getClient();
         if (c != null) {
             TAyantDroit ayantDroit = p.getAyantDroit();
             if (ayantDroit != null) {
                 this.clientFullName = ayantDroit.getStrFIRSTNAME() + " " + ayantDroit.getStrLASTNAME();
             } else {
-                this.clientFullName = c.getStrFIRSTNAME() + " " + c.getStrLASTNAME();;
+                this.clientFullName = c.getStrFIRSTNAME() + " " + c.getStrLASTNAME();
+                ;
             }
 
             this.matricule = c.getStrNUMEROSECURITESOCIAL();
@@ -218,11 +221,12 @@ public class TicketDTO implements Serializable {
             if (re != null) {
                 this.modeReglement = re.getStrNAME();
             }
-            this.montantRemise =transaction.getMontantRemise() ;
+            this.montantRemise = transaction.getMontantRemise();
             this.montantTva = transaction.getMontantTva();
             this.montantRestant = transaction.getMontantRestant();
             this.montantVerse = transaction.getMontantVerse();
-            this.montantRendu = (transaction.getMontantVerse() - transaction.getMontantPaye() > 0 ? transaction.getMontantVerse() - transaction.getMontantPaye() : 0);
+            this.montantRendu = (transaction.getMontantVerse() - transaction.getMontantPaye() > 0
+                    ? transaction.getMontantVerse() - transaction.getMontantPaye() : 0);
         }
         this.montantDu = 0;
         this.cancel = p.getBISCANCEL();
@@ -230,7 +234,7 @@ public class TicketDTO implements Serializable {
         this.copy = p.getCopy();
         this.payants = payants;
         this.items = items;
-   
+
         if (te != null) {
             this.magasin = te.getStrNAME();
             this.gerantName = te.getStrFIRSTNAME().substring(0, 1) + " " + te.getStrLASTNAME();

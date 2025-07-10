@@ -7,27 +7,29 @@ package job;
 
 import dal.Notification;
 import dal.NotificationClient;
+import dal.SmsToken;
 import dal.StockDailyValue;
 import dal.TParameters;
 import dal.enumeration.Canal;
 import dal.enumeration.Statut;
-import dal.enumeration.TypeNotification;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
+import javax.ejb.EJB;
 import javax.ejb.EJBException;
 import javax.ejb.ScheduleExpression;
 import javax.ejb.Singleton;
@@ -63,15 +65,17 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedHashMap;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.json.JSONException;
 import org.json.JSONObject;
-import shedule.DailyStockTask;
-import util.DateConverter;
-import util.SmsParameters;
+import rest.service.NotificationService;
+import util.Constant;
+import util.AppParameters;
 
 /**
  *
@@ -93,86 +97,62 @@ public class DatabaseToolkit {
     private TimerService timerService;
     @Inject
     private UserTransaction userTransaction;
-
-    void runTask() {
-        DailyStockTask dailyStockTask = new DailyStockTask();
-        dailyStockTask.setDateStock(LocalDate.now());
-        dailyStockTask.setEntityManager(em);
-        dailyStockTask.setUserTransaction(userTransaction);
-        dailyStockTask.setDataSource(dataSource);
-        mes.submit(dailyStockTask);
-      
-    }
+    @EJB
+    private NotificationService notificationService;
 
     @PostConstruct
     public void init() {
         if (dataSource == null) {
             LOG.info("no datasource found to execute the db migrations!");
-            throw new EJBException(
-                    "no datasource found to execute the db migrations!");
+            throw new EJBException("no datasource found to execute the db migrations!");
         }
         try {
-            Flyway flyway = Flyway.configure().dataSource(dataSource)
-                    .baselineOnMigrate(true)
-                    .ignoreMissingMigrations(true)
-                    .outOfOrder(true)
-                    .cleanOnValidationError(true)
-                    .validateOnMigrate(false)
-                    .ignoreFutureMigrations(true)
-                    .load();
+            Flyway flyway = Flyway.configure().dataSource(dataSource).baselineOnMigrate(true)
+                    .ignoreMissingMigrations(true).outOfOrder(true).cleanOnValidationError(true)
+                    .validateOnMigrate(false).ignoreFutureMigrations(true).load();
             flyway.migrate();
         } catch (FlywayException e) {
             LOG.log(Level.SEVERE, "ini migration", e);
         }
-//        runTask();
+
         createTimer();
-        mes.submit(() -> {
-            updateStockDailyValue();
-        });
+        mes.submit(this::updateStockDailyValue);
 
     }
 
-//    @Schedule(second = "*/30", minute = "*", hour = "*", dayOfMonth = "*", year = "*", persistent = true)
-    public void manageSms() {
-//        sendSMS();
-        if (checkParameterByKey(DateConverter.KEY_SMS_CLOTURE_CAISSE)) {
-            mes.submit(() -> {
+    private void manageSms() {
+        if (checkParameterByKey(Constant.KEY_SMS_CLOTURE_CAISSE)) {
+            List<Notification> notifications = findAllByCanal();
+            for (Notification notification : notifications) {
                 try {
-                    List<Notification> notifications = findAllByCanal();
-                    notifications.forEach(n -> {
-                        sendSMS(n);
-                    });
-                    TimeUnit.SECONDS.sleep(6);
-                } catch (InterruptedException ex) {
-                    LOG.log(Level.SEVERE, null, ex);
+                    sendSMS(notification);
+                } catch (Exception e) {
+                    LOG.log(Level.SEVERE, "", e);
                 }
-            });
+
+            }
+
         }
 
     }
 
-    public void createTimer() {
+    private void createTimer() {
+
         final TimerConfig email = new TimerConfig("email", false);
-        timerService.createCalendarTimer(new ScheduleExpression()
-                //                                .minute("*/2")
-                //                                .hour("*")
-                .hour(findScheduledValues())
-                .dayOfMonth("*")
-                .year("*"), email
-        );
+        // timerService.createCalendarTimer(new ScheduleExpression().minute("*/5").hour("*").dayOfMonth("*").year("*"),
+        // email);
+
+        timerService.createCalendarTimer(new ScheduleExpression().hour(findScheduledValues()).dayOfMonth("*").year("*"),
+                email);
 
         final TimerConfig sms = new TimerConfig("sms", false);
-        timerService.createCalendarTimer(new ScheduleExpression()
-                //                .second("*/30")
-                .minute("*/2")
-                .hour("*")
-                .dayOfMonth("*")
-                .year("*"), sms
-        );
+        timerService.createCalendarTimer(new ScheduleExpression().minute("*/2").hour("*").dayOfMonth("*").year("*"),
+                sms);
     }
 
-    public void manageEmail() {
-        List<Notification> data = findByStatut(Statut.NOT_SEND).stream().filter(e -> e.getNotificationClients().isEmpty()).collect(Collectors.toList());
+    private void manageEmail() {
+        List<Notification> data = findByStatut(Statut.NOT_SEND).stream()
+                .filter(e -> e.getNotificationClients().isEmpty()).collect(Collectors.toList());
         boolean result = sendMail(buildEmailContent(data), null, "Resumé activité prestige 2");
         if (result) {
             try {
@@ -183,102 +163,112 @@ public class DatabaseToolkit {
                     em.merge(e);
                 });
                 userTransaction.commit();
-            } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+            } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
+                    | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
                 LOG.log(Level.SEVERE, null, ex);
             }
         }
     }
 
-    public void sendSMS(Notification notification) {
+    private void sendSMS(Notification notification) {
+        Client client = ClientBuilder.newClient();
+        AppParameters sp = AppParameters.getInstance();
+        List<NotificationClient> toClients = findNotificationClients(notification);
+        String address = null;
+        if (!toClients.isEmpty()) { // a revoir pour les envois multiples
+            address = toClients.get(0).getClient().getStrADRESSE();
+        }
+        if (StringUtils.isEmpty(address)) {
+            address = sp.mobile;
+        }
+        JSONObject jSONObject = new JSONObject();
+        JSONObject outboundSMSMessageRequest = new JSONObject();
+        outboundSMSMessageRequest.put("address", "tel:+225" + address);
+        outboundSMSMessageRequest.put("senderAddress", sp.senderAddress);
+        JSONObject outboundSMSTextMessage = new JSONObject();
+        outboundSMSTextMessage.put("message", notification.getMessage());
+        outboundSMSMessageRequest.put("outboundSMSTextMessage", outboundSMSTextMessage);
+        jSONObject.put("outboundSMSMessageRequest", outboundSMSMessageRequest);
+        WebTarget myResource = client.target(sp.pathsmsapisendmessageurl);
+        Response response = myResource.request().header("Authorization", "Bearer ".concat(getAccessToken()))
+                .post(Entity.entity(jSONObject.toString(), MediaType.APPLICATION_JSON_TYPE));
+        LOG.log(Level.INFO, "sendSMS >>> {0} {1} {2}",
+                new Object[] { response.getStatus(), response.readEntity(String.class), address });
+        if (response.getStatus() == 201) {
+            notification.setStatut(Statut.SENT);
+
+        } else {
+            notification.setNumberAttempt(notification.getNumberAttempt() + 1);
+            if (notification.getNumberAttempt() >= 3) {
+                notification.setModfiedAt(LocalDateTime.now());
+                notification.setStatut(Statut.LOCK);
+            }
+        }
+
+        LOG.log(Level.INFO, null, notification.getStatut());
         try {
-            Client client = ClientBuilder.newClient();
-            SmsParameters sp = SmsParameters.getInstance();
-            List<NotificationClient> toClients = findNotificationClients(notification);
-            String address = null;
-            if (!toClients.isEmpty()) { // a revoir pour les envois multiples
-                address = toClients.get(0).getClient().getStrADRESSE();
-            }
-
-            if (StringUtils.isEmpty(address)) {
-                address = sp.mobile;
-            }
-            JSONObject jSONObject = new JSONObject();
-            JSONObject outboundSMSMessageRequest = new JSONObject();
-            outboundSMSMessageRequest.put("address", "tel:+225" + address);
-            outboundSMSMessageRequest.put("senderAddress", sp.senderAddress);
-            JSONObject outboundSMSTextMessage = new JSONObject();
-            outboundSMSTextMessage.put("message", notification.getMessage());
-            outboundSMSMessageRequest.put("outboundSMSTextMessage", outboundSMSTextMessage);
-            jSONObject.put("outboundSMSMessageRequest", outboundSMSMessageRequest);
-            WebTarget myResource = client.target(sp.pathsmsapisendmessageurl);
-            Response response = myResource.request().header("Authorization", "Bearer ".concat(sp.accesstoken))
-                    .post(Entity.entity(jSONObject.toString(), MediaType.APPLICATION_JSON_TYPE));
-            LOG.log(Level.INFO, "sendSMS >>> {0} {1} {2}", new Object[]{response.getStatus(), response.readEntity(String.class), address});
             userTransaction.begin();
-            if (response.getStatus() == 201) {
-                notification.setStatut(Statut.SENT);
-
-            } else {
-                notification.setNumberAttempt(notification.getNumberAttempt() + 1);
-                if (notification.getNumberAttempt() >= 3) {
-                    notification.setModfiedAt(LocalDateTime.now());
-                    notification.setStatut(Statut.LOCK);
-                }
-            }
             em.merge(notification);
             userTransaction.commit();
-        } catch (IllegalStateException | SecurityException | HeuristicMixedException | HeuristicRollbackException | NotSupportedException | RollbackException | SystemException | JSONException e) {
-            e.printStackTrace(System.err);
+        } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
+                | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+            LOG.log(Level.SEVERE, null, ex);
         }
+
     }
 
-    public List<Notification> findByCreatedAtAndStatut() {
+    private List<Notification> findByCreatedAtAndStatut() {
         try {
-            TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByCreatedAtAndStatus", Notification.class);
-            q.setParameter("createdAt", LocalDateTime.parse(LocalDate.now().toString() + " " + "00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+            TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByCreatedAtAndStatus",
+                    Notification.class);
+            q.setParameter("createdAt", LocalDateTime.parse(LocalDate.now().toString() + " " + "00:00",
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
             q.setParameter("statut", Statut.NOT_SEND);
             return q.getResultList();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
     }
 
-    public List<Notification> findByStatut(Statut statut) {
+    private List<Notification> findByStatut(Statut statut) {
         try {
             TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByStatus", Notification.class);
             q.setParameter("statut", statut);
             return q.getResultList();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
     }
 
-    public List<Notification> findAllByCanal() {
+    private List<Notification> findAllByCanal() {
         try {
-            TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByCreatedAtAndStatusAndCanal", Notification.class);
-            q.setParameter("createdAt", LocalDateTime.parse(LocalDate.now().minusMonths(3).toString() + " " + "00:00", DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+            TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByCreatedAtAndStatusAndCanal",
+                    Notification.class);
+            q.setParameter("createdAt", LocalDateTime.parse(LocalDate.now().minusDays(1).toString() + " " + "00:00",
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
             q.setParameter("statut", Statut.NOT_SEND);
-            q.setParameter("canaux", EnumSet.of(Canal.SMS));
+            q.setParameter("canal", Canal.SMS);
             return q.getResultList();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
     }
-    public boolean checkParameterByKey(String key) {
+
+    private boolean checkParameterByKey(String key) {
         try {
             TParameters parameters = em.find(TParameters.class, key);
-            return (Integer.valueOf(parameters.getStrVALUE().trim()) == 1);
+            return (Integer.parseInt(parameters.getStrVALUE().trim()) == 1);
         } catch (Exception e) {
             return false;
         }
     }
 
-    public String findScheduledValues() {
+    private String findScheduledValues() {
         try {
-            TParameters parameters = em.find(TParameters.class, DateConverter.KEY_HEURE_EMAIL);
+            TParameters parameters = em.find(TParameters.class, Constant.KEY_HEURE_EMAIL);
             return parameters.getStrVALUE();
         } catch (Exception e) {
             return "12,20";
@@ -287,36 +277,36 @@ public class DatabaseToolkit {
 
     @Timeout
     public void timeout(Timer timer) {
-        try {
-            if ("sms".equals(timer.getInfo())) {
-                manageSms();
-                TimeUnit.SECONDS.sleep(6);
-            } else if ("email".equals(timer.getInfo())) {
-                TimeUnit.SECONDS.sleep(6);
-                manageEmail();
 
-            }
-        } catch (InterruptedException ex) {
-            Logger.getLogger(DatabaseToolkit.class.getName()).log(Level.SEVERE, null, ex);
+        if ("sms".equals(timer.getInfo())) {
+
+            manageSms();
+
+        } else if ("email".equals(timer.getInfo())) {
+
+            notificationService.sendMail();
+            // manageEmail();
+
         }
     }
 
-    public List<NotificationClient> findNotificationClients(Notification n) {
+    private List<NotificationClient> findNotificationClients(Notification n) {
         try {
-            TypedQuery<NotificationClient> q = em.createNamedQuery("NotificationClient.findByNotificationId", NotificationClient.class);
+            TypedQuery<NotificationClient> q = em.createNamedQuery("NotificationClient.findByNotificationId",
+                    NotificationClient.class);
             q.setParameter("notificationId", n.getId());
             return q.getResultList();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
     }
 
-    public boolean sendMail(String content, String email, String subject) {
+    private boolean sendMail(String content, String email, String subject) {
         if (StringUtils.isEmpty(content)) {
             return false;
         }
-        SmsParameters sp = SmsParameters.getInstance();
+        AppParameters sp = AppParameters.getInstance();
         Properties props = new Properties();
         props.put("mail.smtp.host", sp.smtpHost);
         props.put("mail.transport.protocol", sp.protocol);
@@ -338,7 +328,6 @@ public class DatabaseToolkit {
             Address[] recipient = new InternetAddress[listadd.size()];
             recipient = listadd.toArray(recipient);
             Address sender = new InternetAddress(sp.email);
-//            Address recipient = new InternetAddress(email);
             msg.setContent(content, "text/html; charset=utf-8");
             msg.setFrom(sender);
             msg.setRecipients(Message.RecipientType.TO, recipient);
@@ -346,7 +335,7 @@ public class DatabaseToolkit {
             Transport.send(msg, sp.email, sp.password);
             return true;
         } catch (MessagingException ex) {
-            LOG.log(Level.SEVERE, "---->>>>  ", ex);
+            LOG.log(Level.SEVERE, null, ex);
             return false;
         }
     }
@@ -356,14 +345,13 @@ public class DatabaseToolkit {
             return null;
         }
         StringBuilder sb = new StringBuilder();
-        Map<TypeNotification, List<Notification>> map = notifications.stream().collect(Collectors.groupingBy(Notification::getTypeNotification));
+        Map<String, List<Notification>> map = notifications.stream()
+                .collect(Collectors.groupingBy(e -> e.getCategorieNotification().getName()));
         sb.append("<html><body>");
         map.forEach((key, values) -> {
-            sb.append("<h2 style='margin: 10px;padding: 5px;'>")
-                    .append(key.getValue()).append("</h2><ol>");
+            sb.append("<h2 style='margin: 10px;padding: 5px;'>").append(key).append("</h2><ol>");
             values.forEach(e -> {
-                sb.append("<li>").append(e.getMessage())
-                        .append("</li>");
+                sb.append("<li>").append(e.getMessage()).append("</li>");
             });
             sb.append("</ol>");
         });
@@ -373,12 +361,16 @@ public class DatabaseToolkit {
 
     void updateStockDailyValue() {
         try {
-            List<Integer> ids = List.of(Integer.valueOf(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"))),
-                    Integer.valueOf(LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("yyyyMMdd"))), Integer.valueOf(LocalDate.now().minusDays(2).format(DateTimeFormatter.ofPattern("yyyyMMdd"))), Integer.valueOf(LocalDate.now().minusDays(3).format(DateTimeFormatter.ofPattern("yyyyMMdd"))));
+            LocalDate now = LocalDate.now();
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyyMMdd");
+            List<Integer> ids = List.of(Integer.valueOf(now.format(dtf)), Integer.valueOf(now.minusDays(1).format(dtf)),
+                    Integer.valueOf(now.minusDays(2).format(dtf)), Integer.valueOf(now.minusDays(3).format(dtf)));
             userTransaction.begin();
             for (Integer id : ids) {
                 if (!checkIsAlreadyUpdated(id)) {
-                    List<Tuple> list = em.createNativeQuery("SELECT SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE) AS VALEUR_VENTE,SUM(s.int_NUMBER_AVAILABLE * f.int_PAF) AS VALEUR_ACHAT from t_famille f,t_famille_stock s WHERE s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1' AND s.int_NUMBER_AVAILABLE >0 AND f.str_STATUT='enable' ", Tuple.class).getResultList();
+                    List<Tuple> list = em.createNativeQuery(
+                            "SELECT SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE) AS VALEUR_VENTE,SUM(s.int_NUMBER_AVAILABLE * f.int_PAF) AS VALEUR_ACHAT from t_famille f,t_famille_stock s WHERE s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1' AND s.int_NUMBER_AVAILABLE >0 AND f.str_STATUT='enable' ",
+                            Tuple.class).getResultList();
                     Tuple t = list.get(0);
                     StockDailyValue sdv = new StockDailyValue();
                     sdv.setId(id);
@@ -389,8 +381,9 @@ public class DatabaseToolkit {
             }
             userTransaction.commit();
 
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, "===>> updateStockDailyValue", e);
+        } catch (IllegalStateException | NumberFormatException | SecurityException | HeuristicMixedException
+                | HeuristicRollbackException | NotSupportedException | RollbackException | SystemException e) {
+            LOG.log(Level.SEVERE, null, e);
         }
     }
 
@@ -399,9 +392,96 @@ public class DatabaseToolkit {
             StockDailyValue sdv = em.find(StockDailyValue.class, day);
             return sdv != null;
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "===>> updateStockDailyValue", e);
+            LOG.log(Level.SEVERE, null, e);
             return false;
         }
 
+    }
+
+    private SmsToken getSmsToken() {
+        try {
+            return em.find(SmsToken.class, "sms");
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String getAccessToken() {
+        try {
+            if (!em.getTransaction().isActive()) {
+                userTransaction.begin();
+            }
+            SmsToken smsToken = getOrupdateSmsToken();
+            userTransaction.commit();
+            return Objects.nonNull(smsToken) ? smsToken.getAccessToken() : null;
+        } catch (IllegalStateException | SecurityException | HeuristicMixedException | HeuristicRollbackException
+                | NotSupportedException | RollbackException | SystemException e) {
+            LOG.log(Level.SEVERE, null, e);
+            return null;
+        }
+    }
+
+    private SmsToken getOrupdateSmsToken() {
+        SmsToken smsToken = getSmsToken();
+        if (smsToken == null) {
+            JSONObject json = findAccessToken();
+            if (json.has("success") && json.getBoolean("success")) {
+                smsToken = new SmsToken();
+                smsToken.setId("sms");
+                JSONObject data = json.getJSONObject("data");
+                smsToken.setAccessToken(data.getString("access_token"));
+                smsToken.setExpiresIn(data.getInt("expires_in"));
+                smsToken.setHeader("Basic ZkphT2xKZ3dVMmdnY1JXbUlsYlU5czdqWTh0YnNSeTg6U01FNTVndFlkdjJoNlkwUQ==");
+                smsToken.setCreateDate(LocalDateTime.now());
+
+                em.persist(smsToken);
+            }
+
+        } else {
+            if (smsToken.getCreateDate()
+                    .isBefore(LocalDateTime.now().minus(smsToken.getExpiresIn(), ChronoUnit.SECONDS))) {
+                JSONObject json = findAccessToken();
+                if (json.has("success") && json.getBoolean("success")) {
+                    JSONObject data = json.getJSONObject("data");
+                    smsToken.setAccessToken(data.getString("access_token"));
+                    smsToken.setExpiresIn(data.getInt("expires_in"));
+                    smsToken.setCreateDate(LocalDateTime.now());
+                    em.merge(smsToken);
+                }
+            }
+        }
+        return smsToken;
+    }
+
+    public JSONObject findAccessToken() {
+        try {
+            Client client = ClientBuilder.newClient();
+            AppParameters sp = AppParameters.getInstance();
+            MultivaluedMap<String, String> formdata = new MultivaluedHashMap<>();
+            formdata.add("grant_type", Constant.GRANT_TYPE);
+            WebTarget myResource = client.target(sp.pathsmsapitokenendpoint);
+            Response response = myResource.request(MediaType.APPLICATION_JSON)
+                    .header("Authorization", StringUtils.isNotEmpty(getBasicHeader()) ? getBasicHeader() : sp.header)
+                    .post(Entity.entity(formdata, MediaType.APPLICATION_FORM_URLENCODED), Response.class);
+            if (response.getStatus() == 200) {
+                return new JSONObject().put("success", true).put("data",
+                        new JSONObject(response.readEntity(String.class)));
+            }
+
+            return new JSONObject().put("success", false).put("msg", "Le token n'a pad pu être géneré ");
+        } catch (JSONException e) {
+            LOG.log(Level.SEVERE, null, e);
+            return new JSONObject().put("success", false).put("msg", "Le token n'a pad pu être géneré ");
+        }
+    }
+
+    private String getBasicHeader() {
+        try {
+            return em.find(SmsToken.class, "sms").getHeader();
+
+        } catch (Exception e) {
+            return "";
+        }
     }
 }

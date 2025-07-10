@@ -10,5 +10,5 @@ package enumeration;
  * @author Kobena
  */
 public enum Task {
-    VENTE,ANNULE_VENTE,OTHER
+    VENTE, ANNULE_VENTE, OTHER
 }

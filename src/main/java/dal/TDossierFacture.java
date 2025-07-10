@@ -26,22 +26,21 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_dossier_facture")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TDossierFacture.findAll", query = "SELECT t FROM TDossierFacture t"),
-    @NamedQuery(name = "TDossierFacture.findByLgDOSSIERFACTUREID", query = "SELECT t FROM TDossierFacture t WHERE t.lgDOSSIERFACTUREID = :lgDOSSIERFACTUREID"),
-    @NamedQuery(name = "TDossierFacture.findByStrNUMDOSSIER", query = "SELECT t FROM TDossierFacture t WHERE t.strNUMDOSSIER = :strNUMDOSSIER"),
-    @NamedQuery(name = "TDossierFacture.findByDblMONTANT", query = "SELECT t FROM TDossierFacture t WHERE t.dblMONTANT = :dblMONTANT"),
-    @NamedQuery(name = "TDossierFacture.findByDblMONTANTREGLE", query = "SELECT t FROM TDossierFacture t WHERE t.dblMONTANTREGLE = :dblMONTANTREGLE"),
-    @NamedQuery(name = "TDossierFacture.findByDblMONTANTRESTANT", query = "SELECT t FROM TDossierFacture t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
-    @NamedQuery(name = "TDossierFacture.findByStrTIERSPAYANT", query = "SELECT t FROM TDossierFacture t WHERE t.strTIERSPAYANT = :strTIERSPAYANT"),
-    @NamedQuery(name = "TDossierFacture.findByIntNBTRANSACT", query = "SELECT t FROM TDossierFacture t WHERE t.intNBTRANSACT = :intNBTRANSACT"),
-    @NamedQuery(name = "TDossierFacture.findByStrCUSTOMER", query = "SELECT t FROM TDossierFacture t WHERE t.strCUSTOMER = :strCUSTOMER"),
-    @NamedQuery(name = "TDossierFacture.findByStrLASTREFREGLEMENTDOSSIER", query = "SELECT t FROM TDossierFacture t WHERE t.strLASTREFREGLEMENTDOSSIER = :strLASTREFREGLEMENTDOSSIER"),
-    @NamedQuery(name = "TDossierFacture.findByStrSTATUT", query = "SELECT t FROM TDossierFacture t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TDossierFacture.findByDtCREATED", query = "SELECT t FROM TDossierFacture t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TDossierFacture.findByDtUPDATED", query = "SELECT t FROM TDossierFacture t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TDossierFacture.findByDtDATE", query = "SELECT t FROM TDossierFacture t WHERE t.dtDATE = :dtDATE"),
-    @NamedQuery(name = "TDossierFacture.findByBISCONFLIT", query = "SELECT t FROM TDossierFacture t WHERE t.bISCONFLIT = :bISCONFLIT")})
+@NamedQueries({ @NamedQuery(name = "TDossierFacture.findAll", query = "SELECT t FROM TDossierFacture t"),
+        @NamedQuery(name = "TDossierFacture.findByLgDOSSIERFACTUREID", query = "SELECT t FROM TDossierFacture t WHERE t.lgDOSSIERFACTUREID = :lgDOSSIERFACTUREID"),
+        @NamedQuery(name = "TDossierFacture.findByStrNUMDOSSIER", query = "SELECT t FROM TDossierFacture t WHERE t.strNUMDOSSIER = :strNUMDOSSIER"),
+        @NamedQuery(name = "TDossierFacture.findByDblMONTANT", query = "SELECT t FROM TDossierFacture t WHERE t.dblMONTANT = :dblMONTANT"),
+        @NamedQuery(name = "TDossierFacture.findByDblMONTANTREGLE", query = "SELECT t FROM TDossierFacture t WHERE t.dblMONTANTREGLE = :dblMONTANTREGLE"),
+        @NamedQuery(name = "TDossierFacture.findByDblMONTANTRESTANT", query = "SELECT t FROM TDossierFacture t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
+        @NamedQuery(name = "TDossierFacture.findByStrTIERSPAYANT", query = "SELECT t FROM TDossierFacture t WHERE t.strTIERSPAYANT = :strTIERSPAYANT"),
+        @NamedQuery(name = "TDossierFacture.findByIntNBTRANSACT", query = "SELECT t FROM TDossierFacture t WHERE t.intNBTRANSACT = :intNBTRANSACT"),
+        @NamedQuery(name = "TDossierFacture.findByStrCUSTOMER", query = "SELECT t FROM TDossierFacture t WHERE t.strCUSTOMER = :strCUSTOMER"),
+        @NamedQuery(name = "TDossierFacture.findByStrLASTREFREGLEMENTDOSSIER", query = "SELECT t FROM TDossierFacture t WHERE t.strLASTREFREGLEMENTDOSSIER = :strLASTREFREGLEMENTDOSSIER"),
+        @NamedQuery(name = "TDossierFacture.findByStrSTATUT", query = "SELECT t FROM TDossierFacture t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TDossierFacture.findByDtCREATED", query = "SELECT t FROM TDossierFacture t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TDossierFacture.findByDtUPDATED", query = "SELECT t FROM TDossierFacture t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TDossierFacture.findByDtDATE", query = "SELECT t FROM TDossierFacture t WHERE t.dtDATE = :dtDATE"),
+        @NamedQuery(name = "TDossierFacture.findByBISCONFLIT", query = "SELECT t FROM TDossierFacture t WHERE t.bISCONFLIT = :bISCONFLIT") })
 public class TDossierFacture implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -50,7 +49,8 @@ public class TDossierFacture implements Serializable {
     private String lgDOSSIERFACTUREID;
     @Column(name = "str_NUM_DOSSIER", length = 40)
     private String strNUMDOSSIER;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_MONTANT", precision = 15, scale = 3)
     private Double dblMONTANT;
     @Column(name = "dbl_MONTANT_REGLE", precision = 15, scale = 3)
@@ -212,7 +212,8 @@ public class TDossierFacture implements Serializable {
             return false;
         }
         TDossierFacture other = (TDossierFacture) object;
-        if ((this.lgDOSSIERFACTUREID == null && other.lgDOSSIERFACTUREID != null) || (this.lgDOSSIERFACTUREID != null && !this.lgDOSSIERFACTUREID.equals(other.lgDOSSIERFACTUREID))) {
+        if ((this.lgDOSSIERFACTUREID == null && other.lgDOSSIERFACTUREID != null)
+                || (this.lgDOSSIERFACTUREID != null && !this.lgDOSSIERFACTUREID.equals(other.lgDOSSIERFACTUREID))) {
             return false;
         }
         return true;
@@ -222,5 +223,5 @@ public class TDossierFacture implements Serializable {
     public String toString() {
         return "dal.TDossierFacture[ lgDOSSIERFACTUREID=" + lgDOSSIERFACTUREID + " ]";
     }
-    
+
 }

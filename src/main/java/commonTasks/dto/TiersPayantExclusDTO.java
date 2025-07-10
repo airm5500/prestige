@@ -17,12 +17,20 @@ public class TiersPayantExclusDTO {
 
     private String id;
     private String nom, nomComplet, code;
-    private boolean toBeExclude;
+    private boolean toBeExclude, depot;
     private long chiffreAffaire, account, nbreVente, montantRemise;
     private List<VenteTiersPayantsDTO> ventes = new ArrayList<>();
 
     public String getId() {
         return id;
+    }
+
+    public boolean isDepot() {
+        return depot;
+    }
+
+    public void setDepot(boolean depot) {
+        this.depot = depot;
     }
 
     public void setId(String id) {
@@ -68,6 +76,7 @@ public class TiersPayantExclusDTO {
         this.code = payant.getStrCODEORGANISME();
         this.toBeExclude = payant.getToBeExclude();
         this.account = payant.getAccount();
+        this.depot = payant.getIsDepot();
     }
 
     public TiersPayantExclusDTO() {

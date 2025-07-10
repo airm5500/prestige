@@ -22,8 +22,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.qualifier.Facturation;
 import rest.service.FacturationService;
+import rest.service.GenerateTicketService;
 import rest.service.GenererFactureService;
 import toolkits.parameters.commonparameter;
+import util.Constant;
 
 /**
  *
@@ -37,10 +39,12 @@ public class FacturationRessouce {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    FacturationService facturationService;
-     @Inject
+    private FacturationService facturationService;
+    @Inject
     @Facturation
-    GenererFactureService genererFactureService;
+    private GenererFactureService genererFactureService;
+    @EJB
+    private GenerateTicketService generateTicketService;
 
     @PUT
     @Path("modelfacture/{id}")
@@ -49,7 +53,7 @@ public class FacturationRessouce {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
 
         JSONObject json = facturationService.update(id, o);
@@ -74,33 +78,24 @@ public class FacturationRessouce {
 
     @GET
     @Path("provisoires")
-    public Response provisoires(
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "tpid") String tpid,
-            @QueryParam(value = "codegroup") String codegroup,
-            @QueryParam(value = "typetp") String typetp,
-            @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "groupTp") String groupTp,
-            @QueryParam(value = "mode") Mode mode
-    ) throws JSONException {
-        JSONObject jsono = facturationService.provisoires(mode, groupTp, typetp, tpid, codegroup, dtStart, dtEnd, query, start, limit);
+    public Response provisoires(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "tpid") String tpid,
+            @QueryParam(value = "codegroup") String codegroup, @QueryParam(value = "typetp") String typetp,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "groupTp") String groupTp, @QueryParam(value = "mode") Mode mode) throws JSONException {
+        JSONObject jsono = facturationService.provisoires(mode, groupTp, typetp, tpid, codegroup, dtStart, dtEnd, query,
+                start, limit);
 
         return Response.ok().entity(jsono.toString()).build();
     }
 
     @GET
     @Path("summary/provisoires")
-    public Response provisoires10(
-            @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "tpid") String tpid,
-            @QueryParam(value = "codegroup") String codegroup,
-            @QueryParam(value = "typetp") String typetp,
-            @QueryParam(value = "groupTp") String groupTp
-    ) throws JSONException {
-        JSONObject jsono = facturationService.provisoires10(groupTp, typetp, tpid, codegroup, start, limit);
+    public Response provisoires10(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "tpid") String tpid, @QueryParam(value = "codegroup") String codegroup,
+            @QueryParam(value = "typetp") String typetp, @QueryParam(value = "groupTp") String groupTp)
+            throws JSONException {
+        JSONObject jsono = facturationService.provisoires10(groupTp, typetp, tpid, codegroup, true, start, limit);
 
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -118,13 +113,34 @@ public class FacturationRessouce {
 
     @DELETE
     @Path("{id}")
-    public Response delete(@PathParam("id") String id) throws Exception {
+    public Response delete(@PathParam("id") String id) {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         facturationService.removeFacture(id);
         return Response.ok().build();
+    }
+
+    @GET
+    @Path("invoices")
+    public Response invoices(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "tpid") String tpid,
+            @QueryParam(value = "codegroup") String codegroup, @QueryParam(value = "typetp") String typetp,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "groupTp") String groupTp, @QueryParam(value = "mode") Mode mode) throws JSONException {
+        return provisoires(start, limit, query, tpid, codegroup, typetp, dtEnd, dtStart, groupTp, mode);
+    }
+
+    @GET
+    @Path("ticket-facture/{dossier-facture-id}")
+    public Response printTicketReglementFacture(@PathParam("dossier-facture-id") String lgDossierReglementId) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok(generateTicketService.printReglementFacture(lgDossierReglementId, tu).toString()).build();
     }
 }

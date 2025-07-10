@@ -222,9 +222,8 @@ Ext.define('testextjs.view.Report.AbandonEtAnnulation.AbandonEtAnnulationManager
         //alert("Ok ca marche " + linkUrl);
         window.open(linkUrl);
     }
-    
 
-})
+});
 
 
 

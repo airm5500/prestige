@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app id="WebApp_ID" version="4.0" xmlns="http://xmlns.jcp.org/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd">
-    <display-name>laborex</display-name>
+    <display-name>prestige</display-name>
     <servlet>
         <servlet-name>DownloadFileServlet</servlet-name>
         <servlet-class>fileupload.DownloadFileServlet</servlet-class>
@@ -13,10 +13,7 @@
         <servlet-name>CheckMigrationServlet</servlet-name>
         <servlet-class>fileupload.CheckMigrationServlet</servlet-class>
     </servlet>
-    <servlet>
-        <servlet-name>Incoming</servlet-name>
-        <servlet-class>smsgateway.Incoming</servlet-class>
-    </servlet>
+   
     <servlet>
         <servlet-name>JobServlet</servlet-name>
         <servlet-class>job.JobServlet</servlet-class>
@@ -70,6 +67,18 @@
         <servlet-name>TiersPayantExcludServlet</servlet-name>
         <servlet-class>rest.report.pdf.TiersPayantExcludServlet</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>EtatControlStockServlet</servlet-name>
+        <servlet-class>rest.report.pdf.EtatControlStockServlet</servlet-class>
+    </servlet>
+     <servlet>
+        <servlet-name>CaisseServlet</servlet-name>
+        <servlet-class>rest.report.pdf.CaisseServlet</servlet-class>
+    </servlet>
+      <servlet>
+        <servlet-name>StatProduitServlet</servlet-name>
+        <servlet-class>rest.report.pdf.StatProduitServlet</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>DownloadFileServlet</servlet-name>
         <url-pattern>/DownloadFileServlet</url-pattern>
@@ -82,10 +91,7 @@
         <servlet-name>CheckMigrationServlet</servlet-name>
         <url-pattern>/CheckMigrationServlet</url-pattern>
     </servlet-mapping>
-    <servlet-mapping>
-        <servlet-name>Incoming</servlet-name>
-        <url-pattern>/Incoming</url-pattern>
-    </servlet-mapping>
+   
     <servlet-mapping>
         <servlet-name>JobServlet</servlet-name>
         <url-pattern>/JobServlet</url-pattern>
@@ -137,6 +143,18 @@
     <servlet-mapping>
         <servlet-name>TiersPayantExcludServlet</servlet-name>
         <url-pattern>/TiersPayantExcludServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>EtatControlStockServlet</servlet-name>
+        <url-pattern>/EtatControlStockServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>StatProduitServlet</servlet-name>
+        <url-pattern>/StatProduitServlet</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>CaisseServlet</servlet-name>
+        <url-pattern>/CaisseServlet</url-pattern>
     </servlet-mapping>
     <session-config>
         <session-timeout>-1</session-timeout>

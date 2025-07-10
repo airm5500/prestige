@@ -31,6 +31,7 @@ public class EntityData {
     private String str_value18 = "";
     private String str_value19 = "";
     private Integer longValue;
+
     /**
      * @return the str_value1
      */
@@ -55,7 +56,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value1 the str_value1 to set
+     * @param str_value1
+     *            the str_value1 to set
      */
     public void setStr_value1(String str_value1) {
         this.str_value1 = str_value1;
@@ -77,7 +79,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value2 the str_value2 to set
+     * @param str_value2
+     *            the str_value2 to set
      */
     public void setStr_value2(String str_value2) {
         this.str_value2 = str_value2;
@@ -91,7 +94,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value3 the str_value3 to set
+     * @param str_value3
+     *            the str_value3 to set
      */
     public void setStr_value3(String str_value3) {
         this.str_value3 = str_value3;
@@ -105,7 +109,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value4 the str_value4 to set
+     * @param str_value4
+     *            the str_value4 to set
      */
     public void setStr_value4(String str_value4) {
         this.str_value4 = str_value4;
@@ -119,7 +124,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value5 the str_value5 to set
+     * @param str_value5
+     *            the str_value5 to set
      */
     public void setStr_value5(String str_value5) {
         this.str_value5 = str_value5;
@@ -133,7 +139,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value6 the str_value6 to set
+     * @param str_value6
+     *            the str_value6 to set
      */
     public void setStr_value6(String str_value6) {
         this.str_value6 = str_value6;
@@ -147,7 +154,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value7 the str_value7 to set
+     * @param str_value7
+     *            the str_value7 to set
      */
     public void setStr_value7(String str_value7) {
         this.str_value7 = str_value7;
@@ -161,7 +169,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value8 the str_value8 to set
+     * @param str_value8
+     *            the str_value8 to set
      */
     public void setStr_value8(String str_value8) {
         this.str_value8 = str_value8;
@@ -175,7 +184,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value9 the str_value9 to set
+     * @param str_value9
+     *            the str_value9 to set
      */
     public void setStr_value9(String str_value9) {
         this.str_value9 = str_value9;
@@ -189,7 +199,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value10 the str_value10 to set
+     * @param str_value10
+     *            the str_value10 to set
      */
     public void setStr_value10(String str_value10) {
         this.str_value10 = str_value10;
@@ -203,7 +214,8 @@ public class EntityData {
     }
 
     /**
-     * @param str_value11 the str_value11 to set
+     * @param str_value11
+     *            the str_value11 to set
      */
     public void setStr_value11(String str_value11) {
         this.str_value11 = str_value11;
@@ -249,10 +261,10 @@ public class EntityData {
         this.str_value17 = str_value17;
     }
 
-    public EntityData(String str_value1, Integer longValue,String str_value12) {
+    public EntityData(String str_value1, Integer longValue, String str_value12) {
         this.str_value1 = str_value1;
         this.longValue = longValue;
-        this.str_value12=str_value12;
+        this.str_value12 = str_value12;
     }
 
     public Integer getLongValue() {

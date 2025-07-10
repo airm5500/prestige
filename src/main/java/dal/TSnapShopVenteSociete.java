@@ -28,17 +28,16 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_snap_shop_vente_societe")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSnapShopVenteSociete.findAll", query = "SELECT t FROM TSnapShopVenteSociete t"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByLgID", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByStrTIERSPAYANT", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.strTIERSPAYANT = :strTIERSPAYANT"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByStrTYPETIERSPAYANT", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.strTYPETIERSPAYANT = :strTYPETIERSPAYANT"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByIntAMOUNTSALE", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.intAMOUNTSALE = :intAMOUNTSALE"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByIntAMOUNTENCAIS", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.intAMOUNTENCAIS = :intAMOUNTENCAIS"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByDtDAY", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByDtCREATED", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByDtUPDATED", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSnapShopVenteSociete.findByCodeorganisme", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.codeorganisme = :codeorganisme")})
+@NamedQueries({ @NamedQuery(name = "TSnapShopVenteSociete.findAll", query = "SELECT t FROM TSnapShopVenteSociete t"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByLgID", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByStrTIERSPAYANT", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.strTIERSPAYANT = :strTIERSPAYANT"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByStrTYPETIERSPAYANT", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.strTYPETIERSPAYANT = :strTYPETIERSPAYANT"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByIntAMOUNTSALE", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.intAMOUNTSALE = :intAMOUNTSALE"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByIntAMOUNTENCAIS", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.intAMOUNTENCAIS = :intAMOUNTENCAIS"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByDtDAY", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByDtCREATED", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByDtUPDATED", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSnapShopVenteSociete.findByCodeorganisme", query = "SELECT t FROM TSnapShopVenteSociete t WHERE t.codeorganisme = :codeorganisme") })
 public class TSnapShopVenteSociete implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -50,7 +49,8 @@ public class TSnapShopVenteSociete implements Serializable {
     private String strTIERSPAYANT;
     @Column(name = "str_TYPE_TIERS_PAYANT", length = 70)
     private String strTYPETIERSPAYANT;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_AMOUNT_SALE", precision = 15, scale = 0)
     private Double intAMOUNTSALE;
     @Column(name = "int_AMOUNT_ENCAIS", precision = 15, scale = 0)
@@ -170,5 +170,5 @@ public class TSnapShopVenteSociete implements Serializable {
     public String toString() {
         return "dal.TSnapShopVenteSociete[ lgID=" + lgID + " ]";
     }
-    
+
 }

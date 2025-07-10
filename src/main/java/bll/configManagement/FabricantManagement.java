@@ -22,7 +22,8 @@ public class FabricantManagement extends bllBase {
         this.checkDatamanager();
     }
 
-    public boolean create(String str_CODE, String str_NAME, String str_DESCRIPTION, String str_ADRESSE, String str_TELEPHONE) {
+    public boolean create(String str_CODE, String str_NAME, String str_DESCRIPTION, String str_ADRESSE,
+            String str_TELEPHONE) {
         boolean result = false;
         try {
 
@@ -49,7 +50,8 @@ public class FabricantManagement extends bllBase {
         return result;
     }
 
-    public boolean update(String lg_FABRIQUANT_ID, String str_CODE, String str_NAME, String str_DESCRIPTION, String str_ADRESSE, String str_TELEPHONE) {
+    public boolean update(String lg_FABRIQUANT_ID, String str_CODE, String str_NAME, String str_DESCRIPTION,
+            String str_ADRESSE, String str_TELEPHONE) {
         boolean result = false;
         TFabriquant OTFabriquant = null;
         try {
@@ -75,34 +77,33 @@ public class FabricantManagement extends bllBase {
         return result;
     }
 
-    //liste des fabriquants
+    // liste des fabriquants
     public List<TFabriquant> getListeTFabriquant(String search_value, String lg_FABRIQUANT_ID) {
         List<TFabriquant> lstTFabriquant = new ArrayList<TFabriquant>();
         try {
             if (search_value.equalsIgnoreCase("") || search_value == null) {
                 search_value = "%%";
             }
-            lstTFabriquant = this.getOdataManager().getEm().createQuery("SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID LIKE ?1 AND (t.strNAME LIKE ?2 OR t.strDESCRIPTION LIKE ?2 OR t.strCODE LIKE ?2) AND t.strSTATUT LIKE ?3 ORDER BY t.strDESCRIPTION ASC").
-                    setParameter(1, lg_FABRIQUANT_ID)
-                    .setParameter(2, search_value + "%")
-                    .setParameter(3, commonparameter.statut_enable)
-                    .getResultList();
+            lstTFabriquant = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID LIKE ?1 AND (t.strNAME LIKE ?2 OR t.strDESCRIPTION LIKE ?2 OR t.strCODE LIKE ?2) AND t.strSTATUT LIKE ?3 ORDER BY t.strDESCRIPTION ASC")
+                    .setParameter(1, lg_FABRIQUANT_ID).setParameter(2, search_value + "%")
+                    .setParameter(3, commonparameter.statut_enable).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
         new logger().OCategory.info("lstTFabriquant taille " + lstTFabriquant.size());
         return lstTFabriquant;
     }
-      //fin liste des fabriquants
+    // fin liste des fabriquants
 
-    //exportation des clients
+    // exportation des clients
     public String generateEnteteForFile() {
         return "CODE;NOM;ADRESSE;TELEPHONE";
     }
 
     public List<String> generateDataToExport() {
         List<String> lst = new ArrayList<>();
-        List<TFabriquant> lstTFabriquant ;
+        List<TFabriquant> lstTFabriquant;
         String row = "";
 
         try {
@@ -125,30 +126,32 @@ public class FabricantManagement extends bllBase {
         return lst;
     }
 
-    //fin generation des données à exporter
-    //recuperation d'un fabriquant
+    // fin generation des données à exporter
+    // recuperation d'un fabriquant
     public TFabriquant getTFabriquant(String search_value) {
         TFabriquant OTFabriquant = null;
         try {
-            OTFabriquant = (TFabriquant) this.getOdataManager().getEm().createQuery("SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID = ?1 OR t.strCODE = ?1 OR t.strNAME = ?1 OR t.strDESCRIPTION = ?1")
+            OTFabriquant = (TFabriquant) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID = ?1 OR t.strCODE = ?1 OR t.strNAME = ?1 OR t.strDESCRIPTION = ?1")
                     .setParameter(1, search_value).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return OTFabriquant;
     }
-    //fin recuperation d'un fabriquant
-    
-    //suppression d'un fabriquant
+    // fin recuperation d'un fabriquant
+
+    // suppression d'un fabriquant
     public boolean deleteFabriquant(String lg_FABRIQUANT_ID) {
         boolean result = false;
         try {
             TFabriquant OTFabriquant = this.getTFabriquant(lg_FABRIQUANT_ID);
-            if(this.delete(OTFabriquant)) {
+            if (this.delete(OTFabriquant)) {
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
                 result = true;
             } else {
-                this.buildErrorTraceMessage("Impossible de supprimer un frabriquant qui est déjà rattaché à un article");
+                this.buildErrorTraceMessage(
+                        "Impossible de supprimer un frabriquant qui est déjà rattaché à un article");
             }
 
         } catch (Exception e) {
@@ -157,5 +160,5 @@ public class FabricantManagement extends bllBase {
         }
         return result;
     }
-    //fin suppression d'un fabriquant
+    // fin suppression d'un fabriquant
 }

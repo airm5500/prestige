@@ -36,11 +36,12 @@ public class CalendrierManager extends bllBase {
         this.checkDatamanager();
     }
 
-//recupere le recupere le mois
+    // recupere le recupere le mois
     public TMonth getTMonth(String lg_MONTH_ID) {
         TMonth OTMonth = null;
         try {
-            OTMonth = (TMonth) this.getOdataManager().getEm().createQuery("SELECT t FROM TMonth t WHERE (t.lgMONTHID LIKE ?1 OR t.strNAME LIKE ?1) AND t.strSTATUT = ?2")
+            OTMonth = (TMonth) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TMonth t WHERE (t.lgMONTHID LIKE ?1 OR t.strNAME LIKE ?1) AND t.strSTATUT = ?2")
                     .setParameter(1, lg_MONTH_ID).setParameter(2, commonparameter.statut_enable).getSingleResult();
             new logger().OCategory.info("Mois " + OTMonth.getStrNAME());
         } catch (Exception e) {
@@ -48,9 +49,9 @@ public class CalendrierManager extends bllBase {
         }
         return OTMonth;
     }
-    //fin recupere le mois
+    // fin recupere le mois
 
-    //fonction pour créer un calendrier
+    // fonction pour créer un calendrier
     public boolean createCalendrier(String lg_MONTH_ID, int int_ANNEE) {
         boolean result = false;
         TCalendrier OTCalendrier = null, OTCalendrier1 = null;
@@ -64,15 +65,16 @@ public class CalendrierManager extends bllBase {
             }
 
             OTCalendrier1 = this.getDalyTCalendrier();
-            dt_END_MONTH = this.getKey().getLastDayofSomeMonth(Integer.parseInt(OTCalendrier.getLgMONTHID().getLgMONTHID()));
+            dt_END_MONTH = this.getKey()
+                    .getLastDayofSomeMonth(Integer.parseInt(OTCalendrier.getLgMONTHID().getLgMONTHID()));
             if (OTCalendrier1 == null) { // verifie si le jour du mois est deja pris en compte
-               /* if (OTCalendrier.getLgMONTHID().getLgMONTHID().equalsIgnoreCase("2")) { // ancien bon code. a decommenter en cas de probleme
-                 if (OTCalendrier.getIntNUMBERJOUR() < Integer.parseInt(date.getDay(dt_END_MONTH))) {
-                 OTCalendrier.setIntNUMBERJOUR(OTCalendrier.getIntNUMBERJOUR() + 1);
-                 OTCalendrier.setDtEND(today);
-                 OTCalendrier.setDtUPDATED(today);
-                 }
-                 } */
+                /*
+                 * if (OTCalendrier.getLgMONTHID().getLgMONTHID().equalsIgnoreCase("2")) { // ancien bon code. a
+                 * decommenter en cas de probleme if (OTCalendrier.getIntNUMBERJOUR() <
+                 * Integer.parseInt(date.getDay(dt_END_MONTH))) {
+                 * OTCalendrier.setIntNUMBERJOUR(OTCalendrier.getIntNUMBERJOUR() + 1); OTCalendrier.setDtEND(today);
+                 * OTCalendrier.setDtUPDATED(today); } }
+                 */
                 if (OTCalendrier.getIntNUMBERJOUR() < Integer.parseInt(date.getDayOfMonth(dt_END_MONTH))) {
                     OTCalendrier.setIntNUMBERJOUR(OTCalendrier.getIntNUMBERJOUR() + 1);
                     OTCalendrier.setDtEND(today);
@@ -81,12 +83,12 @@ public class CalendrierManager extends bllBase {
             }
             this.getOdataManager().getEm().merge(OTCalendrier);
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-//            if (this.persiste(OTCalendrier)) {
-//                this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-//                result = true;
-//            } else {
-//                this.buildErrorTraceMessage("Echec de création du mois de calendrier de l'année sélectionné");
-//            }
+            // if (this.persiste(OTCalendrier)) {
+            // this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
+            // result = true;
+            // } else {
+            // this.buildErrorTraceMessage("Echec de création du mois de calendrier de l'année sélectionné");
+            // }
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -112,12 +114,9 @@ public class CalendrierManager extends bllBase {
             OTCalendrier.setDtCREATED(today);
             OTCalendrier.setDtUPDATED(today);
             this.getOdataManager().getEm().persist(OTCalendrier);
-            /*if(this.persiste(OTCalendrier)){
-                this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES")); 
-            }*/
-            
-           
-
+            /*
+             * if(this.persiste(OTCalendrier)){ this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES")); }
+             */
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -125,21 +124,23 @@ public class CalendrierManager extends bllBase {
         }
         return OTCalendrier;
     }
-    //fin fonction pour créer un calendrier
+    // fin fonction pour créer un calendrier
 
-    //mise a jour d'un calendrier
+    // mise a jour d'un calendrier
     public boolean updateCalendrier(String lg_CALENDRIER_ID, String lg_MONTH_ID, int int_NUMBER_JOUR, int int_ANNEE) {
         boolean result = false;
         try {
             TCalendrier OTCalendrier = this.getOdataManager().getEm().find(TCalendrier.class, lg_CALENDRIER_ID);
 
             TMonth OTMonth = this.getTMonth(lg_MONTH_ID);
-            new logger().OCategory.info("Mois dans updateCalendrier " + OTMonth.getIntMOIS() + " Calendrier " + OTCalendrier.getIntNUMBERJOUR());
+            new logger().OCategory.info("Mois dans updateCalendrier " + OTMonth.getIntMOIS() + " Calendrier "
+                    + OTCalendrier.getIntNUMBERJOUR());
             OTCalendrier.setLgMONTHID(OTMonth);
             OTCalendrier.setIntNUMBERJOUR(int_NUMBER_JOUR);
             OTCalendrier.setIntANNEE(int_ANNEE);
             OTCalendrier.setDtBEGIN(this.getKey().getDayofSomeMonthAndYear(1, OTMonth.getIntMOIS(), int_ANNEE));
-            OTCalendrier.setDtEND(this.getKey().getDayofSomeMonthAndYear(int_NUMBER_JOUR, OTMonth.getIntMOIS(), int_ANNEE));
+            OTCalendrier
+                    .setDtEND(this.getKey().getDayofSomeMonthAndYear(int_NUMBER_JOUR, OTMonth.getIntMOIS(), int_ANNEE));
             OTCalendrier.setStrSTATUT(commonparameter.statut_enable);
             OTCalendrier.setDtCREATED(new Date());
             if (this.persiste(OTCalendrier)) {
@@ -155,9 +156,9 @@ public class CalendrierManager extends bllBase {
         }
         return result;
     }
-    //fin mise a jour d'un calendrier
+    // fin mise a jour d'un calendrier
 
-    //fonction pour supprimer d'un calendrier
+    // fonction pour supprimer d'un calendrier
     public boolean deleteCalendrier(String lg_CALENDRIER_ID) {
         boolean result = false;
         try {
@@ -173,9 +174,9 @@ public class CalendrierManager extends bllBase {
         }
         return result;
     }
-    //fin fonction pour supprimer un litige
+    // fin fonction pour supprimer un litige
 
-    //Liste des calendrier par intervalle de mois d'une année
+    // Liste des calendrier par intervalle de mois d'une année
     public List<TCalendrier> listTCalendrierByIntervalMonth(Date dtBEGIN, Date dtEND) {
 
         List<TCalendrier> lstTCalendrier = new ArrayList<TCalendrier>();
@@ -186,8 +187,10 @@ public class CalendrierManager extends bllBase {
             dtBEGIN = this.getKey().getDate(OdateDebut, "00:00");
             dtEND = this.getKey().getDate(OdateFin, "23:59");
             new logger().OCategory.info("dtBEGIN " + dtBEGIN + " dtEND " + dtEND);
-            lstTCalendrier = this.getOdataManager().getEm().createQuery("SELECT t FROM TCalendrier t WHERE (t.dtBEGIN >= ?1 AND t.dtEND <= ?2) AND t.strSTATUT = ?3 ORDER BY t.dtCREATED DESC")
-                    .setParameter(1, dtBEGIN).setParameter(2, dtEND).setParameter(3, commonparameter.statut_enable).getResultList();
+            lstTCalendrier = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCalendrier t WHERE (t.dtBEGIN >= ?1 AND t.dtEND <= ?2) AND t.strSTATUT = ?3 ORDER BY t.dtCREATED DESC")
+                    .setParameter(1, dtBEGIN).setParameter(2, dtEND).setParameter(3, commonparameter.statut_enable)
+                    .getResultList();
         } catch (Exception e) {
             e.printStackTrace();
             this.setMessage(commonparameter.PROCESS_FAILED);
@@ -196,8 +199,8 @@ public class CalendrierManager extends bllBase {
         return lstTCalendrier;
     }
 
-    //fin Liste des calendrier par intervalle de mois d'une année
-    //nombre de jour d'une periode
+    // fin Liste des calendrier par intervalle de mois d'une année
+    // nombre de jour d'une periode
     public long numberDayByPeriod(Date dtBEGIN, Date dtEND) {
         long result = 0;
         List<TCalendrier> lstTCalendrier = new ArrayList<TCalendrier>();
@@ -216,10 +219,11 @@ public class CalendrierManager extends bllBase {
     public TCalendrier getTCalendrier(String lg_MONTH_ID, int int_ANNEE) {
         TCalendrier OTCalendrier = null;
         try {
-            OTCalendrier = (TCalendrier) this.getOdataManager().getEm().createQuery("SELECT t FROM TCalendrier t WHERE t.lgMONTHID.lgMONTHID = ?1 AND t.intANNEE = ?2")
+            OTCalendrier = (TCalendrier) this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TCalendrier t WHERE t.lgMONTHID.lgMONTHID = ?1 AND t.intANNEE = ?2")
                     .setParameter(1, lg_MONTH_ID).setParameter(2, int_ANNEE).getSingleResult();
         } catch (Exception e) {
-//            e.printStackTrace();
+            // e.printStackTrace();
         }
         return OTCalendrier;
     }
@@ -230,23 +234,25 @@ public class CalendrierManager extends bllBase {
         String Date_Fin = this.getKey().GetDateNowForSearch(1);
         Date dt_Date_Fin = this.getKey().stringToDate(Date_Fin, this.getKey().formatterShort);
         Date dt_Date_debut = this.getKey().stringToDate(Date_debut, this.getKey().formatterShort);
-        new logger().OCategory.info("Date_debut:" + Date_debut + "|Date_Fin:" + Date_Fin + "|dt_Date_Fin:" + dt_Date_Fin + "|dt_Date_debut:" + dt_Date_debut);
+        new logger().OCategory.info("Date_debut:" + Date_debut + "|Date_Fin:" + Date_Fin + "|dt_Date_Fin:" + dt_Date_Fin
+                + "|dt_Date_debut:" + dt_Date_debut);
 
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT t FROM TCalendrier t WHERE  t.dtUPDATED >= ?3  AND t.dtUPDATED < ?4 AND t.strSTATUT LIKE ?5").
-                    setParameter(3, dt_Date_debut).
-                    setParameter(4, dt_Date_Fin).
-                    setParameter(5, commonparameter.statut_enable);
-            if(qry.getResultList().size() > 0) {
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCalendrier t WHERE  t.dtUPDATED >= ?3  AND t.dtUPDATED < ?4 AND t.strSTATUT LIKE ?5")
+                    .setParameter(3, dt_Date_debut).setParameter(4, dt_Date_Fin)
+                    .setParameter(5, commonparameter.statut_enable);
+            if (qry.getResultList().size() > 0) {
                 OTCalendrier = (TCalendrier) qry.setMaxResults(1).getSingleResult();
             }
-            
+
         } catch (Exception e) {
             e.printStackTrace();
         }
         return OTCalendrier;
     }
-public boolean createCalendrierBACK(String lg_MONTH_ID, int int_ANNEE) {
+
+    public boolean createCalendrierBACK(String lg_MONTH_ID, int int_ANNEE) {
         boolean result = false;
         TCalendrier OTCalendrier = null, OTCalendrier1 = null;
         Date today = new Date();
@@ -259,17 +265,17 @@ public boolean createCalendrierBACK(String lg_MONTH_ID, int int_ANNEE) {
             }
 
             OTCalendrier1 = this.getDalyTCalendrier();
-            dt_END_MONTH = this.getKey().getLastDayofSomeMonth(Integer.parseInt(OTCalendrier.getLgMONTHID().getLgMONTHID()));
+            dt_END_MONTH = this.getKey()
+                    .getLastDayofSomeMonth(Integer.parseInt(OTCalendrier.getLgMONTHID().getLgMONTHID()));
             if (OTCalendrier1 == null) { // verifie si le jour du mois est deja pris en compte
-             
+
                 if (OTCalendrier.getIntNUMBERJOUR() < Integer.parseInt(date.getDayOfMonth(dt_END_MONTH))) {
                     OTCalendrier.setIntNUMBERJOUR(OTCalendrier.getIntNUMBERJOUR() + 1);
                     OTCalendrier.setDtEND(today);
                     OTCalendrier.setDtUPDATED(today);
                 }
             }
-              this.getOdataManager().getEm().merge(OTCalendrier);
-           
+            this.getOdataManager().getEm().merge(OTCalendrier);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -277,7 +283,8 @@ public boolean createCalendrierBACK(String lg_MONTH_ID, int int_ANNEE) {
         }
         return result;
     }
-  public TCalendrier initCalendrier2(String lg_MONTH_ID, int int_ANNEE) {
+
+    public TCalendrier initCalendrier2(String lg_MONTH_ID, int int_ANNEE) {
         TCalendrier OTCalendrier = null;
 
         try {
@@ -294,7 +301,6 @@ public boolean createCalendrierBACK(String lg_MONTH_ID, int int_ANNEE) {
             OTCalendrier.setDtCREATED(today);
             OTCalendrier.setDtUPDATED(today);
             this.getOdataManager().getEm().persist(OTCalendrier);
-           
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -302,5 +308,5 @@ public boolean createCalendrierBACK(String lg_MONTH_ID, int int_ANNEE) {
         }
         return OTCalendrier;
     }
-  
+
 }

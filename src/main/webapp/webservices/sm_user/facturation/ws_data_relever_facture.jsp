@@ -1,3 +1,5 @@
+<%@page import="util.Constant"%>
+<%@page import="org.apache.commons.lang3.StringUtils"%>
 <%@page import="org.json.JSONObject"%>
 <%@page import="bll.configManagement.GroupeTierspayantController"%>
 <%@page import="bll.facture.factureManagement"%>
@@ -43,12 +45,23 @@
     String lg_FACTURE_ID = "%%", search = "", lgTP = "", str_NAME_FILE = "", lg_customer_id = "%%", search_value = "%%";
     String dt_debut = date.formatterMysqlShort.format(date.getPreviousMonth(0));
     String dt_fin = date.formatterMysqlShort.format(new Date());
-    String CODEGROUPE = "", lg_GROUPE_ID = "";
+    String scr_report_file = "rp_relever_facture_all";
+    double impayes = -1.0;
+    if (StringUtils.isNotEmpty(request.getParameter("impayes"))) {
+        if (request.getParameter("impayes").equals("payes")) {
+            impayes = 0.0;
+            scr_report_file = "rp_relever_facture_payes";
+        } else {
+            impayes = 0.0;
+        }
+
+    }
+    String codeFacture = "%%", lg_GROUPE_ID = "";
     if (request.getParameter("lg_GROUPE_ID") != null && !"".equals(request.getParameter("lg_GROUPE_ID"))) {
         lg_GROUPE_ID = request.getParameter("lg_GROUPE_ID");
     }
     if (request.getParameter("CODEGROUPE") != null && !"".equals(request.getParameter("CODEGROUPE"))) {
-        CODEGROUPE = request.getParameter("CODEGROUPE");
+        codeFacture = request.getParameter("CODEGROUPE");
     }
     if (request.getParameter("dt_fin") != null && !"".equals(request.getParameter("dt_fin"))) {
         dt_fin = request.getParameter("dt_fin");
@@ -73,7 +86,7 @@
         lg_customer_id = request.getParameter("lg_customer_id");
         lgTP = lg_customer_id;
     }
-    OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+    OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
 
     jdom Ojdom = new jdom();
     Ojdom.InitRessource();
@@ -90,12 +103,21 @@
     TOfficine oTOfficine = obllBase.getOdataManager().getEm().find(dal.TOfficine.class, "1");
     TTiersPayant OTiersPayant = obllBase.getOdataManager().getEm().find(TTiersPayant.class, lg_customer_id);
     JSONObject mtn = cn.getReleveFacture(dt_debut, dt_fin, search, lgTP);
-    String scr_report_file = "rp_relever_facture_all";
+
     String P_TOTAL_GENERAL = "";
 
     if (OTiersPayant != null) {
         P_TOTAL_GENERAL = "SAUF ERREUR DE NOTRE PART LE REGLEMENT DE VOS FACTURES CI-DESSUS RELEVES NE NOUS EST PAS ENCORE PARVENU.\n NOUS VOUS PRIONS DE BIEN VOULOIR NOUS LES REGLER A VOTRE CONVENANCE DANS LES DELAIS";
         scr_report_file = "rp_relever_facture";
+         if (StringUtils.isNotEmpty(request.getParameter("impayes"))) {
+        if (request.getParameter("impayes").equals("payes")) {
+            impayes = 0.0;
+            scr_report_file = "rp_relever_facture_tp_payes";
+        } else {
+            impayes = 0.0;
+        }
+
+    }
 
     }
 
@@ -121,6 +143,8 @@
 
     parameters.put("P_LG_TIERS_PAYANT_ID", lg_customer_id);
     parameters.put("P_SEARCH", search_value);
+    parameters.put("P_CODE_FACTURE", codeFacture);
+    parameters.put("P_IMPAYE", impayes);
     parameters.put("P_DATE_START", dt_debut);
     parameters.put("P_DATE_END", dt_fin + " 23:59:59");
 
@@ -152,7 +176,7 @@
     String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
     if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
         String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-        for (String va : phone) {
+        for (String va  : phone) {
             finalphonestring += " / " + conversion.PhoneNumberFormat(va);
         }
     }

@@ -28,16 +28,15 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_etiquette")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TEtiquette.findAll", query = "SELECT t FROM TEtiquette t"),
-    @NamedQuery(name = "TEtiquette.findByLgETIQUETTEID", query = "SELECT t FROM TEtiquette t WHERE t.lgETIQUETTEID = :lgETIQUETTEID"),
-    @NamedQuery(name = "TEtiquette.findByStrCODE", query = "SELECT t FROM TEtiquette t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TEtiquette.findByStrNAME", query = "SELECT t FROM TEtiquette t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TEtiquette.findByStrSTATUT", query = "SELECT t FROM TEtiquette t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TEtiquette.findByIntNUMBER", query = "SELECT t FROM TEtiquette t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TEtiquette.findByDtCREATED", query = "SELECT t FROM TEtiquette t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TEtiquette.findByDtUPDATED", query = "SELECT t FROM TEtiquette t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TEtiquette.findByDtPEROMPTION", query = "SELECT t FROM TEtiquette t WHERE t.dtPEROMPTION = :dtPEROMPTION")})
+@NamedQueries({ @NamedQuery(name = "TEtiquette.findAll", query = "SELECT t FROM TEtiquette t"),
+        @NamedQuery(name = "TEtiquette.findByLgETIQUETTEID", query = "SELECT t FROM TEtiquette t WHERE t.lgETIQUETTEID = :lgETIQUETTEID"),
+        @NamedQuery(name = "TEtiquette.findByStrCODE", query = "SELECT t FROM TEtiquette t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TEtiquette.findByStrNAME", query = "SELECT t FROM TEtiquette t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TEtiquette.findByStrSTATUT", query = "SELECT t FROM TEtiquette t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TEtiquette.findByIntNUMBER", query = "SELECT t FROM TEtiquette t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TEtiquette.findByDtCREATED", query = "SELECT t FROM TEtiquette t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TEtiquette.findByDtUPDATED", query = "SELECT t FROM TEtiquette t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TEtiquette.findByDtPEROMPTION", query = "SELECT t FROM TEtiquette t WHERE t.dtPEROMPTION = :dtPEROMPTION") })
 public class TEtiquette implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -180,7 +179,8 @@ public class TEtiquette implements Serializable {
             return false;
         }
         TEtiquette other = (TEtiquette) object;
-        if ((this.lgETIQUETTEID == null && other.lgETIQUETTEID != null) || (this.lgETIQUETTEID != null && !this.lgETIQUETTEID.equals(other.lgETIQUETTEID))) {
+        if ((this.lgETIQUETTEID == null && other.lgETIQUETTEID != null)
+                || (this.lgETIQUETTEID != null && !this.lgETIQUETTEID.equals(other.lgETIQUETTEID))) {
             return false;
         }
         return true;
@@ -190,5 +190,5 @@ public class TEtiquette implements Serializable {
     public String toString() {
         return "dal.TEtiquette[ lgETIQUETTEID=" + lgETIQUETTEID + " ]";
     }
-    
+
 }

@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_type_societe")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeSociete.findAll", query = "SELECT t FROM TTypeSociete t"),
-    @NamedQuery(name = "TTypeSociete.findByLgTYPESOCIETE", query = "SELECT t FROM TTypeSociete t WHERE t.lgTYPESOCIETE = :lgTYPESOCIETE"),
-    @NamedQuery(name = "TTypeSociete.findByStrCODETYPESOCIETE", query = "SELECT t FROM TTypeSociete t WHERE t.strCODETYPESOCIETE = :strCODETYPESOCIETE"),
-    @NamedQuery(name = "TTypeSociete.findByStrLIBELLETYPESOCIETE", query = "SELECT t FROM TTypeSociete t WHERE t.strLIBELLETYPESOCIETE = :strLIBELLETYPESOCIETE"),
-    @NamedQuery(name = "TTypeSociete.findByStrSTATUT", query = "SELECT t FROM TTypeSociete t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypeSociete.findByDtCREATED", query = "SELECT t FROM TTypeSociete t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeSociete.findByDtUPDATED", query = "SELECT t FROM TTypeSociete t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypeSociete.findAll", query = "SELECT t FROM TTypeSociete t"),
+        @NamedQuery(name = "TTypeSociete.findByLgTYPESOCIETE", query = "SELECT t FROM TTypeSociete t WHERE t.lgTYPESOCIETE = :lgTYPESOCIETE"),
+        @NamedQuery(name = "TTypeSociete.findByStrCODETYPESOCIETE", query = "SELECT t FROM TTypeSociete t WHERE t.strCODETYPESOCIETE = :strCODETYPESOCIETE"),
+        @NamedQuery(name = "TTypeSociete.findByStrLIBELLETYPESOCIETE", query = "SELECT t FROM TTypeSociete t WHERE t.strLIBELLETYPESOCIETE = :strLIBELLETYPESOCIETE"),
+        @NamedQuery(name = "TTypeSociete.findByStrSTATUT", query = "SELECT t FROM TTypeSociete t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeSociete.findByDtCREATED", query = "SELECT t FROM TTypeSociete t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeSociete.findByDtUPDATED", query = "SELECT t FROM TTypeSociete t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypeSociete implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTypeSociete implements Serializable {
             return false;
         }
         TTypeSociete other = (TTypeSociete) object;
-        if ((this.lgTYPESOCIETE == null && other.lgTYPESOCIETE != null) || (this.lgTYPESOCIETE != null && !this.lgTYPESOCIETE.equals(other.lgTYPESOCIETE))) {
+        if ((this.lgTYPESOCIETE == null && other.lgTYPESOCIETE != null)
+                || (this.lgTYPESOCIETE != null && !this.lgTYPESOCIETE.equals(other.lgTYPESOCIETE))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTypeSociete implements Serializable {
     public String toString() {
         return "dal.TTypeSociete[ lgTYPESOCIETE=" + lgTYPESOCIETE + " ]";
     }
-    
+
 }

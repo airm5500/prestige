@@ -19,12 +19,18 @@ import java.util.logging.Logger;
 
 import dal.TOfficine;
 import dal.TUser;
+import java.io.OutputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import javax.ejb.Stateless;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import javax.print.PrintService;
 import javax.print.attribute.HashPrintRequestAttributeSet;
 import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.MediaSizeName;
+import javax.servlet.http.HttpServletResponse;
 import net.sf.jasperreports.engine.JREmptyDataSource;
 import net.sf.jasperreports.engine.JRException;
 import net.sf.jasperreports.engine.JasperCompileManager;
@@ -41,6 +47,7 @@ import net.sf.jasperreports.export.SimpleExporterInput;
 import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
 import net.sf.jasperreports.export.SimplePrintServiceExporterConfiguration;
 import net.sf.jasperreports.export.SimpleXlsxReportConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import toolkits.utils.jdom;
 import util.DateConverter;
 
@@ -51,19 +58,23 @@ import util.DateConverter;
 @Stateless
 public class ReportUtil {
 
+    @PersistenceContext(unitName = "JTA_UNIT")
+    private EntityManager em;
     private static final Logger LOG = Logger.getLogger(ReportUtil.class.getName());
 
+    private static final String FILE_PATERN = "yyyy_MM_dd_HH_mm_ss";
+
+    public TOfficine findOfficine() {
+        return em.find(TOfficine.class, "1");
+    }
+
     public JasperReport getReport(String reportName, String reportPath) throws JRException, Exception {
-        System.out.println(reportName);
-        System.out.println(reportPath);
-        try (InputStream resource = new FileInputStream(reportPath + reportName + ".jasper")) { //$NON-NLS-1$
-            //$NON-NLS-1$
+
+        try (InputStream resource = new FileInputStream(reportPath + reportName + ".jasper")) {
             return (JasperReport) JRLoader.loadObject(resource);
         } catch (FileNotFoundException e) {
-            LOG.log(Level.INFO, "Le fichier n'est pas accessible {0}", reportName);
+            LOG.log(Level.SEVERE, "Le fichier n'est pas accessible {0}", reportName);
             return compileReport(reportName, reportPath);
-//            return getDefaultReport(reportName, reportPath);
-
         }
 
     }
@@ -75,15 +86,15 @@ public class ReportUtil {
         File jasperFile = null;
 
         try {
-//            File jrxmlFile = new File(ReportUtil.class.getResource(reportPath + reportName + ".jrxml").getFile()); 
+
             File jrxmlFile = new File(reportPath + reportName + ".jrxml");
             File dir = jrxmlFile.getParentFile();
             jasperFile = new File(dir, reportName + ".jasper");
             in = new FileInputStream(jrxmlFile);
-//            in = ReportUtil.class.getResourceAsStream(reportPath + reportName + ".jrxml");
+
             out = new FileOutputStream(jasperFile);
             JasperCompileManager.compileReportToStream(in, out);
-            in2 = new FileInputStream(jasperFile);//ReportUtil.class.getResourceAsStream(reportPath + reportName + ".jasper");
+            in2 = new FileInputStream(jasperFile);
             return (JasperReport) JRLoader.loadObject(in2);
 
         } catch (FileNotFoundException | JRException e) {
@@ -110,7 +121,7 @@ public class ReportUtil {
     public JasperReport getDefaultReport(String reportName, String reportPath) {
         InputStream resource = null;
         try {
-            resource = ReportUtil.class.getResourceAsStream(reportPath + reportName + ".jasper"); //$NON-NLS-1$
+            resource = ReportUtil.class.getResourceAsStream(reportPath + reportName + ".jasper");
             return (JasperReport) JRLoader.loadObject(resource);
 
         } catch (JRException e) {
@@ -123,8 +134,8 @@ public class ReportUtil {
                     resource.close();
                 }
             } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace(System.err);
+
+                LOG.log(Level.SEVERE, null, e);
             }
         }
     }
@@ -136,10 +147,10 @@ public class ReportUtil {
             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
 
         } catch (JRException e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
 
         } catch (Exception ex) {
-            ex.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, ex);
         }
     }
 
@@ -150,71 +161,74 @@ public class ReportUtil {
             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
 
         } catch (JRException e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
 
         }
     }
 
-    public Map<String, Object> officineData(TOfficine oTOfficine, TUser op) {
+    public Map<String, Object> officineData(TUser op) {
+        TOfficine oTOfficine = findOfficine();
         Map<String, Object> parameters = new HashMap<>();
         try {
-            String P_H_LOGO = jdom.scr_report_file_logo;
-            String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
-            String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
-            String P_FOOTER_RC = "";
-            parameters.put("P_H_LOGO", P_H_LOGO);
-            parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
+            String logo = jdom.scr_report_file_logo;
+            String institution = oTOfficine.getStrNOMABREGE();
+            String adresseInstition = oTOfficine.getStrADRESSSEPOSTALE();
+            String footer = "";
+            parameters.put("P_H_LOGO", logo);
+            parameters.put("P_H_INSTITUTION", institution);
             parameters.put("P_PRINTED_BY", " " + op.getStrFIRSTNAME() + "  " + op.getStrLASTNAME());
             parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
-            if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-                P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+            if (StringUtils.isNotEmpty(oTOfficine.getStrREGISTRECOMMERCE())) {
+                footer += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
             }
-            if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-                P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+            if (StringUtils.isNotEmpty(oTOfficine.getStrCOMPTECONTRIBUABLE())) {
+                footer += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
             }
-            if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-                P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+            if (StringUtils.isNotEmpty(oTOfficine.getStrREGISTREIMPOSITION())) {
+                footer += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
             }
-            if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-                P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+            if (StringUtils.isNotEmpty(oTOfficine.getStrCENTREIMPOSITION())) {
+                footer += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
             }
 
-            if (oTOfficine.getStrPHONE() != null) {
-                String finalphonestring = oTOfficine.getStrPHONE() != null ? "- Tel: " + DateConverter.phoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+            if (StringUtils.isNotEmpty(oTOfficine.getStrPHONE())) {
+                String finalphonestring = oTOfficine.getStrPHONE() != null
+                        ? "- Tel: " + DateConverter.phoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
                 if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
                     String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                    for (String va  : phone) {
+                    for (String va : phone) {
                         finalphonestring += " / " + DateConverter.phoneNumberFormat(va);
                     }
                 }
-                P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
+                adresseInstition += " -  " + finalphonestring;
             }
-            if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
-                P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
+            if (StringUtils.isNotEmpty(oTOfficine.getStrCOMPTEBANCAIRE())) {
+                adresseInstition += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
             }
-            if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-                P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+            if (StringUtils.isNotEmpty(oTOfficine.getStrNUMCOMPTABLE())) {
+                adresseInstition += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
             }
-            parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
-            parameters.put("P_FOOTER_RC", P_FOOTER_RC);
+            parameters.put("P_INSTITUTION_ADRESSE", adresseInstition);
+            parameters.put("P_FOOTER_RC", footer);
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
         }
 
         return parameters;
     }
 
-    public void buildReport(Map<String, Object> parameters, String reportName, String path, String pdfPath, List<?> datas) {
+    public void buildReport(Map<String, Object> parameters, String reportName, String path, String pdfPath,
+            List<?> datas) {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
         } catch (JRException e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
 
         } catch (Exception ex) {
-            ex.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, ex);
         }
     }
 
@@ -260,21 +274,24 @@ public class ReportUtil {
 
     }
 
-    public Map<String, Object> ticketParamsMontantVerse(Map<String, Object> parameters, int montantVerse, int montantRendu) {
+    public Map<String, Object> ticketParamsMontantVerse(Map<String, Object> parameters, int montantVerse,
+            int montantRendu) {
         parameters.put("montantVerse", montantVerse);
         parameters.put("montantRendu", montantRendu);
         return parameters;
 
     }
 
-    public Map<String, Object> ticketParams(Map<String, Object> parameters, String ticketNum, Date dateOperation, String infosCaisse) {
+    public Map<String, Object> ticketParams(Map<String, Object> parameters, String ticketNum, Date dateOperation,
+            String infosCaisse) {
         parameters.put("dateoperation", dateOperation);
         parameters.put("infosCaisse", infosCaisse);
         return parameters;
 
     }
 
-    public Map<String, Object> carnetTpParams(Map<String, Object> parameters, String clientFullName, String matricule, int montantClient, String tierpayantName, int tauxtp, int partTp) {
+    public Map<String, Object> carnetTpParams(Map<String, Object> parameters, String clientFullName, String matricule,
+            int montantClient, String tierpayantName, int tauxtp, int partTp) {
         parameters.put("matricule ", matricule);
         parameters.put("clientFullName", clientFullName);
         parameters.put("montantClient", montantClient);
@@ -285,16 +302,12 @@ public class ReportUtil {
 
     }
 
-    public void printTicket(Map<String, Object> parameters, String reportName, String path, PrintService printService, List<?> datas) {
+    public void printTicket(Map<String, Object> parameters, String reportName, String path, PrintService printService,
+            List<?> datas) {
         try {
-//            PrinterJob job = PrinterJob.getPrinterJob();
-//            job.setPrintService(printService);
 
             PrintRequestAttributeSet printRequestAttributeSet = new HashPrintRequestAttributeSet();
             printRequestAttributeSet.add(MediaSizeName.ISO_A4);
-
-//            PrintServiceAttributeSet printServiceAttributeSet = new HashPrintServiceAttributeSet();
-//             printServiceAttributeSet.add(new PrinterName("Foxit Reader PDF Printer Driver", Locale.getDefault()));
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
@@ -304,21 +317,21 @@ public class ReportUtil {
             SimplePrintServiceExporterConfiguration configuration = new SimplePrintServiceExporterConfiguration();
             configuration.setPrintRequestAttributeSet(printRequestAttributeSet);
             configuration.setPrintService(printService);
-//             configuration.setPrintServiceAttributeSet(printServiceAttributeSet);
             configuration.setDisplayPageDialog(false);
             configuration.setDisplayPrintDialog(false);
             exporter.setConfiguration(configuration);
             exporter.exportReport();
 
         } catch (JRException e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
 
         } catch (Exception ex) {
-            ex.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, ex);
         }
     }
 
-    public void buildReportDocx(Map<String, Object> parameters, String reportName, String path, String pdfPath, List<?> datas) {
+    public void buildReportDocx(Map<String, Object> parameters, String reportName, String path, String pdfPath,
+            List<?> datas) {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
@@ -326,22 +339,22 @@ public class ReportUtil {
             JRDocxExporter exporter = new JRDocxExporter();
             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
             exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfPath));
-             exporter.exportReport();
+            exporter.exportReport();
         } catch (JRException e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
 
         } catch (Exception ex) {
-            ex.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, ex);
         }
     }
-public void buildReportExcel(Map<String, Object> parameters, String reportName, String path, String pdfPath, List<?> datas) {
+
+    public void buildReportExcel(Map<String, Object> parameters, String reportName, String path, String pdfPath,
+            List<?> datas) {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
-            /*
-            JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
-             */
+
             JRXlsxExporter exporter = new JRXlsxExporter();
             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
             exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfPath));
@@ -350,32 +363,92 @@ public void buildReportExcel(Map<String, Object> parameters, String reportName, 
             exporter.setConfiguration(configuration);
             exporter.exportReport();
         } catch (JRException e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
 
         } catch (Exception ex) {
-            ex.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, ex);
         }
     }
-    public void buildReportExcelSinglePage(Map<String, Object> parameters, String reportName, String path, String pdfPath, List<?> datas) {
+
+    public void buildReportExcelSinglePage(Map<String, Object> parameters, String reportName, String path,
+            String pdfPath, List<?> datas) {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
-            /*
-            JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
-             */
+
             JRXlsxExporter exporter = new JRXlsxExporter();
             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
             exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfPath));
             SimpleXlsxReportConfiguration configuration = new SimpleXlsxReportConfiguration();
+            configuration.setRemoveEmptySpaceBetweenRows(true);
             configuration.setOnePagePerSheet(false);
             exporter.setConfiguration(configuration);
             exporter.exportReport();
         } catch (JRException e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
 
         } catch (Exception ex) {
-            ex.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public String getReportDirectory(String fileName) {
+        return jdom.scr_report_pdf + fileName;
+    }
+
+    public String getFileNames(String reportName) {
+        return reportName + "_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern(FILE_PATERN)) + ".pdf";
+    }
+
+    public String buildReport(Map<String, Object> parameters, String reportName, List<?> datas) {
+        String fileName = getFileNames(reportName);
+        try {
+            JasperReport jasperReport = getReport(reportName, jdom.scr_report_file);
+            JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            JasperExportManager.exportReportToPdfFile(jasperPrint, this.getReportDirectory(fileName));
+        } catch (JRException e) {
+            LOG.log(Level.SEVERE, null, e);
+
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, null, ex);
+        }
+        return "/data/reports/pdf/" + fileName;
+    }
+
+    public void exportToxlsx(HttpServletResponse response, File filetoExport) {
+        OutputStream out = null;
+        FileInputStream inStream = null;
+        try {
+            out = response.getOutputStream();
+            inStream = new FileInputStream(filetoExport);
+            String filename = filetoExport.getName() + ".xlsx";
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setContentLengthLong(filetoExport.length());
+            response.setHeader("Content-disposition", "inline; filename=" + filename);
+            OutputStream outStream = response.getOutputStream();
+
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+
+            while ((bytesRead = inStream.read(buffer)) != -1) {
+                outStream.write(buffer, 0, bytesRead);
+            }
+
+        } catch (IOException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+        } finally {
+            if (inStream != null) {
+                try {
+                    if (out != null) {
+                        out.flush();
+                    }
+                    inStream.close();
+                } catch (IOException ex) {
+                    LOG.log(Level.SEVERE, null, ex);
+                }
+            }
         }
     }
 }

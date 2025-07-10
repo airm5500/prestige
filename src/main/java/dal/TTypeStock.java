@@ -30,14 +30,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_stock")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeStock.findAll", query = "SELECT t FROM TTypeStock t"),
-    @NamedQuery(name = "TTypeStock.findByLgTYPESTOCKID", query = "SELECT t FROM TTypeStock t WHERE t.lgTYPESTOCKID = :lgTYPESTOCKID"),
-    @NamedQuery(name = "TTypeStock.findByStrNAME", query = "SELECT t FROM TTypeStock t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypeStock.findByStrDESCRIPTION", query = "SELECT t FROM TTypeStock t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypeStock.findByDtCREATED", query = "SELECT t FROM TTypeStock t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeStock.findByDtUPDATED", query = "SELECT t FROM TTypeStock t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypeStock.findByStrSTATUT", query = "SELECT t FROM TTypeStock t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypeStock.findAll", query = "SELECT t FROM TTypeStock t"),
+        @NamedQuery(name = "TTypeStock.findByLgTYPESTOCKID", query = "SELECT t FROM TTypeStock t WHERE t.lgTYPESTOCKID = :lgTYPESTOCKID"),
+        @NamedQuery(name = "TTypeStock.findByStrNAME", query = "SELECT t FROM TTypeStock t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypeStock.findByStrDESCRIPTION", query = "SELECT t FROM TTypeStock t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypeStock.findByDtCREATED", query = "SELECT t FROM TTypeStock t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeStock.findByDtUPDATED", query = "SELECT t FROM TTypeStock t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypeStock.findByStrSTATUT", query = "SELECT t FROM TTypeStock t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypeStock implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -58,7 +57,7 @@ public class TTypeStock implements Serializable {
     private Date dtUPDATED;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
-    @OneToMany( mappedBy = "lgTYPESTOCKID")
+    @OneToMany(mappedBy = "lgTYPESTOCKID")
     private Collection<TTypeStockFamille> tTypeStockFamilleCollection;
 
     public TTypeStock() {
@@ -145,7 +144,8 @@ public class TTypeStock implements Serializable {
             return false;
         }
         TTypeStock other = (TTypeStock) object;
-        if ((this.lgTYPESTOCKID == null && other.lgTYPESTOCKID != null) || (this.lgTYPESTOCKID != null && !this.lgTYPESTOCKID.equals(other.lgTYPESTOCKID))) {
+        if ((this.lgTYPESTOCKID == null && other.lgTYPESTOCKID != null)
+                || (this.lgTYPESTOCKID != null && !this.lgTYPESTOCKID.equals(other.lgTYPESTOCKID))) {
             return false;
         }
         return true;
@@ -155,5 +155,5 @@ public class TTypeStock implements Serializable {
     public String toString() {
         return "dal.TTypeStock[ lgTYPESTOCKID=" + lgTYPESTOCKID + " ]";
     }
-    
+
 }

@@ -10,5 +10,5 @@ package commonTasks;
  * @author Kobena
  */
 public enum Mode {
-    CREATE,UPDATE,REMOVE,DESABLED,ENABLED,ADDITEM,CLOSE
+    CREATE, UPDATE, REMOVE, DESABLED, ENABLED, ADDITEM, CLOSE
 }

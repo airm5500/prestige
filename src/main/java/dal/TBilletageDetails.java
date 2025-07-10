@@ -28,19 +28,18 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_billetage_details")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TBilletageDetails.findAll", query = "SELECT t FROM TBilletageDetails t"),
-    @NamedQuery(name = "TBilletageDetails.findByLgBILLETAGEDETAILSID", query = "SELECT t FROM TBilletageDetails t WHERE t.lgBILLETAGEDETAILSID = :lgBILLETAGEDETAILSID"),
-    @NamedQuery(name = "TBilletageDetails.findByIntNBDIXMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBDIXMIL = :intNBDIXMIL"),
-    @NamedQuery(name = "TBilletageDetails.findByIntNBCINQMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBCINQMIL = :intNBCINQMIL"),
-    @NamedQuery(name = "TBilletageDetails.findByIntNBDEUXMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBDEUXMIL = :intNBDEUXMIL"),
-    @NamedQuery(name = "TBilletageDetails.findByIntNBMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBMIL = :intNBMIL"),
-    @NamedQuery(name = "TBilletageDetails.findByIntNBCINQCENT", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBCINQCENT = :intNBCINQCENT"),
-    @NamedQuery(name = "TBilletageDetails.findByIntAUTRE", query = "SELECT t FROM TBilletageDetails t WHERE t.intAUTRE = :intAUTRE"),
-    @NamedQuery(name = "TBilletageDetails.findByDtCREATED", query = "SELECT t FROM TBilletageDetails t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TBilletageDetails.findByDtUPDATED", query = "SELECT t FROM TBilletageDetails t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TBilletageDetails.findByLgUPDATEDBY", query = "SELECT t FROM TBilletageDetails t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
-    @NamedQuery(name = "TBilletageDetails.findByLgCREATEDBY", query = "SELECT t FROM TBilletageDetails t WHERE t.lgCREATEDBY = :lgCREATEDBY")})
+@NamedQueries({ @NamedQuery(name = "TBilletageDetails.findAll", query = "SELECT t FROM TBilletageDetails t"),
+        @NamedQuery(name = "TBilletageDetails.findByLgBILLETAGEDETAILSID", query = "SELECT t FROM TBilletageDetails t WHERE t.lgBILLETAGEDETAILSID = :lgBILLETAGEDETAILSID"),
+        @NamedQuery(name = "TBilletageDetails.findByIntNBDIXMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBDIXMIL = :intNBDIXMIL"),
+        @NamedQuery(name = "TBilletageDetails.findByIntNBCINQMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBCINQMIL = :intNBCINQMIL"),
+        @NamedQuery(name = "TBilletageDetails.findByIntNBDEUXMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBDEUXMIL = :intNBDEUXMIL"),
+        @NamedQuery(name = "TBilletageDetails.findByIntNBMIL", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBMIL = :intNBMIL"),
+        @NamedQuery(name = "TBilletageDetails.findByIntNBCINQCENT", query = "SELECT t FROM TBilletageDetails t WHERE t.intNBCINQCENT = :intNBCINQCENT"),
+        @NamedQuery(name = "TBilletageDetails.findByIntAUTRE", query = "SELECT t FROM TBilletageDetails t WHERE t.intAUTRE = :intAUTRE"),
+        @NamedQuery(name = "TBilletageDetails.findByDtCREATED", query = "SELECT t FROM TBilletageDetails t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TBilletageDetails.findByDtUPDATED", query = "SELECT t FROM TBilletageDetails t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TBilletageDetails.findByLgUPDATEDBY", query = "SELECT t FROM TBilletageDetails t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
+        @NamedQuery(name = "TBilletageDetails.findByLgCREATEDBY", query = "SELECT t FROM TBilletageDetails t WHERE t.lgCREATEDBY = :lgCREATEDBY") })
 public class TBilletageDetails implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -190,7 +189,9 @@ public class TBilletageDetails implements Serializable {
             return false;
         }
         TBilletageDetails other = (TBilletageDetails) object;
-        if ((this.lgBILLETAGEDETAILSID == null && other.lgBILLETAGEDETAILSID != null) || (this.lgBILLETAGEDETAILSID != null && !this.lgBILLETAGEDETAILSID.equals(other.lgBILLETAGEDETAILSID))) {
+        if ((this.lgBILLETAGEDETAILSID == null && other.lgBILLETAGEDETAILSID != null)
+                || (this.lgBILLETAGEDETAILSID != null
+                        && !this.lgBILLETAGEDETAILSID.equals(other.lgBILLETAGEDETAILSID))) {
             return false;
         }
         return true;
@@ -200,5 +201,5 @@ public class TBilletageDetails implements Serializable {
     public String toString() {
         return "dal.TBilletageDetails[ lgBILLETAGEDETAILSID=" + lgBILLETAGEDETAILSID + " ]";
     }
-    
+
 }

@@ -23,7 +23,7 @@ public class TStockSnapshotPK implements Serializable {
     @Basic(optional = false)
     @NotNull
     @Column(name = "id")
-//    @Temporal(TemporalType.DATE)
+    // @Temporal(TemporalType.DATE)
     private LocalDate id;
     @Basic(optional = false)
     @NotNull
@@ -88,10 +88,12 @@ public class TStockSnapshotPK implements Serializable {
         if ((this.id == null && other.id != null) || (this.id != null && !this.id.equals(other.id))) {
             return false;
         }
-        if ((this.magasin == null && other.magasin != null) || (this.magasin != null && !this.magasin.equals(other.magasin))) {
+        if ((this.magasin == null && other.magasin != null)
+                || (this.magasin != null && !this.magasin.equals(other.magasin))) {
             return false;
         }
-        if ((this.familleId == null && other.familleId != null) || (this.familleId != null && !this.familleId.equals(other.familleId))) {
+        if ((this.familleId == null && other.familleId != null)
+                || (this.familleId != null && !this.familleId.equals(other.familleId))) {
             return false;
         }
         return true;
@@ -101,5 +103,5 @@ public class TStockSnapshotPK implements Serializable {
     public String toString() {
         return "dal.TStockSnapshotPK[ id=" + id + ", magasin=" + magasin + ", familleId=" + familleId + " ]";
     }
-    
+
 }

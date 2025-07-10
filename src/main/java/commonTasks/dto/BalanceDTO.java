@@ -18,13 +18,79 @@ public class BalanceDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private String balanceId = UUID.randomUUID().toString();
-    private String typeVente, reglement;
-    long montantTTC = 0, montantNet = 0, montantRemise = 0, pourcentage = 0, panierMoyen = 0,
-            montantEsp = 0, montantCheque = 0, marge = 0, MontantVirement = 0, montantTva = 0, montantCB = 0, montantTp = 0, montantDiff = 0, nbreVente = 0, montantMobilePayment = 0;
+    private String typeVente;
+    private String reglement;
+    private long montantTTC;
+    private long montantNet;
+    private long montantRemise;
+    private long pourcentage;
+    private long panierMoyen;
+    private long montantEsp;
+    private long montantCheque;
+    private long marge;
+    private long montantTva;
+    private long montantCB;
+    private long montantTp;
+    private long montantDiff;
+    private long nbreVente;
+    private long montantMobilePayment;
     private TypeTransaction typeTransaction;
+    private long montantVirement;
+    private long montantAchat;
+    private long montantPaye;
+    private long montantRegle;
+    private long montantOrange;
+    private long montantMoov;
+    private long montantMtn;
+    private long montantWave;
+    private long totalModeReglement;
+
+    public long getMontantOrange() {
+        return montantOrange;
+    }
+
+    public BalanceDTO setMontantOrange(long montantOrange) {
+        this.montantOrange = montantOrange;
+        return this;
+    }
+
+    public long getMontantMoov() {
+        return montantMoov;
+    }
+
+    public BalanceDTO setMontantMoov(long montantMoov) {
+        this.montantMoov = montantMoov;
+        return this;
+    }
+
+    public long getMontantMtn() {
+        return montantMtn;
+    }
+
+    public BalanceDTO setMontantMtn(long montantMtn) {
+        this.montantMtn = montantMtn;
+        return this;
+    }
+
+    public long getMontantWave() {
+        return montantWave;
+    }
+
+    public BalanceDTO setMontantWave(long montantWave) {
+        this.montantWave = montantWave;
+        return this;
+    }
 
     public String getBalanceId() {
         return balanceId;
+    }
+
+    public long getMontantAchat() {
+        return montantAchat;
+    }
+
+    public void setMontantAchat(long montantAchat) {
+        this.montantAchat = montantAchat;
     }
 
     public void setBalanceId(String balanceId) {
@@ -61,6 +127,22 @@ public class BalanceDTO implements Serializable {
 
     public void setMontantNet(long montantNet) {
         this.montantNet = montantNet;
+    }
+
+    public long getMontantPaye() {
+        return montantPaye;
+    }
+
+    public void setMontantPaye(long montantPaye) {
+        this.montantPaye = montantPaye;
+    }
+
+    public long getMontantRegle() {
+        return montantRegle;
+    }
+
+    public void setMontantRegle(long montantRegle) {
+        this.montantRegle = montantRegle;
     }
 
     public long getMontantRemise() {
@@ -112,11 +194,11 @@ public class BalanceDTO implements Serializable {
     }
 
     public long getMontantVirement() {
-        return MontantVirement;
+        return montantVirement;
     }
 
-    public void setMontantVirement(long MontantVirement) {
-        this.MontantVirement = MontantVirement;
+    public void setMontantVirement(long montantVirement) {
+        this.montantVirement = montantVirement;
     }
 
     public long getMontantCB() {
@@ -186,14 +268,17 @@ public class BalanceDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "BalanceDTO{" + "balanceId=" + balanceId + ", typeVente=" + typeVente + ", montantTTC=" + montantTTC + ", montantNet=" + montantNet + ", montantRemise=" + montantRemise + ", pourcentage=" + pourcentage + ", panierMoyen=" + panierMoyen + ", montantEsp=" + montantEsp + ", montantCheque=" + montantCheque + ", MontantVirement=" + MontantVirement + ", montantCB=" + montantCB + ", montantTp=" + montantTp + ", montantDiff=" + montantDiff + '}';
+        return "BalanceDTO{" + "balanceId=" + balanceId + ", typeVente=" + typeVente + ", montantTTC=" + montantTTC
+                + ", montantNet=" + montantNet + ", montantRemise=" + montantRemise + ", pourcentage=" + pourcentage
+                + ", panierMoyen=" + panierMoyen + ", montantEsp=" + montantEsp + ", montantCheque=" + montantCheque
+                + ", montantCB=" + montantCB + ", montantTp=" + montantTp + ", montantDiff=" + montantDiff + '}';
     }
-/*
-    constructor vente
-    */
-    public BalanceDTO(long montantTTC, long montantNet,
-            long montantRemise, long montantTva, long marge, long montantDiff,
-            long montantTp, long nbreVente, long montantEsp, int typeTransaction, String reglement) {
+
+    /*
+     * constructor vente
+     */
+    public BalanceDTO(long montantTTC, long montantNet, long montantRemise, long montantTva, long marge,
+            long montantDiff, long montantTp, long nbreVente, long montantEsp, int typeTransaction, String reglement) {
         this.montantTTC = montantTTC;
         this.montantRemise = montantRemise;
         this.montantNet = montantNet;
@@ -204,14 +289,14 @@ public class BalanceDTO implements Serializable {
         this.montantDiff = montantDiff;
         this.montantEsp = montantEsp;
         switch (typeTransaction) {
-            case 0:
-                this.typeTransaction = TypeTransaction.VENTE_COMPTANT;
-                break;
-            case 1:
-                this.typeTransaction = TypeTransaction.VENTE_CREDIT;
-                break;
-            default:
-                break;
+        case 0:
+            this.typeTransaction = TypeTransaction.VENTE_COMPTANT;
+            break;
+        case 1:
+            this.typeTransaction = TypeTransaction.VENTE_CREDIT;
+            break;
+        default:
+            break;
         }
         this.reglement = reglement;
 
@@ -231,6 +316,14 @@ public class BalanceDTO implements Serializable {
 
     public void setMarge(long marge) {
         this.marge = marge;
+    }
+
+    public long getTotalModeReglement() {
+        return totalModeReglement;
+    }
+
+    public void setTotalModeReglement(long totalModeReglement) {
+        this.totalModeReglement = totalModeReglement;
     }
 
     public BalanceDTO() {

@@ -26,8 +26,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_nature_vente")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TNatureVente.findByStrLIBELLE", query = "SELECT t FROM TNatureVente t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TNatureVente.findByStrSTATUT", query = "SELECT t FROM TNatureVente t WHERE t.strSTATUT = :strSTATUT")})
+        @NamedQuery(name = "TNatureVente.findByStrLIBELLE", query = "SELECT t FROM TNatureVente t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TNatureVente.findByStrSTATUT", query = "SELECT t FROM TNatureVente t WHERE t.strSTATUT = :strSTATUT") })
 public class TNatureVente implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -107,7 +107,8 @@ public class TNatureVente implements Serializable {
             return false;
         }
         TNatureVente other = (TNatureVente) object;
-        return !((this.lgNATUREVENTEID == null && other.lgNATUREVENTEID != null) || (this.lgNATUREVENTEID != null && !this.lgNATUREVENTEID.equals(other.lgNATUREVENTEID)));
+        return !((this.lgNATUREVENTEID == null && other.lgNATUREVENTEID != null)
+                || (this.lgNATUREVENTEID != null && !this.lgNATUREVENTEID.equals(other.lgNATUREVENTEID)));
     }
 
     @Override

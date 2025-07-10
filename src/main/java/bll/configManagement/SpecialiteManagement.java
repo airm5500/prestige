@@ -29,14 +29,15 @@ public class SpecialiteManagement extends bllBase {
             TSpecialite OTSpecialite = new TSpecialite();
 
             OTSpecialite.setLgSPECIALITEID(this.getKey().getComplexId());
-             OTSpecialite.setStrCODESPECIALITE(str_CODESPECIALITE);
-            OTSpecialite.setStrLIBELLESPECIALITE(str_LIBELLESPECIALITE);            
+            OTSpecialite.setStrCODESPECIALITE(str_CODESPECIALITE);
+            OTSpecialite.setStrLIBELLESPECIALITE(str_LIBELLESPECIALITE);
 
             OTSpecialite.setStrSTATUT(commonparameter.statut_enable);
             OTSpecialite.setDtCREATED(new Date());
 
             this.persiste(OTSpecialite);
-            new logger().oCategory.info("Mise a jour OTSpecialite " + OTSpecialite.getLgSPECIALITEID()+ " StrName " + OTSpecialite.getStrLIBELLESPECIALITE());
+            new logger().oCategory.info("Mise a jour OTSpecialite " + OTSpecialite.getLgSPECIALITEID() + " StrName "
+                    + OTSpecialite.getStrLIBELLESPECIALITE());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
@@ -45,24 +46,24 @@ public class SpecialiteManagement extends bllBase {
 
     }
 
-    public void update(String lg_SPECIALITE_ID,String str_CODESPECIALITE, String str_LIBELLESPECIALITE) {
+    public void update(String lg_SPECIALITE_ID, String str_CODESPECIALITE, String str_LIBELLESPECIALITE) {
 
         try {
 
-            new logger().oCategory.info("lg_SPECIALITE_ID     Create   " + lg_SPECIALITE_ID);            
+            new logger().oCategory.info("lg_SPECIALITE_ID     Create   " + lg_SPECIALITE_ID);
 
             dal.TSpecialite OTSpecialite = null;
 
             OTSpecialite = getOdataManager().getEm().find(TSpecialite.class, lg_SPECIALITE_ID);
-            OTSpecialite.setStrCODESPECIALITE(str_CODESPECIALITE);      
-            OTSpecialite.setStrLIBELLESPECIALITE(str_LIBELLESPECIALITE);           
-               
+            OTSpecialite.setStrCODESPECIALITE(str_CODESPECIALITE);
+            OTSpecialite.setStrLIBELLESPECIALITE(str_LIBELLESPECIALITE);
 
             OTSpecialite.setStrSTATUT(commonparameter.statut_enable);
             OTSpecialite.setDtUPDATED(new Date());
 
             this.persiste(OTSpecialite);
-            new logger().oCategory.info("Mise a jour OTSpecialite " + OTSpecialite.getLgSPECIALITEID()+ " StrLabel " + OTSpecialite.getStrLIBELLESPECIALITE());
+            new logger().oCategory.info("Mise a jour OTSpecialite " + OTSpecialite.getLgSPECIALITEID() + " StrLabel "
+                    + OTSpecialite.getStrLIBELLESPECIALITE());
 
         } catch (Exception e) {
 

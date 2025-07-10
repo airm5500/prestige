@@ -32,20 +32,19 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_medecin")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMedecin.findAll", query = "SELECT t FROM TMedecin t"),
-    @NamedQuery(name = "TMedecin.findByLgMEDECINID", query = "SELECT t FROM TMedecin t WHERE t.lgMEDECINID = :lgMEDECINID"),
-    @NamedQuery(name = "TMedecin.findByStrCODEINTERNE", query = "SELECT t FROM TMedecin t WHERE t.strCODEINTERNE = :strCODEINTERNE"),
-    @NamedQuery(name = "TMedecin.findByStrFIRSTNAME", query = "SELECT t FROM TMedecin t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
-    @NamedQuery(name = "TMedecin.findByStrLASTNAME", query = "SELECT t FROM TMedecin t WHERE t.strLASTNAME = :strLASTNAME"),
-    @NamedQuery(name = "TMedecin.findByStrADRESSE", query = "SELECT t FROM TMedecin t WHERE t.strADRESSE = :strADRESSE"),
-    @NamedQuery(name = "TMedecin.findByStrPHONE", query = "SELECT t FROM TMedecin t WHERE t.strPHONE = :strPHONE"),
-    @NamedQuery(name = "TMedecin.findByStrMAIL", query = "SELECT t FROM TMedecin t WHERE t.strMAIL = :strMAIL"),
-    @NamedQuery(name = "TMedecin.findByStrSEXE", query = "SELECT t FROM TMedecin t WHERE t.strSEXE = :strSEXE"),
-    @NamedQuery(name = "TMedecin.findByStrCommentaire", query = "SELECT t FROM TMedecin t WHERE t.strCommentaire = :strCommentaire"),
-    @NamedQuery(name = "TMedecin.findByStrSTATUT", query = "SELECT t FROM TMedecin t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TMedecin.findByDtCREATED", query = "SELECT t FROM TMedecin t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMedecin.findByDtUPDATED", query = "SELECT t FROM TMedecin t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TMedecin.findAll", query = "SELECT t FROM TMedecin t"),
+        @NamedQuery(name = "TMedecin.findByLgMEDECINID", query = "SELECT t FROM TMedecin t WHERE t.lgMEDECINID = :lgMEDECINID"),
+        @NamedQuery(name = "TMedecin.findByStrCODEINTERNE", query = "SELECT t FROM TMedecin t WHERE t.strCODEINTERNE = :strCODEINTERNE"),
+        @NamedQuery(name = "TMedecin.findByStrFIRSTNAME", query = "SELECT t FROM TMedecin t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
+        @NamedQuery(name = "TMedecin.findByStrLASTNAME", query = "SELECT t FROM TMedecin t WHERE t.strLASTNAME = :strLASTNAME"),
+        @NamedQuery(name = "TMedecin.findByStrADRESSE", query = "SELECT t FROM TMedecin t WHERE t.strADRESSE = :strADRESSE"),
+        @NamedQuery(name = "TMedecin.findByStrPHONE", query = "SELECT t FROM TMedecin t WHERE t.strPHONE = :strPHONE"),
+        @NamedQuery(name = "TMedecin.findByStrMAIL", query = "SELECT t FROM TMedecin t WHERE t.strMAIL = :strMAIL"),
+        @NamedQuery(name = "TMedecin.findByStrSEXE", query = "SELECT t FROM TMedecin t WHERE t.strSEXE = :strSEXE"),
+        @NamedQuery(name = "TMedecin.findByStrCommentaire", query = "SELECT t FROM TMedecin t WHERE t.strCommentaire = :strCommentaire"),
+        @NamedQuery(name = "TMedecin.findByStrSTATUT", query = "SELECT t FROM TMedecin t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TMedecin.findByDtCREATED", query = "SELECT t FROM TMedecin t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMedecin.findByDtUPDATED", query = "SELECT t FROM TMedecin t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TMedecin implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -76,7 +75,7 @@ public class TMedecin implements Serializable {
     @Column(name = "dt_UPDATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
-    @OneToMany( mappedBy = "lgMEDECINID")
+    @OneToMany(mappedBy = "lgMEDECINID")
     private Collection<TMedecinSpecialite> tMedecinSpecialiteCollection;
     @JoinColumn(name = "lg_SPECIALITE_ID", referencedColumnName = "lg_SPECIALITE_ID")
     @ManyToOne
@@ -238,7 +237,8 @@ public class TMedecin implements Serializable {
             return false;
         }
         TMedecin other = (TMedecin) object;
-        if ((this.lgMEDECINID == null && other.lgMEDECINID != null) || (this.lgMEDECINID != null && !this.lgMEDECINID.equals(other.lgMEDECINID))) {
+        if ((this.lgMEDECINID == null && other.lgMEDECINID != null)
+                || (this.lgMEDECINID != null && !this.lgMEDECINID.equals(other.lgMEDECINID))) {
             return false;
         }
         return true;
@@ -248,5 +248,5 @@ public class TMedecin implements Serializable {
     public String toString() {
         return "dal.TMedecin[ lgMEDECINID=" + lgMEDECINID + " ]";
     }
-    
+
 }

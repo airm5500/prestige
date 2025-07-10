@@ -138,10 +138,6 @@
         lg_TYPE_STOCK_ID = "3";
     }
 
-    /*if (request.getParameter("lg_TYPE_STOCK_ID") != null) {
-     lg_TYPE_STOCK_ID = request.getParameter("lg_TYPE_STOCK_ID");
-     new logger().OCategory.info("lg_TYPE_STOCK_ID " + lg_TYPE_STOCK_ID);
-     }*/
     new logger().oCategory.info("le mode : " + request.getParameter("mode"));
 
     InventaireManager OInventaireManager = new InventaireManager(OdataManager, user);

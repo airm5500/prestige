@@ -19,16 +19,37 @@ import java.util.Objects;
  * @author Kobena
  */
 public class ClientDTO implements Serializable {
+
     private static final long serialVersionUID = 1L;
-    private String lgCLIENTID, strCODEINTERNE, lgTIERSPAYANTID,email, lgVILLEID, dtNAISSANCE, strCODEPOSTAL, strFIRSTNAME, strLASTNAME, strNUMEROSECURITESOCIAL = "", strSEXE, strADRESSE, fullName, lgTYPECLIENTID;
+    private String lgCLIENTID;
+    private String strCODEINTERNE;
+    private String lgTIERSPAYANTID;
+    private String email;
+    private String lgVILLEID;
+    private String dtNAISSANCE;
+    private String strCODEPOSTAL;
+    private String strFIRSTNAME;
+    private String strLASTNAME;
+    private String strNUMEROSECURITESOCIAL = "";
+    private String strSEXE;
+    private String strADRESSE;
+    private String fullName;
+    private String lgTYPECLIENTID;
     private List<TiersPayantParams> tiersPayants = new ArrayList<>();
     private List<AyantDroitDTO> ayantDroits = new ArrayList<>();
-    private Integer intPOURCENTAGE, intPRIORITY, dbPLAFONDENCOURS = 0, dblQUOTACONSOMENSUELLE = 0,dblPLAFOND=0;
+    private Integer intPOURCENTAGE;
+    private Integer intPRIORITY;
+    private Integer dbPLAFONDENCOURS = 0;
+    private Integer dblQUOTACONSOMENSUELLE = 0;
+    private Integer dblPLAFOND = 0;
     private boolean bIsAbsolute;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
-    private final String lgCATEGORIEAYANTDROITID = "555146116095894790", lgRISQUEID = "55181642844215217016";
-    private String compteTp,remiseId;
+    private final String lgCATEGORIEAYANTDROITID = "555146116095894790";
+    private final String lgRISQUEID = "55181642844215217016";
+    private String compteTp;
+    private String remiseId;
     private List<TiersPayantParams> preenregistrementstp = new ArrayList<>();
+    private String libelleTypeClient;
 
     public String getRemiseId() {
         return remiseId;
@@ -36,6 +57,14 @@ public class ClientDTO implements Serializable {
 
     public void setRemiseId(String remiseId) {
         this.remiseId = remiseId;
+    }
+
+    public String getLibelleTypeClient() {
+        return libelleTypeClient;
+    }
+
+    public void setLibelleTypeClient(String libelleTypeClient) {
+        this.libelleTypeClient = libelleTypeClient;
     }
 
     public String getLgCLIENTID() {
@@ -180,9 +209,9 @@ public class ClientDTO implements Serializable {
 
     public ClientDTO(TClient client) {
         this.lgCLIENTID = client.getLgCLIENTID();
-         TRemise remise=client.getRemise();
-        if(remise!=null){
-            this.remiseId=remise.getLgREMISEID();
+        TRemise remise = client.getRemise();
+        if (remise != null) {
+            this.remiseId = remise.getLgREMISEID();
         }
         this.strCODEINTERNE = client.getStrCODEINTERNE();
         this.strFIRSTNAME = client.getStrFIRSTNAME();
@@ -191,16 +220,17 @@ public class ClientDTO implements Serializable {
         this.strSEXE = client.getStrSEXE();
         this.strADRESSE = client.getStrADRESSE();
         this.fullName = client.getStrFIRSTNAME() + " " + client.getStrLASTNAME();
-        this.email=client.getEmail();
+        this.email = client.getEmail();
+        this.libelleTypeClient = client.getLgTYPECLIENTID().getStrNAME();
     }
 
     public ClientDTO(TClient client, List<TiersPayantParams> tiersPayants, List<AyantDroitDTO> ayantDroits) {
         this.lgCLIENTID = client.getLgCLIENTID();
-         TRemise remise=client.getRemise();
-        if(remise!=null){
-            this.remiseId=remise.getLgREMISEID();
+        TRemise remise = client.getRemise();
+        if (remise != null) {
+            this.remiseId = remise.getLgREMISEID();
         }
-        this.email=client.getEmail();
+        this.email = client.getEmail();
         this.tiersPayants = tiersPayants;
         this.strCODEINTERNE = client.getStrCODEINTERNE();
         this.strFIRSTNAME = client.getStrFIRSTNAME();
@@ -223,8 +253,8 @@ public class ClientDTO implements Serializable {
             this.lgTIERSPAYANTID = tp.getLgTIERSPAYANTID();
             this.bIsAbsolute = tp.isbIsAbsolute();
             this.dbPLAFONDENCOURS = tp.getDbPLAFONDENCOURS();
-            this.dblQUOTACONSOMENSUELLE=tp.getDblPLAFOND();
-             this.dblPLAFOND=tp.getDblPLAFOND();
+            this.dblQUOTACONSOMENSUELLE = tp.getDblPLAFOND();
+            this.dblPLAFOND = tp.getDblPLAFOND();
             this.intPOURCENTAGE = tp.getTaux();
             this.intPRIORITY = tp.getOrder();
             this.compteTp = tp.getCompteTp();
@@ -236,11 +266,11 @@ public class ClientDTO implements Serializable {
 
     public ClientDTO(TClient client, List<TiersPayantParams> tiersPayants) {
         this.lgCLIENTID = client.getLgCLIENTID();
-         TRemise remise=client.getRemise();
-        if(remise!=null){
-            this.remiseId=remise.getLgREMISEID();
+        TRemise remise = client.getRemise();
+        if (remise != null) {
+            this.remiseId = remise.getLgREMISEID();
         }
-        this.email=client.getEmail();
+        this.email = client.getEmail();
         this.tiersPayants = tiersPayants;
         this.strCODEINTERNE = client.getStrCODEINTERNE();
         this.strFIRSTNAME = client.getStrFIRSTNAME();
@@ -262,8 +292,8 @@ public class ClientDTO implements Serializable {
             this.lgTIERSPAYANTID = tp.getLgTIERSPAYANTID();
             this.bIsAbsolute = tp.isbIsAbsolute();
             this.dbPLAFONDENCOURS = tp.getDbPLAFONDENCOURS();
-            this.dblQUOTACONSOMENSUELLE=tp.getDblPLAFOND();
-            this.dblPLAFOND=tp.getDblPLAFOND();
+            this.dblQUOTACONSOMENSUELLE = tp.getDblPLAFOND();
+            this.dblPLAFOND = tp.getDblPLAFOND();
             this.intPOURCENTAGE = tp.getTaux();
             this.intPRIORITY = 1;
             this.compteTp = tp.getCompteTp();
@@ -361,12 +391,13 @@ public class ClientDTO implements Serializable {
         this.email = email;
     }
 
-    public ClientDTO(TClient client, List<TiersPayantParams> tiersPayants, List<TiersPayantParams> preenregistrementstp, List<AyantDroitDTO> ayantDroits) {
+    public ClientDTO(TClient client, List<TiersPayantParams> tiersPayants, List<TiersPayantParams> preenregistrementstp,
+            List<AyantDroitDTO> ayantDroits) {
         this.lgCLIENTID = client.getLgCLIENTID();
-        TRemise remise=client.getRemise();
-        this.email=client.getEmail();
-        if(remise!=null){
-            this.remiseId=remise.getLgREMISEID();
+        TRemise remise = client.getRemise();
+        this.email = client.getEmail();
+        if (remise != null) {
+            this.remiseId = remise.getLgREMISEID();
         }
         this.tiersPayants = tiersPayants;
         this.strCODEINTERNE = client.getStrCODEINTERNE();
@@ -391,8 +422,8 @@ public class ClientDTO implements Serializable {
             this.lgTIERSPAYANTID = tp.getLgTIERSPAYANTID();
             this.bIsAbsolute = tp.isbIsAbsolute();
             this.dbPLAFONDENCOURS = tp.getDbPLAFONDENCOURS();
-            this.dblQUOTACONSOMENSUELLE=tp.getDblPLAFOND();
-            this.dblPLAFOND=tp.getDblPLAFOND();
+            this.dblQUOTACONSOMENSUELLE = tp.getDblPLAFOND();
+            this.dblPLAFOND = tp.getDblPLAFOND();
             this.intPOURCENTAGE = tp.getTaux();
             this.intPRIORITY = tp.getOrder();
             this.compteTp = tp.getCompteTp();
@@ -400,5 +431,5 @@ public class ClientDTO implements Serializable {
         } catch (Exception e) {
         }
     }
-    
+
 }

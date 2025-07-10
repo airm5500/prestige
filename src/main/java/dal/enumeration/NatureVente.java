@@ -11,6 +11,7 @@ package dal.enumeration;
  */
 public enum NatureVente {
     DIFFERE("Différé"), VO("Assurance"), DEPOT("Dépôt"), VNO("Comptant");
+
     private final String value;
 
     private NatureVente(String value) {

@@ -29,12 +29,9 @@ import org.hibernate.annotations.TypeDef;
  * @author koben
  */
 @Entity
-@TypeDef(
-        name = "json", typeClass = JsonStringType.class
-)
+@TypeDef(name = "json", typeClass = JsonStringType.class)
 @Table(name = "historique_importation")
-@NamedQueries({
-    @NamedQuery(name = "HistoriqueImportation.findAll", query = " SELECT o FROM HistoriqueImportation o ")
+@NamedQueries({ @NamedQuery(name = "HistoriqueImportation.findAll", query = " SELECT o FROM HistoriqueImportation o ")
 
 })
 public class HistoriqueImportation implements Serializable {

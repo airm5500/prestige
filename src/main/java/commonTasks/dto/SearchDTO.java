@@ -6,7 +6,9 @@
 package commonTasks.dto;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.Objects;
+import util.DateConverter;
 
 /**
  *
@@ -15,9 +17,33 @@ import java.util.Objects;
 public class SearchDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String lgFAMILLEID, strDESCRIPTION, intCIP, strNAME, strLIBELLEE,lgFAMILLEPARENTID;
-    private Integer intPRICE , intNUMBERAVAILABLE ,intNUMBERDETAIL, intPAF ,intNUMBER;
-  private Short boolDECONDITIONNE;
+    private String lgFAMILLEID, strDESCRIPTION, intCIP, strNAME, strLIBELLEE, lgFAMILLEPARENTID;
+    private Integer intPRICE, intNUMBERAVAILABLE, intNUMBERDETAIL, intPAF, intNUMBER;
+    private Date dtUPDATED;
+    private String displayDate;
+
+    public String getDisplayDate() {
+        if (Objects.nonNull(dtUPDATED)) {
+            this.displayDate = DateConverter.convertDateToDD_MM_YYYY_HH_mm(dtUPDATED);
+        }
+        return displayDate;
+    }
+
+    public void setDisplayDate(String displayDate) {
+        this.displayDate = displayDate;
+    }
+
+    public Date getDtUPDATED() {
+
+        return dtUPDATED;
+    }
+
+    public void setDtUPDATED(Date dtUPDATED) {
+        this.dtUPDATED = dtUPDATED;
+    }
+
+    private Short boolDECONDITIONNE;
+
     public String getLgFAMILLEID() {
         return lgFAMILLEID;
     }
@@ -42,7 +68,6 @@ public class SearchDTO implements Serializable {
         this.lgFAMILLEID = lgFAMILLEID;
     }
 
- 
     public String getStrDESCRIPTION() {
         return strDESCRIPTION;
     }
@@ -122,8 +147,6 @@ public class SearchDTO implements Serializable {
         this.boolDECONDITIONNE = boolDECONDITIONNE;
     }
 
-   
-
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -139,7 +162,9 @@ public class SearchDTO implements Serializable {
         return Objects.equals(this.lgFAMILLEID, other.lgFAMILLEID);
     }
 
-    public SearchDTO(String lgFAMILLEID,  String intCIP, String strNAME, String strLIBELLEE, Integer intPRICE, Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER,Short boolDECONDITIONNE,String lgFAMILLEPARENTID) {
+    public SearchDTO(String lgFAMILLEID, String intCIP, String strNAME, String strLIBELLEE, Integer intPRICE,
+            Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER, Short boolDECONDITIONNE,
+            String lgFAMILLEPARENTID) {
         this.lgFAMILLEID = lgFAMILLEID;
         this.strDESCRIPTION = strNAME;
         this.intCIP = intCIP;
@@ -149,10 +174,12 @@ public class SearchDTO implements Serializable {
         this.intNUMBERAVAILABLE = intNUMBERAVAILABLE;
         this.intPAF = intPAF;
         this.intNUMBER = intNUMBER;
-        this.boolDECONDITIONNE=boolDECONDITIONNE;
-        this.lgFAMILLEPARENTID=lgFAMILLEPARENTID;
+        this.boolDECONDITIONNE = boolDECONDITIONNE;
+        this.lgFAMILLEPARENTID = lgFAMILLEPARENTID;
     }
-  public SearchDTO(String lgFAMILLEID,  String intCIP, String strNAME, String strLIBELLEE, Integer intPRICE, Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER,Integer intNUMBERDETAIL) {
+
+    public SearchDTO(String lgFAMILLEID, String intCIP, String strNAME, String strLIBELLEE, Integer intPRICE,
+            Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER, Integer intNUMBERDETAIL) {
         this.lgFAMILLEID = lgFAMILLEID;
         this.strDESCRIPTION = strNAME;
         this.intCIP = intCIP;
@@ -162,13 +189,15 @@ public class SearchDTO implements Serializable {
         this.intNUMBERAVAILABLE = intNUMBERAVAILABLE;
         this.intPAF = intPAF;
         this.intNUMBER = intNUMBER;
-        this.intNUMBERDETAIL=intNUMBERDETAIL;
-      
+        this.intNUMBERDETAIL = intNUMBERDETAIL;
+
     }
 
     public SearchDTO() {
     }
-  public SearchDTO(String lgFAMILLEID, String intCIP, String strNAME,  Integer intPRICE, Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER) {
+
+    public SearchDTO(String lgFAMILLEID, String intCIP, String strNAME, Integer intPRICE, Integer intNUMBERAVAILABLE,
+            Integer intPAF, Integer intNUMBER, Date dtUPDATED) {
         this.lgFAMILLEID = lgFAMILLEID;
         this.strDESCRIPTION = strNAME;
         this.intCIP = intCIP;
@@ -177,7 +206,8 @@ public class SearchDTO implements Serializable {
         this.intNUMBERAVAILABLE = intNUMBERAVAILABLE;
         this.intPAF = intPAF;
         this.intNUMBER = intNUMBER;
+        this.dtUPDATED = dtUPDATED;
+
     }
-  
-    
+
 }

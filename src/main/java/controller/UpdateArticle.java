@@ -52,11 +52,7 @@ import util.DateConverter;
  *
  * @author kkoffi
  */
-@MultipartConfig(
-        fileSizeThreshold = 5242880,
-        maxFileSize = 20971520L,
-        maxRequestSize = 41943040L
-)
+@MultipartConfig(fileSizeThreshold = 5242880, maxFileSize = 20971520L, maxRequestSize = 41943040L)
 public class UpdateArticle extends HttpServlet {
 
     private static final Logger LOG = Logger.getLogger(UpdateArticle.class.getName());
@@ -67,6 +63,7 @@ public class UpdateArticle extends HttpServlet {
     public EntityManager getEm() {
         return em;
     }
+
     @Inject
     private UserTransaction userTransaction;
 
@@ -116,13 +113,16 @@ public class UpdateArticle extends HttpServlet {
         JSONObject json = new JSONObject();
         CSVParser parser = null;
         CSVPrinter printer = null;
-         BufferedWriter writer=null;
+        BufferedWriter writer = null;
         try {
             parser = new CSVParser(new InputStreamReader(part.getInputStream()), CSVFormat.EXCEL.withDelimiter(';'));
-            
-             writer = Files.newBufferedWriter(Paths.get(System.getProperty("user.home") + File.separator +"Desktop"+ File.separator +part.getSubmittedFileName()), StandardCharsets.UTF_8,StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-            printer = CSVFormat.EXCEL.withDelimiter(';')
-                    .print(writer);
+
+            writer = Files.newBufferedWriter(
+                    Paths.get(System.getProperty("user.home") + File.separator + "Desktop" + File.separator
+                            + part.getSubmittedFileName()),
+                    StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
+            printer = CSVFormat.EXCEL.withDelimiter(';').print(writer);
 
             userTransaction.begin();
             LongAdder count = new LongAdder();
@@ -146,7 +146,7 @@ public class UpdateArticle extends HttpServlet {
 
                     printer.printRecord(cSVRecord);
                 }
-                if (tf!=null){
+                if (tf != null) {
                     if (!findFamilleIn(tf.getLgFAMILLEID())) {
                         tf.setDtDATELASTENTREE(mydate);
                     }
@@ -178,13 +178,14 @@ public class UpdateArticle extends HttpServlet {
                 LOG.log(Level.SEVERE, null, ex);
             }
 
-        } catch (RollbackException | HeuristicMixedException | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+        } catch (RollbackException | HeuristicMixedException | HeuristicRollbackException | SecurityException
+                | IllegalStateException ex) {
             LOG.log(Level.SEVERE, null, ex);
         } finally {
             if (parser != null) {
                 parser.close();
             }
-            if(writer!=null){
+            if (writer != null) {
                 writer.close();
             }
             if (printer != null) {
@@ -194,17 +195,21 @@ public class UpdateArticle extends HttpServlet {
 
         return json;
     }
-   private JSONObject bulkInsertGrossiste(Part part) throws Exception {
+
+    private JSONObject bulkInsertGrossiste(Part part) throws Exception {
 
         JSONObject json = new JSONObject();
         CSVParser parser = null;
         CSVPrinter printer = null;
-         BufferedWriter writer=null;
+        BufferedWriter writer = null;
         try {
-             parser = new CSVParser(new InputStreamReader(part.getInputStream()), CSVFormat.EXCEL.withDelimiter(';'));
-               writer = Files.newBufferedWriter(Paths.get(System.getProperty("user.home") + File.separator +"Desktop"+ File.separator +part.getSubmittedFileName()), StandardCharsets.UTF_8,StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-            printer = CSVFormat.EXCEL.withDelimiter(';')
-                    .print(writer);
+            parser = new CSVParser(new InputStreamReader(part.getInputStream()), CSVFormat.EXCEL.withDelimiter(';'));
+            writer = Files.newBufferedWriter(
+                    Paths.get(System.getProperty("user.home") + File.separator + "Desktop" + File.separator
+                            + part.getSubmittedFileName()),
+                    StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
+            printer = CSVFormat.EXCEL.withDelimiter(';').print(writer);
             userTransaction.begin();
             LongAdder count = new LongAdder();
             LongAdder ligne = new LongAdder();
@@ -215,7 +220,8 @@ public class UpdateArticle extends HttpServlet {
                 if (tf != null && grossiste != null) {
                     tf.setLgGROSSISTEID(grossiste);
                     getEm().merge(tf);
-                    TFamilleGrossiste familleGrossiste = findFamilleGrossiste(tf.getLgFAMILLEID(), grossiste.getLgGROSSISTEID());
+                    TFamilleGrossiste familleGrossiste = findFamilleGrossiste(tf.getLgFAMILLEID(),
+                            grossiste.getLgGROSSISTEID());
                     if (familleGrossiste == null) {
                         createFamilleGrossiste(tf, grossiste);
                     }
@@ -248,13 +254,14 @@ public class UpdateArticle extends HttpServlet {
                 LOG.log(Level.SEVERE, null, ex);
             }
 
-        } catch (RollbackException | HeuristicMixedException | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+        } catch (RollbackException | HeuristicMixedException | HeuristicRollbackException | SecurityException
+                | IllegalStateException ex) {
             LOG.log(Level.SEVERE, null, ex);
-        }finally {
+        } finally {
             if (parser != null) {
                 parser.close();
             }
-            if(writer!=null){
+            if (writer != null) {
                 writer.close();
             }
             if (printer != null) {
@@ -264,9 +271,11 @@ public class UpdateArticle extends HttpServlet {
 
         return json;
     }
+
     private TFamille findByCip(String cip) {
         try {
-            TypedQuery<TFamille> q = getEm().createQuery("SELECT o FROM TFamille o WHERE o.strNAME  LIKE ?1 ", TFamille.class);
+            TypedQuery<TFamille> q = getEm().createQuery("SELECT o FROM TFamille o WHERE o.strNAME  LIKE ?1 ",
+                    TFamille.class);
             q.setMaxResults(1);
             q.setParameter(1, cip + "%");
             return q.getSingleResult();
@@ -277,7 +286,8 @@ public class UpdateArticle extends HttpServlet {
 
     private TFamillearticle findByCode(String code) {
         try {
-            TypedQuery<TFamillearticle> q = getEm().createQuery("SELECT o FROM TFamillearticle o WHERE o.strCODEFAMILLE =?1 ", TFamillearticle.class);
+            TypedQuery<TFamillearticle> q = getEm()
+                    .createQuery("SELECT o FROM TFamillearticle o WHERE o.strCODEFAMILLE =?1 ", TFamillearticle.class);
             q.setMaxResults(1);
             q.setParameter(1, code);
             return q.getSingleResult();
@@ -288,7 +298,8 @@ public class UpdateArticle extends HttpServlet {
 
     private TGrossiste findGrossisteByCode(String code) {
         try {
-            TypedQuery<TGrossiste> q = getEm().createQuery("SELECT o FROM TGrossiste o WHERE o.strCODE =?1 ", TGrossiste.class);
+            TypedQuery<TGrossiste> q = getEm().createQuery("SELECT o FROM TGrossiste o WHERE o.strCODE =?1 ",
+                    TGrossiste.class);
             q.setMaxResults(1);
             q.setParameter(1, code);
             return q.getSingleResult();
@@ -299,30 +310,29 @@ public class UpdateArticle extends HttpServlet {
 
     private boolean findFamilleIn(String id) {
         try {
-            TypedQuery<TFamille> q = getEm().createQuery("SELECT o.lgFAMILLEID FROM TWarehouse o WHERE o.lgFAMILLEID.lgFAMILLEID =?1 ", TFamille.class);
+            TypedQuery<TFamille> q = getEm().createQuery(
+                    "SELECT o.lgFAMILLEID FROM TWarehouse o WHERE o.lgFAMILLEID.lgFAMILLEID =?1 ", TFamille.class);
             q.setMaxResults(1);
             q.setParameter(1, id);
             return q.getSingleResult() == null;
         } catch (Exception e) {
-//            e.printStackTrace(System.err);
+            // e.printStackTrace(System.err);
             return false;
         }
     }
 
- 
-
     private TFamilleGrossiste findFamilleGrossiste(String lg_FAMILLE_ID, String lg_GROSSISTE_ID) {
         TFamilleGrossiste OTFamilleGrossiste = null;
         try {
-            TypedQuery<TFamilleGrossiste> qry = getEm().createQuery("SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgGROSSISTEID.lgGROSSISTEID = ?2  AND t.strSTATUT = ?3 ", TFamilleGrossiste.class).
-                    setParameter(1, lg_FAMILLE_ID)
-                    .setParameter(2, lg_GROSSISTE_ID)
+            TypedQuery<TFamilleGrossiste> qry = getEm().createQuery(
+                    "SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgGROSSISTEID.lgGROSSISTEID = ?2  AND t.strSTATUT = ?3 ",
+                    TFamilleGrossiste.class).setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_GROSSISTE_ID)
                     .setParameter(3, DateConverter.STATUT_ENABLE);
             qry.setMaxResults(1);
             OTFamilleGrossiste = qry.getSingleResult();
 
         } catch (Exception e) {
-//                 e.printStackTrace();
+            // e.printStackTrace();
         }
 
         return OTFamilleGrossiste;

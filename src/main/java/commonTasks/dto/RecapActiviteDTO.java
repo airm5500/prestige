@@ -14,156 +14,178 @@ import java.util.List;
  * @author DICI
  */
 public class RecapActiviteDTO implements Serializable {
-    private static final long serialVersionUID = 1L;
-    private Integer montantTTC = 0,
-            montantHT = 0, montantTVA = 0, 
-            pourcentageEsp = 0, pourcentageCredit = 0;
-    private Integer montantNet = 0,marge=0;
-    private Integer montantRemise = 0;
-    private Integer montantEsp = 0;
-    private Integer montantCredit = 0;
-    private Integer montantTotalMvt = 0,montantTotalTTC=0,montantTotalHT=0,montantTotalTVA=0;
-    private double ratio;
-    private List<Params> reglements =  new ArrayList<>();
-    private List<Params> mvtsCaisse =  new ArrayList<>();
-    private List<AchatDTO> achats = new ArrayList<>();
-   
 
-    public Integer getMarge() {
+    private static final long serialVersionUID = 1L;
+    private long montantTTC = 0;
+    private long montantHT = 0;
+    private long montantTVA = 0;
+    int pourcentageEsp = 0;
+    int pourcentageCredit = 0;
+    private long montantNet = 0;
+    private long marge = 0;
+    private long montantRemise = 0;
+    private long montantEsp = 0;
+    private long montantCredit = 0;
+    private long montantTotalMvt = 0;
+    private long montantTotalTTC = 0;
+    private long montantTotalHT = 0;
+    private long montantTotalTVA = 0;
+    private long montantRegle = 0;
+    private long montantMobilePayment;
+    private double ratio;
+    private List<RecapActiviteReglementDTO> reglements = new ArrayList<>();
+    private List<RecapActiviteReglementDTO> mvtsCaisse = new ArrayList<>();
+    private List<AchatDTO> achats = new ArrayList<>();
+
+    public long getMarge() {
         return marge;
+    }
+
+    public long getMontantMobilePayment() {
+        return montantMobilePayment;
+    }
+
+    public void setMontantMobilePayment(long montantMobilePayment) {
+        this.montantMobilePayment = montantMobilePayment;
     }
 
     public double getRatio() {
         return ratio;
     }
 
+    public long getMontantRegle() {
+        return montantRegle;
+    }
+
+    public void setMontantRegle(long montantRegle) {
+        this.montantRegle = montantRegle;
+    }
+
     public void setRatio(double ratio) {
         this.ratio = ratio;
     }
 
-   
-
-    public Integer getMontantTotalTTC() {
+    public long getMontantTotalTTC() {
         return montantTotalTTC;
     }
 
-    public void setMontantTotalTTC(Integer montantTotalTTC) {
+    public void setMontantTotalTTC(long montantTotalTTC) {
         this.montantTotalTTC = montantTotalTTC;
     }
 
-    public Integer getMontantTotalHT() {
+    public long getMontantTotalHT() {
         return montantTotalHT;
     }
 
-    public void setMontantTotalHT(Integer montantTotalHT) {
+    public void setMontantTotalHT(long montantTotalHT) {
         this.montantTotalHT = montantTotalHT;
     }
 
-    public Integer getMontantTotalTVA() {
+    public long getMontantTotalTVA() {
         return montantTotalTVA;
     }
 
-    public void setMontantTotalTVA(Integer montantTotalTVA) {
+    public void setMontantTotalTVA(long montantTotalTVA) {
         this.montantTotalTVA = montantTotalTVA;
     }
 
-    public void setMarge(Integer marge) {
+    public void setMarge(long marge) {
         this.marge = marge;
     }
 
-    public Integer getMontantTTC() {
+    public long getMontantTTC() {
         return montantTTC;
     }
 
-    public void setMontantTTC(Integer montantTTC) {
+    public void setMontantTTC(long montantTTC) {
         this.montantTTC = montantTTC;
     }
 
-    public Integer getMontantHT() {
+    public long getMontantHT() {
         return montantHT;
     }
 
-    public void setMontantHT(Integer montantHT) {
+    public void setMontantHT(long montantHT) {
         this.montantHT = montantHT;
     }
 
-    public Integer getMontantTVA() {
+    public long getMontantTVA() {
         return montantTVA;
     }
 
-    public void setMontantTVA(Integer montantTVA) {
+    public void setMontantTVA(long montantTVA) {
         this.montantTVA = montantTVA;
     }
 
-    public Integer getPourcentageEsp() {
+    public int getPourcentageEsp() {
         return pourcentageEsp;
     }
 
-    public void setPourcentageEsp(Integer pourcentageEsp) {
+    public void setPourcentageEsp(int pourcentageEsp) {
         this.pourcentageEsp = pourcentageEsp;
     }
 
-    public Integer getPourcentageCredit() {
+    public int getPourcentageCredit() {
         return pourcentageCredit;
     }
 
-    public void setPourcentageCredit(Integer pourcentageCredit) {
+    public void setPourcentageCredit(int pourcentageCredit) {
         this.pourcentageCredit = pourcentageCredit;
     }
 
-    public Integer getMontantNet() {
+    public long getMontantNet() {
         return montantNet;
     }
 
-    public void setMontantNet(Integer montantNet) {
+    public void setMontantNet(long montantNet) {
         this.montantNet = montantNet;
     }
 
-    public Integer getMontantRemise() {
+    public long getMontantRemise() {
         return montantRemise;
     }
 
-    public void setMontantRemise(Integer montantRemise) {
+    public void setMontantRemise(long montantRemise) {
         this.montantRemise = montantRemise;
     }
 
-    public Integer getMontantEsp() {
+    public long getMontantEsp() {
         return montantEsp;
     }
 
-    public void setMontantEsp(Integer montantEsp) {
+    public void setMontantEsp(long montantEsp) {
         this.montantEsp = montantEsp;
     }
 
-    public Integer getMontantCredit() {
+    public long getMontantCredit() {
         return montantCredit;
     }
 
-    public void setMontantCredit(Integer montantCredit) {
+    public void setMontantCredit(long montantCredit) {
         this.montantCredit = montantCredit;
     }
 
-    public Integer getMontantTotalMvt() {
+    public long getMontantTotalMvt() {
         return montantTotalMvt;
     }
 
-    public void setMontantTotalMvt(Integer montantTotalMvt) {
+    public void setMontantTotalMvt(long montantTotalMvt) {
         this.montantTotalMvt = montantTotalMvt;
     }
 
-    public List<Params> getReglements() {
+    public List<RecapActiviteReglementDTO> getReglements() {
         return reglements;
     }
 
-    public void setReglements(List<Params> reglements) {
+    public void setReglements(List<RecapActiviteReglementDTO> reglements) {
         this.reglements = reglements;
     }
 
-    public List<Params> getMvtsCaisse() {
+    public List<RecapActiviteReglementDTO> getMvtsCaisse() {
         return mvtsCaisse;
     }
 
-    public void setMvtsCaisse(List<Params> mvtsCaisse) {
+    public void setMvtsCaisse(List<RecapActiviteReglementDTO> mvtsCaisse) {
         this.mvtsCaisse = mvtsCaisse;
     }
 
@@ -174,11 +196,5 @@ public class RecapActiviteDTO implements Serializable {
     public void setAchats(List<AchatDTO> achats) {
         this.achats = achats;
     }
-
- 
-    public RecapActiviteDTO() {
-    }
-
-  
 
 }

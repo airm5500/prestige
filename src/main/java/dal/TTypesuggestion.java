@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_typesuggestion")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypesuggestion.findAll", query = "SELECT t FROM TTypesuggestion t"),
-    @NamedQuery(name = "TTypesuggestion.findByLgTYPESUGGESTIONID", query = "SELECT t FROM TTypesuggestion t WHERE t.lgTYPESUGGESTIONID = :lgTYPESUGGESTIONID"),
-    @NamedQuery(name = "TTypesuggestion.findByStrNAME", query = "SELECT t FROM TTypesuggestion t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypesuggestion.findByStrDESCRIPTION", query = "SELECT t FROM TTypesuggestion t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypesuggestion.findByStrSTATUT", query = "SELECT t FROM TTypesuggestion t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypesuggestion.findByDtCREATED", query = "SELECT t FROM TTypesuggestion t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypesuggestion.findByDtUPDATED", query = "SELECT t FROM TTypesuggestion t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypesuggestion.findAll", query = "SELECT t FROM TTypesuggestion t"),
+        @NamedQuery(name = "TTypesuggestion.findByLgTYPESUGGESTIONID", query = "SELECT t FROM TTypesuggestion t WHERE t.lgTYPESUGGESTIONID = :lgTYPESUGGESTIONID"),
+        @NamedQuery(name = "TTypesuggestion.findByStrNAME", query = "SELECT t FROM TTypesuggestion t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypesuggestion.findByStrDESCRIPTION", query = "SELECT t FROM TTypesuggestion t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypesuggestion.findByStrSTATUT", query = "SELECT t FROM TTypesuggestion t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypesuggestion.findByDtCREATED", query = "SELECT t FROM TTypesuggestion t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypesuggestion.findByDtUPDATED", query = "SELECT t FROM TTypesuggestion t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypesuggestion implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTypesuggestion implements Serializable {
             return false;
         }
         TTypesuggestion other = (TTypesuggestion) object;
-        if ((this.lgTYPESUGGESTIONID == null && other.lgTYPESUGGESTIONID != null) || (this.lgTYPESUGGESTIONID != null && !this.lgTYPESUGGESTIONID.equals(other.lgTYPESUGGESTIONID))) {
+        if ((this.lgTYPESUGGESTIONID == null && other.lgTYPESUGGESTIONID != null)
+                || (this.lgTYPESUGGESTIONID != null && !this.lgTYPESUGGESTIONID.equals(other.lgTYPESUGGESTIONID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTypesuggestion implements Serializable {
     public String toString() {
         return "dal.TTypesuggestion[ lgTYPESUGGESTIONID=" + lgTYPESUGGESTIONID + " ]";
     }
-    
+
 }

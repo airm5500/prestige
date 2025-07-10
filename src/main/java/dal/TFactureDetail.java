@@ -31,12 +31,11 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_facture_detail")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFactureDetail.findAll", query = "SELECT t FROM TFactureDetail t"),
-    @NamedQuery(name = "TFactureDetail.findByFactureId", query = "SELECT t FROM TFactureDetail t WHERE t.lgFACTUREID.lgFACTUREID = :lgFACTUREID"),
-    @NamedQuery(name = "TFactureDetail.findByStrREF", query = "SELECT t FROM TFactureDetail t WHERE t.strREF = :strREF"),
-    @NamedQuery(name = "TFactureDetail.findByStrREFDESCRIPTION", query = "SELECT t FROM TFactureDetail t WHERE t.strREFDESCRIPTION = :strREFDESCRIPTION"),
-    @NamedQuery(name = "TFactureDetail.findByPKey", query = "SELECT t FROM TFactureDetail t WHERE t.pKey = :pKey"),})
+@NamedQueries({ @NamedQuery(name = "TFactureDetail.findAll", query = "SELECT t FROM TFactureDetail t"),
+        @NamedQuery(name = "TFactureDetail.findByFactureId", query = "SELECT t FROM TFactureDetail t WHERE t.lgFACTUREID.lgFACTUREID = :lgFACTUREID"),
+        @NamedQuery(name = "TFactureDetail.findByStrREF", query = "SELECT t FROM TFactureDetail t WHERE t.strREF = :strREF"),
+        @NamedQuery(name = "TFactureDetail.findByStrREFDESCRIPTION", query = "SELECT t FROM TFactureDetail t WHERE t.strREFDESCRIPTION = :strREFDESCRIPTION"),
+        @NamedQuery(name = "TFactureDetail.findByPKey", query = "SELECT t FROM TFactureDetail t WHERE t.pKey = :pKey"), })
 public class TFactureDetail implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -50,7 +49,8 @@ public class TFactureDetail implements Serializable {
     private String strREF;
     @Column(name = "str_REF_DESCRIPTION", length = 40)
     private String strREFDESCRIPTION;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_MONTANT", precision = 15, scale = 3)
     private Double dblMONTANT;
     @Column(name = "dbl_MONTANT_PAYE", precision = 15, scale = 3)
@@ -286,7 +286,8 @@ public class TFactureDetail implements Serializable {
         return tDossierReglementDetailCollection;
     }
 
-    public void setTDossierReglementDetailCollection(Collection<TDossierReglementDetail> tDossierReglementDetailCollection) {
+    public void setTDossierReglementDetailCollection(
+            Collection<TDossierReglementDetail> tDossierReglementDetailCollection) {
         this.tDossierReglementDetailCollection = tDossierReglementDetailCollection;
     }
 
@@ -312,7 +313,8 @@ public class TFactureDetail implements Serializable {
             return false;
         }
         TFactureDetail other = (TFactureDetail) object;
-        if ((this.lgFACTUREDETAILID == null && other.lgFACTUREDETAILID != null) || (this.lgFACTUREDETAILID != null && !this.lgFACTUREDETAILID.equals(other.lgFACTUREDETAILID))) {
+        if ((this.lgFACTUREDETAILID == null && other.lgFACTUREDETAILID != null)
+                || (this.lgFACTUREDETAILID != null && !this.lgFACTUREDETAILID.equals(other.lgFACTUREDETAILID))) {
             return false;
         }
         return true;

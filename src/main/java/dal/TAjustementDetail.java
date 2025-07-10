@@ -27,15 +27,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_ajustement_detail")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TAjustementDetail.findAll", query = "SELECT t FROM TAjustementDetail t"),
-    @NamedQuery(name = "TAjustementDetail.findByLgAJUSTEMENTDETAILID", query = "SELECT t FROM TAjustementDetail t WHERE t.lgAJUSTEMENTDETAILID = :lgAJUSTEMENTDETAILID"),
-    @NamedQuery(name = "TAjustementDetail.findByIntNUMBER", query = "SELECT t FROM TAjustementDetail t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TAjustementDetail.findByIntNUMBERCURRENTSTOCK", query = "SELECT t FROM TAjustementDetail t WHERE t.intNUMBERCURRENTSTOCK = :intNUMBERCURRENTSTOCK"),
-    @NamedQuery(name = "TAjustementDetail.findByIntNUMBERAFTERSTOCK", query = "SELECT t FROM TAjustementDetail t WHERE t.intNUMBERAFTERSTOCK = :intNUMBERAFTERSTOCK"),
-    @NamedQuery(name = "TAjustementDetail.findByStrSTATUT", query = "SELECT t FROM TAjustementDetail t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TAjustementDetail.findByDtCREATED", query = "SELECT t FROM TAjustementDetail t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TAjustementDetail.findByDtUPDATED", query = "SELECT t FROM TAjustementDetail t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TAjustementDetail.findAll", query = "SELECT t FROM TAjustementDetail t"),
+        @NamedQuery(name = "TAjustementDetail.findByLgAJUSTEMENTDETAILID", query = "SELECT t FROM TAjustementDetail t WHERE t.lgAJUSTEMENTDETAILID = :lgAJUSTEMENTDETAILID"),
+        @NamedQuery(name = "TAjustementDetail.findByIntNUMBER", query = "SELECT t FROM TAjustementDetail t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TAjustementDetail.findByIntNUMBERCURRENTSTOCK", query = "SELECT t FROM TAjustementDetail t WHERE t.intNUMBERCURRENTSTOCK = :intNUMBERCURRENTSTOCK"),
+        @NamedQuery(name = "TAjustementDetail.findByIntNUMBERAFTERSTOCK", query = "SELECT t FROM TAjustementDetail t WHERE t.intNUMBERAFTERSTOCK = :intNUMBERAFTERSTOCK"),
+        @NamedQuery(name = "TAjustementDetail.findByStrSTATUT", query = "SELECT t FROM TAjustementDetail t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TAjustementDetail.findByDtCREATED", query = "SELECT t FROM TAjustementDetail t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TAjustementDetail.findByDtUPDATED", query = "SELECT t FROM TAjustementDetail t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TAjustementDetail implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -168,7 +167,9 @@ public class TAjustementDetail implements Serializable {
             return false;
         }
         TAjustementDetail other = (TAjustementDetail) object;
-        if ((this.lgAJUSTEMENTDETAILID == null && other.lgAJUSTEMENTDETAILID != null) || (this.lgAJUSTEMENTDETAILID != null && !this.lgAJUSTEMENTDETAILID.equals(other.lgAJUSTEMENTDETAILID))) {
+        if ((this.lgAJUSTEMENTDETAILID == null && other.lgAJUSTEMENTDETAILID != null)
+                || (this.lgAJUSTEMENTDETAILID != null
+                        && !this.lgAJUSTEMENTDETAILID.equals(other.lgAJUSTEMENTDETAILID))) {
             return false;
         }
         return true;

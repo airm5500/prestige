@@ -9,6 +9,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Date;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -30,21 +31,20 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_order")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TOrder.findAll", query = "SELECT t FROM TOrder t"),
-    @NamedQuery(name = "TOrder.findByLgORDERID", query = "SELECT t FROM TOrder t WHERE t.lgORDERID = :lgORDERID"),
-    @NamedQuery(name = "TOrder.findByStrREFORDER", query = "SELECT t FROM TOrder t WHERE t.strREFORDER = :strREFORDER"),
-    @NamedQuery(name = "TOrder.findByIntLINE", query = "SELECT t FROM TOrder t WHERE t.intLINE = :intLINE"),
-    @NamedQuery(name = "TOrder.findByStrSTATUT", query = "SELECT t FROM TOrder t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TOrder.findByDtCREATED", query = "SELECT t FROM TOrder t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TOrder.findByDtUPDATED", query = "SELECT t FROM TOrder t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TOrder.findByIntPRICE", query = "SELECT t FROM TOrder t WHERE t.intPRICE = :intPRICE")})
+@NamedQueries({ @NamedQuery(name = "TOrder.findAll", query = "SELECT t FROM TOrder t"),
+        @NamedQuery(name = "TOrder.findByLgORDERID", query = "SELECT t FROM TOrder t WHERE t.lgORDERID = :lgORDERID"),
+        @NamedQuery(name = "TOrder.findByStrREFORDER", query = "SELECT t FROM TOrder t WHERE t.strREFORDER = :strREFORDER"),
+        @NamedQuery(name = "TOrder.findByIntLINE", query = "SELECT t FROM TOrder t WHERE t.intLINE = :intLINE"),
+        @NamedQuery(name = "TOrder.findByStrSTATUT", query = "SELECT t FROM TOrder t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TOrder.findByDtCREATED", query = "SELECT t FROM TOrder t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TOrder.findByDtUPDATED", query = "SELECT t FROM TOrder t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TOrder.findByIntPRICE", query = "SELECT t FROM TOrder t WHERE t.intPRICE = :intPRICE") })
 public class TOrder implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
-    @Column(name = "lg_ORDER_ID", nullable = false, length = 20)
+    @Column(name = "lg_ORDER_ID", nullable = false, length = 50)
     private String lgORDERID;
     @Column(name = "str_REF_ORDER", length = 20)
     private String strREFORDER;
@@ -59,7 +59,7 @@ public class TOrder implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
     @Column(name = "int_PRICE")
-    private Integer intPRICE=0;
+    private Integer intPRICE = 0;
     @OneToMany(mappedBy = "lgORDERID")
     private Collection<TBonLivraison> tBonLivraisonCollection;
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID")
@@ -68,10 +68,12 @@ public class TOrder implements Serializable {
     @JoinColumn(name = "lg_GROSSISTE_ID", referencedColumnName = "lg_GROSSISTE_ID")
     @ManyToOne
     private TGrossiste lgGROSSISTEID;
-    @OneToMany(mappedBy = "lgORDERID")
+    @OneToMany(mappedBy = "lgORDERID", cascade = CascadeType.REMOVE)
     private Collection<TOrderDetail> tOrderDetailCollection;
     @Column(name = "recu", columnDefinition = "boolean default false")
     private Boolean recu = Boolean.FALSE;
+    @Column(name = "direct_import", columnDefinition = "boolean default false")
+    private Boolean directImport = Boolean.FALSE;
 
     public TOrder() {
     }
@@ -153,6 +155,14 @@ public class TOrder implements Serializable {
         this.tBonLivraisonCollection = tBonLivraisonCollection;
     }
 
+    public Boolean getDirectImport() {
+        return directImport;
+    }
+
+    public void setDirectImport(Boolean directImport) {
+        this.directImport = directImport;
+    }
+
     public TUser getLgUSERID() {
         return lgUSERID;
     }
@@ -192,7 +202,8 @@ public class TOrder implements Serializable {
             return false;
         }
         TOrder other = (TOrder) object;
-        if ((this.lgORDERID == null && other.lgORDERID != null) || (this.lgORDERID != null && !this.lgORDERID.equals(other.lgORDERID))) {
+        if ((this.lgORDERID == null && other.lgORDERID != null)
+                || (this.lgORDERID != null && !this.lgORDERID.equals(other.lgORDERID))) {
             return false;
         }
         return true;

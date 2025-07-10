@@ -29,13 +29,12 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_facture")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeFacture.findAll", query = "SELECT t FROM TTypeFacture t"),
-    @NamedQuery(name = "TTypeFacture.findByLgTYPEFACTUREID", query = "SELECT t FROM TTypeFacture t WHERE t.lgTYPEFACTUREID = :lgTYPEFACTUREID"),
-    @NamedQuery(name = "TTypeFacture.findByStrLIBELLE", query = "SELECT t FROM TTypeFacture t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TTypeFacture.findByStrSTATUT", query = "SELECT t FROM TTypeFacture t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypeFacture.findByDtCREATED", query = "SELECT t FROM TTypeFacture t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeFacture.findByDtUPDATED", query = "SELECT t FROM TTypeFacture t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypeFacture.findAll", query = "SELECT t FROM TTypeFacture t"),
+        @NamedQuery(name = "TTypeFacture.findByLgTYPEFACTUREID", query = "SELECT t FROM TTypeFacture t WHERE t.lgTYPEFACTUREID = :lgTYPEFACTUREID"),
+        @NamedQuery(name = "TTypeFacture.findByStrLIBELLE", query = "SELECT t FROM TTypeFacture t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TTypeFacture.findByStrSTATUT", query = "SELECT t FROM TTypeFacture t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeFacture.findByDtCREATED", query = "SELECT t FROM TTypeFacture t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeFacture.findByDtUPDATED", query = "SELECT t FROM TTypeFacture t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypeFacture implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -125,7 +124,8 @@ public class TTypeFacture implements Serializable {
             return false;
         }
         TTypeFacture other = (TTypeFacture) object;
-        if ((this.lgTYPEFACTUREID == null && other.lgTYPEFACTUREID != null) || (this.lgTYPEFACTUREID != null && !this.lgTYPEFACTUREID.equals(other.lgTYPEFACTUREID))) {
+        if ((this.lgTYPEFACTUREID == null && other.lgTYPEFACTUREID != null)
+                || (this.lgTYPEFACTUREID != null && !this.lgTYPEFACTUREID.equals(other.lgTYPEFACTUREID))) {
             return false;
         }
         return true;
@@ -135,5 +135,5 @@ public class TTypeFacture implements Serializable {
     public String toString() {
         return "dal.TTypeFacture[ lgTYPEFACTUREID=" + lgTYPEFACTUREID + " ]";
     }
-    
+
 }

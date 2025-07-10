@@ -3,10 +3,10 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import javax.persistence.Basic;
@@ -30,19 +30,18 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_role", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_ROLE_ID"})})
+@Table(name = "t_role", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_ROLE_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRole.findAll", query = "SELECT t FROM TRole t"),
-    @NamedQuery(name = "TRole.findByLgROLEID", query = "SELECT t FROM TRole t WHERE t.lgROLEID = :lgROLEID"),
-    @NamedQuery(name = "TRole.findByStrNAME", query = "SELECT t FROM TRole t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TRole.findByStrDESIGNATION", query = "SELECT t FROM TRole t WHERE t.strDESIGNATION = :strDESIGNATION"),
-    @NamedQuery(name = "TRole.findByStrTYPE", query = "SELECT t FROM TRole t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TRole.findByStrSTATUT", query = "SELECT t FROM TRole t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TRole.findByDtCREATED", query = "SELECT t FROM TRole t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRole.findByDtUPDATED", query = "SELECT t FROM TRole t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TRole.findAll", query = "SELECT t FROM TRole t"),
+        @NamedQuery(name = "TRole.findByLgROLEID", query = "SELECT t FROM TRole t WHERE t.lgROLEID = :lgROLEID"),
+        @NamedQuery(name = "TRole.findByStrNAME", query = "SELECT t FROM TRole t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TRole.findByStrDESIGNATION", query = "SELECT t FROM TRole t WHERE t.strDESIGNATION = :strDESIGNATION"),
+        @NamedQuery(name = "TRole.findByStrTYPE", query = "SELECT t FROM TRole t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TRole.findByStrSTATUT", query = "SELECT t FROM TRole t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TRole.findByDtCREATED", query = "SELECT t FROM TRole t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRole.findByDtUPDATED", query = "SELECT t FROM TRole t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TRole implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -63,9 +62,9 @@ public class TRole implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "lgROLEID")
-    private Collection<TRoleUser> tRoleUserCollection;
-    @OneToMany(mappedBy = "lgROLEID",fetch = FetchType.EAGER)
-    private Collection<TRolePrivelege> tRolePrivelegeCollection;
+    private Collection<TRoleUser> tRoleUserCollection = new ArrayList<>();
+    @OneToMany(mappedBy = "lgROLEID", fetch = FetchType.LAZY)
+    private Collection<TRolePrivelege> tRolePrivelegeCollection = new ArrayList<>();
 
     public TRole() {
     }
@@ -162,7 +161,8 @@ public class TRole implements Serializable {
             return false;
         }
         TRole other = (TRole) object;
-        if ((this.lgROLEID == null && other.lgROLEID != null) || (this.lgROLEID != null && !this.lgROLEID.equals(other.lgROLEID))) {
+        if ((this.lgROLEID == null && other.lgROLEID != null)
+                || (this.lgROLEID != null && !this.lgROLEID.equals(other.lgROLEID))) {
             return false;
         }
         return true;
@@ -172,5 +172,5 @@ public class TRole implements Serializable {
     public String toString() {
         return "dal.TRole[ lgROLEID=" + lgROLEID + " ]";
     }
-    
+
 }

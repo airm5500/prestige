@@ -30,10 +30,11 @@ public class Importaion {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
-    @Transactional(dontRollbackOn = {EntityNotFoundException.class, NoResultException.class})
+    @Transactional(dontRollbackOn = { EntityNotFoundException.class, NoResultException.class })
     public List<TFamilleGrossiste> getFamilleGrossistesByFamille(String idFamille) {
         try {
-            TypedQuery<TFamilleGrossiste> q = em.createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1", TFamilleGrossiste.class);
+            TypedQuery<TFamilleGrossiste> q = em.createQuery(
+                    "SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1", TFamilleGrossiste.class);
             q.setParameter(1, idFamille);
             return q.getResultList();
         } catch (Exception e) {
@@ -41,11 +42,12 @@ public class Importaion {
         }
     }
 
-    @Transactional(dontRollbackOn = {EntityNotFoundException.class, NoResultException.class})
+    @Transactional(dontRollbackOn = { EntityNotFoundException.class, NoResultException.class })
     public List<TFamilleStock> getByFamille(String idFamille) {
 
         try {
-            TypedQuery<TFamilleStock> q = em.createQuery("SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID=?1", TFamilleStock.class);
+            TypedQuery<TFamilleStock> q = em.createQuery(
+                    "SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID=?1", TFamilleStock.class);
             q.setParameter(1, idFamille);
             return q.getResultList();
         } catch (Exception e) {
@@ -53,7 +55,7 @@ public class Importaion {
         }
     }
 
-    @Transactional(dontRollbackOn = {EntityNotFoundException.class, NoResultException.class})
+    @Transactional(dontRollbackOn = { EntityNotFoundException.class, NoResultException.class })
     public TFamille findById(String produitId) {
         TFamille d = em.find(TFamille.class, produitId);
         return d;

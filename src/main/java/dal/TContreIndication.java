@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_contre_indication")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TContreIndication.findAll", query = "SELECT t FROM TContreIndication t"),
-    @NamedQuery(name = "TContreIndication.findByLgCONTREINDICATIONID", query = "SELECT t FROM TContreIndication t WHERE t.lgCONTREINDICATIONID = :lgCONTREINDICATIONID"),
-    @NamedQuery(name = "TContreIndication.findByStrCODECONTREINDICATION", query = "SELECT t FROM TContreIndication t WHERE t.strCODECONTREINDICATION = :strCODECONTREINDICATION"),
-    @NamedQuery(name = "TContreIndication.findByStrLIBELLECONTREINDICATION", query = "SELECT t FROM TContreIndication t WHERE t.strLIBELLECONTREINDICATION = :strLIBELLECONTREINDICATION"),
-    @NamedQuery(name = "TContreIndication.findByStrSTATUT", query = "SELECT t FROM TContreIndication t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TContreIndication.findByDtCREATED", query = "SELECT t FROM TContreIndication t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TContreIndication.findByDtUPDATED", query = "SELECT t FROM TContreIndication t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TContreIndication.findAll", query = "SELECT t FROM TContreIndication t"),
+        @NamedQuery(name = "TContreIndication.findByLgCONTREINDICATIONID", query = "SELECT t FROM TContreIndication t WHERE t.lgCONTREINDICATIONID = :lgCONTREINDICATIONID"),
+        @NamedQuery(name = "TContreIndication.findByStrCODECONTREINDICATION", query = "SELECT t FROM TContreIndication t WHERE t.strCODECONTREINDICATION = :strCODECONTREINDICATION"),
+        @NamedQuery(name = "TContreIndication.findByStrLIBELLECONTREINDICATION", query = "SELECT t FROM TContreIndication t WHERE t.strLIBELLECONTREINDICATION = :strLIBELLECONTREINDICATION"),
+        @NamedQuery(name = "TContreIndication.findByStrSTATUT", query = "SELECT t FROM TContreIndication t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TContreIndication.findByDtCREATED", query = "SELECT t FROM TContreIndication t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TContreIndication.findByDtUPDATED", query = "SELECT t FROM TContreIndication t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TContreIndication implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,9 @@ public class TContreIndication implements Serializable {
             return false;
         }
         TContreIndication other = (TContreIndication) object;
-        if ((this.lgCONTREINDICATIONID == null && other.lgCONTREINDICATIONID != null) || (this.lgCONTREINDICATIONID != null && !this.lgCONTREINDICATIONID.equals(other.lgCONTREINDICATIONID))) {
+        if ((this.lgCONTREINDICATIONID == null && other.lgCONTREINDICATIONID != null)
+                || (this.lgCONTREINDICATIONID != null
+                        && !this.lgCONTREINDICATIONID.equals(other.lgCONTREINDICATIONID))) {
             return false;
         }
         return true;
@@ -132,5 +133,5 @@ public class TContreIndication implements Serializable {
     public String toString() {
         return "dal.TContreIndication[ lgCONTREINDICATIONID=" + lgCONTREINDICATIONID + " ]";
     }
-    
+
 }

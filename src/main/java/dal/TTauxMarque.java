@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_taux_marque")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTauxMarque.findAll", query = "SELECT t FROM TTauxMarque t"),
-    @NamedQuery(name = "TTauxMarque.findByLgTAUXMARQUEID", query = "SELECT t FROM TTauxMarque t WHERE t.lgTAUXMARQUEID = :lgTAUXMARQUEID"),
-    @NamedQuery(name = "TTauxMarque.findByStrCODE", query = "SELECT t FROM TTauxMarque t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TTauxMarque.findByStrNAME", query = "SELECT t FROM TTauxMarque t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTauxMarque.findByStrSTATUT", query = "SELECT t FROM TTauxMarque t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTauxMarque.findByDtCREATED", query = "SELECT t FROM TTauxMarque t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTauxMarque.findByDtUPDATED", query = "SELECT t FROM TTauxMarque t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTauxMarque.findAll", query = "SELECT t FROM TTauxMarque t"),
+        @NamedQuery(name = "TTauxMarque.findByLgTAUXMARQUEID", query = "SELECT t FROM TTauxMarque t WHERE t.lgTAUXMARQUEID = :lgTAUXMARQUEID"),
+        @NamedQuery(name = "TTauxMarque.findByStrCODE", query = "SELECT t FROM TTauxMarque t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TTauxMarque.findByStrNAME", query = "SELECT t FROM TTauxMarque t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTauxMarque.findByStrSTATUT", query = "SELECT t FROM TTauxMarque t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTauxMarque.findByDtCREATED", query = "SELECT t FROM TTauxMarque t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTauxMarque.findByDtUPDATED", query = "SELECT t FROM TTauxMarque t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTauxMarque implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTauxMarque implements Serializable {
             return false;
         }
         TTauxMarque other = (TTauxMarque) object;
-        if ((this.lgTAUXMARQUEID == null && other.lgTAUXMARQUEID != null) || (this.lgTAUXMARQUEID != null && !this.lgTAUXMARQUEID.equals(other.lgTAUXMARQUEID))) {
+        if ((this.lgTAUXMARQUEID == null && other.lgTAUXMARQUEID != null)
+                || (this.lgTAUXMARQUEID != null && !this.lgTAUXMARQUEID.equals(other.lgTAUXMARQUEID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTauxMarque implements Serializable {
     public String toString() {
         return "dal.TTauxMarque[ lgTAUXMARQUEID=" + lgTAUXMARQUEID + " ]";
     }
-    
+
 }

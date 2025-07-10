@@ -63,6 +63,5 @@ public class CategorieAyantdroitDTO implements Serializable {
 
     public CategorieAyantdroitDTO() {
     }
-    
 
 }

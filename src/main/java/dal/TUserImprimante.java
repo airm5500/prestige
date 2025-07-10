@@ -29,12 +29,11 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_user_imprimante")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TUserImprimante.findAll", query = "SELECT t FROM TUserImprimante t"),
-    @NamedQuery(name = "TUserImprimante.findByLgUSERIMPRIMQNTEID", query = "SELECT t FROM TUserImprimante t WHERE t.lgUSERIMPRIMQNTEID = :lgUSERIMPRIMQNTEID"),
-    @NamedQuery(name = "TUserImprimante.findByDtCREATED", query = "SELECT t FROM TUserImprimante t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TUserImprimante.findByDtUPDATED", query = "SELECT t FROM TUserImprimante t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TUserImprimante.findByStrSTATUT", query = "SELECT t FROM TUserImprimante t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TUserImprimante.findAll", query = "SELECT t FROM TUserImprimante t"),
+        @NamedQuery(name = "TUserImprimante.findByLgUSERIMPRIMQNTEID", query = "SELECT t FROM TUserImprimante t WHERE t.lgUSERIMPRIMQNTEID = :lgUSERIMPRIMQNTEID"),
+        @NamedQuery(name = "TUserImprimante.findByDtCREATED", query = "SELECT t FROM TUserImprimante t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TUserImprimante.findByDtUPDATED", query = "SELECT t FROM TUserImprimante t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TUserImprimante.findByStrSTATUT", query = "SELECT t FROM TUserImprimante t WHERE t.strSTATUT = :strSTATUT") })
 public class TUserImprimante implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -147,7 +146,8 @@ public class TUserImprimante implements Serializable {
             return false;
         }
         TUserImprimante other = (TUserImprimante) object;
-        if ((this.lgUSERIMPRIMQNTEID == null && other.lgUSERIMPRIMQNTEID != null) || (this.lgUSERIMPRIMQNTEID != null && !this.lgUSERIMPRIMQNTEID.equals(other.lgUSERIMPRIMQNTEID))) {
+        if ((this.lgUSERIMPRIMQNTEID == null && other.lgUSERIMPRIMQNTEID != null)
+                || (this.lgUSERIMPRIMQNTEID != null && !this.lgUSERIMPRIMQNTEID.equals(other.lgUSERIMPRIMQNTEID))) {
             return false;
         }
         return true;
@@ -157,5 +157,5 @@ public class TUserImprimante implements Serializable {
     public String toString() {
         return "dal.TUserImprimante[ lgUSERIMPRIMQNTEID=" + lgUSERIMPRIMQNTEID + " ]";
     }
-    
+
 }

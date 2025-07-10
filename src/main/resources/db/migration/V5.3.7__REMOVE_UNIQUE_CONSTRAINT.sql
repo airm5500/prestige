@@ -1,0 +1,1 @@
+ALTER TABLE hmvtproduit DROP INDEX IF EXISTS pkey_unq;

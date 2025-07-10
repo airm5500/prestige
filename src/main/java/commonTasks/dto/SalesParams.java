@@ -9,7 +9,7 @@ import dal.TUser;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import util.DateConverter;
+import util.Constant;
 
 /**
  *
@@ -17,19 +17,32 @@ import util.DateConverter;
  */
 public class SalesParams implements Serializable {
 
-    private String typeVenteId, natureVenteId, remiseId, userVendeurId, stockId, produitId,typeDepoId;
-    private int qte, qteServie, qteUg=0;
-    private String  bonRef="";
-    private boolean sansBon,checkUg=false;
+    private String typeVenteId;
+    private String natureVenteId;
+    private String remiseId;
+    private String userVendeurId;
+    private String stockId;
+    private String produitId;
+    private String typeDepoId;
+    private int qte;
+    private int qteServie;
+    private int qteUg;
+    private String bonRef = "";
+    private boolean sansBon;
+    private boolean checkUg;
     private TUser userId;
     private String venteId;
     private String itemId;
-    private Integer itemPu,remiseDepot=0;
-    private boolean devis=false,depot=false,prevente=false;
+    private Integer itemPu;
+    private Integer remiseDepot = 0;
+    private boolean devis;
+    private boolean depot;
+    private boolean prevente;
     private String clientId;
     private String ayantDroitId;
-    private Integer montantTp,totalRecap;
-    private String statut=DateConverter.STATUT_PROCESS;
+    private Integer montantTp;
+    private Integer totalRecap;
+    private String statut = Constant.STATUT_IS_PROGRESS;
     private String emplacementId;
     private String medecinId;
     private List<TiersPayantParams> tierspayants = new ArrayList<>();
@@ -65,7 +78,7 @@ public class SalesParams implements Serializable {
     public void setDepot(boolean depot) {
         this.depot = depot;
     }
-    
+
     public String getAyantDroitId() {
         return ayantDroitId;
     }
@@ -169,7 +182,8 @@ public class SalesParams implements Serializable {
     public SalesParams() {
     }
 
-    public SalesParams(String typeVenteId, String natureVenteId, String remiseId, String userVendeurId, String stockId, String produitId, int qte, int qteServie, int qteUg) {
+    public SalesParams(String typeVenteId, String natureVenteId, String remiseId, String userVendeurId, String stockId,
+            String produitId, int qte, int qteServie, int qteUg) {
         this.typeVenteId = typeVenteId;
         this.natureVenteId = natureVenteId;
         this.remiseId = remiseId;
@@ -259,7 +273,10 @@ public class SalesParams implements Serializable {
 
     @Override
     public String toString() {
-        return "SalesParams{" + "typeVenteId=" + typeVenteId + ", natureVenteId=" + natureVenteId + ", remiseId=" + remiseId + ", userVendeurId=" + userVendeurId + ", stockId=" + stockId + ", produitId=" + produitId + ", qte=" + qte + ", qteServie=" + qteServie + ", qteUg=" + qteUg + ", tierspayants=" + tierspayants + '}';
+        return "SalesParams{" + "typeVenteId=" + typeVenteId + ", natureVenteId=" + natureVenteId + ", remiseId="
+                + remiseId + ", userVendeurId=" + userVendeurId + ", stockId=" + stockId + ", produitId=" + produitId
+                + ", qte=" + qte + ", qteServie=" + qteServie + ", qteUg=" + qteUg + ", tierspayants=" + tierspayants
+                + '}';
     }
 
     public String getMedecinId() {

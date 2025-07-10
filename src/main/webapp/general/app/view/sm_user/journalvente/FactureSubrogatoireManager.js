@@ -61,7 +61,37 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
         });
         
         
-        
+     var searchstore = Ext.create('Ext.data.Store', {
+            idProperty: 'lgTIERSPAYANTID',
+            fields:
+                    [
+                        {name: 'lgTIERSPAYANTID',
+                            type: 'string'
+
+                        },
+
+                        {name: 'strFULLNAME',
+                            type: 'string'
+
+                        }
+
+                    ],
+            autoLoad: false,
+            pageSize: 999,
+
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/client/tiers-payants',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+
+            }
+            
+
+        });   
   var storetierspayant = new Ext.data.Store({
             model: 'testextjs.model.TiersPayant',
             pageSize: itemsPerPage,
@@ -306,10 +336,10 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
                     xtype: 'combobox',
                     id: 'lg_TIERS_PAYANT_ID',
                     flex: 1,
-                    store: storetierspayant,
+                    store: searchstore,
                     pageSize: 10,
-                    valueField: 'lg_TIERS_PAYANT_ID',
-                    displayField: 'str_FULLNAME',
+                    valueField: 'lgTIERSPAYANTID',
+                    displayField: 'strFULLNAME',
 //                    minChars: 2,
                     queryMode: 'remote',
                     enableKeyEvents: true,
@@ -318,7 +348,7 @@ Ext.define('testextjs.view.sm_user.journalvente.FactureSubrogatoireManager', {
                         loadingText: 'Recherche...',
                         emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',
                         getInnerTpl: function () {
-                            return '<span>{str_FULLNAME}</span>';
+                            return '<span>{strFULLNAME}</span>';
                         }
 
                     },

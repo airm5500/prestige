@@ -28,15 +28,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_contencieux")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TContencieux.findAll", query = "SELECT t FROM TContencieux t"),
-    @NamedQuery(name = "TContencieux.findByLgCONTENCIEUXID", query = "SELECT t FROM TContencieux t WHERE t.lgCONTENCIEUXID = :lgCONTENCIEUXID"),
-    @NamedQuery(name = "TContencieux.findByStrNAME", query = "SELECT t FROM TContencieux t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TContencieux.findByStrREF", query = "SELECT t FROM TContencieux t WHERE t.strREF = :strREF"),
-    @NamedQuery(name = "TContencieux.findByStrDESCRIPTION", query = "SELECT t FROM TContencieux t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TContencieux.findByDtCREATED", query = "SELECT t FROM TContencieux t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TContencieux.findByDtUPDATED", query = "SELECT t FROM TContencieux t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TContencieux.findByStrSTATUT", query = "SELECT t FROM TContencieux t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TContencieux.findAll", query = "SELECT t FROM TContencieux t"),
+        @NamedQuery(name = "TContencieux.findByLgCONTENCIEUXID", query = "SELECT t FROM TContencieux t WHERE t.lgCONTENCIEUXID = :lgCONTENCIEUXID"),
+        @NamedQuery(name = "TContencieux.findByStrNAME", query = "SELECT t FROM TContencieux t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TContencieux.findByStrREF", query = "SELECT t FROM TContencieux t WHERE t.strREF = :strREF"),
+        @NamedQuery(name = "TContencieux.findByStrDESCRIPTION", query = "SELECT t FROM TContencieux t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TContencieux.findByDtCREATED", query = "SELECT t FROM TContencieux t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TContencieux.findByDtUPDATED", query = "SELECT t FROM TContencieux t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TContencieux.findByStrSTATUT", query = "SELECT t FROM TContencieux t WHERE t.strSTATUT = :strSTATUT") })
 public class TContencieux implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -156,7 +155,8 @@ public class TContencieux implements Serializable {
             return false;
         }
         TContencieux other = (TContencieux) object;
-        if ((this.lgCONTENCIEUXID == null && other.lgCONTENCIEUXID != null) || (this.lgCONTENCIEUXID != null && !this.lgCONTENCIEUXID.equals(other.lgCONTENCIEUXID))) {
+        if ((this.lgCONTENCIEUXID == null && other.lgCONTENCIEUXID != null)
+                || (this.lgCONTENCIEUXID != null && !this.lgCONTENCIEUXID.equals(other.lgCONTENCIEUXID))) {
             return false;
         }
         return true;
@@ -166,5 +166,5 @@ public class TContencieux implements Serializable {
     public String toString() {
         return "dal.TContencieux[ lgCONTENCIEUXID=" + lgCONTENCIEUXID + " ]";
     }
-    
+
 }

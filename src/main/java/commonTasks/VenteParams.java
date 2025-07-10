@@ -18,10 +18,10 @@ import java.io.Serializable;
 public class VenteParams implements Serializable {
 
     /**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
-	private String natureVente;
+     *
+     */
+    private static final long serialVersionUID = 1L;
+    private String natureVente;
     private String typeVente;
     private String lg_FAMILLE_ID;
     private Integer int_AMOUNT_RECU = 0;
@@ -199,11 +199,12 @@ public class VenteParams implements Serializable {
     @JsonCreator
     public VenteParams(@JsonProperty("lg_FAMILLE_ID") String lg_FAMILLE_ID,
             @JsonProperty("lg_PREENREGISTREMENT_ID") String lg_PREENREGISTREMENT_ID,
-            @JsonProperty("int_QUANTITY_SERVED") int int_QUANTITY_SERVED, @JsonProperty("int_QUANTITY") int int_QUANTITY,
-            @JsonProperty("lg_USER_VENDEUR_ID") String lg_USER_VENDEUR_ID, @JsonProperty("lg_NATURE_VENTE_ID") String lg_NATURE_VENTE_ID,
+            @JsonProperty("int_QUANTITY_SERVED") int int_QUANTITY_SERVED,
+            @JsonProperty("int_QUANTITY") int int_QUANTITY,
+            @JsonProperty("lg_USER_VENDEUR_ID") String lg_USER_VENDEUR_ID,
+            @JsonProperty("lg_NATURE_VENTE_ID") String lg_NATURE_VENTE_ID,
             @JsonProperty("lg_REMISE_ID") String lg_REMISE_ID,
-            @JsonProperty("lg_TYPE_VENTE_ID") String lg_TYPE_VENTE_ID, @JsonProperty("isDevis") String isDevis
-    ) {
+            @JsonProperty("lg_TYPE_VENTE_ID") String lg_TYPE_VENTE_ID, @JsonProperty("isDevis") String isDevis) {
         this.lg_FAMILLE_ID = lg_FAMILLE_ID;
         this.lg_PREENREGISTREMENT_ID = lg_PREENREGISTREMENT_ID;
         this.int_QUANTITY_SERVED = int_QUANTITY_SERVED;
@@ -217,7 +218,14 @@ public class VenteParams implements Serializable {
 
     @Override
     public String toString() {
-        return "VenteParams{" + "natureVente=" + natureVente + "\n, typeVente=" + typeVente + "\n, lg_FAMILLE_ID=" + lg_FAMILLE_ID + "\n, int_AMOUNT_RECU=" + int_AMOUNT_RECU + "\n, int_AMOUNT_REMIS=" + int_AMOUNT_REMIS + "\n, int_QUANTITY_SERVED=" + int_QUANTITY_SERVED + "\n, int_QUANTITY=" + int_QUANTITY + "\n, lg_COMPTE_CLIENT_ID=" + lg_COMPTE_CLIENT_ID + "\n, lg_AYANTS_DROITS_ID=" + lg_AYANTS_DROITS_ID + "\n, str_REF_BON=" + str_REF_BON + "\n, lg_REMISE_ID=" + lg_REMISE_ID + "\n, int_TOTAL_VENTE_RECAP=" + int_TOTAL_VENTE_RECAP + "\n, int_PRICE_DETAIL=" + int_PRICE_DETAIL + "\n, lg_USER_VENDEUR_ID=" + lg_USER_VENDEUR_ID + "\n, int_TAUX=" + int_TAUX + "\n, b_WITHOUT_BON=" + b_WITHOUT_BON + "\n, commentaire=" + commentaire + "\n, lg_PREENREGISTREMENT_ID=" + lg_PREENREGISTREMENT_ID + '}';
+        return "VenteParams{" + "natureVente=" + natureVente + "\n, typeVente=" + typeVente + "\n, lg_FAMILLE_ID="
+                + lg_FAMILLE_ID + "\n, int_AMOUNT_RECU=" + int_AMOUNT_RECU + "\n, int_AMOUNT_REMIS=" + int_AMOUNT_REMIS
+                + "\n, int_QUANTITY_SERVED=" + int_QUANTITY_SERVED + "\n, int_QUANTITY=" + int_QUANTITY
+                + "\n, lg_COMPTE_CLIENT_ID=" + lg_COMPTE_CLIENT_ID + "\n, lg_AYANTS_DROITS_ID=" + lg_AYANTS_DROITS_ID
+                + "\n, str_REF_BON=" + str_REF_BON + "\n, lg_REMISE_ID=" + lg_REMISE_ID + "\n, int_TOTAL_VENTE_RECAP="
+                + int_TOTAL_VENTE_RECAP + "\n, int_PRICE_DETAIL=" + int_PRICE_DETAIL + "\n, lg_USER_VENDEUR_ID="
+                + lg_USER_VENDEUR_ID + "\n, int_TAUX=" + int_TAUX + "\n, b_WITHOUT_BON=" + b_WITHOUT_BON
+                + "\n, commentaire=" + commentaire + "\n, lg_PREENREGISTREMENT_ID=" + lg_PREENREGISTREMENT_ID + '}';
     }
 
     public VenteParams(@JsonProperty("lg_FAMILLE_ID") String lg_FAMILLE_ID,

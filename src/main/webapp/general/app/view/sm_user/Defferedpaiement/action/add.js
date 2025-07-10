@@ -1025,9 +1025,6 @@ Ext.define('testextjs.view.sm_user.Defferedpaiement.action.add', {
                     Ext.Msg.confirm("Information", "Voulez-vous imprimer ?",
                             function (btn) {
                                 if (btn === "yes") {
-//                                    var url_services_pdf_reglement = "../webservices/sm_user/reglement/ws_generate_pdf.jsp?lg_DOSSIER_REGLEMENT_ID=" + object.lg_DOSSIER_REGLEMENT_ID;
-
-//                                    Me.lunchPrinter(url_services_pdf_reglement);//10 01 2020
                                     Me.onPrintTicket(object.lg_DOSSIER_REGLEMENT_ID);
 
                                 } else {
@@ -1225,11 +1222,9 @@ Ext.define('testextjs.view.sm_user.Defferedpaiement.action.add', {
                         Ext.Msg.confirm("Confirme", "Voulez-vous imprimer ?",
                                 function (btn) {
                                     if (btn === "yes") {
-//                                        var url_services_pdf_reglement = "../webservices/sm_user/reglement/ws_generate_pdf.jsp?lg_DOSSIER_REGLEMENT_ID=" + object.lg_DOSSIER_REGLEMENT_ID;
-//                                        Me.lunchPrinter(url_services_pdf_reglement);//10 01 2020 
                                         Me.onPrintTicket(object.lg_DOSSIER_REGLEMENT_ID);
                                     } else {
-                                        var xtype = "deferredpayment";
+                                        const xtype = "deferredpayment";
 //                                        var alias = 'widget.' + xtype;
                                         testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion des Diff&eacute;r&eacute;s", "");
                                     }
@@ -1257,19 +1252,7 @@ Ext.define('testextjs.view.sm_user.Defferedpaiement.action.add', {
             });
         }
     },
-    onfiltercheck: function () {
-        var str_name = Ext.getCmp('str_NAME').getValue();
-        var int_name_size = str_name.length;
-        if (int_name_size < 4) {
-            Ext.getCmp('btn_add').disable();
-        }
-
-    },
-    DisplayTotal: function (int_price, int_qte) {
-        var TotalAmount_temp = int_qte * int_price;
-        var TotalAmount = Number(TotalAmount_temp);
-        return TotalAmount;
-    }, 
+   
     onbtnadd: function () {
 
     },

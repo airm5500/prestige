@@ -12,6 +12,7 @@ package dal.enumeration;
 public enum TypeTransaction {
     VENTE_COMPTANT("VNO"), VENTE_CREDIT("VO"), ACHAT("FACTURE FOURNISSEUR"), ENTREE("ENTREE DE CAISSE"),
     SORTIE("SORTIE DE CAISSE");
+
     private final String value;
 
     public String getValue() {

@@ -4,7 +4,6 @@
  */
 package report;
 
-
 import java.io.File;
 import java.util.Map;
 
@@ -54,11 +53,12 @@ public class reportManager {
 
             JasperDesign jasperDesign = JRXmlLoader.load(this.getPath_report_src());
             JasperReport jasperReport = JasperCompileManager.compileReport(jasperDesign);
-// 
+            //
 
-// - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, getOjconnexion().get_StringConnexion());
-//
+            // - Execution du rapport
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+                    getOjconnexion().get_StringConnexion());
+            //
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
@@ -69,18 +69,17 @@ public class reportManager {
         getOjconnexion().CloseConnexion();
     }
 
-   
-
     public void BuildReport(Map parameters, jconnexion Ojconnexion) {
         try {
 
             JasperDesign jasperDesign = JRXmlLoader.load(this.getPath_report_src());
             JasperReport jasperReport = JasperCompileManager.compileReport(jasperDesign);
-// - Paramètres à envoyer au rapport
+            // - Paramètres à envoyer au rapport
 
-// - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, Ojconnexion.get_StringConnexion());
-// - Création du rapport au format PDF
+            // - Execution du rapport
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+                    Ojconnexion.get_StringConnexion());
+            // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
@@ -96,12 +95,13 @@ public class reportManager {
 
             JasperDesign jasperDesign = JRXmlLoader.load(path_subreport_src);
             JasperReport jasperReport = JasperCompileManager.compileReport(jasperDesign);
-// - Paramètres à envoyer au rapport
+            // - Paramètres à envoyer au rapport
 
-// - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, Ojconnexion.get_StringConnexion());
-// - Création du rapport au format PDF
-            //    JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
+            // - Execution du rapport
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+                    Ojconnexion.get_StringConnexion());
+            // - Création du rapport au format PDF
+            // JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
             e.printStackTrace();
@@ -119,11 +119,12 @@ public class reportManager {
 
             JasperDesign jasperDesign = JRXmlLoader.load(this.getPath_report_src());
             JasperReport jasperReport = JasperCompileManager.compileReport(jasperDesign);
-// - Paramètres à envoyer au rapport
+            // - Paramètres à envoyer au rapport
 
-// - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, getOjconnexion().get_StringConnexion());
-// - Création du rapport au format PDF
+            // - Execution du rapport
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+                    getOjconnexion().get_StringConnexion());
+            // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
@@ -139,11 +140,12 @@ public class reportManager {
 
             JasperDesign jasperDesign = JRXmlLoader.load(this.getPath_report_src());
             JasperReport jasperReport = JasperCompileManager.compileReport(jasperDesign);
-// - Paramètres à envoyer au rapport
+            // - Paramètres à envoyer au rapport
 
-// - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, Ojconnexion.get_StringConnexion());
-// - Création du rapport au format PDF
+            // - Execution du rapport
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+                    Ojconnexion.get_StringConnexion());
+            // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
@@ -163,8 +165,10 @@ public class reportManager {
             File reportFile = new File(this.getPath_report_src());
             String path = reportFile.getAbsolutePath();
 
-            JasperPrint jasperPrint = JasperFillManager.fillReport(path, parameters, getOjconnexion().get_StringConnexion());
-            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters, getOjconnexion().get_StringConnexion());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(path, parameters,
+                    getOjconnexion().get_StringConnexion());
+            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters,
+                    getOjconnexion().get_StringConnexion());
             File destFile = new File(this.getPath_report_XLS());
             JRXlsExporter exporter = new JRXlsExporter();
             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
@@ -173,7 +177,7 @@ public class reportManager {
             exporter.setParameter(JRXlsExporterParameter.IS_DETECT_CELL_TYPE, Boolean.TRUE);
 
             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
-//exporter.setParameter(JRXlsExporterParameter.OUTPUT_STREAM, outputByteArray);
+            // exporter.setParameter(JRXlsExporterParameter.OUTPUT_STREAM, outputByteArray);
             exporter.setParameter(JRXlsExporterParameter.IS_ONE_PAGE_PER_SHEET, Boolean.FALSE);
             exporter.setParameter(JRXlsExporterParameter.IGNORE_PAGE_MARGINS, Boolean.TRUE);
             exporter.setParameter(JRXlsExporterParameter.IS_DETECT_CELL_TYPE, Boolean.TRUE);
@@ -195,7 +199,8 @@ public class reportManager {
             String path = reportFile.getAbsolutePath();
 
             JasperPrint jasperPrint = JasperFillManager.fillReport(path, parameters, Ojconnexion.get_StringConnexion());
-            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters, Ojconnexion.get_StringConnexion());
+            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters,
+                    Ojconnexion.get_StringConnexion());
             File destFile = new File(this.getPath_report_XLS());
             JRXlsExporter exporter = new JRXlsExporter();
             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
@@ -203,7 +208,7 @@ public class reportManager {
             exporter.setParameter(JRXlsExporterParameter.IS_ONE_PAGE_PER_SHEET, Boolean.TRUE);
             exporter.setParameter(JRXlsExporterParameter.IS_DETECT_CELL_TYPE, Boolean.TRUE);
             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
-//exporter.setParameter(JRXlsExporterParameter.OUTPUT_STREAM, outputByteArray);
+            // exporter.setParameter(JRXlsExporterParameter.OUTPUT_STREAM, outputByteArray);
             exporter.setParameter(JRXlsExporterParameter.IS_ONE_PAGE_PER_SHEET, Boolean.FALSE);
             exporter.setParameter(JRXlsExporterParameter.IGNORE_PAGE_MARGINS, Boolean.TRUE);
             exporter.setParameter(JRXlsExporterParameter.IS_DETECT_CELL_TYPE, Boolean.TRUE);
@@ -226,7 +231,8 @@ public class reportManager {
     }
 
     /**
-     * @param ojconnexion the ojconnexion to set
+     * @param ojconnexion
+     *            the ojconnexion to set
      */
     public void setOjconnexion(jconnexion ojconnexion) {
         this.ojconnexion = ojconnexion;
@@ -240,7 +246,8 @@ public class reportManager {
     }
 
     /**
-     * @param Path_report_src the Path_report_src to set
+     * @param Path_report_src
+     *            the Path_report_src to set
      */
     public void setPath_report_src(String Path_report_src) {
         this.Path_report_src = Path_report_src;
@@ -254,7 +261,8 @@ public class reportManager {
     }
 
     /**
-     * @param Path_report_pdf the Path_report_pdf to set
+     * @param Path_report_pdf
+     *            the Path_report_pdf to set
      */
     public void setPath_report_pdf(String Path_report_pdf) {
         this.Path_report_pdf = Path_report_pdf;
@@ -268,7 +276,8 @@ public class reportManager {
     }
 
     /**
-     * @param Path_report_XLS the Path_report_XLS to set
+     * @param Path_report_XLS
+     *            the Path_report_XLS to set
      */
     public void setPath_report_XLS(String Path_report_XLS) {
         this.Path_report_XLS = Path_report_XLS;
@@ -277,15 +286,16 @@ public class reportManager {
     public void BuildReportEmptyDs(Map parameters) {
         try {
             File sourceFile = new File(this.getPath_report_src());
-          //  JasperDesign jasperDesign = JRXmlLoader.load(this.getPath_report_src());
-//             JasperReport jasperDesign = (JasperReport) JRLoader.loadObject(sourceFile);
-             JasperReport jasperReport = JasperCompileManager.compileReport(this.getPath_report_src());
-// - Paramètres à envoyer au rapport
-//            JasperReport jasperReport = (JasperReport) JRLoader.loadObject(sourceFile);
+            // JasperDesign jasperDesign = JRXmlLoader.load(this.getPath_report_src());
+            // JasperReport jasperDesign = (JasperReport) JRLoader.loadObject(sourceFile);
+            JasperReport jasperReport = JasperCompileManager.compileReport(this.getPath_report_src());
+            // - Paramètres à envoyer au rapport
+            // JasperReport jasperReport = (JasperReport) JRLoader.loadObject(sourceFile);
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
-// - Execution du rapport
-//            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
-// - Création du rapport au format PDF
+            // - Execution du rapport
+            // JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new
+            // JREmptyDataSource());
+            // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {

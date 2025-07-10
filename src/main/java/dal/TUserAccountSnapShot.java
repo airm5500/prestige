@@ -28,25 +28,25 @@ import javax.xml.bind.annotation.XmlRootElement;
  */
 @Entity
 @Table(name = "t_user_account_snap_shot", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_SNAP_SHOT_ID"})})
+        @UniqueConstraint(columnNames = { "lg_SNAP_SHOT_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TUserAccountSnapShot.findAll", query = "SELECT t FROM TUserAccountSnapShot t"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByStraccounttypeID", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.straccounttypeID = :straccounttypeID"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByDecBalance", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.decBalance = :decBalance"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByDtDateCreation", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.dtDateCreation = :dtDateCreation"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByDtLastUpdate", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.dtLastUpdate = :dtLastUpdate"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByLgCustomerId", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.lgCustomerId = :lgCustomerId"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByBActive", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.bActive = :bActive"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByDtEffective", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.dtEffective = :dtEffective"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByDecBalanceDisponible", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.decBalanceDisponible = :decBalanceDisponible"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByDecBalanceInDisponible", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.decBalanceInDisponible = :decBalanceInDisponible"),
-    @NamedQuery(name = "TUserAccountSnapShot.findByLgSNAPSHOTID", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.lgSNAPSHOTID = :lgSNAPSHOTID")})
+@NamedQueries({ @NamedQuery(name = "TUserAccountSnapShot.findAll", query = "SELECT t FROM TUserAccountSnapShot t"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByStraccounttypeID", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.straccounttypeID = :straccounttypeID"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByDecBalance", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.decBalance = :decBalance"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByDtDateCreation", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.dtDateCreation = :dtDateCreation"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByDtLastUpdate", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.dtLastUpdate = :dtLastUpdate"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByLgCustomerId", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.lgCustomerId = :lgCustomerId"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByBActive", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.bActive = :bActive"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByDtEffective", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.dtEffective = :dtEffective"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByDecBalanceDisponible", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.decBalanceDisponible = :decBalanceDisponible"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByDecBalanceInDisponible", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.decBalanceInDisponible = :decBalanceInDisponible"),
+        @NamedQuery(name = "TUserAccountSnapShot.findByLgSNAPSHOTID", query = "SELECT t FROM TUserAccountSnapShot t WHERE t.lgSNAPSHOTID = :lgSNAPSHOTID") })
 public class TUserAccountSnapShot implements Serializable {
     private static final long serialVersionUID = 1L;
     @Column(name = "str_account_type_ID", length = 200)
     private String straccounttypeID;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dec_Balance", precision = 15, scale = 3)
     private Double decBalance;
     @Column(name = "dt_date_creation")
@@ -183,7 +183,8 @@ public class TUserAccountSnapShot implements Serializable {
             return false;
         }
         TUserAccountSnapShot other = (TUserAccountSnapShot) object;
-        if ((this.lgSNAPSHOTID == null && other.lgSNAPSHOTID != null) || (this.lgSNAPSHOTID != null && !this.lgSNAPSHOTID.equals(other.lgSNAPSHOTID))) {
+        if ((this.lgSNAPSHOTID == null && other.lgSNAPSHOTID != null)
+                || (this.lgSNAPSHOTID != null && !this.lgSNAPSHOTID.equals(other.lgSNAPSHOTID))) {
             return false;
         }
         return true;
@@ -193,5 +194,5 @@ public class TUserAccountSnapShot implements Serializable {
     public String toString() {
         return "dal.TUserAccountSnapShot[ lgSNAPSHOTID=" + lgSNAPSHOTID + " ]";
     }
-    
+
 }

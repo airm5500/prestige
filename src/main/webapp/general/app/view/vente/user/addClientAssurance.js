@@ -1,11 +1,3 @@
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/* global Ext */
-
 Ext.define('testextjs.view.vente.user.addClientAssurance', {
     extend: 'Ext.window.Window',
     xtype: 'addaddclientwindow',
@@ -19,8 +11,8 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
     maximizable: true,
     layout: {
         type: 'fit'
-
     },
+
     initComponent: function () {
         var me = this;
         var villeStore = new Ext.data.Store({
@@ -41,6 +33,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                 }
             }
         });
+
         var clientTpStore = new Ext.data.Store({
             idProperty: 'lgTIERSPAYANTID',
             fields: [
@@ -54,7 +47,6 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                 {name: 'dblQUOTACONSOMENSUELLE', type: 'number'},
                 {name: 'taux', type: 'number'},
                 {name: 'canRemove', type: 'number', defaultValue: 0}
-
             ],
             pageSize: null,
             autoLoad: false,
@@ -68,7 +60,6 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                 }
             }
         });
-
 
         var tierspayantss = new Ext.data.Store({
             idProperty: 'lgTIERSPAYANTID',
@@ -88,8 +79,8 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                 }
             }
         });
-        Ext.applyIf(me, {
 
+        Ext.applyIf(me, {
             dockedItems: [
                 {
                     xtype: 'toolbar',
@@ -110,7 +101,6 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                             iconCls: 'cancelicon',
                             itemId: 'btnCancelAssClient',
                             text: 'Annuler'
-
                         }
                     ]
                 }
@@ -126,7 +116,6 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                         align: 'stretch'
                     },
                     items: [
-
                         {
                             xtype: 'container',
                             flex: 1,
@@ -157,32 +146,47 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     emptyText: 'Nom',
                                                     name: 'strFIRSTNAME',
                                                     itemId: 'strFIRSTNAME',
-                                                    height: 30, flex: 1,
+                                                    height: 30, 
+                                                    flex: 1,
                                                     allowBlank: false,
                                                     enableKeyEvents: true,
                                                     listeners: {
                                                         afterrender: function (field) {
                                                             field.focus(false, 100);
+                                                        },
+                                                        specialkey: function(field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('#strLASTNAME').focus(false, 100);
+                                                            }
                                                         }
                                                     }
-
-                                                }, {xtype: 'splitter'},
+                                                }, 
+                                                {xtype: 'splitter'},
                                                 {
                                                     xtype: 'textfield',
                                                     fieldLabel: 'Prénom',
                                                     emptyText: 'Prénom',
                                                     name: 'strLASTNAME',
-                                                    height: 30, flex: 1,
+                                                    itemId: 'strLASTNAME',
+                                                    height: 30, 
+                                                    flex: 1,
                                                     allowBlank: false,
-                                                    enableKeyEvents: true
-
+                                                    enableKeyEvents: true,
+                                                    listeners: {
+                                                        specialkey: function(field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('#strNUMEROSECURITESOCIAL').focus(false, 100);
+                                                            }
+                                                        }
+                                                    }
                                                 },
                                                 {
                                                     xtype: 'hiddenfield',
                                                     name: 'compteTp',
                                                     allowBlank: true
                                                 }
-
                                             ]
                                         },
                                         {
@@ -190,49 +194,63 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                             flex: 1,
                                             layout: {type: 'hbox', align: 'stretch'},
                                             items: [
-                                                {xtype: 'textfield',
+                                                {
+                                                    xtype: 'textfield',
                                                     fieldLabel: 'Matricule/SS',
-                                                    emptyText: 'Numéro de matricule ',
+                                                    emptyText: 'Numéro de matricule',
                                                     name: 'strNUMEROSECURITESOCIAL',
-                                                    height: 30, flex: 1,
+                                                    itemId: 'strNUMEROSECURITESOCIAL',
+                                                    height: 30, 
+                                                    flex: 1,
                                                     allowBlank: false,
-                                                    enableKeyEvents: true
-
-                                                }, {xtype: 'splitter'},
-                                                {xtype: 'datefield',
+                                                    enableKeyEvents: true,
+                                                    listeners: {
+                                                        specialkey: function(field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('#tiersvo').focus(false, 100);
+                                                            }
+                                                        }
+                                                    }
+                                                }, 
+                                                {xtype: 'splitter'},
+                                                {
+                                                    xtype: 'datefield',
                                                     fieldLabel: 'Date.Naiss',
                                                     emptyText: 'Date de naissance',
                                                     name: 'dtNAISSANCE',
-                                                    height: 30, flex: 1,
+                                                    height: 30, 
+                                                    flex: 1,
                                                     submitFormat: 'Y-m-d',
                                                     format: 'd/m/Y',
                                                     maxValue: new Date(),
                                                     enableKeyEvents: true
-
                                                 }
                                             ]
-                                        }
-                                        , {
+                                        },
+                                        {
                                             xtype: 'fieldcontainer',
                                             flex: 1,
                                             layout: {type: 'hbox', align: 'stretch'},
                                             items: [
-                                                {xtype: 'textfield',
+                                                {
+                                                    xtype: 'textfield',
                                                     fieldLabel: 'Adresse',
                                                     emptyText: 'Adresse',
                                                     name: 'strADRESSE',
-                                                    height: 30, flex: 1,
+                                                    height: 30, 
+                                                    flex: 1,
                                                     enableKeyEvents: true
-
-                                                }, {xtype: 'splitter'},
+                                                }, 
+                                                {xtype: 'splitter'},
                                                 {
                                                     xtype: 'textfield',
                                                     fieldLabel: 'Code Postale',
                                                     emptyText: 'Code Postale',
                                                     name: 'strCODEPOSTAL',
-                                                    height: 30, flex: 1,
+                                                    height: 30, 
+                                                    flex: 1,
                                                     enableKeyEvents: true
-
                                                 }
                                             ]
                                         },
@@ -251,15 +269,16 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                         {boxLabel: 'Féminin', name: 'strSEXE', inputValue: 'F'},
                                                         {boxLabel: 'Masculin', name: 'strSEXE', inputValue: 'M'}
                                                     ]
-                                                }, {xtype: 'splitter'},
+                                                }, 
+                                                {xtype: 'splitter'},
                                                 {
                                                     xtype: 'combobox',
                                                     fieldLabel: 'Ville',
                                                     flex: 1,
                                                     height: 30,
-//                                                    forceSelection:true,
                                                     minChars: 2,
                                                     name: 'lgVILLEID',
+                                                    itemId: 'lgVILLEID',
                                                     store: villeStore,
                                                     valueField: 'lgVILLEID',
                                                     displayField: 'strName',
@@ -268,10 +287,8 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                 }
                                             ]
                                         }
-
                                     ]
                                 },
-
                                 {
                                     xtype: 'fieldset',
                                     collapsible: false,
@@ -279,8 +296,8 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                     bodyPadding: 5,
                                     title: 'Infos.Tiers.Payant.RO',
                                     layout: {
-                                        type: 'vbox', align: 'stretch'
-
+                                        type: 'vbox', 
+                                        align: 'stretch'
                                     },
                                     items: [
                                         {
@@ -292,30 +309,49 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     xtype: 'combobox',
                                                     fieldLabel: 'Tiers.Payant',
                                                     name: 'lgTIERSPAYANTID',
-                                                    flex: 1, height: 30,
-                                                    minChars: 2,
                                                     itemId: 'tiersvo',
+                                                    flex: 1, 
+                                                    height: 30,
+                                                    minChars: 2,
                                                     store: tierspayantss,
                                                     valueField: 'lgTIERSPAYANTID',
                                                     displayField: 'strFULLNAME',
-//                                                    forceSelection:true,
                                                     typeAhead: false,
                                                     allowBlank: false,
                                                     queryMode: 'remote',
-                                                    emptyText: 'Choisir un tierspayant...'
+                                                    emptyText: 'Choisir un tierspayant...',
+                                                    listeners: {
+                                                        specialkey: function(field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('#intPOURCENTAGE').focus(false, 100);
+                                                            }
+                                                        }
+                                                    }
                                                 },
                                                 {xtype: 'splitter'},
                                                 {
                                                     xtype: 'numberfield',
-                                                    flex: 1, height: 30,
+                                                    flex: 1, 
+                                                    height: 30,
                                                     fieldLabel: 'Pourcentage',
                                                     allowDecimals: false,
                                                     allowBlank: false,
                                                     hideTrigger: true,
-                                                    name: 'intPOURCENTAGE', minValue: 1,
+                                                    name: 'intPOURCENTAGE', 
+                                                    itemId: 'intPOURCENTAGE',
+                                                    minValue: 1,
                                                     maxValue: 100,
                                                     maskRe: /[1-100.]/,
-                                                    emptyText: 'Pourcentage'
+                                                    emptyText: 'Pourcentage',
+                                                    listeners: {
+                                                        specialkey: function(field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('#btnAddClientAssurance').focus(false, 100);
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             ]
                                         },
@@ -327,10 +363,12 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                 {
                                                     xtype: 'numberfield',
                                                     hideTrigger: true,
-                                                    flex: 1, height: 30,
+                                                    flex: 1, 
+                                                    height: 30,
                                                     allowDecimals: false,
                                                     fieldLabel: 'Plafond.Vente',
-                                                    name: 'dblQUOTACONSOMENSUELLE', minValue: 0,
+                                                    name: 'dblQUOTACONSOMENSUELLE', 
+                                                    minValue: 0,
                                                     emptyText: 'Plafond.Vente'
                                                 },
                                                 {xtype: 'splitter'},
@@ -340,11 +378,15 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     hideTrigger: true,
                                                     allowDecimals: false,
                                                     fieldLabel: 'Plafond.Encours',
-                                                    name: 'dbPLAFONDENCOURS', minValue: 0,
+                                                    name: 'dbPLAFONDENCOURS', 
+                                                    minValue: 0,
                                                     height: 30,
                                                     maskRe: /[0-100.]/,
                                                     emptyText: 'Plafond.Encours'
-                                                }, {xtype: 'splitter'}, {xtype: 'splitter'}, {xtype: 'splitter'},
+                                                }, 
+                                                {xtype: 'splitter'}, 
+                                                {xtype: 'splitter'}, 
+                                                {xtype: 'splitter'},
                                                 {
                                                     xtype: 'checkbox',
                                                     boxLabel: 'Le plafond est-il absolu ?',
@@ -352,22 +394,20 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     flex: 1,
                                                     height: 30,
                                                     name: 'bIsAbsolute'
-//                                                    checked: false
-
-                                                }, {
+                                                }, 
+                                                {
                                                     xtype: 'hiddenfield',
                                                     name: 'intPRIORITY',
                                                     value: 1
-                                                }
-                                                , {
+                                                },
+                                                {
                                                     xtype: 'hiddenfield',
                                                     name: 'lgCLIENTID'
-
-                                                }, {
+                                                }, 
+                                                {
                                                     xtype: 'hiddenfield',
                                                     name: 'lgTYPECLIENTID',
                                                     value: '1'
-
                                                 }
                                             ]
                                         }
@@ -381,7 +421,6 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                     title: 'Infos.Tiers-payant.complémentaire',
                                     layout: {
                                         type: 'fit'
-
                                     },
                                     items: [
                                         {
@@ -389,19 +428,11 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                             selModel: {
                                                 selType: 'cellmodel',
                                                 mode: 'SINGLE'
-                                            }, /*
-                                             plugins: [
-                                             Ext.create('Ext.grid.plugin.CellEditing',
-                                             {
-                                             clicksToEdit: 1,
-                                             pluginId: 'cellplugin'
-                                             })
-                                             ],*/
+                                            },
                                             dockedItems: [
                                                 {
                                                     xtype: 'toolbar',
                                                     dock: 'top',
-//                                                    ui: 'footer',
                                                     layout: {
                                                         pack: 'start',
                                                         type: 'hbox'
@@ -415,7 +446,6 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     ]
                                                 }
                                             ],
-
                                             store: clientTpStore,
                                             columns: [
                                                 {
@@ -436,62 +466,35 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                 {
                                                     text: 'Taux.Couverture',
                                                     flex: 0.5,
-                                                    dataIndex: 'taux'/*,
-                                                     editor: {
-                                                     xtype: 'numberfield',
-                                                     completeOnEnter: true,
-                                                     allowBlank: false,
-                                                     minValue: 1,
-                                                     maskRe: /[0-9.]/,
-                                                     selectOnFocus: true,
-                                                     hideTrigger: true
-                                                     }*/
+                                                    dataIndex: 'taux'
                                                 },
                                                 {
                                                     text: 'Numéro/SS',
                                                     flex: 0.8,
-                                                    dataIndex: 'numSecurity'/*,
-                                                     editor: {
-                                                     completeOnEnter: true,
-                                                     allowBlank: true,
-                                                     selectOnFocus: true
-                                                     
-                                                     }*/
+                                                    dataIndex: 'numSecurity'
                                                 },
                                                 {
                                                     text: 'RC',
                                                     flex: 0.5,
-                                                    dataIndex: 'order'/*,
-                                                     editor: {
-                                                     completeOnEnter: true,
-                                                     xtype: 'numberfield',
-                                                     maskRe: /[2-4.]/,
-                                                     minValue: 2,
-                                                     maxValue: 4,
-                                                     hideTrigger: true,
-                                                     allowBlank: false,
-                                                     selectOnFocus: true
-                                                     
-                                                     }*/
-                                                }
-                                                , {
+                                                    dataIndex: 'order'
+                                                },
+                                                {
                                                     xtype: 'actioncolumn',
                                                     width: 30,
                                                     sortable: false,
                                                     menuDisabled: true,
                                                     items: [{
-                                                            icon: 'resources/images/icons/fam/delete.png',
-                                                            tooltip: 'Retirer',
-                                                            scope: me,
-                                                            getClass: function (value, metadata, record) {
-                                                                if (record.get('canRemove') == 1) {
-                                                                    return 'x-display-hide';
-                                                                } else {
-                                                                    return "x-hide-display";
-                                                                }
+                                                        icon: 'resources/images/icons/fam/delete.png',
+                                                        tooltip: 'Retirer',
+                                                        scope: me,
+                                                        getClass: function (value, metadata, record) {
+                                                            if (record.get('canRemove') == 1) {
+                                                                return 'x-display-hide';
+                                                            } else {
+                                                                return "x-hide-display";
                                                             }
-
-                                                        }]
+                                                        }
+                                                    }]
                                                 }
                                             ]
                                         }
@@ -499,13 +502,38 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                 }
                             ]
                         }
-
                     ]
                 }
             ]
         });
+
         me.callParent(arguments);
+
+        // Gestion du bouton Enregistrer
+        me.down('#btnAddClientAssurance').on('specialkey', function(btn, e) {
+            if (e.getKey() === e.ENTER) {
+                me.confirmAndSave();
+            }
+        });
+
+        me.down('#btnAddClientAssurance').on('click', function() {
+            me.confirmAndSave();
+        });
+    },
+
+    confirmAndSave: function() {
+        var me = this;
+        Ext.Msg.show({
+            title: 'Confirmation',
+            msg: 'Voulez-vous enregistrer ce client?',
+            buttons: Ext.Msg.YESNO,
+            icon: Ext.Msg.QUESTION,
+            fn: function(btn) {
+                if (btn === 'yes') {
+                    // Logique d'enregistrement ici
+                    console.log('Enregistrement confirmé');
+                }
+            }
+        });
     }
-
 });
-

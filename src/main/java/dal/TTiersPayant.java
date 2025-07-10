@@ -6,8 +6,11 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -20,8 +23,10 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
+import javax.persistence.Transient;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
+import org.apache.commons.collections4.CollectionUtils;
 
 /**
  *
@@ -30,46 +35,45 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_tiers_payant")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTiersPayant.findAll", query = "SELECT t FROM TTiersPayant t"),
-    @NamedQuery(name = "TTiersPayant.findByLgTIERSPAYANTID", query = "SELECT t FROM TTiersPayant t WHERE t.lgTIERSPAYANTID = :lgTIERSPAYANTID"),
-    @NamedQuery(name = "TTiersPayant.findByStrCODEORGANISME", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEORGANISME = :strCODEORGANISME"),
-    @NamedQuery(name = "TTiersPayant.findByStrNAME", query = "SELECT t FROM TTiersPayant t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTiersPayant.findByStrFULLNAME", query = "SELECT t FROM TTiersPayant t WHERE t.strFULLNAME = :strFULLNAME"),
-    @NamedQuery(name = "TTiersPayant.findByStrMOBILE", query = "SELECT t FROM TTiersPayant t WHERE t.strMOBILE = :strMOBILE"),
-    @NamedQuery(name = "TTiersPayant.findByStrTELEPHONE", query = "SELECT t FROM TTiersPayant t WHERE t.strTELEPHONE = :strTELEPHONE"),
-    @NamedQuery(name = "TTiersPayant.findByStrMAIL", query = "SELECT t FROM TTiersPayant t WHERE t.strMAIL = :strMAIL"),
-    @NamedQuery(name = "TTiersPayant.findByDblPLAFONDCREDIT", query = "SELECT t FROM TTiersPayant t WHERE t.dblPLAFONDCREDIT = :dblPLAFONDCREDIT"),
-    @NamedQuery(name = "TTiersPayant.findByDblTAUXREMBOURSEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.dblTAUXREMBOURSEMENT = :dblTAUXREMBOURSEMENT"),
-    @NamedQuery(name = "TTiersPayant.findByStrNUMEROCAISSEOFFICIEL", query = "SELECT t FROM TTiersPayant t WHERE t.strNUMEROCAISSEOFFICIEL = :strNUMEROCAISSEOFFICIEL"),
-    @NamedQuery(name = "TTiersPayant.findByStrCENTREPAYEUR", query = "SELECT t FROM TTiersPayant t WHERE t.strCENTREPAYEUR = :strCENTREPAYEUR"),
-    @NamedQuery(name = "TTiersPayant.findByStrCODEREGROUPEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEREGROUPEMENT = :strCODEREGROUPEMENT"),
-    @NamedQuery(name = "TTiersPayant.findByDblSEUILMINIMUM", query = "SELECT t FROM TTiersPayant t WHERE t.dblSEUILMINIMUM = :dblSEUILMINIMUM"),
-    @NamedQuery(name = "TTiersPayant.findByBoolINTERDICTION", query = "SELECT t FROM TTiersPayant t WHERE t.boolINTERDICTION = :boolINTERDICTION"),
-    @NamedQuery(name = "TTiersPayant.findByBoolIsACCOUNT", query = "SELECT t FROM TTiersPayant t WHERE t.boolIsACCOUNT = :boolIsACCOUNT"),
-    @NamedQuery(name = "TTiersPayant.findByStrCODECOMPTABLE", query = "SELECT t FROM TTiersPayant t WHERE t.strCODECOMPTABLE = :strCODECOMPTABLE"),
-    @NamedQuery(name = "TTiersPayant.findByBoolPRENUMFACTSUBROGATOIRE", query = "SELECT t FROM TTiersPayant t WHERE t.boolPRENUMFACTSUBROGATOIRE = :boolPRENUMFACTSUBROGATOIRE"),
-    @NamedQuery(name = "TTiersPayant.findByIntNUMERODECOMPTE", query = "SELECT t FROM TTiersPayant t WHERE t.intNUMERODECOMPTE = :intNUMERODECOMPTE"),
-    @NamedQuery(name = "TTiersPayant.findByStrCODEPAIEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEPAIEMENT = :strCODEPAIEMENT"),
-    @NamedQuery(name = "TTiersPayant.findByDtDELAIPAIEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.dtDELAIPAIEMENT = :dtDELAIPAIEMENT"),
-    @NamedQuery(name = "TTiersPayant.findByDblPOURCENTAGEREMISE", query = "SELECT t FROM TTiersPayant t WHERE t.dblPOURCENTAGEREMISE = :dblPOURCENTAGEREMISE"),
-    @NamedQuery(name = "TTiersPayant.findByDblREMISEFORFETAIRE", query = "SELECT t FROM TTiersPayant t WHERE t.dblREMISEFORFETAIRE = :dblREMISEFORFETAIRE"),
-    @NamedQuery(name = "TTiersPayant.findByStrCODEEDITBORDEREAU", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEEDITBORDEREAU = :strCODEEDITBORDEREAU"),
-    @NamedQuery(name = "TTiersPayant.findByIntNBREEXEMPLAIREBORD", query = "SELECT t FROM TTiersPayant t WHERE t.intNBREEXEMPLAIREBORD = :intNBREEXEMPLAIREBORD"),
-    @NamedQuery(name = "TTiersPayant.findByIntPERIODICITEEDITBORD", query = "SELECT t FROM TTiersPayant t WHERE t.intPERIODICITEEDITBORD = :intPERIODICITEEDITBORD"),
-    @NamedQuery(name = "TTiersPayant.findByIntDATEDERNIEREEDITION", query = "SELECT t FROM TTiersPayant t WHERE t.intDATEDERNIEREEDITION = :intDATEDERNIEREEDITION"),
-    @NamedQuery(name = "TTiersPayant.findByStrNUMEROIDFORGANISME", query = "SELECT t FROM TTiersPayant t WHERE t.strNUMEROIDFORGANISME = :strNUMEROIDFORGANISME"),
-    @NamedQuery(name = "TTiersPayant.findByDblMONTANTFCLIENT", query = "SELECT t FROM TTiersPayant t WHERE t.dblMONTANTFCLIENT = :dblMONTANTFCLIENT"),
-    @NamedQuery(name = "TTiersPayant.findByDblBASEREMISE", query = "SELECT t FROM TTiersPayant t WHERE t.dblBASEREMISE = :dblBASEREMISE"),
-    @NamedQuery(name = "TTiersPayant.findByStrCODEDOCCOMPTOIRE", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEDOCCOMPTOIRE = :strCODEDOCCOMPTOIRE"),
-    @NamedQuery(name = "TTiersPayant.findByBoolENABLED", query = "SELECT t FROM TTiersPayant t WHERE t.boolENABLED = :boolENABLED"),
-    @NamedQuery(name = "TTiersPayant.findByDtCREATED", query = "SELECT t FROM TTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTiersPayant.findByDtUPDATED", query = "SELECT t FROM TTiersPayant t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTiersPayant.findByStrSTATUT", query = "SELECT t FROM TTiersPayant t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTiersPayant.findByStrPHOTO", query = "SELECT t FROM TTiersPayant t WHERE t.strPHOTO = :strPHOTO"),
-    @NamedQuery(name = "TTiersPayant.findByStrREGISTRECOMMERCE", query = "SELECT t FROM TTiersPayant t WHERE t.strREGISTRECOMMERCE = :strREGISTRECOMMERCE"),
-    @NamedQuery(name = "TTiersPayant.findByStrCODEOFFICINE", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEOFFICINE = :strCODEOFFICINE"),
-    @NamedQuery(name = "TTiersPayant.findByStrCOMPTECONTRIBUABLE", query = "SELECT t FROM TTiersPayant t WHERE t.strCOMPTECONTRIBUABLE = :strCOMPTECONTRIBUABLE")})
+@NamedQueries({ @NamedQuery(name = "TTiersPayant.findAll", query = "SELECT t FROM TTiersPayant t"),
+        @NamedQuery(name = "TTiersPayant.findByLgTIERSPAYANTID", query = "SELECT t FROM TTiersPayant t WHERE t.lgTIERSPAYANTID = :lgTIERSPAYANTID"),
+        @NamedQuery(name = "TTiersPayant.findByStrCODEORGANISME", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEORGANISME = :strCODEORGANISME"),
+        @NamedQuery(name = "TTiersPayant.findByStrNAME", query = "SELECT t FROM TTiersPayant t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTiersPayant.findByStrFULLNAME", query = "SELECT t FROM TTiersPayant t WHERE t.strFULLNAME = :strFULLNAME"),
+        @NamedQuery(name = "TTiersPayant.findByStrMOBILE", query = "SELECT t FROM TTiersPayant t WHERE t.strMOBILE = :strMOBILE"),
+        @NamedQuery(name = "TTiersPayant.findByStrTELEPHONE", query = "SELECT t FROM TTiersPayant t WHERE t.strTELEPHONE = :strTELEPHONE"),
+        @NamedQuery(name = "TTiersPayant.findByStrMAIL", query = "SELECT t FROM TTiersPayant t WHERE t.strMAIL = :strMAIL"),
+        @NamedQuery(name = "TTiersPayant.findByDblPLAFONDCREDIT", query = "SELECT t FROM TTiersPayant t WHERE t.dblPLAFONDCREDIT = :dblPLAFONDCREDIT"),
+        @NamedQuery(name = "TTiersPayant.findByDblTAUXREMBOURSEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.dblTAUXREMBOURSEMENT = :dblTAUXREMBOURSEMENT"),
+        @NamedQuery(name = "TTiersPayant.findByStrNUMEROCAISSEOFFICIEL", query = "SELECT t FROM TTiersPayant t WHERE t.strNUMEROCAISSEOFFICIEL = :strNUMEROCAISSEOFFICIEL"),
+        @NamedQuery(name = "TTiersPayant.findByStrCENTREPAYEUR", query = "SELECT t FROM TTiersPayant t WHERE t.strCENTREPAYEUR = :strCENTREPAYEUR"),
+        @NamedQuery(name = "TTiersPayant.findByStrCODEREGROUPEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEREGROUPEMENT = :strCODEREGROUPEMENT"),
+        @NamedQuery(name = "TTiersPayant.findByDblSEUILMINIMUM", query = "SELECT t FROM TTiersPayant t WHERE t.dblSEUILMINIMUM = :dblSEUILMINIMUM"),
+        @NamedQuery(name = "TTiersPayant.findByBoolINTERDICTION", query = "SELECT t FROM TTiersPayant t WHERE t.boolINTERDICTION = :boolINTERDICTION"),
+        @NamedQuery(name = "TTiersPayant.findByBoolIsACCOUNT", query = "SELECT t FROM TTiersPayant t WHERE t.boolIsACCOUNT = :boolIsACCOUNT"),
+        @NamedQuery(name = "TTiersPayant.findByStrCODECOMPTABLE", query = "SELECT t FROM TTiersPayant t WHERE t.strCODECOMPTABLE = :strCODECOMPTABLE"),
+        @NamedQuery(name = "TTiersPayant.findByBoolPRENUMFACTSUBROGATOIRE", query = "SELECT t FROM TTiersPayant t WHERE t.boolPRENUMFACTSUBROGATOIRE = :boolPRENUMFACTSUBROGATOIRE"),
+        @NamedQuery(name = "TTiersPayant.findByIntNUMERODECOMPTE", query = "SELECT t FROM TTiersPayant t WHERE t.intNUMERODECOMPTE = :intNUMERODECOMPTE"),
+        @NamedQuery(name = "TTiersPayant.findByStrCODEPAIEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEPAIEMENT = :strCODEPAIEMENT"),
+        @NamedQuery(name = "TTiersPayant.findByDtDELAIPAIEMENT", query = "SELECT t FROM TTiersPayant t WHERE t.dtDELAIPAIEMENT = :dtDELAIPAIEMENT"),
+        @NamedQuery(name = "TTiersPayant.findByDblPOURCENTAGEREMISE", query = "SELECT t FROM TTiersPayant t WHERE t.dblPOURCENTAGEREMISE = :dblPOURCENTAGEREMISE"),
+        @NamedQuery(name = "TTiersPayant.findByDblREMISEFORFETAIRE", query = "SELECT t FROM TTiersPayant t WHERE t.dblREMISEFORFETAIRE = :dblREMISEFORFETAIRE"),
+        @NamedQuery(name = "TTiersPayant.findByStrCODEEDITBORDEREAU", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEEDITBORDEREAU = :strCODEEDITBORDEREAU"),
+        @NamedQuery(name = "TTiersPayant.findByIntNBREEXEMPLAIREBORD", query = "SELECT t FROM TTiersPayant t WHERE t.intNBREEXEMPLAIREBORD = :intNBREEXEMPLAIREBORD"),
+        @NamedQuery(name = "TTiersPayant.findByIntPERIODICITEEDITBORD", query = "SELECT t FROM TTiersPayant t WHERE t.intPERIODICITEEDITBORD = :intPERIODICITEEDITBORD"),
+        @NamedQuery(name = "TTiersPayant.findByIntDATEDERNIEREEDITION", query = "SELECT t FROM TTiersPayant t WHERE t.intDATEDERNIEREEDITION = :intDATEDERNIEREEDITION"),
+        @NamedQuery(name = "TTiersPayant.findByStrNUMEROIDFORGANISME", query = "SELECT t FROM TTiersPayant t WHERE t.strNUMEROIDFORGANISME = :strNUMEROIDFORGANISME"),
+        @NamedQuery(name = "TTiersPayant.findByDblMONTANTFCLIENT", query = "SELECT t FROM TTiersPayant t WHERE t.dblMONTANTFCLIENT = :dblMONTANTFCLIENT"),
+        @NamedQuery(name = "TTiersPayant.findByDblBASEREMISE", query = "SELECT t FROM TTiersPayant t WHERE t.dblBASEREMISE = :dblBASEREMISE"),
+        @NamedQuery(name = "TTiersPayant.findByStrCODEDOCCOMPTOIRE", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEDOCCOMPTOIRE = :strCODEDOCCOMPTOIRE"),
+        @NamedQuery(name = "TTiersPayant.findByBoolENABLED", query = "SELECT t FROM TTiersPayant t WHERE t.boolENABLED = :boolENABLED"),
+        @NamedQuery(name = "TTiersPayant.findByDtCREATED", query = "SELECT t FROM TTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTiersPayant.findByDtUPDATED", query = "SELECT t FROM TTiersPayant t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTiersPayant.findByStrSTATUT", query = "SELECT t FROM TTiersPayant t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTiersPayant.findByStrPHOTO", query = "SELECT t FROM TTiersPayant t WHERE t.strPHOTO = :strPHOTO"),
+        @NamedQuery(name = "TTiersPayant.findByStrREGISTRECOMMERCE", query = "SELECT t FROM TTiersPayant t WHERE t.strREGISTRECOMMERCE = :strREGISTRECOMMERCE"),
+        @NamedQuery(name = "TTiersPayant.findByStrCODEOFFICINE", query = "SELECT t FROM TTiersPayant t WHERE t.strCODEOFFICINE = :strCODEOFFICINE"),
+        @NamedQuery(name = "TTiersPayant.findByStrCOMPTECONTRIBUABLE", query = "SELECT t FROM TTiersPayant t WHERE t.strCOMPTECONTRIBUABLE = :strCOMPTECONTRIBUABLE") })
 public class TTiersPayant implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -111,7 +115,6 @@ public class TTiersPayant implements Serializable {
     private String strTELEPHONE;
     @Column(name = "str_MAIL", length = 100)
     private String strMAIL;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
     @Column(name = "dbl_PLAFOND_CREDIT", precision = 12, scale = 2)
     private Double dblPLAFONDCREDIT;
     @Column(name = "dbl_TAUX_REMBOURSEMENT", precision = 5, scale = 2)
@@ -203,6 +206,31 @@ public class TTiersPayant implements Serializable {
     private Long account = 0L;
     @Column(name = "to_be_exclude")
     private Boolean toBeExclude = Boolean.FALSE;
+    @Column(name = "is_depot", nullable = false)
+    private Boolean isDepot = Boolean.FALSE;
+    @Column(name = "grouping_by_taux", nullable = false)
+    private Boolean groupingByTaux = Boolean.FALSE;
+
+    @OneToMany(mappedBy = "tiersPayant")
+    private List<Caution> cautions = new ArrayList<>();
+    @Transient
+    private Caution caution;
+
+    public List<Caution> getCautions() {
+        return cautions;
+    }
+
+    public void setCautions(List<Caution> cautions) {
+        this.cautions = cautions;
+    }
+
+    public Boolean getGroupingByTaux() {
+        return groupingByTaux;
+    }
+
+    public void setGroupingByTaux(Boolean groupingByTaux) {
+        this.groupingByTaux = groupingByTaux;
+    }
 
     public TTiersPayant() {
     }
@@ -593,7 +621,8 @@ public class TTiersPayant implements Serializable {
         return tCompteClientTiersPayantCollection;
     }
 
-    public void setTCompteClientTiersPayantCollection(Collection<TCompteClientTiersPayant> tCompteClientTiersPayantCollection) {
+    public void setTCompteClientTiersPayantCollection(
+            Collection<TCompteClientTiersPayant> tCompteClientTiersPayantCollection) {
         this.tCompteClientTiersPayantCollection = tCompteClientTiersPayantCollection;
     }
 
@@ -611,7 +640,8 @@ public class TTiersPayant implements Serializable {
             return false;
         }
         TTiersPayant other = (TTiersPayant) object;
-        if ((this.lgTIERSPAYANTID == null && other.lgTIERSPAYANTID != null) || (this.lgTIERSPAYANTID != null && !this.lgTIERSPAYANTID.equals(other.lgTIERSPAYANTID))) {
+        if ((this.lgTIERSPAYANTID == null && other.lgTIERSPAYANTID != null)
+                || (this.lgTIERSPAYANTID != null && !this.lgTIERSPAYANTID.equals(other.lgTIERSPAYANTID))) {
             return false;
         }
         return true;
@@ -686,4 +716,22 @@ public class TTiersPayant implements Serializable {
         this.toBeExclude = toBeExclude;
     }
 
+    public Boolean getIsDepot() {
+        return isDepot;
+    }
+
+    public void setIsDepot(Boolean isDepot) {
+        this.isDepot = isDepot;
+    }
+
+    public Caution getCaution() {
+        if (CollectionUtils.isNotEmpty(cautions)) {
+            this.caution = cautions.get(0);
+        }
+        return caution;
+    }
+
+    public boolean hasCaution() {
+        return Objects.nonNull(getCaution());
+    }
 }

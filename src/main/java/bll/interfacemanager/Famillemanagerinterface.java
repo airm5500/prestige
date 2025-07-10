@@ -14,8 +14,9 @@ import dal.TTypeetiquette;
  * @author MKABOU
  */
 public interface Famillemanagerinterface {
-    //deconditionnement
+    // deconditionnement
     public boolean createDeconditionnement(TFamille OTFamille, int int_NUMBER);
+
     public TTypeetiquette getTTypeetiquette(String lg_TYPEETIQUETTE_ID);
-    //fin deconditionnement
+    // fin deconditionnement
 }

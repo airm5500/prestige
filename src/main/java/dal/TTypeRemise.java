@@ -30,9 +30,8 @@ import javax.xml.bind.annotation.XmlTransient;
 @Table(name = "t_type_remise")
 @XmlRootElement
 @NamedQueries({
-   
-    @NamedQuery(name = "TTypeRemise.findByStrSTATUT", query = "SELECT DISTINCT t  FROM TTypeRemise t  INNER JOIN FETCH t.tRemiseCollection  WHERE t.strSTATUT = :strSTATUT")
-    })
+
+        @NamedQuery(name = "TTypeRemise.findByStrSTATUT", query = "SELECT DISTINCT t  FROM TTypeRemise t  INNER JOIN FETCH t.tRemiseCollection  WHERE t.strSTATUT = :strSTATUT") })
 public class TTypeRemise implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -132,7 +131,8 @@ public class TTypeRemise implements Serializable {
             return false;
         }
         TTypeRemise other = (TTypeRemise) object;
-        if ((this.lgTYPEREMISEID == null && other.lgTYPEREMISEID != null) || (this.lgTYPEREMISEID != null && !this.lgTYPEREMISEID.equals(other.lgTYPEREMISEID))) {
+        if ((this.lgTYPEREMISEID == null && other.lgTYPEREMISEID != null)
+                || (this.lgTYPEREMISEID != null && !this.lgTYPEREMISEID.equals(other.lgTYPEREMISEID))) {
             return false;
         }
         return true;
@@ -142,5 +142,5 @@ public class TTypeRemise implements Serializable {
     public String toString() {
         return "dal.TTypeRemise[ lgTYPEREMISEID=" + lgTYPEREMISEID + " ]";
     }
-    
+
 }

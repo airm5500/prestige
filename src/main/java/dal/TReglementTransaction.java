@@ -28,21 +28,20 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_reglement_transaction")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TReglementTransaction.findAll", query = "SELECT t FROM TReglementTransaction t"),
-    @NamedQuery(name = "TReglementTransaction.findByLgREGLEMENTTRANSACTIONID", query = "SELECT t FROM TReglementTransaction t WHERE t.lgREGLEMENTTRANSACTIONID = :lgREGLEMENTTRANSACTIONID"),
-    @NamedQuery(name = "TReglementTransaction.findByStrREFRESSOURCE", query = "SELECT t FROM TReglementTransaction t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
-    @NamedQuery(name = "TReglementTransaction.findByDblMONTANT", query = "SELECT t FROM TReglementTransaction t WHERE t.dblMONTANT = :dblMONTANT"),
-    @NamedQuery(name = "TReglementTransaction.findByDblMONTANTRESTANT", query = "SELECT t FROM TReglementTransaction t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
-    @NamedQuery(name = "TReglementTransaction.findByDblMONTANTPAYE", query = "SELECT t FROM TReglementTransaction t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
-    @NamedQuery(name = "TReglementTransaction.findByStrSTATUT", query = "SELECT t FROM TReglementTransaction t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TReglementTransaction.findByBISPARTIEL", query = "SELECT t FROM TReglementTransaction t WHERE t.bISPARTIEL = :bISPARTIEL"),
-    @NamedQuery(name = "TReglementTransaction.findByStrBANQUE", query = "SELECT t FROM TReglementTransaction t WHERE t.strBANQUE = :strBANQUE"),
-    @NamedQuery(name = "TReglementTransaction.findByDtDATEREGLEMENT", query = "SELECT t FROM TReglementTransaction t WHERE t.dtDATEREGLEMENT = :dtDATEREGLEMENT"),
-    @NamedQuery(name = "TReglementTransaction.findByStrPEREREGLEMENT", query = "SELECT t FROM TReglementTransaction t WHERE t.strPEREREGLEMENT = :strPEREREGLEMENT"),
-    @NamedQuery(name = "TReglementTransaction.findByLgTYPEREGLEMENTID", query = "SELECT t FROM TReglementTransaction t WHERE t.lgTYPEREGLEMENTID = :lgTYPEREGLEMENTID"),
-    @NamedQuery(name = "TReglementTransaction.findByDtCREATED", query = "SELECT t FROM TReglementTransaction t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TReglementTransaction.findByDtUPDATED", query = "SELECT t FROM TReglementTransaction t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TReglementTransaction.findAll", query = "SELECT t FROM TReglementTransaction t"),
+        @NamedQuery(name = "TReglementTransaction.findByLgREGLEMENTTRANSACTIONID", query = "SELECT t FROM TReglementTransaction t WHERE t.lgREGLEMENTTRANSACTIONID = :lgREGLEMENTTRANSACTIONID"),
+        @NamedQuery(name = "TReglementTransaction.findByStrREFRESSOURCE", query = "SELECT t FROM TReglementTransaction t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
+        @NamedQuery(name = "TReglementTransaction.findByDblMONTANT", query = "SELECT t FROM TReglementTransaction t WHERE t.dblMONTANT = :dblMONTANT"),
+        @NamedQuery(name = "TReglementTransaction.findByDblMONTANTRESTANT", query = "SELECT t FROM TReglementTransaction t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
+        @NamedQuery(name = "TReglementTransaction.findByDblMONTANTPAYE", query = "SELECT t FROM TReglementTransaction t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
+        @NamedQuery(name = "TReglementTransaction.findByStrSTATUT", query = "SELECT t FROM TReglementTransaction t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TReglementTransaction.findByBISPARTIEL", query = "SELECT t FROM TReglementTransaction t WHERE t.bISPARTIEL = :bISPARTIEL"),
+        @NamedQuery(name = "TReglementTransaction.findByStrBANQUE", query = "SELECT t FROM TReglementTransaction t WHERE t.strBANQUE = :strBANQUE"),
+        @NamedQuery(name = "TReglementTransaction.findByDtDATEREGLEMENT", query = "SELECT t FROM TReglementTransaction t WHERE t.dtDATEREGLEMENT = :dtDATEREGLEMENT"),
+        @NamedQuery(name = "TReglementTransaction.findByStrPEREREGLEMENT", query = "SELECT t FROM TReglementTransaction t WHERE t.strPEREREGLEMENT = :strPEREREGLEMENT"),
+        @NamedQuery(name = "TReglementTransaction.findByLgTYPEREGLEMENTID", query = "SELECT t FROM TReglementTransaction t WHERE t.lgTYPEREGLEMENTID = :lgTYPEREGLEMENTID"),
+        @NamedQuery(name = "TReglementTransaction.findByDtCREATED", query = "SELECT t FROM TReglementTransaction t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TReglementTransaction.findByDtUPDATED", query = "SELECT t FROM TReglementTransaction t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TReglementTransaction implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -51,7 +50,8 @@ public class TReglementTransaction implements Serializable {
     private String lgREGLEMENTTRANSACTIONID;
     @Column(name = "str_REF_RESSOURCE", length = 40)
     private String strREFRESSOURCE;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_MONTANT", precision = 15, scale = 3)
     private Double dblMONTANT;
     @Column(name = "dbl_MONTANT_RESTANT", precision = 15, scale = 3)
@@ -214,7 +214,9 @@ public class TReglementTransaction implements Serializable {
             return false;
         }
         TReglementTransaction other = (TReglementTransaction) object;
-        if ((this.lgREGLEMENTTRANSACTIONID == null && other.lgREGLEMENTTRANSACTIONID != null) || (this.lgREGLEMENTTRANSACTIONID != null && !this.lgREGLEMENTTRANSACTIONID.equals(other.lgREGLEMENTTRANSACTIONID))) {
+        if ((this.lgREGLEMENTTRANSACTIONID == null && other.lgREGLEMENTTRANSACTIONID != null)
+                || (this.lgREGLEMENTTRANSACTIONID != null
+                        && !this.lgREGLEMENTTRANSACTIONID.equals(other.lgREGLEMENTTRANSACTIONID))) {
             return false;
         }
         return true;
@@ -224,5 +226,5 @@ public class TReglementTransaction implements Serializable {
     public String toString() {
         return "dal.TReglementTransaction[ lgREGLEMENTTRANSACTIONID=" + lgREGLEMENTTRANSACTIONID + " ]";
     }
-    
+
 }

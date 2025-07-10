@@ -94,9 +94,9 @@ public class FournisseurProduitDTO implements Serializable {
         this.codeCip = g.getStrCODEARTICLE();
         this.prixAchat = g.getIntPAF();
         this.prixUni = g.getIntPRICE();
-        TGrossiste grossiste=g.getLgGROSSISTEID();
+        TGrossiste grossiste = g.getLgGROSSISTEID();
         this.fournisseurLibelle = grossiste.getStrLIBELLE();
-       
+
     }
 
     public FournisseurProduitDTO() {

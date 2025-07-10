@@ -35,7 +35,7 @@ public class TRuptureHistory implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
     @Column(name = "str_STATUT", length = 20)
-    private String strSTATUT=DateConverter.STATUT_ENABLE;
+    private String strSTATUT = DateConverter.STATUT_ENABLE;
     @Column(name = "dt_CREATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCREATED;
@@ -117,7 +117,8 @@ public class TRuptureHistory implements Serializable {
             return false;
         }
         TRuptureHistory other = (TRuptureHistory) object;
-        if ((this.lgRUPTUREHISTORYID == null && other.lgRUPTUREHISTORYID != null) || (this.lgRUPTUREHISTORYID != null && !this.lgRUPTUREHISTORYID.equals(other.lgRUPTUREHISTORYID))) {
+        if ((this.lgRUPTUREHISTORYID == null && other.lgRUPTUREHISTORYID != null)
+                || (this.lgRUPTUREHISTORYID != null && !this.lgRUPTUREHISTORYID.equals(other.lgRUPTUREHISTORYID))) {
             return false;
         }
         return true;

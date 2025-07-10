@@ -28,17 +28,16 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_snap_shop_rupture_stock")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSnapShopRuptureStock.findAll", query = "SELECT t FROM TSnapShopRuptureStock t"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByLgID", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByIntQTY", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intQTY = :intQTY"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByIntQTYPROPOSE", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intQTYPROPOSE = :intQTYPROPOSE"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByIntSEUIPROPOSE", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intSEUIPROPOSE = :intSEUIPROPOSE"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByDtDAY", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByDtCREATED", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByDtUPDATED", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByStrSTATUT", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSnapShopRuptureStock.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION")})
+@NamedQueries({ @NamedQuery(name = "TSnapShopRuptureStock.findAll", query = "SELECT t FROM TSnapShopRuptureStock t"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByLgID", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByIntQTY", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intQTY = :intQTY"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByIntQTYPROPOSE", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intQTYPROPOSE = :intQTYPROPOSE"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByIntSEUIPROPOSE", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intSEUIPROPOSE = :intSEUIPROPOSE"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByDtDAY", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByDtCREATED", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByDtUPDATED", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByStrSTATUT", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSnapShopRuptureStock.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopRuptureStock t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION") })
 public class TSnapShopRuptureStock implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -179,5 +178,5 @@ public class TSnapShopRuptureStock implements Serializable {
     public String toString() {
         return "dal.TSnapShopRuptureStock[ lgID=" + lgID + " ]";
     }
-    
+
 }

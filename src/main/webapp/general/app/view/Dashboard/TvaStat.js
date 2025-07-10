@@ -330,8 +330,6 @@ Ext.define('testextjs.view.Dashboard.TvaStat', {
                     ]
                 }
 
-
-
             ]
 
         });

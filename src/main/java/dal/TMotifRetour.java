@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_motif_retour")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMotifRetour.findAll", query = "SELECT t FROM TMotifRetour t"),
-    @NamedQuery(name = "TMotifRetour.findByLgMOTIFRETOUR", query = "SELECT t FROM TMotifRetour t WHERE t.lgMOTIFRETOUR = :lgMOTIFRETOUR"),
-    @NamedQuery(name = "TMotifRetour.findByStrCODE", query = "SELECT t FROM TMotifRetour t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TMotifRetour.findByStrLIBELLE", query = "SELECT t FROM TMotifRetour t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TMotifRetour.findByStrSTATUT", query = "SELECT t FROM TMotifRetour t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TMotifRetour.findByDtCREATED", query = "SELECT t FROM TMotifRetour t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMotifRetour.findByDtUPDATED", query = "SELECT t FROM TMotifRetour t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TMotifRetour.findAll", query = "SELECT t FROM TMotifRetour t"),
+        @NamedQuery(name = "TMotifRetour.findByLgMOTIFRETOUR", query = "SELECT t FROM TMotifRetour t WHERE t.lgMOTIFRETOUR = :lgMOTIFRETOUR"),
+        @NamedQuery(name = "TMotifRetour.findByStrCODE", query = "SELECT t FROM TMotifRetour t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TMotifRetour.findByStrLIBELLE", query = "SELECT t FROM TMotifRetour t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TMotifRetour.findByStrSTATUT", query = "SELECT t FROM TMotifRetour t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TMotifRetour.findByDtCREATED", query = "SELECT t FROM TMotifRetour t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMotifRetour.findByDtUPDATED", query = "SELECT t FROM TMotifRetour t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TMotifRetour implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -52,7 +51,6 @@ public class TMotifRetour implements Serializable {
     @Column(name = "dt_UPDATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
-   
 
     public TMotifRetour() {
     }
@@ -109,7 +107,6 @@ public class TMotifRetour implements Serializable {
         this.dtUPDATED = dtUPDATED;
     }
 
-   
     @Override
     public int hashCode() {
         int hash = 0;
@@ -124,7 +121,8 @@ public class TMotifRetour implements Serializable {
             return false;
         }
         TMotifRetour other = (TMotifRetour) object;
-        if ((this.lgMOTIFRETOUR == null && other.lgMOTIFRETOUR != null) || (this.lgMOTIFRETOUR != null && !this.lgMOTIFRETOUR.equals(other.lgMOTIFRETOUR))) {
+        if ((this.lgMOTIFRETOUR == null && other.lgMOTIFRETOUR != null)
+                || (this.lgMOTIFRETOUR != null && !this.lgMOTIFRETOUR.equals(other.lgMOTIFRETOUR))) {
             return false;
         }
         return true;
@@ -134,5 +132,5 @@ public class TMotifRetour implements Serializable {
     public String toString() {
         return "dal.TMotifRetour[ lgMOTIFRETOUR=" + lgMOTIFRETOUR + " ]";
     }
-    
+
 }

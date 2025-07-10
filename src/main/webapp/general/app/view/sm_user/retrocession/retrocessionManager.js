@@ -1,3 +1,5 @@
+/* global Ext */
+
 var url_services_data_retrocession = '../webservices/sm_user/retrocession/ws_data.jsp';
 var url_services_transaction_retrocession = '../webservices/sm_user/retrocession/ws_transaction.jsp?mode=';
 var url_services_pdf_liste_retrocession = '../webservices/sm_user/retrocession/ws_generate_pdf.jsp';

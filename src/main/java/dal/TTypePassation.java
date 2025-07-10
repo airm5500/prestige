@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_type_passation")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypePassation.findAll", query = "SELECT t FROM TTypePassation t"),
-    @NamedQuery(name = "TTypePassation.findByLgTYPEPASSATIONID", query = "SELECT t FROM TTypePassation t WHERE t.lgTYPEPASSATIONID = :lgTYPEPASSATIONID"),
-    @NamedQuery(name = "TTypePassation.findByStrCODE", query = "SELECT t FROM TTypePassation t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TTypePassation.findByStrLIBELLE", query = "SELECT t FROM TTypePassation t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TTypePassation.findByStrSTATUT", query = "SELECT t FROM TTypePassation t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypePassation.findByDtCREATED", query = "SELECT t FROM TTypePassation t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypePassation.findByDtUPDATED", query = "SELECT t FROM TTypePassation t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypePassation.findAll", query = "SELECT t FROM TTypePassation t"),
+        @NamedQuery(name = "TTypePassation.findByLgTYPEPASSATIONID", query = "SELECT t FROM TTypePassation t WHERE t.lgTYPEPASSATIONID = :lgTYPEPASSATIONID"),
+        @NamedQuery(name = "TTypePassation.findByStrCODE", query = "SELECT t FROM TTypePassation t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TTypePassation.findByStrLIBELLE", query = "SELECT t FROM TTypePassation t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TTypePassation.findByStrSTATUT", query = "SELECT t FROM TTypePassation t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypePassation.findByDtCREATED", query = "SELECT t FROM TTypePassation t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypePassation.findByDtUPDATED", query = "SELECT t FROM TTypePassation t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypePassation implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TTypePassation implements Serializable {
             return false;
         }
         TTypePassation other = (TTypePassation) object;
-        if ((this.lgTYPEPASSATIONID == null && other.lgTYPEPASSATIONID != null) || (this.lgTYPEPASSATIONID != null && !this.lgTYPEPASSATIONID.equals(other.lgTYPEPASSATIONID))) {
+        if ((this.lgTYPEPASSATIONID == null && other.lgTYPEPASSATIONID != null)
+                || (this.lgTYPEPASSATIONID != null && !this.lgTYPEPASSATIONID.equals(other.lgTYPEPASSATIONID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TTypePassation implements Serializable {
     public String toString() {
         return "dal.TTypePassation[ lgTYPEPASSATIONID=" + lgTYPEPASSATIONID + " ]";
     }
-    
+
 }

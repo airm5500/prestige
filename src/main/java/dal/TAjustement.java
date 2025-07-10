@@ -31,14 +31,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_ajustement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TAjustement.findAll", query = "SELECT t FROM TAjustement t"),
-    @NamedQuery(name = "TAjustement.findByLgAJUSTEMENTID", query = "SELECT t FROM TAjustement t WHERE t.lgAJUSTEMENTID = :lgAJUSTEMENTID"),
-    @NamedQuery(name = "TAjustement.findByStrNAME", query = "SELECT t FROM TAjustement t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TAjustement.findByStrCOMMENTAIRE", query = "SELECT t FROM TAjustement t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
-    @NamedQuery(name = "TAjustement.findByStrSTATUT", query = "SELECT t FROM TAjustement t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TAjustement.findByDtCREATED", query = "SELECT t FROM TAjustement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TAjustement.findByDtUPDATED", query = "SELECT t FROM TAjustement t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TAjustement.findAll", query = "SELECT t FROM TAjustement t"),
+        @NamedQuery(name = "TAjustement.findByLgAJUSTEMENTID", query = "SELECT t FROM TAjustement t WHERE t.lgAJUSTEMENTID = :lgAJUSTEMENTID"),
+        @NamedQuery(name = "TAjustement.findByStrNAME", query = "SELECT t FROM TAjustement t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TAjustement.findByStrCOMMENTAIRE", query = "SELECT t FROM TAjustement t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
+        @NamedQuery(name = "TAjustement.findByStrSTATUT", query = "SELECT t FROM TAjustement t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TAjustement.findByDtCREATED", query = "SELECT t FROM TAjustement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TAjustement.findByDtUPDATED", query = "SELECT t FROM TAjustement t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TAjustement implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -63,7 +62,7 @@ public class TAjustement implements Serializable {
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser lgUSERID;
-    
+
     public TAjustement() {
     }
 
@@ -150,13 +149,12 @@ public class TAjustement implements Serializable {
             return false;
         }
         TAjustement other = (TAjustement) object;
-        if ((this.lgAJUSTEMENTID == null && other.lgAJUSTEMENTID != null) || (this.lgAJUSTEMENTID != null && !this.lgAJUSTEMENTID.equals(other.lgAJUSTEMENTID))) {
+        if ((this.lgAJUSTEMENTID == null && other.lgAJUSTEMENTID != null)
+                || (this.lgAJUSTEMENTID != null && !this.lgAJUSTEMENTID.equals(other.lgAJUSTEMENTID))) {
             return false;
         }
         return true;
     }
-
-  
 
     @Override
     public String toString() {

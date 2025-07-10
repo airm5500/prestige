@@ -12,13 +12,12 @@ import java.io.Serializable;
  * @author DICI
  */
 public class SummaryDTO implements Serializable {
+
     private static final long serialVersionUID = 1L;
-    long montantTTC = 0, montantNet = 0, montantRemise = 0, pourcentage = 0, panierMoyen = 0,
-            montantEsp = 0, montantCheque=0, montantVirement = 0,
-            montantCB = 0, montantTp = 0, montantDiff = 0, nbreVente = 0, 
-            fondCaisse = 0, montantRegDiff = 0,montantMobilePayment=0,
-            montantRegleTp = 0, montantEntre = 0, 
-            montantAchat = 0, montantSortie = 0, marge = 0,montantTva=0,montantHT=0;
+    long montantTTC = 0, montantNet = 0, montantRemise = 0, pourcentage = 0, panierMoyen = 0, montantEsp = 0,
+            montantCheque = 0, montantVirement = 0, montantCB = 0, montantTp = 0, montantDiff = 0, nbreVente = 0,
+            fondCaisse = 0, montantRegDiff = 0, montantMobilePayment = 0, montantRegleTp = 0, montantEntre = 0,
+            montantAchat = 0, montantSortie = 0, marge = 0, montantTva = 0, montantHT = 0;
     double ratioVA = 0.0, rationAV = 0.0;
 
     public long getMontantTTC() {
@@ -105,8 +104,8 @@ public class SummaryDTO implements Serializable {
         return montantVirement;
     }
 
-    public void setMontantVirement(long MontantVirement) {
-        this.montantVirement = MontantVirement;
+    public void setMontantVirement(long montantVirement) {
+        this.montantVirement = montantVirement;
     }
 
     public long getMontantCB() {
@@ -213,11 +212,25 @@ public class SummaryDTO implements Serializable {
         this.rationAV = rationAV;
     }
 
-    @Override
-    public String toString() {
-        return "SummaryDTO{" + "montantTTC=" + montantTTC + ", montantNet=" + montantNet + ", montantRemise=" + montantRemise + ", pourcentage=" + pourcentage + ", panierMoyen=" + panierMoyen + ", montantEsp=" + montantEsp + ", montantCheque=" + montantCheque + ", MontantVirement=" + montantVirement + ", montantCB=" + montantCB + ", montantTp=" + montantTp + ", montantDiff=" + montantDiff + ", nbreVente=" + nbreVente + ", fondCaisse=" + fondCaisse + ", montantRegDiff=" + montantRegDiff + ", montantRegleTp=" + montantRegleTp + ", montantEntre=" + montantEntre + ", montantAchat=" + montantAchat + ", montantSortie=" + montantSortie + ", marge=" + marge + ", ratioVA=" + ratioVA + ", rationAV=" + rationAV + '}';
+    public SummaryDTO(long montantTTC, long montantRemise) {
+        this.montantTTC = montantTTC;
+        this.montantRemise = montantRemise;
+        this.montantNet = montantTTC - montantRemise;
     }
 
-    
-    
+    public SummaryDTO() {
+    }
+
+    @Override
+    public String toString() {
+        return "SummaryDTO{" + "montantTTC=" + montantTTC + ", montantNet=" + montantNet + ", montantRemise="
+                + montantRemise + ", pourcentage=" + pourcentage + ", panierMoyen=" + panierMoyen + ", montantEsp="
+                + montantEsp + ", montantCheque=" + montantCheque + ", MontantVirement=" + montantVirement
+                + ", montantCB=" + montantCB + ", montantTp=" + montantTp + ", montantDiff=" + montantDiff
+                + ", nbreVente=" + nbreVente + ", fondCaisse=" + fondCaisse + ", montantRegDiff=" + montantRegDiff
+                + ", montantRegleTp=" + montantRegleTp + ", montantEntre=" + montantEntre + ", montantAchat="
+                + montantAchat + ", montantSortie=" + montantSortie + ", marge=" + marge + ", ratioVA=" + ratioVA
+                + ", rationAV=" + rationAV + '}';
+    }
+
 }

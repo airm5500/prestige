@@ -29,12 +29,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_famille_stockretrocession")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TFamilleStockretrocession.findAll", query = "SELECT t FROM TFamilleStockretrocession t"),
-    @NamedQuery(name = "TFamilleStockretrocession.findByLgFAMILLESTOCKRETROCESSIONID", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.lgFAMILLESTOCKRETROCESSIONID = :lgFAMILLESTOCKRETROCESSIONID"),
-    @NamedQuery(name = "TFamilleStockretrocession.findByIntNUMBER", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TFamilleStockretrocession.findByIntNUMBERAVAILABLE", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.intNUMBERAVAILABLE = :intNUMBERAVAILABLE"),
-    @NamedQuery(name = "TFamilleStockretrocession.findByDtCREATED", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFamilleStockretrocession.findByDtUPDATED", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.dtUPDATED = :dtUPDATED")})
+        @NamedQuery(name = "TFamilleStockretrocession.findAll", query = "SELECT t FROM TFamilleStockretrocession t"),
+        @NamedQuery(name = "TFamilleStockretrocession.findByLgFAMILLESTOCKRETROCESSIONID", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.lgFAMILLESTOCKRETROCESSIONID = :lgFAMILLESTOCKRETROCESSIONID"),
+        @NamedQuery(name = "TFamilleStockretrocession.findByIntNUMBER", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TFamilleStockretrocession.findByIntNUMBERAVAILABLE", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.intNUMBERAVAILABLE = :intNUMBERAVAILABLE"),
+        @NamedQuery(name = "TFamilleStockretrocession.findByDtCREATED", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFamilleStockretrocession.findByDtUPDATED", query = "SELECT t FROM TFamilleStockretrocession t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TFamilleStockretrocession implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -124,7 +124,9 @@ public class TFamilleStockretrocession implements Serializable {
             return false;
         }
         TFamilleStockretrocession other = (TFamilleStockretrocession) object;
-        if ((this.lgFAMILLESTOCKRETROCESSIONID == null && other.lgFAMILLESTOCKRETROCESSIONID != null) || (this.lgFAMILLESTOCKRETROCESSIONID != null && !this.lgFAMILLESTOCKRETROCESSIONID.equals(other.lgFAMILLESTOCKRETROCESSIONID))) {
+        if ((this.lgFAMILLESTOCKRETROCESSIONID == null && other.lgFAMILLESTOCKRETROCESSIONID != null)
+                || (this.lgFAMILLESTOCKRETROCESSIONID != null
+                        && !this.lgFAMILLESTOCKRETROCESSIONID.equals(other.lgFAMILLESTOCKRETROCESSIONID))) {
             return false;
         }
         return true;
@@ -134,5 +136,5 @@ public class TFamilleStockretrocession implements Serializable {
     public String toString() {
         return "dal.TFamilleStockretrocession[ lgFAMILLESTOCKRETROCESSIONID=" + lgFAMILLESTOCKRETROCESSIONID + " ]";
     }
-    
+
 }

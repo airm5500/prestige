@@ -30,14 +30,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_snap_shop_vente_client")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSnapShopVenteClient.findAll", query = "SELECT t FROM TSnapShopVenteClient t"),
-    @NamedQuery(name = "TSnapShopVenteClient.findByLgID", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TSnapShopVenteClient.findByIntAMOUNTSALE", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.intAMOUNTSALE = :intAMOUNTSALE"),
-    @NamedQuery(name = "TSnapShopVenteClient.findByIntAMOUNTAVOIR", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.intAMOUNTAVOIR = :intAMOUNTAVOIR"),
-    @NamedQuery(name = "TSnapShopVenteClient.findByDtDAY", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TSnapShopVenteClient.findByDtCREATED", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapShopVenteClient.findByDtUPDATED", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TSnapShopVenteClient.findAll", query = "SELECT t FROM TSnapShopVenteClient t"),
+        @NamedQuery(name = "TSnapShopVenteClient.findByLgID", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TSnapShopVenteClient.findByIntAMOUNTSALE", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.intAMOUNTSALE = :intAMOUNTSALE"),
+        @NamedQuery(name = "TSnapShopVenteClient.findByIntAMOUNTAVOIR", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.intAMOUNTAVOIR = :intAMOUNTAVOIR"),
+        @NamedQuery(name = "TSnapShopVenteClient.findByDtDAY", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TSnapShopVenteClient.findByDtCREATED", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapShopVenteClient.findByDtUPDATED", query = "SELECT t FROM TSnapShopVenteClient t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TSnapShopVenteClient implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -45,7 +44,8 @@ public class TSnapShopVenteClient implements Serializable {
     @Basic(optional = false)
     @Column(name = "lg_ID", nullable = false)
     private Long lgID;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_AMOUNT_SALE", precision = 15, scale = 0)
     private Double intAMOUNTSALE;
     @Column(name = "int_AMOUNT_AVOIR", precision = 15, scale = 0)
@@ -150,5 +150,5 @@ public class TSnapShopVenteClient implements Serializable {
     public String toString() {
         return "dal.TSnapShopVenteClient[ lgID=" + lgID + " ]";
     }
-    
+
 }

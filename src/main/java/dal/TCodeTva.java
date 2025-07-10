@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_code_tva")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCodeTva.findAll", query = "SELECT t FROM TCodeTva t"),
-    @NamedQuery(name = "TCodeTva.findByLgCODETVAID", query = "SELECT t FROM TCodeTva t WHERE t.lgCODETVAID = :lgCODETVAID"),
-    @NamedQuery(name = "TCodeTva.findByStrNAME", query = "SELECT t FROM TCodeTva t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TCodeTva.findByIntVALUE", query = "SELECT t FROM TCodeTva t WHERE t.intVALUE = :intVALUE"),
-    @NamedQuery(name = "TCodeTva.findByDtCREATED", query = "SELECT t FROM TCodeTva t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCodeTva.findByDtUPDATED", query = "SELECT t FROM TCodeTva t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TCodeTva.findByStrSTATUT", query = "SELECT t FROM TCodeTva t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TCodeTva.findAll", query = "SELECT t FROM TCodeTva t"),
+        @NamedQuery(name = "TCodeTva.findByLgCODETVAID", query = "SELECT t FROM TCodeTva t WHERE t.lgCODETVAID = :lgCODETVAID"),
+        @NamedQuery(name = "TCodeTva.findByStrNAME", query = "SELECT t FROM TCodeTva t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TCodeTva.findByIntVALUE", query = "SELECT t FROM TCodeTva t WHERE t.intVALUE = :intVALUE"),
+        @NamedQuery(name = "TCodeTva.findByDtCREATED", query = "SELECT t FROM TCodeTva t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCodeTva.findByDtUPDATED", query = "SELECT t FROM TCodeTva t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCodeTva.findByStrSTATUT", query = "SELECT t FROM TCodeTva t WHERE t.strSTATUT = :strSTATUT") })
 public class TCodeTva implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +135,8 @@ public class TCodeTva implements Serializable {
             return false;
         }
         TCodeTva other = (TCodeTva) object;
-        if ((this.lgCODETVAID == null && other.lgCODETVAID != null) || (this.lgCODETVAID != null && !this.lgCODETVAID.equals(other.lgCODETVAID))) {
+        if ((this.lgCODETVAID == null && other.lgCODETVAID != null)
+                || (this.lgCODETVAID != null && !this.lgCODETVAID.equals(other.lgCODETVAID))) {
             return false;
         }
         return true;
@@ -146,5 +146,5 @@ public class TCodeTva implements Serializable {
     public String toString() {
         return "dal.TCodeTva[ lgCODETVAID=" + lgCODETVAID + " ]";
     }
-    
+
 }

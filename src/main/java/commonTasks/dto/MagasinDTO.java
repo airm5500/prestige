@@ -17,8 +17,10 @@ import java.io.Serializable;
 public class MagasinDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String lgEMPLACEMENTID, strNAME, lgCOMPTECLIENTID, lgTYPEDEPOTID, strFIRSTNAME, strLASTNAME, strLOCALITE, strPHONE;
-    private String lgCLIENTID,desciptiontypedepot,gerantFullName;
+    private String lgEMPLACEMENTID, strNAME, lgCOMPTECLIENTID, lgTYPEDEPOTID, strFIRSTNAME, strLASTNAME, strLOCALITE,
+            strPHONE;
+    private String lgCLIENTID, desciptiontypedepot, gerantFullName;
+
     public String getLgEMPLACEMENTID() {
         return lgEMPLACEMENTID;
     }
@@ -114,13 +116,13 @@ public class MagasinDTO implements Serializable {
         this.lgEMPLACEMENTID = e.getLgEMPLACEMENTID();
         this.strNAME = e.getStrNAME();
         try {
-            TCompteClient compteClient=e.getLgCOMPTECLIENTID();
-           this.lgCOMPTECLIENTID = compteClient.getLgCOMPTECLIENTID(); 
-           this.lgCLIENTID=compteClient.getLgCLIENTID().getLgCLIENTID();
+            TCompteClient compteClient = e.getLgCOMPTECLIENTID();
+            this.lgCOMPTECLIENTID = compteClient.getLgCOMPTECLIENTID();
+            this.lgCLIENTID = compteClient.getLgCLIENTID().getLgCLIENTID();
         } catch (Exception ex) {
         }
-        TTypedepot typedepot=e.getLgTYPEDEPOTID();
-        this.desciptiontypedepot=typedepot.getStrNAME();
+        TTypedepot typedepot = e.getLgTYPEDEPOTID();
+        this.desciptiontypedepot = typedepot.getStrNAME();
         this.lgTYPEDEPOTID = typedepot.getLgTYPEDEPOTID();
         this.strFIRSTNAME = e.getStrFIRSTNAME();
         this.strLASTNAME = e.getStrLASTNAME();
@@ -128,5 +130,5 @@ public class MagasinDTO implements Serializable {
         this.strPHONE = e.getStrPHONE();
         this.gerantFullName = e.getStrFIRSTNAME() + " " + e.getStrLASTNAME();
     }
-    
+
 }

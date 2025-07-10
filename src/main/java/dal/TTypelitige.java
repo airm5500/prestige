@@ -30,14 +30,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_typelitige")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypelitige.findAll", query = "SELECT t FROM TTypelitige t"),
-    @NamedQuery(name = "TTypelitige.findByLgTYPELITIGEID", query = "SELECT t FROM TTypelitige t WHERE t.lgTYPELITIGEID = :lgTYPELITIGEID"),
-    @NamedQuery(name = "TTypelitige.findByStrNAME", query = "SELECT t FROM TTypelitige t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypelitige.findByStrDESCRIPTION", query = "SELECT t FROM TTypelitige t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypelitige.findByDtCREATED", query = "SELECT t FROM TTypelitige t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypelitige.findByDtUPDATED", query = "SELECT t FROM TTypelitige t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypelitige.findByStrSTATUT", query = "SELECT t FROM TTypelitige t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypelitige.findAll", query = "SELECT t FROM TTypelitige t"),
+        @NamedQuery(name = "TTypelitige.findByLgTYPELITIGEID", query = "SELECT t FROM TTypelitige t WHERE t.lgTYPELITIGEID = :lgTYPELITIGEID"),
+        @NamedQuery(name = "TTypelitige.findByStrNAME", query = "SELECT t FROM TTypelitige t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypelitige.findByStrDESCRIPTION", query = "SELECT t FROM TTypelitige t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypelitige.findByDtCREATED", query = "SELECT t FROM TTypelitige t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypelitige.findByDtUPDATED", query = "SELECT t FROM TTypelitige t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypelitige.findByStrSTATUT", query = "SELECT t FROM TTypelitige t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypelitige implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -145,7 +144,8 @@ public class TTypelitige implements Serializable {
             return false;
         }
         TTypelitige other = (TTypelitige) object;
-        if ((this.lgTYPELITIGEID == null && other.lgTYPELITIGEID != null) || (this.lgTYPELITIGEID != null && !this.lgTYPELITIGEID.equals(other.lgTYPELITIGEID))) {
+        if ((this.lgTYPELITIGEID == null && other.lgTYPELITIGEID != null)
+                || (this.lgTYPELITIGEID != null && !this.lgTYPELITIGEID.equals(other.lgTYPELITIGEID))) {
             return false;
         }
         return true;
@@ -155,5 +155,5 @@ public class TTypelitige implements Serializable {
     public String toString() {
         return "dal.TTypelitige[ lgTYPELITIGEID=" + lgTYPELITIGEID + " ]";
     }
-    
+
 }

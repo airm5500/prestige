@@ -29,15 +29,14 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_reglement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeReglement.findAll", query = "SELECT t FROM TTypeReglement t"),
-    @NamedQuery(name = "TTypeReglement.findByLgTYPEREGLEMENTID", query = "SELECT t FROM TTypeReglement t WHERE t.lgTYPEREGLEMENTID = :lgTYPEREGLEMENTID"),
-    @NamedQuery(name = "TTypeReglement.findByStrNAME", query = "SELECT t FROM TTypeReglement t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypeReglement.findByStrDESCRIPTION", query = "SELECT t FROM TTypeReglement t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypeReglement.findByStrFLAG", query = "SELECT t FROM TTypeReglement t WHERE t.strFLAG = :strFLAG"),
-    @NamedQuery(name = "TTypeReglement.findByStrSTATUT", query = "SELECT t FROM TTypeReglement t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypeReglement.findByDtCREATED", query = "SELECT t FROM TTypeReglement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeReglement.findByDtUPDATED", query = "SELECT t FROM TTypeReglement t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypeReglement.findAll", query = "SELECT t FROM TTypeReglement t"),
+        @NamedQuery(name = "TTypeReglement.findByLgTYPEREGLEMENTID", query = "SELECT t FROM TTypeReglement t WHERE t.lgTYPEREGLEMENTID = :lgTYPEREGLEMENTID"),
+        @NamedQuery(name = "TTypeReglement.findByStrNAME", query = "SELECT t FROM TTypeReglement t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypeReglement.findByStrDESCRIPTION", query = "SELECT t FROM TTypeReglement t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypeReglement.findByStrFLAG", query = "SELECT t FROM TTypeReglement t WHERE t.strFLAG = :strFLAG"),
+        @NamedQuery(name = "TTypeReglement.findByStrSTATUT", query = "SELECT t FROM TTypeReglement t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeReglement.findByDtCREATED", query = "SELECT t FROM TTypeReglement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeReglement.findByDtUPDATED", query = "SELECT t FROM TTypeReglement t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypeReglement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -158,7 +157,8 @@ public class TTypeReglement implements Serializable {
             return false;
         }
         TTypeReglement other = (TTypeReglement) object;
-        if ((this.lgTYPEREGLEMENTID == null && other.lgTYPEREGLEMENTID != null) || (this.lgTYPEREGLEMENTID != null && !this.lgTYPEREGLEMENTID.equals(other.lgTYPEREGLEMENTID))) {
+        if ((this.lgTYPEREGLEMENTID == null && other.lgTYPEREGLEMENTID != null)
+                || (this.lgTYPEREGLEMENTID != null && !this.lgTYPEREGLEMENTID.equals(other.lgTYPEREGLEMENTID))) {
             return false;
         }
         return true;
@@ -168,5 +168,5 @@ public class TTypeReglement implements Serializable {
     public String toString() {
         return "dal.TTypeReglement[ lgTYPEREGLEMENTID=" + lgTYPEREGLEMENTID + " ]";
     }
-    
+
 }

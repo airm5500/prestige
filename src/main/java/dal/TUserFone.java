@@ -31,13 +31,12 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_user_fone")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TUserFone.findAll", query = "SELECT t FROM TUserFone t"),
-    @NamedQuery(name = "TUserFone.findByLgUSERFONEID", query = "SELECT t FROM TUserFone t WHERE t.lgUSERFONEID = :lgUSERFONEID"),
-    @NamedQuery(name = "TUserFone.findByDtUPDATED", query = "SELECT t FROM TUserFone t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TUserFone.findByStrSTATUT", query = "SELECT t FROM TUserFone t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TUserFone.findByDtCREATED", query = "SELECT t FROM TUserFone t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TUserFone.findByStrPHONE", query = "SELECT t FROM TUserFone t WHERE t.strPHONE = :strPHONE")})
+@NamedQueries({ @NamedQuery(name = "TUserFone.findAll", query = "SELECT t FROM TUserFone t"),
+        @NamedQuery(name = "TUserFone.findByLgUSERFONEID", query = "SELECT t FROM TUserFone t WHERE t.lgUSERFONEID = :lgUSERFONEID"),
+        @NamedQuery(name = "TUserFone.findByDtUPDATED", query = "SELECT t FROM TUserFone t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TUserFone.findByStrSTATUT", query = "SELECT t FROM TUserFone t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TUserFone.findByDtCREATED", query = "SELECT t FROM TUserFone t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TUserFone.findByStrPHONE", query = "SELECT t FROM TUserFone t WHERE t.strPHONE = :strPHONE") })
 public class TUserFone implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -138,7 +137,8 @@ public class TUserFone implements Serializable {
             return false;
         }
         TUserFone other = (TUserFone) object;
-        if ((this.lgUSERFONEID == null && other.lgUSERFONEID != null) || (this.lgUSERFONEID != null && !this.lgUSERFONEID.equals(other.lgUSERFONEID))) {
+        if ((this.lgUSERFONEID == null && other.lgUSERFONEID != null)
+                || (this.lgUSERFONEID != null && !this.lgUSERFONEID.equals(other.lgUSERFONEID))) {
             return false;
         }
         return true;
@@ -148,5 +148,5 @@ public class TUserFone implements Serializable {
     public String toString() {
         return "dal.TUserFone[ lgUSERFONEID=" + lgUSERFONEID + " ]";
     }
-    
+
 }

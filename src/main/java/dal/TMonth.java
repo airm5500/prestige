@@ -30,14 +30,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_month")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMonth.findAll", query = "SELECT t FROM TMonth t"),
-    @NamedQuery(name = "TMonth.findByLgMONTHID", query = "SELECT t FROM TMonth t WHERE t.lgMONTHID = :lgMONTHID"),
-    @NamedQuery(name = "TMonth.findByStrNAME", query = "SELECT t FROM TMonth t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TMonth.findByIntMOIS", query = "SELECT t FROM TMonth t WHERE t.intMOIS = :intMOIS"),
-    @NamedQuery(name = "TMonth.findByDtCREATED", query = "SELECT t FROM TMonth t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMonth.findByDtUPDATED", query = "SELECT t FROM TMonth t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMonth.findByStrSTATUT", query = "SELECT t FROM TMonth t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TMonth.findAll", query = "SELECT t FROM TMonth t"),
+        @NamedQuery(name = "TMonth.findByLgMONTHID", query = "SELECT t FROM TMonth t WHERE t.lgMONTHID = :lgMONTHID"),
+        @NamedQuery(name = "TMonth.findByStrNAME", query = "SELECT t FROM TMonth t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TMonth.findByIntMOIS", query = "SELECT t FROM TMonth t WHERE t.intMOIS = :intMOIS"),
+        @NamedQuery(name = "TMonth.findByDtCREATED", query = "SELECT t FROM TMonth t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMonth.findByDtUPDATED", query = "SELECT t FROM TMonth t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMonth.findByStrSTATUT", query = "SELECT t FROM TMonth t WHERE t.strSTATUT = :strSTATUT") })
 public class TMonth implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -57,7 +56,7 @@ public class TMonth implements Serializable {
     private Date dtUPDATED;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
-    @OneToMany( mappedBy = "lgMONTHID")
+    @OneToMany(mappedBy = "lgMONTHID")
     private Collection<TCalendrier> tCalendrierCollection;
 
     public TMonth() {
@@ -143,7 +142,8 @@ public class TMonth implements Serializable {
             return false;
         }
         TMonth other = (TMonth) object;
-        if ((this.lgMONTHID == null && other.lgMONTHID != null) || (this.lgMONTHID != null && !this.lgMONTHID.equals(other.lgMONTHID))) {
+        if ((this.lgMONTHID == null && other.lgMONTHID != null)
+                || (this.lgMONTHID != null && !this.lgMONTHID.equals(other.lgMONTHID))) {
             return false;
         }
         return true;
@@ -153,5 +153,5 @@ public class TMonth implements Serializable {
     public String toString() {
         return "dal.TMonth[ lgMONTHID=" + lgMONTHID + " ]";
     }
-    
+
 }

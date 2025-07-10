@@ -87,7 +87,8 @@ public class TiersPayantDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "TiersPayantDTO{" + "lgTIERSPAYANTID=" + lgTIERSPAYANTID + ", strNAME=" + strNAME + ", strFULLNAME=" + strFULLNAME + '}';
+        return "TiersPayantDTO{" + "lgTIERSPAYANTID=" + lgTIERSPAYANTID + ", strNAME=" + strNAME + ", strFULLNAME="
+                + strFULLNAME + '}';
     }
 
     public String getStrCODEORGANISME() {

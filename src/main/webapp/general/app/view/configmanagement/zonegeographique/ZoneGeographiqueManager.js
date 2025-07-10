@@ -86,7 +86,8 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
                     editor: {
                         allowBlank: false
                     }
-                },
+                }
+                , 
                 {
                     xtype: 'checkcolumn',
                     header: ' ',
@@ -120,9 +121,8 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
 
 
                 }
-
-
-                , {
+                
+                ,{
                     xtype: 'actioncolumn',
                     width: 30,
                     sortable: false,
@@ -330,7 +330,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
 
     onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message',
-                'confirmer la suppresssion',
+                'confirmer la suppression',
                 function (btn) {
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
@@ -383,7 +383,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
             odatasource: '',
 
             parentview: this,
-            titre: "Gestion des emplacement"
+            titre: "Gestion des emplacements"
         });
     },
     onbasculer2: function (grid, rowIndex) {
@@ -392,7 +392,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
             odatasource: rec.get('lg_ZONE_GEO_ID'),
 
             parentview: this,
-            titre: "Gestion des emplacement"
+            titre: "Gestion des emplacements"
         });
     }
 });

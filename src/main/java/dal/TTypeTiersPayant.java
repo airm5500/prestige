@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_tiers_payant")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeTiersPayant.findAll", query = "SELECT t FROM TTypeTiersPayant t"),
-    @NamedQuery(name = "TTypeTiersPayant.findByLgTYPETIERSPAYANTID", query = "SELECT t FROM TTypeTiersPayant t WHERE t.lgTYPETIERSPAYANTID = :lgTYPETIERSPAYANTID"),
-    @NamedQuery(name = "TTypeTiersPayant.findByStrCODETYPETIERSPAYANT", query = "SELECT t FROM TTypeTiersPayant t WHERE t.strCODETYPETIERSPAYANT = :strCODETYPETIERSPAYANT"),
-    @NamedQuery(name = "TTypeTiersPayant.findByStrLIBELLETYPETIERSPAYANT", query = "SELECT t FROM TTypeTiersPayant t WHERE t.strLIBELLETYPETIERSPAYANT = :strLIBELLETYPETIERSPAYANT"),
-    @NamedQuery(name = "TTypeTiersPayant.findByDtCREATED", query = "SELECT t FROM TTypeTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeTiersPayant.findByDtUPDATED", query = "SELECT t FROM TTypeTiersPayant t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypeTiersPayant.findByStrSTATUT", query = "SELECT t FROM TTypeTiersPayant t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypeTiersPayant.findAll", query = "SELECT t FROM TTypeTiersPayant t"),
+        @NamedQuery(name = "TTypeTiersPayant.findByLgTYPETIERSPAYANTID", query = "SELECT t FROM TTypeTiersPayant t WHERE t.lgTYPETIERSPAYANTID = :lgTYPETIERSPAYANTID"),
+        @NamedQuery(name = "TTypeTiersPayant.findByStrCODETYPETIERSPAYANT", query = "SELECT t FROM TTypeTiersPayant t WHERE t.strCODETYPETIERSPAYANT = :strCODETYPETIERSPAYANT"),
+        @NamedQuery(name = "TTypeTiersPayant.findByStrLIBELLETYPETIERSPAYANT", query = "SELECT t FROM TTypeTiersPayant t WHERE t.strLIBELLETYPETIERSPAYANT = :strLIBELLETYPETIERSPAYANT"),
+        @NamedQuery(name = "TTypeTiersPayant.findByDtCREATED", query = "SELECT t FROM TTypeTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeTiersPayant.findByDtUPDATED", query = "SELECT t FROM TTypeTiersPayant t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypeTiersPayant.findByStrSTATUT", query = "SELECT t FROM TTypeTiersPayant t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypeTiersPayant implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +135,8 @@ public class TTypeTiersPayant implements Serializable {
             return false;
         }
         TTypeTiersPayant other = (TTypeTiersPayant) object;
-        if ((this.lgTYPETIERSPAYANTID == null && other.lgTYPETIERSPAYANTID != null) || (this.lgTYPETIERSPAYANTID != null && !this.lgTYPETIERSPAYANTID.equals(other.lgTYPETIERSPAYANTID))) {
+        if ((this.lgTYPETIERSPAYANTID == null && other.lgTYPETIERSPAYANTID != null)
+                || (this.lgTYPETIERSPAYANTID != null && !this.lgTYPETIERSPAYANTID.equals(other.lgTYPETIERSPAYANTID))) {
             return false;
         }
         return true;
@@ -146,5 +146,5 @@ public class TTypeTiersPayant implements Serializable {
     public String toString() {
         return "dal.TTypeTiersPayant[ lgTYPETIERSPAYANTID=" + lgTYPETIERSPAYANTID + " ]";
     }
-    
+
 }

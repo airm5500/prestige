@@ -28,24 +28,15 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_calendrier")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCalendrier.findAll", query = "SELECT t FROM TCalendrier t")
-    ,
-    @NamedQuery(name = "TCalendrier.findByLgCALENDRIERID", query = "SELECT t FROM TCalendrier t WHERE t.lgCALENDRIERID = :lgCALENDRIERID")
-    ,
-    @NamedQuery(name = "TCalendrier.findByIntNUMBERJOUR", query = "SELECT t FROM TCalendrier t WHERE t.intNUMBERJOUR = :intNUMBERJOUR")
-    ,
-    @NamedQuery(name = "TCalendrier.findByIntANNEE", query = "SELECT t FROM TCalendrier t WHERE t.intANNEE = :intANNEE")
-    ,
-    @NamedQuery(name = "TCalendrier.findByDtCREATED", query = "SELECT t FROM TCalendrier t WHERE t.dtCREATED = :dtCREATED")
-    ,
-    @NamedQuery(name = "TCalendrier.findByDtBEGIN", query = "SELECT t FROM TCalendrier t WHERE t.dtBEGIN = :dtBEGIN")
-    ,
-    @NamedQuery(name = "TCalendrier.findByDtEND", query = "SELECT t FROM TCalendrier t WHERE t.dtEND = :dtEND")
-    ,
-    @NamedQuery(name = "TCalendrier.findByDtUPDATED", query = "SELECT t FROM TCalendrier t WHERE t.dtUPDATED = :dtUPDATED")
-    ,
-    @NamedQuery(name = "TCalendrier.findByStrSTATUT", query = "SELECT t FROM TCalendrier t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TCalendrier.findAll", query = "SELECT t FROM TCalendrier t"),
+        @NamedQuery(name = "TCalendrier.findByLgCALENDRIERID", query = "SELECT t FROM TCalendrier t WHERE t.lgCALENDRIERID = :lgCALENDRIERID"),
+        @NamedQuery(name = "TCalendrier.findByIntNUMBERJOUR", query = "SELECT t FROM TCalendrier t WHERE t.intNUMBERJOUR = :intNUMBERJOUR"),
+        @NamedQuery(name = "TCalendrier.findByIntANNEE", query = "SELECT t FROM TCalendrier t WHERE t.intANNEE = :intANNEE"),
+        @NamedQuery(name = "TCalendrier.findByDtCREATED", query = "SELECT t FROM TCalendrier t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCalendrier.findByDtBEGIN", query = "SELECT t FROM TCalendrier t WHERE t.dtBEGIN = :dtBEGIN"),
+        @NamedQuery(name = "TCalendrier.findByDtEND", query = "SELECT t FROM TCalendrier t WHERE t.dtEND = :dtEND"),
+        @NamedQuery(name = "TCalendrier.findByDtUPDATED", query = "SELECT t FROM TCalendrier t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCalendrier.findByStrSTATUT", query = "SELECT t FROM TCalendrier t WHERE t.strSTATUT = :strSTATUT") })
 public class TCalendrier implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -87,8 +78,6 @@ public class TCalendrier implements Serializable {
     public void setDtDay(LocalDate dtDay) {
         this.dtDay = dtDay;
     }
-
-  
 
     public TCalendrier(String lgCALENDRIERID) {
         this.lgCALENDRIERID = lgCALENDRIERID;
@@ -180,7 +169,8 @@ public class TCalendrier implements Serializable {
             return false;
         }
         TCalendrier other = (TCalendrier) object;
-        if ((this.lgCALENDRIERID == null && other.lgCALENDRIERID != null) || (this.lgCALENDRIERID != null && !this.lgCALENDRIERID.equals(other.lgCALENDRIERID))) {
+        if ((this.lgCALENDRIERID == null && other.lgCALENDRIERID != null)
+                || (this.lgCALENDRIERID != null && !this.lgCALENDRIERID.equals(other.lgCALENDRIERID))) {
             return false;
         }
         return true;

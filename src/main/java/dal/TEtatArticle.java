@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_etat_article")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TEtatArticle.findAll", query = "SELECT t FROM TEtatArticle t"),
-    @NamedQuery(name = "TEtatArticle.findByLgETATARTICLEID", query = "SELECT t FROM TEtatArticle t WHERE t.lgETATARTICLEID = :lgETATARTICLEID"),
-    @NamedQuery(name = "TEtatArticle.findByStrCODE", query = "SELECT t FROM TEtatArticle t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TEtatArticle.findByStrLIBELLEE", query = "SELECT t FROM TEtatArticle t WHERE t.strLIBELLEE = :strLIBELLEE"),
-    @NamedQuery(name = "TEtatArticle.findByDtCREATED", query = "SELECT t FROM TEtatArticle t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TEtatArticle.findByDtUPDATED", query = "SELECT t FROM TEtatArticle t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TEtatArticle.findByStrSTATUT", query = "SELECT t FROM TEtatArticle t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TEtatArticle.findAll", query = "SELECT t FROM TEtatArticle t"),
+        @NamedQuery(name = "TEtatArticle.findByLgETATARTICLEID", query = "SELECT t FROM TEtatArticle t WHERE t.lgETATARTICLEID = :lgETATARTICLEID"),
+        @NamedQuery(name = "TEtatArticle.findByStrCODE", query = "SELECT t FROM TEtatArticle t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TEtatArticle.findByStrLIBELLEE", query = "SELECT t FROM TEtatArticle t WHERE t.strLIBELLEE = :strLIBELLEE"),
+        @NamedQuery(name = "TEtatArticle.findByDtCREATED", query = "SELECT t FROM TEtatArticle t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TEtatArticle.findByDtUPDATED", query = "SELECT t FROM TEtatArticle t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TEtatArticle.findByStrSTATUT", query = "SELECT t FROM TEtatArticle t WHERE t.strSTATUT = :strSTATUT") })
 public class TEtatArticle implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,8 @@ public class TEtatArticle implements Serializable {
             return false;
         }
         TEtatArticle other = (TEtatArticle) object;
-        if ((this.lgETATARTICLEID == null && other.lgETATARTICLEID != null) || (this.lgETATARTICLEID != null && !this.lgETATARTICLEID.equals(other.lgETATARTICLEID))) {
+        if ((this.lgETATARTICLEID == null && other.lgETATARTICLEID != null)
+                || (this.lgETATARTICLEID != null && !this.lgETATARTICLEID.equals(other.lgETATARTICLEID))) {
             return false;
         }
         return true;
@@ -132,5 +132,5 @@ public class TEtatArticle implements Serializable {
     public String toString() {
         return "dal.TEtatArticle[ lgETATARTICLEID=" + lgETATARTICLEID + " ]";
     }
-    
+
 }

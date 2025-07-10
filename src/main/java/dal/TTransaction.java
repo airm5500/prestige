@@ -27,22 +27,20 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_transaction", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"str_transaction_id"})})
+@Table(name = "t_transaction", uniqueConstraints = { @UniqueConstraint(columnNames = { "str_transaction_id" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTransaction.findAll", query = "SELECT t FROM TTransaction t"),
-    @NamedQuery(name = "TTransaction.findByStrTransactionId", query = "SELECT t FROM TTransaction t WHERE t.strTransactionId = :strTransactionId"),
-    @NamedQuery(name = "TTransaction.findByDtTransactionDate", query = "SELECT t FROM TTransaction t WHERE t.dtTransactionDate = :dtTransactionDate"),
-    @NamedQuery(name = "TTransaction.findByStrDescription", query = "SELECT t FROM TTransaction t WHERE t.strDescription = :strDescription"),
-    @NamedQuery(name = "TTransaction.findByDecAmount", query = "SELECT t FROM TTransaction t WHERE t.decAmount = :decAmount"),
-    @NamedQuery(name = "TTransaction.findByDtDateCreated", query = "SELECT t FROM TTransaction t WHERE t.dtDateCreated = :dtDateCreated"),
-    @NamedQuery(name = "TTransaction.findByStrTransactionNumber", query = "SELECT t FROM TTransaction t WHERE t.strTransactionNumber = :strTransactionNumber"),
-    @NamedQuery(name = "TTransaction.findByBValide", query = "SELECT t FROM TTransaction t WHERE t.bValide = :bValide"),
-    @NamedQuery(name = "TTransaction.findByStrMotifTransaction", query = "SELECT t FROM TTransaction t WHERE t.strMotifTransaction = :strMotifTransaction"),
-    @NamedQuery(name = "TTransaction.findByIsCancel", query = "SELECT t FROM TTransaction t WHERE t.isCancel = :isCancel"),
-    @NamedQuery(name = "TTransaction.findByDecBalanceInDisponible", query = "SELECT t FROM TTransaction t WHERE t.decBalanceInDisponible = :decBalanceInDisponible"),
-    @NamedQuery(name = "TTransaction.findByDecBalanceDisponible", query = "SELECT t FROM TTransaction t WHERE t.decBalanceDisponible = :decBalanceDisponible")})
+@NamedQueries({ @NamedQuery(name = "TTransaction.findAll", query = "SELECT t FROM TTransaction t"),
+        @NamedQuery(name = "TTransaction.findByStrTransactionId", query = "SELECT t FROM TTransaction t WHERE t.strTransactionId = :strTransactionId"),
+        @NamedQuery(name = "TTransaction.findByDtTransactionDate", query = "SELECT t FROM TTransaction t WHERE t.dtTransactionDate = :dtTransactionDate"),
+        @NamedQuery(name = "TTransaction.findByStrDescription", query = "SELECT t FROM TTransaction t WHERE t.strDescription = :strDescription"),
+        @NamedQuery(name = "TTransaction.findByDecAmount", query = "SELECT t FROM TTransaction t WHERE t.decAmount = :decAmount"),
+        @NamedQuery(name = "TTransaction.findByDtDateCreated", query = "SELECT t FROM TTransaction t WHERE t.dtDateCreated = :dtDateCreated"),
+        @NamedQuery(name = "TTransaction.findByStrTransactionNumber", query = "SELECT t FROM TTransaction t WHERE t.strTransactionNumber = :strTransactionNumber"),
+        @NamedQuery(name = "TTransaction.findByBValide", query = "SELECT t FROM TTransaction t WHERE t.bValide = :bValide"),
+        @NamedQuery(name = "TTransaction.findByStrMotifTransaction", query = "SELECT t FROM TTransaction t WHERE t.strMotifTransaction = :strMotifTransaction"),
+        @NamedQuery(name = "TTransaction.findByIsCancel", query = "SELECT t FROM TTransaction t WHERE t.isCancel = :isCancel"),
+        @NamedQuery(name = "TTransaction.findByDecBalanceInDisponible", query = "SELECT t FROM TTransaction t WHERE t.decBalanceInDisponible = :decBalanceInDisponible"),
+        @NamedQuery(name = "TTransaction.findByDecBalanceDisponible", query = "SELECT t FROM TTransaction t WHERE t.decBalanceDisponible = :decBalanceDisponible") })
 public class TTransaction implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -54,7 +52,8 @@ public class TTransaction implements Serializable {
     private Date dtTransactionDate;
     @Column(name = "str_Description", length = 200)
     private String strDescription;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dec_Amount", precision = 40, scale = 3)
     private Double decAmount;
     @Column(name = "dt_date_created")
@@ -215,7 +214,8 @@ public class TTransaction implements Serializable {
             return false;
         }
         TTransaction other = (TTransaction) object;
-        if ((this.strTransactionId == null && other.strTransactionId != null) || (this.strTransactionId != null && !this.strTransactionId.equals(other.strTransactionId))) {
+        if ((this.strTransactionId == null && other.strTransactionId != null)
+                || (this.strTransactionId != null && !this.strTransactionId.equals(other.strTransactionId))) {
             return false;
         }
         return true;
@@ -225,5 +225,5 @@ public class TTransaction implements Serializable {
     public String toString() {
         return "dal.TTransaction[ strTransactionId=" + strTransactionId + " ]";
     }
-    
+
 }

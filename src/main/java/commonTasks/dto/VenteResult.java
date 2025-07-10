@@ -127,7 +127,8 @@ public class VenteResult implements Serializable {
         this.nbreClient = nbreClient;
     }
 
-    public VenteResult(String dateOperationToString, String typeVente, Integer montantComptant, Integer remise, Long nbreClient) {
+    public VenteResult(String dateOperationToString, String typeVente, Integer montantComptant, Integer remise,
+            Long nbreClient) {
         this.dateOperationToString = dateOperationToString;
         this.nbreClient = nbreClient;
         this.remise = remise;
@@ -145,7 +146,8 @@ public class VenteResult implements Serializable {
         this.montantComptant = montantComptant;
     }
 
-    public VenteResult(String dateOperationToString, String typeVente, Integer totalVente, Integer montantComptant, Integer montantCredit, Integer remise, Long nbreClient) {
+    public VenteResult(String dateOperationToString, String typeVente, Integer totalVente, Integer montantComptant,
+            Integer montantCredit, Integer remise, Long nbreClient) {
         this.dateOperationToString = dateOperationToString;
         this.nbreClient = nbreClient;
         this.remise = remise;
@@ -188,7 +190,10 @@ public class VenteResult implements Serializable {
 
     @Override
     public String toString() {
-        return "VenteResult{" + "dateOperation=" + dateOperation + ", dateOperationToString=" + dateOperationToString + ", montantCredit=" + montantCredit + ", remise=" + remise + ", totalVente=" + totalVente + ", typeVente=" + typeVente + ", montantDiff=" + montantDiff + ", nbreClient=" + nbreClient + ", montantComptant=" + montantComptant + '}';
+        return "VenteResult{" + "dateOperation=" + dateOperation + ", dateOperationToString=" + dateOperationToString
+                + ", montantCredit=" + montantCredit + ", remise=" + remise + ", totalVente=" + totalVente
+                + ", typeVente=" + typeVente + ", montantDiff=" + montantDiff + ", nbreClient=" + nbreClient
+                + ", montantComptant=" + montantComptant + '}';
     }
 
     public String getId() {

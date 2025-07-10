@@ -28,19 +28,18 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_lot")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TLot.findAll", query = "SELECT t FROM TLot t"),
-    @NamedQuery(name = "TLot.findByLgLOTID", query = "SELECT t FROM TLot t WHERE t.lgLOTID = :lgLOTID"),
-    @NamedQuery(name = "TLot.findByIntNUMLOT", query = "SELECT t FROM TLot t WHERE t.intNUMLOT = :intNUMLOT"),
-    @NamedQuery(name = "TLot.findByIntNUMBER", query = "SELECT t FROM TLot t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TLot.findByDtCREATED", query = "SELECT t FROM TLot t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TLot.findByDtUPDATED", query = "SELECT t FROM TLot t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TLot.findByStrREFLIVRAISON", query = "SELECT t FROM TLot t WHERE t.strREFLIVRAISON = :strREFLIVRAISON"),
-    @NamedQuery(name = "TLot.findByDtSORTIEUSINE", query = "SELECT t FROM TLot t WHERE t.dtSORTIEUSINE = :dtSORTIEUSINE"),
-    @NamedQuery(name = "TLot.findByDtPEREMPTION", query = "SELECT t FROM TLot t WHERE t.dtPEREMPTION = :dtPEREMPTION"),
-    @NamedQuery(name = "TLot.findByIntNUMBERGRATUIT", query = "SELECT t FROM TLot t WHERE t.intNUMBERGRATUIT = :intNUMBERGRATUIT"),
-    @NamedQuery(name = "TLot.findByStrSTATUT", query = "SELECT t FROM TLot t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TLot.findByStrREFORDER", query = "SELECT t FROM TLot t WHERE t.strREFORDER = :strREFORDER")})
+@NamedQueries({ @NamedQuery(name = "TLot.findAll", query = "SELECT t FROM TLot t"),
+        @NamedQuery(name = "TLot.findByLgLOTID", query = "SELECT t FROM TLot t WHERE t.lgLOTID = :lgLOTID"),
+        @NamedQuery(name = "TLot.findByIntNUMLOT", query = "SELECT t FROM TLot t WHERE t.intNUMLOT = :intNUMLOT"),
+        @NamedQuery(name = "TLot.findByIntNUMBER", query = "SELECT t FROM TLot t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TLot.findByDtCREATED", query = "SELECT t FROM TLot t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TLot.findByDtUPDATED", query = "SELECT t FROM TLot t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TLot.findByStrREFLIVRAISON", query = "SELECT t FROM TLot t WHERE t.strREFLIVRAISON = :strREFLIVRAISON"),
+        @NamedQuery(name = "TLot.findByDtSORTIEUSINE", query = "SELECT t FROM TLot t WHERE t.dtSORTIEUSINE = :dtSORTIEUSINE"),
+        @NamedQuery(name = "TLot.findByDtPEREMPTION", query = "SELECT t FROM TLot t WHERE t.dtPEREMPTION = :dtPEREMPTION"),
+        @NamedQuery(name = "TLot.findByIntNUMBERGRATUIT", query = "SELECT t FROM TLot t WHERE t.intNUMBERGRATUIT = :intNUMBERGRATUIT"),
+        @NamedQuery(name = "TLot.findByStrSTATUT", query = "SELECT t FROM TLot t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TLot.findByStrREFORDER", query = "SELECT t FROM TLot t WHERE t.strREFORDER = :strREFORDER") })
 public class TLot implements Serializable {
 
     @Column(name = "int_QTY_VENDUE")
@@ -228,7 +227,8 @@ public class TLot implements Serializable {
             return false;
         }
         TLot other = (TLot) object;
-        if ((this.lgLOTID == null && other.lgLOTID != null) || (this.lgLOTID != null && !this.lgLOTID.equals(other.lgLOTID))) {
+        if ((this.lgLOTID == null && other.lgLOTID != null)
+                || (this.lgLOTID != null && !this.lgLOTID.equals(other.lgLOTID))) {
             return false;
         }
         return true;
@@ -246,5 +246,5 @@ public class TLot implements Serializable {
     public void setIntQTYVENDUE(Integer intQTYVENDUE) {
         this.intQTYVENDUE = intQTYVENDUE;
     }
-    
+
 }

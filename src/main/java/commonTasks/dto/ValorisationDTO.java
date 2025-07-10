@@ -19,7 +19,8 @@ public class ValorisationDTO implements Serializable {
     String typeId, libelle, code;
     Integer montantPu = 0, montantFacture = 0, montantTarif = 0, montantPmd = 0;
     List<ValorisationDTO> datas = new ArrayList<>();
-   ValorisationDTO tvas ;
+    ValorisationDTO tvas;
+
     public String getTypeId() {
         return typeId;
     }
@@ -32,7 +33,6 @@ public class ValorisationDTO implements Serializable {
         this.tvas = tvas;
     }
 
-    
     public void setTypeId(String typeId) {
         this.typeId = typeId;
     }
@@ -95,7 +95,9 @@ public class ValorisationDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "ValorisationDTO{" + "libelle=" + libelle + ", code=" + code + ", montantPu=" + montantPu + ", montantFacture=" + montantFacture + ", montantTarif=" + montantTarif + ", montantPmd=" + montantPmd + '}';
+        return "ValorisationDTO{" + "libelle=" + libelle + ", code=" + code + ", montantPu=" + montantPu
+                + ", montantFacture=" + montantFacture + ", montantTarif=" + montantTarif + ", montantPmd=" + montantPmd
+                + '}';
     }
 
 }

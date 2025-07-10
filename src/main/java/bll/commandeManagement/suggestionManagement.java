@@ -79,9 +79,8 @@ public class suggestionManagement extends bllBase {
 
         try {
 
-            listTFamilleStock = this.getOdataManager().getEm().
-                    createQuery("SELECT t FROM TFamilleStock t").
-                    getResultList();
+            listTFamilleStock = this.getOdataManager().getEm().createQuery("SELECT t FROM TFamilleStock t")
+                    .getResultList();
 
             new logger().OCategory.info("listTFamilleStock Total  " + listTFamilleStock.size());
 
@@ -100,7 +99,8 @@ public class suggestionManagement extends bllBase {
         List<TSuggestionOrderDetails> lstTTSuggestionOrderDetails = null;
         try {
 
-            lstTTSuggestionOrderDetails = OWarehouseManager.getTSuggestionOrderDetails(lg_SUGGESTION_ORDER_ID, STATUT_DEBUT);
+            lstTTSuggestionOrderDetails = OWarehouseManager.getTSuggestionOrderDetails(lg_SUGGESTION_ORDER_ID,
+                    STATUT_DEBUT);
 
             for (TSuggestionOrderDetails OlstTTSuggestionOrderDetails : lstTTSuggestionOrderDetails) {
 
@@ -137,8 +137,9 @@ public class suggestionManagement extends bllBase {
 
             if (!listTFamilleStock.isEmpty() && OTGrossiste != null) {
 
-                // creation de la suggestion 
-                OTSuggestionOrder = OorderManagement.createTSuggestionOrder(lg_GROSSISTE_ID, commonparameter.statut_is_Auto);
+                // creation de la suggestion
+                OTSuggestionOrder = OorderManagement.createTSuggestionOrder(lg_GROSSISTE_ID,
+                        commonparameter.statut_is_Auto);
 
                 for (TFamilleStock listTFamilleStock1 : listTFamilleStock) {
 
@@ -158,9 +159,12 @@ public class suggestionManagement extends bllBase {
 
                     if (int_QTE_STOCK < int_SEUIL_MINI || int_QTE_STOCK == int_SEUIL_MINI) {
 
-                        OTSuggestionOrderDetails = this.AddToTSuggestionOrderDetails(listTFamilleStock1.getLgFAMILLEID(), OTGrossiste, OTSuggestionOrder, int_QTE_A_SUGGERE, commonparameter.statut_is_Auto);
+                        OTSuggestionOrderDetails = this.AddToTSuggestionOrderDetails(
+                                listTFamilleStock1.getLgFAMILLEID(), OTGrossiste, OTSuggestionOrder, int_QTE_A_SUGGERE,
+                                commonparameter.statut_is_Auto);
 
-                        new logger().OCategory.info("OTSuggestionOrderDetails   " + OTSuggestionOrderDetails.getLgSUGGESTIONORDERDETAILSID());
+                        new logger().OCategory.info("OTSuggestionOrderDetails   "
+                                + OTSuggestionOrderDetails.getLgSUGGESTIONORDERDETAILSID());
 
                     }
 
@@ -184,48 +188,53 @@ public class suggestionManagement extends bllBase {
         // </editor-fold>
     }
 
-//    public int calcQteReappro(TFamille OTFamille) { //ancien bon code. A decommenter en cas de probleme
-//
-//        int QTE_REAPPRO = 1;
-//        familleManagement OfamilleManagement = new familleManagement(getOdataManager(), getOTUser());
-//
-//        try {
-//
-//            if (OTFamille.getLgCODEGESTIONID() != null && (!OTFamille.getLgCODEGESTIONID().getLgOPTIMISATIONQUANTITEID().getStrCODEOPTIMISATION().equals("0"))) {
-//
-//                QTE_REAPPRO = OfamilleManagement.getQuantityReapportByCodeGestionArticle(OTFamille);
-//                new logger().OCategory.info("Code gestion - QTE_REAPPRO  " + QTE_REAPPRO);
-//
-//            } else if (OTFamille.getIntQTEREAPPROVISIONNEMENT() != null) {
-//
-//                QTE_REAPPRO = OTFamille.getIntQTEREAPPROVISIONNEMENT();
-//                new logger().OCategory.info("TFamille - QTE_REAPPRO  " + QTE_REAPPRO);
-//
-//            } else {
-//                return QTE_REAPPRO;
-//            }
-//
-//        } catch (Exception e) {
-//
-//        }
-//
-//        new logger().OCategory.info("Return - QTE_REAPPRO  " + QTE_REAPPRO);
-//        return QTE_REAPPRO;
-//        // </editor-fold>
-//    }
+    // public int calcQteReappro(TFamille OTFamille) { //ancien bon code. A decommenter en cas de probleme
+    //
+    // int QTE_REAPPRO = 1;
+    // familleManagement OfamilleManagement = new familleManagement(getOdataManager(), getOTUser());
+    //
+    // try {
+    //
+    // if (OTFamille.getLgCODEGESTIONID() != null &&
+    // (!OTFamille.getLgCODEGESTIONID().getLgOPTIMISATIONQUANTITEID().getStrCODEOPTIMISATION().equals("0"))) {
+    //
+    // QTE_REAPPRO = OfamilleManagement.getQuantityReapportByCodeGestionArticle(OTFamille);
+    // new logger().OCategory.info("Code gestion - QTE_REAPPRO " + QTE_REAPPRO);
+    //
+    // } else if (OTFamille.getIntQTEREAPPROVISIONNEMENT() != null) {
+    //
+    // QTE_REAPPRO = OTFamille.getIntQTEREAPPROVISIONNEMENT();
+    // new logger().OCategory.info("TFamille - QTE_REAPPRO " + QTE_REAPPRO);
+    //
+    // } else {
+    // return QTE_REAPPRO;
+    // }
+    //
+    // } catch (Exception e) {
+    //
+    // }
+    //
+    // new logger().OCategory.info("Return - QTE_REAPPRO " + QTE_REAPPRO);
+    // return QTE_REAPPRO;
+    // // </editor-fold>
+    // }
     public int calcQteReappro(TFamilleStock OTFamilleStock) {
 
         int QTE_REAPPRO = 1;
         familleManagement OfamilleManagement = new familleManagement(getOdataManager(), getOTUser());
 
         try {
-            if (OTFamilleStock.getLgFAMILLEID().getLgCODEGESTIONID() != null && (!OTFamilleStock.getLgFAMILLEID().getLgCODEGESTIONID().getLgOPTIMISATIONQUANTITEID().getStrCODEOPTIMISATION().equals("0"))) {
+            if (OTFamilleStock.getLgFAMILLEID().getLgCODEGESTIONID() != null && (!OTFamilleStock.getLgFAMILLEID()
+                    .getLgCODEGESTIONID().getLgOPTIMISATIONQUANTITEID().getStrCODEOPTIMISATION().equals("0"))) {
                 QTE_REAPPRO = OfamilleManagement.getQuantityReapportByCodeGestionArticle(OTFamilleStock);
                 new logger().OCategory.info("Code gestion - QTE_REAPPRO  " + QTE_REAPPRO);
-            } else if (OTFamilleStock.getLgFAMILLEID().getIntQTEREAPPROVISIONNEMENT() != null && OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() != null) {
+            } else if (OTFamilleStock.getLgFAMILLEID().getIntQTEREAPPROVISIONNEMENT() != null
+                    && OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() != null) {
 
                 if (OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() >= OTFamilleStock.getIntNUMBERAVAILABLE()) {
-                    QTE_REAPPRO = (OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() - OTFamilleStock.getIntNUMBERAVAILABLE()) + OTFamilleStock.getLgFAMILLEID().getIntQTEREAPPROVISIONNEMENT();
+                    QTE_REAPPRO = (OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN()
+                            - OTFamilleStock.getIntNUMBERAVAILABLE())
+                            + OTFamilleStock.getLgFAMILLEID().getIntQTEREAPPROVISIONNEMENT();
                     new logger().OCategory.info("TFamille - QTE_REAPPRO  " + QTE_REAPPRO);
                 }
 
@@ -237,7 +246,8 @@ public class suggestionManagement extends bllBase {
             e.printStackTrace();
         }
 
-        new logger().OCategory.info("Return - QTE_REAPPRO  " + QTE_REAPPRO + " OTFamilleStock -------------------->>> qty " + OTFamilleStock.getIntNUMBERAVAILABLE());
+        new logger().OCategory.info("Return - QTE_REAPPRO  " + QTE_REAPPRO
+                + " OTFamilleStock -------------------->>> qty " + OTFamilleStock.getIntNUMBERAVAILABLE());
         return QTE_REAPPRO;
 
     }
@@ -248,20 +258,28 @@ public class suggestionManagement extends bllBase {
         int int_QTE_A_SUGGERE = 0;
         try {
 
-            if (OTFamilleStock != null && OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() != null && OTFamilleStock.getLgFAMILLEID().getBoolDECONDITIONNE() == 0) {
-                new logger().OCategory.info("Stock actu " + OTFamilleStock.getIntNUMBERAVAILABLE() + " Seuil mini " + OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() + " Seuil de reappro " + OTFamilleStock.getLgFAMILLEID().getIntQTEREAPPROVISIONNEMENT());
+            if (OTFamilleStock != null && OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() != null
+                    && OTFamilleStock.getLgFAMILLEID().getBoolDECONDITIONNE() == 0) {
+                new logger().OCategory.info("Stock actu " + OTFamilleStock.getIntNUMBERAVAILABLE() + " Seuil mini "
+                        + OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() + " Seuil de reappro "
+                        + OTFamilleStock.getLgFAMILLEID().getIntQTEREAPPROVISIONNEMENT());
                 if (OTFamilleStock.getIntNUMBERAVAILABLE() <= OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN()) {
 
                     int_QTE_A_SUGGERE = this.calcQteReappro(OTFamilleStock);
 
                     if (int_QTE_A_SUGGERE > 0) {
-                        OTSuggestionOrder = this.checkSuggestionGrossiteExiste(OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID().getLgGROSSISTEID());
+                        OTSuggestionOrder = this.checkSuggestionGrossiteExiste(
+                                OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID().getLgGROSSISTEID());
 
                         if (OTSuggestionOrder != null) {
 
-                            this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTFamilleStock.getLgFAMILLEID(), OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID(), int_QTE_A_SUGGERE, commonparameter.str_ACTION_VENTE);
+                            this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTFamilleStock.getLgFAMILLEID(),
+                                    OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID(), int_QTE_A_SUGGERE,
+                                    commonparameter.str_ACTION_VENTE);
                         } else {
-                            this.AddToTSuggestionOrderDetails(OTFamilleStock.getLgFAMILLEID(), OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID(), OTSuggestionOrder, int_QTE_A_SUGGERE, commonparameter.statut_is_Auto);
+                            this.AddToTSuggestionOrderDetails(OTFamilleStock.getLgFAMILLEID(),
+                                    OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID(), OTSuggestionOrder,
+                                    int_QTE_A_SUGGERE, commonparameter.statut_is_Auto);
                         }
                     }
 
@@ -284,12 +302,13 @@ public class suggestionManagement extends bllBase {
 
     }
 
-    public TSuggestionOrderDetails findFamilleInTSuggestionOrderDetails(String lg_SUGGESTION_ORDER_ID, String lg_famille_id) {
+    public TSuggestionOrderDetails findFamilleInTSuggestionOrderDetails(String lg_SUGGESTION_ORDER_ID,
+            String lg_famille_id) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?2 ").
-                    setParameter(2, lg_SUGGESTION_ORDER_ID).
-                    setParameter(1, lg_famille_id);
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?2 ")
+                    .setParameter(2, lg_SUGGESTION_ORDER_ID).setParameter(1, lg_famille_id);
             if (qry.getResultList().size() > 0) {
                 OTSuggestionOrderDetails = (TSuggestionOrderDetails) qry.getSingleResult();
             }
@@ -300,28 +319,35 @@ public class suggestionManagement extends bllBase {
         return OTSuggestionOrderDetails;
     }
 
-    public TSuggestionOrderDetails CreateTSuggestionOrderDetails(TSuggestionOrder OTSuggestionOrder, TFamille OTFamille, TGrossiste OTGrossiste, int int_NUMBER, String step) {
+    public TSuggestionOrderDetails CreateTSuggestionOrderDetails(TSuggestionOrder OTSuggestionOrder, TFamille OTFamille,
+            TGrossiste OTGrossiste, int int_NUMBER, String step) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
         Date now = new Date();
         try {
 
-            OTSuggestionOrderDetails = this.findFamilleInTSuggestionOrderDetails(OTSuggestionOrder.getLgSUGGESTIONORDERID(), OTFamille.getLgFAMILLEID());
+            OTSuggestionOrderDetails = this.findFamilleInTSuggestionOrderDetails(
+                    OTSuggestionOrder.getLgSUGGESTIONORDERID(), OTFamille.getLgFAMILLEID());
             if (OTSuggestionOrderDetails == null) {
-                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste, 0, commonparameter.statut_is_Process);
+                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste, 0,
+                        commonparameter.statut_is_Process);
             }
-            OTSuggestionOrderDetails.setIntNUMBER(OTSuggestionOrder.getStrSTATUT().equals(commonparameter.statut_is_Auto) ? int_NUMBER : OTSuggestionOrderDetails.getIntNUMBER() + int_NUMBER);
-            OTSuggestionOrderDetails.setIntPRICE(OTSuggestionOrderDetails.getIntPAFDETAIL() * OTSuggestionOrderDetails.getIntNUMBER());
+            OTSuggestionOrderDetails
+                    .setIntNUMBER(OTSuggestionOrder.getStrSTATUT().equals(commonparameter.statut_is_Auto) ? int_NUMBER
+                            : OTSuggestionOrderDetails.getIntNUMBER() + int_NUMBER);
+            OTSuggestionOrderDetails
+                    .setIntPRICE(OTSuggestionOrderDetails.getIntPAFDETAIL() * OTSuggestionOrderDetails.getIntNUMBER());
             OTSuggestionOrderDetails.setDtUPDATED(now);
             OTSuggestionOrder.setDtUPDATED(now);
 
             this.getOdataManager().getEm().merge(OTSuggestionOrderDetails);
-//            OTFamille.setIntORERSTATUS((short) 1);
-//            this.getOdataManager().getEm().merge(OTFamille);
-            /* ajoute le 09 06 2017 pour la gestion du code indicateur de reappro  debut 
-             OTFamille.setBCODEINDICATEUR(Boolean.TRUE);
-             this.getOdataManager().getEm().merge(OTFamille);
-              ajoute le 09 06 2017 pour la gestion du code indicateur de reappro  fin */
-//            this.getOdataManager().CloseTransaction();
+            // OTFamille.setIntORERSTATUS((short) 1);
+            // this.getOdataManager().getEm().merge(OTFamille);
+            /*
+             * ajoute le 09 06 2017 pour la gestion du code indicateur de reappro debut
+             * OTFamille.setBCODEINDICATEUR(Boolean.TRUE); this.getOdataManager().getEm().merge(OTFamille); ajoute le 09
+             * 06 2017 pour la gestion du code indicateur de reappro fin
+             */
+            // this.getOdataManager().CloseTransaction();
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
 
         } catch (Exception e) {
@@ -338,13 +364,10 @@ public class suggestionManagement extends bllBase {
 
         try {
 
-            OTSuggestionOrder = (TSuggestionOrder) this.getOdataManager().getEm()
-                    .createQuery("SELECT t FROM TSuggestionOrder t WHERE t.lgGROSSISTEID.lgGROSSISTEID =?1  AND t.strSTATUT = ?2 ORDER BY t.dtUPDATED DESC ")
-                    .setFirstResult(0)
-                    .setMaxResults(1)
-                    .setParameter(1, lg_GROSSISTE_ID)
-                    .setParameter(2, commonparameter.statut_is_Auto)
-                    .getSingleResult();
+            OTSuggestionOrder = (TSuggestionOrder) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrder t WHERE t.lgGROSSISTEID.lgGROSSISTEID =?1  AND t.strSTATUT = ?2 ORDER BY t.dtUPDATED DESC ")
+                    .setFirstResult(0).setMaxResults(1).setParameter(1, lg_GROSSISTE_ID)
+                    .setParameter(2, commonparameter.statut_is_Auto).getSingleResult();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -361,11 +384,13 @@ public class suggestionManagement extends bllBase {
 
         try {
 
-            List<TSuggestionOrderDetails> lstTSuggestionOrderDetails = this.getTSuggestionOrderDetails(lg_SUGGESTION_ORDER_ID);
+            List<TSuggestionOrderDetails> lstTSuggestionOrderDetails = this
+                    .getTSuggestionOrderDetails(lg_SUGGESTION_ORDER_ID);
 
             for (TSuggestionOrderDetails olstTSuggestionOrderDetails : lstTSuggestionOrderDetails) {
 
-                PrixDAchatTotal = (olstTSuggestionOrderDetails.getLgFAMILLEID().getIntPAT() * olstTSuggestionOrderDetails.getIntNUMBER()) + PrixDAchatTotal;
+                PrixDAchatTotal = (olstTSuggestionOrderDetails.getLgFAMILLEID().getIntPAT()
+                        * olstTSuggestionOrderDetails.getIntNUMBER()) + PrixDAchatTotal;
 
             }
 
@@ -383,13 +408,11 @@ public class suggestionManagement extends bllBase {
     public List<TSuggestionOrderDetails> getTSuggestionOrderDetails(String lg_SUGGESTION_ORDER_ID) {
         List<TSuggestionOrderDetails> lstT = new ArrayList<>();
         try {
-            lstT = this.getOdataManager().getEm().
-                    createQuery("SELECT t FROM TSuggestionOrderDetails t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?4 ) AND t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?3 ").
-                    setParameter(1, commonparameter.statut_is_Process).
-                    setParameter(2, commonparameter.statut_enable).
-                    setParameter(4, commonparameter.statut_is_Auto).
-                    setParameter(3, lg_SUGGESTION_ORDER_ID).
-                    getResultList();
+            lstT = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrderDetails t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?4 ) AND t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?3 ")
+                    .setParameter(1, commonparameter.statut_is_Process).setParameter(2, commonparameter.statut_enable)
+                    .setParameter(4, commonparameter.statut_is_Auto).setParameter(3, lg_SUGGESTION_ORDER_ID)
+                    .getResultList();
         } catch (Exception e) {
             e.printStackTrace();
 
@@ -398,22 +421,20 @@ public class suggestionManagement extends bllBase {
         return lstT;
     }
 
-    //liste des suggestions 
-    public List<TSuggestionOrder> ListeSuggestionOrder(String search_value, String lg_SUGGESTION_ORDER_ID, int start, int limit) {
+    // liste des suggestions
+    public List<TSuggestionOrder> ListeSuggestionOrder(String search_value, String lg_SUGGESTION_ORDER_ID, int start,
+            int limit) {
         List<TSuggestionOrder> lstTSuggestionOrder = new ArrayList<>();
         try {
             if (search_value.equalsIgnoreCase("") || search_value == null) {
                 search_value = "%%";
             }
 
-            lstTSuggestionOrder = this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrder t, TSuggestionOrderDetails ts WHERE t.lgSUGGESTIONORDERID = ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID AND t.lgSUGGESTIONORDERID LIKE ?3 AND (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?5) AND (t.strREF LIKE ?4 OR ts.lgFAMILLEID.intCIP LIKE ?4 OR ts.lgFAMILLEID.intEAN13 LIKE ?4 OR ts.lgFAMILLEID.strDESCRIPTION LIKE ?4) GROUP BY ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID ORDER BY t.dtUPDATED DESC")
-                    .setParameter(1, commonparameter.statut_is_Process)
-                    .setParameter(2, commonparameter.statut_is_Auto)
-                    .setParameter(5, commonparameter.statut_pending)
-                    .setParameter(3, lg_SUGGESTION_ORDER_ID)
-                    .setParameter(4, search_value + "%")
-                    .setFirstResult(start).setMaxResults(limit)
-                    .getResultList();
+            lstTSuggestionOrder = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrder t, TSuggestionOrderDetails ts WHERE t.lgSUGGESTIONORDERID = ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID AND t.lgSUGGESTIONORDERID LIKE ?3 AND (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?5) AND (t.strREF LIKE ?4 OR ts.lgFAMILLEID.intCIP LIKE ?4 OR ts.lgFAMILLEID.intEAN13 LIKE ?4 OR ts.lgFAMILLEID.strDESCRIPTION LIKE ?4) GROUP BY ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID ORDER BY t.dtUPDATED DESC")
+                    .setParameter(1, commonparameter.statut_is_Process).setParameter(2, commonparameter.statut_is_Auto)
+                    .setParameter(5, commonparameter.statut_pending).setParameter(3, lg_SUGGESTION_ORDER_ID)
+                    .setParameter(4, search_value + "%").setFirstResult(start).setMaxResults(limit).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -428,13 +449,11 @@ public class suggestionManagement extends bllBase {
                 search_value = "%%";
             }
 
-            List<Object[]> _count = this.getOdataManager().getEm().createQuery("SELECT  COUNT(DISTINCT t) FROM TSuggestionOrder t, TSuggestionOrderDetails ts WHERE t.lgSUGGESTIONORDERID = ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID AND t.lgSUGGESTIONORDERID LIKE ?3 AND (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?5) AND (t.strREF LIKE ?4 OR ts.lgFAMILLEID.intCIP LIKE ?4 OR ts.lgFAMILLEID.intEAN13 LIKE ?4 OR ts.lgFAMILLEID.strDESCRIPTION LIKE ?4) GROUP BY ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID ORDER BY t.dtUPDATED DESC")
-                    .setParameter(1, commonparameter.statut_is_Process)
-                    .setParameter(2, commonparameter.statut_is_Auto)
-                    .setParameter(5, commonparameter.statut_pending)
-                    .setParameter(3, lg_SUGGESTION_ORDER_ID)
-                    .setParameter(4, search_value + "%")
-                    .getResultList();
+            List<Object[]> _count = this.getOdataManager().getEm().createQuery(
+                    "SELECT  COUNT(DISTINCT t) FROM TSuggestionOrder t, TSuggestionOrderDetails ts WHERE t.lgSUGGESTIONORDERID = ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID AND t.lgSUGGESTIONORDERID LIKE ?3 AND (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?5) AND (t.strREF LIKE ?4 OR ts.lgFAMILLEID.intCIP LIKE ?4 OR ts.lgFAMILLEID.intEAN13 LIKE ?4 OR ts.lgFAMILLEID.strDESCRIPTION LIKE ?4) GROUP BY ts.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID ORDER BY t.dtUPDATED DESC")
+                    .setParameter(1, commonparameter.statut_is_Process).setParameter(2, commonparameter.statut_is_Auto)
+                    .setParameter(5, commonparameter.statut_pending).setParameter(3, lg_SUGGESTION_ORDER_ID)
+                    .setParameter(4, search_value + "%").getResultList();
             count = _count.size();
         } catch (Exception e) {
             e.printStackTrace();
@@ -443,24 +462,27 @@ public class suggestionManagement extends bllBase {
         return count;
     }
 
-    //fin liste des suggestions 
-    //fonction de mise a jour des prix d'un article durant le processus de commande
-    public boolean updatePriceArticleByDuringCommand(String lg_FAMILLE_ID, int int_PRICE, int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step) {
+    // fin liste des suggestions
+    // fonction de mise a jour des prix d'un article durant le processus de commande
+    public boolean updatePriceArticleByDuringCommand(String lg_FAMILLE_ID, int int_PRICE, int int_PRICE_TIPS,
+            int int_PAF, int int_PAT, String action, String str_REF, String step) {
 
         boolean result = false;
         int int_PAF_OLD = 0, int_PAT_OLD = 0, int_PRICE_OLD = 0, int_PRICE_TIPS_OLD = 0;
         familleManagement OfamilleManagement = new familleManagement(this.getOdataManager());
         try {
             TFamille OTFamille = OfamilleManagement.getTFamille(lg_FAMILLE_ID);
-//            if (OfamilleManagement.checkpricevente(OTFamille, int_PRICE)) {
-//                this.buildErrorTraceMessage("Impossible. Le prix de vente ne doit pas être supérieur au pourcentage fixé");
-//                return false;
-//            }
+            // if (OfamilleManagement.checkpricevente(OTFamille, int_PRICE)) {
+            // this.buildErrorTraceMessage("Impossible. Le prix de vente ne doit pas être supérieur au pourcentage
+            // fixé");
+            // return false;
+            // }
 
             int_PRICE_OLD = OTFamille.getIntPRICE();
             int_PAF_OLD = OTFamille.getIntPAF();
             int_PAT_OLD = OTFamille.getIntPAT();
-            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS() : OTFamille.getIntPRICE();
+            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS()
+                    : OTFamille.getIntPRICE();
 
             new logger().OCategory.info("step avant:" + step + "-");
             if (step.equalsIgnoreCase(commonparameter.str_ACTION_ENTREESTOCK)) {
@@ -470,18 +492,22 @@ public class suggestionManagement extends bllBase {
                 OTFamille.setIntPRICE(int_PRICE);
                 OTFamille.setIntPRICETIPS(int_PRICE_TIPS);
                 OTFamille.setDtCREATED(new Date());
-//                this.persiste(OTFamille); //a decommenter en cas de probleme
+                // this.persiste(OTFamille); //a decommenter en cas de probleme
                 this.getOdataManager().getEm().merge(OTFamille);
             }
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             result = true;
 
-            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT) || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
-                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION() + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME() + ".";
+            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT)
+                    || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
+                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION()
+                        + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " "
+                        + this.getOTUser().getStrLASTNAME() + ".";
                 if (int_PRICE_OLD != int_PRICE) {
                     Description += "Prix de vente: " + int_PRICE_OLD + " remplacé par " + int_PRICE + ".";
-//                      new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille, commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
+                    // new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille,
+                    // commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
                 }
                 if (int_PAF_OLD != int_PAF) {
                     Description += "Prix d'achat facture: " + int_PAF_OLD + " remplacé par " + int_PAF + ".";
@@ -493,7 +519,7 @@ public class suggestionManagement extends bllBase {
                     Description += "Prix TIP: " + int_PRICE_TIPS_OLD + " remplacé par " + int_PRICE_TIPS + ".";
                 }
 
-                //  OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
+                // OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -503,7 +529,8 @@ public class suggestionManagement extends bllBase {
         return result;
     }
 
-    public boolean updatePriceArticleByDuringCommand(TFamille OTFamille, int int_PRICE, int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step) {
+    public boolean updatePriceArticleByDuringCommand(TFamille OTFamille, int int_PRICE, int int_PRICE_TIPS, int int_PAF,
+            int int_PAT, String action, String str_REF, String step) {
 
         int int_PAF_OLD = 0, int_PAT_OLD = 0, int_PRICE_OLD = 0, int_PRICE_TIPS_OLD = 0;
         boolean result = false;
@@ -512,7 +539,8 @@ public class suggestionManagement extends bllBase {
             int_PRICE_OLD = OTFamille.getIntPRICE();
             int_PAF_OLD = OTFamille.getIntPAF();
             int_PAT_OLD = OTFamille.getIntPAT();
-            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS() : OTFamille.getIntPRICE();
+            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS()
+                    : OTFamille.getIntPRICE();
             if (step.equalsIgnoreCase(commonparameter.str_ACTION_ENTREESTOCK)) {
                 OTFamille.setIntPAF(int_PAF);
                 OTFamille.setIntPAT(int_PAT);
@@ -522,11 +550,15 @@ public class suggestionManagement extends bllBase {
                 this.getOdataManager().getEm().merge(OTFamille);
             }
 
-            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT) || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
-                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION() + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME() + ".";
+            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT)
+                    || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
+                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION()
+                        + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " "
+                        + this.getOTUser().getStrLASTNAME() + ".";
                 if (int_PRICE_OLD != int_PRICE) {
                     Description += "Prix de vente: " + int_PRICE_OLD + " remplacé par " + int_PRICE + ".";
-                    new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPriceBis(OTFamille, commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
+                    new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPriceBis(OTFamille,
+                            commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
                 }
                 if (int_PAF_OLD != int_PAF) {
                     Description += "Prix d'achat facture: " + int_PAF_OLD + " remplacé par " + int_PAF + ".";
@@ -538,15 +570,18 @@ public class suggestionManagement extends bllBase {
                     Description += "Prix TIP: " + int_PRICE_TIPS_OLD + " remplacé par " + int_PRICE_TIPS + ".";
                 }
                 List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList<>();
-                ServicesUpdatePriceFamille OService = new ServicesUpdatePriceFamille(this.getOdataManager(), this.getOTUser());
+                ServicesUpdatePriceFamille OService = new ServicesUpdatePriceFamille(this.getOdataManager(),
+                        this.getOTUser());
                 lstTAlertEventUserFone = OfamilleManagement.getTAlertEventUserFone("N_UPDATE_FAMILLE_PRICE");
                 for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
-                    OService.saveNotification(Description, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(), this.getKey().getComplexId());
+                    OService.saveNotification(Description, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(),
+                            this.getKey().getComplexId());
                 }
                 result = true;
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
 
-//                OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE"); // a decommenter en cas de probleme
+                // OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE"); // a
+                // decommenter en cas de probleme
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -554,20 +589,20 @@ public class suggestionManagement extends bllBase {
         }
         return result;
     }
-//fin fonction de mise a jour des prix d'un article durant le processus de commande
+    // fin fonction de mise a jour des prix d'un article durant le processus de commande
 
-    //liste des suggestions details
-    public List<TSuggestionOrderDetails> ListeSuggestionOrderDetails(String search_value, String lg_SUGGESTION_ORDER_ID) {
+    // liste des suggestions details
+    public List<TSuggestionOrderDetails> ListeSuggestionOrderDetails(String search_value,
+            String lg_SUGGESTION_ORDER_ID) {
         List<TSuggestionOrderDetails> lstTSuggestionOrderDetails = new ArrayList<>();
         try {
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
-            lstTSuggestionOrderDetails = this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrderDetails t  WHERE t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?1 AND( t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?3) AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) ORDER BY t.lgFAMILLEID.strDESCRIPTION ASC")
-                    .setParameter(1, lg_SUGGESTION_ORDER_ID)
-                    .setParameter(2, commonparameter.statut_is_Process)
-                    .setParameter(3, commonparameter.statut_is_Auto)
-                    .setParameter(4, search_value + "%")
+            lstTSuggestionOrderDetails = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrderDetails t  WHERE t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?1 AND( t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?3) AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) ORDER BY t.lgFAMILLEID.strDESCRIPTION ASC")
+                    .setParameter(1, lg_SUGGESTION_ORDER_ID).setParameter(2, commonparameter.statut_is_Process)
+                    .setParameter(3, commonparameter.statut_is_Auto).setParameter(4, search_value + "%")
                     .getResultList();
 
         } catch (Exception e) {
@@ -577,17 +612,17 @@ public class suggestionManagement extends bllBase {
         return lstTSuggestionOrderDetails;
     }
 
-    public List<TSuggestionOrderDetails> ListeSuggestionOrderDetails(String search_value, String lg_SUGGESTION_ORDER_ID, int start, int limit) {
+    public List<TSuggestionOrderDetails> ListeSuggestionOrderDetails(String search_value, String lg_SUGGESTION_ORDER_ID,
+            int start, int limit) {
         List<TSuggestionOrderDetails> lstTSuggestionOrderDetails = new ArrayList<>();
         try {
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
-            lstTSuggestionOrderDetails = this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrderDetails t  WHERE t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?1 AND( t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?3) AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) ORDER BY t.lgFAMILLEID.strDESCRIPTION ASC")
-                    .setParameter(1, lg_SUGGESTION_ORDER_ID)
-                    .setParameter(2, commonparameter.statut_is_Process)
-                    .setParameter(3, commonparameter.statut_is_Auto)
-                    .setParameter(4, search_value + "%")
+            lstTSuggestionOrderDetails = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrderDetails t  WHERE t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID LIKE ?1 AND( t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?3) AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) ORDER BY t.lgFAMILLEID.strDESCRIPTION ASC")
+                    .setParameter(1, lg_SUGGESTION_ORDER_ID).setParameter(2, commonparameter.statut_is_Process)
+                    .setParameter(3, commonparameter.statut_is_Auto).setParameter(4, search_value + "%")
                     .setFirstResult(start).setMaxResults(limit).getResultList();
 
         } catch (Exception e) {
@@ -596,9 +631,9 @@ public class suggestionManagement extends bllBase {
         new logger().OCategory.info("lstTSuggestionOrderDetails taille " + lstTSuggestionOrderDetails.size());
         return lstTSuggestionOrderDetails;
     }
-    //fin liste des suggestions details
+    // fin liste des suggestions details
 
-    //creation d'une suggestion partant de la vente
+    // creation d'une suggestion partant de la vente
     public boolean createSuggestionByVente(String lg_PREENREGISTREMENT_ID) {
         boolean result = false;
         List<TPreenregistrementDetail> lstTTPreenregistrementDetail = new ArrayList<>();
@@ -614,25 +649,30 @@ public class suggestionManagement extends bllBase {
                 this.buildErrorTraceMessage("Impossible de créer la suggestion. Référence de vente inconnue");
                 return false;
             }
-            lstTTPreenregistrementDetail = OPreenregistrement.getTPreenregistrementDetail(OTPreenregistrement.getLgPREENREGISTREMENTID(), commonparameter.statut_is_Closed);
+            lstTTPreenregistrementDetail = OPreenregistrement.getTPreenregistrementDetail(
+                    OTPreenregistrement.getLgPREENREGISTREMENTID(), commonparameter.statut_is_Closed);
 
             if (lstTTPreenregistrementDetail.size() > 0) {
                 TGrossiste OTGrossiste = lstTTPreenregistrementDetail.get(0).getLgFAMILLEID().getLgGROSSISTEID();
 
-                //code ajouté
+                // code ajouté
                 OTSuggestionOrder = OsuggestionManagement.isGrosssiteExistInSuggestion(OTGrossiste.getLgGROSSISTEID());
                 if (OTSuggestionOrder == null) {
-                    OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser()).createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Auto);
+                    OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser())
+                            .createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Auto);
                 }
-                //fin code ajouté
+                // fin code ajouté
 
                 for (TPreenregistrementDetail OTPreenregistrementDetail : lstTTPreenregistrementDetail) {
 
-                    if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTPreenregistrementDetail.getLgFAMILLEID(), OTGrossiste, OTPreenregistrementDetail.getIntQUANTITY(), commonparameter.str_ACTION_VENTE) != null) { //code ajouté
+                    if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder,
+                            OTPreenregistrementDetail.getLgFAMILLEID(), OTGrossiste,
+                            OTPreenregistrementDetail.getIntQUANTITY(), commonparameter.str_ACTION_VENTE) != null) { // code
+                                                                                                                     // ajouté
                         i++;
                     }
 
-                    //fin code ajouté
+                    // fin code ajouté
                 }
                 if (lstTTPreenregistrementDetail.size() == i) {
                     OTPreenregistrement.setIntSENDTOSUGGESTION(1);
@@ -650,10 +690,11 @@ public class suggestionManagement extends bllBase {
         }
         return result;
     }
-    //fin creation d'une suggestion partant de la vente
+    // fin creation d'une suggestion partant de la vente
 
-    //creation de suggestion détail
-    public boolean createSuggestionDetail(TSuggestionOrder OTSuggestionOrder, TGrossiste OTGrossiste, TFamille OTFamille, int int_qte, String str_STATUT) {
+    // creation de suggestion détail
+    public boolean createSuggestionDetail(TSuggestionOrder OTSuggestionOrder, TGrossiste OTGrossiste,
+            TFamille OTFamille, int int_qte, String str_STATUT) {
         boolean result = false;
         try {
             TSuggestionOrderDetails OTSuggestionOrderDetails = new TSuggestionOrderDetails();
@@ -677,7 +718,7 @@ public class suggestionManagement extends bllBase {
         }
         return result;
     }
-    //fin creation de suggestion détail
+    // fin creation de suggestion détail
 
     public TSuggestionOrder findTsuggestionOrder(String lg_SUGGESTION_ORDER_ID) {
         TSuggestionOrder OTSuggestionOrder = null;
@@ -690,14 +731,15 @@ public class suggestionManagement extends bllBase {
         return OTSuggestionOrder;
     }
 
-    //verifie si un grossiste est dans la liste des suggestions
+    // verifie si un grossiste est dans la liste des suggestions
     public TSuggestionOrder isGrosssiteExistInSuggestion(String lg_GROSSISTE_ID) {
         List<TSuggestionOrder> lstTSuggestionOrder = new ArrayList<>();
         TSuggestionOrder OTSuggestionOrder = null;
         try {
-            lstTSuggestionOrder = this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrder t WHERE (t.lgGROSSISTEID.lgGROSSISTEID = ?1 OR t.lgGROSSISTEID.strLIBELLE = ?1) AND (t.strSTATUT = ?3 OR t.strSTATUT = ?4 OR t.strSTATUT = ?5)")
-                    .setParameter(1, lg_GROSSISTE_ID).setParameter(3, commonparameter.statut_is_Process).setParameter(4, commonparameter.statut_is_Auto)
-                    .setParameter(5, commonparameter.statut_pending)
+            lstTSuggestionOrder = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrder t WHERE (t.lgGROSSISTEID.lgGROSSISTEID = ?1 OR t.lgGROSSISTEID.strLIBELLE = ?1) AND (t.strSTATUT = ?3 OR t.strSTATUT = ?4 OR t.strSTATUT = ?5)")
+                    .setParameter(1, lg_GROSSISTE_ID).setParameter(3, commonparameter.statut_is_Process)
+                    .setParameter(4, commonparameter.statut_is_Auto).setParameter(5, commonparameter.statut_pending)
                     .getResultList();
             if (lstTSuggestionOrder.size() > 0) {
                 OTSuggestionOrder = lstTSuggestionOrder.get(0);
@@ -716,7 +758,8 @@ public class suggestionManagement extends bllBase {
         List<TSuggestionOrder> lstTSuggestionOrder = new ArrayList<TSuggestionOrder>();
         TSuggestionOrder OTSuggestionOrder = null;
         try {
-            lstTSuggestionOrder = this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrder t WHERE (t.lgGROSSISTEID.lgGROSSISTEID = ?1 OR t.lgGROSSISTEID.strLIBELLE = ?1) AND t.strSTATUT = ?3")
+            lstTSuggestionOrder = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrder t WHERE (t.lgGROSSISTEID.lgGROSSISTEID = ?1 OR t.lgGROSSISTEID.strLIBELLE = ?1) AND t.strSTATUT = ?3")
                     .setParameter(1, lg_GROSSISTE_ID).setParameter(3, str_STATUT).getResultList();
             if (lstTSuggestionOrder.size() > 0) {
                 OTSuggestionOrder = lstTSuggestionOrder.get(0);
@@ -731,9 +774,10 @@ public class suggestionManagement extends bllBase {
         return OTSuggestionOrder;
     }
 
-    //fin verifie si un grossiste est dans la liste des suggestions
-    //fusion de deux suggestion ayant des grossistes differents
-    public boolean mergeSuggestion(TSuggestionOrder OTSuggestionOrderExist, String lg_SUGGESTION_ORDER_ID, String lg_GROSSISTE_ID) {
+    // fin verifie si un grossiste est dans la liste des suggestions
+    // fusion de deux suggestion ayant des grossistes differents
+    public boolean mergeSuggestion(TSuggestionOrder OTSuggestionOrderExist, String lg_SUGGESTION_ORDER_ID,
+            String lg_GROSSISTE_ID) {
         boolean result = false;
         WarehouseManager OWarehouseManager = new WarehouseManager(this.getOdataManager(), this.getOTUser());
         List<TSuggestionOrderDetails> lstTSuggestionOrderDetails = new ArrayList<TSuggestionOrderDetails>();
@@ -742,9 +786,12 @@ public class suggestionManagement extends bllBase {
             TSuggestionOrder OTSuggestionOrder = this.findTsuggestionOrder(lg_SUGGESTION_ORDER_ID);
             TGrossiste OTGrossiste = new grossisteManagement(this.getOdataManager()).getGrossiste(lg_GROSSISTE_ID);
             if (OTSuggestionOrder != null && OTGrossiste != null) {
-                lstTSuggestionOrderDetails = this.getTSuggestionOrderDetails(OTSuggestionOrder.getLgSUGGESTIONORDERID());
+                lstTSuggestionOrderDetails = this
+                        .getTSuggestionOrderDetails(OTSuggestionOrder.getLgSUGGESTIONORDERID());
                 for (TSuggestionOrderDetails OTSuggestionOrderDetails : lstTSuggestionOrderDetails) {
-                    if (this.CreateTSuggestionOrderDetails(OTSuggestionOrderExist, OTSuggestionOrderDetails.getLgFAMILLEID(), OTSuggestionOrderExist.getLgGROSSISTEID(), OTSuggestionOrderDetails.getIntNUMBER(), commonparameter.code_action_commande) != null) {
+                    if (this.CreateTSuggestionOrderDetails(OTSuggestionOrderExist,
+                            OTSuggestionOrderDetails.getLgFAMILLEID(), OTSuggestionOrderExist.getLgGROSSISTEID(),
+                            OTSuggestionOrderDetails.getIntNUMBER(), commonparameter.code_action_commande) != null) {
                         i++;
                         this.delete(OTSuggestionOrderDetails);
                     }
@@ -754,9 +801,10 @@ public class suggestionManagement extends bllBase {
             }
             new logger().OCategory.info("i " + i);
             if (lstTSuggestionOrderDetails.size() == i) {
-                /*OTSuggestionOrder.setStrSTATUT(commonparameter.statut_delete);
-                 OTSuggestionOrder.setDtUPDATED(new Date());
-                 this.persiste(OTSuggestionOrder);*/
+                /*
+                 * OTSuggestionOrder.setStrSTATUT(commonparameter.statut_delete); OTSuggestionOrder.setDtUPDATED(new
+                 * Date()); this.persiste(OTSuggestionOrder);
+                 */
                 if (this.delete(OTSuggestionOrder)) {
                     this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
                     result = true;
@@ -773,9 +821,9 @@ public class suggestionManagement extends bllBase {
         }
         return result;
     }
-    //fin fusion de deux suggestion ayant des grossistes differents
+    // fin fusion de deux suggestion ayant des grossistes differents
 
-    //suggestion partant de la liste des ruptures
+    // suggestion partant de la liste des ruptures
     public boolean sendRuptureToSuggestion(String listProductSelected) {
         boolean result = false;
         String[] part;
@@ -785,20 +833,24 @@ public class suggestionManagement extends bllBase {
             part = StringUtils.split(listProductSelected, commonparameter.SEPARATEUR_POINT_VIRGULE);
             if (part.length > 0) {
                 OTRuptureHistory = this.getOdataManager().getEm().find(TRuptureHistory.class, part[0]);
-                //code ajouté
+                // code ajouté
                 TGrossiste OTGrossiste = OTRuptureHistory.getLgFAMILLEID().getLgGROSSISTEID();
                 TSuggestionOrder OTSuggestionOrder = this.isGrosssiteExistInSuggestion(OTGrossiste.getLgGROSSISTEID());
                 if (OTSuggestionOrder == null) {
-                    OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser()).createTSuggestionOrder(OTRuptureHistory.getLgFAMILLEID().getLgGROSSISTEID().getLgGROSSISTEID(), commonparameter.statut_is_Auto);
+                    OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser()).createTSuggestionOrder(
+                            OTRuptureHistory.getLgFAMILLEID().getLgGROSSISTEID().getLgGROSSISTEID(),
+                            commonparameter.statut_is_Auto);
                 }
-                //fin code ajouté
+                // fin code ajouté
 
                 for (String Ovalue : part) {
                     OTRuptureHistory = this.getOdataManager().getEm().find(TRuptureHistory.class, Ovalue);
-                    if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTRuptureHistory.getLgFAMILLEID(), OTGrossiste, OTRuptureHistory.getIntNUMBER(), commonparameter.code_action_commande) != null) { //code ajouté
-                        /*if (this.delete(OTRuptureHistory)) { // ancien bon code
-                         i++;
-                         }*/
+                    if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTRuptureHistory.getLgFAMILLEID(),
+                            OTGrossiste, OTRuptureHistory.getIntNUMBER(),
+                            commonparameter.code_action_commande) != null) { // code ajouté
+                        /*
+                         * if (this.delete(OTRuptureHistory)) { // ancien bon code i++; }
+                         */
                         OTRuptureHistory.setStrSTATUT(commonparameter.statut_delete);
                         OTRuptureHistory.setDtUPDATED(new Date());
                         if (this.persiste(OTRuptureHistory)) { // ancien bon code
@@ -807,7 +859,7 @@ public class suggestionManagement extends bllBase {
 
                     }
 
-                    //fin code ajouté
+                    // fin code ajouté
                 }
                 if (part.length == i) {
                     this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -829,19 +881,20 @@ public class suggestionManagement extends bllBase {
     /**
      * Envoi tous les en suggessin au click de all sans les deselectionnes
      */
-    private List<TRuptureHistory> getAllTRuptureHistorys(JSONArray uncheckedlist, JSONArray listfacturedetail, String search_value, int all) {
+    private List<TRuptureHistory> getAllTRuptureHistorys(JSONArray uncheckedlist, JSONArray listfacturedetail,
+            String search_value, int all) {
         List<TRuptureHistory> historys = new ArrayList<>();
         try {
             List<TRuptureHistory> listhistorys = new ArrayList<>();
             if (all == 1 && uncheckedlist.length() == 0) {
-                historys = this.getOdataManager().getEm().createQuery("SELECT o FROM TRuptureHistory o WHERE (o.lgFAMILLEID.intCIP LIKE ?1 OR o.lgFAMILLEID.strNAME LIKE ?1 )")
-                        .setParameter(1, search_value + "%")
-                        .getResultList();
+                historys = this.getOdataManager().getEm().createQuery(
+                        "SELECT o FROM TRuptureHistory o WHERE (o.lgFAMILLEID.intCIP LIKE ?1 OR o.lgFAMILLEID.strNAME LIKE ?1 )")
+                        .setParameter(1, search_value + "%").getResultList();
             } else if (all == 1 && uncheckedlist.length() > 0) {
-                listhistorys = this.getOdataManager().getEm().createQuery("SELECT o FROM TRuptureHistory o WHERE (o.lgFAMILLEID.intCIP LIKE ?1 OR o.lgFAMILLEID.strNAME LIKE ?1)")
-                        .setParameter(1, search_value + "%")
-                        .getResultList();
-//                 (TRuptureHistory Ohistory : listhistorys) {
+                listhistorys = this.getOdataManager().getEm().createQuery(
+                        "SELECT o FROM TRuptureHistory o WHERE (o.lgFAMILLEID.intCIP LIKE ?1 OR o.lgFAMILLEID.strNAME LIKE ?1)")
+                        .setParameter(1, search_value + "%").getResultList();
+                // (TRuptureHistory Ohistory : listhistorys) {
                 for (int k = 0; k < listhistorys.size(); k++) {
                     TRuptureHistory Ohistory = listhistorys.get(k);
                     for (int i = 0; i < uncheckedlist.length(); i++) {
@@ -856,7 +909,8 @@ public class suggestionManagement extends bllBase {
 
             } else if (all == 0 && listfacturedetail.length() > 0) {
                 for (int j = 0; j < listfacturedetail.length(); j++) {
-                    TRuptureHistory oHistory = this.getOdataManager().getEm().find(TRuptureHistory.class, listfacturedetail.get(j).toString());
+                    TRuptureHistory oHistory = this.getOdataManager().getEm().find(TRuptureHistory.class,
+                            listfacturedetail.get(j).toString());
                     historys.add(oHistory);
                 }
 
@@ -867,9 +921,10 @@ public class suggestionManagement extends bllBase {
         return historys;
     }
 
-    //fin creation d'une suggestion partant de la vente
-    //suggestion partant de la liste des produits vendus
-    public boolean sendProductSellToSuggestion(String search_value, String OdateDebut, String OdateFin, String h_debut, String h_fin, String lg_USER_ID, String str_TYPE_TRANSACTION, int int_NUMBER, String mode) {
+    // fin creation d'une suggestion partant de la vente
+    // suggestion partant de la liste des produits vendus
+    public boolean sendProductSellToSuggestion(String search_value, String OdateDebut, String OdateFin, String h_debut,
+            String h_fin, String lg_USER_ID, String str_TYPE_TRANSACTION, int int_NUMBER, String mode) {
         boolean result = false;
         String criteria = "ORDER BY v.str_LIBELLE, v.str_DESCRIPTION";
         int i = 0;
@@ -886,9 +941,11 @@ public class suggestionManagement extends bllBase {
             }
 
             if (mode.equalsIgnoreCase("groupe")) {
-                listeProduct = new Preenregistrement(this.getOdataManager(), this.getOTUser()).getArticlesVendusRecap(search_value, OdateDebut, OdateFin, h_debut, h_fin, str_TYPE_TRANSACTION, int_NUMBER);
+                listeProduct = new Preenregistrement(this.getOdataManager(), this.getOTUser()).getArticlesVendusRecap(
+                        search_value, OdateDebut, OdateFin, h_debut, h_fin, str_TYPE_TRANSACTION, int_NUMBER);
             } else {
-                listeProduct = new Preenregistrement(this.getOdataManager(), this.getOTUser()).getListeArticleVendu(search_value, OdateDebut, OdateFin, h_debut, h_fin, str_TYPE_TRANSACTION, int_NUMBER);
+                listeProduct = new Preenregistrement(this.getOdataManager(), this.getOTUser()).getListeArticleVendu(
+                        search_value, OdateDebut, OdateFin, h_debut, h_fin, str_TYPE_TRANSACTION, int_NUMBER);
             }
 
             this.getOdataManager().BeginTransaction();
@@ -898,12 +955,17 @@ public class suggestionManagement extends bllBase {
                     OTGrossiste = OgrossisteManagement.getGrossiste(OEntityData.getStr_value12());
                     OTFamille = OfamilleManagement.getTFamille(OEntityData.getStr_value1());
                     if (OTFamille != null) {
-                        OTSuggestionOrder = this.isGrosssiteExistInSuggestion(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Process);
+                        OTSuggestionOrder = this.isGrosssiteExistInSuggestion(OTGrossiste.getLgGROSSISTEID(),
+                                commonparameter.statut_is_Process);
                         if (OTSuggestionOrder == null) {
-                            OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser()).createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Process);
+                            OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser())
+                                    .createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(),
+                                            commonparameter.statut_is_Process);
                         }
                         if (OTFamille.getBoolDECONDITIONNE() == 0) {
-                            if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTFamille, OTGrossiste, Integer.parseInt(OEntityData.getStr_value8()), commonparameter.code_action_commande) != null) { //code ajouté 
+                            if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTFamille, OTGrossiste,
+                                    Integer.parseInt(OEntityData.getStr_value8()),
+                                    commonparameter.code_action_commande) != null) { // code ajouté
                                 i++;
                             }
                         }
@@ -916,14 +978,19 @@ public class suggestionManagement extends bllBase {
                             lstData.clear();
                             lstData.add(OEntityData.getStr_value12());
                             OTGrossiste = OgrossisteManagement.getGrossiste(OEntityData.getStr_value12());
-                            OTSuggestionOrder = this.isGrosssiteExistInSuggestion(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Process);
+                            OTSuggestionOrder = this.isGrosssiteExistInSuggestion(OTGrossiste.getLgGROSSISTEID(),
+                                    commonparameter.statut_is_Process);
                             if (OTSuggestionOrder == null) {
-                                OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser()).createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Process);
+                                OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser())
+                                        .createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(),
+                                                commonparameter.statut_is_Process);
                             }
 
                         }
                         if (OTFamille.getBoolDECONDITIONNE() == 0) {
-                            if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTFamille, OTGrossiste, Integer.parseInt(OEntityData.getStr_value8()), commonparameter.code_action_commande) != null) { //code ajouté 
+                            if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTFamille, OTGrossiste,
+                                    Integer.parseInt(OEntityData.getStr_value8()),
+                                    commonparameter.code_action_commande) != null) { // code ajouté
                                 i++;
                             }
 
@@ -942,10 +1009,11 @@ public class suggestionManagement extends bllBase {
                     this.buildErrorTraceMessage(i + "/" + listeProduct.size() + " ont été pris en compte");
                 }
             } else {
-                this.buildErrorTraceMessage("Impossible de créer la suggestion. Liste de produit vendu sur la période sélectionnée vide");
+                this.buildErrorTraceMessage(
+                        "Impossible de créer la suggestion. Liste de produit vendu sur la période sélectionnée vide");
             }
 
-            //fin code ajouté
+            // fin code ajouté
         } catch (Exception e) {
             e.printStackTrace();
             this.buildErrorTraceMessage("Echec de prise en compte de la suggestion. Veuillez réessayer");
@@ -954,24 +1022,28 @@ public class suggestionManagement extends bllBase {
 
     }
 
-    //fin suggestion partant de la liste des produits vendus
-    public boolean sendRuptureToSuggestion_V2(JSONArray uncheckedlist, JSONArray listfacturedetail, String search_value, int all, String lg_GROSSISTE) {
+    // fin suggestion partant de la liste des produits vendus
+    public boolean sendRuptureToSuggestion_V2(JSONArray uncheckedlist, JSONArray listfacturedetail, String search_value,
+            int all, String lg_GROSSISTE) {
         boolean result = false;
         String[] part;
         int i = 0;
 
         try {
-            List<TRuptureHistory> historys = getAllTRuptureHistorys(uncheckedlist, listfacturedetail, search_value, all);
+            List<TRuptureHistory> historys = getAllTRuptureHistorys(uncheckedlist, listfacturedetail, search_value,
+                    all);
             TGrossiste OTGrossiste = this.getOdataManager().getEm().find(TGrossiste.class, lg_GROSSISTE);
             TSuggestionOrder OTSuggestionOrder = this.isGrosssiteExistInSuggestion(OTGrossiste.getLgGROSSISTEID());
             if (OTSuggestionOrder == null) {
-                OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser()).createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Auto);
+                OTSuggestionOrder = new orderManagement(getOdataManager(), getOTUser())
+                        .createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(), commonparameter.statut_is_Auto);
             }
-            //fin code ajouté
+            // fin code ajouté
 
             for (TRuptureHistory Ovalue : historys) {
 
-                if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, Ovalue.getLgFAMILLEID(), OTGrossiste, Ovalue.getIntNUMBER(), commonparameter.code_action_commande) != null) { //code ajouté
+                if (this.CreateTSuggestionOrderDetails(OTSuggestionOrder, Ovalue.getLgFAMILLEID(), OTGrossiste,
+                        Ovalue.getIntNUMBER(), commonparameter.code_action_commande) != null) { // code ajouté
 
                     Ovalue.setStrSTATUT(commonparameter.statut_delete);
                     Ovalue.setDtUPDATED(new Date());
@@ -980,7 +1052,7 @@ public class suggestionManagement extends bllBase {
                     }
                 }
 
-                //fin code ajouté
+                // fin code ajouté
             }
             if (historys.size() == i) {
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -996,7 +1068,8 @@ public class suggestionManagement extends bllBase {
         return result;
     }
 
-    private TSuggestionOrderDetails initTSuggestionOrderDetail(TSuggestionOrder OTSuggestionOrder, TFamille OTFamille, TGrossiste OTGrossiste, int int_NUMBER, String str_STATUT) {
+    private TSuggestionOrderDetails initTSuggestionOrderDetail(TSuggestionOrder OTSuggestionOrder, TFamille OTFamille,
+            TGrossiste OTGrossiste, int int_NUMBER, String str_STATUT) {
         TFamilleGrossiste OTFamilleGrossiste = null;
         try {
             OTFamilleGrossiste = findOrFamilleGrossiste(OTFamille, OTGrossiste);
@@ -1007,19 +1080,28 @@ public class suggestionManagement extends bllBase {
             OTSuggestionOrderDetails.setLgFAMILLEID(OTFamille);
             OTSuggestionOrderDetails.setLgGROSSISTEID(OTGrossiste);
             OTSuggestionOrderDetails.setIntNUMBER(int_NUMBER);
-            /*OTSuggestionOrderDetails.setIntPRICE(OTFamille.getIntPAF() * int_NUMBER); //a decommenter en cas de probleme 06/03/2017
-            OTSuggestionOrderDetails.setIntPAFDETAIL(OTFamille.getIntPAF());
-            OTSuggestionOrderDetails.setIntPRICEDETAIL(OTFamille.getIntPRICE());*/
-            OTSuggestionOrderDetails.setIntPRICE((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPAF() != null && OTFamilleGrossiste.getIntPAF() != 0) ? OTFamilleGrossiste.getIntPAF() * int_NUMBER : OTFamille.getIntPAF() * int_NUMBER);
-            OTSuggestionOrderDetails.setIntPAFDETAIL((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPAF() != null && OTFamilleGrossiste.getIntPAF() != 0) ? OTFamilleGrossiste.getIntPAF() : OTFamille.getIntPAF());
-            OTSuggestionOrderDetails.setIntPRICEDETAIL((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPRICE() != null && OTFamilleGrossiste.getIntPRICE() != 0) ? OTFamilleGrossiste.getIntPRICE() : OTFamille.getIntPRICE());
+            /*
+             * OTSuggestionOrderDetails.setIntPRICE(OTFamille.getIntPAF() * int_NUMBER); //a decommenter en cas de
+             * probleme 06/03/2017 OTSuggestionOrderDetails.setIntPAFDETAIL(OTFamille.getIntPAF());
+             * OTSuggestionOrderDetails.setIntPRICEDETAIL(OTFamille.getIntPRICE());
+             */
+            OTSuggestionOrderDetails.setIntPRICE((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPAF() != null
+                    && OTFamilleGrossiste.getIntPAF() != 0) ? OTFamilleGrossiste.getIntPAF() * int_NUMBER
+                            : OTFamille.getIntPAF() * int_NUMBER);
+            OTSuggestionOrderDetails.setIntPAFDETAIL((OTFamilleGrossiste != null
+                    && OTFamilleGrossiste.getIntPAF() != null && OTFamilleGrossiste.getIntPAF() != 0)
+                            ? OTFamilleGrossiste.getIntPAF() : OTFamille.getIntPAF());
+            OTSuggestionOrderDetails.setIntPRICEDETAIL((OTFamilleGrossiste != null
+                    && OTFamilleGrossiste.getIntPRICE() != null && OTFamilleGrossiste.getIntPRICE() != 0)
+                            ? OTFamilleGrossiste.getIntPRICE() : OTFamille.getIntPRICE());
             OTSuggestionOrderDetails.setStrSTATUT(str_STATUT);
             OTSuggestionOrderDetails.setDtCREATED(new Date());
             OTSuggestionOrderDetails.setDtUPDATED(new Date());
             this.getOdataManager().getEm().persist(OTSuggestionOrderDetails);
             OTFamille.setIntORERSTATUS((short) 1);
             this.getOdataManager().getEm().merge(OTFamille);
-            System.out.println("*********************************************************************  " + OTFamilleGrossiste + " 1111111111111");
+            System.out.println("*********************************************************************  "
+                    + OTFamilleGrossiste + " 1111111111111");
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             return OTSuggestionOrderDetails;
         } catch (Exception e) {
@@ -1029,14 +1111,17 @@ public class suggestionManagement extends bllBase {
         }
     }
 
-    public TSuggestionOrderDetails UpdateTSuggestionOrderDetails(String lg_SUGGESTION_ORDER_DETAILS_ID, String lg_SUGGESTION_ORDER_ID, String lg_famille_id, String lg_GROSSISTE_ID, int int_NUMBER, String str_STATUT, int int_PAF, int int_PRICE) {
+    public TSuggestionOrderDetails UpdateTSuggestionOrderDetails(String lg_SUGGESTION_ORDER_DETAILS_ID,
+            String lg_SUGGESTION_ORDER_ID, String lg_famille_id, String lg_GROSSISTE_ID, int int_NUMBER,
+            String str_STATUT, int int_PAF, int int_PRICE) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
         TSuggestionOrder OTSuggestionOrder = null;
         TGrossiste OTGrossiste = null;
         TFamille OTFamille = null;
         try {
 
-            OTSuggestionOrderDetails = this.getOdataManager().getEm().find(TSuggestionOrderDetails.class, lg_SUGGESTION_ORDER_DETAILS_ID);
+            OTSuggestionOrderDetails = this.getOdataManager().getEm().find(TSuggestionOrderDetails.class,
+                    lg_SUGGESTION_ORDER_DETAILS_ID);
             OTGrossiste = new grossisteManagement(this.getOdataManager()).getGrossiste(lg_GROSSISTE_ID);
             OTSuggestionOrder = this.getOdataManager().getEm().find(TSuggestionOrder.class, lg_SUGGESTION_ORDER_ID);
             OTFamille = new familleManagement(this.getOdataManager()).getTFamille(lg_famille_id);
@@ -1048,20 +1133,23 @@ public class suggestionManagement extends bllBase {
                 OTSuggestionOrderDetails.setIntPRICE(int_NUMBER * int_PAF); // code ajouté
                 OTSuggestionOrderDetails.setIntPAFDETAIL(int_PAF);
                 OTSuggestionOrderDetails.setIntPRICEDETAIL(int_PRICE);
-//                OTSuggestionOrderDetails.setIntPRICE(int_NUMBER * OTFamille.getIntPAF()); // a decommenter en cas de probleme
+                // OTSuggestionOrderDetails.setIntPRICE(int_NUMBER * OTFamille.getIntPAF()); // a decommenter en cas de
+                // probleme
                 OTSuggestionOrderDetails.setStrSTATUT(str_STATUT);
                 OTSuggestionOrderDetails.setDtUPDATED(new Date());
             }
-            /*else { //a decommenter en cas de probleme 13/12/2016
-             OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste, int_NUMBER, str_STATUT);
-             }*/
+            /*
+             * else { //a decommenter en cas de probleme 13/12/2016 OTSuggestionOrderDetails =
+             * this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste, int_NUMBER, str_STATUT); }
+             */
 
             OTSuggestionOrder.setLgGROSSISTEID(OTGrossiste);
             OTSuggestionOrder.setDtUPDATED(new Date());
             this.persiste(OTSuggestionOrder);
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
 
-            // new logger().OCategory.info(" update de OTSuggestionOrderDetails  " + OTSuggestionOrderDetails.getLgSUGGESTIONORDERDETAILSID());
+            // new logger().OCategory.info(" update de OTSuggestionOrderDetails " +
+            // OTSuggestionOrderDetails.getLgSUGGESTIONORDERDETAILSID());
             return OTSuggestionOrderDetails;
         } catch (Exception e) {
             e.printStackTrace();
@@ -1069,7 +1157,8 @@ public class suggestionManagement extends bllBase {
         }
     }
 
-    public TSuggestionOrderDetails AddToTSuggestionOrderDetails(TFamille OTFamille, TGrossiste OTGrossiste, TSuggestionOrder OTSuggestionOrder, int int_qte, String str_STATUT) {
+    public TSuggestionOrderDetails AddToTSuggestionOrderDetails(TFamille OTFamille, TGrossiste OTGrossiste,
+            TSuggestionOrder OTSuggestionOrder, int int_qte, String str_STATUT) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
 
         try {
@@ -1077,15 +1166,17 @@ public class suggestionManagement extends bllBase {
             OTSuggestionOrderDetails = this.isProductExistInSomeSuggestion(OTFamille.getLgFAMILLEID(), str_STATUT);
             if (OTSuggestionOrderDetails == null) {
                 if (OTSuggestionOrder == null) {
-                    OTSuggestionOrder = OorderManagement.createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(), str_STATUT);
+                    OTSuggestionOrder = OorderManagement.createTSuggestionOrder(OTGrossiste.getLgGROSSISTEID(),
+                            str_STATUT);
                 }
 
-                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste, int_qte, str_STATUT);
+                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste,
+                        int_qte, str_STATUT);
             } else if (str_STATUT.equalsIgnoreCase(commonparameter.statut_is_Process)) {
                 OTSuggestionOrderDetails.setIntNUMBER(int_qte);
                 OTSuggestionOrderDetails.setIntPRICE(int_qte * OTSuggestionOrderDetails.getIntPAFDETAIL());
             }
-            //code ajouté
+            // code ajouté
             OTSuggestionOrder.setDtUPDATED(new Date());
             this.getOdataManager().getEm().merge(OTSuggestionOrderDetails);
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -1095,18 +1186,18 @@ public class suggestionManagement extends bllBase {
         }
 
         this.getOdataManager().getEm().persist(OTSuggestionOrderDetails);
-        new logger().OCategory.info("Mise a jour de OTSuggestionOrderDetails " + OTSuggestionOrderDetails.getIntNUMBER());
+        new logger().OCategory
+                .info("Mise a jour de OTSuggestionOrderDetails " + OTSuggestionOrderDetails.getIntNUMBER());
         return OTSuggestionOrderDetails;
     }
 
-    //verifie si un produit existe déjà dans une suggestion
+    // verifie si un produit existe déjà dans une suggestion
     private TSuggestionOrderDetails isProductExistInSomeSuggestion(String lg_famille_id, String str_STATUT) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
         try {
-            OTSuggestionOrderDetails = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.strSTATUT LIKE ?2").
-                    setParameter(1, lg_famille_id).
-                    setParameter(2, str_STATUT).setMaxResults(1).
-                    getSingleResult();
+            OTSuggestionOrderDetails = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.strSTATUT LIKE ?2")
+                    .setParameter(1, lg_famille_id).setParameter(2, str_STATUT).setMaxResults(1).getSingleResult();
 
         } catch (Exception e) {
             this.buildErrorTraceMessage(e.getMessage());
@@ -1115,9 +1206,10 @@ public class suggestionManagement extends bllBase {
         return OTSuggestionOrderDetails;
     }
 
-    //fin verifie si un produit existe déjà dans une suggestion
+    // fin verifie si un produit existe déjà dans une suggestion
     /* code ajoute le 30/03/2017 pour la sugestion des ventes terminees debut */
-    public void createsuggestionOrderDetails(TFamille OTFamille, TGrossiste OTGrossiste, TSuggestionOrder OTSuggestionOrder, int int_qte, String str_STATUT) {
+    public void createsuggestionOrderDetails(TFamille OTFamille, TGrossiste OTGrossiste,
+            TSuggestionOrder OTSuggestionOrder, int int_qte, String str_STATUT) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
 
         try {
@@ -1125,12 +1217,13 @@ public class suggestionManagement extends bllBase {
             OTSuggestionOrderDetails = this.isProductExistInSomeSuggestion(OTFamille.getLgFAMILLEID(), str_STATUT);
             if (OTSuggestionOrderDetails == null) {
 
-                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste, int_qte, str_STATUT);
+                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTGrossiste,
+                        int_qte, str_STATUT);
             } else if (str_STATUT.equalsIgnoreCase(commonparameter.statut_is_Process)) {
                 OTSuggestionOrderDetails.setIntNUMBER(int_qte);
                 OTSuggestionOrderDetails.setIntPRICE(int_qte * OTSuggestionOrderDetails.getIntPAFDETAIL());
             }
-            //code ajouté
+            // code ajouté
             OTSuggestionOrder.setDtUPDATED(new Date());
             this.getOdataManager().getEm().merge(OTSuggestionOrderDetails);
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -1139,7 +1232,8 @@ public class suggestionManagement extends bllBase {
             this.buildErrorTraceMessage("Echec d'ajout du produit à la suggestion");
         }
 
-        new logger().OCategory.info("Mise a jour de OTSuggestionOrderDetails " + OTSuggestionOrderDetails.getIntNUMBER());
+        new logger().OCategory
+                .info("Mise a jour de OTSuggestionOrderDetails " + OTSuggestionOrderDetails.getIntNUMBER());
 
     }
 
@@ -1170,7 +1264,8 @@ public class suggestionManagement extends bllBase {
     private List<TPreenregistrementDetail> getPreenregistrementDetails(String lg_Preenrengistrement_id) {
         List<TPreenregistrementDetail> list = new ArrayList<>();
         try {
-            list = this.getOdataManager().getEm().createQuery("SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1  ")
+            list = this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1  ")
                     .setParameter(1, lg_Preenrengistrement_id).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
@@ -1190,10 +1285,12 @@ public class suggestionManagement extends bllBase {
                 for (TPreenregistrementDetail tPreenregistrementDetail : list) {
                     TFamille famille = tPreenregistrementDetail.getLgFAMILLEID();
                     TGrossiste tg = famille.getLgGROSSISTEID();
-                    TSuggestionOrder order = createSuggestionOrder(tg.getLgGROSSISTEID(), commonparameter.statut_is_Process);
+                    TSuggestionOrder order = createSuggestionOrder(tg.getLgGROSSISTEID(),
+                            commonparameter.statut_is_Process);
                     System.out.println("famille " + famille + " tg " + tg);
 
-                    createsuggestionOrderDetails(famille, tg, order, tPreenregistrementDetail.getIntNUMBER(), commonparameter.statut_is_Process);
+                    createsuggestionOrderDetails(famille, tg, order, tPreenregistrementDetail.getIntNUMBER(),
+                            commonparameter.statut_is_Process);
 
                 }
 
@@ -1213,8 +1310,9 @@ public class suggestionManagement extends bllBase {
     }
 
     /* fin code du 30/03/2017 */
-    public JSONObject sendProductSellToSuggestion2(String search_value, String OdateDebut, String OdateFin, String h_debut, String h_fin, String lg_USER_ID, String str_TYPE_TRANSACTION,
-            int int_NUMBER, String mode, String prixachatFiltre, int stock, String stockFiltre) {
+    public JSONObject sendProductSellToSuggestion2(String search_value, String OdateDebut, String OdateFin,
+            String h_debut, String h_fin, String lg_USER_ID, String str_TYPE_TRANSACTION, int int_NUMBER, String mode,
+            String prixachatFiltre, int stock, String stockFiltre) {
         int result = 0;
         JSONObject json = new JSONObject();
         List<EntityData> listeProduct;
@@ -1223,8 +1321,11 @@ public class suggestionManagement extends bllBase {
         final List<String> productList = new ArrayList<>();
         try {
 
-            listeProduct = new Preenregistrement(this.getOdataManager(), this.getOTUser()).getListeArticleVenduPourSuggestion(search_value, OdateDebut, OdateFin, h_debut, h_fin, str_TYPE_TRANSACTION, int_NUMBER, prixachatFiltre, stock, stockFiltre);
-            Map<String, List<EntityData>> _listGroup = listeProduct.stream().collect(Collectors.groupingByConcurrent(EntityData::getStr_value12));
+            listeProduct = new Preenregistrement(this.getOdataManager(), this.getOTUser())
+                    .getListeArticleVenduPourSuggestion(search_value, OdateDebut, OdateFin, h_debut, h_fin,
+                            str_TYPE_TRANSACTION, int_NUMBER, prixachatFiltre, stock, stockFiltre);
+            Map<String, List<EntityData>> _listGroup = listeProduct.stream()
+                    .collect(Collectors.groupingByConcurrent(EntityData::getStr_value12));
             EntityManager em = this.getOdataManager().getEm();
 
             if (!em.getTransaction().isActive()) {
@@ -1238,7 +1339,8 @@ public class suggestionManagement extends bllBase {
                 final TSuggestionOrder order = createTSuggestionOrder(lgGrossiste, commonparameter.statut_is_Process);
 
                 List<EntityData> value = ob.getValue();
-                Map<String, List<EntityData>> _items = value.stream().collect(Collectors.groupingByConcurrent(EntityData::getStr_value1));
+                Map<String, List<EntityData>> _items = value.stream()
+                        .collect(Collectors.groupingByConcurrent(EntityData::getStr_value1));
 
                 _items.entrySet().forEach((_ob) -> {
                     String LgFamille = _ob.getKey();
@@ -1262,13 +1364,15 @@ public class suggestionManagement extends bllBase {
                     }
                     Double myInt = Math.ceil(qte);
 
-                    TSuggestionOrderDetails OTSuggestionOrderDetails = findFamilleInSuggestionOrderDetails(OTFamille.getLgFAMILLEID());
+                    TSuggestionOrderDetails OTSuggestionOrderDetails = findFamilleInSuggestionOrderDetails(
+                            OTFamille.getLgFAMILLEID());
                     boolean flag = false;
                     if (OTSuggestionOrderDetails != null) {
                         flag = true;
                     }
 
-                    TSuggestionOrderDetails o = findIncurrent(order.getLgSUGGESTIONORDERID(), OTFamille.getLgFAMILLEID(), myInt.intValue());
+                    TSuggestionOrderDetails o = findIncurrent(order.getLgSUGGESTIONORDERID(),
+                            OTFamille.getLgFAMILLEID(), myInt.intValue());
                     if (o == null) {
                         o = createSuggestionOrderDetail(order, OTFamille, oGr, myInt.intValue(), flag);
                     }
@@ -1288,19 +1392,20 @@ public class suggestionManagement extends bllBase {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().commit();
                 em.clear();
-//                em.close();
+                // em.close();
                 this.buildErrorTraceMessage((l.size() + "/" + productList.size()) + " ont été pris en compte");
                 result = (l.size());
             }
             json.put("qty", result);
-            json.put("result", "Le nombre de produit suggéré : <u><span style='font-weight:900; color:blue;'>" + l.size() + "/" + productList.size() + "</span></u>");
+            json.put("result", "Le nombre de produit suggéré : <u><span style='font-weight:900; color:blue;'>"
+                    + l.size() + "/" + productList.size() + "</span></u>");
 
         } catch (Exception e) {
 
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().getEm().getTransaction().rollback();
                 this.getOdataManager().getEm().clear();
-//                this.getOdataManager().getEm().close();
+                // this.getOdataManager().getEm().close();
             }
             e.printStackTrace();
             this.buildErrorTraceMessage("Echec de prise en compte de la suggestion. Veuillez réessayer");
@@ -1309,7 +1414,7 @@ public class suggestionManagement extends bllBase {
 
     }
 
-//fin mise a jour de commande
+    // fin mise a jour de commande
     public TSuggestionOrder createTSuggestionOrder(String lgGROSSISTE_ID, String str_STATUT) {
         TSuggestionOrder OTSuggestionOrder = null;
         TGrossiste OTGrossiste = null;
@@ -1337,9 +1442,9 @@ public class suggestionManagement extends bllBase {
     TFamilleGrossiste findFamilleGrossiste(String lg_FAMILLE_ID, String lg_GROSSISTE_ID) {
         TFamilleGrossiste OTFamilleGrossiste = null;
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT LIKE ?3 ").
-                    setParameter(1, lg_FAMILLE_ID)
-                    .setParameter(2, lg_GROSSISTE_ID)
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT LIKE ?3 ")
+                    .setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_GROSSISTE_ID)
                     .setParameter(3, commonparameter.statut_enable);
             qry.setMaxResults(1);
             OTFamilleGrossiste = (TFamilleGrossiste) qry.getSingleResult();
@@ -1351,11 +1456,13 @@ public class suggestionManagement extends bllBase {
         return OTFamilleGrossiste;
     }
 
-    private TSuggestionOrderDetails createSuggestionOrderDetail(TSuggestionOrder OTSuggestionOrder, TFamille OTFamille, TGrossiste OTGrossiste, int int_NUMBER, boolean flag) {
+    private TSuggestionOrderDetails createSuggestionOrderDetail(TSuggestionOrder OTSuggestionOrder, TFamille OTFamille,
+            TGrossiste OTGrossiste, int int_NUMBER, boolean flag) {
 
         try {
 
-            TFamilleGrossiste OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID());
+            TFamilleGrossiste OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(),
+                    OTGrossiste.getLgGROSSISTEID());
 
             TSuggestionOrderDetails OTSuggestionOrderDetails = new TSuggestionOrderDetails();
             OTSuggestionOrderDetails.setLgSUGGESTIONORDERDETAILSID(this.getKey().getComplexId());
@@ -1364,9 +1471,15 @@ public class suggestionManagement extends bllBase {
             OTSuggestionOrderDetails.setLgGROSSISTEID(OTGrossiste);
             OTSuggestionOrderDetails.setIntNUMBER(int_NUMBER);
 
-            OTSuggestionOrderDetails.setIntPRICE((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPAF() != null && OTFamilleGrossiste.getIntPAF() != 0) ? OTFamilleGrossiste.getIntPAF() * int_NUMBER : OTFamille.getIntPAF() * int_NUMBER);
-            OTSuggestionOrderDetails.setIntPAFDETAIL((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPAF() != null && OTFamilleGrossiste.getIntPAF() != 0) ? OTFamilleGrossiste.getIntPAF() : OTFamille.getIntPAF());
-            OTSuggestionOrderDetails.setIntPRICEDETAIL((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPRICE() != null && OTFamilleGrossiste.getIntPRICE() != 0) ? OTFamilleGrossiste.getIntPRICE() : OTFamille.getIntPRICE());
+            OTSuggestionOrderDetails.setIntPRICE((OTFamilleGrossiste != null && OTFamilleGrossiste.getIntPAF() != null
+                    && OTFamilleGrossiste.getIntPAF() != 0) ? OTFamilleGrossiste.getIntPAF() * int_NUMBER
+                            : OTFamille.getIntPAF() * int_NUMBER);
+            OTSuggestionOrderDetails.setIntPAFDETAIL((OTFamilleGrossiste != null
+                    && OTFamilleGrossiste.getIntPAF() != null && OTFamilleGrossiste.getIntPAF() != 0)
+                            ? OTFamilleGrossiste.getIntPAF() : OTFamille.getIntPAF());
+            OTSuggestionOrderDetails.setIntPRICEDETAIL((OTFamilleGrossiste != null
+                    && OTFamilleGrossiste.getIntPRICE() != null && OTFamilleGrossiste.getIntPRICE() != 0)
+                            ? OTFamilleGrossiste.getIntPRICE() : OTFamille.getIntPRICE());
 
             OTSuggestionOrderDetails.setStrSTATUT(commonparameter.statut_is_Process);
             OTSuggestionOrderDetails.setDtCREATED(new Date());
@@ -1378,7 +1491,7 @@ public class suggestionManagement extends bllBase {
             OTFamille.setBCODEINDICATEUR((short) 2);
             OTFamille.setIntORERSTATUS((short) 1);
             this.getOdataManager().getEm().merge(OTFamille);
-//            this.persiste(OTSuggestionOrderDetails);
+            // this.persiste(OTSuggestionOrderDetails);
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             return OTSuggestionOrderDetails;
         } catch (Exception e) {
@@ -1392,11 +1505,14 @@ public class suggestionManagement extends bllBase {
 
         TFamille famille = null;
         try {
-            // famille = (TFamille) this.getOdataManager().getEm().createNamedQuery("TFamille.findByIntCIP").setParameter("intCIP", lgFamille.substring(0, lgFamille.length() - 1)).setMaxResults(1).getSingleResult();
+            // famille = (TFamille)
+            // this.getOdataManager().getEm().createNamedQuery("TFamille.findByIntCIP").setParameter("intCIP",
+            // lgFamille.substring(0, lgFamille.length() - 1)).setMaxResults(1).getSingleResult();
 
-            famille = (TFamille) this.getOdataManager().getEm().createQuery("SELECT o FROM   TFamille o WHERE o.lgFAMILLEID  =?1 AND o.strSTATUT='enable'  ")
+            famille = (TFamille) this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM   TFamille o WHERE o.lgFAMILLEID  =?1 AND o.strSTATUT='enable'  ")
                     .setParameter(1, lgFamille).setMaxResults(1).getSingleResult();
-//                    .setParameter(1, lgFamille.substring(0, lgFamille.length() - 1)).setMaxResults(1).getSingleResult();
+            // .setParameter(1, lgFamille.substring(0, lgFamille.length() - 1)).setMaxResults(1).getSingleResult();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1407,9 +1523,9 @@ public class suggestionManagement extends bllBase {
     private TSuggestionOrderDetails findIncurrent(String order, String lgFamille, int qty) {
         TSuggestionOrderDetails details = null;
         try {
-            details = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery("SELECT o FROM TSuggestionOrderDetails o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID=?2 ")
-                    .setParameter(1, lgFamille)
-                    .setParameter(2, order).setMaxResults(1).getSingleResult();
+            details = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TSuggestionOrderDetails o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID=?2 ")
+                    .setParameter(1, lgFamille).setParameter(2, order).setMaxResults(1).getSingleResult();
             if (details != null) {
                 int paf = (details.getIntPRICE() / details.getIntNUMBER());
                 details.setIntNUMBER(details.getIntNUMBER() + qty);
@@ -1417,7 +1533,7 @@ public class suggestionManagement extends bllBase {
                 this.getOdataManager().getEm().merge(details);
             }
         } catch (Exception e) {
-//            e.printStackTrace();
+            // e.printStackTrace();
 
         }
         return details;
@@ -1426,8 +1542,10 @@ public class suggestionManagement extends bllBase {
     private TSuggestionOrderDetails findFamilleInSuggestionOrderDetails(String lg_famille_id) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
         try {
-            OTSuggestionOrderDetails = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.strSTATUT = ?2 ").
-                    setParameter(1, lg_famille_id).setParameter(2, commonparameter.statut_is_Process).setMaxResults(1).getSingleResult();
+            OTSuggestionOrderDetails = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.strSTATUT = ?2 ")
+                    .setParameter(1, lg_famille_id).setParameter(2, commonparameter.statut_is_Process).setMaxResults(1)
+                    .getSingleResult();
 
         } catch (Exception e) {
 
@@ -1448,9 +1566,9 @@ public class suggestionManagement extends bllBase {
         int status = (lgFamilleID.getIntORERSTATUS() == 2 ? 2 : 0);
         try {
 
-            long count = (long) this.getOdataManager().getEm().createQuery("SELECT COUNT(o)  FROM TSuggestionOrderDetails o WHERE o.strSTATUT='is_Process' AND o.lgFAMILLEID.lgFAMILLEID =?1 ").setParameter(1, lgFamilleID.getLgFAMILLEID())
-                    .setMaxResults(1)
-                    .getSingleResult();
+            long count = (long) this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(o)  FROM TSuggestionOrderDetails o WHERE o.strSTATUT='is_Process' AND o.lgFAMILLEID.lgFAMILLEID =?1 ")
+                    .setParameter(1, lgFamilleID.getLgFAMILLEID()).setMaxResults(1).getSingleResult();
 
             if (count > 1) {
 
@@ -1463,162 +1581,6 @@ public class suggestionManagement extends bllBase {
         }
 
         return status;
-    }
-
-    public JSONObject getCompareStockToSug(String search_value, String lg_FAMILLE_ID, String lg_DCI_ID, String str_TYPE_TRANSACTION, int int_NUMBER, int number2, boolean stockUndefined, boolean stockREAPUndefined) {
-        int result = 0;
-        JSONObject json = new JSONObject();
-
-        List<TFamille> listeProduct;
-
-        final List<String> l = new ArrayList<>();
-        final List<String> productList = new ArrayList<>();
-        try {
-
-            listeProduct = new familleManagement(this.getOdataManager(), this.getOTUser()).getCompareStockToSug(search_value, lg_FAMILLE_ID, lg_DCI_ID, str_TYPE_TRANSACTION, int_NUMBER, number2, stockUndefined, stockREAPUndefined);
-
-            Map<TGrossiste, List<TFamille>> _listGroup = listeProduct.stream().collect(Collectors.groupingBy(TFamille::getLgGROSSISTEID));
-            if (!this.getOdataManager().getEm().getTransaction().isActive()) {
-                this.getOdataManager().getEm().getTransaction().begin();
-            }
-
-            _listGroup.entrySet().forEach((ob) -> {
-
-                final TGrossiste oGr = ob.getKey();
-
-                final TSuggestionOrder order = createTSuggestionOrder(oGr.getLgGROSSISTEID(), commonparameter.statut_is_Process);
-
-                List<TFamille> value = ob.getValue();
-                Stream<TFamille> liststosugg = value.stream().filter((t) -> {
-                    TFamilleStock s = getFamilleStock(t.getLgFAMILLEID());
-                    productList.add(t.getLgFAMILLEID());
-                    return (t.getIntSEUILMIN() > s.getIntNUMBERAVAILABLE());
-                });
-
-                liststosugg.forEach((_ob) -> {
-
-                    // if(_ob.getIntQTEREAPPROVISIONNEMENT()!=null && _ob.getIntQTEREAPPROVISIONNEMENT() >0){
-                    int qty = 1;
-                    if (_ob.getIntQTEREAPPROVISIONNEMENT() != null && _ob.getIntQTEREAPPROVISIONNEMENT() > 0) {
-                        qty = _ob.getIntQTEREAPPROVISIONNEMENT();
-                    }
-                    TFamille OTFamille;
-                    double qte = Integer.valueOf(qty + "");
-                    if (_ob.getBoolDECONDITIONNE() == 1) {
-
-                        OTFamille = getParent(_ob.getLgFAMILLEPARENTID());
-                        if (OTFamille != null) {
-
-                            double qtyDetail = OTFamille.getIntNUMBERDETAIL();
-                            qte = (Double.valueOf(qty) / qtyDetail);
-                        } else {
-                            OTFamille = _ob;
-                        }
-
-                    } else {
-                        OTFamille = _ob;
-                    }
-                    Double myInt = Math.ceil(qte);
-
-                    TSuggestionOrderDetails OTSuggestionOrderDetails = findFamilleInSuggestionOrderDetails(OTFamille.getLgFAMILLEID());
-                    boolean flag = false;
-                    if (OTSuggestionOrderDetails != null) {
-                        flag = true;
-                    }
-
-                    TSuggestionOrderDetails o = findIncurrent(order.getLgSUGGESTIONORDERID(), OTFamille.getLgFAMILLEID(), myInt.intValue());
-                    if (o == null) {
-                        o = createSuggestionOrderDetail(order, OTFamille, oGr, myInt.intValue(), flag);
-                    }
-
-                    if (o != null) {
-                        l.add(OTFamille.getLgFAMILLEID());
-                        order.getTSuggestionOrderDetailsCollection().add(o);
-                    }
-                    if ((l.size() % 2) == 0) {
-                        this.getOdataManager().getEm().getTransaction().commit();
-                        this.getOdataManager().getEm().clear();
-                        this.getOdataManager().getEm().getTransaction().begin();
-                    }
-
-                });
-
-            });
-            if (this.getOdataManager().getEm().getTransaction().isActive()) {
-                this.getOdataManager().getEm().getTransaction().commit();
-                this.getOdataManager().getEm().clear();
-//                this.getOdataManager().getEm().close();
-
-            }
-            this.buildErrorTraceMessage((l.size() + "/" + productList.size()) + " ont été pris en compte");
-            result = (l.size());
-            json.put("qty", result);
-            json.put("result", "Le nombre de produit suggéré : <u><span style='font-weight:900; color:blue;'>" + l.size() + "/" + productList.size() + "</span></u>");
-
-        } catch (Exception e) {
-            try {
-                e.printStackTrace();
-                if (this.getOdataManager().getEm().getTransaction().isActive()) {
-                    this.getOdataManager().getEm().getTransaction().rollback();
-                    this.getOdataManager().getEm().clear();
-//                    this.getOdataManager().getEm().close();
-                }
-                this.buildErrorTraceMessage("Echec de prise en compte de la suggestion. Veuillez réessayer");
-                json.put("qty", "Echec de prise en compte de la suggestion. Veuillez réessayer");
-            } catch (JSONException ex) {
-                Logger.getLogger(suggestionManagement.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
-        return json;
-
-    }
-
-    private TFamilleStock getFamilleStock(String id) {
-        return (TFamilleStock) this.getOdataManager().getEm().createQuery("SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID =?1 AND o.lgEMPLACEMENTID.lgEMPLACEMENTID=?2 ").setParameter(1, id)
-                .setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID())
-                .setMaxResults(1).getSingleResult();
-    }
-
-    public void makeSuggestionAutoBACK(TFamilleStock OTFamilleStock) {
-
-        TSuggestionOrder OTSuggestionOrder = null;
-        int int_QTE_A_SUGGERE = 0;
-        try {
-
-            if (OTFamilleStock != null && OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() != null && OTFamilleStock.getLgFAMILLEID().getBoolDECONDITIONNE() == 0) {
-                new logger().OCategory.info("Stock actu " + OTFamilleStock.getIntNUMBERAVAILABLE() + " Seuil mini " + OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN() + " Seuil de reappro " + OTFamilleStock.getLgFAMILLEID().getIntQTEREAPPROVISIONNEMENT());
-                if (OTFamilleStock.getIntNUMBERAVAILABLE() <= OTFamilleStock.getLgFAMILLEID().getIntSEUILMIN()) {
-
-                    int_QTE_A_SUGGERE = this.calcQteReappro(OTFamilleStock);
-
-                    if (int_QTE_A_SUGGERE > 0) {
-                        OTSuggestionOrder = this.checkSuggestionGrossiteExiste(OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID().getLgGROSSISTEID());
-
-                        if (OTSuggestionOrder != null) {
-
-                            this.CreateTSuggestionOrderDetails(OTSuggestionOrder, OTFamilleStock.getLgFAMILLEID(), OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID(), int_QTE_A_SUGGERE, commonparameter.str_ACTION_VENTE);
-                        } else {
-                            this.AddToTSuggestionOrderDetails(OTFamilleStock.getLgFAMILLEID(), OTFamilleStock.getLgFAMILLEID().getLgGROSSISTEID(), OTSuggestionOrder, int_QTE_A_SUGGERE, commonparameter.statut_is_Auto);
-                        }
-                    }
-
-                } else {
-                    new logger().OCategory.info("Le seuil n'est pas atteint ");
-                }
-
-            } else {
-
-                new logger().OCategory.info("OTFamille  est null ");
-
-            }
-
-        } catch (Exception E) {
-            E.printStackTrace();
-            new logger().OCategory.info("ECHEC ");
-
-        }
-        new logger().OCategory.info("Quantite total suggérée " + int_QTE_A_SUGGERE);
-
     }
 
     public void makeSuggestionAuto(TFamilleStock OTFamilleStock, TFamille famille) {
@@ -1635,14 +1597,17 @@ public class suggestionManagement extends bllBase {
 
                     if (int_QTE_A_SUGGERE > 0) {
                         this.getOdataManager().getEm().getTransaction().begin();
-                        OTSuggestionOrder = this.checkSuggestionGrossiteExiste(famille.getLgGROSSISTEID().getLgGROSSISTEID());
+                        OTSuggestionOrder = this
+                                .checkSuggestionGrossiteExiste(famille.getLgGROSSISTEID().getLgGROSSISTEID());
 
                         if (OTSuggestionOrder != null) {
 
-                            this.CreateTSuggestionOrderDetails(OTSuggestionOrder, famille, famille.getLgGROSSISTEID(), int_QTE_A_SUGGERE, commonparameter.str_ACTION_VENTE);
+                            this.CreateTSuggestionOrderDetails(OTSuggestionOrder, famille, famille.getLgGROSSISTEID(),
+                                    int_QTE_A_SUGGERE, commonparameter.str_ACTION_VENTE);
                         } else {
 
-                            this.AddToTSuggestionOrderDetails(famille, famille.getLgGROSSISTEID(), OTSuggestionOrder, int_QTE_A_SUGGERE, commonparameter.statut_is_Auto);
+                            this.AddToTSuggestionOrderDetails(famille, famille.getLgGROSSISTEID(), OTSuggestionOrder,
+                                    int_QTE_A_SUGGERE, commonparameter.statut_is_Auto);
                         }
                         this.getOdataManager().getEm().getTransaction().commit();
                         this.getOdataManager().getEm().clear();
@@ -1663,7 +1628,7 @@ public class suggestionManagement extends bllBase {
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().getEm().getTransaction().rollback();
                 this.getOdataManager().getEm().clear();
-//                this.getOdataManager().getEm().close();
+                // this.getOdataManager().getEm().close();
             }
             E.printStackTrace();
             new logger().OCategory.info("ECHEC ");
@@ -1684,7 +1649,8 @@ public class suggestionManagement extends bllBase {
         final List<String> productList = new ArrayList<>();
         try {
 
-            Map<String, List<EntityData>> _listGroup = listeProduct.stream().collect(Collectors.groupingByConcurrent(EntityData::getStr_value6));
+            Map<String, List<EntityData>> _listGroup = listeProduct.stream()
+                    .collect(Collectors.groupingByConcurrent(EntityData::getStr_value6));
             EntityManager em = this.getOdataManager().getEm();
 
             if (!em.getTransaction().isActive()) {
@@ -1718,13 +1684,15 @@ public class suggestionManagement extends bllBase {
                     }
                     Double myInt = Math.ceil(qte);
 
-                    TSuggestionOrderDetails OTSuggestionOrderDetails = findFamilleInSuggestionOrderDetails(OTFamille.getLgFAMILLEID());
+                    TSuggestionOrderDetails OTSuggestionOrderDetails = findFamilleInSuggestionOrderDetails(
+                            OTFamille.getLgFAMILLEID());
                     boolean flag = false;
                     if (OTSuggestionOrderDetails != null) {
                         flag = true;
                     }
 
-                    TSuggestionOrderDetails o = findIncurrent(order.getLgSUGGESTIONORDERID(), OTFamille.getLgFAMILLEID(), myInt.intValue());
+                    TSuggestionOrderDetails o = findIncurrent(order.getLgSUGGESTIONORDERID(),
+                            OTFamille.getLgFAMILLEID(), myInt.intValue());
                     if (o == null) {
                         o = createSuggestionOrderDetail(order, OTFamille, oGr, myInt.intValue(), flag);
                     }
@@ -1744,19 +1712,20 @@ public class suggestionManagement extends bllBase {
             if (em.getTransaction().isActive()) {
                 em.getTransaction().commit();
                 em.clear();
-//                em.close();
+                // em.close();
                 this.buildErrorTraceMessage((l.size() + "/" + productList.size()) + " ont été pris en compte");
                 result = (l.size());
             }
             json.put("qty", result);
-            json.put("result", "Le nombre de produit suggéré : <u><span style='font-weight:900; color:blue;'>" + l.size() + "/" + productList.size() + "</span></u>");
+            json.put("result", "Le nombre de produit suggéré : <u><span style='font-weight:900; color:blue;'>"
+                    + l.size() + "/" + productList.size() + "</span></u>");
 
         } catch (Exception e) {
 
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().getEm().getTransaction().rollback();
                 this.getOdataManager().getEm().clear();
-//                this.getOdataManager().getEm().close();
+                // this.getOdataManager().getEm().close();
             }
             e.printStackTrace();
             this.buildErrorTraceMessage("Echec de prise en compte de la suggestion. Veuillez réessayer");
@@ -1765,23 +1734,12 @@ public class suggestionManagement extends bllBase {
 
     }
 
-    public void setToPending(String lg_SUGGESTION_ORDER_ID) {
-        try {
-            TSuggestionOrder order = this.getOdataManager().getEm().find(TSuggestionOrder.class, lg_SUGGESTION_ORDER_ID);
-            order.setStrSTATUT(commonparameter.statut_pending);
-            this.merge(order);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-    }
-
     public TFamilleGrossiste findOrFamilleGrossiste(TFamille lg_FAMILLE_ID, TGrossiste lg_GROSSISTE_ID) {
         TFamilleGrossiste OTFamilleGrossiste = null;
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT LIKE ?3 ").
-                    setParameter(1, lg_FAMILLE_ID.getLgFAMILLEID())
-                    .setParameter(2, lg_GROSSISTE_ID.getLgGROSSISTEID())
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT LIKE ?3 ")
+                    .setParameter(1, lg_FAMILLE_ID.getLgFAMILLEID()).setParameter(2, lg_GROSSISTE_ID.getLgGROSSISTEID())
                     .setParameter(3, commonparameter.statut_enable);
             qry.setMaxResults(1);
             OTFamilleGrossiste = (TFamilleGrossiste) qry.getSingleResult();
@@ -1805,19 +1763,23 @@ public class suggestionManagement extends bllBase {
         return OTFamilleGrossiste;
     }
 
-    public TSuggestionOrderDetails addToTSuggestionOrderDetails(TFamille OTFamille, TSuggestionOrder OTSuggestionOrder, int int_qte, String str_STATUT) {
+    public TSuggestionOrderDetails addToTSuggestionOrderDetails(TFamille OTFamille, TSuggestionOrder OTSuggestionOrder,
+            int int_qte, String str_STATUT) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
         try {
 
             this.getOdataManager().getEm().getTransaction().begin();
-            OTSuggestionOrderDetails = this.isProductExist(OTFamille.getLgFAMILLEID(), OTSuggestionOrder.getLgSUGGESTIONORDERID());
+            OTSuggestionOrderDetails = this.isProductExist(OTFamille.getLgFAMILLEID(),
+                    OTSuggestionOrder.getLgSUGGESTIONORDERID());
             if (OTSuggestionOrderDetails == null) {
-                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille, OTSuggestionOrder.getLgGROSSISTEID(), int_qte, str_STATUT);
+                OTSuggestionOrderDetails = this.initTSuggestionOrderDetail(OTSuggestionOrder, OTFamille,
+                        OTSuggestionOrder.getLgGROSSISTEID(), int_qte, str_STATUT);
             } else if (str_STATUT.equals(commonparameter.statut_is_Process)) {
                 OTSuggestionOrderDetails.setIntNUMBER(int_qte + OTSuggestionOrderDetails.getIntNUMBER());
-                OTSuggestionOrderDetails.setIntPRICE(OTSuggestionOrderDetails.getIntNUMBER() * OTSuggestionOrderDetails.getIntPAFDETAIL());
+                OTSuggestionOrderDetails.setIntPRICE(
+                        OTSuggestionOrderDetails.getIntNUMBER() * OTSuggestionOrderDetails.getIntPAFDETAIL());
             }
-            //code ajouté
+            // code ajouté
             OTSuggestionOrder.setDtUPDATED(new Date());
             this.getOdataManager().getEm().merge(OTSuggestionOrderDetails);
             this.getOdataManager().getEm().getTransaction().commit();
@@ -1827,23 +1789,24 @@ public class suggestionManagement extends bllBase {
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().getEm().getTransaction().rollback();
                 this.getOdataManager().getEm().clear();
-//                this.getOdataManager().getEm().close();
+                // this.getOdataManager().getEm().close();
             }
             this.buildErrorTraceMessage("Echec d'ajout du produit à la suggestion");
         }
 
         this.getOdataManager().getEm().persist(OTSuggestionOrderDetails);
-        new logger().OCategory.info("Mise a jour de OTSuggestionOrderDetails " + OTSuggestionOrderDetails.getIntNUMBER());
+        new logger().OCategory
+                .info("Mise a jour de OTSuggestionOrderDetails " + OTSuggestionOrderDetails.getIntNUMBER());
         return OTSuggestionOrderDetails;
     }
 
     private TSuggestionOrderDetails isProductExist(String lg_famille_id, String OTSuggestionOrder) {
         TSuggestionOrderDetails OTSuggestionOrderDetails = null;
         try {
-            OTSuggestionOrderDetails = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery("SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID = ?2").
-                    setParameter(1, lg_famille_id).
-                    setParameter(2, OTSuggestionOrder).setMaxResults(1).
-                    getSingleResult();
+            OTSuggestionOrderDetails = (TSuggestionOrderDetails) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TSuggestionOrderDetails t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID = ?2")
+                    .setParameter(1, lg_famille_id).setParameter(2, OTSuggestionOrder).setMaxResults(1)
+                    .getSingleResult();
 
         } catch (Exception e) {
             this.buildErrorTraceMessage(e.getMessage());
@@ -1852,7 +1815,8 @@ public class suggestionManagement extends bllBase {
         return OTSuggestionOrderDetails;
     }
 
-    public boolean updatePriceArticle(String lg_GROSSISTE_ID, String lg_FAMILLE_ID, int int_PRICE, int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step) {
+    public boolean updatePriceArticle(String lg_GROSSISTE_ID, String lg_FAMILLE_ID, int int_PRICE, int int_PRICE_TIPS,
+            int int_PAF, int int_PAT, String action, String str_REF, String step) {
         EntityManager em = this.getOdataManager().getEm();
         boolean result = false;
         int int_PAF_OLD = 0, int_PAT_OLD = 0, int_PRICE_OLD, int_PRICE_TIPS_OLD = 0;
@@ -1863,10 +1827,11 @@ public class suggestionManagement extends bllBase {
             int_PRICE_OLD = OTFamille.getIntPRICE();
             int_PAF_OLD = OTFamille.getIntPAF();
             int_PAT_OLD = OTFamille.getIntPAT();
-            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS() : OTFamille.getIntPRICE();
+            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS()
+                    : OTFamille.getIntPRICE();
 
             new logger().OCategory.info("step avant:" + step + "-");
-//            if (step.equalsIgnoreCase(commonparameter.str_ACTION_ENTREESTOCK)) {
+            // if (step.equalsIgnoreCase(commonparameter.str_ACTION_ENTREESTOCK)) {
 
             em.getTransaction().begin();
             OTFamille.setIntPAF(int_PAF);
@@ -1883,16 +1848,20 @@ public class suggestionManagement extends bllBase {
             } catch (Exception e) {
             }
             em.getTransaction().commit();
-//            }
+            // }
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             result = true;
 
-            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT) || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
-                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION() + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME() + ".";
+            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT)
+                    || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
+                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION()
+                        + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " "
+                        + this.getOTUser().getStrLASTNAME() + ".";
                 if (int_PRICE_OLD != int_PRICE) {
                     Description += "Prix de vente: " + int_PRICE_OLD + " remplacé par " + int_PRICE + ".";
-                    new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille, commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
+                    new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille,
+                            commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
                 }
                 if (int_PAF_OLD != int_PAF) {
                     Description += "Prix d'achat facture: " + int_PAF_OLD + " remplacé par " + int_PAF + ".";
@@ -1904,7 +1873,7 @@ public class suggestionManagement extends bllBase {
                     Description += "Prix TIP: " + int_PRICE_TIPS_OLD + " remplacé par " + int_PRICE_TIPS + ".";
                 }
 
-                //  OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
+                // OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
             }
         } catch (Exception e) {
             em.getTransaction().rollback();
@@ -1917,14 +1886,17 @@ public class suggestionManagement extends bllBase {
     }
 
     private TFamilleGrossiste findFamilleGrossiste(TFamille famille, String grossiste) {
-        TypedQuery<TFamilleGrossiste> query = this.getOdataManager().getEm().createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2   ", TFamilleGrossiste.class);
+        TypedQuery<TFamilleGrossiste> query = this.getOdataManager().getEm().createQuery(
+                "SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2   ",
+                TFamilleGrossiste.class);
         query.setParameter(1, famille.getLgFAMILLEID()).setParameter(2, grossiste);
         query.setMaxResults(1);
         return query.getSingleResult();
     }
 
-    //24/06/2020
-    public boolean updateItemPriceWhenOrdering(String lg_GROSSISTE_ID, String lg_FAMILLE_ID, int int_PRICE, int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step) {
+    // 24/06/2020
+    public boolean updateItemPriceWhenOrdering(String lg_GROSSISTE_ID, String lg_FAMILLE_ID, int int_PRICE,
+            int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step) {
         EntityManager em = this.getOdataManager().getEm();
         boolean result = false;
         int int_PAF_OLD = 0, int_PAT_OLD = 0, int_PRICE_OLD, int_PRICE_TIPS_OLD = 0;
@@ -1935,13 +1907,18 @@ public class suggestionManagement extends bllBase {
             int_PRICE_OLD = OTFamille.getIntPRICE();
             int_PAF_OLD = OTFamille.getIntPAF();
             int_PAT_OLD = OTFamille.getIntPAT();
-            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS() : OTFamille.getIntPRICE();
+            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS()
+                    : OTFamille.getIntPRICE();
 
-            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT) || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
-                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION() + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME() + ".";
+            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT)
+                    || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
+                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION()
+                        + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " "
+                        + this.getOTUser().getStrLASTNAME() + ".";
                 if (int_PRICE_OLD != int_PRICE) {
                     Description += "Prix de vente: " + int_PRICE_OLD + " remplacé par " + int_PRICE + ".";
-                    new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille, commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
+                    new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille,
+                            commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
                 }
                 if (int_PAF_OLD != int_PAF) {
                     Description += "Prix d'achat facture: " + int_PAF_OLD + " remplacé par " + int_PAF + ".";
@@ -1952,8 +1929,9 @@ public class suggestionManagement extends bllBase {
                 if (int_PRICE_TIPS_OLD != int_PRICE_TIPS) {
                     Description += "Prix TIP: " + int_PRICE_TIPS_OLD + " remplacé par " + int_PRICE_TIPS + ".";
                 }
-                updateItem(this.getOTUser(), OTFamille.getIntCIP(), Description, TypeLog.MODIFICATION_INFO_PRODUIT_COMMANDE, OTFamille);
-                //  OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
+                updateItem(this.getOTUser(), OTFamille.getIntCIP(), Description,
+                        TypeLog.MODIFICATION_INFO_PRODUIT_COMMANDE, OTFamille);
+                // OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
             }
         } catch (Exception e) {
             em.getTransaction().rollback();
@@ -1969,7 +1947,7 @@ public class suggestionManagement extends bllBase {
         TEventLog eventLog = new TEventLog(UUID.randomUUID().toString());
         eventLog.setLgUSERID(user);
         eventLog.setDtCREATED(new Date());
-        eventLog.setDtUPDATED(new Date());
+        eventLog.setDtUPDATED(eventLog.getDtCREATED());
         eventLog.setStrCREATEDBY(user.getStrLOGIN());
         eventLog.setStrSTATUT(commonparameter.statut_enable);
         eventLog.setStrTABLECONCERN(T.getClass().getName());
@@ -1977,6 +1955,14 @@ public class suggestionManagement extends bllBase {
         eventLog.setStrDESCRIPTION(desc + " référence [" + ref + " ]");
         eventLog.setStrTYPELOG(ref);
         this.getOdataManager().getEm().persist(eventLog);
+    }
+
+    public boolean updateProduitSeuil(String produitId, Integer qteSeuil) {
+        TFamille famille = this.getOdataManager().getEm().find(TFamille.class, produitId);
+        famille.setIntSEUILMIN(qteSeuil);
+        this.merge(famille);
+
+        return true;
     }
 
 }

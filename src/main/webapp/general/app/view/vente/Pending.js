@@ -3,10 +3,6 @@
 Ext.define('testextjs.view.vente.Pending', {
     extend: 'Ext.panel.Panel',
     xtype: 'cloturerventemanager',
-    requires: [
-        'Ext.grid.plugin.RowExpander'
-    ],
-
     frame: true,
     title: 'Liste Des Ventes',
     iconCls: 'icon-grid',
@@ -26,7 +22,7 @@ Ext.define('testextjs.view.vente.Pending', {
         var vente = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.caisse.Vente',
             autoLoad: false,
-            pageSize: 15,
+            pageSize: 9999,
 
             proxy: {
                 type: 'ajax',
@@ -93,15 +89,6 @@ Ext.define('testextjs.view.vente.Pending', {
             items: [
                 {
                     xtype: 'gridpanel',
-
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            rowBodyTpl: new Ext.XTemplate(
-                                    '<p>{details}</p>'
-
-                                    )
-                        }
-                    ],
                     store: vente,
 
                     viewConfig: {
@@ -170,27 +157,44 @@ Ext.define('testextjs.view.vente.Pending', {
                             items: [{
                                     icon: 'resources/images/icons/fam/page_white_edit.png',
                                     tooltip: 'Modifier',
+
                                     menuDisabled: true,
-                                    scope: me/*,
-                                     handler: function (view, rowIndex, colIndex, item, e) {
-                                     
-                                     me.fireEvent('click', item, 'edit', view, rowIndex, colIndex, item, e);
-                                     }*/
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('toEdit', view, rowIndex, colIndex, item, e, record, row);
+                                    }
 
                                 }]
+                        }, {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [
+                                {
+                                    icon: 'resources/images/icons/fam/application_view_list.png',
+                                    tooltip: 'Voir détail',
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('goto', view, rowIndex, colIndex, item, e, record, row);
+                                    }
+
+
+                                }
+                            ]
                         },
                         {
                             xtype: 'actioncolumn',
                             width: 30,
+                            hidden:true,
                             sortable: false,
                             menuDisabled: true,
                             items: [{
                                     icon: 'resources/images/icons/fam/trash.png',
                                     tooltip: 'Mettre dans la corbeille',
-                                    scope: me/*,
-                                     handler: function (view, rowIndex, colIndex, item, e) {
-                                     me.fireEvent('click', item, 'corbeille', view, rowIndex, colIndex, item, e);
-                                     }*/
+                                    menuDisabled: true,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('toTrash', view, rowIndex, colIndex, item, e, record, row);
+                                    }
+
 
                                 }]
                         },
@@ -203,18 +207,15 @@ Ext.define('testextjs.view.vente.Pending', {
                             items: [{
                                     icon: 'resources/images/icons/fam/delete.png',
                                     tooltip: 'Supprimer',
-                                    scope: me/*,
-                                     handler: function (view, rowIndex, colIndex, item, e) {
-                                     me.fireEvent('itemclick', this, 'delete', view, rowIndex, colIndex, item, e);
-                                     }*/
+                                    menuDisabled: true,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('toDelete', view, rowIndex, colIndex, item, e, record, row);
+                                    }
+
 
                                 }]
                         }
                     ],
-//            selModel: {
-//                selType: 'cellmodel'
-//                selType: 'checkboxmodel',
-//            },
                     bbar: {
                         xtype: 'pagingtoolbar',
                         store: vente,

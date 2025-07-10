@@ -5,60 +5,88 @@
  */
 package rest.service.impl;
 
-import commonTasks.dto.PharmaMLItemDTO;
 import dal.Rupture;
-import dal.TFactureDetail;
 import dal.TFamille;
 import dal.TFamilleGrossiste;
 import dal.TGrossiste;
+import dal.TOfficine;
 import dal.TOrder;
 import dal.TOrderDetail;
-import dal.TUser;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.OutputStream;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.atomic.LongAdder;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
-import org.apache.commons.lang3.RandomStringUtils;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+import javax.xml.bind.Unmarshaller;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.map.HashedMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.OrderService;
 import rest.service.PharmaMlService;
-import toolkits.utils.jdom;
-import util.DateConverter;
+import rest.service.ProduitService;
+import rest.service.dto.CreationProduitDTO;
+import rest.service.pharmaMl.Commande;
+import rest.service.pharmaMl.Corps;
+import rest.service.pharmaMl.CsrpEnveloppe;
+import rest.service.pharmaMl.Entete;
+import rest.service.pharmaMl.LigneN;
+import rest.service.pharmaMl.MessageCorps;
+import rest.service.pharmaMl.MessageEntete;
+import rest.service.pharmaMl.MessageOfficine;
+import rest.service.pharmaMl.Normale;
+import rest.service.pharmaMl.OfficinePartenaire;
+import rest.service.pharmaMl.Partenaire;
+import rest.service.pharmaMl.response.CorpsRepartiteur;
+import rest.service.pharmaMl.response.CorpsResponse;
+import rest.service.pharmaMl.response.CsrpEnveloppeResponse;
+import rest.service.pharmaMl.response.IndisponibiliteN;
+import rest.service.pharmaMl.response.LigneNReponse;
+import rest.service.pharmaMl.response.MessageRepartiteur;
+import rest.service.pharmaMl.response.NormaleReponse;
+import rest.service.pharmaMl.response.PrixN;
+import rest.service.pharmaMl.response.ProduitRemplacant;
+import rest.service.pharmaMl.response.RepCommande;
+import rest.service.pharmaMl.response.enumeration.TypePrix;
+import rest.service.pharmaMl.response.enumeration.TypeRemplacement;
+import util.AppParameters;
+import util.Constant;
+import util.KeyUtilGen;
+import util.NumberUtils;
 import util.PharmaMlUtils;
-import static util.PharmaMlUtils.NOMBRE_LIGNE_CLAIRE;
-import static util.PharmaMlUtils.NOMBRE_LIGNE_CODE;
-import static util.PharmaMlUtils.TYPE_CODIFICATION_CIP;
-import static util.PharmaMlUtils.TYPE_CODIFICATION_EAN13;
-import static util.PharmaMlUtils.TYPE_CODIFICATION_LIBELLE_PRODUIT;
-import static util.PharmaMlUtils.buildBody;
-import static util.PharmaMlUtils.buildCommandeLine;
-import static util.PharmaMlUtils.buildComment;
-import static util.PharmaMlUtils.buildDateLivraisonLine;
-import static util.PharmaMlUtils.buildRepartiteurLine;
-import static util.PharmaMlUtils.buildTypeTravailLine;
-import static util.PharmaMlUtils.finCommande;
+import static util.PharmaMlUtils.NATURE_PARTENAIRE_VALUE_OF;
+import static util.PharmaMlUtils.TYPE_CODIFICATION_CIP39;
+import static util.PharmaMlUtils.TYPE_CODIFICATION_EAN;
 
 /**
  *
@@ -68,96 +96,38 @@ import static util.PharmaMlUtils.finCommande;
 public class PharmaMlServiceImpl implements PharmaMlService {
 
     private static final Logger LOG = Logger.getLogger(PharmaMlServiceImpl.class.getName());
+    private final AppParameters ap = AppParameters.getInstance();
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
-    private final String message_url = jdom.pharmaml_message;
-    private final String reponse_url = jdom.pharmaml_reponse;
-    Comparator<File> fileComparator = Comparator.comparing(File::lastModified);
     @EJB
-    OrderService orderService;
+    private OrderService orderService;
+    @EJB
+    private ProduitService produitService;
 
     public EntityManager getEntityManager() {
         return em;
     }
 
     private List<TOrderDetail> findByOrder(TOrder order) {
-        TypedQuery<TOrderDetail> q = getEntityManager().createNamedQuery("TOrderDetail.findByLgORDERID", TOrderDetail.class);
+        TypedQuery<TOrderDetail> q = getEntityManager().createNamedQuery("TOrderDetail.findByLgORDERID",
+                TOrderDetail.class);
         q.setParameter("lgORDERID", order);
         return q.getResultList();
     }
 
     private TFamilleGrossiste findByGrossisteAndFamille(String idProduit, String grossisteId) {
         try {
-            TypedQuery<TFamilleGrossiste> q = getEntityManager().createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2 AND o.strSTATUT='enable' ", TFamilleGrossiste.class);
+            TypedQuery<TFamilleGrossiste> q = getEntityManager().createQuery(
+                    "SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2 AND o.strSTATUT='enable' ",
+                    TFamilleGrossiste.class);
             q.setParameter(1, idProduit);
             q.setParameter(2, grossisteId);
             q.setMaxResults(1);
             return q.getSingleResult();
         } catch (Exception e) {
-//            e.printStackTrace(System.err);
+            // LOG.log(Level.SEVERE, null, e);
             return null;
         }
-    }
-
-    /**
-     *
-     * @param commandeId
-     * @param dateLivraisonSouhaitee
-     * @param typeCommande
-     * @param typeCommandeExecptionel
-     * @param commentaire
-     * @return Le code de commande forme a partir de la reference de la commande
-     * sans le separeut <<_>>
-     */
-    @Override
-    public JSONObject envoiPharmaCommande(String commandeId, LocalDate dateLivraisonSouhaitee, int typeCommande, String typeCommandeExecptionel, String commentaire) {
-        JSONObject json = new JSONObject();
-        TOrder order = getEntityManager().find(TOrder.class, commandeId);
-        TGrossiste tg = order.getLgGROSSISTEID();
-        List<PharmaMLItemDTO> itemDTO = new ArrayList<>();
-        findByOrder(order).stream().forEach(d -> {
-            TFamille tf = d.getLgFAMILLEID();
-            PharmaMLItemDTO o = new PharmaMLItemDTO(d, tf, findByGrossisteAndFamille(tf.getLgFAMILLEID(), tg.getLgGROSSISTEID()), false, false, false, PharmaMlUtils.TYPE_CODIFICATION_CIP);
-            itemDTO.add(o);
-        });
-        try {
-            buildCommande(message_url + order.getStrREFORDER(), tg.getIdRepartiteur(), PharmaMlUtils.TYPE_TRAVAIL_COMMANDE,
-                    dateLivraisonSouhaitee, typeCommande, typeCommandeExecptionel, itemDTO, commentaire, order.getStrREFORDER().replace("_", ""));
-            return json.put("success", true);
-        } catch (IOException e) {
-            e.printStackTrace(System.err);
-            return json.put("success", true);
-        }
-
-    }
-
-    @Override
-    public JSONObject lignesCommande(String commandeId) throws JSONException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public List<PharmaMLItemDTO> lignesCommandeDto(String commandeId) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    public void buildCommande(String pathPharmaMl, String idRepartiteur, String typeTravail, LocalDate dateLivraisonSouhaitee, int typeCommande, String codeCommande, List<PharmaMLItemDTO> itemDTO, String commentaire, String commandeRef) throws IOException {
-        NOMBRE_LIGNE_CODE = 0;
-        NOMBRE_LIGNE_CLAIRE = 0;
-        FileWriter fileWriter = new FileWriter(pathPharmaMl);
-        try (PrintWriter printWriter = new PrintWriter(fileWriter)) {
-            printWriter.println(buildRepartiteurLine(idRepartiteur));
-            printWriter.println(buildTypeTravailLine(PharmaMlUtils.TYPE_TRAVAIL_COMMANDE));
-            printWriter.println(buildCommandeLine(typeCommande, codeCommande, commandeRef));
-            printWriter.println(buildDateLivraisonLine(dateLivraisonSouhaitee));
-            buildBody(itemDTO).forEach(w -> printWriter.println(w));
-            if (!StringUtils.isEmpty(commentaire)) {
-                printWriter.println(buildComment(commentaire));
-            }
-            printWriter.println(buildComment(null));
-            printWriter.println(finCommande());
-        }
-       
     }
 
     @Override
@@ -165,300 +135,561 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         JSONObject json = new JSONObject();
         TOrder order = getEntityManager().find(TOrder.class, commandeId);
         TGrossiste tg = order.getLgGROSSISTEID();
-        List<PharmaMLItemDTO> itemDTO = new ArrayList<>();
-        findByOrder(order).stream().forEach(d -> {
-            TFamille tf = d.getLgFAMILLEID();
-            PharmaMLItemDTO o = new PharmaMLItemDTO(d, tf, findByGrossisteAndFamille(tf.getLgFAMILLEID(), tg.getLgGROSSISTEID()), false, false, false, PharmaMlUtils.TYPE_CODIFICATION_CIP);
-            itemDTO.add(o);
-        });
+        // a implementer selon le nouveau Pharmaml
+        return null;
+
+    }
+
+    @Override
+    public JSONObject envoiCommande(String commandeId, LocalDate dateLivraisonSouhaitee, int typeCommande,
+            String typeCommandeExecptionel, String commentaire) {
         try {
-            buildInfoProduits(message_url + order.getStrREFORDER(), tg.getIdRepartiteur(), RandomStringUtils.randomNumeric(PharmaMlUtils.DEF_COUNT),
-                    itemDTO);
-            return json.put("success", true);
-        } catch (IOException e) {
-            e.printStackTrace(System.err);
-            return json.put("success", true);
-        }
 
-    }
+            return processommandeXml(em.find(TOrder.class, commandeId));
+            // return processommandeTestFromFileXml(em.find(TOrder.class, commandeId)); // pour tester un fichier de
+            // reponse
 
-    private void buildInfoProduits(String pathPharmaMl, String idRepartiteur, String codeRequete, List<PharmaMLItemDTO> itemDTO) throws IOException {
-        NOMBRE_LIGNE_CODE = 0;
-        NOMBRE_LIGNE_CLAIRE = 0;
-        FileWriter fileWriter = new FileWriter(pathPharmaMl);
-        try (PrintWriter printWriter = new PrintWriter(fileWriter)) {
-            printWriter.println(buildRepartiteurLine(idRepartiteur));
-            printWriter.println(buildTypeTravailLine(PharmaMlUtils.TYPE_TRAVAIL_INFOS_PRODUITS));
-            printWriter.println(PharmaMlUtils.buildReferenceDemandeInfosProduit(codeRequete));
-            PharmaMlUtils.buildBodyInfosProduit(itemDTO).forEach(w -> printWriter.println(w));
-            printWriter.println(finCommande());
+        } catch (JAXBException | IOException | InterruptedException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            return new JSONObject().put("success", true).put("msg", ex.getLocalizedMessage());
         }
     }
 
-    private void processInfoProduit() {
-//https://www.ntppool.org/en/
+    private JSONObject processommandeXml(TOrder order) throws JAXBException, IOException, InterruptedException {
+
+        TGrossiste grossiste = order.getLgGROSSISTEID();
+        if (StringUtils.isEmpty(grossiste.getStrURLPHARMAML())) {
+            return new JSONObject().put("success", false).put("msg", "Le grossise n'a url pharmaML");
+        }
+        TOfficine of = em.find(TOfficine.class, Constant.OFFICINE);
+        CsrpEnveloppe payLoad = buildPayload(order, grossiste, of, null);
+
+        JAXBContext requestContext = JAXBContext.newInstance(CsrpEnveloppe.class);
+        Marshaller marshaller = requestContext.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+        StringWriter sw = new StringWriter();
+        marshaller.marshal(payLoad, sw); // save file // a supprimer a l'avenir
+        String fileName = order.getStrREFORDER() + "_"
+                + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
+        createSaveXmlFile(marshaller, payLoad, "C", fileName);
+
+        HttpClient client = getHttpClient();
+        HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML()))
+                .header("Content-Type", "text/xml; charset=UTF-8")
+                .POST(HttpRequest.BodyPublishers.ofString(sw.toString())).build();
+
+        HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+
+        return processResponse(httpResponse, fileName, order);
+
     }
 
-    File findCommandeResponse(String filePath) {
-        File messageDir = new File(filePath);
-        File[] responses = messageDir.listFiles();
-        if (responses.length == 0) {
-            return null;
-        }
-        List<File> files = Stream.of(responses).sorted(fileComparator.reversed()).filter(x -> DateConverter.convertLongToLacalDate(x.lastModified()).isEqual(LocalDate.now())).collect(Collectors.toList());
-        if (files.isEmpty()) {
-            return null;
-        }
-        File finalFile = files.get(0);
-        return finalFile;
+    private JSONObject processommandeTestFromFileXml(TOrder order)
+            throws JAXBException, IOException, InterruptedException {
+
+        return processResponseTesting(order);
+
     }
 
-    private Pair<List<PharmaMLItemDTO>, List<PharmaMLItemDTO>> processCommande(File finalFile, String __refCommande) {
-        List<PharmaMLItemDTO> prisEncompte = new ArrayList<>();
-        List<PharmaMLItemDTO> ruptures = new ArrayList<>();
-        try {
-            List<String> lines = Files.readAllLines(Paths.get(finalFile.getAbsolutePath()));
-            String isCommande = lines.get(1);
-            if (!isCommande.substring(1, 2).contentEquals(PharmaMlUtils.TYPE_TRAVAIL_COMMANDE)) {
-                return Pair.of(Collections.emptyList(), Collections.emptyList());
+    private JSONObject processResponseTesting(TOrder order) {
+        return traiterCommandeRepondue(order, loadFromFileForTestingPurpose());
+    }
+
+    private JSONObject processResponse(HttpResponse<String> httpResponse, String fileName, TOrder order) {
+        int httpCode = httpResponse.statusCode();
+
+        if (httpCode == 200) {
+
+            try {
+
+                JAXBContext jaxbContext = JAXBContext.newInstance(CsrpEnveloppeResponse.class);
+                Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
+                CsrpEnveloppeResponse response = (CsrpEnveloppeResponse) unmarshaller
+                        .unmarshal(new StringReader(httpResponse.body()));
+                // a supprimer a l'avenir
+                createSaveXmlFile(jaxbContext.createMarshaller(), response, "R", fileName);
+
+                return traiterCommandeRepondue(order, response);
+
+            } catch (JAXBException | IOException ex) {
+                LOG.log(Level.SEVERE, "processResponse", ex);
             }
-            String refCommande = lines.get(2);
-            if (refCommande.substring(1, __refCommande.length()).equals(__refCommande.replace("_", ""))) {
-                lines.subList(2, lines.size()).stream().forEach(x -> {
-                    if (x.startsWith(PharmaMlUtils.RECEPTION_PRODUIT)) {
-                        PharmaMLItemDTO o = gererLigneCommande(x);
-                        if (o.isLivre()) {
-                            prisEncompte.add(o);
-                        } else {
-                            ruptures.add(o);
+
+        } else {
+            saveResponse(httpResponse.body(), "LOG_" + fileName);
+        }
+        return new JSONObject().put("success", false);
+    }
+
+    private List<LigneNReponse> getLigneNReponses(CsrpEnveloppeResponse response) {
+        if (Objects.nonNull(response)) {
+            CorpsResponse corps = response.getCorps();
+            if (Objects.nonNull(corps)) {
+                MessageRepartiteur messageRepartiteur = corps.getMessageRepartiteur();
+                if (Objects.nonNull(messageRepartiteur)) {
+                    CorpsRepartiteur corpsR = messageRepartiteur.getCorps();
+                    if (Objects.nonNull(corpsR)) {
+                        RepCommande repCommande = corpsR.getRepCommande();
+                        if (Objects.nonNull(repCommande)) {
+                            NormaleReponse normale = repCommande.getNormale();
+                            if (Objects.nonNull(normale)) {
+                                return normale.getLignes();
+                            }
                         }
                     }
-                });
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace(System.err);
-        }
-        return Pair.of(prisEncompte, ruptures);
-    }
-
-    private PharmaMLItemDTO gererLigneCommande(String x) {
-        PharmaMLItemDTO tO = new PharmaMLItemDTO();
-        int qty = Integer.valueOf(x.substring(1, 5));
-        int lastIndex = x.lastIndexOf(PharmaMlUtils.R);
-        int lastIndexSeparateurP = x.lastIndexOf(PharmaMlUtils.P);
-        String typeCodif = x.substring(5, 7).trim();
-        String codeRetour = x.substring(lastIndex + 1, lastIndex + 5).trim();
-        int _codeRetour = 0, prixAchatHtaxe = 0;
-        if (!StringUtils.isEmpty(codeRetour)) {
-            _codeRetour = Integer.valueOf(codeRetour);
-            tO.setLivre(false);
-        }
-        if (lastIndexSeparateurP > 0) {
-            String phaht = x.substring(lastIndexSeparateurP + 1, x.length()).trim();
-            if (!StringUtils.isEmpty(phaht)) {
-                prixAchatHtaxe = Integer.valueOf(phaht);
-            }
-        }
-        tO.setCodeRetour(_codeRetour);
-        tO.setQuantite(qty);
-        tO.setTypeCodification(typeCodif);
-        tO.setPrixAchat(prixAchatHtaxe);
-        switch (typeCodif) {
-            case TYPE_CODIFICATION_CIP:
-                tO.setCip(x.substring(7, lastIndex).trim());
-                break;
-            case TYPE_CODIFICATION_EAN13:
-                tO.setEan(x.substring(7, lastIndex).trim());
-                break;
-            case TYPE_CODIFICATION_LIBELLE_PRODUIT:
-                tO.setLibelle(x.substring(7, lastIndex).trim());
-                break;
-            default:
-                break;
-
-        }
-        return tO;
-    }
-
-    void removeItemsFromOrder(List<PharmaMLItemDTO> items, TOrder order) {
-        try {
-            final String orderId = order.getLgORDERID();
-            Rupture rupture = orderService.creerRupture(order);
-            items.forEach(x -> {
-                TOrderDetail o = orderService.findByCipAndOrderId(x.getCip(), orderId);
-                orderService.creerRuptureItem(rupture, o.getLgFAMILLEID(), o.getIntNUMBER());
-                getEntityManager().remove(o);
-            });
-        } catch (Exception e) {
-            e.printStackTrace(System.err);
-        }
-
-    }
-
-    Integer orderItemsFromPharmaMLItemDTO(List<PharmaMLItemDTO> items, final String orderId) {
-        LongAdder adder = new LongAdder();
-        items.forEach(x -> {
-            TOrderDetail o = orderService.findByCipAndOrderId(x.getCip(), orderId);
-            o.setIntNUMBER(x.getQuantite());
-            if (x.getPrixAchat() > 0) {
-                o.setPrixAchat(x.getPrixAchat());
-            } else {
-                o.setPrixAchat(o.getIntPAFDETAIL());
-            }
-            o.setPrixUnitaire(o.getIntPRICEDETAIL());
-            o.setIntPRICE(o.getIntNUMBER() * o.getPrixAchat());
-            adder.add(o.getIntPRICE());
-            o.setIntORERSTATUS((short) 3);
-            o.setStrSTATUT(DateConverter.PASSE);
-            getEntityManager().merge(o);
-        });
-        return adder.intValue();
-    }
-
-    @Override
-    public JSONObject lignesCommandeRetour(String commandeRef, String orderId) {
-        try {
-            TOrder order = orderService.findByRef(commandeRef, orderId);
-            if (order.getStrSTATUT().equalsIgnoreCase(DateConverter.PASSE)) {
-                return new JSONObject().put("success", true).put("nbreproduit", "Commande dejà traitée")
-                        .put("nbrerupture", 0);
-            }
-            File finalFile = findCommandeResponse(reponse_url);
-            if (finalFile == null) {
-                return new JSONObject().put("success", false).put("status", "responseNotFound");
-            }
-            Pair<List<PharmaMLItemDTO>, List<PharmaMLItemDTO>> p = processCommande(finalFile, order.getStrREFORDER());
-            List<PharmaMLItemDTO> prisEncompte = p.getLeft();
-            List<PharmaMLItemDTO> rupture = p.getRight();
-            if (!rupture.isEmpty()) {
-                removeItemsFromOrder(rupture, order);
-            }
-            if (!prisEncompte.isEmpty()) {
-                Integer montantCommande = orderItemsFromPharmaMLItemDTO(prisEncompte, order.getLgORDERID());
-                order.setDtUPDATED(new Date());
-                order.setIntPRICE(montantCommande);
-                order.setStrSTATUT(DateConverter.PASSE);
-                getEntityManager().merge(order);
-            } else {
-                if (!rupture.isEmpty()) {
-                    getEntityManager().remove(order);
                 }
             }
-            return new JSONObject().put("success", true).put("nbreproduit", prisEncompte.size())
-                    .put("nbrerupture", rupture.size());
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return new JSONObject().put("success", false);
         }
+        return List.of();
+    }
+
+    private TFamilleGrossiste findTFamilleGrossisteByCodeCipOrEanOrProduitCode(String code, String grossisteId,
+            String idProduit) {
+        try {
+            TypedQuery<TFamilleGrossiste> q = em.createQuery(
+                    "SELECT o FROM TFamilleGrossiste o WHERE   (o.lgFAMILLEID.intCIP =?1 OR o.lgFAMILLEID.intEAN13=?1 OR o.strCODEARTICLE=?1) AND o.lgGROSSISTEID.lgGROSSISTEID=?2 AND o.lgFAMILLEID.lgFAMILLEID=?3",
+                    TFamilleGrossiste.class);
+            q.setParameter(1, code);
+            q.setParameter(2, grossisteId);
+            q.setParameter(3, idProduit);
+            q.setMaxResults(1);
+            return q.getSingleResult();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "findTFamilleGrossisteByCodeCipOrEanOrProduitCode", e);
+            return null;
+        }
+    }
+
+    private TFamilleGrossiste findTFamilleGrossisteByCodeCipOrEanOrProduitCode(String code, String grossisteId) {
+        try {
+            TypedQuery<TFamilleGrossiste> q = em.createQuery(
+                    "SELECT o FROM TFamilleGrossiste o WHERE   (o.lgFAMILLEID.intCIP =?1 OR o.lgFAMILLEID.intEAN13=?1 OR o.strCODEARTICLE=?1) AND o.lgGROSSISTEID.lgGROSSISTEID=?2 ",
+                    TFamilleGrossiste.class);
+            q.setParameter(1, code);
+            q.setParameter(2, grossisteId);
+            q.setMaxResults(1);
+            return q.getSingleResult();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "findTFamilleGrossisteByCodeCipOrEanOrProduitCode", e);
+            return null;
+        }
+    }
+
+    private TFamille findTFamilleByCodeCipOrEan(String code) {
+        try {
+            TypedQuery<TFamille> q = em.createQuery("SELECT o FROM TFamille o WHERE   (o.intCIP =?1 OR o.intEAN13=?1 )",
+                    TFamille.class);
+            q.setParameter(1, code);
+            q.setMaxResults(1);
+            return q.getSingleResult();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "findByCodeCipOrEan", e);
+            return null;
+        }
+    }
+
+    private Pair<Integer, Integer> getPrixAchatPrixUni(List<PrixN> prixs) {
+        if (CollectionUtils.isEmpty(prixs)) {
+            return Pair.of(null, null);
+        }
+        Integer prixAchat = NumberUtils.intFromString(prixs.stream()
+                .filter(p -> p.getNature().equals(TypePrix.PHAHT.name())).findAny().map(PrixN::getValeur).orElse(""));
+        Integer prixUnitt = NumberUtils.intFromString(prixs.stream()
+                .filter(p -> p.getNature().equals(TypePrix.PUBTC.name())).findAny().map(PrixN::getValeur).orElse(""));
+        return Pair.of(prixAchat, prixUnitt);
+    }
+
+    // ajout du produit de rempalcement a la commande
+    private void addRemplacement(LigneNReponse ligneNReponse, TOrderDetail origin, TFamille famille, TOrder order) {
+        Pair<Integer, Integer> prixs = getPrixAchatPrixUni(ligneNReponse.getPrix());
+
+        TOrderDetail item = new TOrderDetail(KeyUtilGen.getId());
+        item.setLgORDERID(order);
+        item.setIntNUMBER(origin.getIntNUMBER());
+        item.setIntQTEREPGROSSISTE(item.getIntNUMBER());
+        item.setIntQTEMANQUANT(item.getIntNUMBER());
+        item.setLgFAMILLEID(famille);
+        item.setLgGROSSISTEID(order.getLgGROSSISTEID());
+        item.setStrSTATUT(Constant.STATUT_PASSED);
+        item.setDtCREATED(new Date());
+        item.setDtUPDATED(item.getDtCREATED());
+        item.setIntPAFDETAIL(prixs.getLeft());
+        item.setIntPRICEDETAIL(prixs.getRight());
+        item.setIntPRICE(item.getIntPAFDETAIL() * origin.getIntNUMBER());
+        em.persist(item);
+        order.getTOrderDetailCollection().add(item);
 
     }
 
-    public void test() {
-        try {
-            String[] id = {"10662031032481273098", "10662033106163354419"};
-            for (int i = 0; i < id.length; i++) {
-                String string = id[i];
-                TOrder order = orderService.findByRef("", string);
-                Rupture rupture = orderService.creerRupture(order);
-                findByOrder(order).forEach(x -> {
-                    TOrderDetail o = orderService.findByCipAndOrderId(x.getLgFAMILLEID().getIntCIP(), string);
-                    orderService.creerRuptureItem(rupture, o.getLgFAMILLEID(), o.getIntNUMBER());
-//                getEntityManager().remove(o);
-                });
+    // on creer le produit s'il n'existe pas
+    private TFamille createTFamille(CreationProduitDTO creationProduit, TGrossiste grossiste) {
+
+        return produitService.createProduitFromRupture(creationProduit, grossiste);
+
+    }
+
+    private CreationProduitDTO buildFromLigneNReponse(LigneNReponse ligneNReponse) {
+        Pair<Integer, Integer> pair = getPrixAchatPrixUni(ligneNReponse.getPrix());
+        ProduitRemplacant produitRemplacant = ligneNReponse.getIndisponibilite().getProduitRemplacant();
+
+        CreationProduitDTO creationProduit = new CreationProduitDTO();
+        creationProduit.setStrName(produitRemplacant.getDesignation());
+        creationProduit.setIntPrice(pair.getRight());
+        creationProduit.setIntPaf(pair.getLeft());
+        creationProduit.setIntPat(creationProduit.getIntPaf());
+        creationProduit.setIntPriceTips(creationProduit.getIntPrice());
+        creationProduit.setIntT("");
+        if (produitRemplacant.getTypeCodification().equalsIgnoreCase(TYPE_CODIFICATION_EAN)) {
+            creationProduit.setIntEan13(creationProduit.getIntEan13());
+        } else {
+            creationProduit.setIntCip(produitRemplacant.getCodeProduit());
+        }
+        creationProduit.setLgFamilleArticleId("1010");
+        creationProduit.setStrCodeRemise("0");
+        creationProduit.setStrCodeTauxRemboursement("0");
+        creationProduit.setLgZoneGeoId("1");
+        creationProduit.setSeuilMax(1);
+        creationProduit.setBoolDeconditionne((short) 0);
+        creationProduit.setLgTypeEtiquetteId("2");
+
+        creationProduit.setLgCodeTvaId("1");
+
+        return creationProduit;
+    }
+
+    private Pair<TFamille, TOrderDetail> searchCoupleFamilleOrderDetailByLigneNReponse(List<TOrderDetail> items,
+            LigneNReponse ligneNReponse, String idGrossiste) {
+        for (TOrderDetail item : items) {
+
+            TFamille famille = item.getLgFAMILLEID();
+            if (famille.getIntCIP().equals(ligneNReponse.getCodeProduit())
+                    || famille.getIntEAN13().equals(ligneNReponse.getCodeProduit())) {
+
+                return Pair.of(famille, item);
             }
 
-        } catch (Exception e) {
-            e.printStackTrace(System.err);
+            TFamilleGrossiste familleGrossiste = findTFamilleGrossisteByCodeCipOrEanOrProduitCode(
+                    ligneNReponse.getCodeProduit(), idGrossiste, famille.getLgFAMILLEID());
+
+            if (Objects.nonNull(familleGrossiste)) {
+                if (familleGrossiste.getStrCODEARTICLE().equals(ligneNReponse.getCodeProduit())) {
+
+                    return Pair.of(famille, item);
+                }
+            }
+
         }
+        return null;// n'est pas sence arriver
     }
 
-    @Override
-    public JSONObject renvoiPharmaCommande(String ruptureId, String grossiste, LocalDate dateLivraisonSouhaitee, int typeCommande, String typeCommandeExecptionel, String commentaire) {
-        JSONObject json = new JSONObject();
-        Rupture order = getEntityManager().find(Rupture.class, ruptureId);
-        TGrossiste envoiGr = getEntityManager().find(TGrossiste.class, grossiste);
-        order.setGrossiste(envoiGr);
-        this.getEntityManager().merge(order);
-//        TGrossiste tg = order.getGrossiste();
-        List<PharmaMLItemDTO> itemDTO = new ArrayList<>();
-        orderService.ruptureDetaisDtoByRupture(ruptureId).forEach(d -> {
-            TFamille tf = d.getProduit();
-            PharmaMLItemDTO o = new PharmaMLItemDTO(d, tf, orderService.findOrCreateFamilleGrossiste(tf, envoiGr), false, false, false, PharmaMlUtils.TYPE_CODIFICATION_CIP);
-            itemDTO.add(o);
+    private void createRupture(Map<TOrderDetail, Pair<TFamille, LigneNReponse>> lignesRupture, TOrder order,
+            TGrossiste grossiste) {
+
+        Rupture rupture = orderService.creerRupture(order);
+        lignesRupture.forEach((orderDetail, coupleProduitResponse) -> {
+            LigneNReponse ligneNReponse = coupleProduitResponse.getRight();
+            orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(), orderDetail.getIntNUMBER());
+            processRemplacement(ligneNReponse, grossiste, orderDetail, order);
+            if (ligneNReponse.getQuantiteLivree() == 0) {
+                em.remove(orderDetail);
+            }
         });
-        try {
-            buildCommande(message_url + order.getReference(), envoiGr.getIdRepartiteur(), PharmaMlUtils.TYPE_TRAVAIL_COMMANDE,
-                    dateLivraisonSouhaitee, typeCommande, typeCommandeExecptionel, itemDTO, commentaire, order.getReference().replace("_", ""));
-            return json.put("success", true);
-        } catch (IOException e) {
-            e.printStackTrace(System.err);
-            return json.put("success", true);
-        }
-    }
-
-    public JSONObject reponseRupture(String ruptureId, TUser u) {
-        try {
-            Rupture rup = getEntityManager().find(Rupture.class, ruptureId);
-            File finalFile = findCommandeResponse(reponse_url);
-            if (finalFile == null) {
-                return new JSONObject().put("success", false).put("status", "responseNotFound");
-            }
-            Pair<List<PharmaMLItemDTO>, List<PharmaMLItemDTO>> p = processCommande(finalFile, rup.getReference());
-            List<PharmaMLItemDTO> prisEncompte = p.getLeft();
-            List<PharmaMLItemDTO> rupture = p.getRight();
-
-            if (!prisEncompte.isEmpty()) {
-                TGrossiste grossiste = rup.getGrossiste();
-                TOrder order = orderService.createOrder(grossiste, u);
-                orderItemsFromPharmaMLItemDTO(prisEncompte, order, rup.getId());
-                getEntityManager().persist(order);
-            }
-
-            if (rupture.isEmpty()) {
-                this.getEntityManager().remove(rup);
-            }
-            return new JSONObject().put("success", true).put("nbreproduit", prisEncompte.size())
-                    .put("nbrerupture", rupture.size());
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return new JSONObject().put("success", false);
-        }
 
     }
 
-    void orderItemsFromPharmaMLItemDTO(List<PharmaMLItemDTO> items, TOrder order, String ruptureId) {
+    private void processRemplacement(LigneNReponse ligneNReponse, TGrossiste grossiste, TOrderDetail origin,
+            TOrder order) {
+        IndisponibiliteN indisponibilite = ligneNReponse.getIndisponibilite();
+        if (Objects.nonNull(indisponibilite)) {
+            ProduitRemplacant produitRemplacant = indisponibilite.getProduitRemplacant();
+            if (Objects.nonNull(produitRemplacant)
+                    && (TypeRemplacement.EL.name().equals(produitRemplacant.getTypeRemplacement())
+                            || TypeRemplacement.RL.name().equals(produitRemplacant.getTypeRemplacement()))) {
+                TFamilleGrossiste familleGrossiste = findTFamilleGrossisteByCodeCipOrEanOrProduitCode(
+                        produitRemplacant.getCodeProduit(), grossiste.getLgGROSSISTEID());
+                TFamille famille = findTFamilleByCodeCipOrEan(produitRemplacant.getCodeProduit());
+                if (Objects.isNull(familleGrossiste) && Objects.nonNull(famille)) {
+
+                    produitService.createTFamilleGrossisteFromRupture(buildFromLigneNReponse(ligneNReponse), famille,
+                            grossiste);
+
+                } else if (Objects.isNull(famille)) {
+
+                    famille = createTFamille(buildFromLigneNReponse(ligneNReponse), grossiste);
+                }
+                addRemplacement(ligneNReponse, origin, famille, order);
+                // on ajoute la ligne a la commande
+            }
+
+        }
+    }
+
+    private void processOnderDetailResponce(TOrderDetail o, LigneNReponse ligneNReponse) {
+        Pair<Integer, Integer> prix = getPrixAchatPrixUni(ligneNReponse.getPrix());
+
+        o.setIntQTEREPGROSSISTE(ligneNReponse.getQuantiteLivree());
+
+        o.setIntQTEMANQUANT(ligneNReponse.getQuantiteLivree());
+        o.setIntNUMBER(ligneNReponse.getQuantiteLivree());
+
+        if (prix.getLeft() > 0) {
+            o.setPrixAchat(prix.getLeft());
+            o.setIntPAFDETAIL(prix.getLeft());
+        } else {
+            o.setPrixAchat(o.getIntPAFDETAIL());
+        }
+        o.setPrixUnitaire(prix.getRight());
+        o.setIntPRICE(o.getIntNUMBER() * o.getPrixAchat());
+        o.setIntPRICEDETAIL(o.getPrixUnitaire());
+        o.setDtUPDATED(new Date());
+        em.merge(o);
+
+    }
+
+    private JSONObject traiterCommandeRepondue(TOrder order, CsrpEnveloppeResponse response) {
+
         TGrossiste grossiste = order.getLgGROSSISTEID();
-        Collection<TOrderDetail> orderDetails = new ArrayList<>(items.size());
-        items.forEach(x -> {
-            TFamilleGrossiste o = orderService.finFamilleGrossisteByFamilleCipAndIdGrossiste(x.getCip(), grossiste.getLgGROSSISTEID());
-            TOrderDetail OTOrderDetail = new TOrderDetail(RandomStringUtils.randomAlphabetic(20));
-            OTOrderDetail.setLgORDERID(order);
-            OTOrderDetail.setIntNUMBER(x.getQuantite());
-            OTOrderDetail.setIntQTEREPGROSSISTE(x.getQuantite());
-            OTOrderDetail.setIntQTEMANQUANT(x.getQuantite());
-            OTOrderDetail.setLgFAMILLEID(o.getLgFAMILLEID());
-            OTOrderDetail.setLgGROSSISTEID(grossiste);
-            OTOrderDetail.setStrSTATUT(DateConverter.PASSE);
-            OTOrderDetail.setDtCREATED(new Date());
-            OTOrderDetail.setDtUPDATED(new Date());
-            OTOrderDetail.setIntPAFDETAIL(o.getIntPAF());
-            OTOrderDetail.setIntPRICEDETAIL(o.getIntPRICE());
-            if (x.getPrixAchat() > 0) {
-                OTOrderDetail.setIntPAFDETAIL(x.getPrixAchat());
+        String idGrossiste = grossiste.getLgGROSSISTEID();
+        AtomicInteger countRupture = new AtomicInteger(0);
+        AtomicInteger ruptureComplet = new AtomicInteger(0);
+        AtomicInteger prisEncompte = new AtomicInteger(0);
+        Map<TOrderDetail, Pair<TFamille, LigneNReponse>> lignesRupture = new HashedMap<>();
+        List<LigneNReponse> lignes = getLigneNReponses(response);
+        List<TOrderDetail> items = new ArrayList<>(order.getTOrderDetailCollection());
+
+        int itemSize = items.size();
+        int montantCommande = 0;
+        // si tout les produit sont zero surprime la commande
+        for (LigneNReponse ligneNReponse : lignes) {
+            Pair<TFamille, TOrderDetail> produitCommandeItem = searchCoupleFamilleOrderDetailByLigneNReponse(items,
+                    ligneNReponse, idGrossiste);
+            int qteLivre = ligneNReponse.getQuantiteLivree();
+            TOrderDetail orderDetail = produitCommandeItem.getRight();
+
+            if (qteLivre >= orderDetail.getIntNUMBER()) {
+                prisEncompte.incrementAndGet();
+                processOnderDetailResponce(orderDetail, ligneNReponse);
+                montantCommande += computeOrderAmount(ligneNReponse);
+            } else {
+                if (qteLivre > 0 && qteLivre < orderDetail.getIntNUMBER()) {
+
+                    prisEncompte.incrementAndGet();
+                    processOnderDetailResponce(orderDetail, ligneNReponse);
+                    montantCommande += computeOrderAmount(ligneNReponse);
+                } else {
+                    ruptureComplet.incrementAndGet();
+                }
+                countRupture.incrementAndGet();
+
+                lignesRupture.put(orderDetail, Pair.of(produitCommandeItem.getLeft(), ligneNReponse));
+
             }
-            OTOrderDetail.setIntPRICE(OTOrderDetail.getIntPAFDETAIL() * x.getQuantite());
-            OTOrderDetail.setIntORERSTATUS((short) 3);
-            order.setIntPRICE(order.getIntPRICE() + OTOrderDetail.getIntPRICE());
-            orderDetails.add(OTOrderDetail);
-            getEntityManager().persist(o);
-            try {
-                this.getEntityManager().refresh(orderService.ruptureDetaisByRuptureAndProduitId(ruptureId, o.getLgFAMILLEID().getLgFAMILLEID()));
-            } catch (Exception e) {
-                e.printStackTrace(System.err);
-            }
-        });
+            items.remove(orderDetail);
+        }
+        // la commande est en rupture totale
+
+        if (countRupture.get() > 0) {
+            createRupture(lignesRupture, order, grossiste);
+        }
+        if (prisEncompte.get() > 0) {
+            order.setIntPRICE(montantCommande);
+            order.setDtUPDATED(new Date());
+            em.merge(order);
+        }
+        if (itemSize == ruptureComplet.get()) {
+            em.remove(order);
+        }
+        // update commande montant
+        return new JSONObject().put("success", true).put("totalProduit", itemSize)
+                .put("nbreproduit", prisEncompte.get()).put("nbrerupture", countRupture.get());
 
     }
 
+    private int computeOrderAmount(LigneNReponse ligneNReponse) {
+        return ligneNReponse.getQuantiteLivree() * getPrixAchatPrixUni(ligneNReponse.getPrix()).getLeft();
+    }
+
+    private HttpClient getHttpClient() {
+        return HttpClient.newHttpClient();
+    }
+
+    private CsrpEnveloppe buildPayload(TOrder order, TGrossiste grossiste, TOfficine of, String commentiare) {
+
+        CsrpEnveloppe ce = new CsrpEnveloppe();
+        ce.setUsage(PharmaMlUtils.USAGE_VALUE);
+        ce.setVersionProtocole(PharmaMlUtils.VERSION_PROTOCLE_VALUE);
+        ce.setVersionLogiciel(PharmaMlUtils.VERSION_LOGICIEL_VALUE);
+        ce.setIdLogiciel(PharmaMlUtils.ID_LOGICIEL_VALUE);
+        ce.setEntete(buildEntete(grossiste, of));
+        ce.setCorps(buildCorps(order, commentiare));
+        ce.setNatureAction(PharmaMlUtils.NATURE_ACTION_REQ_EMISSION);
+        return ce;
+
+    }
+
+    private String getDate() {
+        return LocalDate.now() + "T" + LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
+    }
+
+    private Entete buildEntete(TGrossiste grossiste, TOfficine of) {
+        Entete e = new Entete();
+        e.setDate(getDate());
+        e.setRefMessage(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+        e.setEmetteur(buildEmetteur(grossiste, of));
+        e.setRecepteur(buildRecepteur(grossiste));
+        return e;
+
+    }
+
+    private Partenaire buildEmetteur(TGrossiste grossiste, TOfficine of) {
+        String code = StringUtils.isNotEmpty(grossiste.getStrOFFICINEID()) ? grossiste.getStrOFFICINEID()
+                : PharmaMlUtils.CODE_VALUE;
+        Partenaire p = new Partenaire();
+        p.setNature(PharmaMlUtils.NATURE_PARTENAIRE_VALUE_OF);
+        p.setCode(code);
+        p.setAdresse(of.getStrNOMCOMPLET());
+        p.setId(grossiste.getStrIDRECEPTEURPHARMA());
+        return p;
+    }
+
+    private Partenaire buildRecepteur(TGrossiste grossiste) {
+
+        Partenaire p = new Partenaire();
+        p.setNature(PharmaMlUtils.NATURE_PARTENAIRE_VALUE_RE);
+        p.setCode(grossiste.getStrCODERECEPTEURPHARMA());
+        p.setAdresse(grossiste.getStrLIBELLE());
+
+        p.setId(grossiste.getIdRepartiteur());
+        return p;
+    }
+
+    private MessageEntete buildMessageEntete(TGrossiste grossiste) {
+        MessageEntete me = new MessageEntete();
+        me.setEmetteur(buildOfficineEmetteur(grossiste));
+        me.setDestinataire(buildOfficineDestinataire(grossiste));
+        me.setDate(getDate());
+        return me;
+    }
+
+    private OfficinePartenaire buildOfficineDestinataire(TGrossiste grossiste) {
+        OfficinePartenaire op = new OfficinePartenaire();
+        op.setIdSociete(grossiste.getIdRepartiteur());
+        op.setCodeSociete(grossiste.getStrCODERECEPTEURPHARMA());
+        op.setNaturePartenaire(PharmaMlUtils.NATURE_PARTENAIRE_VALUE_RE);
+        return op;
+    }
+
+    private OfficinePartenaire buildOfficineEmetteur(TGrossiste grossiste) {
+        OfficinePartenaire op = new OfficinePartenaire();
+        op.setIdClient(grossiste.getStrIDRECEPTEURPHARMA());
+        op.setNaturePartenaire(NATURE_PARTENAIRE_VALUE_OF);
+        return op;
+    }
+
+    private MessageCorps buildMessageCorps(TOrder order, String commentaire, String idGrossiste) {
+        MessageCorps mc = new MessageCorps();
+        mc.setCommande(buildCommande(order, commentaire, idGrossiste));
+        return mc;
+    }
+
+    private Commande buildCommande(TOrder order, String commentaire, String idGrossiste) {
+        Commande c = new Commande();
+        c.setDateLivraison(LocalDate.now().plusDays(1).toString());
+        if (StringUtils.isNotEmpty(commentaire)) {
+            c.setCommentaireGeneral(commentaire);
+        } else {
+            c.setCommentaireGeneral(order.getStrREFORDER());
+        }
+
+        c.setRefCdeClient(order.getStrREFORDER());
+        c.setNormale(buildNormale(order, idGrossiste));
+        return c;
+    }
+
+    private List<LigneN> buildCommandeLigne(TOrder order, String grossisteId) {
+        AtomicInteger count = new AtomicInteger(1);
+        return new ArrayList<>(order.getTOrderDetailCollection()).stream().map(item -> {
+            LigneN ligne = new LigneN();
+            TFamille famille = item.getLgFAMILLEID();
+            TFamilleGrossiste familleGrossiste = orderService
+                    .finFamilleGrossisteByFamilleCipAndIdGrossiste(famille.getIntCIP(), grossisteId);
+
+            String numLigne = StringUtils.leftPad(count.getAndIncrement() + "", 4, '0');
+            String quantite = StringUtils.leftPad(item.getIntNUMBER() + "", 4, '0');
+            String cip = null;
+            if (familleGrossiste != null && StringUtils.isEmpty(familleGrossiste.getStrCODEARTICLE())) {
+                cip = familleGrossiste.getStrCODEARTICLE();
+            }
+            if (StringUtils.isEmpty(cip)) {
+                cip = item.getLgFAMILLEID().getIntCIP();
+            }
+            ligne.setCodeProduit(cip);
+            ligne.setQuantite(quantite);
+            ligne.setNumLigne(numLigne);
+            ligne.setTypeCodification(typeCodification(cip));
+            return ligne;
+
+        }).collect(Collectors.toList());
+    }
+
+    private String typeCodification(String cip) {
+        if (cip.length() == 13) {
+            return TYPE_CODIFICATION_EAN;
+        }
+        return TYPE_CODIFICATION_CIP39;
+    }
+
+    private Normale buildNormale(TOrder order, String grossisteId) {
+        Normale n = new Normale();
+        n.setLignes(buildCommandeLigne(order, grossisteId));
+        return n;
+    }
+
+    private Corps buildCorps(TOrder order, String commentaire) {
+
+        Corps c = new Corps();
+        c.setMessageOfficine(buildMessageOfficine(order, commentaire));
+
+        return c;
+    }
+
+    private MessageOfficine buildMessageOfficine(TOrder order, String commentaire) {
+        TGrossiste grossiste = order.getLgGROSSISTEID();
+        MessageOfficine messageOfficine = new MessageOfficine();
+        messageOfficine.setEntete(buildMessageEntete(grossiste));
+        messageOfficine.setCorps(buildMessageCorps(order, commentaire, grossiste.getLgGROSSISTEID()));
+        return messageOfficine;
+    }
+
+    private void createSaveXmlFile(Marshaller marshaller, Object objectToSave, String prefix, String fileName)
+            throws IOException, JAXBException {
+        Path path = Paths.get(ap.pharmaMlDir + File.separator + prefix.toUpperCase() + "_" + fileName + ".xml");
+        try (OutputStream os = Files.newOutputStream(path)) {
+            marshaller.marshal(objectToSave, os);
+        }
+
+    }
+
+    private void saveResponse(String response, String fileName) {
+        try {
+            Path path = Paths.get(ap.pharmaMlDir + File.separator + "R_" + fileName + ".xml");
+            Files.write(path, response.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException ex) {
+            LOG.log(Level.SEVERE, "saveResonse", ex);
+        }
+    }
+
+    private CsrpEnveloppeResponse loadFromFileForTestingPurpose() {
+        try {
+            Path path = Paths.get(ap.pharmaMlDir + File.separator + "R_15062025_00001_UBIPHARMYOP.xml");
+            JAXBContext jaxbContext = JAXBContext.newInstance(CsrpEnveloppeResponse.class);
+            Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
+            return (CsrpEnveloppeResponse) unmarshaller.unmarshal(path.toFile());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "tes", e);
+        }
+        return null;
+
+    }
 }

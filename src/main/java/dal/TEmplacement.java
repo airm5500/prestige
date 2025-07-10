@@ -31,18 +31,17 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_emplacement")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TEmplacement.findAll", query = "SELECT t FROM TEmplacement t"),
-    @NamedQuery(name = "TEmplacement.findByLgEMPLACEMENTID", query = "SELECT t FROM TEmplacement t WHERE t.lgEMPLACEMENTID = :lgEMPLACEMENTID"),
-    @NamedQuery(name = "TEmplacement.findByStrNAME", query = "SELECT t FROM TEmplacement t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TEmplacement.findByStrFIRSTNAME", query = "SELECT t FROM TEmplacement t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
-    @NamedQuery(name = "TEmplacement.findByStrREF", query = "SELECT t FROM TEmplacement t WHERE t.strREF = :strREF"),
-    @NamedQuery(name = "TEmplacement.findByStrLASTNAME", query = "SELECT t FROM TEmplacement t WHERE t.strLASTNAME = :strLASTNAME"),
-    @NamedQuery(name = "TEmplacement.findByStrPHONE", query = "SELECT t FROM TEmplacement t WHERE t.strPHONE = :strPHONE"),
-    @NamedQuery(name = "TEmplacement.findByDtCREATED", query = "SELECT t FROM TEmplacement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TEmplacement.findByDtUPDATED", query = "SELECT t FROM TEmplacement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TEmplacement.findByStrSTATUT", query = "SELECT t FROM TEmplacement t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TEmplacement.findByBoolSAMELOCATION", query = "SELECT t FROM TEmplacement t WHERE t.boolSAMELOCATION = :boolSAMELOCATION")})
+@NamedQueries({ @NamedQuery(name = "TEmplacement.findAll", query = "SELECT t FROM TEmplacement t"),
+        @NamedQuery(name = "TEmplacement.findByLgEMPLACEMENTID", query = "SELECT t FROM TEmplacement t WHERE t.lgEMPLACEMENTID = :lgEMPLACEMENTID"),
+        @NamedQuery(name = "TEmplacement.findByStrNAME", query = "SELECT t FROM TEmplacement t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TEmplacement.findByStrFIRSTNAME", query = "SELECT t FROM TEmplacement t WHERE t.strFIRSTNAME = :strFIRSTNAME"),
+        @NamedQuery(name = "TEmplacement.findByStrREF", query = "SELECT t FROM TEmplacement t WHERE t.strREF = :strREF"),
+        @NamedQuery(name = "TEmplacement.findByStrLASTNAME", query = "SELECT t FROM TEmplacement t WHERE t.strLASTNAME = :strLASTNAME"),
+        @NamedQuery(name = "TEmplacement.findByStrPHONE", query = "SELECT t FROM TEmplacement t WHERE t.strPHONE = :strPHONE"),
+        @NamedQuery(name = "TEmplacement.findByDtCREATED", query = "SELECT t FROM TEmplacement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TEmplacement.findByDtUPDATED", query = "SELECT t FROM TEmplacement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TEmplacement.findByStrSTATUT", query = "SELECT t FROM TEmplacement t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TEmplacement.findByBoolSAMELOCATION", query = "SELECT t FROM TEmplacement t WHERE t.boolSAMELOCATION = :boolSAMELOCATION") })
 public class TEmplacement implements Serializable {
 
     @OneToMany(mappedBy = "lgEMPLACEMENTID")
@@ -54,10 +53,10 @@ public class TEmplacement implements Serializable {
     private String lgEMPLACEMENTID;
     @Column(name = "str_NAME", length = 50)
     private String strNAME;
-   
+
     @Column(name = "str_DESCRIPTION", length = 255)
     private String strDESCRIPTION;
-   
+
     @Column(name = "str_LOCALITE", length = 255)
     private String strLOCALITE;
     @Column(name = "str_FIRST_NAME", length = 50)
@@ -92,15 +91,15 @@ public class TEmplacement implements Serializable {
     private Collection<TFamilleZonegeo> tFamilleZonegeoCollection;
     @OneToMany(mappedBy = "lgEMPLACEMENTID")
     private Collection<TRetourdepot> tRetourdepotCollection;
-    @OneToMany( mappedBy = "lgEMPLACEMENTID")
+    @OneToMany(mappedBy = "lgEMPLACEMENTID")
     private Collection<THistorypreenregistrement> tHistorypreenregistrementCollection;
-    @OneToMany( mappedBy = "lgEMPLACEMENTID")
+    @OneToMany(mappedBy = "lgEMPLACEMENTID")
     private Collection<TTypeStockFamille> tTypeStockFamilleCollection;
     @OneToMany(mappedBy = "lgEMPLACEMENTID")
     private Collection<TFamilleStock> tFamilleStockCollection;
     @OneToMany(mappedBy = "lgEMPLACEMENTID")
     private Collection<TMouvementSnapshot> tMouvementSnapshotCollection;
-    @OneToMany( mappedBy = "lgEMPLACEMENTID")
+    @OneToMany(mappedBy = "lgEMPLACEMENTID")
     private Collection<TUser> tUserCollection;
     @OneToMany(mappedBy = "lgEMPLACEMENTID")
     private Collection<TMouvement> tMouvementCollection;
@@ -265,7 +264,8 @@ public class TEmplacement implements Serializable {
         return tHistorypreenregistrementCollection;
     }
 
-    public void setTHistorypreenregistrementCollection(Collection<THistorypreenregistrement> tHistorypreenregistrementCollection) {
+    public void setTHistorypreenregistrementCollection(
+            Collection<THistorypreenregistrement> tHistorypreenregistrementCollection) {
         this.tHistorypreenregistrementCollection = tHistorypreenregistrementCollection;
     }
 
@@ -328,7 +328,8 @@ public class TEmplacement implements Serializable {
             return false;
         }
         TEmplacement other = (TEmplacement) object;
-        if ((this.lgEMPLACEMENTID == null && other.lgEMPLACEMENTID != null) || (this.lgEMPLACEMENTID != null && !this.lgEMPLACEMENTID.equals(other.lgEMPLACEMENTID))) {
+        if ((this.lgEMPLACEMENTID == null && other.lgEMPLACEMENTID != null)
+                || (this.lgEMPLACEMENTID != null && !this.lgEMPLACEMENTID.equals(other.lgEMPLACEMENTID))) {
             return false;
         }
         return true;
@@ -347,5 +348,5 @@ public class TEmplacement implements Serializable {
     public void setTInventaireCollection(Collection<TInventaire> tInventaireCollection) {
         this.tInventaireCollection = tInventaireCollection;
     }
-    
+
 }

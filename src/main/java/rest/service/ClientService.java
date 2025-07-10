@@ -14,6 +14,7 @@ import commonTasks.dto.VenteTiersPayantsDTO;
 import dal.TClient;
 import dal.TCompteClientTiersPayant;
 import dal.TTiersPayant;
+import java.io.IOException;
 import java.util.List;
 import javax.ejb.Local;
 import org.json.JSONException;
@@ -24,7 +25,7 @@ import org.json.JSONObject;
  * @author Kobena
  */
 @Local
-//@Remote
+// @Remote
 public interface ClientService {
 
     TClient createClient(ClientLambdaDTO clientLambda);
@@ -55,19 +56,29 @@ public interface ClientService {
 
     JSONObject updateOrCreateClientAssurance(ClientDTO client) throws JSONException;
 
-    TCompteClientTiersPayant updateOrCreateClientAssurance(TClient client, TTiersPayant tpId, int taux) throws Exception;
+    TCompteClientTiersPayant updateOrCreateClientAssurance(TClient client, TTiersPayant tpId, int taux)
+            throws Exception;
 
     void updateCompteClientTiersPayantEncourAndPlafond(String venteId);
 
-    JSONObject addNewTiersPayantToClient(TiersPayantDTO tiersPayantDTO, String clientId, String typeTiersPayantId, int taux) throws JSONException;
+    JSONObject addNewTiersPayantToClient(TiersPayantDTO tiersPayantDTO, String clientId, String typeTiersPayantId,
+            int taux) throws JSONException;
 
     JSONObject updateClientInfos(ClientDTO client, String id);
 
     JSONObject updateAyantDroitInfos(AyantDroitDTO ayantDroitDTO);
 
-    TCompteClientTiersPayant updateOrCreateClientAssurance(TClient client, TTiersPayant tpId, int taux, TCompteClientTiersPayant old) throws Exception;
+    TCompteClientTiersPayant updateOrCreateClientAssurance(TClient client, TTiersPayant tpId, int taux,
+            TCompteClientTiersPayant old) throws Exception;
 
-    JSONObject ventesTiersPayants(String query, String dtStart, String dtEnd, String tiersPayantId, String groupeId,String typeTp, int start, int limit);
+    JSONObject ventesTiersPayants(String query, String dtStart, String dtEnd, String tiersPayantId, String groupeId,
+            String typeTp, int start, int limit);
 
-    List<VenteTiersPayantsDTO> ventesTiersPayants(String query, String dtStart, String dtEnd, String tiersPayantId, String groupeId,String typeTp, int start, int limit, boolean all);
+    List<VenteTiersPayantsDTO> ventesTiersPayants(String query, String dtStart, String dtEnd, String tiersPayantId,
+            String groupeId, String typeTp, int start, int limit, boolean all);
+
+    JSONObject fetchClients(String query, String typeClientId, int start, int limit);
+
+    byte[] generate(boolean isGroupe, String query, String dtStart, String dtEnd, String tiersPayantId, String groupeId,
+            String typeTp) throws IOException;
 }

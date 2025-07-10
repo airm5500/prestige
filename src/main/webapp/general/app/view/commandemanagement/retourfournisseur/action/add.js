@@ -54,16 +54,13 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
     bodyPadding: 5,
     layout: 'column',
     initComponent: function () {
-
-
         Me = this;
-        var itemsPerPage = 20;
-//        famille_id_search = "";
+        const itemsPerPage = 20;
         in_total_vente = 0;
         int_total_formated = 0;
         ref = this.getNameintern();
         titre = this.getTitre();
-        var storebonlivraison = new Ext.data.Store({
+        const storebonlivraison = new Ext.data.Store({
             model: 'testextjs.model.BonLivraison',
             pageSize: itemsPerPage,
             autoLoad: false,
@@ -78,8 +75,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                 tiemout: 180000
             }
         });
-        // storetypemotif
-        var storetypemotif = new Ext.data.Store({
+
+        const storetypemotif = new Ext.data.Store({
             idProperty: 'lgMOTIFRETOUR',
             fields: [
                 {name: 'lgMOTIFRETOUR',
@@ -104,7 +101,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             }
 
         });
-        var store_famille_retourfrs = new Ext.data.Store({
+        const store_famille_retourfrs = new Ext.data.Store({
             model: 'testextjs.model.Famille',
             pageSize: itemsPerPage,
             // remoteFilter: true,
@@ -121,7 +118,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             autoLoad: false
 
         });
-        var store_details_retourfournisseur = new Ext.data.Store({
+        const store_details_retourfournisseur = new Ext.data.Store({
             idProperty: 'lgRETOURFRSDETAIL',
             fields: [
                 {name: 'lgRETOURFRSDETAIL',
@@ -223,8 +220,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                             emptyText: 'Choisir un bon de livraison...',
                                             listeners: {
                                                 select: function (cmp) {
-                                                    var comboFamille = Ext.getCmp('str_NAME');
-                                                    var record = cmp.findRecord(cmp.valueField || cmp.displayField, cmp.getValue()); //recupere la ligne d
+                                                    let comboFamille = Ext.getCmp('str_NAME');
+                                                    let record = cmp.findRecord(cmp.valueField || cmp.displayField, cmp.getValue()); //recupere la ligne d
                                                     Ext.getCmp('str_GROSSISTE_LIBELLE').setValue(record.get('str_GROSSISTE_LIBELLE'));
                                                     comboFamille.clearValue();
                                                     comboFamille.getStore().getProxy().url = "../RetourFourData?lg_BON_LIVRAISON_ID=" + cmp.getValue();
@@ -326,14 +323,14 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                                 keypress: function (field, e) {
 
                                                     if (e.getKey() === e.BACKSPACE || e.getKey() === 46) {
-                                                        if (field.getValue().length == 1) { // a decommenter si demande de reload toute la liste des produits
+                                                        if (field.getValue().length === 1) { // a decommenter si demande de reload toute la liste des produits
                                                             field.getStore().load();
                                                         }
                                                     }
                                                 },
                                                 select: function (cmp) {
-                                                    var value = cmp.getValue();
-                                                    var record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
+                                                    let value = cmp.getValue();
+                                                    let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
 
                                                     Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(record.get('lg_FAMILLE_ID'));
                                                     Ext.getCmp('lg_MOTIF_RETOUR').focus(true, 100, function () {
@@ -387,7 +384,6 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                                         if (Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue() !== "" && Ext.getCmp('int_QUANTITE').getValue() > 0) {
                                                             Me.onbtnadd();
                                                         } else {
-                                                            // Ext.MessageBox.alert('Error Message', 'Verifiez votre saisie svp', funt);
                                                             Ext.MessageBox.show({
                                                                 title: 'Message d\'erreur',
                                                                 width: 320,
@@ -524,11 +520,23 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                 pageSize: 999,
                                 store: store_details_retourfournisseur,
                                 displayInfo: true,
-                                plugins: new Ext.ux.ProgressBarPager()
+                                plugins: new Ext.ux.ProgressBarPager(),
+                                listeners: {
+                                    beforechange: function (page, currentPage) {
+
+                                        const myProxy = Ext.getCmp('gridpanelID').getStore().getProxy();
+                                        myProxy.params = {
+                                            retourId: Me.getCurrent()
+                                        };
+                                        myProxy.setExtraParam('retourId', Me.getCurrent());
+
+                                    }
+                                }
                             },
                             listeners: {
-                                scope: this,
-                                //selectionchange: this.onSelectionChange
+                                scope: this
+
+
                             }
                         }]
                 },
@@ -570,11 +578,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             Ext.getCmp('lg_BON_LIVRAISON_ID').disable();
             Ext.getCmp('str_REPONSE_FRS').show();
             Ext.getCmp('str_GROSSISTE_LIBELLE').setValue(this.getOdatasource().str_GROSSISTE_LIBELLE);
-            /*Ext.getCmp('str_NAME').enable();
-             Ext.getCmp('str_NAME').focus();*/
-
-//alert("url_services_data_famille_select_retourfournisseur "+url_services_data_famille_select_retourfournisseur+ "?lg_BON_LIVRAISON_ID=" + this.getOdatasource().str_REF_LIVRAISON);
-            var comboFamille = Ext.getCmp('str_NAME');
+            let comboFamille = Ext.getCmp('str_NAME');
             comboFamille.enable();
             comboFamille.focus();
             comboFamille.getStore().getProxy().url = "../RetourFourData?lg_BON_LIVRAISON_ID=" + this.getOdatasource().str_REF_LIVRAISON;
@@ -583,8 +587,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
 
 
         Ext.getCmp('gridpanelID').on('edit', function (editor, e) {
-            var qte = Number(e.record.data.intNUMBERRETURN);
-            var qteStock = Number(e.record.data.intSTOCK);
+            let qte = Number(e.record.data.intNUMBERRETURN);
+            let qteStock = Number(e.record.data.intSTOCK);
             if (qte < qteStock) {
                 let params = {
                     lgRETOURFRSDETAIL: e.record.data.lgRETOURFRSDETAIL,
@@ -597,9 +601,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                     params: Ext.JSON.encode(params),
                     success: function (response)
                     {
-                        var result = Ext.JSON.decode(response.responseText, true);
+                        const result = Ext.JSON.decode(response.responseText, true);
                         if (!result.success) {
-                            Ext.MessageBox.alert('Error Message', object.errors);
+                            Ext.MessageBox.alert('Error Message', response.responseText);
                             return;
                         }
 
@@ -643,9 +647,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
     },
     onbtncancel: function () {
 
-        var xtype = "";
-        xtype = "retourfrsmanager";
-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource('retourfrsmanager', "", "", "");
     },
     onbtnvalider: function () {
 
@@ -654,7 +656,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                 function (btn) {
                     if (btn == 'yes') {
                         testextjs.app.getController('App').ShowWaitingProcess();
-                        var param = {"ref": Me.getCurrent(),
+                        let param = {"ref": Me.getCurrent(),
                             "refTwo": Ext.getCmp('str_REPONSE_FRS').getValue(),
                             "description": Ext.getCmp('str_COMMENTAIRE').getValue()
                         };
@@ -667,14 +669,14 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                             {
                                 Me.current = null;
                                 testextjs.app.getController('App').StopWaitingProcess();
-                                var object = Ext.JSON.decode(response.responseText, false);
+                                let object = Ext.JSON.decode(response.responseText, false);
                                 if (!object.success) {
                                     Ext.MessageBox.alert('Error Message', object.msg);
-                                    return;
+
                                 } else {
                                     Ext.MessageBox.alert('Confirmation', object.msg);
-                                    var xtype = "";
-                                    xtype = "retourfrsmanager";
+
+                                    const xtype = "retourfrsmanager";
                                     testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
                                 }
 
@@ -682,8 +684,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                             failure: function (response)
                             {
                                 testextjs.app.getController('App').StopWaitingProcess();
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                console.log("Bug " + response.responseText);
+
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });
@@ -692,9 +693,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
     },
     onbtnadd: function () {
 
-        if (ref === "") {
-            ref = null;
-        } else if (ref === undefined) {
+        if (ref === "" || ref === undefined) {
             ref = null;
         }
         if (Ext.getCmp('lg_BON_LIVRAISON_ID').getValue() === null) {
@@ -732,7 +731,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             };
         }
         ;
-        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        let progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -741,20 +740,20 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             success: function (response)
             {
                 progress.hide();
-                var result = Ext.JSON.decode(response.responseText, true);
+                let result = Ext.JSON.decode(response.responseText, true);
                 if (!result.success) {
                     Ext.MessageBox.alert('Error Message', result.msg);
-                    return;
+
                 } else {
                     let data = result.data;
                     Me.current = data.lgRETOURFRSID;
-                    console.log(data);
+
                     Ext.getCmp('lg_BON_LIVRAISON_ID').disable();
                     Ext.getCmp('str_NAME').setValue("");
                     Ext.getCmp('lg_MOTIF_RETOUR').setValue("");
                     Ext.getCmp('int_QUANTITE').setValue(1);
 
-                    var OComboFamille = Ext.getCmp('str_NAME');
+                    let OComboFamille = Ext.getCmp('str_NAME');
                     OComboFamille.focus();
                     Ext.getCmp('gridpanelID').getStore().load({
                         params: {
@@ -768,8 +767,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             failure: function (response)
             {
                 progress.hide();
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
+
                 Ext.MessageBox.alert('Error Message', response.responseText);
             }
         });
@@ -779,14 +777,14 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                 'Confirmer la suppresssion',
                 function (btn) {
                     if (btn == 'yes') {
-                        var rec = grid.getStore().getAt(rowIndex);
+                        const rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             method: 'DELETE',
                             headers: {'Content-Type': 'application/json'},
-                            url: '../api/v1/retourfournisseur/remove-item/'+rec.get('lgRETOURFRSDETAIL'),
+                            url: '../api/v1/retourfournisseur/remove-item/' + rec.get('lgRETOURFRSDETAIL'),
                             success: function (response)
                             {
-                                var object = Ext.JSON.decode(response.responseText, false);
+                                let object = Ext.JSON.decode(response.responseText, false);
                                 if (!object.success) {
                                     Ext.MessageBox.alert('Error Message', object.errors);
                                     return;
@@ -800,19 +798,14 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                             },
                             failure: function (response)
                             {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                console.log("Bug " + response.responseText);
+
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });
-                        return;
+
                     }
                 });
     }
-
-
-
-
 });
 
 

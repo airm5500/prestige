@@ -26,12 +26,8 @@ import toolkits.parameters.commonparameter;
  *
  * @author koben
  */
-@WebServlet(name = "ImportationVenteCtr", urlPatterns = {"/ImportationVenteCtr"})
-@MultipartConfig(
-        fileSizeThreshold = 5242880,
-        maxFileSize = 20971520L,
-        maxRequestSize = 41943040L
-)
+@WebServlet(name = "ImportationVenteCtr", urlPatterns = { "/ImportationVenteCtr" })
+@MultipartConfig(fileSizeThreshold = 5242880, maxFileSize = 20971520L, maxRequestSize = 41943040L)
 public class ImportationVenteCtr extends HttpServlet {
 
     @EJB
@@ -59,14 +55,20 @@ public class ImportationVenteCtr extends HttpServlet {
         }
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
+    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the
+    // code.">
     /**
      * Handles the HTTP <code>GET</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -77,10 +79,15 @@ public class ImportationVenteCtr extends HttpServlet {
     /**
      * Handles the HTTP <code>POST</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)

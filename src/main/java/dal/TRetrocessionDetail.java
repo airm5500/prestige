@@ -25,14 +25,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_retrocession_detail")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRetrocessionDetail.findAll", query = "SELECT t FROM TRetrocessionDetail t"),
-    @NamedQuery(name = "TRetrocessionDetail.findByLgRETROCESSIONDETAILID", query = "SELECT t FROM TRetrocessionDetail t WHERE t.lgRETROCESSIONDETAILID = :lgRETROCESSIONDETAILID"),
-    @NamedQuery(name = "TRetrocessionDetail.findByIntQtefacture", query = "SELECT t FROM TRetrocessionDetail t WHERE t.intQtefacture = :intQtefacture"),
-    @NamedQuery(name = "TRetrocessionDetail.findByBoolTF", query = "SELECT t FROM TRetrocessionDetail t WHERE t.boolTF = :boolTF"),
-    @NamedQuery(name = "TRetrocessionDetail.findByIntPRICE", query = "SELECT t FROM TRetrocessionDetail t WHERE t.intPRICE = :intPRICE"),
-    @NamedQuery(name = "TRetrocessionDetail.findByIntREMISE", query = "SELECT t FROM TRetrocessionDetail t WHERE t.intREMISE = :intREMISE"),
-    @NamedQuery(name = "TRetrocessionDetail.findByStrSTATUT", query = "SELECT t FROM TRetrocessionDetail t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TRetrocessionDetail.findAll", query = "SELECT t FROM TRetrocessionDetail t"),
+        @NamedQuery(name = "TRetrocessionDetail.findByLgRETROCESSIONDETAILID", query = "SELECT t FROM TRetrocessionDetail t WHERE t.lgRETROCESSIONDETAILID = :lgRETROCESSIONDETAILID"),
+        @NamedQuery(name = "TRetrocessionDetail.findByIntQtefacture", query = "SELECT t FROM TRetrocessionDetail t WHERE t.intQtefacture = :intQtefacture"),
+        @NamedQuery(name = "TRetrocessionDetail.findByBoolTF", query = "SELECT t FROM TRetrocessionDetail t WHERE t.boolTF = :boolTF"),
+        @NamedQuery(name = "TRetrocessionDetail.findByIntPRICE", query = "SELECT t FROM TRetrocessionDetail t WHERE t.intPRICE = :intPRICE"),
+        @NamedQuery(name = "TRetrocessionDetail.findByIntREMISE", query = "SELECT t FROM TRetrocessionDetail t WHERE t.intREMISE = :intREMISE"),
+        @NamedQuery(name = "TRetrocessionDetail.findByStrSTATUT", query = "SELECT t FROM TRetrocessionDetail t WHERE t.strSTATUT = :strSTATUT") })
 public class TRetrocessionDetail implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -141,7 +140,9 @@ public class TRetrocessionDetail implements Serializable {
             return false;
         }
         TRetrocessionDetail other = (TRetrocessionDetail) object;
-        if ((this.lgRETROCESSIONDETAILID == null && other.lgRETROCESSIONDETAILID != null) || (this.lgRETROCESSIONDETAILID != null && !this.lgRETROCESSIONDETAILID.equals(other.lgRETROCESSIONDETAILID))) {
+        if ((this.lgRETROCESSIONDETAILID == null && other.lgRETROCESSIONDETAILID != null)
+                || (this.lgRETROCESSIONDETAILID != null
+                        && !this.lgRETROCESSIONDETAILID.equals(other.lgRETROCESSIONDETAILID))) {
             return false;
         }
         return true;
@@ -151,5 +152,5 @@ public class TRetrocessionDetail implements Serializable {
     public String toString() {
         return "dal.TRetrocessionDetail[ lgRETROCESSIONDETAILID=" + lgRETROCESSIONDETAILID + " ]";
     }
-    
+
 }

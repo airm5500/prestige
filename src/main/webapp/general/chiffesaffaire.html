@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Statistique ca sur 3ans(CFA)</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="./iframe/resources/css/bootstrap.min.css">
+        <style>
+            #spinner1,#spinner2{
+                margin: 20rem !important;
+            }
+        </style>
+    </head>
+    <body>
+        <script src="./iframe/resources/js/jquery.min.js"></script>
+        <script src="./iframe/resources/js/bootstrap.js"></script>
+        <script src="./iframe/resources/js/chart.js"></script>
+
+        <div class="container-fluid row">
+
+            <div class="col-md-1 mt-5 p-1">
+                <div class="d-flex align-items-start">
+                    <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                        <button class="nav-link active" id="btn-barchart" data-bs-toggle="pill" data-bs-target="#v-barchart" type="button" role="tab" aria-controls="v-barchart" aria-selected="true">Bande</button>
+                        <button class="nav-link" id="btn-pills-line" data-bs-toggle="pill" data-bs-target="#v-pills-line" type="button" role="tab" aria-controls="v-pills-line" aria-selected="false">Courbe</button>
+                    </div>
+
+                </div>
+            </div>
+            <div class="tab-content col-md-11 p-1 " id="v-pills-tabContent">
+                <div class="tab-pane fade show active" id="v-barchart" role="tabpanel" aria-labelledby="btn-barchart">
+                    
+                        <div class="spinner-border m-xxl-5 text-success" role="status" id="spinner1">
+                          
+                        </div>
+                  
+                    <canvas id="caChart"></canvas>
+                </div>
+                <div class="tab-pane fade" id="v-pills-line" role="tabpanel" aria-labelledby="btn-pills-line">
+                   
+                        <div class="spinner-border m-xxl-5 text-success" role="status" id="spinner2">
+                       
+                        
+                    </div>
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </div> 
+        <script   src="./iframe/resources/js/chiffres.js"></script>
+    </body>
+</html>

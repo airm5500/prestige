@@ -33,16 +33,15 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_retourdepot")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRetourdepot.findAll", query = "SELECT t FROM TRetourdepot t"),
-    @NamedQuery(name = "TRetourdepot.findByLgRETOURDEPOTID", query = "SELECT t FROM TRetourdepot t WHERE t.lgRETOURDEPOTID = :lgRETOURDEPOTID"),
-    @NamedQuery(name = "TRetourdepot.findByStrNAME", query = "SELECT t FROM TRetourdepot t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TRetourdepot.findByStrCOMMENTAIRE", query = "SELECT t FROM TRetourdepot t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
-    @NamedQuery(name = "TRetourdepot.findByStrSTATUT", query = "SELECT t FROM TRetourdepot t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TRetourdepot.findByDtUPDATED", query = "SELECT t FROM TRetourdepot t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TRetourdepot.findByDtCREATED", query = "SELECT t FROM TRetourdepot t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRetourdepot.findByDblAMOUNT", query = "SELECT t FROM TRetourdepot t WHERE t.dblAMOUNT = :dblAMOUNT"),
-    @NamedQuery(name = "TRetourdepot.findByBoolFLAG", query = "SELECT t FROM TRetourdepot t WHERE t.boolFLAG = :boolFLAG")})
+@NamedQueries({ @NamedQuery(name = "TRetourdepot.findAll", query = "SELECT t FROM TRetourdepot t"),
+        @NamedQuery(name = "TRetourdepot.findByLgRETOURDEPOTID", query = "SELECT t FROM TRetourdepot t WHERE t.lgRETOURDEPOTID = :lgRETOURDEPOTID"),
+        @NamedQuery(name = "TRetourdepot.findByStrNAME", query = "SELECT t FROM TRetourdepot t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TRetourdepot.findByStrCOMMENTAIRE", query = "SELECT t FROM TRetourdepot t WHERE t.strCOMMENTAIRE = :strCOMMENTAIRE"),
+        @NamedQuery(name = "TRetourdepot.findByStrSTATUT", query = "SELECT t FROM TRetourdepot t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TRetourdepot.findByDtUPDATED", query = "SELECT t FROM TRetourdepot t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TRetourdepot.findByDtCREATED", query = "SELECT t FROM TRetourdepot t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRetourdepot.findByDblAMOUNT", query = "SELECT t FROM TRetourdepot t WHERE t.dblAMOUNT = :dblAMOUNT"),
+        @NamedQuery(name = "TRetourdepot.findByBoolFLAG", query = "SELECT t FROM TRetourdepot t WHERE t.boolFLAG = :boolFLAG") })
 public class TRetourdepot implements Serializable {
 
     @Column(name = "PKEY")
@@ -81,7 +80,7 @@ public class TRetourdepot implements Serializable {
     @JoinColumn(name = "lg_EMPLACEMENT_ID", referencedColumnName = "lg_EMPLACEMENT_ID")
     @ManyToOne
     private TEmplacement lgEMPLACEMENTID;
-    @OneToMany( mappedBy = "lgRETOURDEPOTID",cascade = CascadeType.PERSIST)
+    @OneToMany(mappedBy = "lgRETOURDEPOTID", cascade = CascadeType.PERSIST)
     private Collection<TRetourdepotdetail> tRetourdepotdetailCollection;
 
     public TRetourdepot() {
@@ -207,7 +206,8 @@ public class TRetourdepot implements Serializable {
             return false;
         }
         TRetourdepot other = (TRetourdepot) object;
-        if ((this.lgRETOURDEPOTID == null && other.lgRETOURDEPOTID != null) || (this.lgRETOURDEPOTID != null && !this.lgRETOURDEPOTID.equals(other.lgRETOURDEPOTID))) {
+        if ((this.lgRETOURDEPOTID == null && other.lgRETOURDEPOTID != null)
+                || (this.lgRETOURDEPOTID != null && !this.lgRETOURDEPOTID.equals(other.lgRETOURDEPOTID))) {
             return false;
         }
         return true;
@@ -233,5 +233,5 @@ public class TRetourdepot implements Serializable {
     public void setPkey(String pkey) {
         this.pkey = pkey;
     }
-    
+
 }

@@ -49,5 +49,3 @@ public class GetHostAddress {
         return Mac_Address;
     }
 }
-
-

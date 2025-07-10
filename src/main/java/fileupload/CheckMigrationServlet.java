@@ -36,15 +36,14 @@ import toolkits.utils.logger;
  */
 public class CheckMigrationServlet extends HttpServlet {
 
-    //Create a JSON object to send response
+    // Create a JSON object to send response
     JSONObject json = new JSONObject();
 
-   
     private static final long serialVersionUID = 1L;
-//    private static final String TMP_DIR_PATH = "/tempfiles";
+    // private static final String TMP_DIR_PATH = "/tempfiles";
     private static String TMP_DIR_PATH = "";
     private File tmpDir;
-//    private static final String DESTINATION_DIR_PATH = "/files";
+    // private static final String DESTINATION_DIR_PATH = "/files";
     private static String DESTINATION_DIR_PATH = "";
     private File destinationDir;
 
@@ -98,42 +97,41 @@ public class CheckMigrationServlet extends HttpServlet {
 
         DiskFileItemFactory fileItemFactory = new DiskFileItemFactory();
 
-        //Set the size threshold, above which content will be stored on disk.
-        fileItemFactory.setSizeThreshold(3 * 1024 * 1024); //3 MB
+        // Set the size threshold, above which content will be stored on disk.
+        fileItemFactory.setSizeThreshold(3 * 1024 * 1024); // 3 MB
 
-        //Set the temporary directory to store the uploaded files of size above threshold.
+        // Set the temporary directory to store the uploaded files of size above threshold.
         fileItemFactory.setRepository(tmpDir);
         ServletFileUpload uploadHandler = new ServletFileUpload(fileItemFactory);
 
         try {
 
-            //Parse the request
+            // Parse the request
             List items = uploadHandler.parseRequest(request);
             Iterator iterator = items.iterator();
             while (iterator.hasNext()) {
                 FileItem item = (FileItem) iterator.next();
 
-                //Handle Form Fields
+                // Handle Form Fields
                 if (item.isFormField()) {
-                    /*if (item.getFieldName().equalsIgnoreCase("table_name")) {
-                     table_name = item.getString();
-                     new logger().OCategory.info("table_name  " + table_name);
-                     }*/
-                } //Handle Uploaded files.
+                    /*
+                     * if (item.getFieldName().equalsIgnoreCase("table_name")) { table_name = item.getString(); new
+                     * logger().OCategory.info("table_name  " + table_name); }
+                     */
+                } // Handle Uploaded files.
                 else {
-                    System.out.println("Field Name = " + item.getFieldName()
-                            + ", File Name = " + item.getName()
-                            + ", Content type = " + item.getContentType()
-                            + ", File Size = " + item.getSize());
+                    System.out.println("Field Name = " + item.getFieldName() + ", File Name = " + item.getName()
+                            + ", Content type = " + item.getContentType() + ", File Size = " + item.getSize());
                     if (item.getFieldName().equalsIgnoreCase("str_FILE")) {
                         str_FILE = item.getName();
                         new logger().OCategory.info("str_FILE  " + str_FILE);
                     }
-                    //Write file to the ultimate location.
+                    // Write file to the ultimate location.
                     int dotPos = str_FILE.lastIndexOf(".");
                     extension = str_FILE.substring(dotPos);
                     new logger().OCategory.info("extension  " + extension + " chemin " + destinationDir + str_FILE);
-                    if (extension.equalsIgnoreCase(".csv") || extension.equalsIgnoreCase(".xls") || extension.equalsIgnoreCase(".xlsx")) {
+                    if (extension.equalsIgnoreCase(".csv") || extension.equalsIgnoreCase(".xls")
+                            || extension.equalsIgnoreCase(".xlsx")) {
                         File file = new File(destinationDir, str_FILE);
                         item.write(file);
                     } else {
@@ -142,7 +140,9 @@ public class CheckMigrationServlet extends HttpServlet {
 
                 }
             }
-            filePath = OMigrationManager.CheckDataToDataBase(table_name, destinationDir + "\\" + str_FILE.substring(0, str_FILE.length() - extension.length()), extension, format);
+            filePath = OMigrationManager.CheckDataToDataBase(table_name,
+                    destinationDir + "\\" + str_FILE.substring(0, str_FILE.length() - extension.length()), extension,
+                    format);
 
             new logger().OCategory.info("filePath->" + filePath);
             File downloadFile = new File(filePath);
@@ -176,7 +176,7 @@ public class CheckMigrationServlet extends HttpServlet {
             OutputStream outStream = response.getOutputStream();
 
             byte[] buffer = new byte[4096];
-            int bytesRead = -1; 
+            int bytesRead = -1;
 
             while ((bytesRead = inStream.read(buffer)) != -1) {
                 outStream.write(buffer, 0, bytesRead);
@@ -184,7 +184,7 @@ public class CheckMigrationServlet extends HttpServlet {
 
             inStream.close();
             outStream.close();
-           
+
         } catch (FileUploadException ex) {
             log("Error encountered while parsing the request", ex);
         } catch (Exception ex) {
@@ -193,21 +193,18 @@ public class CheckMigrationServlet extends HttpServlet {
 
     }
 
-    
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-   
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    
     @Override
     public String getServletInfo() {
         return "Short description";

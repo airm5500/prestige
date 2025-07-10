@@ -39,7 +39,7 @@ import toolkits.parameters.commonparameter;
  *
  * @author Kobena
  */
-@WebServlet(name = "UserCtr", urlPatterns = {"/UserCtr"})
+@WebServlet(name = "UserCtr", urlPatterns = { "/UserCtr" })
 public class UserCtr extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
@@ -119,9 +119,11 @@ public class UserCtr extends HttpServlet {
             criteria = cb.and(criteria, cb.equal(root.get(TUser_.strSTATUT), "enable"));
             criteria = cb.and(criteria, cb.equal(pr.get(TEmplacement_.lgEMPLACEMENTID), emp));
             if (!"".equals(query)) {
-                criteria = cb.and(criteria, cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"), cb.like(root.get(TUser_.strLASTNAME), query + "%")),
-                        cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)), query + "%")
-                );
+                criteria = cb.and(criteria,
+                        cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"),
+                                cb.like(root.get(TUser_.strLASTNAME), query + "%")),
+                        cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)),
+                                query + "%"));
             }
             cq.select(cb.count(root));
             cq.where(criteria);
@@ -144,9 +146,11 @@ public class UserCtr extends HttpServlet {
             criteria = cb.and(criteria, cb.equal(root.get(TUser_.strSTATUT), "enable"));
             criteria = cb.and(criteria, cb.equal(pr.get(TEmplacement_.lgEMPLACEMENTID), emp));
             if (!"".equals(query)) {
-                criteria = cb.and(criteria, cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"), cb.like(root.get(TUser_.strLASTNAME), query + "%")),
-                        cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)), query + "%")
-                );
+                criteria = cb.and(criteria,
+                        cb.or(cb.like(root.get(TUser_.strFIRSTNAME), query + "%"),
+                                cb.like(root.get(TUser_.strLASTNAME), query + "%")),
+                        cb.like(cb.concat(cb.concat(root.get(TUser_.strFIRSTNAME), " "), root.get(TUser_.strLASTNAME)),
+                                query + "%"));
             }
             cq.select(root).orderBy(cb.asc(root.get(TUser_.strFIRSTNAME)), cb.asc(root.get(TUser_.strLASTNAME)));
             cq.where(criteria);

@@ -28,16 +28,15 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_mouvement_snapshot")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMouvementSnapshot.findAll", query = "SELECT t FROM TMouvementSnapshot t"),
-    @NamedQuery(name = "TMouvementSnapshot.findByLgMOUVEMENTSNAPSHOTID", query = "SELECT t FROM TMouvementSnapshot t WHERE t.lgMOUVEMENTSNAPSHOTID = :lgMOUVEMENTSNAPSHOTID"),
-    @NamedQuery(name = "TMouvementSnapshot.findByDtDAY", query = "SELECT t FROM TMouvementSnapshot t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TMouvementSnapshot.findByDtCREATED", query = "SELECT t FROM TMouvementSnapshot t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMouvementSnapshot.findByDtUPDATED", query = "SELECT t FROM TMouvementSnapshot t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMouvementSnapshot.findByStrSTATUT", query = "SELECT t FROM TMouvementSnapshot t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TMouvementSnapshot.findByIntSTOCKJOUR", query = "SELECT t FROM TMouvementSnapshot t WHERE t.intSTOCKJOUR = :intSTOCKJOUR"),
-    @NamedQuery(name = "TMouvementSnapshot.findByIntSTOCKDEBUT", query = "SELECT t FROM TMouvementSnapshot t WHERE t.intSTOCKDEBUT = :intSTOCKDEBUT"),
-    @NamedQuery(name = "TMouvementSnapshot.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TMouvementSnapshot t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION")})
+@NamedQueries({ @NamedQuery(name = "TMouvementSnapshot.findAll", query = "SELECT t FROM TMouvementSnapshot t"),
+        @NamedQuery(name = "TMouvementSnapshot.findByLgMOUVEMENTSNAPSHOTID", query = "SELECT t FROM TMouvementSnapshot t WHERE t.lgMOUVEMENTSNAPSHOTID = :lgMOUVEMENTSNAPSHOTID"),
+        @NamedQuery(name = "TMouvementSnapshot.findByDtDAY", query = "SELECT t FROM TMouvementSnapshot t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TMouvementSnapshot.findByDtCREATED", query = "SELECT t FROM TMouvementSnapshot t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMouvementSnapshot.findByDtUPDATED", query = "SELECT t FROM TMouvementSnapshot t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMouvementSnapshot.findByStrSTATUT", query = "SELECT t FROM TMouvementSnapshot t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TMouvementSnapshot.findByIntSTOCKJOUR", query = "SELECT t FROM TMouvementSnapshot t WHERE t.intSTOCKJOUR = :intSTOCKJOUR"),
+        @NamedQuery(name = "TMouvementSnapshot.findByIntSTOCKDEBUT", query = "SELECT t FROM TMouvementSnapshot t WHERE t.intSTOCKDEBUT = :intSTOCKDEBUT"),
+        @NamedQuery(name = "TMouvementSnapshot.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TMouvementSnapshot t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION") })
 public class TMouvementSnapshot implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -169,7 +168,9 @@ public class TMouvementSnapshot implements Serializable {
             return false;
         }
         TMouvementSnapshot other = (TMouvementSnapshot) object;
-        if ((this.lgMOUVEMENTSNAPSHOTID == null && other.lgMOUVEMENTSNAPSHOTID != null) || (this.lgMOUVEMENTSNAPSHOTID != null && !this.lgMOUVEMENTSNAPSHOTID.equals(other.lgMOUVEMENTSNAPSHOTID))) {
+        if ((this.lgMOUVEMENTSNAPSHOTID == null && other.lgMOUVEMENTSNAPSHOTID != null)
+                || (this.lgMOUVEMENTSNAPSHOTID != null
+                        && !this.lgMOUVEMENTSNAPSHOTID.equals(other.lgMOUVEMENTSNAPSHOTID))) {
             return false;
         }
         return true;
@@ -179,5 +180,5 @@ public class TMouvementSnapshot implements Serializable {
     public String toString() {
         return "dal.TMouvementSnapshot[ lgMOUVEMENTSNAPSHOTID=" + lgMOUVEMENTSNAPSHOTID + " ]";
     }
-    
+
 }

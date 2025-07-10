@@ -37,10 +37,12 @@ public class authentification extends bllBase {
         boolean result = false;
         try {
 
-            TypedQuery<TUser> q = this.getOdataManager().getEm().createQuery("SELECT t FROM TUser t WHERE t.strLOGIN = ?1 AND t.strPASSWORD = ?2 AND t.strSTATUT =?3 ", TUser.class).
-                    setParameter(1, Str_login).
-                    setParameter(2, Str_Password_MD5).
-                    setParameter(3, commonparameter.statut_enable).setMaxResults(1);
+            TypedQuery<TUser> q = this.getOdataManager().getEm()
+                    .createQuery(
+                            "SELECT t FROM TUser t WHERE t.strLOGIN = ?1 AND t.strPASSWORD = ?2 AND t.strSTATUT =?3 ",
+                            TUser.class)
+                    .setParameter(1, Str_login).setParameter(2, Str_Password_MD5)
+                    .setParameter(3, commonparameter.statut_enable).setMaxResults(1);
             TUser OTUser = q.getSingleResult();
 
             if (OTUser == null) {
@@ -53,7 +55,8 @@ public class authentification extends bllBase {
             OTUser.setBIsConnected(true);
             if (this.persiste(OTUser)) {
 
-                this.buildSuccesTraceMessage("Connexion de " + OTUser.getStrLOGIN() + "  -- " + OTUser.getStrLASTCONNECTIONDATE());
+                this.buildSuccesTraceMessage(
+                        "Connexion de " + OTUser.getStrLOGIN() + "  -- " + OTUser.getStrLASTCONNECTIONDATE());
                 result = true;
                 this.setOTUser(OTUser);
             } else {
@@ -98,19 +101,24 @@ public class authentification extends bllBase {
         boolean result = false;
         TUser OTuser = OTuserCome;
         try {
-            new logger().OCategory.info("User avant " + OTuserCome.getStrFIRSTNAME() + " " + OTuserCome.getStrLASTNAME() + "|Statut:" + OTuserCome.getBIsConnected());
+            new logger().OCategory.info("User avant " + OTuserCome.getStrFIRSTNAME() + " " + OTuserCome.getStrLASTNAME()
+                    + "|Statut:" + OTuserCome.getBIsConnected());
             // this.getOdataManager().getEm().clear();
-            this.getOdataManager().getEm().getEntityManagerFactory().getCache().evictAll(); //vider le cache de l'objet
-            new logger().OCategory.info("User affecté " + OTuser.getStrFIRSTNAME() + " " + OTuser.getStrLASTNAME() + "|Statut:" + OTuserCome.getBIsConnected());
-            new logger().OCategory.info("User après " + OTuserCome.getStrFIRSTNAME() + " " + OTuserCome.getStrLASTNAME() + "|Statut:" + OTuserCome.getBIsConnected());
+            this.getOdataManager().getEm().getEntityManagerFactory().getCache().evictAll(); // vider le cache de l'objet
+            new logger().OCategory.info("User affecté " + OTuser.getStrFIRSTNAME() + " " + OTuser.getStrLASTNAME()
+                    + "|Statut:" + OTuserCome.getBIsConnected());
+            new logger().OCategory.info("User après " + OTuserCome.getStrFIRSTNAME() + " " + OTuserCome.getStrLASTNAME()
+                    + "|Statut:" + OTuserCome.getBIsConnected());
             if (OTuser == null) {
-                // new logger().OCategory.info("User affecté dans le null:"+OTuser.getStrFIRSTNAME() + " " + OTuser.getStrLASTNAME()+ "|Statut:"+OTuserCome.getBIsConnected());
+                // new logger().OCategory.info("User affecté dans le null:"+OTuser.getStrFIRSTNAME() + " " +
+                // OTuser.getStrLASTNAME()+ "|Statut:"+OTuserCome.getBIsConnected());
                 this.buildErrorTraceMessage("Desole cet utilisateur n'existe pas");
                 return false;
             }
 
             this.refresh(OTuser);
-            new logger().OCategory.info("Utilisateur dans BLL " + OTuser.getStrFIRSTNAME() + " " + OTuser.getStrLASTNAME() + " etat " + OTuser.getBIsConnected());
+            new logger().OCategory.info("Utilisateur dans BLL " + OTuser.getStrFIRSTNAME() + " "
+                    + OTuser.getStrLASTNAME() + " etat " + OTuser.getBIsConnected());
             if (OTuser.getBIsConnected() == null || OTuser.getBIsConnected().equals(false)) {
                 this.buildErrorTraceMessage("Desole cet utilisateur n'est pas connecté");
                 return false;
@@ -139,7 +147,8 @@ public class authentification extends bllBase {
             OTuser.setBIsConnected(false);
             this.persiste(OTuser);
             TOfficine OTOfficine = this.getOdataManager().getEm().find(TOfficine.class, "1");
-            new Preenregistrement(this.getOdataManager(), OTuser).reinitializeDisplay(OTOfficine.getStrNOMABREGE(), "   CAISSE FERMEE");
+            new Preenregistrement(this.getOdataManager(), OTuser).reinitializeDisplay(OTOfficine.getStrNOMABREGE(),
+                    "   CAISSE FERMEE");
             new logger().OCategory.info(" User Deconnecte avec Succes ");
             this.buildSuccesTraceMessage(" User Deconnecte avec Succes ");
             return OTuser;

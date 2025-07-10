@@ -22,7 +22,7 @@ public class GenererFactureDTO implements Serializable {
     private String organismeId;
     private TUser operateur;
     private Mode mode;
-    String groupTp, typetp, tpid, codegroup,query;
+    String groupTp, typetp, tpid, codegroup, query;
     private boolean all;
 
     public List<String> getDatas() {

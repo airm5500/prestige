@@ -30,6 +30,7 @@ import org.json.JSONObject;
 import rest.service.MvtProduitService;
 import toolkits.parameters.commonparameter;
 import util.DateConverter;
+import util.Constant;
 
 /**
  *
@@ -39,26 +40,26 @@ import util.DateConverter;
 @Produces("application/json")
 @Consumes("application/json")
 public class AjustementRessource {
-    
+
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
     MvtProduitService mvtProduitService;
-    
+
     @POST
     @Path("creeation")
     public Response createAjustement(Params params) throws JSONException {
         HttpSession hs = servletRequest.getSession();
-        
+
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setOperateur(tu);
         JSONObject json = mvtProduitService.creerAjustement(params);
         return Response.ok().entity(json.toString()).build();
     }
-    
+
     @PUT
     @Path("{id}")
     public Response cloreAjustement(@PathParam("id") String id, Params params) throws JSONException {
@@ -66,14 +67,14 @@ public class AjustementRessource {
         JSONObject json = mvtProduitService.cloreAjustement(params);
         return Response.ok().entity(json.toString()).build();
     }
-    
+
     @POST
     @Path("add/item")
     public Response ajusterProduitAjustement(Params params) throws JSONException {
         JSONObject json = mvtProduitService.ajusterProduitAjustement(params);
         return Response.ok().entity(json.toString()).build();
     }
-    
+
     @PUT
     @Path("item/{id}")
     public Response modifierProduitAjustement(@PathParam("id") String id, Params params) throws JSONException {
@@ -81,31 +82,28 @@ public class AjustementRessource {
         JSONObject json = mvtProduitService.modifierProduitAjustement(params);
         return Response.ok().entity(json.toString()).build();
     }
-    
+
     @DELETE
     @Path("item/{id}")
     public Response modifierProduitAjustement(@PathParam("id") String id) throws JSONException {
         JSONObject json = mvtProduitService.removeAjustementDetail(id);
         return Response.ok().entity(json.toString()).build();
     }
-    
+
     @DELETE
     @Path("{id}")
     public Response annulerAjustement(@PathParam("id") String id) throws JSONException {
         JSONObject json = mvtProduitService.annulerAjustement(id);
         return Response.ok().entity(json.toString()).build();
     }
-//
-    
+    //
+
     @GET
     @Path("items")
-    public Response ajsutementsDetails(
-            @QueryParam(value = "query") String query,
-             @QueryParam(value = "start") int start,
-              @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "ajustementId") String ajustementId
-    ) throws JSONException {
-        
+    public Response ajsutementsDetails(@QueryParam(value = "query") String query,
+            @QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "ajustementId") String ajustementId) throws JSONException {
+
         SalesStatsParams body = new SalesStatsParams();
         body.setAll(false);
         body.setQuery(query);
@@ -113,25 +111,22 @@ public class AjustementRessource {
         body.setStart(start);
         JSONObject jsono = mvtProduitService.ajsutementsDetails(body, ajustementId);
         return Response.ok().entity(jsono.toString()).build();
-    }    
-    
+    }
+
     @GET
-    public Response allAjustement(@QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit, @QueryParam(value = "query") String query,
-            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
-             @QueryParam(value = "typeFiltre") String typeFiltre
-    ) throws JSONException {
+    public Response allAjustement(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "typeFiltre") String typeFiltre)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
-        
+
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
         boolean canCancel = DateConverter.hasAuthorityByName(attribute, DateConverter.ACTIONDELETEAJUSTEMENT);
-//             boolean asAuthority = DateConverter.hasAuthorityByName(attribute, commonparameter.str_SHOW_VENTE);
-     
-             SalesStatsParams body = new SalesStatsParams();
+        SalesStatsParams body = new SalesStatsParams();
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
@@ -145,7 +140,7 @@ public class AjustementRessource {
             body.setDtStart(LocalDate.parse(dtStart));
         } catch (Exception e) {
         }
-        
+
         JSONObject jsono = mvtProduitService.ajsutements(body);
         return Response.ok().entity(jsono.toString()).build();
     }

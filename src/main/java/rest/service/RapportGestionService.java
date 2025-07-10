@@ -14,5 +14,5 @@ import org.json.JSONObject;
  */
 @Local
 public interface RapportGestionService {
-     JSONObject getAllArticle(String search_value, String emp,  int maxResults, int firstResult) ;
+    JSONObject getAllArticle(String search_value, String emp, int maxResults, int firstResult);
 }

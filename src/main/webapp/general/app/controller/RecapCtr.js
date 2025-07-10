@@ -135,16 +135,17 @@ Ext.define('testextjs.controller.RecapCtr', {
         });
     },
     onPdfClick: function () {
-        var me = this;
-        var dtStart = me.getDtStart().getSubmitValue();
-        var dtEnd = me.getDtEnd().getSubmitValue();
-        var linkUrl = '../BalancePdfServlet?mode=RECAP&dtStart=' + dtStart + '&dtEnd=' + dtEnd;
+        const me = this;
+        const dtStart = me.getDtStart().getSubmitValue();
+        const dtEnd = me.getDtEnd().getSubmitValue();
+        const query=me.getQuery().getValue();
+        const linkUrl = '../BalancePdfServlet?mode=RECAP&dtStart=' + dtStart + '&dtEnd=' + dtEnd+'&query='+query;
         window.open(linkUrl);
     },
 
     doBeforechange: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getCreditaccorde().getStore().getProxy();
+        const me = this;
+        let myProxy = me.getCreditaccorde().getStore().getProxy();
         myProxy.params = {
             dtEnd: null,
             dtStart: null,
@@ -158,8 +159,8 @@ Ext.define('testextjs.controller.RecapCtr', {
     },
 
     doBeforechangeRegle: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getReglementGrid().getStore().getProxy();
+        const me = this;
+        let myProxy = me.getReglementGrid().getStore().getProxy();
         myProxy.params = {
             dtEnd: null,
             dtStart: null,
@@ -172,7 +173,7 @@ Ext.define('testextjs.controller.RecapCtr', {
 
     },
     doSearchRecgl: function () {
-        var me = this;
+        const me = this;
         me.getReglementGrid().getStore().load({
             params: {
                 dtStart: me.getDtStart().getSubmitValue(),
@@ -184,38 +185,26 @@ Ext.define('testextjs.controller.RecapCtr', {
 
     },
     doSearchCredit: function () {
-        var me = this,totalnb=me.getTotalnb(),
-                totalmontant=me.getTotalmontant(),totalnbclient=me.getTotalnbclient();
-        var valueThree=0,valueTwo=0,value=0;
+        const me = this;
         me.getCreditaccorde().getStore().load({
             params: {
                 dtStart: me.getDtStart().getSubmitValue(),
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 query: me.getQuery().getValue()
 
-            }, callback: function (records, operation, successful) {
-                records.forEach(function (e) {
-                    valueThree+=e.get('valueThree');
-                    valueTwo+=e.get('valueTwo');
-                    value+=e.get('value');
-                    
-                });
-                totalnb.setValue(valueThree);
-                totalnbclient.setValue(valueTwo);
-                totalmontant.setValue(value);
             }
         });
-
+        me.buildTotauxCredits();
     },
     doSearch: function () {
-        var me = this;
+        const me = this;
         me.doSearchRecgl();
         me.doSearchCredit();
         me.buildSummary();
     },
     buildSummary: function () {
-        var me = this, achatGrid = me.getAchatGrid();
-  var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        const me = this, achatGrid = me.getAchatGrid();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/recap/dashboard',
@@ -226,8 +215,8 @@ Ext.define('testextjs.controller.RecapCtr', {
             },
             success: function (response, options) {
                 progress.hide();
-                var result = Ext.JSON.decode(response.responseText, true);
-                var rec = result.data;
+                const result = Ext.JSON.decode(response.responseText, true);
+                const rec = result.data;
                 me.getMontantNet().setValue(rec.montantNet);
                 me.getMontantCredit().setValue(rec.montantCredit);//pourcentageEsp
                 me.getMontantEsp().setValue(rec.montantEsp);
@@ -245,22 +234,22 @@ Ext.define('testextjs.controller.RecapCtr', {
                 achatGrid.getStore().loadData(rec.achats);
 
             }, failure: function (response, options) {
-                    progress.hide();
-                  
-                }
+                progress.hide();
+
+            }
 
         });
     },
     buildRecette: function (recette) {
-        var me = this, cmp = me.getRecette();
-        var items = [];
+        const me = this, cmp = me.getRecette();
+        let items = [];
         recette.forEach(function (e) {
             items.push({
                 xtype: 'displayfield',
-                fieldLabel: e.ref,
+                fieldLabel: e.libelle,
                 labelWidth: 100,
                 flex: 1,
-                value: e.value,
+                value: e.montant,
                 renderer: function (v) {
                     return Ext.util.Format.number(v, '0,000.');
                 },
@@ -272,16 +261,15 @@ Ext.define('testextjs.controller.RecapCtr', {
     },
 
     buildMvts: function (mvt, montantTotalMvt) {
-        var me = this, cmp = me.getReglement();
-        var items = [];
+        const me = this, cmp = me.getReglement();
+        let items = [];
         mvt.forEach(function (e) {
             items.push({
                 xtype: 'displayfield',
-                fieldLabel: e.ref,
+                fieldLabel: e.libelle,
                 labelWidth: 130,
-
                 flex: 1,
-                value: e.value,
+                value: e.montant,
                 renderer: function (v) {
                     return Ext.util.Format.number(v, '0,000.');
                 },
@@ -303,19 +291,46 @@ Ext.define('testextjs.controller.RecapCtr', {
     },
     onSpecialSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
-            var me = this;
+            const me = this;
             me.doSearchRecgl();
         }
     },
     onCreditKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
-            var me = this;
+            const me = this;
             me.doSearchCredit();
         }
     },
     onReady: function () {
-        var me = this;
+        const me = this;
         me.doSearch();
 
+    },
+    buildTotauxCredits: function () {
+        const me = this;
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/recap/credits/totaux',
+            timeout: 2400000,
+            params: {
+                dtStart: me.getDtStart().getSubmitValue(),
+                dtEnd: me.getDtEnd().getSubmitValue(),
+                query: me.getQuery().getValue()
+            },
+            success: function (response, options) {
+                progress.hide();
+                const rec = Ext.JSON.decode(response.responseText, true);
+                const totalnb = me.getTotalnb(), totalmontant = me.getTotalmontant(), totalnbclient = me.getTotalnbclient();
+                totalnb.setValue(rec.nbreBons);
+                totalnbclient.setValue(rec.nbreClient);
+                totalmontant.setValue(rec.montant);
+
+            }, failure: function (response, options) {
+                progress.hide();
+
+            }
+
+        });
     }
 });

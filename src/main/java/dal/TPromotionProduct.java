@@ -30,16 +30,15 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_promotion_product")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TPromotionProduct.findAll", query = "SELECT t FROM TPromotionProduct t"),
-    @NamedQuery(name = "TPromotionProduct.findByLgCODEPROMOTIONID", query = "SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID.lgCODEPROMOTIONID = :lgCODEPROMOTIONID"),
-    @NamedQuery(name = "TPromotionProduct.findByLgPROMOTIONPRODUCTID", query = "SELECT t FROM TPromotionProduct t WHERE t.lgPROMOTIONPRODUCTID = :lgPROMOTIONPRODUCTID"),
-    @NamedQuery(name = "TPromotionProduct.findByIntDISCOUNT", query = "SELECT t FROM TPromotionProduct t WHERE t.intDISCOUNT = :intDISCOUNT"),
-    @NamedQuery(name = "TPromotionProduct.findByBlMODE", query = "SELECT t FROM TPromotionProduct t WHERE t.blMODE = :blMODE"),
-    @NamedQuery(name = "TPromotionProduct.findByIntPACKNUMBER", query = "SELECT t FROM TPromotionProduct t WHERE t.intPACKNUMBER = :intPACKNUMBER"),
-    @NamedQuery(name = "TPromotionProduct.findByDbPRICE", query = "SELECT t FROM TPromotionProduct t WHERE t.dbPRICE = :dbPRICE"),
-    @NamedQuery(name = "TPromotionProduct.findByIntACTIVEAT", query = "SELECT t FROM TPromotionProduct t WHERE t.intACTIVEAT = :intACTIVEAT"),
-    @NamedQuery(name = "TPromotionProduct.findByDtPROMOTEDDATE", query = "SELECT t FROM TPromotionProduct t WHERE t.dtPROMOTEDDATE = :dtPROMOTEDDATE")})
+@NamedQueries({ @NamedQuery(name = "TPromotionProduct.findAll", query = "SELECT t FROM TPromotionProduct t"),
+        @NamedQuery(name = "TPromotionProduct.findByLgCODEPROMOTIONID", query = "SELECT t FROM TPromotionProduct t WHERE t.lgCODEPROMOTIONID.lgCODEPROMOTIONID = :lgCODEPROMOTIONID"),
+        @NamedQuery(name = "TPromotionProduct.findByLgPROMOTIONPRODUCTID", query = "SELECT t FROM TPromotionProduct t WHERE t.lgPROMOTIONPRODUCTID = :lgPROMOTIONPRODUCTID"),
+        @NamedQuery(name = "TPromotionProduct.findByIntDISCOUNT", query = "SELECT t FROM TPromotionProduct t WHERE t.intDISCOUNT = :intDISCOUNT"),
+        @NamedQuery(name = "TPromotionProduct.findByBlMODE", query = "SELECT t FROM TPromotionProduct t WHERE t.blMODE = :blMODE"),
+        @NamedQuery(name = "TPromotionProduct.findByIntPACKNUMBER", query = "SELECT t FROM TPromotionProduct t WHERE t.intPACKNUMBER = :intPACKNUMBER"),
+        @NamedQuery(name = "TPromotionProduct.findByDbPRICE", query = "SELECT t FROM TPromotionProduct t WHERE t.dbPRICE = :dbPRICE"),
+        @NamedQuery(name = "TPromotionProduct.findByIntACTIVEAT", query = "SELECT t FROM TPromotionProduct t WHERE t.intACTIVEAT = :intACTIVEAT"),
+        @NamedQuery(name = "TPromotionProduct.findByDtPROMOTEDDATE", query = "SELECT t FROM TPromotionProduct t WHERE t.dtPROMOTEDDATE = :dtPROMOTEDDATE") })
 public class TPromotionProduct implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -53,7 +52,8 @@ public class TPromotionProduct implements Serializable {
     private Boolean blMODE;
     @Column(name = "int_PACK_NUMBER")
     private Integer intPACKNUMBER;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "db_PRICE", precision = 8, scale = 2)
     private Double dbPRICE;
     @Column(name = "int_ACTIVE_AT")
@@ -167,7 +167,9 @@ public class TPromotionProduct implements Serializable {
             return false;
         }
         TPromotionProduct other = (TPromotionProduct) object;
-        if ((this.lgPROMOTIONPRODUCTID == null && other.lgPROMOTIONPRODUCTID != null) || (this.lgPROMOTIONPRODUCTID != null && !this.lgPROMOTIONPRODUCTID.equals(other.lgPROMOTIONPRODUCTID))) {
+        if ((this.lgPROMOTIONPRODUCTID == null && other.lgPROMOTIONPRODUCTID != null)
+                || (this.lgPROMOTIONPRODUCTID != null
+                        && !this.lgPROMOTIONPRODUCTID.equals(other.lgPROMOTIONPRODUCTID))) {
             return false;
         }
         return true;
@@ -177,5 +179,5 @@ public class TPromotionProduct implements Serializable {
     public String toString() {
         return "dal.TPromotionProduct[ lgPROMOTIONPRODUCTID=" + lgPROMOTIONPRODUCTID + " ]";
     }
-    
+
 }

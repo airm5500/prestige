@@ -4,6 +4,7 @@
     Author     : KKOFFI
 --%>
 
+<%@page import="util.Constant"%>
 <%@page import="dal.TGroupeFactures"%>
 <%@page import="bll.configManagement.GroupeTierspayantController"%>
 <%@page import="dal.TGroupeTierspayant"%>
@@ -51,7 +52,6 @@
     dataManager OdataManager = new dataManager();
     OdataManager.initEntityManager();
     List<EntityData> entityDatas = new ArrayList<>();
-    TParameters OTParameters;
     bllBase ObllBase = new bllBase();
     factureManagement facManagement = null;
     TUser OTUser = null;
@@ -61,7 +61,7 @@
 <!-- fin logic de gestion des page -->
 
 <%
-    OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+    OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
     List<TFacture> factures = new ArrayList<>();
     List<InputStream> inputPdfList = new ArrayList<>();
     jdom Ojdom = new jdom();
@@ -74,28 +74,29 @@
     reportManager OreportManager = new reportManager();
     bllBase obllBase = new bllBase();
     obllBase.checkDatamanager();
-     TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
+    TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     facManagement = new factureManagement(OdataManager, user);
     GroupeTierspayantController controller = new GroupeTierspayantController(OdataManager.getEmf());
     TOfficine oTOfficine = obllBase.getOdataManager().getEm().find(dal.TOfficine.class, "1");
     String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
     String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
     Integer lg_GROUPE_ID = -1;
-    String CODEFACTURE = "";
+    String CODEFACTURE = null;
     TParameters recapParam = null;
-            try {
-                recapParam = obllBase.getOdataManager().getEm().find(dal.TParameters.class, "KEY_IMPRESSION_RECAP_FACTURE");
-            } catch (Exception e) {
-            }
-    if (request.getParameter("lg_GROUPE_ID") != null && !"".equals(request.getParameter("lg_GROUPE_ID"))) {
-        lg_GROUPE_ID = new Integer(request.getParameter("lg_GROUPE_ID"));
+    try {
+        recapParam = obllBase.getOdataManager().getEm().find(dal.TParameters.class, "KEY_IMPRESSION_RECAP_FACTURE");
+    } catch (Exception e) {
     }
-    if (request.getParameter("CODEFACTURE") != null && !"".equals(request.getParameter("lg_GROUPE_ID"))) {
+    if (request.getParameter("lg_GROUPE_ID") != null && !"".equals(request.getParameter("lg_GROUPE_ID"))) {
+        lg_GROUPE_ID = Integer.valueOf(request.getParameter("lg_GROUPE_ID"));
+    }
+    if (request.getParameter("CODEFACTURE") != null && !"".equals(request.getParameter("CODEFACTURE"))) {
         CODEFACTURE = request.getParameter("CODEFACTURE");
     }
     String P_H_LOGO = jdom.scr_report_file_logo;
 
-    factures = controller.getGroupeInvoiceDetails(true, "", "", CODEFACTURE, -1, -1);
+    factures = controller.getGroupeInvoiceDetails(lg_GROUPE_ID, CODEFACTURE);
+   
     /* les factures à imprimer */
     long P_ATT_AMOUNTGROUPE = 0l;
     String P_FOOTER_RC = "";
@@ -143,7 +144,7 @@
     parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
     parameters.put("P_FOOTER_RC", P_FOOTER_RC);
 
-    TGroupeTierspayant g = controller.getGroupByCODEFACT(CODEFACTURE);
+    TGroupeTierspayant g = controller.findById(lg_GROUPE_ID);
     TGroupeFactures gp = controller.getgroupeFactureByCodeFacture(CODEFACTURE);
     String footer = "";
     Integer AMOUTGRP = controller.groupeTiersPayantAmount(g.getLgGROUPEID(), CODEFACTURE);
@@ -193,10 +194,9 @@
         parameters.put("P_CODE_OFFICINE", (OTiersPayant.getStrCODEOFFICINE() != null && !"".equals(OTiersPayant.getStrCODEOFFICINE())) ? "N ° CO :" + OTiersPayant.getStrCODEOFFICINE() : "");
         parameters.put("P_REGISTRE_COMMERCE", (OTiersPayant.getStrREGISTRECOMMERCE() != null && !"".equals(OTiersPayant.getStrREGISTRECOMMERCE())) ? "N ° RC :" + OTiersPayant.getStrREGISTRECOMMERCE() : "");
         /* fin du recap */
-         if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
-               OreportManager.BuildReport(parameters, Ojconnexion);
-         }
-      
+        if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
+            OreportManager.BuildReport(parameters, Ojconnexion);
+        }
 
         String codeModelFacture = OTiersPayant.getLgMODELFACTUREID().getLgMODELFACTUREID();
         long P_ATT_AMOUNT = 0;
@@ -227,11 +227,10 @@
                 if (!OtEntityData.getStr_value4().equals("null")) {
                     P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
                 }
-                 if (!OtEntityData.getStr_value1().equals("null")) {
+                if (!OtEntityData.getStr_value1().equals("null")) {
 
                     P_REMISE_AMOUNT = Double.valueOf(OtEntityData.getStr_value1()).intValue();
                 }
-
 
             }
             P_ATT_AMOUNTGROUPE += P_ATT_AMOUNT;
@@ -262,7 +261,7 @@
             OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
             OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file);
             OreportManager.BuildReport(parameters, Ojconnexion);
-             inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
+            inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
             finalpath = Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file;
         } else {
 
@@ -325,12 +324,12 @@
             }
 
         }
-       // OreportManager.BuildReport(parameters, Ojconnexion);
+        // OreportManager.BuildReport(parameters, Ojconnexion);
         for (int j = 1; j < OTiersPayant.getIntNBREEXEMPLAIREBORD(); j++) {
-             if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
-                   inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + recap));
-             }
-          
+            if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
+                inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + recap));
+            }
+
             if (!"".equals(tauxpath)) {
                 if (tauxpath.indexOf("@") >= 0) {
                     String[] stringarray = tauxpath.split("@");

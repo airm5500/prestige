@@ -16,7 +16,7 @@ import dal.TTiersPayant;
 import dal.TTypeMvtCaisse;
 import dal.TUser;
 import dal.dataManager;
-import dal.jconnexion;
+import dal.JdbConnexion;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -60,13 +60,13 @@ import toolkits.parameters.commonparameter;
 import toolkits.utils.conversion;
 import toolkits.utils.date;
 import toolkits.utils.jdom;
+import util.Constant;
 
 /**
  *
  * @author KKOFFI
  */
 public class InvoiceServlet extends HttpServlet {
-
 
     static final DateFormat DATEFORMAT = new SimpleDateFormat("dd/MM/yyyy");
     static final DateFormat DATEFORMATYYYY = new SimpleDateFormat("yyyy-MM-dd");
@@ -81,11 +81,11 @@ public class InvoiceServlet extends HttpServlet {
 
         jdom.InitRessource();
         jdom.LoadRessource();
-        jconnexion Ojconnexion = new jconnexion();
-        Ojconnexion.initConnexion();
-        Ojconnexion.OpenConnexion();
+        JdbConnexion Ojconnexion = new JdbConnexion();
+
+        Ojconnexion.openConnexion();
         HttpSession session = request.getSession();
-        TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+        TUser OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
         OdataManager = new dataManager();
         OdataManager.initEntityManager();
         inputPdfList = new ArrayList<>();
@@ -112,326 +112,380 @@ public class InvoiceServlet extends HttpServlet {
             OFacture = OdataManager.getEm().find(TFacture.class, lg_FACTURE_ID);
 
             OTiersPayant = OdataManager.getEm().find(TTiersPayant.class, OFacture.getStrCUSTOMER());
-            OTypeMvtCaisse = OdataManager.getEm().find(TTypeMvtCaisse.class, OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
+            OTypeMvtCaisse = OdataManager.getEm().find(TTypeMvtCaisse.class,
+                    OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
             TModelFacture modelFacture = OTiersPayant.getLgMODELFACTUREID();
             String codeModelFacture = modelFacture.getLgMODELFACTUREID();
             if (modeId != null) {
                 codeModelFacture = modeId;
                 modelFacture = OdataManager.getEm().find(TModelFacture.class, modeId);
             }
-            Map<String, Object> parameters = getParametters(OFacture, OTUser, codeModelFacture, OTiersPayant, OTypeMvtCaisse);
+            Map<String, Object> parameters = getParametters(OFacture, OTUser, codeModelFacture, OTiersPayant,
+                    OTypeMvtCaisse);
             JasperPrint jasperPrint;
             File destFile;
-            int codeFACT =  Integer.valueOf(codeModelFacture);
+            int codeFACT = Integer.parseInt(codeModelFacture);
             switch (action) {
-                case "exls":
-                    switch (codeFACT) {
-                        case 9:
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facturerecap.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            GroupeTierspayantController controller = new GroupeTierspayantController(OdataManager.getEmf());
-                            parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
-                            jasperPrint = fillJson(parameters, controller.generateInvoices(OFacture.getLgFACTUREID()), jdom.scr_report_file + "rp_groupbycompany.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
-                            exportToxlsx(response, destFile);
-                            break;
-                        case 8:
-                            jasperPrint = fill(OFacture, parameters, jdom.scr_report_file + "rp_complementaire.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
-                            exportToxlsx(response, destFile);
-                            break;
-                        case 6:
-                            List taux = facManagement.getFacturePercent(lg_FACTURE_ID);
-                            for (int i = 0; i < taux.size(); i++) {
-                                int tauxValue = Integer.valueOf(taux.get(i) + "");
-                                List<EntityData> entityDatas = facManagement.getFactureReportDataPercent(lg_FACTURE_ID, OTiersPayant.getLgTIERSPAYANTID(), tauxValue);
-                                long P_TOTAL_AMOUNT = 0, P_ADHER_AMOUNT = 0, P_REMISE_AMOUNT = 0, P_ATT_AMOUNT = 0, P_REMISEFORFAITAIRE = 0, P_MONTANTBRUTTP = 0;
-                                for (EntityData OtEntityData : entityDatas) {
-                                    if (!OtEntityData.getStr_value6().equals("null")) {
-                                        P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
-                                    }
-                                    if (!OtEntityData.getStr_value5().equals("null")) {
-                                        P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
-                                    }
-                                    if (!OtEntityData.getStr_value7().equals("null")) {
-                                        P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value7()).longValue();
-                                    }
-
-                                    if (!OtEntityData.getStr_value2().equals("null")) {
-                                        P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
-                                    }
-                                    if (!OtEntityData.getStr_value4().equals("null")) {
-                                        P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
-                                    }
-
-                                }
-
-                                parameters.put("P_TAUXCOUVERTURE", tauxValue + "%");
-
-                                String scr_report_file = "rp_facture_percentage";
-                                if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
-                                    scr_report_file = "rp_facture_withremise_percentage";
-                                }
-
-                                parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
-
-                                parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
-                                parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
-                                parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
-                                parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
-                                parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                                parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                                parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + tauxValue + "% ( NOMBRE DE BONS=" + facManagement.getDetailsFactureCount(lg_FACTURE_ID, tauxValue) + " )");
-
-                                parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-                                jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + scr_report_file + ".jrxml");
-                                inputPdfList.add(jasperPrint);
+            case "exls":
+                switch (codeFACT) {
+                case 9:
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + "rp_facturerecap.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    GroupeTierspayantController controller = new GroupeTierspayantController(OdataManager.getEmf());
+                    parameters
+                            .put("P_TOTAL_IN_LETTERS",
+                                    conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID()))
+                                            .toUpperCase()
+                                            + " ("
+                                            + conversion.AmountFormat(
+                                                    facManagement.getAmount(OFacture.getLgFACTUREID()).intValue())
+                                            + " FCFA)");
+                    jasperPrint = fillJson(parameters, controller.generateInvoices(OFacture.getLgFACTUREID()),
+                            jdom.scr_report_file + "rp_groupbycompany.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
+                    exportToxlsx(response, destFile);
+                    break;
+                case 8:
+                    jasperPrint = fill(OFacture, parameters, jdom.scr_report_file + "rp_complementaire.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
+                    exportToxlsx(response, destFile);
+                    break;
+                case 6:
+                    List taux = facManagement.getFacturePercent(lg_FACTURE_ID);
+                    for (int i = 0; i < taux.size(); i++) {
+                        int tauxValue = Integer.parseInt(taux.get(i) + "");
+                        List<EntityData> entityDatas = facManagement.getFactureReportDataPercent(lg_FACTURE_ID,
+                                OTiersPayant.getLgTIERSPAYANTID(), tauxValue);
+                        long P_TOTAL_AMOUNT = 0, P_ADHER_AMOUNT = 0, P_REMISE_AMOUNT = 0, P_ATT_AMOUNT = 0,
+                                P_REMISEFORFAITAIRE = 0, P_MONTANTBRUTTP = 0;
+                        for (EntityData OtEntityData : entityDatas) {
+                            if (!OtEntityData.getStr_value6().equals("null")) {
+                                P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
                             }
-                            destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
-                            exportToxlsx(response, destFile);
-                            break;
-
-                        case 7:
-                            JSONArray clientsfacture = facManagement.getCmpt(lg_FACTURE_ID);
-                            String dateFact = FULDATE.format(OFacture.getDtCREATED());
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facturerecapClient.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            for (int idx = 0; idx < clientsfacture.length(); idx++) {
-                                try {
-                                    JSONObject idCMP = clientsfacture.getJSONObject(idx);
-                                    parameters.put("LGCMP", idCMP.get("idcmp"));
-                                    parameters.put("DATEFACT", dateFact);
-                                    parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
-                                    parameters.put("P_CLIENT_NAME", idCMP.get("strFIRSTNAME"));
-                                    parameters.put("P_NUMEROS", idCMP.get("strNUMEROSECURITESOCIAL"));
-                                    parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(idCMP.getDouble("Montant")).toUpperCase() + " (" + conversion.AmountFormat(Double.valueOf(idCMP.getDouble("Montant")).intValue()) + " FCFA)");
-                                    jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facture_Client.jrxml");
-                                    inputPdfList.add(jasperPrint);
-                                } catch (JSONException ex) {
-                                    Logger.getLogger(InvoiceServlet.class.getName()).log(Level.SEVERE, null, ex);
-                                }
+                            if (!OtEntityData.getStr_value5().equals("null")) {
+                                P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
                             }
-                            destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
-                            exportToxlsx(response, destFile);
-                            break;
-
-                        default:
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facturerecap.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            List<EntityData> entityDatas = facManagement.getFactureReportData(lg_FACTURE_ID, OTiersPayant.getLgTIERSPAYANTID());
-                            long P_TOTAL_AMOUNT = 0,
-                             P_ADHER_AMOUNT = 0,
-                             P_REMISE_AMOUNT = 0,
-                             P_ATT_AMOUNT = 0,
-                             P_REMISEFORFAITAIRE = 0,
-                             P_MONTANTBRUTTP = 0;
-                            for (EntityData OtEntityData : entityDatas) {
-                                if (!OtEntityData.getStr_value6().equals("null")) {
-                                    P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
-                                }
-                                if (!OtEntityData.getStr_value5().equals("null")) {
-                                    P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
-                                }
-                                if (!OtEntityData.getStr_value3().equals("null")) {
-                                    P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value3()).longValue();
-                                }
-
-                                if (!OtEntityData.getStr_value2().equals("null")) {
-                                    P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
-                                }
-                                if (!OtEntityData.getStr_value4().equals("null")) {
-                                    P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
-                                }
-                            }
-                            String scr_report_file = "rp_facture_" + modelFacture.getStrVALUE();
-
-                            if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
-                                scr_report_file = "rp_facture_withremise_" + modelFacture.getStrVALUE();
+                            if (!OtEntityData.getStr_value7().equals("null")) {
+                                P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value7()).longValue();
                             }
 
-                            parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
+                            if (!OtEntityData.getStr_value2().equals("null")) {
+                                P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
+                            }
+                            if (!OtEntityData.getStr_value4().equals("null")) {
+                                P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
+                            }
 
-                            parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
-                            parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
-                            parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
-                            parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
-                            parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                            parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                            parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + OTiersPayant.getStrNAME() + " ( NOMBRE DE BONS=" + OFacture.getTFactureDetailCollection().size() + " )");
+                        }
 
-                            parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + scr_report_file + ".jrxml");
+                        parameters.put("P_TAUXCOUVERTURE", tauxValue + "%");
+
+                        String scr_report_file = "rp_facture_percentage";
+                        if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
+                            scr_report_file = "rp_facture_withremise_percentage";
+                        }
+
+                        parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
+
+                        parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
+                        parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
+                        parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
+                        parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
+                        parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                        parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                        parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + tauxValue + "% ( NOMBRE DE BONS="
+                                + facManagement.getDetailsFactureCount(lg_FACTURE_ID, tauxValue) + " )");
+
+                        parameters.put("P_TOTAL_IN_LETTERS",
+                                conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " ("
+                                        + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
+                        jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                                jdom.scr_report_file + scr_report_file + ".jrxml");
+                        inputPdfList.add(jasperPrint);
+                    }
+                    destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
+                    exportToxlsx(response, destFile);
+                    break;
+
+                case 7:
+                    JSONArray clientsfacture = facManagement.getCmpt(lg_FACTURE_ID);
+                    String dateFact = FULDATE.format(OFacture.getDtCREATED());
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + "rp_facturerecapClient.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    for (int idx = 0; idx < clientsfacture.length(); idx++) {
+                        try {
+                            JSONObject idCMP = clientsfacture.getJSONObject(idx);
+                            parameters.put("LGCMP", idCMP.get("idcmp"));
+                            parameters.put("DATEFACT", dateFact);
+                            parameters.put("P_CODE_FACTURE",
+                                    "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "")
+                                            + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
+                            parameters.put("P_CLIENT_NAME", idCMP.get("strFIRSTNAME"));
+                            parameters.put("P_NUMEROS", idCMP.get("strNUMEROSECURITESOCIAL"));
+                            parameters
+                                    .put("P_TOTAL_IN_LETTERS",
+                                            conversion.GetNumberTowords(idCMP.getDouble("Montant")).toUpperCase() + " ("
+                                                    + conversion.AmountFormat(
+                                                            Double.valueOf(idCMP.getDouble("Montant")).intValue())
+                                                    + " FCFA)");
+                            jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                                    jdom.scr_report_file + "rp_facture_Client.jrxml");
                             inputPdfList.add(jasperPrint);
-                            destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
-                            exportToxlsx(response, destFile);
+                        } catch (JSONException ex) {
+                            Logger.getLogger(InvoiceServlet.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    }
+                    destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
+                    exportToxlsx(response, destFile);
+                    break;
 
-                            break;
+                default:
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + "rp_facturerecap.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    List<EntityData> entityDatas = facManagement.getFactureReportData(lg_FACTURE_ID,
+                            OTiersPayant.getLgTIERSPAYANTID());
+                    long P_TOTAL_AMOUNT = 0, P_ADHER_AMOUNT = 0, P_REMISE_AMOUNT = 0, P_ATT_AMOUNT = 0,
+                            P_REMISEFORFAITAIRE = 0, P_MONTANTBRUTTP = 0;
+                    for (EntityData OtEntityData : entityDatas) {
+                        if (!OtEntityData.getStr_value6().equals("null")) {
+                            P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
+                        }
+                        if (!OtEntityData.getStr_value5().equals("null")) {
+                            P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
+                        }
+                        if (!OtEntityData.getStr_value3().equals("null")) {
+                            P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value3()).longValue();
+                        }
+
+                        if (!OtEntityData.getStr_value2().equals("null")) {
+                            P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
+                        }
+                        if (!OtEntityData.getStr_value4().equals("null")) {
+                            P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
+                        }
+                    }
+                    String scr_report_file = "rp_facture_" + modelFacture.getStrVALUE();
+
+                    if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
+                        scr_report_file = "rp_facture_withremise_" + modelFacture.getStrVALUE();
                     }
 
+                    parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
+
+                    parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
+                    parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
+                    parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
+                    parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
+                    parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                    parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                    parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + OTiersPayant.getStrNAME()
+                            + " ( NOMBRE DE BONS=" + OFacture.getTFactureDetailCollection().size() + " )");
+
+                    parameters.put("P_TOTAL_IN_LETTERS",
+                            conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " ("
+                                    + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + scr_report_file + ".jrxml");
+                    inputPdfList.add(jasperPrint);
+                    destFile = xlsx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".xlsx");
+                    exportToxlsx(response, destFile);
+
                     break;
-                case "docx":
+                }
 
-                    switch (codeFACT) {
-                        case 9:
+                break;
+            case "docx":
 
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facturerecap.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            GroupeTierspayantController controller = new GroupeTierspayantController(OdataManager.getEmf());
+                switch (codeFACT) {
+                case 9:
 
-                            parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + "rp_facturerecap.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    GroupeTierspayantController controller = new GroupeTierspayantController(OdataManager.getEmf());
 
-                            jasperPrint = fillJson(parameters, controller.generateInvoices(OFacture.getLgFACTUREID()), jdom.scr_report_file + "rp_groupbycompany.jrxml");
+                    parameters
+                            .put("P_TOTAL_IN_LETTERS",
+                                    conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID()))
+                                            .toUpperCase()
+                                            + " ("
+                                            + conversion.AmountFormat(
+                                                    facManagement.getAmount(OFacture.getLgFACTUREID()).intValue())
+                                            + " FCFA)");
 
-                            inputPdfList.add(jasperPrint);
-                            destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
-                            exportTodocx(response, destFile);
+                    jasperPrint = fillJson(parameters, controller.generateInvoices(OFacture.getLgFACTUREID()),
+                            jdom.scr_report_file + "rp_groupbycompany.jrxml");
 
-                            break;
+                    inputPdfList.add(jasperPrint);
+                    destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
+                    exportTodocx(response, destFile);
 
-                        case 8:
-                            jasperPrint = fill(OFacture, parameters, jdom.scr_report_file + "rp_complementaire.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
-                            exportTodocx(response, destFile);
+                    break;
 
-                            break;
-                        case 6:
-                            List taux = facManagement.getFacturePercent(lg_FACTURE_ID);
-                            for (int i = 0; i < taux.size(); i++) {
-                                int tauxValue = Integer.valueOf(taux.get(i) + "");
+                case 8:
+                    jasperPrint = fill(OFacture, parameters, jdom.scr_report_file + "rp_complementaire.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
+                    exportTodocx(response, destFile);
 
-                                List<EntityData> entityDatas = facManagement.getFactureReportDataPercent(lg_FACTURE_ID, OTiersPayant.getLgTIERSPAYANTID(), tauxValue);
-                                long P_TOTAL_AMOUNT = 0, P_ADHER_AMOUNT = 0, P_REMISE_AMOUNT = 0, P_ATT_AMOUNT = 0, P_REMISEFORFAITAIRE = 0, P_MONTANTBRUTTP = 0;
+                    break;
+                case 6:
+                    List taux = facManagement.getFacturePercent(lg_FACTURE_ID);
+                    for (int i = 0; i < taux.size(); i++) {
+                        int tauxValue = Integer.valueOf(taux.get(i) + "");
 
-                                for (EntityData OtEntityData : entityDatas) {
-                                    if (!OtEntityData.getStr_value6().equals("null")) {
-                                        P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
-                                    }
-                                    if (!OtEntityData.getStr_value5().equals("null")) {
-                                        P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
-                                    }
-                                    if (!OtEntityData.getStr_value7().equals("null")) {
-                                        P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value7()).longValue();
-                                    }
+                        List<EntityData> entityDatas = facManagement.getFactureReportDataPercent(lg_FACTURE_ID,
+                                OTiersPayant.getLgTIERSPAYANTID(), tauxValue);
+                        long P_TOTAL_AMOUNT = 0, P_ADHER_AMOUNT = 0, P_REMISE_AMOUNT = 0, P_ATT_AMOUNT = 0,
+                                P_REMISEFORFAITAIRE = 0, P_MONTANTBRUTTP = 0;
 
-                                    if (!OtEntityData.getStr_value2().equals("null")) {
-                                        P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
-                                    }
-                                    if (!OtEntityData.getStr_value4().equals("null")) {
-                                        P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
-                                    }
-
-                                }
-
-                                parameters.put("P_TAUXCOUVERTURE", tauxValue + "%");
-
-                                String scr_report_file = "rp_facture_percentage";
-                                if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
-                                    scr_report_file = "rp_facture_withremise_percentage";
-                                }
-
-                                parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
-
-                                parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
-                                parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
-                                parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
-                                parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
-                                parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                                parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                                parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + tauxValue + "% ( NOMBRE DE BONS=" + facManagement.getDetailsFactureCount(lg_FACTURE_ID, tauxValue) + " )");
-
-                                parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-                                jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + scr_report_file + ".jrxml");
-                                inputPdfList.add(jasperPrint);
+                        for (EntityData OtEntityData : entityDatas) {
+                            if (!OtEntityData.getStr_value6().equals("null")) {
+                                P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
                             }
-                            destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
-                            exportTodocx(response, destFile);
-                            break;
-
-                        case 7:
-                            JSONArray clientsfacture = facManagement.getCmpt(lg_FACTURE_ID);
-                            String dateFact = FULDATE.format(OFacture.getDtCREATED());
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facturerecapClient.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            for (int idx = 0; idx < clientsfacture.length(); idx++) {
-                                try {
-                                    JSONObject idCMP = clientsfacture.getJSONObject(idx);
-
-                                    parameters.put("LGCMP", idCMP.get("idcmp"));
-                                    parameters.put("DATEFACT", dateFact);
-                                    parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
-                                    parameters.put("P_CLIENT_NAME", idCMP.get("strFIRSTNAME"));
-                                    parameters.put("P_NUMEROS", idCMP.get("strNUMEROSECURITESOCIAL"));
-                                    parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(idCMP.getDouble("Montant")).toUpperCase() + " (" + conversion.AmountFormat(Double.valueOf(idCMP.getDouble("Montant")).intValue()) + " FCFA)");
-                                    jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facture_Client.jrxml");
-                                    inputPdfList.add(jasperPrint);
-
-                                } catch (JSONException ex) {
-                                    Logger.getLogger(InvoiceServlet.class.getName()).log(Level.SEVERE, null, ex);
-                                }
+                            if (!OtEntityData.getStr_value5().equals("null")) {
+                                P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
                             }
-                            destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
-                            exportTodocx(response, destFile);
-                            break;
-
-                        default:
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + "rp_facturerecap.jrxml");
-                            inputPdfList.add(jasperPrint);
-                            List<EntityData> entityDatas = facManagement.getFactureReportData(lg_FACTURE_ID, OTiersPayant.getLgTIERSPAYANTID());
-
-                            long P_TOTAL_AMOUNT = 0,
-                             P_ADHER_AMOUNT = 0,
-                             P_REMISE_AMOUNT = 0,
-                             P_ATT_AMOUNT = 0,
-                             P_REMISEFORFAITAIRE = 0,
-                             P_MONTANTBRUTTP = 0;
-
-                            for (EntityData OtEntityData : entityDatas) {
-                                if (!OtEntityData.getStr_value6().equals("null")) {
-                                    P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
-                                }
-                                if (!OtEntityData.getStr_value5().equals("null")) {
-                                    P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
-                                }
-                                if (!OtEntityData.getStr_value3().equals("null")) {
-                                    P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value3()).longValue();
-                                }
-
-                                if (!OtEntityData.getStr_value2().equals("null")) {
-                                    P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
-                                }
-                                if (!OtEntityData.getStr_value4().equals("null")) {
-                                    P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
-                                }
-                            }
-                            String scr_report_file = "rp_facture_" + modelFacture.getStrVALUE();
-
-                            if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
-                                scr_report_file = "rp_facture_withremise_" + modelFacture.getStrVALUE();
+                            if (!OtEntityData.getStr_value7().equals("null")) {
+                                P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value7()).longValue();
                             }
 
-                            parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
+                            if (!OtEntityData.getStr_value2().equals("null")) {
+                                P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
+                            }
+                            if (!OtEntityData.getStr_value4().equals("null")) {
+                                P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
+                            }
 
-                            parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
-                            parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
-                            parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
-                            parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
-                            parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                            parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                            parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + OTiersPayant.getStrNAME() + " ( NOMBRE DE BONS=" + OFacture.getTFactureDetailCollection().size() + " )");
+                        }
 
-                            parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-                            jasperPrint = fill(Ojconnexion.getConnection(), parameters, jdom.scr_report_file + scr_report_file + ".jrxml");
+                        parameters.put("P_TAUXCOUVERTURE", tauxValue + "%");
+
+                        String scr_report_file = "rp_facture_percentage";
+                        if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
+                            scr_report_file = "rp_facture_withremise_percentage";
+                        }
+
+                        parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
+
+                        parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
+                        parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
+                        parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
+                        parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
+                        parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                        parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                        parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + tauxValue + "% ( NOMBRE DE BONS="
+                                + facManagement.getDetailsFactureCount(lg_FACTURE_ID, tauxValue) + " )");
+
+                        parameters.put("P_TOTAL_IN_LETTERS",
+                                conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " ("
+                                        + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
+                        jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                                jdom.scr_report_file + scr_report_file + ".jrxml");
+                        inputPdfList.add(jasperPrint);
+                    }
+                    destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
+                    exportTodocx(response, destFile);
+                    break;
+
+                case 7:
+                    JSONArray clientsfacture = facManagement.getCmpt(lg_FACTURE_ID);
+                    String dateFact = FULDATE.format(OFacture.getDtCREATED());
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + "rp_facturerecapClient.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    for (int idx = 0; idx < clientsfacture.length(); idx++) {
+                        try {
+                            JSONObject idCMP = clientsfacture.getJSONObject(idx);
+
+                            parameters.put("LGCMP", idCMP.get("idcmp"));
+                            parameters.put("DATEFACT", dateFact);
+                            parameters.put("P_CODE_FACTURE",
+                                    "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "")
+                                            + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
+                            parameters.put("P_CLIENT_NAME", idCMP.get("strFIRSTNAME"));
+                            parameters.put("P_NUMEROS", idCMP.get("strNUMEROSECURITESOCIAL"));
+                            parameters
+                                    .put("P_TOTAL_IN_LETTERS",
+                                            conversion.GetNumberTowords(idCMP.getDouble("Montant")).toUpperCase() + " ("
+                                                    + conversion.AmountFormat(
+                                                            Double.valueOf(idCMP.getDouble("Montant")).intValue())
+                                                    + " FCFA)");
+                            jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                                    jdom.scr_report_file + "rp_facture_Client.jrxml");
                             inputPdfList.add(jasperPrint);
-                            destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
-                            exportTodocx(response, destFile);
 
-                            break;
+                        } catch (JSONException ex) {
+                            Logger.getLogger(InvoiceServlet.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    }
+                    destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
+                    exportTodocx(response, destFile);
+                    break;
+
+                default:
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + "rp_facturerecap.jrxml");
+                    inputPdfList.add(jasperPrint);
+                    List<EntityData> entityDatas = facManagement.getFactureReportData(lg_FACTURE_ID,
+                            OTiersPayant.getLgTIERSPAYANTID());
+
+                    long P_TOTAL_AMOUNT = 0, P_ADHER_AMOUNT = 0, P_REMISE_AMOUNT = 0, P_ATT_AMOUNT = 0,
+                            P_REMISEFORFAITAIRE = 0, P_MONTANTBRUTTP = 0;
+
+                    for (EntityData OtEntityData : entityDatas) {
+                        if (!OtEntityData.getStr_value6().equals("null")) {
+                            P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
+                        }
+                        if (!OtEntityData.getStr_value5().equals("null")) {
+                            P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
+                        }
+                        if (!OtEntityData.getStr_value3().equals("null")) {
+                            P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value3()).longValue();
+                        }
+
+                        if (!OtEntityData.getStr_value2().equals("null")) {
+                            P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
+                        }
+                        if (!OtEntityData.getStr_value4().equals("null")) {
+                            P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
+                        }
+                    }
+                    String scr_report_file = "rp_facture_" + modelFacture.getStrVALUE();
+
+                    if (OTiersPayant.getDblPOURCENTAGEREMISE() > 0) {
+                        scr_report_file = "rp_facture_withremise_" + modelFacture.getStrVALUE();
                     }
 
+                    parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
+
+                    parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
+                    parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
+                    parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
+                    parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
+                    parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                    parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                    parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + OTiersPayant.getStrNAME()
+                            + " ( NOMBRE DE BONS=" + OFacture.getTFactureDetailCollection().size() + " )");
+
+                    parameters.put("P_TOTAL_IN_LETTERS",
+                            conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " ("
+                                    + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
+                    jasperPrint = fill(Ojconnexion.getConnection(), parameters,
+                            jdom.scr_report_file + scr_report_file + ".jrxml");
+                    inputPdfList.add(jasperPrint);
+                    destFile = docx(jdom.scr_report_pdf + "rp_facture_" + df.format(new Date()) + ".docx");
+                    exportTodocx(response, destFile);
+
                     break;
+                }
+
+                break;
 
             }
         }
@@ -483,7 +537,7 @@ public class InvoiceServlet extends HttpServlet {
             long start = System.currentTimeMillis();
 
             params.put(JsonQueryExecuterFactory.JSON_DATE_PATTERN, "yyyy-MM-dd");
-//            params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
+            // params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
             params.put(JsonQueryExecuterFactory.JSON_LOCALE, Locale.FRANCE);
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             InputStream iostream = new ByteArrayInputStream(json.toString().getBytes(StandardCharsets.UTF_8));
@@ -492,7 +546,7 @@ public class InvoiceServlet extends HttpServlet {
             // pathName = jdom.scr_report_pdf + fileName;
             jasperPrint = JasperFillManager.fillReport(jasperReport, params);
             // JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-//            JasperFillManager.fillReportToFile(scr_report_file, params);
+            // JasperFillManager.fillReportToFile(scr_report_file, params);
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (JRException ex) {
@@ -501,7 +555,8 @@ public class InvoiceServlet extends HttpServlet {
         return jasperPrint;
     }
 
-    public Map<String, Object> getParametters(TFacture OFacture, TUser OTUser, String codeModelFacture, TTiersPayant OTiersPayant, TTypeMvtCaisse OTypeMvtCaisse) {
+    public Map<String, Object> getParametters(TFacture OFacture, TUser OTUser, String codeModelFacture,
+            TTiersPayant OTiersPayant, TTypeMvtCaisse OTypeMvtCaisse) {
 
         Map<String, Object> parameters = new HashMap<>();
         try {
@@ -510,7 +565,8 @@ public class InvoiceServlet extends HttpServlet {
             String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
             String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
 
-            String P_H_CLT_INFOS = "PERIODE DU " + DATEFORMAT.format(OFacture.getDtDEBUTFACTURE()) + " AU " + DATEFORMAT.format(OFacture.getDtFINFACTURE());
+            String P_H_CLT_INFOS = "PERIODE DU " + DATEFORMAT.format(OFacture.getDtDEBUTFACTURE()) + " AU "
+                    + DATEFORMAT.format(OFacture.getDtFINFACTURE());
             String P_H_LOGO = jdom.scr_report_file_logo;
             System.out.println("P_H_LOGO    ***************  " + P_H_LOGO);
             parameters.put("P_H_LOGO", P_H_LOGO);
@@ -523,68 +579,81 @@ public class InvoiceServlet extends HttpServlet {
             parameters.put("P_LG_FACTURE_ID", OFacture.getLgFACTUREID());
 
             parameters.put("P_LG_TIERS_PAYANT_ID", OTiersPayant.getLgTIERSPAYANTID());
-            parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
+            parameters.put("P_CODE_FACTURE",
+                    "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
             parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
             int codeFACT = new Integer(codeModelFacture);
 
             switch (codeFACT) {
-                case 7:
-                    parameters.put("P_DATEFAC", FULDATE.format(OFacture.getDtCREATED()));
-                    parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
+            case 7:
+                parameters.put("P_DATEFAC", FULDATE.format(OFacture.getDtCREATED()));
+                parameters.put("P_TOTAL_IN_LETTERS",
+                        conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase()
+                                + " ("
+                                + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue())
+                                + " FCFA)");
 
-                    break;
-                case 9:
-                    parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
-                    break;
-                case 8:
-                    parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
-                    break;
-                case 6:
+                break;
+            case 9:
+                parameters.put("P_TOTAL_IN_LETTERS",
+                        conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase()
+                                + " ("
+                                + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue())
+                                + " FCFA)");
+                break;
+            case 8:
+                parameters.put("P_TOTAL_IN_LETTERS",
+                        conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase()
+                                + " ("
+                                + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue())
+                                + " FCFA)");
+                break;
+            case 6:
 
-                    break;
+                break;
 
-                default:
-                    List<EntityData> entityDatas = facManagement.getFactureReportData(OFacture.getLgFACTUREID(), OTiersPayant.getLgTIERSPAYANTID());
+            default:
+                List<EntityData> entityDatas = facManagement.getFactureReportData(OFacture.getLgFACTUREID(),
+                        OTiersPayant.getLgTIERSPAYANTID());
 
-                    long P_TOTAL_AMOUNT = 0,
-                     P_ADHER_AMOUNT = 0,
-                     P_REMISE_AMOUNT = 0,
-                     P_ATT_AMOUNT = 0,
-                     P_REMISEFORFAITAIRE = 0,
-                     P_MONTANTBRUTTP = 0;
+                long P_TOTAL_AMOUNT = 0, P_ADHER_AMOUNT = 0, P_REMISE_AMOUNT = 0, P_ATT_AMOUNT = 0,
+                        P_REMISEFORFAITAIRE = 0, P_MONTANTBRUTTP = 0;
 
-                    for (EntityData OtEntityData : entityDatas) {
-                        if (!OtEntityData.getStr_value6().equals("null")) {
-                            P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
-                        }
-                        if (!OtEntityData.getStr_value5().equals("null")) {
-                            P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
-                        }
-                        if (!OtEntityData.getStr_value3().equals("null")) {
-                            P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value3()).longValue();
-                        }
-
-                        if (!OtEntityData.getStr_value2().equals("null")) {
-                            P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
-                        }
-                        if (!OtEntityData.getStr_value4().equals("null")) {
-                            P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
-                        }
+                for (EntityData OtEntityData : entityDatas) {
+                    if (!OtEntityData.getStr_value6().equals("null")) {
+                        P_MONTANTBRUTTP = Double.valueOf(OtEntityData.getStr_value6()).longValue();
+                    }
+                    if (!OtEntityData.getStr_value5().equals("null")) {
+                        P_REMISEFORFAITAIRE = Double.valueOf(OtEntityData.getStr_value5()).longValue();
+                    }
+                    if (!OtEntityData.getStr_value3().equals("null")) {
+                        P_ATT_AMOUNT = Double.valueOf(OtEntityData.getStr_value3()).longValue();
                     }
 
-                    parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
+                    if (!OtEntityData.getStr_value2().equals("null")) {
+                        P_ADHER_AMOUNT += Long.valueOf(OtEntityData.getStr_value2());
+                    }
+                    if (!OtEntityData.getStr_value4().equals("null")) {
+                        P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
+                    }
+                }
 
-                    parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
-                    parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
-                    parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
-                    parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
-                    parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                    parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
-                    parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + OTiersPayant.getStrNAME() + " ( NOMBRE DE BONS=" + OFacture.getTFactureDetailCollection().size() + " )");
+                parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
 
-                    parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-                    break;
+                parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
+                parameters.put("P_TOTAL_AMOUNT", conversion.AmountFormat((int) P_TOTAL_AMOUNT, ' '));
+                parameters.put("P_REMISE_AMOUNT", conversion.AmountFormat((int) P_REMISE_AMOUNT, ' '));
+                parameters.put("P_ADHER_AMOUNT", conversion.AmountFormat((int) P_ADHER_AMOUNT, ' '));
+                parameters.put("P_ATT_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                parameters.put("P_TOTALNET_AMOUNT", conversion.AmountFormat((int) P_ATT_AMOUNT, ' '));
+                parameters.put("P_TOTAL_GENERAL", "TOTAL GENERAL " + OTiersPayant.getStrNAME() + " ( NOMBRE DE BONS="
+                        + OFacture.getTFactureDetailCollection().size() + " )");
+
+                parameters.put("P_TOTAL_IN_LETTERS",
+                        conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " ("
+                                + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
+                break;
 
             }
             String P_FOOTER_RC = "";
@@ -603,10 +672,11 @@ public class InvoiceServlet extends HttpServlet {
             }
 
             if (oTOfficine.getStrPHONE() != null) {
-                String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+                String finalphonestring = oTOfficine.getStrPHONE() != null
+                        ? "Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
                 if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
                     String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                    for (String va  : phone) {
+                    for (String va : phone) {
                         finalphonestring += " / " + conversion.PhoneNumberFormat(va);
                     }
                 }
@@ -624,10 +694,19 @@ public class InvoiceServlet extends HttpServlet {
 
             parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
             parameters.put("P_FOOTER_RC", P_FOOTER_RC);
-            parameters.put("P_CODE_POSTALE", (OTiersPayant.getStrADRESSE() != null && !"".equals(OTiersPayant.getStrADRESSE())) ? OTiersPayant.getStrADRESSE() : "");
-            parameters.put("P_COMPTE_CONTRIBUABLE", (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE())) ? "N ° CC :" + OTiersPayant.getStrCOMPTECONTRIBUABLE() : "");
-            parameters.put("P_CODE_OFFICINE", (OTiersPayant.getStrCODEOFFICINE() != null && !"".equals(OTiersPayant.getStrCODEOFFICINE())) ? "N ° CO :" + OTiersPayant.getStrCODEOFFICINE() : "");
-            parameters.put("P_REGISTRE_COMMERCE", (OTiersPayant.getStrREGISTRECOMMERCE() != null && !"".equals(OTiersPayant.getStrREGISTRECOMMERCE())) ? "N ° RC :" + OTiersPayant.getStrREGISTRECOMMERCE() : "");
+            parameters.put("P_CODE_POSTALE",
+                    (OTiersPayant.getStrADRESSE() != null && !"".equals(OTiersPayant.getStrADRESSE()))
+                            ? OTiersPayant.getStrADRESSE() : "");
+            parameters.put("P_COMPTE_CONTRIBUABLE",
+                    (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null
+                            && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE()))
+                                    ? "N ° CC :" + OTiersPayant.getStrCOMPTECONTRIBUABLE() : "");
+            parameters.put("P_CODE_OFFICINE",
+                    (OTiersPayant.getStrCODEOFFICINE() != null && !"".equals(OTiersPayant.getStrCODEOFFICINE()))
+                            ? "N ° CO :" + OTiersPayant.getStrCODEOFFICINE() : "");
+            parameters.put("P_REGISTRE_COMMERCE",
+                    (OTiersPayant.getStrREGISTRECOMMERCE() != null && !"".equals(OTiersPayant.getStrREGISTRECOMMERCE()))
+                            ? "N ° RC :" + OTiersPayant.getStrREGISTRECOMMERCE() : "");
 
         } catch (NumberFormatException e) {
             Logger.getLogger(InvoiceServlet.class.getName()).log(Level.SEVERE, null, e);
@@ -636,12 +715,13 @@ public class InvoiceServlet extends HttpServlet {
     }
 
     public String exTopdf(JasperPrint jasperPrint, String pathName) throws JRException {
-        //  String fileName = rp_complementaire_" + DATEFORMAT.format(new Date()) + ".pdf";
+        // String fileName = rp_complementaire_" + DATEFORMAT.format(new Date()) + ".pdf";
         long start = System.currentTimeMillis();
         // String pathName = jdom.scr_report_pdf + fileName;
 
         JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-        System.err.println("PDF creation time :  pathName  " + pathName + " ---> " + (System.currentTimeMillis() - start));
+        System.err.println(
+                "PDF creation time :  pathName  " + pathName + " ---> " + (System.currentTimeMillis() - start));
         return pathName;
     }
 
@@ -756,7 +836,7 @@ public class InvoiceServlet extends HttpServlet {
             // pathName = jdom.scr_report_pdf + fileName;
             jasperPrint = JasperFillManager.fillReport(jasperReport, params, Ojconnexion);
             // JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-//            JasperFillManager.fillReportToFile(scr_report_file, params);
+            // JasperFillManager.fillReportToFile(scr_report_file, params);
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (JRException ex) {
@@ -766,19 +846,16 @@ public class InvoiceServlet extends HttpServlet {
     }
 
     public JasperPrint fill(TFacture idInvoice, Map<String, Object> params, String scr_report_file) throws JRException {
-//        String fileName = "rp_complementaire_" + DATEFORMAT.format(new Date()) + ".pdf";
+        // String fileName = "rp_complementaire_" + DATEFORMAT.format(new Date()) + ".pdf";
         JasperPrint jasperPrint = null;
         try {
             JSONObject json = ReportDataSource.generateJSON(idInvoice);
             JSONObject data = json.getJSONObject("invoice");
-            long start = System.currentTimeMillis();
-
-//            Map<String, Object> params = ReportDataSource.getParametters(idInvoice);
             String TPSHORTNAME = json.getString("TPSHORTNAME");
             String seconLabel = json.getString("seconLabel");
 
             params.put(JsonQueryExecuterFactory.JSON_DATE_PATTERN, "yyyy-MM-dd");
-//            params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
+            // params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
             params.put(JsonQueryExecuterFactory.JSON_LOCALE, Locale.FRANCE);
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             InputStream iostream = new ByteArrayInputStream(data.toString().getBytes(StandardCharsets.UTF_8));
@@ -786,7 +863,7 @@ public class InvoiceServlet extends HttpServlet {
             params.put("TPSHORTNAME", TPSHORTNAME);
             params.put("seconLabel", seconLabel);
 
-//         jdom.scr_report_file + "rp_complementaire.jrxml"
+            // jdom.scr_report_file + "rp_complementaire.jrxml"
             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
             jasperPrint = JasperFillManager.fillReport(jasperReport, params);
         } catch (JSONException ex) {

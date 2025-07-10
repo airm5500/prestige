@@ -16,21 +16,72 @@ import java.time.LocalTime;
  */
 public class SalesStatsParams implements Serializable {
 
-    private int start = 0, limit = 20;
+    private int start = 0;
+    private int limit = 20;
     private String typeVenteId;
     private TUser userId;
-    private String query, statut;
-    private LocalDate dtStart = LocalDate.now(), dtEnd = dtStart;
-    private LocalTime hStart = LocalTime.parse("00:00"), hEnd = LocalTime.parse("23:59");
-    private boolean showAll, showAllActivities, all, canCancel;
-    private boolean depotOnly = false, sansBon = false, onlyAvoir = false, modification, modificationClientTp;
+    private String query;
+    private String statut;
+    private LocalDate dtStart = LocalDate.now();
+    private LocalDate dtEnd = dtStart;
+    private LocalTime hStart = LocalTime.parse("00:00");
+    private LocalTime hEnd = LocalTime.parse("23:59");
+    private boolean showAll;
+    private boolean showAllActivities;
+    private boolean all;
+    private boolean canCancel;
+    private boolean depotOnly;
+    private boolean sansBon;
+    private boolean onlyAvoir;
+    private boolean modification;
+    private boolean modificationClientTp;
     private int nbre;
     private String produitId;
     private String prixachatFiltre;
-    private int stock;
-    private String stockFiltre,typeFiltre;
+    private String stockFiltre;
+    private String typeFiltre;
     private String rayonId;
     private String user;
+    private Integer qteVendu;
+    private Integer stock;
+    private boolean discountStat;
+    private String tiersPayantId;
+    private String nature;
+    private boolean modificationVenteDate;
+    private String depotId;
+    private String typeDepotId;
+
+    public String getDepotId() {
+        return depotId;
+    }
+
+    public String getTypeDepotId() {
+        return typeDepotId;
+    }
+
+    public void setTypeDepotId(String typeDepotId) {
+        this.typeDepotId = typeDepotId;
+    }
+
+    public void setDepotId(String depotId) {
+        this.depotId = depotId;
+    }
+
+    public String getNature() {
+        return nature;
+    }
+
+    public void setNature(String nature) {
+        this.nature = nature;
+    }
+
+    public boolean isDiscountStat() {
+        return discountStat;
+    }
+
+    public void setDiscountStat(boolean discountStat) {
+        this.discountStat = discountStat;
+    }
 
     public String getTypeFiltre() {
         return typeFiltre;
@@ -49,7 +100,7 @@ public class SalesStatsParams implements Serializable {
     public void setTypeTransaction(String typeTransaction) {
         this.typeTransaction = typeTransaction;
     }
-    
+
     public String getUser() {
         return user;
     }
@@ -58,8 +109,14 @@ public class SalesStatsParams implements Serializable {
         this.user = user;
     }
 
-    
-    
+    public Integer getQteVendu() {
+        return qteVendu;
+    }
+
+    public void setQteVendu(Integer qteVendu) {
+        this.qteVendu = qteVendu;
+    }
+
     public boolean isModificationClientTp() {
         return modificationClientTp;
     }
@@ -92,11 +149,11 @@ public class SalesStatsParams implements Serializable {
         this.prixachatFiltre = prixachatFiltre;
     }
 
-    public int getStock() {
+    public Integer getStock() {
         return stock;
     }
 
-    public void setStock(int stock) {
+    public void setStock(Integer stock) {
         this.stock = stock;
     }
 
@@ -116,7 +173,24 @@ public class SalesStatsParams implements Serializable {
         this.rayonId = rayonId;
     }
 
-    public SalesStatsParams(boolean showAll, String typeVenteId, TUser userId, String query, String statut, LocalDate dtStart, LocalDate dtEnd, int start, int limit) {
+    public String getTiersPayantId() {
+        return tiersPayantId;
+    }
+
+    public void setTiersPayantId(String tiersPayantId) {
+        this.tiersPayantId = tiersPayantId;
+    }
+
+    public boolean isModificationVenteDate() {
+        return modificationVenteDate;
+    }
+
+    public void setModificationVenteDate(boolean modificationVenteDate) {
+        this.modificationVenteDate = modificationVenteDate;
+    }
+
+    public SalesStatsParams(boolean showAll, String typeVenteId, TUser userId, String query, String statut,
+            LocalDate dtStart, LocalDate dtEnd, int start, int limit) {
         this.typeVenteId = typeVenteId;
         this.userId = userId;
         this.query = query;
@@ -300,8 +374,5 @@ public class SalesStatsParams implements Serializable {
         sb.append('}');
         return sb.toString();
     }
-
-
- 
 
 }

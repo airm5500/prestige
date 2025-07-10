@@ -26,14 +26,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_dossier_tiers_payant")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TDossierTiersPayant.findAll", query = "SELECT t FROM TDossierTiersPayant t"),
-    @NamedQuery(name = "TDossierTiersPayant.findByLgDOSSIERTIERSPAYANTID", query = "SELECT t FROM TDossierTiersPayant t WHERE t.lgDOSSIERTIERSPAYANTID = :lgDOSSIERTIERSPAYANTID"),
-    @NamedQuery(name = "TDossierTiersPayant.findByStrNUMEROTRI", query = "SELECT t FROM TDossierTiersPayant t WHERE t.strNUMEROTRI = :strNUMEROTRI"),
-    @NamedQuery(name = "TDossierTiersPayant.findByStrLIBELLEDOSSIER", query = "SELECT t FROM TDossierTiersPayant t WHERE t.strLIBELLEDOSSIER = :strLIBELLEDOSSIER"),
-    @NamedQuery(name = "TDossierTiersPayant.findByStrSTATUT", query = "SELECT t FROM TDossierTiersPayant t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TDossierTiersPayant.findByDtCREATED", query = "SELECT t FROM TDossierTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TDossierTiersPayant.findByDtUPDATED", query = "SELECT t FROM TDossierTiersPayant t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TDossierTiersPayant.findAll", query = "SELECT t FROM TDossierTiersPayant t"),
+        @NamedQuery(name = "TDossierTiersPayant.findByLgDOSSIERTIERSPAYANTID", query = "SELECT t FROM TDossierTiersPayant t WHERE t.lgDOSSIERTIERSPAYANTID = :lgDOSSIERTIERSPAYANTID"),
+        @NamedQuery(name = "TDossierTiersPayant.findByStrNUMEROTRI", query = "SELECT t FROM TDossierTiersPayant t WHERE t.strNUMEROTRI = :strNUMEROTRI"),
+        @NamedQuery(name = "TDossierTiersPayant.findByStrLIBELLEDOSSIER", query = "SELECT t FROM TDossierTiersPayant t WHERE t.strLIBELLEDOSSIER = :strLIBELLEDOSSIER"),
+        @NamedQuery(name = "TDossierTiersPayant.findByStrSTATUT", query = "SELECT t FROM TDossierTiersPayant t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TDossierTiersPayant.findByDtCREATED", query = "SELECT t FROM TDossierTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TDossierTiersPayant.findByDtUPDATED", query = "SELECT t FROM TDossierTiersPayant t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TDossierTiersPayant implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -122,7 +121,9 @@ public class TDossierTiersPayant implements Serializable {
             return false;
         }
         TDossierTiersPayant other = (TDossierTiersPayant) object;
-        if ((this.lgDOSSIERTIERSPAYANTID == null && other.lgDOSSIERTIERSPAYANTID != null) || (this.lgDOSSIERTIERSPAYANTID != null && !this.lgDOSSIERTIERSPAYANTID.equals(other.lgDOSSIERTIERSPAYANTID))) {
+        if ((this.lgDOSSIERTIERSPAYANTID == null && other.lgDOSSIERTIERSPAYANTID != null)
+                || (this.lgDOSSIERTIERSPAYANTID != null
+                        && !this.lgDOSSIERTIERSPAYANTID.equals(other.lgDOSSIERTIERSPAYANTID))) {
             return false;
         }
         return true;
@@ -132,5 +133,5 @@ public class TDossierTiersPayant implements Serializable {
     public String toString() {
         return "dal.TDossierTiersPayant[ lgDOSSIERTIERSPAYANTID=" + lgDOSSIERTIERSPAYANTID + " ]";
     }
-    
+
 }

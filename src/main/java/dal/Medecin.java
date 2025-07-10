@@ -27,9 +27,8 @@ import javax.validation.constraints.NotNull;
 @Entity
 @Table(name = "medecin")
 @NamedQueries({
-    @NamedQuery(name = "Medecin.findByNumOrder", query = "SELECT o FROM Medecin o WHERE o.numOrdre =:numorder"),
-    @NamedQuery(name = "Medecin.findAllByNonOrNumOrder", query = "SELECT o FROM Medecin o WHERE o.numOrdre LIKE :numorder OR o.nom LIKE :nom")
-})
+        @NamedQuery(name = "Medecin.findByNumOrder", query = "SELECT o FROM Medecin o WHERE o.numOrdre =:numorder"),
+        @NamedQuery(name = "Medecin.findAllByNonOrNumOrder", query = "SELECT o FROM Medecin o WHERE o.numOrdre LIKE :numorder OR o.nom LIKE :nom") })
 public class Medecin implements Serializable {
 
     private static final long serialVersionUID = 1L;

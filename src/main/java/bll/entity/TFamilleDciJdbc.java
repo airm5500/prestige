@@ -11,8 +11,6 @@ import dal.TFamilleDci;
  *
  * @author admin
  */
-public class TFamilleDciJdbc extends  TFamilleDci{
-    
-    
-    
+public class TFamilleDciJdbc extends TFamilleDci {
+
 }

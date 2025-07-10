@@ -25,17 +25,15 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_type_promo", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_TYPE_PROMO_ID"})})
+@Table(name = "t_type_promo", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_TYPE_PROMO_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypePromo.findAll", query = "SELECT t FROM TTypePromo t"),
-    @NamedQuery(name = "TTypePromo.findByLgTYPEPROMOID", query = "SELECT t FROM TTypePromo t WHERE t.lgTYPEPROMOID = :lgTYPEPROMOID"),
-    @NamedQuery(name = "TTypePromo.findByStrNAME", query = "SELECT t FROM TTypePromo t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypePromo.findByStrDESCRIPTION", query = "SELECT t FROM TTypePromo t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypePromo.findByDtCREATED", query = "SELECT t FROM TTypePromo t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypePromo.findByDtUPDATED", query = "SELECT t FROM TTypePromo t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypePromo.findByStrSTATUT", query = "SELECT t FROM TTypePromo t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypePromo.findAll", query = "SELECT t FROM TTypePromo t"),
+        @NamedQuery(name = "TTypePromo.findByLgTYPEPROMOID", query = "SELECT t FROM TTypePromo t WHERE t.lgTYPEPROMOID = :lgTYPEPROMOID"),
+        @NamedQuery(name = "TTypePromo.findByStrNAME", query = "SELECT t FROM TTypePromo t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypePromo.findByStrDESCRIPTION", query = "SELECT t FROM TTypePromo t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypePromo.findByDtCREATED", query = "SELECT t FROM TTypePromo t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypePromo.findByDtUPDATED", query = "SELECT t FROM TTypePromo t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypePromo.findByStrSTATUT", query = "SELECT t FROM TTypePromo t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypePromo implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -124,7 +122,8 @@ public class TTypePromo implements Serializable {
             return false;
         }
         TTypePromo other = (TTypePromo) object;
-        if ((this.lgTYPEPROMOID == null && other.lgTYPEPROMOID != null) || (this.lgTYPEPROMOID != null && !this.lgTYPEPROMOID.equals(other.lgTYPEPROMOID))) {
+        if ((this.lgTYPEPROMOID == null && other.lgTYPEPROMOID != null)
+                || (this.lgTYPEPROMOID != null && !this.lgTYPEPROMOID.equals(other.lgTYPEPROMOID))) {
             return false;
         }
         return true;
@@ -134,5 +133,5 @@ public class TTypePromo implements Serializable {
     public String toString() {
         return "dal.TTypePromo[ lgTYPEPROMOID=" + lgTYPEPROMOID + " ]";
     }
-    
+
 }

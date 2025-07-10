@@ -18,13 +18,13 @@ import javax.validation.constraints.NotNull;
 @Entity
 @Table(name = "gamme_produit")
 public class GammeProduit extends AbstractEntity {
-     private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
     @NotNull
     @NotBlank
     @Column(name = "code", nullable = false, unique = true)
     private String code;
     @NotNull
-     @NotBlank
+    @NotBlank
     @Column(name = "libelle", nullable = false, unique = true)
     private String libelle;
 
@@ -54,15 +54,10 @@ public class GammeProduit extends AbstractEntity {
         this.libelle = libelle;
     }
 
-
     @Override
     public String toString() {
-        return "GammeProduit{"
-                + "id=" + getId()
-                + ", code='" + getCode() + "'"
-                + ", libelle='" + getLibelle() + "'"
-                + ", status='" + getStatus() + "'"
-                + "}";
+        return "GammeProduit{" + "id=" + getId() + ", code='" + getCode() + "'" + ", libelle='" + getLibelle() + "'"
+                + ", status='" + getStatus() + "'" + "}";
     }
 
 }

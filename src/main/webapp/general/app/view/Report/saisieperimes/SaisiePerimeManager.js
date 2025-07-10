@@ -40,7 +40,9 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                 {name: 'libelleGrossiste', type: 'string'},
                 {name: 'strNAME', type: 'string'},
                 {name: 'intPRICEUNITAIR', type: 'number'},
-                {name: 'intPRICE', type: 'number'}
+                {name: 'intPRICE', type: 'number'},
+                {name: 'stockInitial', type: 'number'},
+                {name: 'stockFinal', type: 'number'}
             ],
             pageSize: itemsPerPage,
             autoLoad: true,
@@ -188,8 +190,27 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                     header: 'Num.Lot',
                     dataIndex: 'ticketNum',
                     flex: 1
-                }, {
-                    header: 'Quantit&eacute;',
+                },
+                {
+                    header: 'Stock.Initial',
+                    dataIndex: 'stockInitial',
+                    renderer: amountformat,
+                    align: 'right',
+                    flex: 0.8,
+                    summaryType: "sum",
+                    summaryRenderer: function (value) {
+
+                        if (value > 0) {
+                            return "<b><span style='color:blue;'>" + amountformat(value) + " </span></b>";
+                        } else {
+                            return '';
+                        }
+                    }
+
+                },
+
+                {
+                    header: 'Quantité',
                     dataIndex: 'intQUANTITY',
                     renderer: amountformat,
                     align: 'right',
@@ -204,7 +225,26 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                         }
                     }
 
-                }, {
+                },
+                {
+                    header: 'Stock.Final',
+                    dataIndex: 'stockFinal',
+                    renderer: amountformat,
+                    align: 'right',
+                    flex: 0.8,
+                    summaryType: "sum",
+                    summaryRenderer: function (value) {
+
+                        if (value > 0) {
+                            return "<b><span style='color:blue;'>" + amountformat(value) + " </span></b>";
+                        } else {
+                            return '';
+                        }
+                    }
+
+                },
+
+                {
                     header: 'Prix.U',
                     dataIndex: 'intPRICEUNITAIR',
                     renderer: amountformat,
@@ -369,7 +409,7 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                             id: 'rechecher',
                             flex: 1,
                             emptyText: 'Taper pur rechercher'
-                         
+
                         },
                         {
                             xtype: 'tbseparator'

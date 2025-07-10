@@ -3,9 +3,7 @@
 Ext.define('testextjs.view.vente.PreSaleManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'preenregistrementmanager',
-    requires: [
-        'Ext.grid.plugin.RowExpander'
-    ],
+   
     frame: true,
     title: 'Liste Pre Ventes',
     iconCls: 'icon-grid',
@@ -92,15 +90,6 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
             ],
             items: [{
                     xtype: 'gridpanel',
-
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            rowBodyTpl: new Ext.XTemplate(
-                                    '<p>{details}</p>'
-
-                                    )
-                        }
-                    ],
                     store: vente,
 
                     viewConfig: {

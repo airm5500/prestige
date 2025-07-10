@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_code_acte")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCodeActe.findAll", query = "SELECT t FROM TCodeActe t"),
-    @NamedQuery(name = "TCodeActe.findByLgCODEACTEID", query = "SELECT t FROM TCodeActe t WHERE t.lgCODEACTEID = :lgCODEACTEID"),
-    @NamedQuery(name = "TCodeActe.findByStrCODE", query = "SELECT t FROM TCodeActe t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TCodeActe.findByStrLIBELLEE", query = "SELECT t FROM TCodeActe t WHERE t.strLIBELLEE = :strLIBELLEE"),
-    @NamedQuery(name = "TCodeActe.findByDtCREATED", query = "SELECT t FROM TCodeActe t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCodeActe.findByDtUPDATED", query = "SELECT t FROM TCodeActe t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TCodeActe.findByStrSTATUT", query = "SELECT t FROM TCodeActe t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TCodeActe.findAll", query = "SELECT t FROM TCodeActe t"),
+        @NamedQuery(name = "TCodeActe.findByLgCODEACTEID", query = "SELECT t FROM TCodeActe t WHERE t.lgCODEACTEID = :lgCODEACTEID"),
+        @NamedQuery(name = "TCodeActe.findByStrCODE", query = "SELECT t FROM TCodeActe t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TCodeActe.findByStrLIBELLEE", query = "SELECT t FROM TCodeActe t WHERE t.strLIBELLEE = :strLIBELLEE"),
+        @NamedQuery(name = "TCodeActe.findByDtCREATED", query = "SELECT t FROM TCodeActe t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCodeActe.findByDtUPDATED", query = "SELECT t FROM TCodeActe t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCodeActe.findByStrSTATUT", query = "SELECT t FROM TCodeActe t WHERE t.strSTATUT = :strSTATUT") })
 public class TCodeActe implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +135,8 @@ public class TCodeActe implements Serializable {
             return false;
         }
         TCodeActe other = (TCodeActe) object;
-        if ((this.lgCODEACTEID == null && other.lgCODEACTEID != null) || (this.lgCODEACTEID != null && !this.lgCODEACTEID.equals(other.lgCODEACTEID))) {
+        if ((this.lgCODEACTEID == null && other.lgCODEACTEID != null)
+                || (this.lgCODEACTEID != null && !this.lgCODEACTEID.equals(other.lgCODEACTEID))) {
             return false;
         }
         return true;
@@ -146,5 +146,5 @@ public class TCodeActe implements Serializable {
     public String toString() {
         return "dal.TCodeActe[ lgCODEACTEID=" + lgCODEACTEID + " ]";
     }
-    
+
 }

@@ -14,8 +14,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -32,37 +30,41 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import rest.report.ReportUtil;
+import rest.service.BalanceService;
 import rest.service.CaisseService;
-import toolkits.parameters.commonparameter;
+import rest.service.dto.BalanceParamsDTO;
 import toolkits.utils.jdom;
+import util.Constant;
 
 /**
- *
  * @author koben
  */
-@WebServlet(name = "ExcelExporter", urlPatterns = {"/ExcelExporter"})
+@WebServlet(name = "ExcelExporter", urlPatterns = { "/ExcelExporter" })
 public class ExcelExporter extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
-    DateFormat df = new SimpleDateFormat("dd_MM_YYYY_HH_mm_ss");
+    @EJB
+    private BalanceService balanceService;
     @EJB
     CaisseService caisseService;
     @EJB
     ReportUtil reportUtil;
 
     private enum Action {
-        TABLEAU
+        TABLEAU, TABLEAU_CARNET
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         HttpSession session = request.getSession();
-        TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+        TUser oTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
         String action = request.getParameter("mode");
         String dtStart = request.getParameter("dtStart");
         String dtEnd = request.getParameter("dtEnd");
+        boolean ration = Boolean.parseBoolean(request.getParameter("ration"));
+        boolean monthly = Boolean.parseBoolean(request.getParameter("monthly"));
         Params params = new Params();
-        params.setOperateur(OTUser);
+        params.setOperateur(oTUser);
 
         if (dtEnd != null && !"".equals(dtEnd)) {
             params.setDtEnd(dtEnd);
@@ -72,24 +74,31 @@ public class ExcelExporter extends HttpServlet {
         }
 
         switch (Action.valueOf(action)) {
-            case TABLEAU:
-                boolean ration = Boolean.valueOf(request.getParameter("ration"));
-                boolean monthly = Boolean.valueOf(request.getParameter("monthly"));
-                exportToxlsx(response, new File( tableauBordPharmation(params, ration, monthly)));
-                break;
-            default:
-                break;
+        case TABLEAU:
+            exportToxlsx(response, new File(tableauBordPharmation(params, ration, monthly, false)));
+            break;
+        case TABLEAU_CARNET:
+            exportToxlsx(response, new File(tableauBordPharmation(params, ration, monthly, true)));
+            break;
+        default:
+            break;
         }
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
+    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the
+    // left to edit the code.">
     /**
      * Handles the HTTP <code>GET</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -100,10 +109,15 @@ public class ExcelExporter extends HttpServlet {
     /**
      * Handles the HTTP <code>POST</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -119,7 +133,7 @@ public class ExcelExporter extends HttpServlet {
     @Override
     public String getServletInfo() {
         return "Short description";
-    }// </editor-fold>
+    } // </editor-fold>
 
     private void exportToxlsx(HttpServletResponse response, File filetoExport) {
         OutputStream out = null;
@@ -153,11 +167,10 @@ public class ExcelExporter extends HttpServlet {
                     Logger.getLogger(ExcelExporter.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-
         }
     }
 
-    private String tableauBordPharmation(Params parasm, boolean ratio, boolean monthly) {
+    private String tableauBordPharmation(Params parasm, boolean ratio, boolean monthly, boolean showAll) {
         LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
         try {
             dtSt = LocalDate.parse(parasm.getDtStart());
@@ -165,23 +178,19 @@ public class ExcelExporter extends HttpServlet {
         } catch (Exception e) {
         }
         TUser tu = parasm.getOperateur();
-        TOfficine oTOfficine = caisseService.findOfficine();
         String scr_report_file = "rp_pharma_dashboard";
-        Map<String, Object> parameters = reportUtil.officineData(oTOfficine, tu);
+        Map<String, Object> parameters = reportUtil.officineData(tu);
         String P_PERIODE = "PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         if (!dtEn.isEqual(dtSt)) {
             P_PERIODE += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-
         }
         parameters.put("P_H_CLT_INFOS", "TABLEAU DE BORD DU PHARMACIEN \nARRETE " + P_PERIODE);
-        String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss")) + ".xlsx";
+        String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss"))
+                + ".xlsx";
         List<TableauBaordPhDTO> datas = new ArrayList<>();
-        Map<TableauBaordSummary, List<TableauBaordPhDTO>> map;
-        if (monthly) {
-            map = caisseService.tableauBoardDatasMonthly(dtSt, dtEn, Boolean.TRUE, tu, 0, 0, 0, true);
-        } else {
-            map = caisseService.tableauBoardDatas(dtSt, dtEn, Boolean.TRUE, tu, 0, 0, 0, true);
-        }
+        Map<TableauBaordSummary, List<TableauBaordPhDTO>> map = this.balanceService.getTableauBoardData(BalanceParamsDTO
+                .builder().dtStart(parasm.getDtStart()).dtEnd(parasm.getDtEnd()).byMonth(monthly).showAllAmount(showAll)
+                .emplacementId(parasm.getOperateur().getLgEMPLACEMENTID().getLgEMPLACEMENTID()).build());
 
         if (!map.isEmpty()) {
             map.forEach((k, v) -> {
@@ -201,7 +210,6 @@ public class ExcelExporter extends HttpServlet {
                 parameters.put("montantAvoir", k.getMontantAvoir());
                 parameters.put("ratioVA", k.getRatioVA());
                 parameters.put("rationAV", k.getRationAV());
-
             });
         }
         String finalFilePath = jdom.scr_report_pdf + "tableau_de_bord_" + report_generate_file;

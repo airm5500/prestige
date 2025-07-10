@@ -28,29 +28,28 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_cash_transaction")
 
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCashTransaction.findAll", query = "SELECT t FROM TCashTransaction t"),
-    @NamedQuery(name = "TCashTransaction.findById", query = "SELECT t FROM TCashTransaction t WHERE t.id = :id"),
-    @NamedQuery(name = "TCashTransaction.findByStrTRANSACTIONREF", query = "SELECT t FROM TCashTransaction t WHERE t.strTRANSACTIONREF = :strTRANSACTIONREF"),
-    @NamedQuery(name = "TCashTransaction.findByIntAMOUNT", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNT = :intAMOUNT"),
-    @NamedQuery(name = "TCashTransaction.findByDtCREATED", query = "SELECT t FROM TCashTransaction t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCashTransaction.findByLgCREATEDBY", query = "SELECT t FROM TCashTransaction t WHERE t.lgCREATEDBY = :lgCREATEDBY"),
-    @NamedQuery(name = "TCashTransaction.findByDtUPDATED", query = "SELECT t FROM TCashTransaction t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TCashTransaction.findByLgUPDATEDBY", query = "SELECT t FROM TCashTransaction t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
-    @NamedQuery(name = "TCashTransaction.findByStrDESCRIPTION", query = "SELECT t FROM TCashTransaction t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TCashTransaction.findByIntAMOUNTDEBIT", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTDEBIT = :intAMOUNTDEBIT"),
-    @NamedQuery(name = "TCashTransaction.findByIntAMOUNTCREDIT", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTCREDIT = :intAMOUNTCREDIT"),
-    @NamedQuery(name = "TCashTransaction.findByStrREFCOMPTECLIENT", query = "SELECT t FROM TCashTransaction t WHERE t.strREFCOMPTECLIENT = :strREFCOMPTECLIENT"),
-    @NamedQuery(name = "TCashTransaction.findByStrNUMEROCOMPTE", query = "SELECT t FROM TCashTransaction t WHERE t.strNUMEROCOMPTE = :strNUMEROCOMPTE"),
-    @NamedQuery(name = "TCashTransaction.findByIntAMOUNTREMIS", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTREMIS = :intAMOUNTREMIS"),
-    @NamedQuery(name = "TCashTransaction.findByIntAMOUNTRECU", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTRECU = :intAMOUNTRECU"),
-    @NamedQuery(name = "TCashTransaction.findByStrTASK", query = "SELECT t FROM TCashTransaction t WHERE t.strTASK = :strTASK"),
-    @NamedQuery(name = "TCashTransaction.findByLgTYPEREGLEMENTID", query = "SELECT t FROM TCashTransaction t WHERE t.lgTYPEREGLEMENTID = :lgTYPEREGLEMENTID"),
-    @NamedQuery(name = "TCashTransaction.findByStrTYPEVENTE", query = "SELECT t FROM TCashTransaction t WHERE t.strTYPEVENTE = :strTYPEVENTE"),
-    @NamedQuery(name = "TCashTransaction.findByStrREFFACTURE", query = "SELECT t FROM TCashTransaction t WHERE t.strREFFACTURE = :strREFFACTURE"),
-    @NamedQuery(name = "TCashTransaction.findByStrRESSOURCEREF", query = "SELECT t FROM TCashTransaction t WHERE t.strRESSOURCEREF = :strRESSOURCEREF"),
-    @NamedQuery(name = "TCashTransaction.findByStrTYPE", query = "SELECT t FROM TCashTransaction t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TCashTransaction.findByBoolCHECKED", query = "SELECT t FROM TCashTransaction t WHERE t.boolCHECKED = :boolCHECKED")})
+@NamedQueries({ @NamedQuery(name = "TCashTransaction.findAll", query = "SELECT t FROM TCashTransaction t"),
+        @NamedQuery(name = "TCashTransaction.findById", query = "SELECT t FROM TCashTransaction t WHERE t.id = :id"),
+        @NamedQuery(name = "TCashTransaction.findByStrTRANSACTIONREF", query = "SELECT t FROM TCashTransaction t WHERE t.strTRANSACTIONREF = :strTRANSACTIONREF"),
+        @NamedQuery(name = "TCashTransaction.findByIntAMOUNT", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNT = :intAMOUNT"),
+        @NamedQuery(name = "TCashTransaction.findByDtCREATED", query = "SELECT t FROM TCashTransaction t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCashTransaction.findByLgCREATEDBY", query = "SELECT t FROM TCashTransaction t WHERE t.lgCREATEDBY = :lgCREATEDBY"),
+        @NamedQuery(name = "TCashTransaction.findByDtUPDATED", query = "SELECT t FROM TCashTransaction t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCashTransaction.findByLgUPDATEDBY", query = "SELECT t FROM TCashTransaction t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
+        @NamedQuery(name = "TCashTransaction.findByStrDESCRIPTION", query = "SELECT t FROM TCashTransaction t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TCashTransaction.findByIntAMOUNTDEBIT", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTDEBIT = :intAMOUNTDEBIT"),
+        @NamedQuery(name = "TCashTransaction.findByIntAMOUNTCREDIT", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTCREDIT = :intAMOUNTCREDIT"),
+        @NamedQuery(name = "TCashTransaction.findByStrREFCOMPTECLIENT", query = "SELECT t FROM TCashTransaction t WHERE t.strREFCOMPTECLIENT = :strREFCOMPTECLIENT"),
+        @NamedQuery(name = "TCashTransaction.findByStrNUMEROCOMPTE", query = "SELECT t FROM TCashTransaction t WHERE t.strNUMEROCOMPTE = :strNUMEROCOMPTE"),
+        @NamedQuery(name = "TCashTransaction.findByIntAMOUNTREMIS", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTREMIS = :intAMOUNTREMIS"),
+        @NamedQuery(name = "TCashTransaction.findByIntAMOUNTRECU", query = "SELECT t FROM TCashTransaction t WHERE t.intAMOUNTRECU = :intAMOUNTRECU"),
+        @NamedQuery(name = "TCashTransaction.findByStrTASK", query = "SELECT t FROM TCashTransaction t WHERE t.strTASK = :strTASK"),
+        @NamedQuery(name = "TCashTransaction.findByLgTYPEREGLEMENTID", query = "SELECT t FROM TCashTransaction t WHERE t.lgTYPEREGLEMENTID = :lgTYPEREGLEMENTID"),
+        @NamedQuery(name = "TCashTransaction.findByStrTYPEVENTE", query = "SELECT t FROM TCashTransaction t WHERE t.strTYPEVENTE = :strTYPEVENTE"),
+        @NamedQuery(name = "TCashTransaction.findByStrREFFACTURE", query = "SELECT t FROM TCashTransaction t WHERE t.strREFFACTURE = :strREFFACTURE"),
+        @NamedQuery(name = "TCashTransaction.findByStrRESSOURCEREF", query = "SELECT t FROM TCashTransaction t WHERE t.strRESSOURCEREF = :strRESSOURCEREF"),
+        @NamedQuery(name = "TCashTransaction.findByStrTYPE", query = "SELECT t FROM TCashTransaction t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TCashTransaction.findByBoolCHECKED", query = "SELECT t FROM TCashTransaction t WHERE t.boolCHECKED = :boolCHECKED") })
 public class TCashTransaction implements Serializable {
 
     @Column(name = "int_AMOUNT2")
@@ -116,11 +115,9 @@ public class TCashTransaction implements Serializable {
     @JoinColumn(name = "lgUSERCAISSIERID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser caissier;
-   
 
     public TCashTransaction() {
     }
-
 
     public TUser getCaissier() {
         return caissier;

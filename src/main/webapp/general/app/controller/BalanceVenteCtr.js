@@ -96,9 +96,9 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
 
     init: function (application) {
         this.control({
-            'balancesalecahs': {
+           /* 'balancesalecahs': {
                 render: this.onReady
-            },
+            },*/
             'balancesalecahs #balanceGrid pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
@@ -124,38 +124,33 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         window.open(linkUrl);
     },
     doMetachange: function (store, meta) {
-        var me = this;
+        const me = this;
         me.buildSummary(meta);
 
     },
     doBeforechange: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getBalanceGrid().getStore().getProxy();
+        const me = this;
+        const myProxy = me.getBalanceGrid().getStore().getProxy();
         myProxy.params = {
             dtEnd: null,
             dtStart: null
 
         };
-        if (me.getCheckUg()) {
-            myProxy.url = '../api/v2/caisse/balancesalecash';
-        }
+      
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
 
     },
 
     doInitStore: function () {
-        var me = this;
+        const me = this;
         me.getBalanceGrid().getStore().addListener('metachange', this.doMetachange, this);
         me.doSearch();
     },
 
     doSearch: function () {
-        var me = this;
+        const me = this;
         let store = me.getBalanceGrid().getStore();
-        if (me.getCheckUg()) {
-            store.getProxy().url = '../api/v2/caisse/balancesalecash';
-        }
         store.load({
             params: {
                 dtStart: me.getDtStart().getSubmitValue(),
@@ -165,7 +160,7 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         });
     },
     buildSummary: function (rec) {
-        var me = this;
+        const me = this;
         me.getMontantTTC().setValue(rec.montantTTC);
         me.getMontantAchat().setValue(rec.montantAchat);
         me.getRatioVA().setValue(rec.ratioVA);
@@ -184,12 +179,12 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
 
     },
     oncheckUg: function () {
-        var me = this;
+        const me = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/common/checkug',
             success: function (response, options) {
-                var result = Ext.JSON.decode(response.responseText, true);
+                const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
                     me.checkUg = result.data;
                 }
@@ -198,7 +193,7 @@ Ext.define('testextjs.controller.BalanceVenteCtr', {
         });
     },
     onReady: function () {
-        var me = this;
+        const me = this;
         me.oncheckUg();
     }
 });

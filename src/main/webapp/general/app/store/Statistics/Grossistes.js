@@ -7,7 +7,7 @@ Ext.define('testextjs.store.Statistics.Grossistes', {
     ],
    
     model:'testextjs.model.Grossiste',
-    pageSize:20,
+    pageSize:999,
     autoLoad: true,
     proxy: {
         type: 'ajax',

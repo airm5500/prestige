@@ -17,7 +17,8 @@ import java.util.Objects;
 public class AyantDroitDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String lgAYANTSDROITSID, strCODEINTERNE, dtNAISSANCE, strFIRSTNAME, strSEXE, strLASTNAME, strNUMEROSECURITESOCIAL, fullName, lgCLIENTID;
+    private String lgAYANTSDROITSID, strCODEINTERNE, dtNAISSANCE, strFIRSTNAME, strSEXE, strLASTNAME,
+            strNUMEROSECURITESOCIAL, fullName, lgCLIENTID;
     private final String lgCATEGORIEAYANTDROITID = "555146116095894790", lgRISQUEID = "55181642844215217016";
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
 
@@ -140,7 +141,9 @@ public class AyantDroitDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "AyantDroitDTO{" + "lgAYANTSDROITSID=" + lgAYANTSDROITSID + ", strCODEINTERNE=" + strCODEINTERNE + ", strFIRSTNAME=" + strFIRSTNAME + ", strLASTNAME=" + strLASTNAME + ", strNUMEROSECURITESOCIAL=" + strNUMEROSECURITESOCIAL + '}';
+        return "AyantDroitDTO{" + "lgAYANTSDROITSID=" + lgAYANTSDROITSID + ", strCODEINTERNE=" + strCODEINTERNE
+                + ", strFIRSTNAME=" + strFIRSTNAME + ", strLASTNAME=" + strLASTNAME + ", strNUMEROSECURITESOCIAL="
+                + strNUMEROSECURITESOCIAL + '}';
     }
 
     public String getLgCLIENTID() {

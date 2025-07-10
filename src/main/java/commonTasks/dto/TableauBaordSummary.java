@@ -14,16 +14,34 @@ import java.io.Serializable;
 public class TableauBaordSummary implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    long montantTTC = 0, montantNet = 0, montantRemise = 0,
-            montantEsp = 0,
-            montantCredit = 0,
-            nbreVente = 0, montantAchatOne = 0, montantAchatTwo = 0,
-            montantAchatThree = 0, montantAchatFour = 0, montantAchatFive = 0,
-            montantAchat = 0, montantAchatNet = 0,montantAvoir=0;
-    double ratioVA = 0.0, rationAV = 0.0;
+    private long montantTTC;
+    private long montantNet;
+    private long montantRemise;
+    private long montantEsp;
+    private long montantCredit;
+    private long nbreVente;
+    private long montantAchatOne;
+    private long montantAchatTwo;
+    private long montantAchatThree;
+    private long montantAchatFour;
+    private long montantAchatFive;
+    private long montantAchat;
+    private long montantAchatNet;
+    private long montantAvoir;
+    private double ratioVA;
+    private double rationAV;
+    private long totalModeReglement;
 
     public long getMontantTTC() {
         return montantTTC;
+    }
+
+    public long getTotalModeReglement() {
+        return totalModeReglement;
+    }
+
+    public void setTotalModeReglement(long totalModeReglement) {
+        this.totalModeReglement = totalModeReglement;
     }
 
     public void setMontantTTC(long montantTTC) {
@@ -149,5 +167,5 @@ public class TableauBaordSummary implements Serializable {
     public void setRationAV(double rationAV) {
         this.rationAV = rationAV;
     }
-    
+
 }

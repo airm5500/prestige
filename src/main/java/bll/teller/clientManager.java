@@ -42,17 +42,20 @@ public class clientManager extends bll.bllBase {
         this.checkDatamanager();
     }
 
-    public boolean isAuthorize(TCompteClient OTCompteClient, String lg_PREENREGISTREMENT_ID, String lg_TYPE_REGLEMENT_ID) {
+    public boolean isAuthorize(TCompteClient OTCompteClient, String lg_PREENREGISTREMENT_ID,
+            String lg_TYPE_REGLEMENT_ID) {
         double db_cust_solde = GetcustBalance(OTCompteClient.getLgCOMPTECLIENTID());
-        int int_Total_vente = new Preenregistrement(this.getOdataManager(), this.getOTUser()).GetVenteTotal(lg_PREENREGISTREMENT_ID);
+        int int_Total_vente = new Preenregistrement(this.getOdataManager(), this.getOTUser())
+                .GetVenteTotal(lg_PREENREGISTREMENT_ID);
         double dbl_Total_vente = new Double(int_Total_vente + "");
-//verrifiation de lautoo  
-        //date de recouvrement echue
-        //plafond de vente sur un montant
-        //verifi solde
-        if (db_cust_solde < dbl_Total_vente) //verrif du droit au type ddfdfd
+        // verrifiation de lautoo
+        // date de recouvrement echue
+        // plafond de vente sur un montant
+        // verifi solde
+        if (db_cust_solde < dbl_Total_vente) // verrif du droit au type ddfdfd
         {
-            new logger().OCategory.info(" *** votre solde " + db_cust_solde + "   est inferieur au montant de la vente  *** " + dbl_Total_vente);
+            new logger().OCategory.info(" *** votre solde " + db_cust_solde
+                    + "   est inferieur au montant de la vente  *** " + dbl_Total_vente);
             return false;
         }
         return true;
@@ -60,15 +63,17 @@ public class clientManager extends bll.bllBase {
 
     public boolean isAuthorize(TCompteClient OTCompteClient, int int_Total_vente) {
         double db_cust_solde = GetcustBalance(OTCompteClient.getLgCOMPTECLIENTID());
-        //int int_Total_vente = new Preenregistrement(this.getOdataManager(), this.getOTUser()).GetVenteTotal(lg_PREENREGISTREMENT_ID);
+        // int int_Total_vente = new Preenregistrement(this.getOdataManager(),
+        // this.getOTUser()).GetVenteTotal(lg_PREENREGISTREMENT_ID);
         double dbl_Total_vente = new Double(int_Total_vente + "");
-//verrifiation de lautoo  
-        //date de recouvrement echue
-        //plafond de vente sur un montant
-        //verifi solde
-        if (db_cust_solde < dbl_Total_vente) //verrif du droit au type ddfdfd
+        // verrifiation de lautoo
+        // date de recouvrement echue
+        // plafond de vente sur un montant
+        // verifi solde
+        if (db_cust_solde < dbl_Total_vente) // verrif du droit au type ddfdfd
         {
-            new logger().OCategory.info(" *** votre solde " + db_cust_solde + "   est inferieur au montant de la vente  *** " + dbl_Total_vente);
+            new logger().OCategory.info(" *** votre solde " + db_cust_solde
+                    + "   est inferieur au montant de la vente  *** " + dbl_Total_vente);
             return false;
         }
         return true;
@@ -88,7 +93,8 @@ public class clientManager extends bll.bllBase {
         return cust_balance;
     }
 
-    public Boolean addToMytransactionTiersPayent(TCompteClientTiersPayant OTCompteClientTiersPayant, String lg_PREENREGISTREMENT_ID, int dbl_Amount, int int_percent, String str_mode_operatoire) {
+    public Boolean addToMytransactionTiersPayent(TCompteClientTiersPayant OTCompteClientTiersPayant,
+            String lg_PREENREGISTREMENT_ID, int dbl_Amount, int int_percent, String str_mode_operatoire) {
         jconnexion Ojconnexion = new jconnexion();
         Ojconnexion.initConnexion();
         Ojconnexion.OpenConnexion();
@@ -96,7 +102,8 @@ public class clientManager extends bll.bllBase {
 
         List<TPreenregistrementCompteClientTiersPayent> lstTemp = new ArrayList<TPreenregistrementCompteClientTiersPayent>();
         TPreenregistrementCompteClientTiersPayent oTPreenregistrementCompteClientTiersPayent = null;
-        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID, new TPreenregistrement());
+        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID,
+                new TPreenregistrement());
 
         if (OTCompteClientTiersPayant == null) {
             this.buildErrorTraceMessage("ERROR", "Desole OTCompteClientTiersPayant est null");
@@ -108,10 +115,10 @@ public class clientManager extends bll.bllBase {
         }
         Ojconnexion.CloseConnexion();
 
-        lstTemp = this.getOdataManager().getEm().createQuery("SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = ?1  AND t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?3").
-                setParameter(1, OTPreenregistrement.getLgPREENREGISTREMENTID())
-                .setParameter(3, OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID())
-                .getResultList();
+        lstTemp = this.getOdataManager().getEm().createQuery(
+                "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = ?1  AND t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?3")
+                .setParameter(1, OTPreenregistrement.getLgPREENREGISTREMENTID())
+                .setParameter(3, OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID()).getResultList();
 
         new logger().OCategory.info("  lstTemp clientmanager   " + lstTemp.size());
 
@@ -120,7 +127,8 @@ public class clientManager extends bll.bllBase {
         if (lstTemp == null || lstTemp.isEmpty()) {
 
             oTPreenregistrementCompteClientTiersPayent = new TPreenregistrementCompteClientTiersPayent();
-            oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
+            oTPreenregistrementCompteClientTiersPayent
+                    .setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
 
             oTPreenregistrementCompteClientTiersPayent.setDtCREATED(new Date());
             oTPreenregistrementCompteClientTiersPayent.setLgCOMPTECLIENTTIERSPAYANTID(OTCompteClientTiersPayant);
@@ -134,9 +142,10 @@ public class clientManager extends bll.bllBase {
             oTPreenregistrementCompteClientTiersPayent.setIntPERCENT(int_percent);
             oTPreenregistrementCompteClientTiersPayent.setStrSTATUT(commonparameter.statut_is_Closed);
 
-            //code ajouté 18/08/2016
+            // code ajouté 18/08/2016
             if (OTCompteClientTiersPayant.getDblPLAFOND() != 0) {
-                OTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() + dbl_Amount);
+                OTCompteClientTiersPayant
+                        .setDblQUOTACONSOMENSUELLE(OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() + dbl_Amount);
                 OTCompteClientTiersPayant.setDtUPDATED(new Date());
                 this.getOdataManager().getEm().merge(OTCompteClientTiersPayant);
             }
@@ -145,12 +154,12 @@ public class clientManager extends bll.bllBase {
                 OTCompteClient.setDtUPDATED(new Date());
                 this.getOdataManager().getEm().merge(OTCompteClient);
             }
-            //fin code ajouté 18/08/2016
+            // fin code ajouté 18/08/2016
 
             this.persiste(oTPreenregistrementCompteClientTiersPayent);
 
-            //  OTPreenregistrement.setStrSTATUTVENTE(commonparameter.statut_differe);
-            //   this.persiste(OTPreenregistrement); a decommenté en cas de problème
+            // OTPreenregistrement.setStrSTATUTVENTE(commonparameter.statut_differe);
+            // this.persiste(OTPreenregistrement); a decommenté en cas de problème
             this.buildErrorTraceMessage("ERROR", "Desole pas de preenregistrement compte client tiers payant");
 
             return false;
@@ -165,9 +174,10 @@ public class clientManager extends bll.bllBase {
                 oTPreenregistrementCompteClientTiersPayent.setIntPERCENT(int_percent);
                 oTPreenregistrementCompteClientTiersPayent.setStrSTATUT(commonparameter.statut_is_Closed);
 
-                //code ajouté 18/08/2016
+                // code ajouté 18/08/2016
                 if (OTCompteClientTiersPayant.getDblPLAFOND() != 0) {
-                    OTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() + dbl_Amount);
+                    OTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(
+                            OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() + dbl_Amount);
                     OTCompteClientTiersPayant.setDtUPDATED(new Date());
                     this.getOdataManager().getEm().merge(OTCompteClientTiersPayant);
                 }
@@ -176,7 +186,7 @@ public class clientManager extends bll.bllBase {
                     OTCompteClient.setDtUPDATED(new Date());
                     this.getOdataManager().getEm().merge(OTCompteClient);
                 }
-                //fin code ajouté 18/08/2016
+                // fin code ajouté 18/08/2016
 
                 this.persiste(oTPreenregistrementCompteClientTiersPayent);
             }
@@ -185,16 +195,19 @@ public class clientManager extends bll.bllBase {
         return false;
     }
 
-    public boolean addToMytransactionTiersPayent(TCompteClientTiersPayant OTCompteClientTiersPayant, TPreenregistrement OTPreenregistrement, int dbl_Amount, int int_percent, String str_mode_operatoire, String str_REF_BON, double dbl_QUOTA_CONSO_VENTE) {
+    public boolean addToMytransactionTiersPayent(TCompteClientTiersPayant OTCompteClientTiersPayant,
+            TPreenregistrement OTPreenregistrement, int dbl_Amount, int int_percent, String str_mode_operatoire,
+            String str_REF_BON, double dbl_QUOTA_CONSO_VENTE) {
 
-        TCompteClient OTCompteClient ;
-        TPreenregistrementCompteClientTiersPayent oTPreenregistrementCompteClientTiersPayent ;
+        TCompteClient OTCompteClient;
+        TPreenregistrementCompteClientTiersPayent oTPreenregistrementCompteClientTiersPayent;
         boolean result = false;
         try {
 
             OTCompteClient = this.getTCompteClient(OTCompteClientTiersPayant.getLgTIERSPAYANTID().getLgTIERSPAYANTID());
             oTPreenregistrementCompteClientTiersPayent = new TPreenregistrementCompteClientTiersPayent();
-            oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
+            oTPreenregistrementCompteClientTiersPayent
+                    .setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
             oTPreenregistrementCompteClientTiersPayent.setDtCREATED(new Date());
             oTPreenregistrementCompteClientTiersPayent.setLgCOMPTECLIENTTIERSPAYANTID(OTCompteClientTiersPayant);
             oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTID(OTPreenregistrement);
@@ -206,9 +219,11 @@ public class clientManager extends bll.bllBase {
             oTPreenregistrementCompteClientTiersPayent.setDblQUOTACONSOVENTE(dbl_QUOTA_CONSO_VENTE);
             oTPreenregistrementCompteClientTiersPayent.setStrSTATUT(commonparameter.statut_is_Closed);
 
-            //code ajouté 18/08/2016
-            if ( OTCompteClientTiersPayant.getDblPLAFOND() != 0) {
-                OTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE((OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() != null ? OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() : 0) + dbl_Amount);
+            // code ajouté 18/08/2016
+            if (OTCompteClientTiersPayant.getDblPLAFOND() != 0) {
+                OTCompteClientTiersPayant
+                        .setDblQUOTACONSOMENSUELLE((OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() != null
+                                ? OTCompteClientTiersPayant.getDblQUOTACONSOMENSUELLE() : 0) + dbl_Amount);
                 OTCompteClientTiersPayant.setDtUPDATED(new Date());
                 this.getOdataManager().getEm().merge(OTCompteClientTiersPayant);
             }
@@ -217,7 +232,7 @@ public class clientManager extends bll.bllBase {
                 OTCompteClient.setDtUPDATED(new Date());
                 this.getOdataManager().getEm().merge(OTCompteClient);
             }
-            //fin code ajouté 18/08/2016
+            // fin code ajouté 18/08/2016
 
             this.getOdataManager().getEm().persist(oTPreenregistrementCompteClientTiersPayent);
 
@@ -229,7 +244,8 @@ public class clientManager extends bll.bllBase {
                 Ojconnexion.CloseConnexion();
             }
 
-            this.buildSuccesTraceMessage("Ajout du tiers payant " + oTPreenregistrementCompteClientTiersPayent.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrFULLNAME() + " effectué avec succès");
+            this.buildSuccesTraceMessage("Ajout du tiers payant " + oTPreenregistrementCompteClientTiersPayent
+                    .getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrFULLNAME() + " effectué avec succès");
 
             result = true;
         } catch (Exception e) {
@@ -239,37 +255,39 @@ public class clientManager extends bll.bllBase {
         return result;
     }
 
-    //recuperation d'un compte client
+    // recuperation d'un compte client
     public TCompteClient getTCompteClient(String P_KEY) {
         TCompteClient OTCompteClient = null;
         try {
-            OTCompteClient = (TCompteClient) this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClient t WHERE t.pKey = ?1 AND t.strSTATUT = ?2").
-                    setParameter(1, P_KEY).
-                    setParameter(2, commonparameter.statut_enable).
-                    getSingleResult();
+            OTCompteClient = (TCompteClient) this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TCompteClient t WHERE t.pKey = ?1 AND t.strSTATUT = ?2")
+                    .setParameter(1, P_KEY).setParameter(2, commonparameter.statut_enable).getSingleResult();
         } catch (Exception e) {
-//            e.printStackTrace();
+            // e.printStackTrace();
         }
         return OTCompteClient;
     }
 
-    //fin recuperation d'un compte client
-    public Boolean addToMytransactionTiersPayent(List<TCompteClientTiersPayant> lstTCompteClientTiersPayant, String lg_PREENREGISTREMENT_ID, int dbl_Amount, String str_mode_operatoire) {
+    // fin recuperation d'un compte client
+    public Boolean addToMytransactionTiersPayent(List<TCompteClientTiersPayant> lstTCompteClientTiersPayant,
+            String lg_PREENREGISTREMENT_ID, int dbl_Amount, String str_mode_operatoire) {
         jconnexion Ojconnexion = new jconnexion();
         Ojconnexion.initConnexion();
         Ojconnexion.OpenConnexion();
         List<TPreenregistrementCompteClientTiersPayent> lstT = new ArrayList<>();
         List<TPreenregistrementCompteClientTiersPayent> lstTemp = new ArrayList<>();
         TPreenregistrementCompteClientTiersPayent oTPreenregistrementCompteClientTiersPayent = null;
-        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID, new TPreenregistrement());
+        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID,
+                new TPreenregistrement());
         TCompteClientTiersPayant OTCompteClientTiersPayant = null;
         int int_total_vente = 0;
 
-        /*lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1  AND t.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2  AND t.strSTATUT LIKE ?3").
-         setParameter(1, OTCompteClient.getLgCOMPTECLIENTID())
-         .setParameter(2, lg_TIERS_PAYANT_ID)
-         .setParameter(3, commonparameter.statut_enable)
-         .getResultList();*/
+        /*
+         * lstTCompteClientTiersPayant = this.getOdataManager().getEm().
+         * createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1  AND t.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2  AND t.strSTATUT LIKE ?3"
+         * ). setParameter(1, OTCompteClient.getLgCOMPTECLIENTID()) .setParameter(2, lg_TIERS_PAYANT_ID)
+         * .setParameter(3, commonparameter.statut_enable) .getResultList();
+         */
         if (lstTCompteClientTiersPayant == null) {
             this.buildErrorTraceMessage("ERROR", "Desole lstTCompteClientTiersPayant est null");
             return null;
@@ -280,18 +298,19 @@ public class clientManager extends bll.bllBase {
             return null;
         }
         TCompteClient OTCompteClient = lstTCompteClientTiersPayant.get(0).getLgCOMPTECLIENTID();
-        new logger().OCategory.info(" clientmanager OTCompteClient  " + OTCompteClient.getLgCLIENTID().getStrFIRSTNAME());
+        new logger().OCategory
+                .info(" clientmanager OTCompteClient  " + OTCompteClient.getLgCLIENTID().getStrFIRSTNAME());
         if (str_mode_operatoire.equals(bll.common.Parameter.KEY_CUSTOMER_PREPAYE)) {
             this.debiterCompteClient(Ojconnexion, OTCompteClient, dbl_Amount);
         }
         Ojconnexion.CloseConnexion();
         for (int k = 0; k < lstTCompteClientTiersPayant.size(); k++) {
             OTCompteClientTiersPayant = lstTCompteClientTiersPayant.get(k);
-            lstTemp = this.getOdataManager().getEm().createQuery("SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = ?1  AND t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?3").
-                    setParameter(1, OTPreenregistrement.getLgPREENREGISTREMENTID())
-                    //   .setParameter(2, commonparameter.statut_is_Process)
-                    .setParameter(3, OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID())
-                    .getResultList();
+            lstTemp = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = ?1  AND t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?3")
+                    .setParameter(1, OTPreenregistrement.getLgPREENREGISTREMENTID())
+                    // .setParameter(2, commonparameter.statut_is_Process)
+                    .setParameter(3, OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID()).getResultList();
 
             lstT.addAll(lstTemp);
 
@@ -299,16 +318,19 @@ public class clientManager extends bll.bllBase {
         if (lstT == null || lstT.isEmpty()) {
             for (int k = 0; k < lstTCompteClientTiersPayant.size(); k++) {
                 oTPreenregistrementCompteClientTiersPayent = new TPreenregistrementCompteClientTiersPayent();
-                oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
+                oTPreenregistrementCompteClientTiersPayent
+                        .setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
 
                 oTPreenregistrementCompteClientTiersPayent.setDtCREATED(new Date());
-                oTPreenregistrementCompteClientTiersPayent.setLgCOMPTECLIENTTIERSPAYANTID(lstTCompteClientTiersPayant.get(k));
+                oTPreenregistrementCompteClientTiersPayent
+                        .setLgCOMPTECLIENTTIERSPAYANTID(lstTCompteClientTiersPayant.get(k));
                 oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTID(OTPreenregistrement);
 
                 new logger().OCategory.info(" *** Amount vente  *** " + dbl_Amount);
                 oTPreenregistrementCompteClientTiersPayent.setIntPRICE(dbl_Amount);
                 oTPreenregistrementCompteClientTiersPayent.setLgUSERID(this.getOTUser());
-                oTPreenregistrementCompteClientTiersPayent.setIntPERCENT(lstTCompteClientTiersPayant.get(k).getIntPOURCENTAGE());
+                oTPreenregistrementCompteClientTiersPayent
+                        .setIntPERCENT(lstTCompteClientTiersPayant.get(k).getIntPOURCENTAGE());
                 oTPreenregistrementCompteClientTiersPayent.setStrSTATUT(commonparameter.statut_is_Closed);
                 // update du solde du tier payant
                 this.persiste(oTPreenregistrementCompteClientTiersPayent);
@@ -326,13 +348,15 @@ public class clientManager extends bll.bllBase {
             for (int i = 0; i < lstT.size(); i++) {
                 oTPreenregistrementCompteClientTiersPayent = lstT.get(i);
                 oTPreenregistrementCompteClientTiersPayent.setDtUPDATED(new Date());
-                oTPreenregistrementCompteClientTiersPayent.setLgCOMPTECLIENTTIERSPAYANTID(lstT.get(i).getLgCOMPTECLIENTTIERSPAYANTID());
+                oTPreenregistrementCompteClientTiersPayent
+                        .setLgCOMPTECLIENTTIERSPAYANTID(lstT.get(i).getLgCOMPTECLIENTTIERSPAYANTID());
                 oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTID(OTPreenregistrement);
 
                 new logger().OCategory.info(" *** Amount vente  *** " + dbl_Amount);
                 oTPreenregistrementCompteClientTiersPayent.setIntPRICE(dbl_Amount);
                 oTPreenregistrementCompteClientTiersPayent.setLgUSERID(this.getOTUser());
-                oTPreenregistrementCompteClientTiersPayent.setIntPERCENT(lstTCompteClientTiersPayant.get(i).getIntPOURCENTAGE());
+                oTPreenregistrementCompteClientTiersPayent
+                        .setIntPERCENT(lstTCompteClientTiersPayant.get(i).getIntPOURCENTAGE());
                 oTPreenregistrementCompteClientTiersPayent.setStrSTATUT(commonparameter.statut_is_Closed);
                 // update du solde du tier payant
                 this.persiste(oTPreenregistrementCompteClientTiersPayent);
@@ -344,32 +368,40 @@ public class clientManager extends bll.bllBase {
             return true;
         } else {
             for (int q = 0; q < lstTCompteClientTiersPayant.size(); q++) {
-                //il rech un preenregistrement compte client tiers payant
-                //sil trouve il fait maj sinon il cree
+                // il rech un preenregistrement compte client tiers payant
+                // sil trouve il fait maj sinon il cree
                 OTCompteClientTiersPayant = lstTCompteClientTiersPayant.get(q);
                 try {
-                    oTPreenregistrementCompteClientTiersPayent = (TPreenregistrementCompteClientTiersPayent) this.getOdataManager().getEm().createQuery("SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = ?1 AND t.strSTATUT = ?2 AND t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?3").
-                            setParameter(1, OTPreenregistrement.getLgPREENREGISTREMENTID())
+                    oTPreenregistrementCompteClientTiersPayent = (TPreenregistrementCompteClientTiersPayent) this
+                            .getOdataManager().getEm()
+                            .createQuery(
+                                    "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = ?1 AND t.strSTATUT = ?2 AND t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?3")
+                            .setParameter(1, OTPreenregistrement.getLgPREENREGISTREMENTID())
                             .setParameter(2, commonparameter.statut_is_Process)
                             .setParameter(3, OTCompteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID())
                             .getSingleResult();
 
-                    oTPreenregistrementCompteClientTiersPayent.setIntPERCENT(OTCompteClientTiersPayant.getIntPOURCENTAGE());
+                    oTPreenregistrementCompteClientTiersPayent
+                            .setIntPERCENT(OTCompteClientTiersPayant.getIntPOURCENTAGE());
                     oTPreenregistrementCompteClientTiersPayent.setIntPRICE(dbl_Amount);
-                    oTPreenregistrementCompteClientTiersPayent.setLgCOMPTECLIENTTIERSPAYANTID(OTCompteClientTiersPayant);
+                    oTPreenregistrementCompteClientTiersPayent
+                            .setLgCOMPTECLIENTTIERSPAYANTID(OTCompteClientTiersPayant);
                     oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTID(OTPreenregistrement);
                     oTPreenregistrementCompteClientTiersPayent.setDtUPDATED(new Date());
                     this.persiste(oTPreenregistrementCompteClientTiersPayent);
                 } catch (Exception e) {
 
                     oTPreenregistrementCompteClientTiersPayent = new TPreenregistrementCompteClientTiersPayent();
-                    oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
+                    oTPreenregistrementCompteClientTiersPayent
+                            .setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(this.getKey().getComplexId());
 
                     oTPreenregistrementCompteClientTiersPayent.setDtCREATED(new Date());
-                    oTPreenregistrementCompteClientTiersPayent.setLgCOMPTECLIENTTIERSPAYANTID(lstTCompteClientTiersPayant.get(q));
+                    oTPreenregistrementCompteClientTiersPayent
+                            .setLgCOMPTECLIENTTIERSPAYANTID(lstTCompteClientTiersPayant.get(q));
                     oTPreenregistrementCompteClientTiersPayent.setLgPREENREGISTREMENTID(OTPreenregistrement);
 
-                    oTPreenregistrementCompteClientTiersPayent.setIntPRICE(OTCompteClientTiersPayant.getIntPOURCENTAGE());
+                    oTPreenregistrementCompteClientTiersPayent
+                            .setIntPRICE(OTCompteClientTiersPayant.getIntPOURCENTAGE());
                     oTPreenregistrementCompteClientTiersPayent.setLgUSERID(this.getOTUser());
                     oTPreenregistrementCompteClientTiersPayent.setIntPERCENT(dbl_Amount);
                     oTPreenregistrementCompteClientTiersPayent.setStrSTATUT(commonparameter.statut_is_Process);
@@ -384,7 +416,8 @@ public class clientManager extends bll.bllBase {
 
     public void addToMytransaction(TCompteClient OTCompteClient, String lg_PREENREGISTREMENT_ID) {
 
-        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID, new TPreenregistrement());
+        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID,
+                new TPreenregistrement());
 
         if (OTPreenregistrement == null) {
             return;
@@ -393,7 +426,8 @@ public class clientManager extends bll.bllBase {
         this.addToMytransactionBis(OTCompteClient, lg_PREENREGISTREMENT_ID, OTPreenregistrement.getIntPRICE());
     }
 
-    public boolean addToMytransaction(TCompteClient OTCompteClient, TPreenregistrement OTPreenregistrement, Integer int_PRICE, Integer int_DETTE) {
+    public boolean addToMytransaction(TCompteClient OTCompteClient, TPreenregistrement OTPreenregistrement,
+            Integer int_PRICE, Integer int_DETTE) {
         boolean result = false;
         try {
             TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient();
@@ -405,13 +439,14 @@ public class clientManager extends bll.bllBase {
             oTPreenregistrementCompteClient.setIntPRICE(int_PRICE);
             oTPreenregistrementCompteClient.setIntPRICERESTE(int_DETTE);
             oTPreenregistrementCompteClient.setStrSTATUT(commonparameter.statut_is_Closed);
-           
+
             this.getOdataManager().getEm().persist(oTPreenregistrementCompteClient);
             this.debiterCompteClient(OTCompteClient, 0, int_DETTE);
             if (int_PRICE >= 0) {
                 this.debiterCompteClient(this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), int_DETTE, 0);//
             } else {
-                this.debiterCompteClient(this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), 0, (-1) * int_DETTE);
+                this.debiterCompteClient(this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), 0,
+                        (-1) * int_DETTE);
             }
             result = true;
         } catch (Exception e) {
@@ -420,7 +455,8 @@ public class clientManager extends bll.bllBase {
         return result;
     }
 
-    public boolean debiterCompteClient(TCompteClient OTCompteClient, Integer int_AMOUNT_DISPO, Integer int_AMOUNT_INDISPO) {
+    public boolean debiterCompteClient(TCompteClient OTCompteClient, Integer int_AMOUNT_DISPO,
+            Integer int_AMOUNT_INDISPO) {
         boolean result = false;
 
         try {
@@ -434,19 +470,20 @@ public class clientManager extends bll.bllBase {
         return result;
     }
 
-    //ajout de la transaction sans controle du solde
+    // ajout de la transaction sans controle du solde
     public boolean addToMytransactionBis(TCompteClient OTCompteClient, String lg_PREENREGISTREMENT_ID, int int_PRICE) {
-        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID, new TPreenregistrement());
+        TPreenregistrement OTPreenregistrement = (TPreenregistrement) this.find(lg_PREENREGISTREMENT_ID,
+                new TPreenregistrement());
 
         jconnexion Ojconnexion = new jconnexion();
         Ojconnexion.initConnexion();
         Ojconnexion.OpenConnexion();
         this.refresh(OTCompteClient);
-//        if (OTCompteClient.getDecBalance() < int_PRICE) {
-//            error_def = errorEnumm.SOLDE_INSUFISANT.name();
-//            this.buildErrorTraceMessage("Solde inferieur");
-//            return false;
-//        }
+        // if (OTCompteClient.getDecBalance() < int_PRICE) {
+        // error_def = errorEnumm.SOLDE_INSUFISANT.name();
+        // this.buildErrorTraceMessage("Solde inferieur");
+        // return false;
+        // }
 
         TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient();
         oTPreenregistrementCompteClient.setLgPREENREGISTREMENTCOMPTECLIENTID(this.getKey().getComplexId());
@@ -457,20 +494,20 @@ public class clientManager extends bll.bllBase {
         oTPreenregistrementCompteClient.setIntPRICE(int_PRICE);
         oTPreenregistrementCompteClient.setStrSTATUT(commonparameter.statut_is_Closed);
         this.persiste(oTPreenregistrementCompteClient);
-//update du pre enregistrement
+        // update du pre enregistrement
         OTPreenregistrement.setIntPRICEREMISE(int_PRICE);
         this.persiste(OTPreenregistrement);
         // update du solde
         this.debiterCompteClient(Ojconnexion, OTCompteClient, int_PRICE);
 
         Ojconnexion.CloseConnexion();
-//  OTCompteClient.setDecBalance(OTCompteClient.getDecBalance() - oTPreenregistrementCompteClient.getIntPRICE());
+        // OTCompteClient.setDecBalance(OTCompteClient.getDecBalance() - oTPreenregistrementCompteClient.getIntPRICE());
         // this.persiste(OTCompteClient);
         return true;
     }
-    //fin ajout de la transaction sans controle du solde
+    // fin ajout de la transaction sans controle du solde
 
-    //Ajouter d un tier payant au compte client
+    // Ajouter d un tier payant au compte client
     public void addTTiersPayant(String lg_COMPTE_CLIENT_ID, String lg_TIERS_PAYANT_ID, int int_POURCENTAGE) {
         TCompteClient OTCompteClient = (TCompteClient) this.find(lg_COMPTE_CLIENT_ID, new TCompteClient());
         TTiersPayant OTTiersPayant = (TTiersPayant) this.find(lg_TIERS_PAYANT_ID, new TTiersPayant());
@@ -485,9 +522,8 @@ public class clientManager extends bll.bllBase {
     }
 
     public void create(String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
-            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
-            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
+            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE, String str_ADRESSE,
+            String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL, String str_COMMENTAIRE,
             String lg_RISQUE_ID, String lg_VILLE_ID) {
         try {
 
@@ -506,16 +542,15 @@ public class clientManager extends bll.bllBase {
             OTClient.setStrCODEPOSTAL(str_CODE_POSTAL);
             OTClient.setStrCOMMENTAIRE(str_COMMENTAIRE);
 
-            /*TRisque OTRisque = this.getOdataManager().getEm().find(TRisque.class, lg_RISQUE_ID);
-             if (OTRisque == null) {
-             this.buildErrorTraceMessage("Impossible de creer un " + Otable, " Ref RISQUE : " + OTRisque + "  Invalide ");
-             return;
-             }
-             OTClient.setLgRISQUEID(OTRisque);
+            /*
+             * TRisque OTRisque = this.getOdataManager().getEm().find(TRisque.class, lg_RISQUE_ID); if (OTRisque ==
+             * null) { this.buildErrorTraceMessage("Impossible de creer un " + Otable, " Ref RISQUE : " + OTRisque +
+             * "  Invalide "); return; } OTClient.setLgRISQUEID(OTRisque);
              */
             TVille OTVille = this.getOdataManager().getEm().find(TVille.class, lg_VILLE_ID);
             if (OTVille == null) {
-                this.buildErrorTraceMessage("Impossible de creer un " + Otable, " Ref VILLE : " + OTVille + "  Invalide ");
+                this.buildErrorTraceMessage("Impossible de creer un " + Otable,
+                        " Ref VILLE : " + OTVille + "  Invalide ");
                 return;
             }
             OTClient.setLgVILLEID(OTVille);
@@ -533,9 +568,8 @@ public class clientManager extends bll.bllBase {
     }
 
     public void update(String lg_CLIENT_ID, String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
-            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE,
-            String str_ADRESSE, String str_DOMICILE, String str_AUTRE_ADRESSE,
-            String str_CODE_POSTAL, String str_COMMENTAIRE,
+            String str_NUMERO_SECURITE_SOCIAL, Date dt_NAISSANCE, String str_SEXE, String str_ADRESSE,
+            String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL, String str_COMMENTAIRE,
             String lg_RISQUE_ID, String lg_VILLE_ID) {
 
         try {
@@ -559,13 +593,13 @@ public class clientManager extends bll.bllBase {
             // TRisque
             try {
 
-                //lg_RISQUE_ID
-                /* dal.TRisque OTRisque = getOdataManager().getEm().find(dal.TRisque.class, lg_RISQUE_ID);
-                 if (OTRisque != null) {
-                 OTClient.setLgRISQUEID(OTRisque);
-                 new logger().oCategory.info("lg_RISQUE_ID     Create   " + lg_RISQUE_ID);
-                 }*/
-                //lg_VILLE_ID
+                // lg_RISQUE_ID
+                /*
+                 * dal.TRisque OTRisque = getOdataManager().getEm().find(dal.TRisque.class, lg_RISQUE_ID); if (OTRisque
+                 * != null) { OTClient.setLgRISQUEID(OTRisque); new logger().oCategory.info("lg_RISQUE_ID     Create   "
+                 * + lg_RISQUE_ID); }
+                 */
+                // lg_VILLE_ID
                 dal.TVille OTVille = getOdataManager().getEm().find(dal.TVille.class, lg_VILLE_ID);
                 if (OTVille != null) {
                     OTClient.setLgVILLEID(OTVille);
@@ -574,7 +608,8 @@ public class clientManager extends bll.bllBase {
 
             } catch (Exception e) {
 
-                new logger().oCategory.info("Impossible de mettre a jour les donnees vennant de la cle etrangere TRisque   ");
+                new logger().oCategory
+                        .info("Impossible de mettre a jour les donnees vennant de la cle etrangere TRisque   ");
             }
 
             OTClient.setStrSTATUT(commonparameter.statut_enable);
@@ -613,9 +648,8 @@ public class clientManager extends bll.bllBase {
 
         try {
 
-            lstTClient = getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE  t.strSTATUT LIKE ?1 ").
-                    setParameter(1, commonparameter.statut_enable).
-                    getResultList();
+            lstTClient = getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE  t.strSTATUT LIKE ?1 ")
+                    .setParameter(1, commonparameter.statut_enable).getResultList();
             new logger().OCategory.info(lstTClient.size());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -635,10 +669,10 @@ public class clientManager extends bll.bllBase {
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.strSTATUT LIKE ?2").
-                    setParameter(1, "%" + lg_RISQUE_ID + "%").
-                    setParameter(2, commonparameter.statut_enable).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.strSTATUT LIKE ?2")
+                    .setParameter(1, "%" + lg_RISQUE_ID + "%").setParameter(2, commonparameter.statut_enable)
+                    .getResultList();
             new logger().OCategory.info(lstTClient.size());
 
             for (TClient lstTClient1 : lstTClient) {
@@ -661,10 +695,10 @@ public class clientManager extends bll.bllBase {
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.strSTATUT LIKE ?2").
-                    setParameter(1, "%" + lg_VILLE_ID + "%").
-                    setParameter(2, commonparameter.statut_enable).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.strSTATUT LIKE ?2")
+                    .setParameter(1, "%" + lg_VILLE_ID + "%").setParameter(2, commonparameter.statut_enable)
+                    .getResultList();
             new logger().OCategory.info(lstTClient.size());
 
             for (TClient lstTClient1 : lstTClient) {
@@ -687,11 +721,10 @@ public class clientManager extends bll.bllBase {
 
         try {
 
-            lstTClient = this.getOdataManager().getEm().createQuery("SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.lgVILLEID LIKE ?2 AND t.strSTATUT LIKE ?3").
-                    setParameter(1, "%" + lg_RISQUE_ID + "%").
-                    setParameter(2, "%" + lg_VILLE_ID + "%").
-                    setParameter(3, commonparameter.statut_enable).
-                    getResultList();
+            lstTClient = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TClient t WHERE t.lgCLIENTID LIKE ?1 AND t.lgVILLEID LIKE ?2 AND t.strSTATUT LIKE ?3")
+                    .setParameter(1, "%" + lg_RISQUE_ID + "%").setParameter(2, "%" + lg_VILLE_ID + "%")
+                    .setParameter(3, commonparameter.statut_enable).getResultList();
             new logger().OCategory.info(lstTClient.size());
 
             for (TClient lstTClient1 : lstTClient) {
@@ -712,23 +745,28 @@ public class clientManager extends bll.bllBase {
         jconnexion Ojconnexion = new jconnexion();
         Ojconnexion.initConnexion();
         Ojconnexion.OpenConnexion();
-        this.crediteAccount(Ojconnexion, this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), OTCompteClient, int_amount);
+        this.crediteAccount(Ojconnexion, this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), OTCompteClient,
+                int_amount);
         Ojconnexion.CloseConnexion();
 
     }
 
     public void crediterCompteClient(jconnexion Ojconnexion, TCompteClient OTCompteClient, int int_amount) {
 
-        this.crediteAccount(Ojconnexion, this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), OTCompteClient, int_amount);
+        this.crediteAccount(Ojconnexion, this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), OTCompteClient,
+                int_amount);
 
     }
 
     public void debiterCompteClient(jconnexion Ojconnexion, TCompteClient OTCompteClient, int int_amount) {
-//        this.crediteAccount(Ojconnexion, OTCompteClient, this.GetSystemeCompte(), int_amount); // a decommenter en cas de probleme
-        this.crediteAccount(Ojconnexion, OTCompteClient, this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), int_amount);
+        // this.crediteAccount(Ojconnexion, OTCompteClient, this.GetSystemeCompte(), int_amount); // a decommenter en
+        // cas de probleme
+        this.crediteAccount(Ojconnexion, OTCompteClient, this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(),
+                int_amount);
     }
 
-    public void crediteAccount(jconnexion Ojconnexion, TCompteClient DebitTCompteClient, TCompteClient CreditTCompteClient, int int_amount) {
+    public void crediteAccount(jconnexion Ojconnexion, TCompteClient DebitTCompteClient,
+            TCompteClient CreditTCompteClient, int int_amount) {
         try {
 
             UUID uui = UUID.randomUUID();
@@ -737,7 +775,7 @@ public class clientManager extends bll.bllBase {
             String str_transaction_id_param2 = uui1.toString();
             long current_time = System.currentTimeMillis();
             java.sql.Date transaction_date = new java.sql.Date(current_time);
-            //  String lg_emetteur_id = this.GetSystemeCompte().getLgCOMPTECLIENTID();
+            // String lg_emetteur_id = this.GetSystemeCompte().getLgCOMPTECLIENTID();
 
             String sProc = "{ CALL create_transaction_proc(?,?,?,?,?,?,?,?,?,?,?,?,?) }";
             CallableStatement cs = Ojconnexion.get_StringConnexion().prepareCall(sProc);
@@ -788,7 +826,8 @@ public class clientManager extends bll.bllBase {
         int int_tiers_part = 0;
         int int_total_vente = 0;
         int int_result = 0;
-        int dbl_total_remise = 0;// dbl_total_vente = OPreenregistrement.GetVenteTotalAmountTTc(OTPreenregistrement.getLgPREENREGISTREMENTID());//OTPreenregistrement.getIntPRICE().doubleValue();
+        int dbl_total_remise = 0;// dbl_total_vente =
+                                 // OPreenregistrement.GetVenteTotalAmountTTc(OTPreenregistrement.getLgPREENREGISTREMENTID());//OTPreenregistrement.getIntPRICE().doubleValue();
 
         Preenregistrement OPreenregistrement = new Preenregistrement(this.getOdataManager(), this.getOTUser());
         TPreenregistrement OTPreenregistrement = OPreenregistrement.getTPreenregistrementByRef(ref_vente);
@@ -803,7 +842,7 @@ public class clientManager extends bll.bllBase {
         if (int_reste <= 0) {
             return int_result;
         } else {
-            //code ajouté. a retirer en cas de probleme
+            // code ajouté. a retirer en cas de probleme
             TRemise OTRemise = OPreenregistrement.GetRemiseToApply(OTPreenregistrement.getLgREMISEID());
             if (OTRemise != null) {
                 if (OTRemise.getLgTYPEREMISEID().getLgTYPEREMISEID().equalsIgnoreCase(Parameter.TYPE_REMISE_CLIENT)) {
@@ -811,7 +850,7 @@ public class clientManager extends bll.bllBase {
                 }
             }
 
-            //fin code ajouté
+            // fin code ajouté
             int_reste_final = int_reste - dbl_total_remise;
             if (int_reste_final <= 0) {
                 return int_result;
@@ -849,8 +888,9 @@ public class clientManager extends bll.bllBase {
 
     }
 
-    //22 04 2017 
-    public boolean add2Mytransaction(TCompteClient OTCompteClient, TPreenregistrement OTPreenregistrement, int int_PRICE, int int_DETTE) {
+    // 22 04 2017
+    public boolean add2Mytransaction(TCompteClient OTCompteClient, TPreenregistrement OTPreenregistrement,
+            int int_PRICE, int int_DETTE) {
         boolean result = false;
         try {
             TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient();
@@ -867,7 +907,8 @@ public class clientManager extends bll.bllBase {
             if (int_PRICE >= 0) {
                 this.debiterCompteClient(this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), int_DETTE, 0);//
             } else {
-                this.debiterCompteClient(this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), 0, (-1) * int_DETTE);
+                this.debiterCompteClient(this.getOTUser().getLgEMPLACEMENTID().getLgCOMPTECLIENTID(), 0,
+                        (-1) * int_DETTE);
             }
             result = true;
         } catch (Exception e) {

@@ -25,13 +25,12 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_company")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCompany.findAll", query = "SELECT t FROM TCompany t")
-    , @NamedQuery(name = "TCompany.findByLgCOMPANYID", query = "SELECT t FROM TCompany t WHERE t.lgCOMPANYID = :lgCOMPANYID")
-    , @NamedQuery(name = "TCompany.findByStrRAISONSOCIALE", query = "SELECT t FROM TCompany t WHERE t.strRAISONSOCIALE = :strRAISONSOCIALE")
-    , @NamedQuery(name = "TCompany.findByStrADRESS", query = "SELECT t FROM TCompany t WHERE t.strADRESS = :strADRESS")
-    , @NamedQuery(name = "TCompany.findByStrPHONE", query = "SELECT t FROM TCompany t WHERE t.strPHONE = :strPHONE")
-    , @NamedQuery(name = "TCompany.findByStrCEL", query = "SELECT t FROM TCompany t WHERE t.strCEL = :strCEL")})
+@NamedQueries({ @NamedQuery(name = "TCompany.findAll", query = "SELECT t FROM TCompany t"),
+        @NamedQuery(name = "TCompany.findByLgCOMPANYID", query = "SELECT t FROM TCompany t WHERE t.lgCOMPANYID = :lgCOMPANYID"),
+        @NamedQuery(name = "TCompany.findByStrRAISONSOCIALE", query = "SELECT t FROM TCompany t WHERE t.strRAISONSOCIALE = :strRAISONSOCIALE"),
+        @NamedQuery(name = "TCompany.findByStrADRESS", query = "SELECT t FROM TCompany t WHERE t.strADRESS = :strADRESS"),
+        @NamedQuery(name = "TCompany.findByStrPHONE", query = "SELECT t FROM TCompany t WHERE t.strPHONE = :strPHONE"),
+        @NamedQuery(name = "TCompany.findByStrCEL", query = "SELECT t FROM TCompany t WHERE t.strCEL = :strCEL") })
 public class TCompany implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -51,9 +50,9 @@ public class TCompany implements Serializable {
     private Collection<TClient> cliens;
 
     public void setTClientCollection(Collection<TClient> clientscollection) {
-        this.cliens= clientscollection;
+        this.cliens = clientscollection;
     }
-    
+
     @XmlTransient
     public Collection<TClient> getTClientCollection() {
         return cliens;
@@ -120,7 +119,8 @@ public class TCompany implements Serializable {
             return false;
         }
         TCompany other = (TCompany) object;
-        if ((this.lgCOMPANYID == null && other.lgCOMPANYID != null) || (this.lgCOMPANYID != null && !this.lgCOMPANYID.equals(other.lgCOMPANYID))) {
+        if ((this.lgCOMPANYID == null && other.lgCOMPANYID != null)
+                || (this.lgCOMPANYID != null && !this.lgCOMPANYID.equals(other.lgCOMPANYID))) {
             return false;
         }
         return true;

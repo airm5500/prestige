@@ -34,13 +34,16 @@ public interface FacturationService {
 
     JSONObject groupetierspayant(String query) throws JSONException;
 
-    JSONObject provisoires(Mode mode, String groupTp, String typetp, String tpid, String codegroup, String dtStart, String dtEnd, String query, int start, int limit) throws JSONException;
+    JSONObject provisoires(Mode mode, String groupTp, String typetp, String tpid, String codegroup, String dtStart,
+            String dtEnd, String query, int start, int limit) throws JSONException;
 
-    List<FactureDTO> provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean all, int start, int limit);
+    List<FactureDTO> provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
+            boolean all, int start, int limit);
 
-    JSONObject provisoires10(String groupTp, String typetp, String tpid, String codegroup, int start, int limit) throws JSONException;
+    JSONObject provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
+            int start, int limit) throws JSONException;
 
-    void removeFacture(String idFacture) throws Exception;
+    void removeFacture(String idFacture);
 
     List<FactureDetailDTO> findFacturesDetailsByFactureId(String id);
 

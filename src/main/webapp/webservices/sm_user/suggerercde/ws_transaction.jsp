@@ -122,7 +122,7 @@
     }
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     OdataManager.initEntityManager();
- TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
+    TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     bllBase ObllBase = new bllBase();
     ObllBase.setOTUser(user);
     ObllBase.LoadDataManger(OdataManager);
@@ -134,7 +134,7 @@
     new logger().oCategory.info("ID  Famille  " + request.getParameter("lg_FAMILLE_ID"));
 
     WarehouseManager OWarehouseManager = new WarehouseManager(OdataManager, user);
-    orderManagement OorderManagement = new orderManagement(OdataManager, user);
+
     suggestionManagement OsuggestionManagement = new suggestionManagement(OdataManager, user);
     grossisteManagement OgrossisteManagement = new grossisteManagement(OdataManager);
     boolean answer_fusion = false;
@@ -204,46 +204,6 @@
 
             ObllBase.setMessage(OsuggestionManagement.getMessage());
             ObllBase.setDetailmessage(OsuggestionManagement.getDetailmessage());
-        } else if (request.getParameter("mode").equals("delete")) {
-
-            new logger().OCategory.info(" *** OTSuggestionOrder  *** " + lg_SUGGESTION_ORDER_ID);
-
-            OWarehouseManager.deleteSuggestionOrder(lg_SUGGESTION_ORDER_ID);
-
-            new logger().OCategory.info(" *** Suppression  *** " + lg_SUGGESTION_ORDER_ID);
-        } else if (request.getParameter("mode").equals("makeorder")) {
-            OTSuggestionOrder = (TSuggestionOrder) ObllBase.find(lg_SUGGESTION_ORDER_ID, new TSuggestionOrder());
-            OorderManagement.MakeSuggestionToOrder(OTSuggestionOrder, OTSuggestionOrder.getStrSTATUT());
-            ObllBase.setMessage(OorderManagement.getMessage());
-            ObllBase.setDetailmessage(OorderManagement.getDetailmessage());
-        } else if (request.getParameter("mode").equals("delete_suggestion_order_detail")) {
-
-            if (OWarehouseManager.removeSuggestionDetail(lg_SUGGESTION_ORDER_DETAILS_ID)) {
-                lstTSuggestionOrderDetails = OWarehouseManager.getTSuggestionOrderDetails(lg_SUGGESTION_ORDER_ID);
-                int_TOTAL_ACHAT = OWarehouseManager.getPriceTotalAchat(lstTSuggestionOrderDetails);
-                int_TOTAL_VENTE = OWarehouseManager.getPriceTotalVente(lstTSuggestionOrderDetails);
-
-            }
-
-        } else if (request.getParameter("mode").equals("delete_all")) {
-
-            if (OWarehouseManager.removeSuggestionDetail(lg_SUGGESTION_ORDER_DETAILS_ID)) {
-                OWarehouseManager.deleteSuggestionOrder(lg_SUGGESTION_ORDER_ID);
-
-            }
-
-        } else if (request.getParameter("mode").equals("doFusion")) {
-            OTSuggestionOrder = OsuggestionManagement.isGrosssiteExistInSuggestion(lg_GROSSISTE_ID);
-            new logger().OCategory.info("Grossiste de la prochaine suggestion " + OTSuggestionOrder.getLgGROSSISTEID().getStrLIBELLE() + " Ref " + OTSuggestionOrder.getStrREF());
-            if (OTSuggestionOrder != null) {
-                OsuggestionManagement.mergeSuggestion(OTSuggestionOrder, lg_SUGGESTION_ORDER_ID, lg_GROSSISTE_ID);
-                ObllBase.setMessage(OsuggestionManagement.getMessage());
-                ObllBase.setDetailmessage(OsuggestionManagement.getDetailmessage());
-                lstTSuggestionOrderDetails = OWarehouseManager.getTSuggestionOrderDetails(OTSuggestionOrder.getLgSUGGESTIONORDERID());
-                int_TOTAL_ACHAT = OWarehouseManager.getPriceTotalAchat(lstTSuggestionOrderDetails);
-                int_TOTAL_VENTE = OWarehouseManager.getPriceTotalVente(lstTSuggestionOrderDetails);
-            }
-
         } else if (request.getParameter("mode").equals("sendRuptureToSuggestion")) {
             if (request.getParameter("listProductSelected") != null) {
                 listProductSelected = request.getParameter("listProductSelected");
@@ -258,77 +218,7 @@
             ObllBase.setMessage(OsuggestionManagement.getMessage());
             ObllBase.setDetailmessage(OsuggestionManagement.getDetailmessage());
 
-        } else if (request.getParameter("mode").equals("changeGrossiste")) {
-
-            ID_SUGG_ORDER = lg_SUGGESTION_ORDER_ID;
-            if (OsuggestionManagement.isGrosssiteExistInSuggestion(lg_GROSSISTE_ID) != null) {
-                answer_fusion = true;
-                ObllBase.setMessage(OsuggestionManagement.getMessage());
-                ObllBase.setDetailmessage(OsuggestionManagement.getDetailmessage());
-            } else {
-                OorderManagement.ChangeGrossisteOrder(SUGG_ORDER, ID_SUGG_ORDER, lg_GROSSISTE_ID);
-                ObllBase.setMessage(OorderManagement.getMessage());
-                ObllBase.setDetailmessage(OorderManagement.getDetailmessage());
-                lstTSuggestionOrderDetails = OWarehouseManager.getTSuggestionOrderDetails(ID_SUGG_ORDER);
-                int_TOTAL_ACHAT = OWarehouseManager.getPriceTotalAchat(lstTSuggestionOrderDetails);
-                int_TOTAL_VENTE = OWarehouseManager.getPriceTotalVente(lstTSuggestionOrderDetails);
-            }
-        } else if (request.getParameter("mode").equals("onIsGrossisteExist")) {
-            OTSuggestionOrder = OsuggestionManagement.isGrosssiteExistInSuggestion(lg_GROSSISTE_ID);
-            if (OTSuggestionOrder != null) {
-                str_ref = OTSuggestionOrder.getLgSUGGESTIONORDERID();
-
-            }
-            ObllBase.setMessage(OsuggestionManagement.getMessage());
-            ObllBase.setDetailmessage(OsuggestionManagement.getDetailmessage());
-        } else if (request.getParameter("mode").equals(commonparameter.statut_pending)) {
-            OsuggestionManagement.setToPending(lg_SUGGESTION_ORDER_ID);
-            ObllBase.setMessage("1");
-            ObllBase.setDetailmessage("");
-        } else if (request.getParameter("mode").equals("sendProductSellToSuggestion")) {
-
-            if (request.getParameter("lg_USER_ID") != null && !"".equals(request.getParameter("lg_USER_ID"))) {
-                lg_USER_ID = request.getParameter("lg_USER_ID");
-                new logger().OCategory.info("search_value :" + search_value);
-            }
-
-            if (request.getParameter("str_TYPE_TRANSACTION") != null) {
-                str_TYPE_TRANSACTION = request.getParameter("str_TYPE_TRANSACTION");
-                new logger().OCategory.info("str_TYPE_TRANSACTION " + str_TYPE_TRANSACTION);
-            }
-
-            if (request.getParameter("dt_Date_Debut") != null && !request.getParameter("dt_Date_Debut").equalsIgnoreCase("")) {
-                str_Date_Debut = request.getParameter("dt_Date_Debut");
-                new logger().OCategory.info("str_Date_Debut :" + str_Date_Debut);
-            }
-
-            if (request.getParameter("dt_Date_Fin") != null && !request.getParameter("dt_Date_Fin").equalsIgnoreCase("")) {
-                str_Date_Fin = request.getParameter("dt_Date_Fin");
-                new logger().OCategory.info("str_Date_Fin :" + str_Date_Fin);
-            }
-
-            if (request.getParameter("h_debut") != null && !request.getParameter("h_debut").equalsIgnoreCase("")) {
-                h_debut = request.getParameter("h_debut");
-                new logger().OCategory.info("h_debut :" + h_debut);
-            }
-            if (request.getParameter("h_fin") != null && !request.getParameter("h_fin").equalsIgnoreCase("")) {
-                h_fin = request.getParameter("h_fin");
-                new logger().OCategory.info("h_fin :" + h_fin);
-            }
-            if (request.getParameter("modedisplay") != null) {
-                modedisplay = request.getParameter("modedisplay");
-                new logger().OCategory.info("modedisplay :" + modedisplay);
-            }
-
-            if (modedisplay.equalsIgnoreCase("groupe")) {
-                modedisplay = "GROUP BY lg_FAMILLE_ID";
-            }
-            OsuggestionManagement.sendProductSellToSuggestion2(search_value, str_Date_Debut, str_Date_Fin, h_debut, h_fin, lg_USER_ID, str_TYPE_TRANSACTION, int_NUMBER, modedisplay, Parameter.TOUT, 0, Parameter.TOUT);
-            ObllBase.setMessage(OsuggestionManagement.getMessage());
-            ObllBase.setDetailmessage(OsuggestionManagement.getDetailmessage());
-
-        }
-
+        }  
     }
 
     String result;

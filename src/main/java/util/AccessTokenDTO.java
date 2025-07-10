@@ -54,7 +54,8 @@ public class AccessTokenDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "AccessTokenDTO{" + "tokenType=" + tokenType + ", accessToken=" + accessToken + ", expiresIn=" + expiresIn + '}';
+        return "AccessTokenDTO{" + "tokenType=" + tokenType + ", accessToken=" + accessToken + ", expiresIn="
+                + expiresIn + '}';
     }
 
     public AccessTokenDTO() {

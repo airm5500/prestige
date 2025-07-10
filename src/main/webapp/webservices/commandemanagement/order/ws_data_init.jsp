@@ -7,22 +7,13 @@
 
 <%@page import="toolkits.parameters.commonparameter"%>
 <%@page import="dal.TUser"%>
-<%@page import="dal.TTiersPayant"%>
-<%@page import="dal.TGroupeTierspayant"%>
-<%@page import="bll.configManagement.GroupeTierspayantController"%>
 
-<%@page import="java.util.Date"%>
-<%@page import="toolkits.utils.date"%>
+<%@page import="bll.configManagement.GroupeTierspayantController"%>
 
 <%@page import="dal.dataManager"%>
 
-
 <%@page import="org.json.JSONObject"%>
 <%@page import="org.json.JSONArray"%>
-
-<%@page import="java.util.ArrayList"%>
-
-<%@page import="java.util.List"%>
 
 <%
     dataManager OdataManager = new dataManager();

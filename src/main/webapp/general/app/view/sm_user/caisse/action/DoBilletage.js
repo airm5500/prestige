@@ -1,4 +1,4 @@
-var url_transaction_dobilletage = '../webservices/sm_user/caisse/ws_transaction.jsp?mode=dobilletage';
+
 
 
 var Me_dobilletage;
@@ -38,13 +38,12 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
     bodyPadding: 5,
     layout: 'column',
     closable: false,
-    initComponent: function() {
+    initComponent: function () {
 
         Me_dobilletage = this;
 
         ref_resume = Me_dobilletage.getOdatasource();
 
-        //alert("ref_resume  " + ref_resume);
         var form = new Ext.form.Panel({
             bodyPadding: 5,
             fieldDefaults: {
@@ -71,7 +70,7 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                             flex: 1,
                             emptyText: '10.000',
                             listeners: {
-                                change: function() {
+                                change: function () {
                                     Me_dobilletage.getTotalBilletage();
 
                                 }
@@ -88,7 +87,7 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                             flex: 1,
                             emptyText: '5.000',
                             listeners: {
-                                change: function() {
+                                change: function () {
                                     Me_dobilletage.getTotalBilletage();
 
                                 }
@@ -105,7 +104,7 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                             flex: 1,
                             emptyText: '2.000',
                             listeners: {
-                                change: function() {
+                                change: function () {
                                     Me_dobilletage.getTotalBilletage();
 
                                 }
@@ -122,7 +121,7 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                             flex: 1,
                             emptyText: '1.000',
                             listeners: {
-                                change: function() {
+                                change: function () {
                                     Me_dobilletage.getTotalBilletage();
 
                                 }
@@ -139,7 +138,7 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                             flex: 1,
                             emptyText: '500',
                             listeners: {
-                                change: function() {
+                                change: function () {
                                     Me_dobilletage.getTotalBilletage();
 
                                 }
@@ -156,19 +155,11 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                             flex: 1,
                             emptyText: 'AUTRE',
                             listeners: {
-                                'render': function(cmp) {
-                                    cmp.getEl().on('keypress', function(e) {
-                                        if (e.getKey() === e.ENTER) {
-                                            Me_dobilletage.onbtnsave_dobilletage();
-
-                                        }
-                                    });
-                                },
-                                change: function() {
+                              
+                                change: function () {
                                     Me_dobilletage.getTotalBilletage();
 
                                 }
-                            
 
                             }
                         },
@@ -192,79 +183,81 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
             id: 'do_billetage_ID',
             title: this.getTitre(),
             width: 400,
-            height: 300,
+            height: 330,
             layout: 'fit',
             plain: true,
             items: form,
             buttons: [{
                     text: 'VALIDER',
                     //  hidden: true,
-                    handler: function() {
+                    handler: function () {
                         Me_dobilletage.onbtnsave_dobilletage();
                     }
                 }, {
                     text: 'Annuler',
-                    hidden: true,
-                    handler: function() {
+                    // hidden: true,
+                    handler: function () {
                         win_dobilletage.close();
                     }
                 }]
 
         });
     },
-    onbtnsave_dobilletage: function() {
+    onbtnsave_dobilletage: function () {
 
         if (Ext.getCmp('int_NB_DIX').getValue() === null && Ext.getCmp('int_NB_CINQ').getValue() === null && Ext.getCmp('int_NB_DEUX').getValue() === null && Ext.getCmp('int_NB_MIL').getValue() === null && Ext.getCmp('int_NB_CINQ_CENT').getValue() === null && Ext.getCmp('int_NB_AUTRE').getValue() === null) {
             Ext.MessageBox.alert('Attention', 'Renseignez au moins un champs svp');
             return;
         }
-
-
-
-
-        internal_url = url_transaction_dobilletage;
-
-
+        testextjs.app.getController('App').ShowWaitingProcess();
         Ext.Ajax.request({
-            url: internal_url,
-            params: {
-                lg_RESUME_CAISSE_ID: ref_resume,
-                int_NB_DIX: Ext.getCmp('int_NB_DIX').getValue(),
-                int_NB_CINQ: Ext.getCmp('int_NB_CINQ').getValue(),
-                int_NB_DEUX: Ext.getCmp('int_NB_DEUX').getValue(),
-                int_NB_MIL: Ext.getCmp('int_NB_MIL').getValue(),
-                int_NB_CINQ_CENT: Ext.getCmp('int_NB_CINQ_CENT').getValue(),
-                int_NB_AUTRE: Ext.getCmp('int_NB_AUTRE').getValue()
-            },
-            success: function(response)
+            url: '../api/v1/billetage/cloture',
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            params: Ext.JSON.encode({resumeCaisseId: ref_resume,
+                dixMille: Ext.getCmp('int_NB_DIX').getValue(),
+                cinqMille: Ext.getCmp('int_NB_CINQ').getValue(),
+                deuxMille: Ext.getCmp('int_NB_DEUX').getValue(),
+                mille: Ext.getCmp('int_NB_MIL').getValue(),
+                cinqCent: Ext.getCmp('int_NB_CINQ_CENT').getValue(),
+                autre: Ext.getCmp('int_NB_AUTRE').getValue()}),
+
+            success: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success == 0) {
-                    Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
+                testextjs.app.getController('App').StopWaitingProcess();
+                const object = Ext.JSON.decode(response.responseText, false);
+                if (object.success) {
+                    win_dobilletage.close();
+                    Ext.MessageBox.show({
+                        title: 'INFO',
+                        width: 400,
+                        msg: 'Opération effectuée avec succès',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.INFO,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                testextjs.app.getController('App').onLoadNewComponent(xtypeload, "", "");
+                            }
+                        }
+                    });
+
                 }
 
-                Ext.MessageBox.alert('Message', object.errors);
-                testextjs.app.getController('App').onLoadNewComponent(xtypeload, "", "");
-               // testextjs.app.getController('App').onLoadNewComponent("mainmenumanager", "", "");
-            },
-            failure: function(response)
-            {
 
-                var object = Ext.JSON.decode(response.responseText, false);
+            },
+            failure: function (response)
+            {
+                testextjs.app.getController('App').StopWaitingProcess();
+                const object = Ext.JSON.decode(response.responseText, false);
+                console.log("Bug " + object);
                 console.log("Bug " + response.responseText);
                 Ext.MessageBox.alert('Error Message', response.responseText);
 
             }
         });
-
-        win_dobilletage.close();
-
-
-
     },
-    getTotalBilletage: function() {
-        var int_NB_DIX = 0, int_NB_CINQ = 0, int_NB_DEUX = 0, int_NB_MIL = 0, int_NB_CINQ_CENT = 0, int_NB_AUTRE = 0, Total = 0;
+    getTotalBilletage: function () {
+        let int_NB_DIX = 0, int_NB_CINQ = 0, int_NB_DEUX = 0, int_NB_MIL = 0, int_NB_CINQ_CENT = 0, int_NB_AUTRE = 0, Total = 0;
 
         if (Ext.getCmp('int_NB_DIX').getValue() != null) {
             int_NB_DIX = Number(Ext.getCmp('int_NB_DIX').getValue()) * 10000;

@@ -1,3 +1,6 @@
+<%@page import="bll.common.Parameter"%>
+<%@page import="util.DateConverter"%>
+<%@page import="dal.TPrivilege"%>
 <%@page import="bll.commandeManagement.bonLivraisonManagement"%>
 <%@page import="dal.TBonLivraisonDetail"%>
 <%@page import="bll.entity.EntityData"%>
@@ -26,10 +29,13 @@
 
 
 <%  dataManager OdataManager = new dataManager();
-    List<Object[]> lstEntityData = new ArrayList<Object[]>();
+    List<Object[]> lstEntityData = new ArrayList<>();
     JSONArray arrayObj = new JSONArray();
     JSONObject json = null;
     Object[] OObject = null;
+      TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+       List<TPrivilege> LstTPrivilege = (List<TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
+       
 %>
 
 
@@ -70,17 +76,26 @@
 
 
     OdataManager.initEntityManager();
-    WarehouseManager OWarehouseManager = new WarehouseManager(OdataManager);
-    bonLivraisonManagement ObonLivraisonManagement = new bonLivraisonManagement(OdataManager);
+      TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
+    WarehouseManager OWarehouseManager = new WarehouseManager(OdataManager,user);
+    bonLivraisonManagement ObonLivraisonManagement = new bonLivraisonManagement(OdataManager,user);
 
     lstEntityData = OWarehouseManager.listeEtatControleAchat(search_value, dt_DEBUT, dt_FIN, lg_GROSSISTE_ID, start, limit);
     total = OWarehouseManager.listeEtatControleAchat(search_value, dt_DEBUT, dt_FIN, lg_GROSSISTE_ID).size();
+     boolean asAuthority =DateConverter .hasAuthorityByName(LstTPrivilege, Parameter.ACTION_RETURN_FULL_BL);
 %>
 
 <%
     for (int i = 0; i < (lstEntityData.size() < limit ? lstEntityData.size() : limit); i++) {
         json = new JSONObject();
         OObject = lstEntityData.get(i);
+        boolean status= asAuthority;
+   
+        if( OObject[13].toString().equals(DateConverter.STATUT_DELETE) || Integer.parseInt(OObject[4].toString()) <0){
+        status=false;
+    }
+  
+         json.put("RETURN_FULL_BL", status);
         json.put("str_ORDER_REF", OObject[5]);
         json.put("str_BL_REF", OObject[0]);
         json.put("int_ORDER_PRICE", Integer.parseInt(OObject[2].toString()));
@@ -95,7 +110,8 @@
         json.put("str_LIBELLE", OObject[6]);
         json.put("lg_USER_ID", OObject[8] + " " + OObject[9]);
         json.put("lg_BON_LIVRAISON_ID", OObject[10]);
-        List<TBonLivraisonDetail> lstTBonLivraisonDetail = new ArrayList<TBonLivraisonDetail>();
+
+        List<TBonLivraisonDetail> lstTBonLivraisonDetail = new ArrayList<>();
         lstTBonLivraisonDetail = ObonLivraisonManagement.getTBonLivraisonDetail(OObject[10].toString(), commonparameter.statut_is_Closed);
         String str_Product = "";
         for (int k = 0; k < lstTBonLivraisonDetail.size(); k++) {

@@ -12,9 +12,13 @@ import java.io.Serializable;
  * @author Kobena
  */
 public class UserDTO implements Serializable {
+
     private static final long serialVersionUID = 1L;
 
-    private String lgUSERID, strFIRSTNAME, strLASTNAME, fullName;
+    private String lgUSERID;
+    private String strFIRSTNAME;
+    private String strLASTNAME;
+    private String fullName;
 
     public String getLgUSERID() {
         return lgUSERID;

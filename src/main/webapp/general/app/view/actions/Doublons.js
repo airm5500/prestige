@@ -9,9 +9,9 @@ function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
 Ext.define('testextjs.view.actions.Doublons', {
-    extend: 'Ext.grid.Panel',
+    extend: 'Ext.tab.Panel',
     xtype: 'doublons',
-    id: 'doublonsID',
+    fullscreen: true,
     requires: [
         'Ext.selection.CellModel',
         'Ext.grid.*',
@@ -23,16 +23,15 @@ Ext.define('testextjs.view.actions.Doublons', {
         'Ext.ux.ProgressBarPager',
         'testextjs.model.Doublons',
         'testextjs.model.Emplacemnt'
-
-
     ],
     title: 'Gestion des doublons ',
     frame: true,
+    border: false,
     width: "98%",
     height: 580,
     initComponent: function () {
         Me = this;
-        var _this = this;
+        const _this = this;
         myAppController = Ext.create('testextjs.controller.App', {});
         doublonOFStore = new Ext.data.Store({
             model: 'testextjs.model.Doublons',
@@ -80,9 +79,167 @@ Ext.define('testextjs.view.actions.Doublons', {
 
         });
 
-        _this.store = doublonOFStore;
-        _this.columns = _this.buildDetailsColumns();
-        _this.dockedItems = _this.buildDocked();
+        let cipStore = new Ext.data.Store({
+            idProperty: 'id',
+            fields: [
+                {
+                    name: 'libelle',
+                    type: 'string'
+                },
+                {
+                    name: 'cip',
+                    type: 'string'
+                },
+                {
+                    name: 'codeProduit',
+                    type: 'string'
+                },
+                {
+                    name: 'libelleGrossiste',
+                    type: 'string'
+                },
+                {
+                    name: 'dateCreation',
+                    type: 'string'
+                },
+                {
+                    name: 'dateModification',
+                    type: 'string'
+                },
+                {
+                    name: 'statut',
+                    type: 'string'
+                },
+                {
+                    name: 'prixAchat',
+                    type: 'number'
+                },
+
+                {
+                    name: 'prixUnitaire',
+                    type: 'number'
+                },
+                {
+                    name: 'id',
+                    type: 'string'
+                },
+                {
+                    name: 'produitId',
+                    type: 'string'
+                }
+
+
+            ],
+            pageSize: 99999,
+            autoLoad: true,
+            groupField: 'produitId',
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/maintenance/doublons-cip',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+
+                },
+                timeout: 2400000
+            }
+        });
+
+        _this.items = [
+            {
+                xtype: 'gridpanel',
+                id: 'doublonsID',
+                title: 'Doublons produits',
+                border: false,
+                store: doublonOFStore,
+                columns: _this.buildDetailsColumns(),
+                dockedItems: _this.buildDocked()
+            },
+            {
+                xtype: 'gridpanel',
+                id: 'cip',
+                title: 'Doublons code produit',
+                border: false,
+                store: cipStore,
+                features: [
+                    {
+                        ftype: 'grouping',
+                        collapsible: true,
+                        groupHeaderTpl: "{[values.rows[0].data.libelle]}"
+
+                    }],
+                columns: [
+                    {
+                        header: 'Libélle',
+                        dataIndex: 'libelle',
+                        flex: 1.3
+                    },
+                    {
+                        header: 'Code cip',
+                        dataIndex: 'cip',
+                        flex: 0.6
+                    },
+                    {
+                        header: 'Code produit',
+                        dataIndex: 'codeProduit',
+                        flex: 0.6
+                    },
+                    {
+                       header: 'Date de création',
+                        dataIndex: 'dateCreation',
+                        flex: 0.6  
+                    }
+                    , {
+                       header: 'Date de modification',
+                        dataIndex: 'dateModification',
+                        flex: 0.6  
+                    }
+                    ,
+                    {
+                        header: 'Prix Achat',
+                        dataIndex: 'prixAchat',
+                        align: 'right',
+                        renderer: amountformat,
+                        flex: 0.6
+                    }
+                    ,
+                    {
+                        header: 'Prix Unitaire',
+                        dataIndex: 'prixUnitaire',
+                        align: 'right',
+                        renderer: amountformat,
+                        flex: 0.6
+                    },
+                    {
+                        header: 'Statut',
+                        dataIndex: 'statut',
+                        flex: 0.5
+                    },
+                    {
+                        header: 'Grossiste',
+                        dataIndex: 'libelleGrossiste',
+                        flex: 1
+                    },
+                    {
+                        xtype: 'actioncolumn',
+                        width: 30,
+                        sortable: false,
+                        menuDisabled: true,
+                        items: [{
+                                icon: 'resources/images/icons/fam/delete.png',
+                                tooltip: 'Supprimer la ligne',
+                                scope: this,
+                                handler: this.onRemoveCip
+                            }]
+                    }
+
+                ],
+                dockedItems: _this.buildCipDocked(cipStore)
+            }
+
+        ];
+
         this.callParent();
 
 
@@ -108,26 +265,23 @@ Ext.define('testextjs.view.actions.Doublons', {
                         listeners: {
                             select: function (cmd) {
 
-                                var me = Me,search = Ext.getCmp('rechecherDoublon').getValue(),
+                                const me = Me;
+                                let search = Ext.getCmp('rechecherDoublon').getValue(),
                                         grid = Ext.getCmp('doublonsID'), pagingbar = Ext.getCmp('balanceGridpagingbar'),
-                                        query = cmd.getValue(), printInvoicereport2pxw = Ext.getCmp('printInvoicereport2pxw'), printInvoicereport = Ext.getCmp('printInvoicereport');
+                                        query = cmd.getValue();
 
                                 if (query === '1') {
-//                                    doublonOFStore.loadPage(1);
                                     grid.reconfigure(doublonOFStore, me.buildDetailsColumns());
                                     pagingbar.bindStore(doublonOFStore);
                                 } else {
-//                                    doublonsEmStore.loadPage(1);
                                     grid.reconfigure(doublonsEmStore, me.buildGroupColumns());
                                     pagingbar.bindStore(doublonsEmStore);
                                 }
 
-                                //  var val = Ext.getCmp('rechecherFacture').getValue();
-
                                 grid.getStore().load({
                                     params: {
                                         lgEMPLACEMENTID: this.getValue(),
-                                        search:search
+                                        search: search
                                     }});
 
                             }
@@ -144,10 +298,8 @@ Ext.define('testextjs.view.actions.Doublons', {
 
                                 if (e.getKey() === e.ENTER) {
 
-                                    var val = field.getValue();
-                                    var cmbomode = "";
-
-
+                                    const val = field.getValue();
+                                    let cmbomode = "";
                                     if (Ext.getCmp('cmbomode').getValue() !== null && Ext.getCmp('cmbomode').getValue() !== "") {
                                         cmbomode = Ext.getCmp('cmbomode').getValue();
                                     }
@@ -157,10 +309,7 @@ Ext.define('testextjs.view.actions.Doublons', {
                                             lgEMPLACEMENTID: cmbomode,
                                             search: val
                                         }});
-
-
                                 }
-
                             }
                         }
                     }
@@ -178,16 +327,17 @@ Ext.define('testextjs.view.actions.Doublons', {
                 emptyMsg: "Pas de donnée à afficher",
                 listeners: {
                     beforechange: function (page, currentPage) {
-                        var myProxy = this.store.getProxy();
+
+                        let myProxy = Ext.getCmp('doublonsID').getStore().getProxy();
                         myProxy.params = {
                             lgEMPLACEMENTID: '',
                             search: ''
 
                         };
-                        var cmbomode = '', search = Ext.getCmp('rechecherDoublon').getValue();
+                        let cmbomode = '', search = Ext.getCmp('rechecherDoublon').getValue();
 
                         if (Ext.getCmp('cmbomode').getValue() !== null && Ext.getCmp('cmbomode').getValue() !== "") {
-                            lgEMPLACEMENTID = Ext.getCmp('cmbomode').getValue();
+                            cmbomode = Ext.getCmp('cmbomode').getValue();
                         }
 
 
@@ -276,9 +426,8 @@ Ext.define('testextjs.view.actions.Doublons', {
     },
     reconfigureBalancegrid:
             function () {
-
-                var me = this,
-                        grid = Ext.getCmp('doublonsID'), pagingbar = Ext.getCmp('balanceGridpagingbar'), query = Ext.getCmp('cmbomode').getValue();
+                const me = this;
+                let     grid = Ext.getCmp('doublonsID'), pagingbar = Ext.getCmp('balanceGridpagingbar'), query = Ext.getCmp('cmbomode').getValue();
                 if (query === '1') {
                     doublonOFStore.loadPage(1);
                     grid.reconfigure(doublonOFStore, me.buildDetailsColumns());
@@ -293,7 +442,6 @@ Ext.define('testextjs.view.actions.Doublons', {
             },
     buildGroupColumns: function () {
         return [
-
             {
                 header: '#',
                 dataIndex: 'lg_FAMILLESTOCK_ID',
@@ -364,14 +512,11 @@ Ext.define('testextjs.view.actions.Doublons', {
                         handler: this.onUpdateStock
                     }]
             }
-
-
-
         ];
     },
 
     onUpdate: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
         Ext.Ajax.request({
             url: '../Doublons',
             params: {
@@ -380,12 +525,7 @@ Ext.define('testextjs.view.actions.Doublons', {
             },
             success: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
                 grid.getStore().reload();
-
-            },
-            failure: function (response)
-            {
 
             }
 
@@ -393,29 +533,84 @@ Ext.define('testextjs.view.actions.Doublons', {
     },
 
     onUpdateStock: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
 
         Ext.Ajax.request({
             url: '../Doublons',
             params: {
                 action: 'updateStock',
                 lg_FAMILLE_STOCK_ID: rec.get('lg_FAMILLESTOCK_ID')
-               
-
-
             },
             success: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
+
                 grid.getStore().reload();
 
             },
             failure: function (response)
             {
+                const object = Ext.JSON.decode(response.responseText, false);
+                console.log(object);
+            }
 
+        });
+    },
+    buildCipDocked: function (cipStore) {
+        return [
+            {xtype: 'toolbar',
+                dock: 'top',
+                items: ['->',
+
+                    {
+                        text: 'Ajouter une contrainte à la table',
+
+                        scope: this,
+                        iconCls: 'searchicon',
+                        handler: this.onAddConstraint
+                    }
+
+                ]
+            },
+            {
+                dock: 'bottom',
+                xtype: 'pagingtoolbar',
+                pageSize: 999999,
+                store: cipStore,
+                displayInfo: true
+
+
+            }];
+    },
+    onRemoveCip: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        Ext.Ajax.request({
+            url: '../api/v1/maintenance/remove-cip/' + rec.get('id'),
+            method: 'DELETE',
+            success: function (response, options) {
+                grid.getStore().reload();
+
+
+            },
+            failure: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                Ext.Msg.alert("Message", result);
+            }
+
+
+        });
+    },
+    onAddConstraint: function () {
+        Ext.Ajax.request({
+            url: '../api/v1/maintenance/add-cip-constraint/',
+            success: function (response, options) {
+                Ext.getCmp('cip').getStore().reload();
+                 Ext.Msg.alert("Message", 'Opération effectuée');
+            },
+            failure: function (response, options) {
+             
+                Ext.Msg.alert("Message", response.responseText);
             }
 
         });
     }
-
 });

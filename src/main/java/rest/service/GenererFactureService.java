@@ -14,7 +14,7 @@ import java.util.List;
  *
  * @author kkoffi
  */
-//@Local
+// @Local
 public interface GenererFactureService {
 
     List<CodeFactureDTO> genererFactureTemporaire(GenererFactureDTO datas);

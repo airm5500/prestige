@@ -99,9 +99,9 @@ Ext.define('testextjs.controller.App', {
 
     },
     onSetRegion: function (tool) {
-        var panel = tool.toolOwner;
+        let panel = tool.toolOwner;
 
-        var regionMenu = panel.regionMenu || (panel.regionMenu =
+        let regionMenu = panel.regionMenu || (panel.regionMenu =
                 Ext.widget({
                     xtype: 'menu',
                     items: [{
@@ -149,189 +149,30 @@ Ext.define('testextjs.controller.App', {
             navigation.getView().focusNode(node);
             this.navigationSelected = true;
         }
-    },
-    gettuserName: function () {
-
-        Ext.getCmp('commonsettingapp').setText("Str_customer_name");
-     
-        return Str_customer_name;
     }
     ,
     inituserName: function () {
-        var OTUser;
-        var url_services_data_myaccount = '../webservices/sm_user/myaccount/ws_data.jsp';
-        var store_myaccount = new Ext.data.Store({
-            model: 'testextjs.model.Utilisateur',
-            proxy: {
-                type: 'ajax',
-                url: url_services_data_myaccount
-            }
-        });
-        store_myaccount.load({
-            callback: function () {
-                OTUser = store_myaccount.getAt(0);
-                lg_USER_ID.setValue(OTUser.get('lg_USER_ID'));
-                xtypeload = OTUser.get('xtypeload');
-//                alert(OTUser.get('xtypeload'));
-                Ext.getCmp('commonsettingapp').setText(OTUser.get('str_FIRST_NAME') + " " + OTUser.get('str_LAST_NAME'));
-            }
-        });
 
-
-
-
-    },
-    onCheckNotification: function () {
-        // Start a simple clock task that updates a div once per second
-        var task = {
-            run: function () {
-
-
-                var url_services_data_notification = '../webservices/sm_user/notification/ws_data.jsp';
-                var itemsPerPage = 20;
-                var storeNotification = new Ext.data.Store({
-                    model: 'testextjs.model.Notification',
-                    proxy: {
-                        pageSize: itemsPerPage,
-                        autoLoad: true,
-                        type: 'ajax',
-                        url: url_services_data_notification,
-                        reader: {
-                            type: 'json',
-                            root: 'results',
-                            totalProperty: 'total'
-                        },
-                        timeout: 240000
-                    }
-                });
-
-
-                storeNotification.load({
-                    callback: function () {
-                        //alert(storeNotification.getCount());
-                        if (storeNotification.getCount() === 0) {
-                            return;
-                        }
-                        ONotification = storeNotification.getAt(0);
-                        //alert(ONotification.get('str_CONTENT'));
-
-
-                        var str_title = ONotification.get('str_TYPE');
-                        var str_detailMessage = ONotification.get('str_CONTENT');
-
-                        Ext.create('widget.uxNotification', {
-                            corner: 'br',
-                            manager: 'fullscreen',
-                            cls: 'ux-notification-light',
-                            iconCls: 'icon-info',
-                            closable: true,
-                            title: str_title,
-                            html: str_detailMessage,
-                            //     slideInDelay: 800,
-                            slideDownDelay: 1000,
-                            autoDestroyDelay: 5000,
-                            slideInAnimation: 'bounceOut',
-                            slideDownAnimation: 'easeIn'
-                        }).show();
-
-
-                    }
-                });
-
-
-
-
-                //alert("Fin");
-                //  this.onRunNutification('Description','This notification is to inform you that something different has changed');
-                // alert(Ext.Date.format(new Date(), 'g:i:s A' ));
-                // Ext.fly('clock').update(Ext.Date.format(new Date(), 'g:i:s A'));
+        Ext.Ajax.request({
+            method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/user/account',
+            success: function (response) {
+                const data = Ext.JSON.decode(response.responseText, true);
+                const accountInfo = data.accountInfo;
+                xtypeload = accountInfo.xtypeload;
+                lg_USER_ID.setValue(accountInfo.lg_USER_ID);
+                Ext.getCmp('commonsettingapp').setText(accountInfo.str_FIRST_NAME + " " + accountInfo.str_LAST_NAME);
             },
-            interval: 5000 //1 second
-        };
-
-        var runner = new Ext.util.TaskRunner();
-        runner.start(task);
-
-
-    },
-    onRunNutification: function (str_title, str_detailMessage) {
-        alert("Debut");
-        Ext.create('widget.uxNotification', {
-            corner: 'br',
-            manager: 'fullscreen',
-            cls: 'ux-notification-light',
-            iconCls: 'icon-info',
-            closable: true,
-            title: str_title,
-            html: str_detailMessage,
-            //     slideInDelay: 800,
-            slideDownDelay: 500,
-            autoDestroyDelay: 5000,
-            slideInAnimation: 'bounceOut',
-            slideDownAnimation: 'easeIn'
-        }).show();
-
-
-
-    },
-    onLoadNewComponentInit: function (ComponentXtype, ComponentLabel, name_ressource) {
-        // alert(ComponentXtype);
-
-        var text = ComponentLabel,
-                xtype = ComponentXtype,
-                alias = 'widget.' + xtype,
-                contentPanel = this.getContentPanel(),
-                themeName = Ext.themeName,
-                cmp;
-
-
-
-        contentPanel.removeAll(true);
-
-        var className = Ext.ClassManager.getNameByAlias(alias);
-
-        var ViewClass = Ext.ClassManager.get(className);
-
-        // alert("139");
-        var clsProto = ViewClass.prototype;
-        // alert("141");
-        if (clsProto.themes) {
-            clsProto.themeInfo = clsProto.themes[themeName];
-            if (themeName === 'gray' || themeName === 'access') {
-                clsProto.themeInfo = Ext.applyIf(clsProto.themeInfo || {}, clsProto.themes.classic);
+            failure: function (response) {
+                Ext.MessageBox.alert('Error Message', response.responseText);
             }
-        }
+        });
 
-        cmp = new ViewClass(
-                {
-                    nameintern: name_ressource,
-                    titre: text
-                });
-        contentPanel.add(cmp);
-        if (cmp.floating) {
-            cmp.show();
-        } else {
-            this.centerContent();
-        }
 
-        contentPanel.setTitle(text);
-
-        // alert("Ok dd");
-
-        document.title = document.title.split(' - ')[0] + ' - ' + text;
-        location.hash = xtype;
-
-        this.updateDescription(clsProto);
-
-        if (clsProto.exampleCode) {
-            this.updateCodePreview(clsProto.exampleCode);
-        } else {
-            this.updateCodePreviewAsync(clsProto, xtype);
-        }
-
-        //  alert("Fin");
 
     },
+
     onLoadNewComponent: function (ComponentXtype, ComponentLabel, name_ressource) {
         // alert(ComponentXtype);
 
@@ -392,7 +233,6 @@ Ext.define('testextjs.controller.App', {
     },
 
     onLoadNewComponentWithDataSource: function (ComponentXtype, ComponentLabel, name_ressource, ODatatasource) {
-        // alert(ComponentXtype);
 
         var text = ComponentLabel,
                 xtype = ComponentXtype,
@@ -582,10 +422,7 @@ Ext.define('testextjs.controller.App', {
                 contentPanel = this.getContentPanel(),
                 themeName = Ext.themeName,
                 cmp;
-        alert(xtype);
-        //alert("Ok -> " + record.get('id'));
 
-        //alert("Ok -> " + record.get('id'));
 
 
         if (xtype) { // only leaf nodes have ids
@@ -760,14 +597,16 @@ Ext.define('testextjs.controller.App', {
         });
     },
     updateDescription: function (clsProto) {
-        var description = clsProto.exampleDescription,
+        let description = clsProto.exampleDescription,
                 descriptionPanel = this.getDescriptionPanel();
 
         if (Ext.isArray(description)) {
             clsProto.exampleDescription = description = description.join('');
         }
+        if (description != null && description != undefined) {
+            descriptionPanel.update(description);
+        }
 
-        descriptionPanel.update(description);
     },
     centerContent: function () {
         var contentPanel = this.getContentPanel(),
@@ -846,9 +685,7 @@ Ext.define('testextjs.controller.App', {
             var url_final = url + "?search_value=" + OComponent_val;
 
             if (OComponent_length >= 3) {
-                //OFamille_store.getStore().getProxy().url = url_final;
-                // OFamille_store.getStore().reload();
-
+             
                 var store = OFamille_store.getStore();
                 store.getProxy().url = url_final;
                 store.load({
@@ -859,20 +696,12 @@ Ext.define('testextjs.controller.App', {
                             Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(rec.get('lg_FAMILLE_ID'));
 
                         }
-//                        alert("ok"+store.getCount());
                     }
                 });
-                /*alert(store.getCount());
-                 if (store.getCount() === 1) {
-                 // var record=store.getAt(0);
-                 //OFamille_store.setValue(record.get('str_DESCRIPTION_PLUS'));
-                 
-                 
-                 }*/
-
+          
             }
         } else {
-            //alert('ici');
+          
             OFamille_store.getStore().getProxy().url = url;
             OFamille_store.getStore().reload();
 
@@ -885,7 +714,7 @@ Ext.define('testextjs.controller.App', {
         var columnFind = grid.headerCt.getHeaderAtIndex(columnIndex);
         return columnFind;
     },
-//    getMonthToDisplay: function(month, indiceTab, indiceCurrentMonth) {
+
     getMonthToDisplay: function (indiceTab, indiceCurrentMonth) {
         var indiceMonth = "";
         indiceMonth = indiceCurrentMonth - indiceTab;

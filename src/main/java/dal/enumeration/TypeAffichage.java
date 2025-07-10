@@ -10,6 +10,5 @@ package dal.enumeration;
  * @author kkoffi
  */
 public enum TypeAffichage {
-    DETAIL_ARTICLE,
-    LIGNE_VENTE
+    DETAIL_ARTICLE, LIGNE_VENTE
 }

@@ -8,6 +8,7 @@ package rest.service;
 import commonTasks.dto.ClotureVenteParams;
 import commonTasks.dto.Params;
 import commonTasks.dto.SalesStatsParams;
+import commonTasks.dto.SummaryDTO;
 import commonTasks.dto.TicketDTO;
 import commonTasks.dto.TiersPayantParams;
 import commonTasks.dto.TvaDTO;
@@ -26,7 +27,6 @@ import org.json.JSONObject;
  * @author Kobena
  */
 @Local
-//@Remote
 public interface SalesStatsService {
 
     JSONObject getListeTPreenregistrement(SalesStatsParams params) throws JSONException;
@@ -79,7 +79,8 @@ public interface SalesStatsService {
 
     List<VenteDTO> findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd);
 
-    JSONObject findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query, int start, int limit) throws JSONException;
+    JSONObject findAllVenteOrdonnancier(String medecinId, String dtStart, String dtEnd, String query, int start,
+            int limit) throws JSONException;
 
     List<TvaDTO> tvaRapport(Params params);
 
@@ -95,7 +96,7 @@ public interface SalesStatsService {
 
     JSONObject articlesVendusRecap(SalesStatsParams params) throws JSONException;
 
-    JSONObject articleVendusASuggerer(SalesStatsParams params) throws JSONException;
+    JSONObject articleVendusASuggerer(SalesStatsParams params, boolean isReappro) throws JSONException;
 
     List<TPreenregistrementDetail> venteDetailByVenteId(String venteId);
 
@@ -118,7 +119,18 @@ public interface SalesStatsService {
     List<TvaDTO> tvasRapport20(Params params);
 
     List<TvaDTO> tvaRapport2(Params params);
-    
-     List<TvaDTO> tvasRapportJournalier2(Params params);
 
+    List<TvaDTO> tvasRapportJournalier2(Params params);
+
+    SummaryDTO summarySales(SalesStatsParams params);
+
+    List<VenteDTO> listVentes(SalesStatsParams params);
+
+    List<VenteDTO> venteAvecRemise(SalesStatsParams params);
+
+    rest.service.dto.VenteDTO getOne(String id);
+
+    long montantDepot(SalesStatsParams params);
+
+    JSONObject getPreVentes(SalesStatsParams params);
 }

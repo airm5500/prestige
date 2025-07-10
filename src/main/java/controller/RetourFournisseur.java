@@ -29,7 +29,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import toolkits.parameters.commonparameter;
 
-@WebServlet(name = "RetourFournisseur", urlPatterns = {"/RetourFournisseur"})
+@WebServlet(name = "RetourFournisseur", urlPatterns = { "/RetourFournisseur" })
 public class RetourFournisseur extends HttpServlet {
 
     private final static Logger LOGGER = Logger.getLogger(RetourFournisseur.class.getName());
@@ -47,27 +47,33 @@ public class RetourFournisseur extends HttpServlet {
             }
             int start = 0;
             int limit = 10;
-            
+
             if (request.getParameter("start") != null) {
-                start = Integer.valueOf(request.getParameter("start")) ;
+                start = Integer.parseInt(request.getParameter("start"));
             }
-               if (request.getParameter("limit") != null) {
-                limit = Integer.valueOf(request.getParameter("limit")) ;
+            if (request.getParameter("limit") != null) {
+                limit = Integer.parseInt(request.getParameter("limit"));
             }
-            
+
             JSONObject json = findRetourBl(search, start, limit, entityManager);
             out.println(json);
         }
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
+    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the
+    // code.">
     /**
      * Handles the HTTP <code>GET</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -78,10 +84,15 @@ public class RetourFournisseur extends HttpServlet {
     /**
      * Handles the HTTP <code>POST</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -110,10 +121,12 @@ public class RetourFournisseur extends HttpServlet {
                 Root<TBonLivraison> root = cq.from(TBonLivraison.class);
                 cq.select(root).orderBy(cb.desc(root.get(TBonLivraison_.dtUPDATED)));
                 Predicate predicate = cb.conjunction();
-                predicate = cb.and(predicate, cb.equal(root.get(TBonLivraison_.strSTATUT), commonparameter.statut_is_Closed));
+                predicate = cb.and(predicate,
+                        cb.equal(root.get(TBonLivraison_.strSTATUT), commonparameter.statut_is_Closed));
 
                 if (!"".equals(search)) {
-                    predicate = cb.and(predicate, cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON), search + "%")));
+                    predicate = cb.and(predicate,
+                            cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON), search + "%")));
 
                 }
 
@@ -128,8 +141,8 @@ public class RetourFournisseur extends HttpServlet {
                     try {
                         js.put("lg_BON_LIVRAISON_ID", p.getLgBONLIVRAISONID());
                         js.put("str_REF_LIVRAISON", p.getStrREFLIVRAISON());
-                          js.put("str_GROSSISTE_LIBELLE", p.getLgORDERID().getLgGROSSISTEID().getStrLIBELLE());
-                        
+                        js.put("str_GROSSISTE_LIBELLE", p.getLgORDERID().getLgGROSSISTEID().getStrLIBELLE());
+
                         data.put(js);
                     } catch (JSONException ex) {
 

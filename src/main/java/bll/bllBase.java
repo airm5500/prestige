@@ -56,7 +56,6 @@ public class bllBase {
 
         if (OdataManager.isConected == false) {
             OdataManager.initEntityManager();
-            return;
         }
 
     }
@@ -89,7 +88,8 @@ public class bllBase {
         Serializable o = oold;
         try {
             if (this.getOdataManager().isTransactionGroupe() == false) {
-                this.getOdataManager().getEm().getEntityManagerFactory().getCache().evictAll(); // vide le cache de l'objet
+                this.getOdataManager().getEm().getEntityManagerFactory().getCache().evictAll(); // vide le cache de
+                                                                                                // l'objet
 
                 this.getOdataManager().BeginTransaction();
             }
@@ -100,17 +100,17 @@ public class bllBase {
 
             this.setMessage(commonparameter.PROCESS_SUCCESS);
 
-            //==> YFS le 29/07/2017: A confirmer
-//            try {
-//                this.getOdataManager().getEm().refresh(o);
-//            } catch (Exception e) {
-//            }
-            //new logger().OCategory.info(o.);
+            // ==> YFS le 29/07/2017: A confirmer
+            // try {
+            // this.getOdataManager().getEm().refresh(o);
+            // } catch (Exception e) {
+            // }
+            // new logger().OCategory.info(o.);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
             buildErrorTraceMessage(e.getMessage());
-            //return false;
+            // return false;
             throw (e);
         }
     }
@@ -135,7 +135,7 @@ public class bllBase {
             } catch (Exception e) {
             }
 
-            //new logger().OCategory.info(o.);
+            // new logger().OCategory.info(o.);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -160,7 +160,7 @@ public class bllBase {
                 e.printStackTrace();
             }
 
-            //new logger().OCategory.info(o.);
+            // new logger().OCategory.info(o.);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -234,7 +234,7 @@ public class bllBase {
                 e.printStackTrace();
             }
 
-            //new logger().OCategory.info(o.);
+            // new logger().OCategory.info(o.);
             return true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -263,7 +263,7 @@ public class bllBase {
             return false;
         }
     }
-// Renvoie l'objet donc la ref et une instance d objet sont passe respectivemment en parametre
+    // Renvoie l'objet donc la ref et une instance d objet sont passe respectivemment en parametre
 
     public Serializable find(Object o, Serializable Tclass) {
         try {
@@ -314,7 +314,8 @@ public class bllBase {
     }
 
     /**
-     * @param OdataManager the OdataManager to set
+     * @param OdataManager
+     *            the OdataManager to set
      */
     public void setOdataManager(dataManager OdataManager) {
         this.OdataManager = OdataManager;
@@ -328,7 +329,8 @@ public class bllBase {
     }
 
     /**
-     * @param OTranslate the OTranslate to set
+     * @param OTranslate
+     *            the OTranslate to set
      */
     public void setOTranslate(Translate OTranslate) {
         this.OTranslate = OTranslate;
@@ -342,7 +344,8 @@ public class bllBase {
     }
 
     /**
-     * @param message the message to set
+     * @param message
+     *            the message to set
      */
     public void setMessage(String message) {
         this.message = message;
@@ -356,7 +359,8 @@ public class bllBase {
     }
 
     /**
-     * @param key the key to set
+     * @param key
+     *            the key to set
      */
     public void setKey(date key) {
         this.key = key;
@@ -377,7 +381,8 @@ public class bllBase {
     }
 
     /**
-     * @param Detailmessage the Detailmessage to set
+     * @param Detailmessage
+     *            the Detailmessage to set
      */
     public void setDetailmessage(String Detailmessage) {
         this.Detailmessage = Detailmessage;
@@ -385,7 +390,7 @@ public class bllBase {
 
     public static String getAbsPicture(String CUST_REF, String specialDirectory) {
         PicFile oPicFile = new PicFile();
-        //oPicFile.setPath_outut(jdom.path_photo_absolute +specialDirectory+ "NO_PIC.jpg");
+        // oPicFile.setPath_outut(jdom.path_photo_absolute +specialDirectory+ "NO_PIC.jpg");
         oPicFile.setPath_outut("NO_PIC.jpg");
         oPicFile.isExisteAbs(specialDirectory + CUST_REF);
         return oPicFile.getPath_outut();
@@ -449,10 +454,9 @@ public class bllBase {
         }
     }
 
-    public void do_event_log(jconnexion Ojconnexion, String ID_INSCRIPTION,
-            String str_DESCRIPTION, String str_CREATED_BY,
-            String str_STATUT, String str_TABLE_CONCERN,
-            String str_MODULE_CONCERN, String str_TYPE_LOG, String lg_USER_ID) {
+    public void do_event_log(jconnexion Ojconnexion, String ID_INSCRIPTION, String str_DESCRIPTION,
+            String str_CREATED_BY, String str_STATUT, String str_TABLE_CONCERN, String str_MODULE_CONCERN,
+            String str_TYPE_LOG, String lg_USER_ID) {
         try {
 
             String sProc = "{ CALL proc_logfile(?,?,?,?,?,?,?,?,?) }";
@@ -474,10 +478,8 @@ public class bllBase {
         }
     }
 
-    public void do_event_log(jconnexion Ojconnexion, String ID_INSCRIPTION,
-            String str_DESCRIPTION, String str_CREATED_BY,
-            String str_STATUT, String str_TABLE_CONCERN,
-            String str_MODULE_CONCERN) {
+    public void do_event_log(jconnexion Ojconnexion, String ID_INSCRIPTION, String str_DESCRIPTION,
+            String str_CREATED_BY, String str_STATUT, String str_TABLE_CONCERN, String str_MODULE_CONCERN) {
         try {
 
             String sProc = "{ CALL proc_do_event_log(?,?,?,?,?,?,?,?) }";
@@ -498,10 +500,9 @@ public class bllBase {
         }
     }
 
-    public void do_event_log(jconnexion Ojconnexion, String ID_INSCRIPTION,
-            String str_DESCRIPTION, String str_CREATED_BY,
-            String str_STATUT, String str_TABLE_CONCERN,
-            String str_MODULE_CONCERN, String ID_ANNEE_SCOLAIRE) {
+    public void do_event_log(jconnexion Ojconnexion, String ID_INSCRIPTION, String str_DESCRIPTION,
+            String str_CREATED_BY, String str_STATUT, String str_TABLE_CONCERN, String str_MODULE_CONCERN,
+            String ID_ANNEE_SCOLAIRE) {
         try {
             new logger().OCategory.info("dans do_event_log");
             String sProc = "{ CALL proc_do_event_log(?,?,?,?,?,?,?,?) }";
@@ -524,10 +525,8 @@ public class bllBase {
         }
     }
 
-    public void do_event_log(String ID_INSCRIPTION,
-            String str_DESCRIPTION, String str_CREATED_BY,
-            String str_STATUT, String str_TABLE_CONCERN,
-            String str_MODULE_CONCERN) {
+    public void do_event_log(String ID_INSCRIPTION, String str_DESCRIPTION, String str_CREATED_BY, String str_STATUT,
+            String str_TABLE_CONCERN, String str_MODULE_CONCERN) {
         try {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
@@ -551,10 +550,8 @@ public class bllBase {
         }
     }
 
-    public void do_event_log(String ID_INSCRIPTION,
-            String str_DESCRIPTION, String str_CREATED_BY,
-            String str_STATUT, String str_TABLE_CONCERN,
-            String str_MODULE_CONCERN, String str_TYPE_LOG, String lg_USER_ID) {
+    public void do_event_log(String ID_INSCRIPTION, String str_DESCRIPTION, String str_CREATED_BY, String str_STATUT,
+            String str_TABLE_CONCERN, String str_MODULE_CONCERN, String str_TYPE_LOG, String lg_USER_ID) {
         try {
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
@@ -613,7 +610,8 @@ public class bllBase {
     }
 
     /**
-     * @param OTUser the OTUser to set
+     * @param OTUser
+     *            the OTUser to set
      */
     public void setOTUser(TUser OTUser) {
         this.OTUser = OTUser;
@@ -635,26 +633,20 @@ public class bllBase {
 
     }
 
-    public void do_event_log(dataManager OdaManager, String ID_INSCRIPTION,
-            String str_DESCRIPTION, String str_CREATED_BY,
-            String str_STATUT, String str_TABLE_CONCERN,
-            String str_MODULE_CONCERN, String str_TYPE_LOG, String lg_USER_ID) {
+    public void do_event_log(dataManager OdaManager, String ID_INSCRIPTION, String str_DESCRIPTION,
+            String str_CREATED_BY, String str_STATUT, String str_TABLE_CONCERN, String str_MODULE_CONCERN,
+            String str_TYPE_LOG, String lg_USER_ID) {
         try {
             new logger().OCategory.info("dans do_event_log");
             if (!this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().BeginTransaction();
             }
 
-            OdaManager.getEm().createNativeQuery("INSERT INTO `t_event_log` (`lg_EVENT_LOG_ID`, `str_DESCRIPTION`, `str_CREATED_BY`, `str_STATUT`, `str_TABLE_CONCERN`,`str_MODULE_CONCERN`,`str_TYPE_LOG`,`lg_USER_ID`) VALUES(?,?,?,?,?,?,?,?)")
-                    .setParameter(1, key.gettimeid())
-                    .setParameter(2, str_DESCRIPTION)
-                    .setParameter(3, str_CREATED_BY)
-                    .setParameter(4, str_STATUT)
-                    .setParameter(5, str_TABLE_CONCERN)
-                    .setParameter(6, str_MODULE_CONCERN)
-                    .setParameter(7, str_TYPE_LOG)
-                    .setParameter(8, lg_USER_ID)
-                    .executeUpdate();
+            OdaManager.getEm().createNativeQuery(
+                    "INSERT INTO `t_event_log` (`lg_EVENT_LOG_ID`, `str_DESCRIPTION`, `str_CREATED_BY`, `str_STATUT`, `str_TABLE_CONCERN`,`str_MODULE_CONCERN`,`str_TYPE_LOG`,`lg_USER_ID`) VALUES(?,?,?,?,?,?,?,?)")
+                    .setParameter(1, key.gettimeid()).setParameter(2, str_DESCRIPTION).setParameter(3, str_CREATED_BY)
+                    .setParameter(4, str_STATUT).setParameter(5, str_TABLE_CONCERN).setParameter(6, str_MODULE_CONCERN)
+                    .setParameter(7, str_TYPE_LOG).setParameter(8, lg_USER_ID).executeUpdate();
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().CloseTransaction();
             }

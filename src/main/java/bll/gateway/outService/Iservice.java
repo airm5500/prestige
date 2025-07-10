@@ -14,12 +14,17 @@ import dal.dataManager;
  * @author user
  */
 public interface Iservice {
-    
-public void init(dataManager OdataManager);    
-public String doservice(TAlertEventUserFone OTAlertEventUserFone);
-public int doservice(String strResult,String str_phone, String str_REF);
-public String BuidlDataToNotify(String strResult,String str_phone,String str_REF);
-public String BuidlDataToNotify(String strResult,String str_phone);
-public TOutboudMessage saveNotification(String strResult,String str_phone,String str_REF);
+
+    public void init(dataManager OdataManager);
+
+    public String doservice(TAlertEventUserFone OTAlertEventUserFone);
+
+    public int doservice(String strResult, String str_phone, String str_REF);
+
+    public String BuidlDataToNotify(String strResult, String str_phone, String str_REF);
+
+    public String BuidlDataToNotify(String strResult, String str_phone);
+
+    public TOutboudMessage saveNotification(String strResult, String str_phone, String str_REF);
 
 }

@@ -32,7 +32,8 @@ public class familleGrossisteManagement extends bllBase {
         // </editor-fold>
     }
 
-    public void create(String lg_GROSSISTE_ID, String lg_FAMILLE_ID, String str_CODE_ARTICLE, int int_PRICE, int int_PAF) {
+    public void create(String lg_GROSSISTE_ID, String lg_FAMILLE_ID, String str_CODE_ARTICLE, int int_PRICE,
+            int int_PAF) {
         try {
 
             if (str_CODE_ARTICLE.length() < 6) {
@@ -40,14 +41,18 @@ public class familleGrossisteManagement extends bllBase {
                 return;
             }
             TGrossiste OTGrossiste = new grossisteManagement(this.getOdataManager()).getGrossiste(lg_GROSSISTE_ID);
-            System.out.println("------------------------>>>>  " + lg_GROSSISTE_ID + " ------------  " + OTGrossiste + " str_CODE_ARTICLE " + str_CODE_ARTICLE);
+            System.out.println("------------------------>>>>  " + lg_GROSSISTE_ID + " ------------  " + OTGrossiste
+                    + " str_CODE_ARTICLE " + str_CODE_ARTICLE);
 
             TFamille OTFamille = getOdataManager().getEm().find(TFamille.class, lg_FAMILLE_ID);
-            System.out.println("------------------------>>>>  ------------  " + OTFamille + " lg_FAMILLE_ID " + lg_FAMILLE_ID);
-            TFamilleGrossiste OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID());
+            System.out.println(
+                    "------------------------>>>>  ------------  " + OTFamille + " lg_FAMILLE_ID " + lg_FAMILLE_ID);
+            TFamilleGrossiste OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(),
+                    OTGrossiste.getLgGROSSISTEID());
             System.out.println("------------------------>>>>OTFamilleGrossiste  ------------  " + OTFamilleGrossiste);
             if (OTFamilleGrossiste != null) {
-                this.buildErrorTraceMessage("Le code " + str_CODE_ARTICLE + " est déjà affecté au Produit " + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
+                this.buildErrorTraceMessage("Le code " + str_CODE_ARTICLE + " est déjà affecté au Produit "
+                        + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
                 return;
             }
             OTFamilleGrossiste = new TFamilleGrossiste();
@@ -68,7 +73,8 @@ public class familleGrossisteManagement extends bllBase {
         }
     }
 
-    public boolean create(TGrossiste OTGrossiste, TFamilleGrossiste OTFamilleGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE, int int_PAF) {
+    public boolean create(TGrossiste OTGrossiste, TFamilleGrossiste OTFamilleGrossiste, TFamille OTFamille,
+            String str_CODE_ARTICLE, int int_PRICE, int int_PAF) {
         boolean result = false;
 
         try {
@@ -86,7 +92,8 @@ public class familleGrossisteManagement extends bllBase {
         return result;
     }
 
-    public boolean create(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE, int int_PAF) {
+    public boolean create(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE,
+            int int_PAF) {
         boolean result = false;
         TFamilleGrossiste OTFamilleGrossiste;
         this.buildErrorTraceMessage("Impossible de creer un code article pour le grossiste sélectionné");
@@ -97,10 +104,13 @@ public class familleGrossisteManagement extends bllBase {
                 return result;
             }
 
-//            if (this.getListeFamilleGrossiste("", OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID()).size() > 0) {// a decommentere en cas de probleme 03/03/2017
+            // if (this.getListeFamilleGrossiste("", OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID()).size()
+            // > 0) {// a decommentere en cas de probleme 03/03/2017
             OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID());
             if (OTFamilleGrossiste != null) {
-                this.buildErrorTraceMessage("Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit " + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
+                this.buildErrorTraceMessage(
+                        "Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit "
+                                + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
                 return result;
             }
             str_CODE_ARTICLE = new familleManagement(this.getOdataManager()).generateCIP(str_CODE_ARTICLE);
@@ -114,9 +124,10 @@ public class familleGrossisteManagement extends bllBase {
             OTFamilleGrossiste.setIntPRICE(int_PRICE);
             OTFamilleGrossiste.setStrSTATUT(commonparameter.statut_enable);
             OTFamilleGrossiste.setDtCREATED(new Date());
-            /*this.getOdataManager().getEm().persist(OTFamilleGrossiste);
-             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-             result = true;*/
+            /*
+             * this.getOdataManager().getEm().persist(OTFamilleGrossiste);
+             * this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES")); result = true;
+             */
 
             if (this.persiste(OTFamilleGrossiste)) {
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -128,7 +139,8 @@ public class familleGrossisteManagement extends bllBase {
         return result;
     }
 
-    public boolean create2(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE, int int_PAF) {
+    public boolean create2(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE,
+            int int_PAF) {
         boolean result = false;
         TFamilleGrossiste OTFamilleGrossiste = null;
         this.buildErrorTraceMessage("Impossible de creer un code article pour le grossiste sélectionné");
@@ -139,10 +151,13 @@ public class familleGrossisteManagement extends bllBase {
                 return result;
             }
 
-//            if (this.getListeFamilleGrossiste("", OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID()).size() > 0) {// a decommentere en cas de probleme 03/03/2017
+            // if (this.getListeFamilleGrossiste("", OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID()).size()
+            // > 0) {// a decommentere en cas de probleme 03/03/2017
             OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID());
             if (OTFamilleGrossiste != null) {
-                this.buildErrorTraceMessage("Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit " + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
+                this.buildErrorTraceMessage(
+                        "Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit "
+                                + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
                 return result;
             }
             str_CODE_ARTICLE = new familleManagement(this.getOdataManager()).generateCIP(str_CODE_ARTICLE);
@@ -166,7 +181,8 @@ public class familleGrossisteManagement extends bllBase {
         return result;
     }
 
-    public boolean create(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE, int int_PAF, EntityManager em) {
+    public boolean create(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE,
+            int int_PAF, EntityManager em) {
         boolean result = false;
         TFamilleGrossiste OTFamilleGrossiste;
         this.buildErrorTraceMessage("Impossible de creer un code article pour le grossiste sélectionné");
@@ -177,12 +193,16 @@ public class familleGrossisteManagement extends bllBase {
                 return result;
             }
 
-//            if (this.getListeFamilleGrossiste("", OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID()).size() > 0) {// a decommentere en cas de probleme 03/03/2017
+            // if (this.getListeFamilleGrossiste("", OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID()).size()
+            // > 0) {// a decommentere en cas de probleme 03/03/2017
             OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID());
-            System.out.println("------------------------>>>>  " + OTFamilleGrossiste + " ------------  " + OTGrossiste + " str_CODE_ARTICLE " + str_CODE_ARTICLE);
+            System.out.println("------------------------>>>>  " + OTFamilleGrossiste + " ------------  " + OTGrossiste
+                    + " str_CODE_ARTICLE " + str_CODE_ARTICLE);
 
             if (OTFamilleGrossiste != null) {
-                this.buildErrorTraceMessage("Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit " + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
+                this.buildErrorTraceMessage(
+                        "Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit "
+                                + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
                 return result;
             }
             str_CODE_ARTICLE = new familleManagement(this.getOdataManager()).generateCIP(str_CODE_ARTICLE);
@@ -206,10 +226,12 @@ public class familleGrossisteManagement extends bllBase {
         return result;
     }
 
-    public void update(String lg_FAMILLE_GROSSISTE_ID, String lg_GROSSISTE_ID, String lg_FAMILLE_ID, String str_CODE_ARTICLE) {
+    public void update(String lg_FAMILLE_GROSSISTE_ID, String lg_GROSSISTE_ID, String lg_FAMILLE_ID,
+            String str_CODE_ARTICLE) {
 
         try {
-            TFamilleGrossiste OTFamilleGrossiste = getOdataManager().getEm().find(TFamilleGrossiste.class, lg_FAMILLE_GROSSISTE_ID);
+            TFamilleGrossiste OTFamilleGrossiste = getOdataManager().getEm().find(TFamilleGrossiste.class,
+                    lg_FAMILLE_GROSSISTE_ID);
 
             if (str_CODE_ARTICLE.length() < 6) {
                 this.buildErrorTraceMessage("Le code CIP doit avoir au minimum 6 caractères");
@@ -222,7 +244,7 @@ public class familleGrossisteManagement extends bllBase {
                 this.buildErrorTraceMessage("Un code du grossiste a déjà été assigné au produit sélectionné");
                 return;
             }
-//            str_CODE_ARTICLE = new familleManagement(this.getOdataManager()).generateCIP(str_CODE_ARTICLE);
+            // str_CODE_ARTICLE = new familleManagement(this.getOdataManager()).generateCIP(str_CODE_ARTICLE);
 
             OTFamilleGrossiste.setStrCODEARTICLE(str_CODE_ARTICLE);
             TFamille OTFamille = getOdataManager().getEm().find(TFamille.class, lg_FAMILLE_ID);
@@ -248,9 +270,9 @@ public class familleGrossisteManagement extends bllBase {
     public TFamilleGrossiste findFamilleGrossiste(String lg_FAMILLE_ID, String lg_GROSSISTE_ID) {
         TFamilleGrossiste OTFamilleGrossiste = null;
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT = ?3 ").
-                    setParameter(1, lg_FAMILLE_ID)
-                    .setParameter(2, lg_GROSSISTE_ID)
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT = ?3 ")
+                    .setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_GROSSISTE_ID)
                     .setParameter(3, commonparameter.statut_enable);
             qry.setMaxResults(1);
             OTFamilleGrossiste = (TFamilleGrossiste) qry.getSingleResult();
@@ -265,9 +287,9 @@ public class familleGrossisteManagement extends bllBase {
     public TFamilleGrossiste findFamilleGrossiste(TFamille OTFamille, TGrossiste OTGrossiste) {
         TFamilleGrossiste OTFamilleGrossiste;
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT LIKE ?3 ").
-                    setParameter(1, OTFamille.getLgFAMILLEID())
-                    .setParameter(2, OTGrossiste.getLgGROSSISTEID())
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT LIKE ?3 ")
+                    .setParameter(1, OTFamille.getLgFAMILLEID()).setParameter(2, OTGrossiste.getLgGROSSISTEID())
                     .setParameter(3, commonparameter.statut_enable);
             qry.setMaxResults(1);
             OTFamilleGrossiste = (TFamilleGrossiste) qry.getSingleResult();
@@ -278,7 +300,7 @@ public class familleGrossisteManagement extends bllBase {
             OTFamilleGrossiste.setLgGROSSISTEID(OTGrossiste);
             OTFamilleGrossiste.setIntPAF(OTFamille.getIntPAF());
             OTFamilleGrossiste.setIntPRICE(OTFamille.getIntPRICE());
-//            OTFamilleGrossiste.setStrCODEARTICLE(OTFamille.getIntCIP());
+            // OTFamilleGrossiste.setStrCODEARTICLE(OTFamille.getIntCIP());
             OTFamilleGrossiste.setStrCODEARTICLE("");
             this.persiste(OTFamilleGrossiste);
 
@@ -290,16 +312,16 @@ public class familleGrossisteManagement extends bllBase {
     public TFamilleGrossiste findGrossiste(TFamille OTFamille, TGrossiste OTGrossiste) {
         TFamilleGrossiste OTFamilleGrossiste;
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT = ?3 ").
-                    setParameter(1, OTFamille.getLgFAMILLEID())
-                    .setParameter(2, OTGrossiste.getLgGROSSISTEID())
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT DISTINCT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.lgGROSSISTEID = ?2 OR t.lgGROSSISTEID.strDESCRIPTION = ?2) AND t.strSTATUT = ?3 ")
+                    .setParameter(1, OTFamille.getLgFAMILLEID()).setParameter(2, OTGrossiste.getLgGROSSISTEID())
                     .setParameter(3, commonparameter.statut_enable);
             qry.setMaxResults(1);
             OTFamilleGrossiste = (TFamilleGrossiste) qry.getSingleResult();
             this.getOdataManager().getEm().refresh(OTFamilleGrossiste);
 
         } catch (Exception e) {
-//            e.printStackTrace(System.err);
+            // e.printStackTrace(System.err);
             return null;
 
         }
@@ -312,12 +334,10 @@ public class familleGrossisteManagement extends bllBase {
 
         try {
 
-            OTFamilleGrossiste = (TFamilleGrossiste) this.getOdataManager().getEm().createQuery("SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND t.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.blRUPTURE LIKE ?3 AND t.strSTATUT LIKE ?4 ").
-                    setParameter(1, lg_FAMILLE_ID)
-                    .setParameter(2, lg_GROSSISTE_ID)
-                    .setParameter(3, Boolean.TRUE)
-                    .setParameter(4, commonparameter.statut_enable)
-                    .getSingleResult();
+            OTFamilleGrossiste = (TFamilleGrossiste) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND t.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.blRUPTURE LIKE ?3 AND t.strSTATUT LIKE ?4 ")
+                    .setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_GROSSISTE_ID).setParameter(3, Boolean.TRUE)
+                    .setParameter(4, commonparameter.statut_enable).getSingleResult();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -332,7 +352,8 @@ public class familleGrossisteManagement extends bllBase {
         boolean result = false;
         try {
 
-            TFamilleGrossiste OTFamilleGrossiste = this.getOdataManager().getEm().find(TFamilleGrossiste.class, lg_FAMILLE_GROSSISTE_ID);
+            TFamilleGrossiste OTFamilleGrossiste = this.getOdataManager().getEm().find(TFamilleGrossiste.class,
+                    lg_FAMILLE_GROSSISTE_ID);
             if (this.delete(OTFamilleGrossiste)) {
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
                 result = true;
@@ -470,18 +491,17 @@ public class familleGrossisteManagement extends bllBase {
         // </editor-fold>
     }
 
-    public List<TFamilleGrossiste> getListeFamilleGrossiste(String search_value, String lg_FAMILLE_ID, String lg_GROSSISTE_ID) {
+    public List<TFamilleGrossiste> getListeFamilleGrossiste(String search_value, String lg_FAMILLE_ID,
+            String lg_GROSSISTE_ID) {
         List<TFamilleGrossiste> lstTFamilleGrossiste = new ArrayList<>();
         try {
             if (search_value.equalsIgnoreCase("") || search_value == null) {
                 search_value = "%%";
             }
-            lstTFamilleGrossiste = this.getOdataManager().getEm().createQuery("SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.strLIBELLE LIKE ?2 OR t.strCODEARTICLE LIKE ?2) AND t.strSTATUT LIKE ?3 AND t.lgGROSSISTEID.lgGROSSISTEID LIKE ?4 ORDER BY t.lgGROSSISTEID.strLIBELLE").
-                    setParameter(1, lg_FAMILLE_ID)
-                    .setParameter(2, search_value + "%")
-                    .setParameter(3, commonparameter.statut_enable)
-                    .setParameter(4, lg_GROSSISTE_ID)
-                    .getResultList();
+            lstTFamilleGrossiste = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND (t.lgGROSSISTEID.strLIBELLE LIKE ?2 OR t.strCODEARTICLE LIKE ?2) AND t.strSTATUT LIKE ?3 AND t.lgGROSSISTEID.lgGROSSISTEID LIKE ?4 ORDER BY t.lgGROSSISTEID.strLIBELLE")
+                    .setParameter(1, lg_FAMILLE_ID).setParameter(2, search_value + "%")
+                    .setParameter(3, commonparameter.statut_enable).setParameter(4, lg_GROSSISTE_ID).getResultList();
             lstTFamilleGrossiste.forEach(a -> {
                 this.getOdataManager().getEm().refresh(a);
             });
@@ -516,7 +536,8 @@ public class familleGrossisteManagement extends bllBase {
         return result;
     }
 
-    public boolean updatePriceFamilleGrossiste(TGrossiste OTGrossiste, TFamille OTFamille, int int_PRICE, int int_PAF, EntityManager em) {
+    public boolean updatePriceFamilleGrossiste(TGrossiste OTGrossiste, TFamille OTFamille, int int_PRICE, int int_PAF,
+            EntityManager em) {
         boolean result = false;
         TFamilleGrossiste OTFamilleGrossiste = null;
         try {
@@ -560,10 +581,12 @@ public class familleGrossisteManagement extends bllBase {
         return result;
     }
 
-    public boolean updateFamilleGrossiste(String lg_FAMILLE_GROSSISTE_ID, String lg_GROSSISTE_ID, String lg_FAMILLE_ID, String str_CODE_ARTICLE) {
+    public boolean updateFamilleGrossiste(String lg_FAMILLE_GROSSISTE_ID, String lg_GROSSISTE_ID, String lg_FAMILLE_ID,
+            String str_CODE_ARTICLE) {
 
         try {
-            TFamilleGrossiste OTFamilleGrossiste = getOdataManager().getEm().find(TFamilleGrossiste.class, lg_FAMILLE_GROSSISTE_ID);
+            TFamilleGrossiste OTFamilleGrossiste = getOdataManager().getEm().find(TFamilleGrossiste.class,
+                    lg_FAMILLE_GROSSISTE_ID);
 
             if (str_CODE_ARTICLE.length() < 6) {
                 this.buildErrorTraceMessage("Le code CIP doit avoir au minimum 6 caractères");
@@ -594,24 +617,29 @@ public class familleGrossisteManagement extends bllBase {
         return true;
     }
 
-    //verification de l'existance d'un code CIP
+    // verification de l'existance d'un code CIP
     private boolean isCIPExist(String int_CIP) {
         boolean result = false;
         try {
-            TFamilleGrossiste OTFamilleGrossiste = (TFamilleGrossiste) this.getOdataManager().getEm().createQuery("SELECT t FROM TFamilleGrossiste t WHERE t.strCODEARTICLE = ?1 AND t.strSTATUT = ?2")
-                    .setParameter(1, int_CIP).setParameter(2, commonparameter.statut_enable).setMaxResults(1).getSingleResult();
+            TFamilleGrossiste OTFamilleGrossiste = (TFamilleGrossiste) this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TFamilleGrossiste t WHERE t.strCODEARTICLE = ?1 AND t.strSTATUT = ?2")
+                    .setParameter(1, int_CIP).setParameter(2, commonparameter.statut_enable).setMaxResults(1)
+                    .getSingleResult();
             if (OTFamilleGrossiste != null) {
-                if (OTFamilleGrossiste.getLgGROSSISTEID().equals(OTFamilleGrossiste.getLgFAMILLEID().getLgGROSSISTEID())) {
+                if (OTFamilleGrossiste.getLgGROSSISTEID()
+                        .equals(OTFamilleGrossiste.getLgFAMILLEID().getLgGROSSISTEID())) {
                     result = true;
-                    this.buildErrorTraceMessage("Impossible d'utiliser ce code. Code CIP du grossiste principal de l'article " + OTFamilleGrossiste.getLgFAMILLEID().getStrDESCRIPTION());
+                    this.buildErrorTraceMessage(
+                            "Impossible d'utiliser ce code. Code CIP du grossiste principal de l'article "
+                                    + OTFamilleGrossiste.getLgFAMILLEID().getStrDESCRIPTION());
                 }
             }
         } catch (Exception e) {
-//            e.printStackTrace();
+            // e.printStackTrace();
         }
         return result;
     }
-    //fin verification de l'existance d'un code CIP
+    // fin verification de l'existance d'un code CIP
 
     boolean updateFamilleGrossisteCodeArticle(TFamilleGrossiste OTFamilleGrossiste, String codeArticle) {
         boolean isOk = true;
@@ -622,7 +650,8 @@ public class familleGrossisteManagement extends bllBase {
 
             if (newGrossiste.getLgGROSSISTEID().equals(pp.getLgGROSSISTEID())) {
                 if (f.getBoolDECONDITIONNEEXIST() == 1) {
-                    List<TFamilleGrossiste> familleGrossistes = getArticleDeconditionnes(newGrossiste, f, OTFamilleGrossiste.getLgFAMILLEGROSSISTEID());
+                    List<TFamilleGrossiste> familleGrossistes = getArticleDeconditionnes(newGrossiste, f,
+                            OTFamilleGrossiste.getLgFAMILLEGROSSISTEID());
                     for (TFamilleGrossiste familleGrossiste : familleGrossistes) {
                         familleGrossiste.setStrCODEARTICLE(codeArticle + "D");
                         this.merge(familleGrossiste);
@@ -645,18 +674,18 @@ public class familleGrossisteManagement extends bllBase {
     private List<TFamilleGrossiste> getArticleDeconditionnes(TGrossiste grossiste, TFamille famille, String id) {
         List<TFamilleGrossiste> familleGrossistes = new ArrayList<>();
         try {
-            familleGrossistes = this.getOdataManager().getEm().createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2  AND o.lgFAMILLEGROSSISTEID <> ?3")
-                    .setParameter(1, famille.getLgFAMILLEID())
-                    .setParameter(2, grossiste.getLgGROSSISTEID())
-                    .setParameter(3, grossiste.getLgGROSSISTEID())
-                    .getResultList();
+            familleGrossistes = this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2  AND o.lgFAMILLEGROSSISTEID <> ?3")
+                    .setParameter(1, famille.getLgFAMILLEID()).setParameter(2, grossiste.getLgGROSSISTEID())
+                    .setParameter(3, grossiste.getLgGROSSISTEID()).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return familleGrossistes;
     }
 
-    public boolean createProduct(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE, int int_PAF) {
+    public boolean createProduct(TGrossiste OTGrossiste, TFamille OTFamille, String str_CODE_ARTICLE, int int_PRICE,
+            int int_PAF) {
         boolean result = false;
         TFamilleGrossiste OTFamilleGrossiste;
         this.buildErrorTraceMessage("Impossible de creer un code article pour le grossiste sélectionné");
@@ -667,10 +696,12 @@ public class familleGrossisteManagement extends bllBase {
                 return result;
             }
 
-//           
+            //
             OTFamilleGrossiste = this.findFamilleGrossiste(OTFamille.getLgFAMILLEID(), OTGrossiste.getLgGROSSISTEID());
             if (OTFamilleGrossiste != null) {
-                this.buildErrorTraceMessage("Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit " + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
+                this.buildErrorTraceMessage(
+                        "Le code " + OTFamilleGrossiste.getStrCODEARTICLE() + " est déjà affecté au Produit "
+                                + OTFamille.getStrDESCRIPTION() + " chez " + OTGrossiste.getStrDESCRIPTION());
                 return result;
             }
             str_CODE_ARTICLE = new familleManagement(this.getOdataManager()).generateCIP(str_CODE_ARTICLE);

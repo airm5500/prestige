@@ -26,7 +26,7 @@
     date str_LAST_CONNECTION_DATE;
     privilege Oprivilege = new privilege();
     json Ojson = new json();
-    List<TUser> lstTUser = new ArrayList<TUser>();
+    List<TUser> lstTUser = new ArrayList<>();
 
 %>
 

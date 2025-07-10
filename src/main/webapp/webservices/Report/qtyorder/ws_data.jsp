@@ -32,12 +32,13 @@
     OdataManager.initEntityManager();
     GroupeTierspayantController groupeCtl = new GroupeTierspayantController(OdataManager.getEmf());
     String search_value = "";
-    String dt_start = LocalDate.now().toString(),dt_end=dt_start; 
+    String dt_start = LocalDate.now().toString(), dt_end = dt_start;
+    String rayonId="";
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
-int year = new Integer(date.FORMATTERYEAR.format(new Date()));
-   
+    int year = Integer.valueOf(date.FORMATTERYEAR.format(new Date()));
+
     if (request.getParameter("year") != null && !"".equals(request.getParameter("year"))) {
-        year = new Integer(request.getParameter("year"));
+        year = Integer.valueOf(request.getParameter("year"));
     }
     if (request.getParameter("search_value") != null && !"".equals(request.getParameter("search_value"))) {
         search_value = request.getParameter("search_value");
@@ -45,18 +46,21 @@ int year = new Integer(date.FORMATTERYEAR.format(new Date()));
     if (request.getParameter("query") != null && !"".equals(request.getParameter("query"))) {
         search_value = request.getParameter("query");
     }
+     if (request.getParameter("rayonId") != null && !"".equals(request.getParameter("rayonId"))) {
+        rayonId = request.getParameter("rayonId");
+    }
     int start = Integer.valueOf(request.getParameter("start"));
     int limit = Integer.valueOf(request.getParameter("limit"));
     String empl = OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-    JSONArray arrayObj = groupeCtl.statQty(false, year, search_value, empl, start, limit);
+    JSONArray arrayObj = groupeCtl.statQty(false, year, search_value, empl,rayonId, start, limit);
 
-    int count = groupeCtl.statQty(year, search_value, empl);
+    int count = groupeCtl.statQty(year, search_value, empl,rayonId);
 
     JSONObject data = new JSONObject();
 
     data.put("data", arrayObj);
     data.put("total", count);
-    
+
 %>
 
 <%= data%>

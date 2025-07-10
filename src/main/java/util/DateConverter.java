@@ -118,8 +118,8 @@ public final class DateConverter {
     public static final String CA = "CHIFFRE D'AFFAIRES";
     public static final String ACHATS = "ACHATS";
     public static final String MARGE = "MARGE";
-    public static final String TICKET_Z = "TICKET_Z";
-    public static final String TICKET_VENTE = "VENTE";
+    public static final String TICKET_REGLEMENT = "TICKET_REGLEMENT";
+    public static final String TICKET_REGLEMENT_CARNET_DEPOT = "TICKET_REGLEMENT_CARNET_DEPOT";
     public static final String TICKET_VENTE_DOUBLE = "TICKET_DOUBLE";
     public static final String ACTION_ANNULATION_VENTE = "ANNULE_VENTE";
     public static final String PASSE = "passed";
@@ -145,8 +145,8 @@ public final class DateConverter {
     public static final int TYPE_FACTURE_UNIQUE = 0;
     public static final String TOUT = "TOUT";
     public static final String ALL = "ALL";
-    public static String ACTION_RETOURFOURNISSEUR = "RETOURFOURNISSEUR";
-    public static String ACTION_ENTREE_RETOUR_DEPOT = "ENTREESTOCK";
+    public static final String ACTION_RETOURFOURNISSEUR = "RETOURFOURNISSEUR";
+    public static final String ACTION_ENTREE_RETOUR_DEPOT = "ENTREESTOCK";
     public static final String KEY_PARAMS = "KEY_PARAMS";
     public static final String KEY_TAKE_INTO_ACCOUNT = "KEY_TAKE_INTO_ACCOUNT";
     public static final String KEY_NOMBRE_TICKETS_VNO = "KEY_NOMBRE_TICKETS_VNO";
@@ -160,7 +160,8 @@ public final class DateConverter {
     public static final String MODE_ORANGE = "10";
     public static final String TYPE_REGLEMENT_ORANGE = "7";
     public static final String MODE_MTN = "9";
-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    public static final String MODE_WAVE = "10";
+    public static final String MODE_REGL_DIFFERE = "4";
     public static final String KEY_HEURE_EMAIL = "KEY_HEURE_EMAIL";
     public static final String CLIENT_ASSURANCE = "1";
     public static final String CLIENT_CARNET = "2";
@@ -171,25 +172,33 @@ public final class DateConverter {
     public static final String ACTION_DESACTIVE_PRODUIT = "ACTION_DESACTIVE_PRODUIT";
     public static final String P_BTN_DESACTIVER_CLIENT = "P_BTN_DESACTIVER_CLIENT";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
-    public static final String TIERS_PAYANT_CARNET_ID="2";
-    public static final String KEY_PRENDRE_EN_COMPTE_FOND_CAISSE= "KEY_PRENDRE_EN_COMPTE_FOND_CAISSE";
+    public static final String TIERS_PAYANT_CARNET_ID = "2";
+    public static final String KEY_PRENDRE_EN_COMPTE_FOND_CAISSE = "KEY_PRENDRE_EN_COMPTE_FOND_CAISSE";
+    public static final String KEY_COMMON_MANAGMENT = "KEY_COMMON";
+    public static final String NOT = "NOT";
+    public static final String WITH = "WITH";
+    public static final String CHARGED = "charged";
+    public static final String TYPE_VENTE_VNO = "1";
+    public static final String KEY_CHECK_UG = "KEY_CHECK_UG";
+    public static final String TICKET_ZZ = "TICKET_ZZ";
     /*
-    parametre nombre de mois à considerer
+     * parametre nombre de mois à considerer
      */
     public static final String Q3 = "Q3";
     /*
-   QTE DE REAPPRO  (EN NOMBRE DE SEMAINES) A DEFINIR
+     * QTE DE REAPPRO (EN NOMBRE DE SEMAINES) A DEFINIR
      */
     public static final String Q2 = "Q2";
     /*
-   SEUIL DE REAPPRO (EN NOMBRE DE SEMAINES) A DEFNIR
+     * SEUIL DE REAPPRO (EN NOMBRE DE SEMAINES) A DEFNIR
      */
     public static final String Q1 = "Q1";
+    public static final String CAUTION_ID = "10";
 
-//    Runtime.getRuntime().totalMemory() -
-//Runtime.getRuntime().freeMemory()
-//String path = System.getProperty("user.home") 
-    public DateConverter() {
+    // Runtime.getRuntime().totalMemory() -
+    // Runtime.getRuntime().freeMemory()
+    // String path = System.getProperty("user.home")
+    private DateConverter() {
     }
 
     public static String getNumberRandom() {
@@ -253,18 +262,18 @@ public final class DateConverter {
     }
 
     public static Integer arrondiModuloOfNumber(Integer nbre, Integer modulo) {
-        int result = 0, temp_modulo;
+        int result = 0, tempModulo;
         float part;
-        String temp_v;
+        String tempV;
         try {
 
-            temp_v = String.valueOf(nbre).substring(String.valueOf(nbre).length() - 1, String.valueOf(nbre).length());
+            tempV = String.valueOf(nbre).substring(String.valueOf(nbre).length() - 1, String.valueOf(nbre).length());
 
-            temp_modulo = Integer.parseInt(temp_v) % modulo;
+            tempModulo = Integer.valueOf(tempV) % modulo;
 
             part = (modulo - 1) / 2;
 
-            result = (int) ((part >= temp_modulo) ? (nbre - temp_modulo) : ((nbre - temp_modulo) + modulo));
+            result = (int) ((part >= tempModulo) ? (nbre - tempModulo) : ((nbre - tempModulo) + modulo));
 
         } catch (NumberFormatException e) {
             LOG.log(Level.SEVERE, null, e);
@@ -272,63 +281,53 @@ public final class DateConverter {
         return result;
     }
 
-    public static String getShortId(int int_size) {
+    public static String getShortId(int intSize) {
         Calendar now = Calendar.getInstance();
         int mm = now.get(Calendar.MINUTE);
         int ss = now.get(Calendar.SECOND);
         int mls = now.get(Calendar.MILLISECOND);
-        String catime = (String.valueOf(mm) + "" + String.valueOf(ss) + "" + String.valueOf(mls));
-        int int_lenght = catime.length();
-        while (int_lenght < int_size) {
+        String catime = (String.valueOf(mm) + "" + ss + "" + mls);
+        int intlenght = catime.length();
+        while (intlenght < intSize) {
             catime = catime + getNumberRandom();
-            int_lenght = catime.length();
+            intlenght = catime.length();
         }
-        return catime.substring(0, int_size);
+        return catime.substring(0, intSize);
     }
 
     public static LocalDate convertDateToLocalDate(Date dateToConvert) {
         if (dateToConvert == null) {
             return LocalDate.now();
         }
-        return dateToConvert.toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate();
+        return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
     public static Date convertLocalDateToDate(LocalDate dateToConvert) {
-        return java.util.Date.from(dateToConvert.atStartOfDay()
-                .atZone(ZoneId.systemDefault())
-                .toInstant());
+        return java.util.Date.from(dateToConvert.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant());
     }
 
     public static LocalDateTime convertDateToLocalDateTime(Date dateToConvert) {
         if (dateToConvert == null) {
-            return new Date().toInstant()
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDateTime();
+            return new Date().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
         }
-        return dateToConvert.toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDateTime();
+        return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
     }
 
     public static Date convertLocalDateTimeToDate(LocalDateTime dateToConvert) {
-        return java.util.Date.from(dateToConvert
-                .atZone(ZoneId.systemDefault())
-                .toInstant());
+        return java.util.Date.from(dateToConvert.atZone(ZoneId.systemDefault()).toInstant());
     }
 
-    public static String amountFormat(Integer Amount) {
+    public static String amountFormat(Integer amount) {
         String result = "0";
         try {
-            long lg_Amount = Long.parseLong(Amount.toString());
+            long lgAmount = Long.parseLong(amount.toString());
 
             DecimalFormatSymbols amountSymbols = new DecimalFormatSymbols();
 
             amountSymbols.setGroupingSeparator(' ');
 
             DecimalFormat amountFormat = new DecimalFormat("###,###", amountSymbols);
-            result = amountFormat.format(lg_Amount);
+            result = amountFormat.format(lgAmount);
         } catch (NumberFormatException ex) {
 
         }
@@ -340,34 +339,33 @@ public final class DateConverter {
         int mm = now.get(Calendar.MINUTE);
         int ss = now.get(Calendar.SECOND);
         int mls = now.get(Calendar.MILLISECOND);
-        String catime = (String.valueOf(mm) + "" + String.valueOf(ss) + "" + String.valueOf(mls));
-        int int_lenght = catime.length();
-        if (int_lenght < 20) {
+        String catime = (String.valueOf(mm) + "" + ss + "" + mls);
+        int intLenght = catime.length();
+        if (intLenght < 20) {
             catime = catime + getNumberRandom();
         }
-        if (int_lenght == 20) {
+        if (intLenght == 20) {
             return catime;
         }
-        if (int_lenght > 20) {
+        if (intLenght > 20) {
             return catime.substring(0, 20);
         }
         return catime;
     }
 
-    public static boolean hasAuthorityByName(List<TPrivilege> LstTPrivilege, String authorityName) {
+    public static boolean hasAuthorityByName(List<TPrivilege> lstTPrivilege, String authorityName) {
         java.util.function.Predicate<TPrivilege> p = e -> e.getStrNAME().equalsIgnoreCase(authorityName);
-        return LstTPrivilege.stream().anyMatch(p);
+        return lstTPrivilege.stream().anyMatch(p);
     }
 
-    public static boolean hasAuthorityById(List<TPrivilege> LstTPrivilege, String id) {
+    public static boolean hasAuthorityById(List<TPrivilege> lstTPrivilege, String id) {
         java.util.function.Predicate<TPrivilege> p = e -> e.getLgPRIVELEGEID().equals(id);
-        return LstTPrivilege.stream().anyMatch(p);
+        return lstTPrivilege.stream().anyMatch(p);
     }
 
     public static String convertionChiffeLettres(Integer num) {
         RuleBasedNumberFormat formatter = new RuleBasedNumberFormat(Locale.FRANCE, RuleBasedNumberFormat.SPELLOUT);
-        String result = formatter.format(num);
-        return result;
+        return formatter.format(num);
 
     }
 
@@ -390,7 +388,7 @@ public final class DateConverter {
             File f = new File(file);
             ImageIO.write(bi, "png", f);
         } catch (IOException ex) {
-//            LOG.log(Level.SEVERE, null, ex);
+
         }
         return file;
 
@@ -398,19 +396,20 @@ public final class DateConverter {
 
     public static String getNumberTowords(Number num) {
         RuleBasedNumberFormat formatter = new RuleBasedNumberFormat(Locale.FRANCE, RuleBasedNumberFormat.SPELLOUT);
-        String result = formatter.format(num);
-        return result;
+        return formatter.format(num);
 
     }
 
-    public static Integer getRemise(double tauxRemise, int taux, List<TPreenregistrementDetail> lstTPreenregistrementDetail) {
+    public static Integer getRemise(double tauxRemise, int taux,
+            List<TPreenregistrementDetail> lstTPreenregistrementDetail) {
         if (taux < 100 || tauxRemise <= 0.0) {
             return 0;
         }
         double sumRemise = 0;
         for (TPreenregistrementDetail x : lstTPreenregistrementDetail) {
             TFamille famille = x.getLgFAMILLEID();
-            if (!StringUtils.isEmpty(famille.getStrCODEREMISE()) && !famille.getStrCODEREMISE().equals("2") && !famille.getStrCODEREMISE().equals("3")) {
+            if (!StringUtils.isEmpty(famille.getStrCODEREMISE()) && !famille.getStrCODEREMISE().equals("2")
+                    && !famille.getStrCODEREMISE().equals("3")) {
                 sumRemise += (Double.valueOf(x.getIntPRICE()) * tauxRemise);
 
             }
@@ -425,26 +424,26 @@ public final class DateConverter {
 
             out = new FileOutputStream(new File(str_file_name));
             AbstractBarcodeBean barcode = new Code128Bean();
-            //     barcode.setBarHeight(50.0);
+            // barcode.setBarHeight(50.0);
             barcode.setFontName("Calibri (Corps)");
             barcode.setFontSize(15.0);
             barcode.setMsgPosition(HumanReadablePlacement.HRP_NONE);
             barcode.setModuleWidth(0.8);
-            BitmapCanvasProvider canvas
-                    = new BitmapCanvasProvider(out, "image/x-png", 160, BufferedImage.TYPE_BYTE_BINARY, false, 0);
+            BitmapCanvasProvider canvas = new BitmapCanvasProvider(out, "image/x-png", 160,
+                    BufferedImage.TYPE_BYTE_BINARY, false, 0);
             barcode.generateBarcode(canvas, data);
             try {
                 canvas.finish();
             } catch (IOException ex) {
-                ex.printStackTrace(System.err);
+                LOG.log(Level.SEVERE, null, ex);
             }
         } catch (FileNotFoundException ex) {
-            ex.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, ex);
         } finally {
             try {
                 out.close();
             } catch (IOException ex) {
-                ex.printStackTrace(System.err);
+                LOG.log(Level.SEVERE, null, ex);
             }
         }
         return str_file_name;
@@ -452,16 +451,20 @@ public final class DateConverter {
 
     /**
      *
-     * @param Q1 SEUIL DE REAPPRO (EN NOMBRE DE SEMAINES) A DEFNIR
-     * @param Q2 QTE DE REAPPRO (EN NOMBRE DE SEMAINES) A DEFINIR
-     * @param Q3 SOMME DE LA CONSOMMATION SUR LA VALEUR DU PARAMETRE GENERAL Q3
-     * @param Q3_parametre VALEUR DU PARAMETRE GENERAL
-     * @return ON RETOURNE UNE PAIR DE VALEUR
-     * <b>seuilReappo</b>,<b>qteReappro</b>
+     * @param Q1
+     *            SEUIL DE REAPPRO (EN NOMBRE DE SEMAINES) A DEFNIR
+     * @param Q2
+     *            QTE DE REAPPRO (EN NOMBRE DE SEMAINES) A DEFINIR
+     * @param Q3
+     *            SOMME DE LA CONSOMMATION SUR LA VALEUR DU PARAMETRE GENERAL Q3
+     * @param Q3_parametre
+     *            VALEUR DU PARAMETRE GENERAL
+     *
+     * @return ON RETOURNE UNE PAIR DE VALEUR <b>seuilReappo</b>,<b>qteReappro</b>
      */
     public static JSONObject calculSeuiQteReappro(int Q1, int Q2, double Q3, int Q3_parametre) {
         /*
-      valeur calculee de la consommation du produit sur une semaine
+         * valeur calculee de la consommation du produit sur une semaine
          */
         double divente = (Double.valueOf(Q3_parametre) * 4);
         double Q4 = 0.5;
@@ -521,7 +524,7 @@ public final class DateConverter {
 
     public static Date dateFromString(String dateFromString) {
         try {
-            return DATE_FORMAT.parse(dateFromString);
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").parse(dateFromString);
         } catch (ParseException ex) {
             Logger.getLogger(DateConverter.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -549,12 +552,19 @@ public final class DateConverter {
         }
         return result;
     }
+
     public static LocalDate convertDateToLocalDateAndReturnNull(Date dateToConvert) {
         if (dateToConvert == null) {
             return null;
         }
-        return dateToConvert.toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate();
+        return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
+
+    public static LocalDateTime convertDateToLocalDateTimeElseNull(Date dateToConvert) {
+        if (dateToConvert == null) {
+            return null;
+        }
+        return dateToConvert.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+    }
+
 }

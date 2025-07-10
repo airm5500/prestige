@@ -37,7 +37,7 @@ import org.json.JSONObject;
  *
  * @author Kobena
  */
-@WebServlet(name = "RetourFourData", urlPatterns = {"/RetourFourData"})
+@WebServlet(name = "RetourFourData", urlPatterns = { "/RetourFourData" })
 public class RetourFourData extends HttpServlet {
 
     @PersistenceContext(unitName = "JTA_UNIT")
@@ -87,11 +87,15 @@ public class RetourFourData extends HttpServlet {
                 Join<TBonLivraisonDetail, TFamille> j = root.join("lgFAMILLEID", JoinType.INNER);
                 cq.select(root);
                 Predicate predicate = cb.conjunction();
-                predicate = cb.and(predicate, cb.equal(root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strREFLIVRAISON), lgBONLIVRAISONID));
-                predicate = cb.and(predicate, cb.equal(root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strSTATUT), "is_Closed"));
+                predicate = cb.and(predicate,
+                        cb.equal(root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strREFLIVRAISON),
+                                lgBONLIVRAISONID));
+                predicate = cb.and(predicate, cb.equal(
+                        root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strSTATUT), "is_Closed"));
 
                 if (!"".equals(search)) {
-                    predicate = cb.and(predicate, cb.or(cb.like(j.get(TFamille_.intCIP), search + "%"), cb.like(j.get(TFamille_.strNAME), search + "%")));
+                    predicate = cb.and(predicate, cb.or(cb.like(j.get(TFamille_.intCIP), search + "%"),
+                            cb.like(j.get(TFamille_.strNAME), search + "%")));
 
                 }
 
@@ -110,7 +114,8 @@ public class RetourFourData extends HttpServlet {
                         js.put("int_CIP", p.getLgFAMILLEID().getIntCIP());
                         js.put("str_DESCRIPTION_PLUS", p.getLgFAMILLEID().getStrNAME());
                         js.put("int_PAF", p.getLgFAMILLEID().getIntPAF());
-                        js.put("lg_GROSSISTE_ID", p.getLgBONLIVRAISONID().getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID());
+                        js.put("lg_GROSSISTE_ID",
+                                p.getLgBONLIVRAISONID().getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID());
 
                         data.put(js);
                     } catch (JSONException ex) {
@@ -135,10 +140,13 @@ public class RetourFourData extends HttpServlet {
         Join<TBonLivraisonDetail, TFamille> j = root.join("lgFAMILLEID", JoinType.INNER);
         cq.select(cb.count(root));
         Predicate predicate = cb.conjunction();
-        predicate = cb.and(predicate, cb.equal(root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strREFLIVRAISON), lgBONLIVRAISONID));
-        predicate = cb.and(predicate, cb.equal(root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strSTATUT), "is_Closed"));
+        predicate = cb.and(predicate, cb.equal(
+                root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strREFLIVRAISON), lgBONLIVRAISONID));
+        predicate = cb.and(predicate,
+                cb.equal(root.get(TBonLivraisonDetail_.lgBONLIVRAISONID).get(TBonLivraison_.strSTATUT), "is_Closed"));
         if (!"".equals(search)) {
-            predicate = cb.and(predicate, cb.or(cb.like(j.get(TFamille_.intCIP), search + "%"), cb.like(j.get(TFamille_.strNAME), search + "%")));
+            predicate = cb.and(predicate, cb.or(cb.like(j.get(TFamille_.intCIP), search + "%"),
+                    cb.like(j.get(TFamille_.strNAME), search + "%")));
 
         }
 
@@ -148,14 +156,20 @@ public class RetourFourData extends HttpServlet {
 
     }
 
-    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
+    // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the
+    // code.">
     /**
      * Handles the HTTP <code>GET</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -166,10 +180,15 @@ public class RetourFourData extends HttpServlet {
     /**
      * Handles the HTTP <code>POST</code> method.
      *
-     * @param request servlet request
-     * @param response servlet response
-     * @throws ServletException if a servlet-specific error occurs
-     * @throws IOException if an I/O error occurs
+     * @param request
+     *            servlet request
+     * @param response
+     *            servlet response
+     *
+     * @throws ServletException
+     *             if a servlet-specific error occurs
+     * @throws IOException
+     *             if an I/O error occurs
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -186,5 +205,6 @@ public class RetourFourData extends HttpServlet {
     public String getServletInfo() {
         return "Short description";
     }// </editor-fold>
+
     private final static Logger LOGGER = Logger.getLogger(RetourFourData.class.getName());
 }

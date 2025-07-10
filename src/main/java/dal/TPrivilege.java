@@ -7,11 +7,13 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.NamedQueries;
@@ -30,17 +32,16 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_privilege")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TPrivilege.findAll", query = "SELECT t FROM TPrivilege t"),
-    @NamedQuery(name = "TPrivilege.findByLgPRIVELEGEID", query = "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID = :lgPRIVELEGEID"),
-    @NamedQuery(name = "TPrivilege.findByStrNAME", query = "SELECT t FROM TPrivilege t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TPrivilege.findByStrTYPE", query = "SELECT t FROM TPrivilege t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TPrivilege.findByLgPRIVELEGEIDDEP", query = "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEIDDEP = :lgPRIVELEGEIDDEP"),
-    @NamedQuery(name = "TPrivilege.findByDtCREATED", query = "SELECT t FROM TPrivilege t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TPrivilege.findByLgCREATEDBY", query = "SELECT t FROM TPrivilege t WHERE t.lgCREATEDBY = :lgCREATEDBY"),
-    @NamedQuery(name = "TPrivilege.findByDtUPDATED", query = "SELECT t FROM TPrivilege t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TPrivilege.findByLgUPDATEDBY", query = "SELECT t FROM TPrivilege t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
-    @NamedQuery(name = "TPrivilege.findByStrSTATUT", query = "SELECT t FROM TPrivilege t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TPrivilege.findAll", query = "SELECT t FROM TPrivilege t"),
+        @NamedQuery(name = "TPrivilege.findByLgPRIVELEGEID", query = "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID = :lgPRIVELEGEID"),
+        @NamedQuery(name = "TPrivilege.findByStrNAME", query = "SELECT t FROM TPrivilege t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TPrivilege.findByStrTYPE", query = "SELECT t FROM TPrivilege t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TPrivilege.findByLgPRIVELEGEIDDEP", query = "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEIDDEP = :lgPRIVELEGEIDDEP"),
+        @NamedQuery(name = "TPrivilege.findByDtCREATED", query = "SELECT t FROM TPrivilege t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TPrivilege.findByLgCREATEDBY", query = "SELECT t FROM TPrivilege t WHERE t.lgCREATEDBY = :lgCREATEDBY"),
+        @NamedQuery(name = "TPrivilege.findByDtUPDATED", query = "SELECT t FROM TPrivilege t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TPrivilege.findByLgUPDATEDBY", query = "SELECT t FROM TPrivilege t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
+        @NamedQuery(name = "TPrivilege.findByStrSTATUT", query = "SELECT t FROM TPrivilege t WHERE t.strSTATUT = :strSTATUT") })
 public class TPrivilege implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -68,8 +69,8 @@ public class TPrivilege implements Serializable {
     private String lgUPDATEDBY;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
-    @OneToMany(mappedBy = "lgPRIVILEGEID")
-    private Collection<TRolePrivelege> tRolePrivelegeCollection;
+    @OneToMany(mappedBy = "lgPRIVILEGEID", fetch = FetchType.EAGER)
+    private Collection<TRolePrivelege> tRolePrivelegeCollection = new ArrayList<>();
 
     public TPrivilege() {
     }
@@ -181,7 +182,8 @@ public class TPrivilege implements Serializable {
             return false;
         }
         TPrivilege other = (TPrivilege) object;
-        if ((this.lgPRIVELEGEID == null && other.lgPRIVELEGEID != null) || (this.lgPRIVELEGEID != null && !this.lgPRIVELEGEID.equals(other.lgPRIVELEGEID))) {
+        if ((this.lgPRIVELEGEID == null && other.lgPRIVELEGEID != null)
+                || (this.lgPRIVELEGEID != null && !this.lgPRIVELEGEID.equals(other.lgPRIVELEGEID))) {
             return false;
         }
         return true;
@@ -191,5 +193,5 @@ public class TPrivilege implements Serializable {
     public String toString() {
         return "dal.TPrivilege[ lgPRIVELEGEID=" + lgPRIVELEGEID + " ]";
     }
-    
+
 }

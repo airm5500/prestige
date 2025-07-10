@@ -33,12 +33,11 @@ import toolkits.parameters.commonparameter;
 @Table(name = "t_famille_stock")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TFamilleStock.findFamilleStockByProduitAndEmplacement", query = "SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID =:lgFAMILLEID AND t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID AND t.strSTATUT ='enable' "),
-      @NamedQuery(name = "TFamilleStock.findFamilleStockByEmplacement", query = "SELECT t FROM TFamilleStock t WHERE t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID "),
-     @NamedQuery(name = "TFamilleStock.findStock", query = "SELECT t.intNUMBERAVAILABLE FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID =:lgFAMILLEID AND t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID AND t.strSTATUT ='enable' "),
-      @NamedQuery(name = "TFamilleStock.findStockUg", query = "SELECT t.intUG FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID =:lgFAMILLEID AND t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID AND t.strSTATUT ='enable' ")
-})
-//@Cacheable(false)
+        @NamedQuery(name = "TFamilleStock.findFamilleStockByProduitAndEmplacement", query = "SELECT t FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID =:lgFAMILLEID AND t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID AND t.strSTATUT ='enable' "),
+        @NamedQuery(name = "TFamilleStock.findFamilleStockByEmplacement", query = "SELECT t FROM TFamilleStock t WHERE t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID "),
+        @NamedQuery(name = "TFamilleStock.findStock", query = "SELECT t.intNUMBERAVAILABLE FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID =:lgFAMILLEID AND t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID AND t.strSTATUT ='enable' "),
+        @NamedQuery(name = "TFamilleStock.findStockUg", query = "SELECT t.intUG FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID =:lgFAMILLEID AND t.lgEMPLACEMENTID.lgEMPLACEMENTID =:lgEMPLACEMENTID AND t.strSTATUT ='enable' ") })
+
 public class TFamilleStock implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -165,7 +164,8 @@ public class TFamilleStock implements Serializable {
             return false;
         }
         TFamilleStock other = (TFamilleStock) object;
-        return !((this.lgFAMILLESTOCKID == null && other.lgFAMILLESTOCKID != null) || (this.lgFAMILLESTOCKID != null && !this.lgFAMILLESTOCKID.equals(other.lgFAMILLESTOCKID)));
+        return !((this.lgFAMILLESTOCKID == null && other.lgFAMILLESTOCKID != null)
+                || (this.lgFAMILLESTOCKID != null && !this.lgFAMILLESTOCKID.equals(other.lgFAMILLESTOCKID)));
     }
 
     @Override
@@ -189,6 +189,5 @@ public class TFamilleStock implements Serializable {
     public void setTInventaireFamilleCollection(Collection<TInventaireFamille> tInventaireFamilleCollection) {
         this.tInventaireFamilleCollection = tInventaireFamilleCollection;
     }
-
 
 }

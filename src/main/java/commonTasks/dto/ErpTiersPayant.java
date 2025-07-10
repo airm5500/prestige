@@ -31,10 +31,10 @@ public class ErpTiersPayant implements Serializable {
             this.groupeId = g.getLgGROUPEID();
             this.groupeLibelle = g.getStrLIBELLE();
         }
-        TTypeTiersPayant payant=p.getLgTYPETIERSPAYANTID();
-        if(payant!=null){
-            this.typeId=payant.getLgTYPETIERSPAYANTID();
-            this.typeLibelle=payant.getStrLIBELLETYPETIERSPAYANT();
+        TTypeTiersPayant payant = p.getLgTYPETIERSPAYANTID();
+        if (payant != null) {
+            this.typeId = payant.getLgTYPETIERSPAYANTID();
+            this.typeLibelle = payant.getStrLIBELLETYPETIERSPAYANT();
         }
 
     }

@@ -28,7 +28,6 @@ public class MigrationServlet extends HttpServlet {
 
     String filePath = "", table_name = "", extension = "", liste_param = "";
 
-    
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
@@ -54,8 +53,6 @@ public class MigrationServlet extends HttpServlet {
             table_name = request.getParameter("table_name");
             new logger().OCategory.info("table_name->" + request.getParameter("table_name"));
         }
-
-        
 
         filePath = OMigrationManager.ExportDataFromDataBase(table_name, extension, liste_param);
 
@@ -101,21 +98,18 @@ public class MigrationServlet extends HttpServlet {
         outStream.close();
     }
 
-    
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
-    
     @Override
     public String getServletInfo() {
         return "Short description";

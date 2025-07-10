@@ -35,10 +35,13 @@ public class ProduitQueryRepo {
         try {
             TypedQuery<Groupefournisseur> q;
             if (StringUtils.isEmpty(query)) {
-                q = getEntityManager().createQuery("SELECT OBJECT(o) FROM Groupefournisseur o ORDER BY o.libelle ASC", Groupefournisseur.class);
+                q = getEntityManager().createQuery("SELECT OBJECT(o) FROM Groupefournisseur o ORDER BY o.libelle ASC",
+                        Groupefournisseur.class);
                 return q.getResultList();
             }
-            q = getEntityManager().createQuery("SELECT OBJECT(o) FROM Groupefournisseur o WHERE O.libelle LIKE ?1 ORDER BY o.libelle ASC", Groupefournisseur.class);
+            q = getEntityManager().createQuery(
+                    "SELECT OBJECT(o) FROM Groupefournisseur o WHERE O.libelle LIKE ?1 ORDER BY o.libelle ASC",
+                    Groupefournisseur.class);
 
             q.setParameter(1, query + "%");
             return q.getResultList();
@@ -52,11 +55,14 @@ public class ProduitQueryRepo {
         try {
             TypedQuery<Long> q;
             if (StringUtils.isEmpty(query)) {
-                q = getEntityManager().createQuery("SELECT COUNT(o) FROM GammeProduit o WHERE o.status=?1 ORDER BY o.libelle ASC", Long.class);
+                q = getEntityManager().createQuery(
+                        "SELECT COUNT(o) FROM GammeProduit o WHERE o.status=?1 ORDER BY o.libelle ASC", Long.class);
                 q.setParameter(1, Statut.ENABLE);
                 return q.getSingleResult();
             }
-            q = getEntityManager().createQuery("SELECT COUNT(o) FROM GammeProduit o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC", Long.class);
+            q = getEntityManager().createQuery(
+                    "SELECT COUNT(o) FROM GammeProduit o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC",
+                    Long.class);
             q.setParameter(1, query + "%");
             q.setParameter(2, Statut.ENABLE);
             return q.getSingleResult();
@@ -70,11 +76,14 @@ public class ProduitQueryRepo {
         try {
             TypedQuery<Long> q;
             if (StringUtils.isEmpty(query)) {
-                q = getEntityManager().createQuery("SELECT COUNT(o) FROM Laboratoire o WHERE o.status=?1 ORDER BY o.libelle ASC", Long.class);
+                q = getEntityManager().createQuery(
+                        "SELECT COUNT(o) FROM Laboratoire o WHERE o.status=?1 ORDER BY o.libelle ASC", Long.class);
                 q.setParameter(1, Statut.ENABLE);
                 return q.getSingleResult();
             }
-            q = getEntityManager().createQuery("SELECT COUNT(o) FROM Laboratoire o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC", Long.class);
+            q = getEntityManager().createQuery(
+                    "SELECT COUNT(o) FROM Laboratoire o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC",
+                    Long.class);
             q.setParameter(1, query + "%");
             q.setParameter(2, Statut.ENABLE);
             return q.getSingleResult();
@@ -88,7 +97,9 @@ public class ProduitQueryRepo {
         try {
             TypedQuery<GammeProduit> q;
             if (StringUtils.isEmpty(query)) {
-                q = getEntityManager().createQuery("SELECT OBJECT(o) FROM GammeProduit o WHERE o.status=?1 ORDER BY o.libelle ASC", GammeProduit.class);
+                q = getEntityManager().createQuery(
+                        "SELECT OBJECT(o) FROM GammeProduit o WHERE o.status=?1 ORDER BY o.libelle ASC",
+                        GammeProduit.class);
                 q.setParameter(1, Statut.ENABLE);
                 if (!all) {
                     q.setFirstResult(start);
@@ -96,7 +107,9 @@ public class ProduitQueryRepo {
                 }
                 return q.getResultList();
             }
-            q = getEntityManager().createQuery("SELECT OBJECT(o) FROM GammeProduit o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC", GammeProduit.class);
+            q = getEntityManager().createQuery(
+                    "SELECT OBJECT(o) FROM GammeProduit o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC",
+                    GammeProduit.class);
             q.setParameter(1, query + "%");
             q.setParameter(2, Statut.ENABLE);
             if (!all) {
@@ -114,7 +127,9 @@ public class ProduitQueryRepo {
         try {
             TypedQuery<Laboratoire> q;
             if (StringUtils.isEmpty(query)) {
-                q = getEntityManager().createQuery("SELECT OBJECT(o) FROM Laboratoire o WHERE o.status=?1 ORDER BY o.libelle ASC", Laboratoire.class);
+                q = getEntityManager().createQuery(
+                        "SELECT OBJECT(o) FROM Laboratoire o WHERE o.status=?1 ORDER BY o.libelle ASC",
+                        Laboratoire.class);
                 q.setParameter(1, Statut.ENABLE);
                 if (!all) {
                     q.setFirstResult(start);
@@ -122,7 +137,9 @@ public class ProduitQueryRepo {
                 }
                 return q.getResultList();
             }
-            q = getEntityManager().createQuery("SELECT OBJECT(o) FROM Laboratoire o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC", Laboratoire.class);
+            q = getEntityManager().createQuery(
+                    "SELECT OBJECT(o) FROM Laboratoire o WHERE (O.libelle LIKE ?1 OR o.code LIKE ?1 )AND o.status=?2 AND  ORDER BY o.libelle ASC",
+                    Laboratoire.class);
             q.setParameter(1, query + "%");
             q.setParameter(2, Statut.ENABLE);
             if (!all) {

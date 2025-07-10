@@ -9,25 +9,19 @@ import commonTasks.dto.ClotureVenteParams;
 import commonTasks.dto.MedecinDTO;
 import commonTasks.dto.QueryDTO;
 import commonTasks.dto.SalesParams;
-import dal.MvtTransaction;
 import dal.TPreenregistrement;
 import dal.TUser;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.dto.UpdateVenteParamDTO;
 
 /**
  * @author Kobena
  */
-//@Local
-//@Remote
 public interface SalesService {
 
-    void cloneTransaction(MvtTransaction old, TPreenregistrement p);
-
-    JSONObject annulerVente(TUser ooTUser, String lg_PREENREGISTREMENT_ID);
-
-    boolean updateSnapshotVenteSociete(String lg_PREENREGISTREMENT_ID, String lg_COMPTE_CLIENT_ID);
+    JSONObject annulerVente(TUser ooTUser, String id);
 
     JSONObject createPreVente(SalesParams salesParams);
 
@@ -49,13 +43,9 @@ public interface SalesService {
 
     JSONObject updateVenteClotureAssurance(ClotureVenteParams clotureVenteParams);
 
-    JSONObject clotureravoir(String lg_PREENREGISTREMENT_ID, TUser tUser);
+    JSONObject clotureravoir(String id, TUser tUser);
 
-    JSONObject updateVenteBonVente(String idCompteClientItem, String str_REF_BON);
-
-    JSONObject closeventeBon(String lg_PREENREGISTREMENT_ID);
-
-    JSONObject addtierspayant(SalesParams params);
+    JSONObject closeventeBon(String id);
 
     JSONObject removetierspayant(SalesParams params);
 
@@ -63,23 +53,17 @@ public interface SalesService {
 
     JSONObject shownetpayVno(TPreenregistrement p) throws JSONException;
 
-    JSONObject shownetpayVo(SalesParams params) throws JSONException;
-
-    JSONObject addRemisse(SalesParams params) throws JSONException;
-
-    JSONObject addDevisRemisse(SalesParams params) throws JSONException;
+    JSONObject addRemise(SalesParams params);
 
     JSONObject faireDevis(SalesParams params) throws JSONException;
 
-    JSONObject produits(QueryDTO params, Boolean all) throws JSONException;
+    JSONObject produits(QueryDTO params, boolean all) throws JSONException;
 
-    JSONObject detailsVente(QueryDTO params, Boolean all) throws JSONException;
+    JSONObject detailsVente(QueryDTO params, boolean all) throws JSONException;
 
     JSONObject addtierspayant(String venteId, SalesParams params);
 
     JSONObject removetierspayant(String comptClientTpId, String venteId);
-
-    Integer productQtyByVente(String venteId);
 
     Integer nbreProduitsByVente(String venteId);
 
@@ -105,11 +89,9 @@ public interface SalesService {
 
     JSONObject mettreAjourDonneesClientVenteExistante(String venteId, SalesParams params) throws JSONException;
 
-    JSONObject modificationVenteCloturee(String venteId, TUser u) throws JSONException;
+    JSONObject modificationVenteCloturee(String venteId);
 
     JSONObject modificationVentetierpayantprincipal(String venteId, ClotureVenteParams params) throws JSONException;
-
-    JSONObject shownetpayVoWithEncour(SalesParams params) throws JSONException;
 
     JSONObject updateMedecin(String idVente, MedecinDTO medecinDTO) throws JSONException;
 
@@ -121,13 +103,15 @@ public interface SalesService {
 
     JSONObject findVenteForUpdationg(String venteId) throws JSONException;
 
-    void annulerVenteAnterieur(TUser ooTUser, TPreenregistrement tp) throws Exception;
+    void annulerVenteAnterieur(TUser ooTUser, TPreenregistrement tp);
 
-    JSONObject closePreventeVente(TUser ooTUser, String lg_PREENREGISTREMENT_ID);
+    JSONObject closePreventeVente(TUser ooTUser, String id);
 
     JSONObject clonerDevis(TUser ooTUser, String devisId) throws JSONException;
 
-    void updateVenteTva();
+    void updateVenteDate(TUser ooTUser, UpdateVenteParamDTO param);
 
-    void upadteVente();
+    JSONObject computeVONet(SalesParams params);
+
+    void updateVNOClient(String venteId, String clientId);
 }

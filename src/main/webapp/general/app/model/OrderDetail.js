@@ -6,7 +6,7 @@ Ext.define('testextjs.model.OrderDetail', {
         {
             name: 'lg_ORDERDETAIL_ID',
             type: 'string'
-        }, 
+        },
         {
             name: 'lg_GROSSISTE_ID',
             type: 'string'
@@ -37,7 +37,7 @@ Ext.define('testextjs.model.OrderDetail', {
         {
             name: 'int_QTE_MANQUANT',
             type: 'string'
-        },{
+        }, {
             name: 'int_QTE_REP_GROSSISTE',
             type: 'int'
         },
@@ -117,7 +117,7 @@ Ext.define('testextjs.model.OrderDetail', {
             name: 'int_QTE_REASSORT',
             type: 'int'
         },
-        
+
         //code ajouté
         {
             name: 'int_NUMBER_AVAILABLE',
@@ -215,15 +215,28 @@ Ext.define('testextjs.model.OrderDetail', {
             name: 'int_EAN13',
             type: 'string'
         },
-         {
+        {
             name: 'prixDiff',
             type: 'boolean'
         },
-         {
+        {
             name: 'int_PRICE_MACHINE',
             type: 'int'
-        }
-        
+        },
+        {
+            name: 'lots',
+            type: 'auto'
+        },
+        {
+            name: 'datePeremption',
+            type: 'string'
+        },
+        {
+            name: 'lotNums',
+            type: 'string'
+        },
+        {name: 'produitState', type: 'auto'}
+
         //fin code ajouté
     ]
 });

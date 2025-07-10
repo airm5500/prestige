@@ -28,21 +28,20 @@ import toolkits.utils.date;
 @Entity
 @Table(name = "t_litige")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TLitige.findAll", query = "SELECT t FROM TLitige t"),
-    @NamedQuery(name = "TLitige.findByLgLITIGEID", query = "SELECT t FROM TLitige t WHERE t.lgLITIGEID = :lgLITIGEID"),
-    @NamedQuery(name = "TLitige.findByStrCLIENTNAME", query = "SELECT t FROM TLitige t WHERE t.strCLIENTNAME = :strCLIENTNAME"),
-    @NamedQuery(name = "TLitige.findByStrREFERENCEVENTELITIGE", query = "SELECT t FROM TLitige t WHERE t.strREFERENCEVENTELITIGE = :strREFERENCEVENTELITIGE"),
-    @NamedQuery(name = "TLitige.findByStrLIBELLELITIGE", query = "SELECT t FROM TLitige t WHERE t.strLIBELLELITIGE = :strLIBELLELITIGE"),
-    @NamedQuery(name = "TLitige.findByStrETATLITIGE", query = "SELECT t FROM TLitige t WHERE t.strETATLITIGE = :strETATLITIGE"),
-    @NamedQuery(name = "TLitige.findByStrCOMMENTAIRELITIGE", query = "SELECT t FROM TLitige t WHERE t.strCOMMENTAIRELITIGE = :strCOMMENTAIRELITIGE"),
-    @NamedQuery(name = "TLitige.findByStrCONSEQUENCELITIGE", query = "SELECT t FROM TLitige t WHERE t.strCONSEQUENCELITIGE = :strCONSEQUENCELITIGE"),
-    @NamedQuery(name = "TLitige.findByIntAMOUNTTOTALLITIGE", query = "SELECT t FROM TLitige t WHERE t.intAMOUNTTOTALLITIGE = :intAMOUNTTOTALLITIGE"),
-    @NamedQuery(name = "TLitige.findByIntAMOUNTDUSLITIGE", query = "SELECT t FROM TLitige t WHERE t.intAMOUNTDUSLITIGE = :intAMOUNTDUSLITIGE"),
-    @NamedQuery(name = "TLitige.findByIntAMOUNTPAYELITIGE", query = "SELECT t FROM TLitige t WHERE t.intAMOUNTPAYELITIGE = :intAMOUNTPAYELITIGE"),
-    @NamedQuery(name = "TLitige.findByStrDESCRIPTIONLITIGE", query = "SELECT t FROM TLitige t WHERE t.strDESCRIPTIONLITIGE = :strDESCRIPTIONLITIGE"),
-    @NamedQuery(name = "TLitige.findByDtCREATEDLITIGE", query = "SELECT t FROM TLitige t WHERE t.dtCREATEDLITIGE = :dtCREATEDLITIGE"),
-    @NamedQuery(name = "TLitige.findByDtUPDATEDLITIGE", query = "SELECT t FROM TLitige t WHERE t.dtUPDATEDLITIGE = :dtUPDATEDLITIGE")})
+@NamedQueries({ @NamedQuery(name = "TLitige.findAll", query = "SELECT t FROM TLitige t"),
+        @NamedQuery(name = "TLitige.findByLgLITIGEID", query = "SELECT t FROM TLitige t WHERE t.lgLITIGEID = :lgLITIGEID"),
+        @NamedQuery(name = "TLitige.findByStrCLIENTNAME", query = "SELECT t FROM TLitige t WHERE t.strCLIENTNAME = :strCLIENTNAME"),
+        @NamedQuery(name = "TLitige.findByStrREFERENCEVENTELITIGE", query = "SELECT t FROM TLitige t WHERE t.strREFERENCEVENTELITIGE = :strREFERENCEVENTELITIGE"),
+        @NamedQuery(name = "TLitige.findByStrLIBELLELITIGE", query = "SELECT t FROM TLitige t WHERE t.strLIBELLELITIGE = :strLIBELLELITIGE"),
+        @NamedQuery(name = "TLitige.findByStrETATLITIGE", query = "SELECT t FROM TLitige t WHERE t.strETATLITIGE = :strETATLITIGE"),
+        @NamedQuery(name = "TLitige.findByStrCOMMENTAIRELITIGE", query = "SELECT t FROM TLitige t WHERE t.strCOMMENTAIRELITIGE = :strCOMMENTAIRELITIGE"),
+        @NamedQuery(name = "TLitige.findByStrCONSEQUENCELITIGE", query = "SELECT t FROM TLitige t WHERE t.strCONSEQUENCELITIGE = :strCONSEQUENCELITIGE"),
+        @NamedQuery(name = "TLitige.findByIntAMOUNTTOTALLITIGE", query = "SELECT t FROM TLitige t WHERE t.intAMOUNTTOTALLITIGE = :intAMOUNTTOTALLITIGE"),
+        @NamedQuery(name = "TLitige.findByIntAMOUNTDUSLITIGE", query = "SELECT t FROM TLitige t WHERE t.intAMOUNTDUSLITIGE = :intAMOUNTDUSLITIGE"),
+        @NamedQuery(name = "TLitige.findByIntAMOUNTPAYELITIGE", query = "SELECT t FROM TLitige t WHERE t.intAMOUNTPAYELITIGE = :intAMOUNTPAYELITIGE"),
+        @NamedQuery(name = "TLitige.findByStrDESCRIPTIONLITIGE", query = "SELECT t FROM TLitige t WHERE t.strDESCRIPTIONLITIGE = :strDESCRIPTIONLITIGE"),
+        @NamedQuery(name = "TLitige.findByDtCREATEDLITIGE", query = "SELECT t FROM TLitige t WHERE t.dtCREATEDLITIGE = :dtCREATEDLITIGE"),
+        @NamedQuery(name = "TLitige.findByDtUPDATEDLITIGE", query = "SELECT t FROM TLitige t WHERE t.dtUPDATEDLITIGE = :dtUPDATEDLITIGE") })
 public class TLitige implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -89,16 +88,12 @@ public class TLitige implements Serializable {
     @ManyToOne(optional = false)
     private TTypelitige lgTYPELITIGEID;
 
-   
-
     public TLitige() {
-//        this.lgLITIGEID = new date().getComplexId();
+        // this.lgLITIGEID = new date().getComplexId();
     }
 
-    
-    public TLitige(String strCLIENTNAME,  String strREFERENCEVENTELITIGE, 
-                                     String strLIBELLELITIGE,  String strETATLITIGE, 
-                                     String strCONSEQUENCELITIGE, String strDESCRIPTIONLITIGE){
+    public TLitige(String strCLIENTNAME, String strREFERENCEVENTELITIGE, String strLIBELLELITIGE, String strETATLITIGE,
+            String strCONSEQUENCELITIGE, String strDESCRIPTIONLITIGE) {
         this.lgLITIGEID = new date().getComplexId();
         this.strCLIENTNAME = strCLIENTNAME;
         this.strREFERENCEVENTELITIGE = strREFERENCEVENTELITIGE;
@@ -106,7 +101,7 @@ public class TLitige implements Serializable {
         this.strETATLITIGE = strETATLITIGE;
         this.strCONSEQUENCELITIGE = strCONSEQUENCELITIGE;
         this.strDESCRIPTIONLITIGE = strDESCRIPTIONLITIGE;
-        
+
     }
 
     public String getLgLITIGEID() {
@@ -243,7 +238,8 @@ public class TLitige implements Serializable {
             return false;
         }
         TLitige other = (TLitige) object;
-        if ((this.lgLITIGEID == null && other.lgLITIGEID != null) || (this.lgLITIGEID != null && !this.lgLITIGEID.equals(other.lgLITIGEID))) {
+        if ((this.lgLITIGEID == null && other.lgLITIGEID != null)
+                || (this.lgLITIGEID != null && !this.lgLITIGEID.equals(other.lgLITIGEID))) {
             return false;
         }
         return true;
@@ -253,5 +249,5 @@ public class TLitige implements Serializable {
     public String toString() {
         return "dal.TLitige[ lgLITIGEID=" + lgLITIGEID + " ]";
     }
-    
+
 }

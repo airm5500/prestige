@@ -29,20 +29,20 @@ import javax.xml.bind.annotation.XmlTransient;
 @Table(name = "t_compte_client_tiers_payant")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TCompteClientTiersPayant.findAll", query = "SELECT t FROM TCompteClientTiersPayant t"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByLgCOMPTECLIENTTIERSPAYANTID", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTTIERSPAYANTID = :lgCOMPTECLIENTTIERSPAYANTID"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByDtCREATED", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByDtUPDATED", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByStrSTATUT", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByIntPOURCENTAGE", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.intPOURCENTAGE = :intPOURCENTAGE"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByIntPRIORITY", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.intPRIORITY = :intPRIORITY"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByBISRO", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.bISRO = :bISRO"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByBISRC1", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.bISRC1 = :bISRC1"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByBISRC2", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.bISRC2 = :bISRC2"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByDblPLAFOND", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dblPLAFOND = :dblPLAFOND"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByDblQUOTACONSOMENSUELLE", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dblQUOTACONSOMENSUELLE = :dblQUOTACONSOMENSUELLE"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByDblQUOTACONSOVENTE", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dblQUOTACONSOVENTE = :dblQUOTACONSOVENTE"),
-    @NamedQuery(name = "TCompteClientTiersPayant.findByStrNUMEROSECURITESOCIAL", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.strNUMEROSECURITESOCIAL = :strNUMEROSECURITESOCIAL")})
+        @NamedQuery(name = "TCompteClientTiersPayant.findAll", query = "SELECT t FROM TCompteClientTiersPayant t"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByLgCOMPTECLIENTTIERSPAYANTID", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTTIERSPAYANTID = :lgCOMPTECLIENTTIERSPAYANTID"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByDtCREATED", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByDtUPDATED", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByStrSTATUT", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByIntPOURCENTAGE", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.intPOURCENTAGE = :intPOURCENTAGE"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByIntPRIORITY", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.intPRIORITY = :intPRIORITY"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByBISRO", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.bISRO = :bISRO"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByBISRC1", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.bISRC1 = :bISRC1"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByBISRC2", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.bISRC2 = :bISRC2"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByDblPLAFOND", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dblPLAFOND = :dblPLAFOND"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByDblQUOTACONSOMENSUELLE", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dblQUOTACONSOMENSUELLE = :dblQUOTACONSOMENSUELLE"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByDblQUOTACONSOVENTE", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.dblQUOTACONSOVENTE = :dblQUOTACONSOVENTE"),
+        @NamedQuery(name = "TCompteClientTiersPayant.findByStrNUMEROSECURITESOCIAL", query = "SELECT t FROM TCompteClientTiersPayant t WHERE t.strNUMEROSECURITESOCIAL = :strNUMEROSECURITESOCIAL") })
 public class TCompteClientTiersPayant implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -80,7 +80,8 @@ public class TCompteClientTiersPayant implements Serializable {
     private Boolean bISRC1;
     @Column(name = "b_IS_RC2")
     private Boolean bISRC2;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_PLAFOND", precision = 12, scale = 2)
     private Double dblPLAFOND;
     @Column(name = "dbl_QUOTA_CONSO_VENTE", precision = 12, scale = 2)
@@ -90,7 +91,7 @@ public class TCompteClientTiersPayant implements Serializable {
 
     @JoinColumn(name = "lg_COMPTE_CLIENT_ID", referencedColumnName = "lg_COMPTE_CLIENT_ID")
     @ManyToOne
-//    @Basic(optional = false)
+    // @Basic(optional = false)
     private TCompteClient lgCOMPTECLIENTID;
     @JoinColumn(name = "lg_TIERS_PAYANT_ID", referencedColumnName = "lg_TIERS_PAYANT_ID")
     @ManyToOne
@@ -239,7 +240,9 @@ public class TCompteClientTiersPayant implements Serializable {
             return false;
         }
         TCompteClientTiersPayant other = (TCompteClientTiersPayant) object;
-        if ((this.lgCOMPTECLIENTTIERSPAYANTID == null && other.lgCOMPTECLIENTTIERSPAYANTID != null) || (this.lgCOMPTECLIENTTIERSPAYANTID != null && !this.lgCOMPTECLIENTTIERSPAYANTID.equals(other.lgCOMPTECLIENTTIERSPAYANTID))) {
+        if ((this.lgCOMPTECLIENTTIERSPAYANTID == null && other.lgCOMPTECLIENTTIERSPAYANTID != null)
+                || (this.lgCOMPTECLIENTTIERSPAYANTID != null
+                        && !this.lgCOMPTECLIENTTIERSPAYANTID.equals(other.lgCOMPTECLIENTTIERSPAYANTID))) {
             return false;
         }
         return true;

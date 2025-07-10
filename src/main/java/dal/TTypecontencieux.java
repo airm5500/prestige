@@ -30,14 +30,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_typecontencieux")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypecontencieux.findAll", query = "SELECT t FROM TTypecontencieux t"),
-    @NamedQuery(name = "TTypecontencieux.findByLgTYPECONTENCIEUXID", query = "SELECT t FROM TTypecontencieux t WHERE t.lgTYPECONTENCIEUXID = :lgTYPECONTENCIEUXID"),
-    @NamedQuery(name = "TTypecontencieux.findByStrNAME", query = "SELECT t FROM TTypecontencieux t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypecontencieux.findByStrDESCRIPTION", query = "SELECT t FROM TTypecontencieux t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypecontencieux.findByDtCREATED", query = "SELECT t FROM TTypecontencieux t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypecontencieux.findByDtUPDATED", query = "SELECT t FROM TTypecontencieux t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypecontencieux.findByStrSTATUT", query = "SELECT t FROM TTypecontencieux t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypecontencieux.findAll", query = "SELECT t FROM TTypecontencieux t"),
+        @NamedQuery(name = "TTypecontencieux.findByLgTYPECONTENCIEUXID", query = "SELECT t FROM TTypecontencieux t WHERE t.lgTYPECONTENCIEUXID = :lgTYPECONTENCIEUXID"),
+        @NamedQuery(name = "TTypecontencieux.findByStrNAME", query = "SELECT t FROM TTypecontencieux t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypecontencieux.findByStrDESCRIPTION", query = "SELECT t FROM TTypecontencieux t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypecontencieux.findByDtCREATED", query = "SELECT t FROM TTypecontencieux t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypecontencieux.findByDtUPDATED", query = "SELECT t FROM TTypecontencieux t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypecontencieux.findByStrSTATUT", query = "SELECT t FROM TTypecontencieux t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypecontencieux implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -145,7 +144,8 @@ public class TTypecontencieux implements Serializable {
             return false;
         }
         TTypecontencieux other = (TTypecontencieux) object;
-        if ((this.lgTYPECONTENCIEUXID == null && other.lgTYPECONTENCIEUXID != null) || (this.lgTYPECONTENCIEUXID != null && !this.lgTYPECONTENCIEUXID.equals(other.lgTYPECONTENCIEUXID))) {
+        if ((this.lgTYPECONTENCIEUXID == null && other.lgTYPECONTENCIEUXID != null)
+                || (this.lgTYPECONTENCIEUXID != null && !this.lgTYPECONTENCIEUXID.equals(other.lgTYPECONTENCIEUXID))) {
             return false;
         }
         return true;
@@ -155,5 +155,5 @@ public class TTypecontencieux implements Serializable {
     public String toString() {
         return "dal.TTypecontencieux[ lgTYPECONTENCIEUXID=" + lgTYPECONTENCIEUXID + " ]";
     }
-    
+
 }

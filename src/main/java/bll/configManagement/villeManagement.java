@@ -29,7 +29,8 @@ public class villeManagement extends bllBase {
         try {
 
             TVille OTVille = new TVille();
-            OTVille.setLgVILLEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTVille.setLgVILLEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date
+                                                                // courante
             OTVille.setStrName(STR_NAME);
             OTVille.setStrCodePostal(STR_CODE_POSTAL);
             OTVille.setStrBureauDistributeur(STR_BUREAU_DISTRIBUTEUR);
@@ -56,7 +57,7 @@ public class villeManagement extends bllBase {
             OTVille.setStrName(STR_NAME);
             OTVille.setStrCodePostal(STR_CODE_POSTAL);
             OTVille.setStrBureauDistributeur(STR_BUREAU_DISTRIBUTEUR);
-            OTVille.setStrStatut(commonparameter.statut_enable);           
+            OTVille.setStrStatut(commonparameter.statut_enable);
             OTVille.setDtUpdated(new Date());
 
             this.persiste(OTVille);

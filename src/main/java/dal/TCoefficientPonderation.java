@@ -29,13 +29,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_coefficient_ponderation")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TCoefficientPonderation.findAll", query = "SELECT t FROM TCoefficientPonderation t"),
-    @NamedQuery(name = "TCoefficientPonderation.findByLgCOEFFICIENTPONDERATIONID", query = "SELECT t FROM TCoefficientPonderation t WHERE t.lgCOEFFICIENTPONDERATIONID = :lgCOEFFICIENTPONDERATIONID"),
-    @NamedQuery(name = "TCoefficientPonderation.findByIntCOEFFICIENTPONDERATION", query = "SELECT t FROM TCoefficientPonderation t WHERE t.intCOEFFICIENTPONDERATION = :intCOEFFICIENTPONDERATION"),
-    @NamedQuery(name = "TCoefficientPonderation.findByIntINDICEMONTH", query = "SELECT t FROM TCoefficientPonderation t WHERE t.intINDICEMONTH = :intINDICEMONTH"),
-    @NamedQuery(name = "TCoefficientPonderation.findByStrSTATUT", query = "SELECT t FROM TCoefficientPonderation t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TCoefficientPonderation.findByDtCREATED", query = "SELECT t FROM TCoefficientPonderation t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TCoefficientPonderation.findByDtUPDATED", query = "SELECT t FROM TCoefficientPonderation t WHERE t.dtUPDATED = :dtUPDATED")})
+        @NamedQuery(name = "TCoefficientPonderation.findAll", query = "SELECT t FROM TCoefficientPonderation t"),
+        @NamedQuery(name = "TCoefficientPonderation.findByLgCOEFFICIENTPONDERATIONID", query = "SELECT t FROM TCoefficientPonderation t WHERE t.lgCOEFFICIENTPONDERATIONID = :lgCOEFFICIENTPONDERATIONID"),
+        @NamedQuery(name = "TCoefficientPonderation.findByIntCOEFFICIENTPONDERATION", query = "SELECT t FROM TCoefficientPonderation t WHERE t.intCOEFFICIENTPONDERATION = :intCOEFFICIENTPONDERATION"),
+        @NamedQuery(name = "TCoefficientPonderation.findByIntINDICEMONTH", query = "SELECT t FROM TCoefficientPonderation t WHERE t.intINDICEMONTH = :intINDICEMONTH"),
+        @NamedQuery(name = "TCoefficientPonderation.findByStrSTATUT", query = "SELECT t FROM TCoefficientPonderation t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TCoefficientPonderation.findByDtCREATED", query = "SELECT t FROM TCoefficientPonderation t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TCoefficientPonderation.findByDtUPDATED", query = "SELECT t FROM TCoefficientPonderation t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TCoefficientPonderation implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -135,7 +135,9 @@ public class TCoefficientPonderation implements Serializable {
             return false;
         }
         TCoefficientPonderation other = (TCoefficientPonderation) object;
-        if ((this.lgCOEFFICIENTPONDERATIONID == null && other.lgCOEFFICIENTPONDERATIONID != null) || (this.lgCOEFFICIENTPONDERATIONID != null && !this.lgCOEFFICIENTPONDERATIONID.equals(other.lgCOEFFICIENTPONDERATIONID))) {
+        if ((this.lgCOEFFICIENTPONDERATIONID == null && other.lgCOEFFICIENTPONDERATIONID != null)
+                || (this.lgCOEFFICIENTPONDERATIONID != null
+                        && !this.lgCOEFFICIENTPONDERATIONID.equals(other.lgCOEFFICIENTPONDERATIONID))) {
             return false;
         }
         return true;
@@ -145,5 +147,5 @@ public class TCoefficientPonderation implements Serializable {
     public String toString() {
         return "dal.TCoefficientPonderation[ lgCOEFFICIENTPONDERATIONID=" + lgCOEFFICIENTPONDERATIONID + " ]";
     }
-    
+
 }

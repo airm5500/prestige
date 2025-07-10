@@ -34,7 +34,6 @@ import toolkits.utils.logger;
  */
 public class PrintManangement extends bllBase {
 
- 
     public static PrinterJob findPrinterJob(String printerName) throws Exception {
 
         // Retrieve the Printer Service
@@ -57,7 +56,7 @@ public class PrintManangement extends bllBase {
 
     public static PrintService findPrintService(String printerName) {
 
-        //printerName = printerName.toLowerCase();
+        // printerName = printerName.toLowerCase();
 
         PrintService service = null;
 

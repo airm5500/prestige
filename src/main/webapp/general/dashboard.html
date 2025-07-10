@@ -5,26 +5,26 @@
 
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script type="text/javascript" src="../resources/boostrap/bb/js/jquery.min.js"></script>
-        <script type="text/javascript" src="../resources/boostrap/bb/js/bootstrap.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jquery.jqplot.min.js "></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.canvasAxisTickRenderer.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.dateAxisRenderer.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.pointLabels.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.categoryAxisRenderer.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.barRenderer.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.pieRenderer.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.donutRenderer.min.js"></script>
-        <script type="text/javascript" src="../resources/Jqplot/jqplot.canvasTextRenderer.min.js"></script>
-        <script type="text/javascript" src="../resources/boostrap/bb/js/datatable/jquery.dataTables.min.js"></script>
-        <script type="text/javascript" src="../resources/boostrap/bb/js/datatable/dataTables.bootstrap.min.js"></script>
+        <script  src="../resources/boostrap/bb/js/jquery.min.js"></script>
+        <script  src="../resources/boostrap/bb/js/bootstrap.min.js"></script>
+        <script  src="../resources/Jqplot/jquery.jqplot.min.js "></script>
+        <script  src="../resources/Jqplot/jqplot.canvasAxisTickRenderer.min.js"></script>
+        <script  src="../resources/Jqplot/jqplot.dateAxisRenderer.min.js"></script>
+        <script  src="../resources/Jqplot/jqplot.pointLabels.min.js"></script>
+        <script  src="../resources/Jqplot/jqplot.categoryAxisRenderer.min.js"></script>
+        <script  src="../resources/Jqplot/jqplot.barRenderer.min.js"></script>
+        <script  src="../resources/Jqplot/jqplot.pieRenderer.min.js"></script>
+        <script  src="../resources/Jqplot/jqplot.donutRenderer.min.js"></script>
+        <script  src="../resources/Jqplot/jqplot.canvasTextRenderer.min.js"></script>
+        <script  src="../resources/boostrap/bb/js/datatable/jquery.dataTables.min.js"></script>
+        <script  src="../resources/boostrap/bb/js/datatable/dataTables.bootstrap.min.js"></script>
         <link rel="stylesheet" type="text/css" href="../resources/boostrap/bb/css/bootstrap.css"/>
         <link rel="stylesheet" type="text/css" href="../resources/boostrap/bb/js/datatable/datatable.min.css"/>
         <link rel="stylesheet" type="text/css" href="../resources/Jqplot/jquery.jqplot.min.css "/>
         <link href="../resources/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
-        <style type="text/css">
+        <style >
             body   {
-                background-color:#E5E9EC; 
+                background-color:#E5E9EC;
                 background-image:url(../resources/images/background.png);
                 /* overflow: hidden;*/
                 margin-left: auto;
@@ -82,7 +82,7 @@
                 -webkit-box-sizing: content-box;
                 -moz-box-sizing: content-box;
                 box-sizing: content-box;
-            }   
+            }
 
 
 
@@ -321,7 +321,7 @@
 
                             $("#moretAchatlabel").show();
                         }
-                        var s1 = [['LABOREX', data.data[0].LABOREX], ['DPCI', data.data[1].DPCI], ['COPHARMED', data.data[2].COPHARMED], ['TEDIS PHARMA', data.data[3].TEDISPHARMA], ['AUTRES', data.data[4].AUTRES]];
+                        var s1 = [['UBIPHARM', data.data[0].LABOREX], ['DPCI', data.data[1].DPCI], ['COPHARMED', data.data[2].COPHARMED], ['TEDIS PHARMA', data.data[3].TEDISPHARMA], ['AUTRES', data.data[4].AUTRES]];
                         var plot = $.jqplot('idachatgrossiste', [s1], {
                             grid: {
                                 drawBorder: false,

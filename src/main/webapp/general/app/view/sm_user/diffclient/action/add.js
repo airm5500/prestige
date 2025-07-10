@@ -720,9 +720,7 @@ Ext.define('testextjs.view.sm_user.preenregistrement.action.add', {
                 var OGrid = Ext.getCmp('gridpanelID');
                 // alert("before load");
                 OGrid.getStore().reload();
-                //alert("after load");
-                //ref = object.lg_PREENREGISTREMENT_ID;
-                // aler("ref de add  "+ref);
+ 
                 Ext.getCmp('str_CIP').setValue("");
                 Ext.getCmp('str_EAN13').setValue("");
                 Ext.getCmp('str_NAME').setValue("");
@@ -818,7 +816,7 @@ Ext.define('testextjs.view.sm_user.preenregistrement.action.add', {
         }
     },
     onSelectionChange: function(model, records) {
-        var rec = records[0];
+        const rec = records[0];
         if (rec) {
             this.getForm().loadRecord(rec);
         }

@@ -79,7 +79,7 @@ import toolkits.utils.logger;
  *
  * @author user
  */
-@WebServlet(name = "MyBean", urlPatterns = {"/myBean"})
+@WebServlet(name = "MyBean", urlPatterns = { "/myBean" })
 public class MyBean extends HttpServlet {
 
     private final static Logger LOGGER = Logger.getLogger(MyBean.class.getName());
@@ -119,82 +119,85 @@ public class MyBean extends HttpServlet {
         JSONObject data = new JSONObject();
         try (PrintWriter out = response.getWriter()) {
             switch (action) {
-                case "tva":
-                    System.out.println("===========================>>> tva "+action);
-                    array = getTvaDatas(dt_start, dt_end);
-                    data.put("data", array);
-                    data.put("total", array.length());
-                    out.println(data);
-                    break;
-                case "tvapdf":
-                    String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
-                    String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
-                    String au = " au " + LocalDate.parse(dt_end).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                    String du = LocalDate.parse(dt_start).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-                    if (!dt_start.equals(dt_end)) {
-                        parameters.put("P_H_CLT_INFOS", "Statistiques des\n Résultats par Taux de TVA du " + du + au);
+            case "tva":
 
-                    } else {
-                        parameters.put("P_H_CLT_INFOS", "Statistiques des\n Résultats par Taux de TVA du " + du);
-                    }
+                array = getTvaDatas(dt_start, dt_end);
+                data.put("data", array);
+                data.put("total", array.length());
+                out.println(data);
+                break;
+            case "tvapdf":
+                String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
+                String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
+                String au = " au " + LocalDate.parse(dt_end).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                String du = LocalDate.parse(dt_start).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                if (!dt_start.equals(dt_end)) {
+                    parameters.put("P_H_CLT_INFOS", "Statistiques des\n Résultats par Taux de TVA du " + du + au);
 
-                    String P_H_LOGO = jdom.scr_report_file_logo;
+                } else {
+                    parameters.put("P_H_CLT_INFOS", "Statistiques des\n Résultats par Taux de TVA du " + du);
+                }
 
-                    parameters.put("P_H_LOGO", P_H_LOGO);
-                    parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
+                String P_H_LOGO = jdom.scr_report_file_logo;
 
-                    parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
-                    parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+                parameters.put("P_H_LOGO", P_H_LOGO);
+                parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
 
-                    if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-                        P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
-                    }
+                parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
+                parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
 
-                    if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-                        P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
-                    }
-                    if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-                        P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
-                    }
-                    if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-                        P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
-                    }
+                if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
+                    P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+                }
 
-                    if (oTOfficine.getStrPHONE() != null) {
-                        String finalphonestring = oTOfficine.getStrPHONE() != null ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
-                        if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
-                            String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                            for (String va  : phone) {
-                                finalphonestring += " / " + conversion.PhoneNumberFormat(va);
-                            }
+                if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
+                    P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+                }
+                if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
+                    P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+                }
+                if (oTOfficine.getStrCENTREIMPOSITION() != null) {
+                    P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+                }
+
+                if (oTOfficine.getStrPHONE() != null) {
+                    String finalphonestring = oTOfficine.getStrPHONE() != null
+                            ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+                    if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
+                        String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
+                        for (String va : phone) {
+                            finalphonestring += " / " + conversion.PhoneNumberFormat(va);
                         }
-                        P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
                     }
-                    if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
-                        P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
-                    }
-                    if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-                        P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
-                    }
-                    parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
-                    parameters.put("P_FOOTER_RC", P_FOOTER_RC);
+                    P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
+                }
+                if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
+                    P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
+                }
+                if (oTOfficine.getStrNUMCOMPTABLE() != null) {
+                    P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+                }
+                parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
+                parameters.put("P_FOOTER_RC", P_FOOTER_RC);
 
-                    JSONArray _array = getTvaDatasReport(dt_start, dt_end);
-                    JSONObject _data = new JSONObject();
-                    _data.put("root", _array);
-                    app = new JsonDataSourceApp();
-                    fileName = "rp_resultat_tva_" + DATEFORMAT.format(new Date()) + ".pdf";
-                    app.fill(parameters, _data, jdom.scr_report_file + "rp_tva.jrxml", fileName);
+                JSONArray _array = getTvaDatasReport(dt_start, dt_end);
+                JSONObject _data = new JSONObject();
+                _data.put("root", _array);
+                app = new JsonDataSourceApp();
+                fileName = "rp_resultat_tva_" + DATEFORMAT.format(new Date()) + ".pdf";
+                app.fill(parameters, _data, jdom.scr_report_file + "rp_tva.jrxml", fileName);
 
-                    response.sendRedirect(request.getContextPath() + "/data/reports/pdf/" + fileName);
-                    break;
+                response.sendRedirect(request.getContextPath() + "/data/reports/pdf/" + fileName);
+                break;
 
-                case "balance":
-                    try {
-                    TParameters KEY_TAKE_INTO_ACCOUNT = OdataManager.getEm().getReference(TParameters.class, "KEY_TAKE_INTO_ACCOUNT");
+            case "balance":
+                try {
+                    TParameters KEY_TAKE_INTO_ACCOUNT = OdataManager.getEm().getReference(TParameters.class,
+                            "KEY_TAKE_INTO_ACCOUNT");
                     System.out.println("KEY_TAKE_INTO_ACCOUNT------->>>    " + KEY_TAKE_INTO_ACCOUNT);
 
-                    if (KEY_TAKE_INTO_ACCOUNT != null && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
+                    if (KEY_TAKE_INTO_ACCOUNT != null
+                            && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
 
                         array = getBalanceExclude(dt_start, dt_end, empl);
 
@@ -211,12 +214,12 @@ public class MyBean extends HttpServlet {
 
                             double mnt = o.getInt("VENTE_NET");
                             double percent = (mnt * 100) / totaux.getInt("GLOBAL");
-                            Integer pm = ((Long) Math.round(Double.valueOf(totaux.getInt("GLOBAL")) / totaux.getInt("NB"))).intValue();
+                            Integer pm = ((Long) Math
+                                    .round(Double.valueOf(totaux.getInt("GLOBAL")) / totaux.getInt("NB"))).intValue();
                             o.put("POURCENTAGE", Math.round(percent)).put("TOTALVENTE", totaux.getInt("GLOBAL"))
                                     .put("TOTALMARGE", totaux.getLong("TOTALMARGE"))
                                     .put("TOTALRATIO", totaux.getDouble("TOTALRATIO"))
-                                    .put("TOTALACHAT", totaux.getLong("TOTALACHAT"))
-                                    .put("VENTE_NET_BIS", pm);
+                                    .put("TOTALACHAT", totaux.getLong("TOTALACHAT")).put("VENTE_NET_BIS", pm);
 
                             arrayObj.put(o);
                         } catch (Exception e) {
@@ -230,10 +233,12 @@ public class MyBean extends HttpServlet {
                 out.println(data);
                 break;
 
-                case "balancepdf":
-                    try {
-                    TParameters KEY_TAKE_INTO_ACCOUNT = OdataManager.getEm().getReference(TParameters.class, "KEY_TAKE_INTO_ACCOUNT");
-                    if (KEY_TAKE_INTO_ACCOUNT != null && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
+            case "balancepdf":
+                try {
+                    TParameters KEY_TAKE_INTO_ACCOUNT = OdataManager.getEm().getReference(TParameters.class,
+                            "KEY_TAKE_INTO_ACCOUNT");
+                    if (KEY_TAKE_INTO_ACCOUNT != null
+                            && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
 
                         array = getBalanceExclude(dt_start, dt_end, empl);
 
@@ -244,46 +249,24 @@ public class MyBean extends HttpServlet {
                 }
 
                 date key = new date();
-                String lg_TYPE_REGLEMENT_ID = "%%",
-                 lg_EMPLACEMENT_ID = "%%";
-                int VENTE_BRUT = 0,
-                 TOTAL_REMISE = 0,
-                 VENTE_NET = 0,
-                 TOTAL_GLOBAL = 0,
-                 NB = 0;
+                String lg_TYPE_REGLEMENT_ID = "%%", lg_EMPLACEMENT_ID = "%%";
+                int VENTE_BRUT = 0, TOTAL_REMISE = 0, VENTE_NET = 0, TOTAL_GLOBAL = 0, NB = 0;
                 String P_VENTEDEPOT_LABEL = "Ventes aux dépôts extensions",
-                 P_REGLEMENTDEPOT_LABEL = "Règlement des ventes des dépôts";
-                double P_VO_PERCENT = 0d,
-                 P_VNO_PERCENT = 0d,
-                 P_VENTEDEPOT_ESPECE = 0d,
-                 P_VENTEDEPOT_CHEQUES = 0d,
-                 P_VENTEDEPOT_CB = 0d,
-                 P_TOTAL_VENTEDEPOT_CAISSE = 0d,
-                 P_REGLEMENTDEPOT_ESPECE = 0d,
-                 P_REGLEMENTDEPOT_CHEQUES = 0d,
-                 P_REGLEMENTDEPOT_CB = 0d,
-                 P_TOTAL_REGLEMENTDEPOT_CAISSE = 0d;
-//                    Double P_SORTIECAISSE_ESPECE_FALSE = 0d;
-                int TOTALBRUT = 0,
-                 TOTALNET = 0,
-                 P_TOTAL_REMISE = 0,
-                 P_TOTAL_PANIER = 0,
-                 TOTAL_REMISEVNO = 0,
-                 P_TOTAL_ESPECE = 0,
-                 P_TOTAL_CHEQUES = 0,
-                 P_TOTAL_CARTEBANCAIRE = 0,
-                 P_TOTAL_TIERSPAYANT = 0,
-                 P_AMOUNT_VO_TIERESPAYANT = 0,
-                 P_VO_PANIER_MOYEN = 0,
-                 P_AMOUNT_VO_ESPECE = 0,
-                 P_AMOUNT_VO_CHEQUE = 0,
-                 P_AMOUNT_VO_CARTEBANCAIRE = 0,
-                 P_AMOUNT_VO_DIFFERE = 0,
-                 P_TOTAL_AVOIR = 0;
+                        P_REGLEMENTDEPOT_LABEL = "Règlement des ventes des dépôts";
+                double P_VO_PERCENT = 0d, P_VNO_PERCENT = 0d, P_VENTEDEPOT_ESPECE = 0d, P_VENTEDEPOT_CHEQUES = 0d,
+                        P_VENTEDEPOT_CB = 0d, P_TOTAL_VENTEDEPOT_CAISSE = 0d, P_REGLEMENTDEPOT_ESPECE = 0d,
+                        P_REGLEMENTDEPOT_CHEQUES = 0d, P_REGLEMENTDEPOT_CB = 0d, P_TOTAL_REGLEMENTDEPOT_CAISSE = 0d;
+                // Double P_SORTIECAISSE_ESPECE_FALSE = 0d;
+                int TOTALBRUT = 0, TOTALNET = 0, P_TOTAL_REMISE = 0, P_TOTAL_PANIER = 0, TOTAL_REMISEVNO = 0,
+                        P_TOTAL_ESPECE = 0, P_TOTAL_CHEQUES = 0, P_TOTAL_CARTEBANCAIRE = 0, P_TOTAL_TIERSPAYANT = 0,
+                        P_AMOUNT_VO_TIERESPAYANT = 0, P_VO_PANIER_MOYEN = 0, P_AMOUNT_VO_ESPECE = 0,
+                        P_AMOUNT_VO_CHEQUE = 0, P_AMOUNT_VO_CARTEBANCAIRE = 0, P_AMOUNT_VO_DIFFERE = 0,
+                        P_TOTAL_AVOIR = 0;
                 JournalVente OjournalVente = new JournalVente(OdataManager, OTUser);
 
                 List<EntityData> listTMvtCaisses = OjournalVente.getAllMouvmentsCaisse(dt_start, dt_end);
-                List<EntityData> listTDataInDepot = OjournalVente.getListeVenteInDepotForBalanceVenteCaisse(dt_start, dt_end, lg_TYPE_REGLEMENT_ID, lg_EMPLACEMENT_ID);
+                List<EntityData> listTDataInDepot = OjournalVente.getListeVenteInDepotForBalanceVenteCaisse(dt_start,
+                        dt_end, lg_TYPE_REGLEMENT_ID, lg_EMPLACEMENT_ID);
 
                 reportManager OreportManager = new reportManager();
                 String scr_report_file = "rp_balancevente_caissev2";
@@ -296,19 +279,14 @@ public class MyBean extends HttpServlet {
 
                 new logger().OCategory.info("Dans edition scr_report_file " + scr_report_file);
                 int count = 0;
-                Integer VENTE_BRUT_VNO = 0,
-                 P_AMOUNT_VNO_ESPECE = 0,
-                 NBVNO = 0,
-                 VENTE_VNONET = 0,
-                 P_AMOUNT_VNO_CARTEBANCAIRE = 0,
-                 P_AMOUNT_VNO_DIFFERE = 0,
-                 TOTAL_VNOREMISE = 0,
-                 P_VNO_PANIER_MOYEN = 0,
-                 P_AMOUNT_VNO_CHEQUE = 0;
+                Integer VENTE_BRUT_VNO = 0, P_AMOUNT_VNO_ESPECE = 0, NBVNO = 0, VENTE_VNONET = 0,
+                        P_AMOUNT_VNO_CARTEBANCAIRE = 0, P_AMOUNT_VNO_DIFFERE = 0, TOTAL_VNOREMISE = 0,
+                        P_VNO_PANIER_MOYEN = 0, P_AMOUNT_VNO_CHEQUE = 0;
                 if (array.length() > 1) {
                     JSONObject totaux = array.getJSONObject((array.length() - 1));
                     TOTAL_GLOBAL = totaux.getInt("GLOBAL");
-                    P_TOTAL_PANIER = ((Long) Math.round(Double.valueOf(totaux.getInt("GLOBAL")) / totaux.getInt("NB"))).intValue();
+                    P_TOTAL_PANIER = ((Long) Math.round(Double.valueOf(totaux.getInt("GLOBAL")) / totaux.getInt("NB")))
+                            .intValue();
                     for (int idx = 0; idx < (array.length() - 1); idx++) {
 
                         try {
@@ -362,7 +340,9 @@ public class MyBean extends HttpServlet {
                     }
                 }
 
-                P_H_CLT_INFOS = "BALANCE VENTE/CAISSE             DU " + date.formatterShort.format(java.sql.Date.valueOf(dt_start)) + " AU " + date.formatterShort.format(java.sql.Date.valueOf(dt_end));
+                P_H_CLT_INFOS = "BALANCE VENTE/CAISSE             DU "
+                        + date.formatterShort.format(java.sql.Date.valueOf(dt_start)) + " AU "
+                        + date.formatterShort.format(java.sql.Date.valueOf(dt_end));
 
                 parameters.put("P_EMPLACEMENT", OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
 
@@ -405,7 +385,7 @@ public class MyBean extends HttpServlet {
                 parameters.put("P_AMOUNT_REMISE_VNO", conversion.AmountFormat(TOTAL_REMISEVNO, ' '));
                 parameters.put("P_AMOUNT_VNO_TIERSPAYANT", "0");
                 parameters.put("P_VNO_PANIER_MOYEN", conversion.AmountFormat(P_VNO_PANIER_MOYEN, ' '));
-                //parameters.put("P_AMOUNT_VNO_DIFFERE", "0");
+                // parameters.put("P_AMOUNT_VNO_DIFFERE", "0");
                 parameters.put("P_AMOUNT_AVOIR_TIERSPAYANT", "0");
                 parameters.put("P_AMOUNT_REMISE_AVOIR", "0");
 
@@ -432,54 +412,30 @@ public class MyBean extends HttpServlet {
                 double P_TOTAL_VENTE = P_TOTAL_ESPECE + P_TOTAL_CHEQUES + P_TOTAL_CARTEBANCAIRE;
 
                 parameters.put("P_TOTAL_VENTE", conversion.AmountFormat((int) P_TOTAL_VENTE, ' '));
-                String P_FONDCAISSE_LABEL = "",
-                 P_SORIECAISSE_LABEL = "",
-                 P_ENTREECAISSE_LABEL = "",
-                 P_REGLEMENT_LABEL = "",
-                 P_ACCOMPTE_LABEL = "",
-                 P_DIFFERE_LABEL = "",
-                 P_TOTAL_CAISSE_LABEL = "";
-                double P_SORTIECAISSE_ESPECE = 0d,
-                 P_SORTIECAISSE_CHEQUES = 0d,
-                 P_SORTIECAISSE_CB = 0d,
-                 P_SORTIECAISSE_VIREMENT = 0d,
-                 P_TOTAL_SORTIE_CAISSE = 0d,
-                 P_ENTREECAISSE_ESPECE = 0d,
-                 P_ENTREECAISSE_VIREMENT = 0d,
-                 P_ENTREECAISSE_CHEQUES = 0d,
-                 P_ENTREECAISSE_CB = 0d,
-                 P_TOTAL_ENTREE_CAISSE = 0d,
-                 P_REGLEMENT_ESPECE = 0d,
-                 P_REGLEMENT_CHEQUES = 0d,
-                 P_REGLEMENT_VIREMENT = 0d,
-                 P_REGLEMENT_CB = 0d,
-                 P_TOTAL_REGLEMENT_CAISSE = 0d,
-                 P_ACCOMPTE_ESPECE = 0d,
-                 P_ACCOMPTE_CHEQUES = 0d,
-                 P_ACCOMPTE_VIREMENT = 0d,
-                 P_ACCOMPTE_CB = 0d,
-                 P_TOTAL_ACCOMPTE_CAISSE = 0d,
-                 P_FONDCAISSE = 0d,
-                 P_DIFFERE_CHEQUES = 0d,
-                 P_DIFFERE_CB = 0d,
-                 P_TOTAL_GLOBAL_CAISSE = 0d,
-                 P_DIFFERE_ESPECE = 0d,
-                 P_DIFFERE_VIREMENT = 0d,
-                 P_TOTAL_VIREMENT_GLOBAL = 0d,
-                 P_TOTAL_DIFFERE_CAISSE = 0d,
-                 P_TOTAL_ESPECES_GLOBAL = 0d,
-                 P_TOTAL_CHEQUES_GLOBAL = 0d,
-                 P_TOTAL_CB_GLOBAL = 0d;
+                String P_FONDCAISSE_LABEL = "", P_SORIECAISSE_LABEL = "", P_ENTREECAISSE_LABEL = "",
+                        P_REGLEMENT_LABEL = "", P_ACCOMPTE_LABEL = "", P_DIFFERE_LABEL = "", P_TOTAL_CAISSE_LABEL = "";
+                double P_SORTIECAISSE_ESPECE = 0d, P_SORTIECAISSE_CHEQUES = 0d, P_SORTIECAISSE_CB = 0d,
+                        P_SORTIECAISSE_VIREMENT = 0d, P_TOTAL_SORTIE_CAISSE = 0d, P_ENTREECAISSE_ESPECE = 0d,
+                        P_ENTREECAISSE_VIREMENT = 0d, P_ENTREECAISSE_CHEQUES = 0d, P_ENTREECAISSE_CB = 0d,
+                        P_TOTAL_ENTREE_CAISSE = 0d, P_REGLEMENT_ESPECE = 0d, P_REGLEMENT_CHEQUES = 0d,
+                        P_REGLEMENT_VIREMENT = 0d, P_REGLEMENT_CB = 0d, P_TOTAL_REGLEMENT_CAISSE = 0d,
+                        P_ACCOMPTE_ESPECE = 0d, P_ACCOMPTE_CHEQUES = 0d, P_ACCOMPTE_VIREMENT = 0d, P_ACCOMPTE_CB = 0d,
+                        P_TOTAL_ACCOMPTE_CAISSE = 0d, P_FONDCAISSE = 0d, P_DIFFERE_CHEQUES = 0d, P_DIFFERE_CB = 0d,
+                        P_TOTAL_GLOBAL_CAISSE = 0d, P_DIFFERE_ESPECE = 0d, P_DIFFERE_VIREMENT = 0d,
+                        P_TOTAL_VIREMENT_GLOBAL = 0d, P_TOTAL_DIFFERE_CAISSE = 0d, P_TOTAL_ESPECES_GLOBAL = 0d,
+                        P_TOTAL_CHEQUES_GLOBAL = 0d, P_TOTAL_CB_GLOBAL = 0d;
 
                 for (EntityData Odata : listTMvtCaisses) {
-                    // System.out.println("P_SORIECAISSE_LABEL +++++++++++++++++++++++++++++++++ " + Odata.getStr_value2() + "  --------------------" + Odata.getStr_value4());
+                    // System.out.println("P_SORIECAISSE_LABEL +++++++++++++++++++++++++++++++++ " +
+                    // Odata.getStr_value2() + " --------------------" + Odata.getStr_value4());
                     if (Odata.getStr_value4().equals(Parameter.KEY_PARAM_MVT_FOND_DE_CAISSE)) {
                         P_FONDCAISSE_LABEL = Odata.getStr_value2();
                         P_FONDCAISSE = Double.valueOf(Odata.getStr_value1());
                     } else if (Odata.getStr_value4().equals(Parameter.KEY_PARAM_MVT_SORTIECAISSE)) {
 
                         P_SORIECAISSE_LABEL = Odata.getStr_value2();
-                        // System.out.println("P_SORIECAISSE_LABEL +++++++++++++++++++++++++++++++++ " + P_SORIECAISSE_LABEL + "  --------------------");
+                        // System.out.println("P_SORIECAISSE_LABEL +++++++++++++++++++++++++++++++++ " +
+                        // P_SORIECAISSE_LABEL + " --------------------");
                         if (Odata.getStr_value6().equals(Parameter.KEY_TYPEREGLEMENT_ESPECE)) {
                             P_SORTIECAISSE_ESPECE = (-1) * Double.valueOf(Odata.getStr_value1());
                         } else if (Odata.getStr_value6().equals(Parameter.KEY_TYPEREGLEMENT_CHEQUE)) {
@@ -538,14 +494,22 @@ public class MyBean extends HttpServlet {
                 }
                 Preenregistrement OPreenregistrement = new Preenregistrement(OdataManager, OTUser);
                 /* subquery parameters */
-                //code ajouté 05/04/2016
-                if (OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equalsIgnoreCase(commonparameter.PROCESS_SUCCESS)) {
-                    P_VENTEDEPOT_ESPECE = (-1) * OPreenregistrement.getPriceVenteToDepot("", Parameter.VENTE_DEPOT_EXTENSION, dt_start, dt_end);
+                // code ajouté 05/04/2016
+                if (OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID()
+                        .equalsIgnoreCase(commonparameter.PROCESS_SUCCESS)) {
+                    P_VENTEDEPOT_ESPECE = (-1) * OPreenregistrement.getPriceVenteToDepot("",
+                            Parameter.VENTE_DEPOT_EXTENSION, dt_start, dt_end);
                     P_TOTAL_VENTEDEPOT_CAISSE = P_VENTEDEPOT_ESPECE + P_VENTEDEPOT_CHEQUES + P_VENTEDEPOT_CB;
-                    P_REGLEMENTDEPOT_ESPECE = OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(listTDataInDepot, Parameter.KEY_TYPEREGLEMENT_ESPECE) + OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(listTDataInDepot, Parameter.KEY_TYPEREGLEMENT_DIFERRE);
-                    P_REGLEMENTDEPOT_CHEQUES = OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(listTDataInDepot, Parameter.KEY_TYPEREGLEMENT_CHEQUE);
-                    P_REGLEMENTDEPOT_CB = OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(listTDataInDepot, Parameter.KEY_TYPEREGLEMENT_CARTEBANQUAIRE);
-                    P_TOTAL_REGLEMENTDEPOT_CAISSE = P_REGLEMENTDEPOT_ESPECE + P_REGLEMENTDEPOT_CHEQUES + P_REGLEMENTDEPOT_CB;
+                    P_REGLEMENTDEPOT_ESPECE = OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(
+                            listTDataInDepot, Parameter.KEY_TYPEREGLEMENT_ESPECE)
+                            + OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(listTDataInDepot,
+                                    Parameter.KEY_TYPEREGLEMENT_DIFERRE);
+                    P_REGLEMENTDEPOT_CHEQUES = OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(
+                            listTDataInDepot, Parameter.KEY_TYPEREGLEMENT_CHEQUE);
+                    P_REGLEMENTDEPOT_CB = OjournalVente.getTotalAmountVenteInDepotForBalanceVenteCaisse(
+                            listTDataInDepot, Parameter.KEY_TYPEREGLEMENT_CARTEBANQUAIRE);
+                    P_TOTAL_REGLEMENTDEPOT_CAISSE = P_REGLEMENTDEPOT_ESPECE + P_REGLEMENTDEPOT_CHEQUES
+                            + P_REGLEMENTDEPOT_CB;
                 }
 
                 P_VENTEDEPOT_LABEL = (P_TOTAL_VENTEDEPOT_CAISSE != 0 ? P_VENTEDEPOT_LABEL : "");
@@ -555,25 +519,32 @@ public class MyBean extends HttpServlet {
                 parameters.put("P_VENTEDEPOT_ESPECE", conversion.AmountFormat((int) P_VENTEDEPOT_ESPECE, ' '));
                 parameters.put("P_VENTEDEPOT_CHEQUES", conversion.AmountFormat((int) P_VENTEDEPOT_CHEQUES, ' '));
                 parameters.put("P_VENTEDEPOT_CB", conversion.AmountFormat((int) P_VENTEDEPOT_CB, ' '));
-                parameters.put("P_TOTAL_VENTEDEPOT_CAISSE", conversion.AmountFormat((int) P_TOTAL_VENTEDEPOT_CAISSE, ' '));
+                parameters.put("P_TOTAL_VENTEDEPOT_CAISSE",
+                        conversion.AmountFormat((int) P_TOTAL_VENTEDEPOT_CAISSE, ' '));
 
                 parameters.put("P_REGLEMENTDEPOT_LABEL", P_REGLEMENTDEPOT_LABEL);
                 parameters.put("P_REGLEMENTDEPOT_ESPECE", conversion.AmountFormat((int) P_REGLEMENTDEPOT_ESPECE, ' '));
-                parameters.put("P_REGLEMENTDEPOT_CHEQUES", conversion.AmountFormat((int) P_REGLEMENTDEPOT_CHEQUES, ' '));
+                parameters.put("P_REGLEMENTDEPOT_CHEQUES",
+                        conversion.AmountFormat((int) P_REGLEMENTDEPOT_CHEQUES, ' '));
                 parameters.put("P_REGLEMENTDEPOT_CB", conversion.AmountFormat((int) P_REGLEMENTDEPOT_CB, ' '));
-                parameters.put("P_TOTAL_REGLEMENTDEPOT_CAISSE", conversion.AmountFormat((int) P_TOTAL_REGLEMENTDEPOT_CAISSE, ' '));
+                parameters.put("P_TOTAL_REGLEMENTDEPOT_CAISSE",
+                        conversion.AmountFormat((int) P_TOTAL_REGLEMENTDEPOT_CAISSE, ' '));
 
-                //fin code ajouté 05/04/2016
+                // fin code ajouté 05/04/2016
                 P_TOTAL_SORTIE_CAISSE = P_SORTIECAISSE_ESPECE + P_SORTIECAISSE_CHEQUES + P_SORTIECAISSE_CB;
                 P_TOTAL_ENTREE_CAISSE = P_ENTREECAISSE_ESPECE + P_ENTREECAISSE_CHEQUES + P_ENTREECAISSE_CB;
                 P_TOTAL_REGLEMENT_CAISSE = P_REGLEMENT_ESPECE + P_REGLEMENT_CHEQUES + P_REGLEMENT_CB;
                 P_TOTAL_ACCOMPTE_CAISSE = P_ACCOMPTE_ESPECE + P_ACCOMPTE_CHEQUES + P_ACCOMPTE_CB;
                 P_TOTAL_DIFFERE_CAISSE = P_DIFFERE_ESPECE + P_DIFFERE_CHEQUES + P_DIFFERE_CB;
 
-                P_TOTAL_ESPECES_GLOBAL = (P_FONDCAISSE + P_TOTAL_ESPECE + P_ENTREECAISSE_ESPECE + P_REGLEMENT_ESPECE + P_ACCOMPTE_ESPECE + P_DIFFERE_ESPECE + P_REGLEMENTDEPOT_ESPECE) + P_SORTIECAISSE_ESPECE;
-                P_TOTAL_CHEQUES_GLOBAL = P_TOTAL_CHEQUES + P_SORTIECAISSE_CHEQUES + P_ENTREECAISSE_CHEQUES + P_REGLEMENT_CHEQUES + P_ACCOMPTE_CHEQUES + P_DIFFERE_CHEQUES + P_REGLEMENTDEPOT_CHEQUES;
-                P_TOTAL_VIREMENT_GLOBAL = P_ENTREECAISSE_VIREMENT + P_SORTIECAISSE_VIREMENT + P_REGLEMENT_VIREMENT + P_ACCOMPTE_VIREMENT + P_DIFFERE_VIREMENT;
-                P_TOTAL_CB_GLOBAL = P_TOTAL_CARTEBANCAIRE + P_SORTIECAISSE_CB + P_ENTREECAISSE_CB + P_REGLEMENT_CB + P_ACCOMPTE_CB + P_DIFFERE_CB + P_REGLEMENTDEPOT_CB;
+                P_TOTAL_ESPECES_GLOBAL = (P_FONDCAISSE + P_TOTAL_ESPECE + P_ENTREECAISSE_ESPECE + P_REGLEMENT_ESPECE
+                        + P_ACCOMPTE_ESPECE + P_DIFFERE_ESPECE + P_REGLEMENTDEPOT_ESPECE) + P_SORTIECAISSE_ESPECE;
+                P_TOTAL_CHEQUES_GLOBAL = P_TOTAL_CHEQUES + P_SORTIECAISSE_CHEQUES + P_ENTREECAISSE_CHEQUES
+                        + P_REGLEMENT_CHEQUES + P_ACCOMPTE_CHEQUES + P_DIFFERE_CHEQUES + P_REGLEMENTDEPOT_CHEQUES;
+                P_TOTAL_VIREMENT_GLOBAL = P_ENTREECAISSE_VIREMENT + P_SORTIECAISSE_VIREMENT + P_REGLEMENT_VIREMENT
+                        + P_ACCOMPTE_VIREMENT + P_DIFFERE_VIREMENT;
+                P_TOTAL_CB_GLOBAL = P_TOTAL_CARTEBANCAIRE + P_SORTIECAISSE_CB + P_ENTREECAISSE_CB + P_REGLEMENT_CB
+                        + P_ACCOMPTE_CB + P_DIFFERE_CB + P_REGLEMENTDEPOT_CB;
 
                 /* code ajouté 15/07/2015 */
                 P_TOTAL_GLOBAL_CAISSE = +P_TOTAL_ESPECES_GLOBAL + P_TOTAL_CHEQUES_GLOBAL + P_TOTAL_CB_GLOBAL;
@@ -601,7 +572,8 @@ public class MyBean extends HttpServlet {
                 parameters.put("P_REGLEMENT_VIREMENT", conversion.AmountFormat((int) P_REGLEMENT_VIREMENT, ' '));
                 parameters.put("P_REGLEMENT_CHEQUES", conversion.AmountFormat((int) P_REGLEMENT_CHEQUES, ' '));
                 parameters.put("P_REGLEMENT_CB", conversion.AmountFormat((int) P_REGLEMENT_CB, ' '));
-                parameters.put("P_TOTAL_REGLEMENT_CAISSE", conversion.AmountFormat((int) P_TOTAL_REGLEMENT_CAISSE, ' '));
+                parameters.put("P_TOTAL_REGLEMENT_CAISSE",
+                        conversion.AmountFormat((int) P_TOTAL_REGLEMENT_CAISSE, ' '));
                 parameters.put("P_ACCOMPTE_ESPECE", conversion.AmountFormat((int) P_ACCOMPTE_ESPECE, ' '));
                 parameters.put("P_ACCOMPTE_CHEQUES", conversion.AmountFormat((int) P_ACCOMPTE_CHEQUES, ' '));
                 parameters.put("P_ACCOMPTE_CB", conversion.AmountFormat((int) P_ACCOMPTE_CB, ' '));
@@ -614,7 +586,8 @@ public class MyBean extends HttpServlet {
                 parameters.put("P_DIFFERE_CB", conversion.AmountFormat((int) P_DIFFERE_CB, ' '));
 
                 parameters.put("P_TOTAL_DIFFERE_CAISSE", conversion.AmountFormat((int) P_TOTAL_DIFFERE_CAISSE, ' '));
-                P_TOTAL_CAISSE_LABEL = "Total caisse " + date.formatterShort.format(java.sql.Date.valueOf(dt_start)) + " AU " + date.formatterShort.format(java.sql.Date.valueOf(dt_end));
+                P_TOTAL_CAISSE_LABEL = "Total caisse " + date.formatterShort.format(java.sql.Date.valueOf(dt_start))
+                        + " AU " + date.formatterShort.format(java.sql.Date.valueOf(dt_end));
                 parameters.put("P_TOTAL_CAISSE_LABEL", P_TOTAL_CAISSE_LABEL);
 
                 parameters.put("P_FONDCAISSE_LABEL", P_FONDCAISSE_LABEL);
@@ -651,10 +624,11 @@ public class MyBean extends HttpServlet {
                 }
 
                 if (oTOfficine.getStrPHONE() != null) {
-                    String finalphonestring = oTOfficine.getStrPHONE() != null ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+                    String finalphonestring = oTOfficine.getStrPHONE() != null
+                            ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
                     if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
                         String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                        for (String va  : phone) {
+                        for (String va : phone) {
                             finalphonestring += " / " + conversion.PhoneNumberFormat(va);
                         }
                     }
@@ -671,111 +645,114 @@ public class MyBean extends HttpServlet {
 
                 OreportManager.BuildReportEmptyDs(parameters);
 
-                response.sendRedirect(request.getContextPath() + "/data/reports/pdf/" + "balancevente_caisse" + report_generate_file);
+                response.sendRedirect(
+                        request.getContextPath() + "/data/reports/pdf/" + "balancevente_caisse" + report_generate_file);
 
                 break;
-                case "para":
-                    System.out.println("-------------------------------------->>>>  " + dt_start);
-                    System.out.println("-------------------------------------->>>>  " + dt_end);
-                    array = getBalancePara(dt_start, dt_end, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-                    System.out.println("-------------------------------------->>>>  " + array);
-                    arrayObj = new JSONArray();
+            case "para":
+                System.out.println("-------------------------------------->>>>  " + dt_start);
+                System.out.println("-------------------------------------->>>>  " + dt_end);
+                array = getBalancePara(dt_start, dt_end, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+                System.out.println("-------------------------------------->>>>  " + array);
+                arrayObj = new JSONArray();
 
-                    if (array.length() > 1) {
-                        JSONObject totaux = array.getJSONObject((array.length() - 1));
-                        for (int idx = 0; idx < (array.length() - 1); idx++) {
-                            try {
-                                JSONObject o = array.getJSONObject(idx);
+                if (array.length() > 1) {
+                    JSONObject totaux = array.getJSONObject((array.length() - 1));
+                    for (int idx = 0; idx < (array.length() - 1); idx++) {
+                        try {
+                            JSONObject o = array.getJSONObject(idx);
 
-                                double mnt = o.getInt("VENTE_NET");
-                                double percent = (mnt * 100) / totaux.getInt("GLOBAL");
-                                Integer pm = ((Long) Math.round(Double.valueOf(totaux.getInt("GLOBAL")) / totaux.getInt("NB"))).intValue();
-                                o.put("POURCENTAGE", Math.round(percent)).put("TOTALVENTE", totaux.getInt("GLOBAL"))
-                                        .put("TOTALMARGE", totaux.getLong("TOTALMARGE"))
-                                        .put("TOTALRATIO", totaux.getDouble("TOTALRATIO"))
-                                        .put("TOTALACHAT", totaux.getLong("TOTALACHAT"))
-                                        .put("VENTE_NET_BIS", pm);
+                            double mnt = o.getInt("VENTE_NET");
+                            double percent = (mnt * 100) / totaux.getInt("GLOBAL");
+                            Integer pm = ((Long) Math
+                                    .round(Double.valueOf(totaux.getInt("GLOBAL")) / totaux.getInt("NB"))).intValue();
+                            o.put("POURCENTAGE", Math.round(percent)).put("TOTALVENTE", totaux.getInt("GLOBAL"))
+                                    .put("TOTALMARGE", totaux.getLong("TOTALMARGE"))
+                                    .put("TOTALRATIO", totaux.getDouble("TOTALRATIO"))
+                                    .put("TOTALACHAT", totaux.getLong("TOTALACHAT")).put("VENTE_NET_BIS", pm);
 
-                                arrayObj.put(o);
-                            } catch (Exception e) {
-                            }
+                            arrayObj.put(o);
+                        } catch (Exception e) {
+                        }
 
+                    }
+                }
+
+                data.put("data", arrayObj);
+                data.put("total", arrayObj.length());
+                out.println(data);
+
+                break;
+            case "parapdf":
+
+                P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
+                P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
+                // String au = " au " + LocalDate.parse(dt_end).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                // String du_= LocalDate.parse(dt_start).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+                P_H_CLT_INFOS = "BALANCE VENTE/CAISSE DU " + date.formatterShort.format(java.sql.Date.valueOf(dt_start))
+                        + " AU " + date.formatterShort.format(java.sql.Date.valueOf(dt_end));
+
+                P_H_LOGO = jdom.scr_report_file_logo;
+                parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
+                parameters.put("P_H_LOGO", P_H_LOGO);
+                parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
+
+                parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
+                parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+
+                if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
+                    P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+                }
+
+                if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
+                    P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+                }
+                if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
+                    P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+                }
+                if (oTOfficine.getStrCENTREIMPOSITION() != null) {
+                    P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+                }
+
+                if (oTOfficine.getStrPHONE() != null) {
+                    String finalphonestring = oTOfficine.getStrPHONE() != null
+                            ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+                    if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
+                        String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
+                        for (String va : phone) {
+                            finalphonestring += " / " + conversion.PhoneNumberFormat(va);
                         }
                     }
+                    P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
+                }
+                if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
+                    P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
+                }
+                if (oTOfficine.getStrNUMCOMPTABLE() != null) {
+                    P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+                }
+                parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
+                parameters.put("P_FOOTER_RC", P_FOOTER_RC);
+                _array = getBalanceParaReport(dt_start, dt_end, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+                _data = new JSONObject();
+                _data.put("root", _array);
+                app = new JsonDataSourceApp();
 
-                    data.put("data", arrayObj);
-                    data.put("total", arrayObj.length());
-                    out.println(data);
+                fileName = "rp_balancevente_caissevpara_" + DATEFORMAT.format(new Date()) + ".pdf";
+                app.fill(parameters, _data, jdom.scr_report_file + "rp_balancevente_caissevpara.jrxml", fileName);
 
-                    break;
-                case "parapdf":
+                response.sendRedirect(request.getContextPath() + "/data/reports/pdf/" + fileName);
 
-                    P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
-                    P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
-//                    String au = " au " + LocalDate.parse(dt_end).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-//                    String du_= LocalDate.parse(dt_start).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                break;
 
-                    P_H_CLT_INFOS = "BALANCE VENTE/CAISSE DU " + date.formatterShort.format(java.sql.Date.valueOf(dt_start)) + " AU " + date.formatterShort.format(java.sql.Date.valueOf(dt_end));
+            case "tableau":
+                break;
+            case "tableaupdf":
+                break;
 
-                    P_H_LOGO = jdom.scr_report_file_logo;
-                    parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
-                    parameters.put("P_H_LOGO", P_H_LOGO);
-                    parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
-
-                    parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
-                    parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
-
-                    if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-                        P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
-                    }
-
-                    if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-                        P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
-                    }
-                    if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-                        P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
-                    }
-                    if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-                        P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
-                    }
-
-                    if (oTOfficine.getStrPHONE() != null) {
-                        String finalphonestring = oTOfficine.getStrPHONE() != null ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
-                        if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
-                            String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                            for (String va  : phone) {
-                                finalphonestring += " / " + conversion.PhoneNumberFormat(va);
-                            }
-                        }
-                        P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
-                    }
-                    if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
-                        P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
-                    }
-                    if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-                        P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
-                    }
-                    parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
-                    parameters.put("P_FOOTER_RC", P_FOOTER_RC);
-                    _array = getBalanceParaReport(dt_start, dt_end, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-                    _data = new JSONObject();
-                    _data.put("root", _array);
-                    app = new JsonDataSourceApp();
-
-                    fileName = "rp_balancevente_caissevpara_" + DATEFORMAT.format(new Date()) + ".pdf";
-                    app.fill(parameters, _data, jdom.scr_report_file + "rp_balancevente_caissevpara.jrxml", fileName);
-
-                    response.sendRedirect(request.getContextPath() + "/data/reports/pdf/" + fileName);
-
-                    break;
-
-                case "tableau":
-                    break;
-                case "tableaupdf":
-                    break;
-
-                default:
-                    break;
+            default:
+                break;
             }
 
         }
@@ -826,7 +803,8 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
             predicate = cb.and(predicate, cb.equal(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "3"));
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             cq.select(root.get(TPreenregistrement_.intPRICEREMISE));
 
             cq.where(predicate, btw, ge);
@@ -871,20 +849,34 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
-            cq.multiselect(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE))),
-                    cb.sum(root.get(TPreenregistrement_.intPRICEREMISE)),
-                    cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE)), root.get(TPreenregistrement_.intPRICEREMISE))),
-                    root.get(TPreenregistrement_.strTYPEVENTE),
-                    cb.selectCase().when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
-                            .otherwise(cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE)),
-                                    root.get(TPreenregistrement_.intPRICEREMISE)))), cb.count(root),
-                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE))),
-                            cb.count(root)), cb.selectCase()
-                    .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intCUSTPART)))).otherwise(0))
-                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE)).orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            cq.multiselect(cb.sum(
+                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE))),
+                    cb.sum(root.get(TPreenregistrement_.intPRICEREMISE)), cb
+                            .sum(cb.diff(
+                                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                                            : root.get(TPreenregistrement_.intPRICE)),
+                                    root.get(TPreenregistrement_.intPRICEREMISE))),
+                    root.get(TPreenregistrement_.strTYPEVENTE), cb
+                            .selectCase().when(
+                                    cb.equal(root
+                                            .get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
+                            .otherwise(cb.sum(cb.diff(
+                                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                                            : root.get(TPreenregistrement_.intPRICE)),
+                                    root.get(TPreenregistrement_.intPRICEREMISE)))),
+                    cb.count(root),
+                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intPRICE))), cb.count(root)),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE),
+                                            root.get(TPreenregistrement_.intCUSTPART))))
+                            .otherwise(0))
+                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE))
+                    .orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
             cq.where(predicate, btw, ge);
             Query q = em.createQuery(cq);
             List<Object[]> list = q.getResultList();
@@ -895,12 +887,12 @@ public class MyBean extends HttpServlet {
             Integer totalcq = 0, totalcb = 0, totalEs = 0;
             for (Object[] t : list) {
                 try {
-                    //Integer TOTAL_DIFFERE = 0;
-                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""),
-                            TOTAL_REMISE = Integer.valueOf(t[1] + ""),
-                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""), PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
+                    // Integer TOTAL_DIFFERE = 0;
+                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""), TOTAL_REMISE = Integer.valueOf(t[1] + ""),
+                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""),
+                            PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
                             PART_TIERSPAYANT = Integer.valueOf(t[7] + "");
-//                    JSONObject transac = getBalanceRegl(dt_start, dt_end, t[3] + "", lgEmp, isOk);
+                    // JSONObject transac = getBalanceRegl(dt_start, dt_end, t[3] + "", lgEmp, isOk);
                     if ("VO".equals(t[3] + "")) {
                         PART_TIERSPAYANT -= venteCarnetRemise(dt_start, dt_end, lgEmp);
                     }
@@ -941,8 +933,7 @@ public class MyBean extends HttpServlet {
                     nb += Integer.valueOf(t[5] + "");
                     JSONObject ob = new JSONObject();
                     ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE)
-                            .put("TOTAL_REMISE", TOTAL_REMISE)
-                            .put("VENTE_NET", VENTE_NET);
+                            .put("TOTAL_REMISE", TOTAL_REMISE).put("VENTE_NET", VENTE_NET);
                     ob.put("str_TYPE_VENTE", t[3] + "");
                     ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
                     ob.put("NB", Integer.valueOf(t[5] + ""));
@@ -973,7 +964,8 @@ public class MyBean extends HttpServlet {
                 rat = new BigDecimal(ration).setScale(2, RoundingMode.HALF_UP).doubleValue();
             }
             totaux.put("NB", nb).put("GLOBALESP", totalEs).put("GLOBALCB", totalcb).put("TOTALMARGE", marge)
-                    .put("GLOBALCQ", totalcq).put("GLOBAL", Double.valueOf(Gbl).intValue()).put("TOTALACHAT", achat).put("TOTALRATIO", rat);
+                    .put("GLOBALCQ", totalcq).put("GLOBAL", Double.valueOf(Gbl).intValue()).put("TOTALACHAT", achat)
+                    .put("TOTALRATIO", rat);
             array.put(totaux);
         } catch (Exception e) {
             e.printStackTrace();
@@ -986,23 +978,11 @@ public class MyBean extends HttpServlet {
         String str_TYPE_VENTE = "", str_TYPE_VENTEVO = "";
         Integer NB = 0, NBT = 0, NBVO = 0;
         EntityManager em = this.getEntityManager();
-        long PART_TIERSPAYANT = 0, TOTALMARGE = 0, TOTALACHAT = 0, GLOBALESP = 0, GLOBAL = 0, GLOBALCQ = 0, GLOBALCB = 0, PART_TIERSPAYANTVO = 0,
-                TOTAL_REMISE = 0,
-                VENTE_BRUT = 0,
-                TOTAL_ESPECE = 0,
-                TOTAL_CHEQUE = 0,
-                TOTAL_CARTEBANCAIRE = 0,
-                VENTE_NET = 0,
-                TOTAL_DIFFERE = 0,
-                TOTAL_CAISSE = 0,
-                TOTAL_REMISEVO = 0,
-                VENTE_BRUTVO = 0,
-                TOTAL_ESPECEVO = 0,
-                TOTAL_CHEQUEVO = 0,
-                TOTAL_CARTEBANCAIREVO = 0,
-                VENTE_NETVO = 0,
-                TOTAL_DIFFEREVO = 0,
-                TOTAL_CAISSEVO = 0;
+        long PART_TIERSPAYANT = 0, TOTALMARGE = 0, TOTALACHAT = 0, GLOBALESP = 0, GLOBAL = 0, GLOBALCQ = 0,
+                GLOBALCB = 0, PART_TIERSPAYANTVO = 0, TOTAL_REMISE = 0, VENTE_BRUT = 0, TOTAL_ESPECE = 0,
+                TOTAL_CHEQUE = 0, TOTAL_CARTEBANCAIRE = 0, VENTE_NET = 0, TOTAL_DIFFERE = 0, TOTAL_CAISSE = 0,
+                TOTAL_REMISEVO = 0, VENTE_BRUTVO = 0, TOTAL_ESPECEVO = 0, TOTAL_CHEQUEVO = 0, TOTAL_CARTEBANCAIREVO = 0,
+                VENTE_NETVO = 0, TOTAL_DIFFEREVO = 0, TOTAL_CAISSEVO = 0;
         int isOk = 0;
         try {
             TParameters p;
@@ -1017,7 +997,8 @@ public class MyBean extends HttpServlet {
                 Period period = Period.between(dtstart, dtend);
                 for (int i = 0; i < period.getMonths(); i++) {
                     LocalDate _dtStart = dtstart.plusMonths(i);
-                    JSONArray _array = getBalance(_dtStart, _dtStart.plusDays(_dtStart.lengthOfMonth() - 1), lgEmp, isOk);
+                    JSONArray _array = getBalance(_dtStart, _dtStart.plusDays(_dtStart.lengthOfMonth() - 1), lgEmp,
+                            isOk);
                     JSONObject totaux = _array.getJSONObject((_array.length() - 1));
                     NBT += totaux.getInt("NB");
                     TOTALMARGE += totaux.getLong("TOTALMARGE");
@@ -1072,7 +1053,7 @@ public class MyBean extends HttpServlet {
                         TOTAL_REMISE += object.getInt("TOTAL_REMISE");
                         NB += object.getInt("NB");
                         VENTE_BRUT += object.getLong("VENTE_BRUT");
-                        //PART_TIERSPAYANT+= object.getLong("PART_TIERSPAYANT");
+                        // PART_TIERSPAYANT+= object.getLong("PART_TIERSPAYANT");
                         TOTAL_ESPECE += object.getLong("TOTAL_ESPECE");
                         TOTAL_CHEQUE += object.getLong("TOTAL_CHEQUE");
                         TOTAL_CARTEBANCAIRE += object.getLong("TOTAL_CARTEBANCAIRE");
@@ -1097,8 +1078,7 @@ public class MyBean extends HttpServlet {
 
                 Long _PANIER_MOYEN = Math.round(Double.valueOf(VENTE_BRUT) / NB);
                 JSONObject ob = new JSONObject();
-                ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE)
-                        .put("TOTAL_REMISE", TOTAL_REMISE)
+                ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE).put("TOTAL_REMISE", TOTAL_REMISE)
                         .put("VENTE_NET", VENTE_NET);
                 ob.put("str_TYPE_VENTE", "VNO");
                 ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
@@ -1113,8 +1093,7 @@ public class MyBean extends HttpServlet {
 
                 JSONObject obvo = new JSONObject();
                 obvo.put("VENTE_BRUT", VENTE_BRUTVO).put("TOTAL_DIFFERE", TOTAL_DIFFEREVO)
-                        .put("TOTAL_REMISE", TOTAL_REMISEVO)
-                        .put("VENTE_NET", VENTE_NETVO);
+                        .put("TOTAL_REMISE", TOTAL_REMISEVO).put("VENTE_NET", VENTE_NETVO);
                 obvo.put("str_TYPE_VENTE", "VO");
                 obvo.put("TOTAL_CAISSE", TOTAL_CAISSEVO);
                 obvo.put("NB", NBVO);
@@ -1131,9 +1110,10 @@ public class MyBean extends HttpServlet {
                     rat = new BigDecimal(ration).setScale(2, RoundingMode.HALF_UP).doubleValue();
                 }
                 JSONObject totaux = new JSONObject();
-                totaux.put("NB", NBT).put("GLOBALESP", GLOBALESP).put("GLOBALCB", GLOBALCB).put("TOTALMARGE", TOTALMARGE)
-                        .put("GLOBALCQ", GLOBALCQ).put("GLOBAL", Double.valueOf(GLOBAL).intValue())
-                        .put("TOTALACHAT", TOTALACHAT).put("TOTALRATIO", rat).put("TOTALRATIO", rat);
+                totaux.put("NB", NBT).put("GLOBALESP", GLOBALESP).put("GLOBALCB", GLOBALCB)
+                        .put("TOTALMARGE", TOTALMARGE).put("GLOBALCQ", GLOBALCQ)
+                        .put("GLOBAL", Double.valueOf(GLOBAL).intValue()).put("TOTALACHAT", TOTALACHAT)
+                        .put("TOTALRATIO", rat).put("TOTALRATIO", rat);
                 array.put(totaux);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -1181,21 +1161,38 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
-            cq.multiselect(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT))),
-                    //                     cb.sum(root.get(TPreenregistrement_.intPRICEREMISE)),
-                    cb.sum((isOk == 1 ? cb.diff(root.get(TPreenregistrement_.intPRICEREMISE), root.get(TPreenregistrement_.intREMISEPARA)) : root.get(TPreenregistrement_.intPRICEREMISE))),
-                    cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT)), root.get(TPreenregistrement_.intREMISEPARA))),
-                    root.get(TPreenregistrement_.strTYPEVENTE),
-                    cb.selectCase().when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
-                            .otherwise(cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT)),
-                                    root.get(TPreenregistrement_.intREMISEPARA)))), cb.count(root),
-                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT))),
-                            cb.count(root)), cb.selectCase()
-                    .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(cb.diff(root.get(TPreenregistrement_.intACCOUNT), root.get(TPreenregistrement_.intCUSTPART)))).otherwise(0))
-                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE)).orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            cq.multiselect(
+                    cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intACCOUNT))),
+                    // cb.sum(root.get(TPreenregistrement_.intPRICEREMISE)),
+                    cb.sum((isOk == 1
+                            ? cb.diff(root.get(TPreenregistrement_.intPRICEREMISE),
+                                    root.get(TPreenregistrement_.intREMISEPARA))
+                            : root.get(TPreenregistrement_.intPRICEREMISE))),
+                    cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intACCOUNT)), root.get(
+                                    TPreenregistrement_.intREMISEPARA))),
+                    root.get(TPreenregistrement_.strTYPEVENTE), cb
+                            .selectCase().when(
+                                    cb.equal(root
+                                            .get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
+                            .otherwise(cb.sum(cb.diff(
+                                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                                            : root.get(TPreenregistrement_.intACCOUNT)),
+                                    root.get(TPreenregistrement_.intREMISEPARA)))),
+                    cb.count(root),
+                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intACCOUNT))), cb.count(root)),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(cb.diff(root.get(TPreenregistrement_.intACCOUNT),
+                                            root.get(TPreenregistrement_.intCUSTPART))))
+                            .otherwise(0))
+                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE))
+                    .orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
             cq.where(predicate, btw, ge);
             Query q = em.createQuery(cq);
 
@@ -1208,10 +1205,10 @@ public class MyBean extends HttpServlet {
             Integer totalcq = 0, totalcb = 0, totalEs = 0;
             for (Object[] t : list) {
                 try {
-                    //Integer TOTAL_DIFFERE = 0;
-                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""),
-                            TOTAL_REMISE = Integer.valueOf(t[1] + ""),
-                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""), PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
+                    // Integer TOTAL_DIFFERE = 0;
+                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""), TOTAL_REMISE = Integer.valueOf(t[1] + ""),
+                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""),
+                            PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
                             PART_TIERSPAYANT = Integer.valueOf(t[7] + "");
                     Integer TOTAL_DIFFERE = getBalanceDiff(dt_start, dt_end, t[3] + "", lgEmp);
                     Integer montantES = getBalanceReglExclude(dt_start, dt_end, t[3] + "", lgEmp, isOk, "1");
@@ -1247,8 +1244,7 @@ public class MyBean extends HttpServlet {
                     nb += Integer.valueOf(t[5] + "");
                     JSONObject ob = new JSONObject();
                     ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE)
-                            .put("TOTAL_REMISE", TOTAL_REMISE)
-                            .put("VENTE_NET", VENTE_NET);
+                            .put("TOTAL_REMISE", TOTAL_REMISE).put("VENTE_NET", VENTE_NET);
                     ob.put("str_TYPE_VENTE", t[3] + "");
                     ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
                     ob.put("NB", Integer.valueOf(t[5] + ""));
@@ -1277,7 +1273,8 @@ public class MyBean extends HttpServlet {
                 rat = new BigDecimal(ration).setScale(2, RoundingMode.HALF_UP).doubleValue();
             }
             totaux.put("NB", nb).put("GLOBALESP", totalEs).put("GLOBALCB", totalcb).put("TOTALMARGE", marge)
-                    .put("GLOBALCQ", totalcq).put("GLOBAL", Double.valueOf(Gbl).longValue()).put("TOTALACHAT", achat).put("TOTALRATIO", rat);
+                    .put("GLOBALCQ", totalcq).put("GLOBAL", Double.valueOf(Gbl).longValue()).put("TOTALACHAT", achat)
+                    .put("TOTALRATIO", rat);
             array.put(totaux);
         } catch (Exception e) {
             e.printStackTrace();
@@ -1306,20 +1303,34 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
-            cq.multiselect(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT))),
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            cq.multiselect(
+                    cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intACCOUNT))),
                     cb.sum(root.get(TPreenregistrement_.intREMISEPARA)),
-                    cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT)), root.get(TPreenregistrement_.intREMISEPARA))),
-                    root.get(TPreenregistrement_.strTYPEVENTE),
-                    cb.selectCase().when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
-                            .otherwise(cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT)),
-                                    root.get(TPreenregistrement_.intREMISEPARA)))), cb.count(root),
-                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intACCOUNT))),
-                            cb.count(root)), cb.selectCase()
-                    .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(cb.diff(root.get(TPreenregistrement_.intACCOUNT), root.get(TPreenregistrement_.intCUSTPART)))).otherwise(0))
-                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE)).orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
+                    cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intACCOUNT)), root.get(
+                                    TPreenregistrement_.intREMISEPARA))),
+                    root.get(TPreenregistrement_.strTYPEVENTE), cb
+                            .selectCase().when(
+                                    cb.equal(root
+                                            .get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
+                            .otherwise(cb.sum(cb.diff(
+                                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                                            : root.get(TPreenregistrement_.intACCOUNT)),
+                                    root.get(TPreenregistrement_.intREMISEPARA)))),
+                    cb.count(root),
+                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intACCOUNT))), cb.count(root)),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(cb.diff(root.get(TPreenregistrement_.intACCOUNT),
+                                            root.get(TPreenregistrement_.intCUSTPART))))
+                            .otherwise(0))
+                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE))
+                    .orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
             cq.where(predicate, btw, ge);
             Query q = em.createQuery(cq);
 
@@ -1332,18 +1343,22 @@ public class MyBean extends HttpServlet {
             Integer totalcq = 0, totalcb = 0, totalEs = 0;
             for (Object[] t : list) {
                 try {
-                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""),
-                            TOTAL_REMISE = Integer.valueOf(t[1] + ""),
-                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""), PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
+                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""), TOTAL_REMISE = Integer.valueOf(t[1] + ""),
+                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""),
+                            PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
                             PART_TIERSPAYANT = Integer.valueOf(t[7] + "");
                     Integer TOTAL_DIFFERE = getBalanceDiff(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp);
-                    Integer montantES = getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "1");
+                    Integer montantES = getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp,
+                            isOk, "1");
                     montantES = (montantES != null ? montantES : 0);
-                    montantES += getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "4");
+                    montantES += getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk,
+                            "4");
 
-                    Integer Cheques = getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "2");
+                    Integer Cheques = getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp,
+                            isOk, "2");
                     Cheques = (Cheques != null ? Cheques : 0);
-                    Integer cba = getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "3");
+                    Integer cba = getBalanceReglExclude(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk,
+                            "3");
                     cba = (cba != null ? cba : 0);
 
                     if (y.compareTo(x) == 0) {
@@ -1368,8 +1383,7 @@ public class MyBean extends HttpServlet {
                     nb += Integer.valueOf(t[5] + "");
                     JSONObject ob = new JSONObject();
                     ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE)
-                            .put("TOTAL_REMISE", TOTAL_REMISE)
-                            .put("VENTE_NET", VENTE_NET);
+                            .put("TOTAL_REMISE", TOTAL_REMISE).put("VENTE_NET", VENTE_NET);
                     ob.put("str_TYPE_VENTE", t[3] + "");
                     ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
                     ob.put("NB", Integer.valueOf(t[5] + ""));
@@ -1406,23 +1420,11 @@ public class MyBean extends HttpServlet {
         JSONArray array = new JSONArray();
         String str_TYPE_VENTE = "", str_TYPE_VENTEVO = "";
         Integer NB = 0, NBT = 0, NBVO = 0;
-        long PART_TIERSPAYANT = 0, TOTALMARGE = 0, TOTALACHAT = 0, GLOBALESP = 0, GLOBAL = 0, GLOBALCQ = 0, GLOBALCB = 0, PART_TIERSPAYANTVO = 0,
-                TOTAL_REMISE = 0,
-                VENTE_BRUT = 0,
-                TOTAL_ESPECE = 0,
-                TOTAL_CHEQUE = 0,
-                TOTAL_CARTEBANCAIRE = 0,
-                VENTE_NET = 0,
-                TOTAL_DIFFERE = 0,
-                TOTAL_CAISSE = 0,
-                TOTAL_REMISEVO = 0,
-                VENTE_BRUTVO = 0,
-                TOTAL_ESPECEVO = 0,
-                TOTAL_CHEQUEVO = 0,
-                TOTAL_CARTEBANCAIREVO = 0,
-                VENTE_NETVO = 0,
-                TOTAL_DIFFEREVO = 0,
-                TOTAL_CAISSEVO = 0;
+        long PART_TIERSPAYANT = 0, TOTALMARGE = 0, TOTALACHAT = 0, GLOBALESP = 0, GLOBAL = 0, GLOBALCQ = 0,
+                GLOBALCB = 0, PART_TIERSPAYANTVO = 0, TOTAL_REMISE = 0, VENTE_BRUT = 0, TOTAL_ESPECE = 0,
+                TOTAL_CHEQUE = 0, TOTAL_CARTEBANCAIRE = 0, VENTE_NET = 0, TOTAL_DIFFERE = 0, TOTAL_CAISSE = 0,
+                TOTAL_REMISEVO = 0, VENTE_BRUTVO = 0, TOTAL_ESPECEVO = 0, TOTAL_CHEQUEVO = 0, TOTAL_CARTEBANCAIREVO = 0,
+                VENTE_NETVO = 0, TOTAL_DIFFEREVO = 0, TOTAL_CAISSEVO = 0;
         int isOk = 0;
         try {
             TParameters p;
@@ -1437,7 +1439,8 @@ public class MyBean extends HttpServlet {
                 Period period = Period.between(dtstart, dtend);
                 for (int i = 0; i < period.getMonths(); i++) {
                     LocalDate _dtStart = dtstart.plusMonths(i);
-                    JSONArray _array = getBalanceExclude(_dtStart, _dtStart.plusDays(_dtStart.lengthOfMonth() - 1), lgEmp, isOk);
+                    JSONArray _array = getBalanceExclude(_dtStart, _dtStart.plusDays(_dtStart.lengthOfMonth() - 1),
+                            lgEmp, isOk);
                     JSONObject totaux = _array.getJSONObject((_array.length() - 1));
                     NBT += totaux.getInt("NB");
                     TOTALMARGE += totaux.getLong("TOTALMARGE");
@@ -1493,7 +1496,7 @@ public class MyBean extends HttpServlet {
                         TOTAL_REMISE += object.getInt("TOTAL_REMISE");
                         NB += object.getInt("NB");
                         VENTE_BRUT += object.getLong("VENTE_BRUT");
-                        //PART_TIERSPAYANT+= object.getLong("PART_TIERSPAYANT");
+                        // PART_TIERSPAYANT+= object.getLong("PART_TIERSPAYANT");
                         TOTAL_ESPECE += object.getLong("TOTAL_ESPECE");
                         TOTAL_CHEQUE += object.getLong("TOTAL_CHEQUE");
                         TOTAL_CARTEBANCAIRE += object.getLong("TOTAL_CARTEBANCAIRE");
@@ -1518,8 +1521,7 @@ public class MyBean extends HttpServlet {
 
                 Long _PANIER_MOYEN = Math.round(Double.valueOf(VENTE_BRUT) / NB);
                 JSONObject ob = new JSONObject();
-                ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE)
-                        .put("TOTAL_REMISE", TOTAL_REMISE)
+                ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE).put("TOTAL_REMISE", TOTAL_REMISE)
                         .put("VENTE_NET", VENTE_NET);
                 ob.put("str_TYPE_VENTE", "VNO");
                 ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
@@ -1534,8 +1536,7 @@ public class MyBean extends HttpServlet {
 
                 JSONObject obvo = new JSONObject();
                 obvo.put("VENTE_BRUT", VENTE_BRUTVO).put("TOTAL_DIFFERE", TOTAL_DIFFEREVO)
-                        .put("TOTAL_REMISE", TOTAL_REMISEVO)
-                        .put("VENTE_NET", VENTE_NETVO);
+                        .put("TOTAL_REMISE", TOTAL_REMISEVO).put("VENTE_NET", VENTE_NETVO);
                 obvo.put("str_TYPE_VENTE", "VO");
                 obvo.put("TOTAL_CAISSE", TOTAL_CAISSEVO);
                 obvo.put("NB", NBVO);
@@ -1552,9 +1553,10 @@ public class MyBean extends HttpServlet {
                     rat = new BigDecimal(ration).setScale(2, RoundingMode.HALF_UP).doubleValue();
                 }
                 JSONObject totaux = new JSONObject();
-                totaux.put("NB", NBT).put("GLOBALESP", GLOBALESP).put("GLOBALCB", GLOBALCB).put("TOTALMARGE", TOTALMARGE)
-                        .put("GLOBALCQ", GLOBALCQ).put("GLOBAL", Double.valueOf(GLOBAL).intValue())
-                        .put("TOTALACHAT", TOTALACHAT).put("TOTALRATIO", rat).put("TOTALRATIO", rat);
+                totaux.put("NB", NBT).put("GLOBALESP", GLOBALESP).put("GLOBALCB", GLOBALCB)
+                        .put("TOTALMARGE", TOTALMARGE).put("GLOBALCQ", GLOBALCQ)
+                        .put("GLOBAL", Double.valueOf(GLOBAL).intValue()).put("TOTALACHAT", TOTALACHAT)
+                        .put("TOTALRATIO", rat).put("TOTALRATIO", rat);
                 array.put(totaux);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -1566,7 +1568,8 @@ public class MyBean extends HttpServlet {
         return array;
     }
 
-    public Integer getBalanceReglExclude(String dt_start, String dt_end, String typevente, String lgEmp, int AMOUNT2, String lgTYPEREGLEMENTID) {
+    public Integer getBalanceReglExclude(String dt_start, String dt_end, String typevente, String lgEmp, int AMOUNT2,
+            String lgTYPEREGLEMENTID) {
 
         EntityManager em = getEntityManager();
         Integer diff = 0;
@@ -1588,12 +1591,14 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.equal(pr.get(TPreenregistrement_.strTYPEVENTE), typevente));
             predicate = cb.and(predicate, cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), lgTYPEREGLEMENTID));
             Predicate ge = cb.greaterThan(pr.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, pr.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, pr.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             sub.select(pr.get(TPreenregistrement_.lgPREENREGISTREMENTID)).where(predicate, btw, ge);
 
             Predicate ge2 = cb.greaterThan(root.get(TCashTransaction_.intAMOUNT), 0);
 
-            cq.select(cb.sum((AMOUNT2 == 1 ? root.get(TCashTransaction_.intAMOUNT2) : root.get(TCashTransaction_.intACCOUNT))));
+            cq.select(cb.sum(
+                    (AMOUNT2 == 1 ? root.get(TCashTransaction_.intAMOUNT2) : root.get(TCashTransaction_.intACCOUNT))));
 
             cq.where(ge2, cb.in(root.get(TCashTransaction_.strRESSOURCEREF)).value(sub));
 
@@ -1619,10 +1624,9 @@ public class MyBean extends HttpServlet {
         TCashTransaction cs = null;
         try {
 
-            List<TPreenregistrement> list = em.createQuery("SELECT  o FROM TPreenregistrement o WHERE  FUNCTION('DATE', o.dtANNULER) =?1   AND o.lgTYPEVENTEID.lgTYPEVENTEID <> '5'  AND o.bISCANCEL=TRUE AND  FUNCTION('DATE',o.dtANNULER)> FUNCTION('DATE',o.dtUPDATED) AND o.strTYPEVENTE=?3 ")
-                    .setParameter(1, java.sql.Date.valueOf(dt_end))
-                    .setParameter(3, typevente)
-                    .getResultList();
+            List<TPreenregistrement> list = em.createQuery(
+                    "SELECT  o FROM TPreenregistrement o WHERE  FUNCTION('DATE', o.dtANNULER) =?1   AND o.lgTYPEVENTEID.lgTYPEVENTEID <> '5'  AND o.bISCANCEL=TRUE AND  FUNCTION('DATE',o.dtANNULER)> FUNCTION('DATE',o.dtUPDATED) AND o.strTYPEVENTE=?3 ")
+                    .setParameter(1, java.sql.Date.valueOf(dt_end)).setParameter(3, typevente).getResultList();
 
             Integer montant = 0, montantES = 0, remise = 0, tp = 0, monantTTC = 0, cheques = 0, dif = 0, cb = 0;
             for (TPreenregistrement op : list) {
@@ -1630,9 +1634,9 @@ public class MyBean extends HttpServlet {
                 TPreenregistrementCompteClient diff = null;
                 List<TRecettes> recetteses = new ArrayList<>();
                 try {
-                    diff = (TPreenregistrementCompteClient) em.createQuery("SELECT  o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ")
-                            .setParameter(1, op.getLgPREENREGISTREMENTID()).setMaxResults(1)
-                            .getSingleResult();
+                    diff = (TPreenregistrementCompteClient) em.createQuery(
+                            "SELECT  o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ")
+                            .setParameter(1, op.getLgPREENREGISTREMENTID()).setMaxResults(1).getSingleResult();
                 } catch (Exception e) {
                 }
 
@@ -1648,28 +1652,29 @@ public class MyBean extends HttpServlet {
                 montant += (op.getIntACCOUNT() - op.getIntREMISEPARA());
                 _amount = op.getIntACCOUNT() - op.getIntREMISEPARA();
                 if (!recetteses.isEmpty()) {
-                    String reg = op.getLgREGLEMENTID().getLgMODEREGLEMENTID().getLgTYPEREGLEMENTID().getLgTYPEREGLEMENTID();
+                    String reg = op.getLgREGLEMENTID().getLgMODEREGLEMENTID().getLgTYPEREGLEMENTID()
+                            .getLgTYPEREGLEMENTID();
                     switch (reg) {
-                        case "1":
-                        case "4":
-                            montantES += recetteses.stream().mapToInt((value) -> {
-                                return value.getIntAMOUNT().intValue();
-                            }).sum();
-                            break;
-                        case "2":
-                            cheques += recetteses.stream().mapToInt((value) -> {
-                                return value.getIntAMOUNT().intValue();
-                            }).sum();
-                            break;
-                        case "3":
-                            cb += recetteses.stream().mapToInt((value) -> {
-                                return value.getIntAMOUNT().intValue();
-                            }).sum();
+                    case "1":
+                    case "4":
+                        montantES += recetteses.stream().mapToInt((value) -> {
+                            return value.getIntAMOUNT().intValue();
+                        }).sum();
+                        break;
+                    case "2":
+                        cheques += recetteses.stream().mapToInt((value) -> {
+                            return value.getIntAMOUNT().intValue();
+                        }).sum();
+                        break;
+                    case "3":
+                        cb += recetteses.stream().mapToInt((value) -> {
+                            return value.getIntAMOUNT().intValue();
+                        }).sum();
 
-                            break;
+                        break;
 
-                        default:
-                            break;
+                    default:
+                        break;
 
                     }
 
@@ -1682,9 +1687,8 @@ public class MyBean extends HttpServlet {
                 }
 
             }
-            json.putOpt("montant", montant).putOpt("montantES", montantES)
-                    .put("tp", tp).put("remise", remise).put("monantTTC", monantTTC)
-                    .put("cb", cb).put("cheques", cheques).put("differe", dif);
+            json.putOpt("montant", montant).putOpt("montantES", montantES).put("tp", tp).put("remise", remise)
+                    .put("monantTTC", monantTTC).put("cb", cb).put("cheques", cheques).put("differe", dif);
 
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
@@ -1695,7 +1699,8 @@ public class MyBean extends HttpServlet {
     private List<TRecettes> montantEspece(String lgTransactionID, EntityManager em) {
         List<TRecettes> recetteses = new ArrayList<>();
         try {
-            TypedQuery<TRecettes> query = em.createQuery("SELECT o FROM TRecettes o WHERE o.strREFFACTURE = ?1", TRecettes.class);
+            TypedQuery<TRecettes> query = em.createQuery("SELECT o FROM TRecettes o WHERE o.strREFFACTURE = ?1",
+                    TRecettes.class);
             query.setParameter(1, lgTransactionID);
             recetteses = query.getResultList();
         } catch (Exception e) {
@@ -1710,28 +1715,29 @@ public class MyBean extends HttpServlet {
         TCashTransaction cs = null;
         try {
 
-            List<TPreenregistrement> list = em.createQuery("SELECT  o FROM TPreenregistrement o WHERE  FUNCTION('DATE', o.dtANNULER) =?1   AND o.lgTYPEVENTEID.lgTYPEVENTEID <> '5'  AND o.bISCANCEL=TRUE AND  FUNCTION('DATE',o.dtANNULER)> FUNCTION('DATE',o.dtUPDATED) AND o.strTYPEVENTE=?3 ")
-                    .setParameter(1, java.sql.Date.valueOf(dt_end))
-                    .setParameter(3, typevente)
-                    .getResultList();
+            List<TPreenregistrement> list = em.createQuery(
+                    "SELECT  o FROM TPreenregistrement o WHERE  FUNCTION('DATE', o.dtANNULER) =?1   AND o.lgTYPEVENTEID.lgTYPEVENTEID <> '5'  AND o.bISCANCEL=TRUE AND  FUNCTION('DATE',o.dtANNULER)> FUNCTION('DATE',o.dtUPDATED) AND o.strTYPEVENTE=?3 ")
+                    .setParameter(1, java.sql.Date.valueOf(dt_end)).setParameter(3, typevente).getResultList();
 
             Integer montant = 0, montantES = 0, remise = 0, tp = 0, monantTTC = 0, cheques = 0, dif = 0, cb = 0;
             for (TPreenregistrement op : list) {
                 Integer _amount = 0;
                 TPreenregistrementCompteClient diff = null;
                 try {
-                    diff = (TPreenregistrementCompteClient) em.createQuery("SELECT  o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ")
-                            .setParameter(1, op.getLgPREENREGISTREMENTID()).setMaxResults(1)
-                            .getSingleResult();
+                    diff = (TPreenregistrementCompteClient) em.createQuery(
+                            "SELECT  o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ")
+                            .setParameter(1, op.getLgPREENREGISTREMENTID()).setMaxResults(1).getSingleResult();
                 } catch (Exception e) {
                 }
 
                 try {
                     if (op.getLgTYPEVENTEID().getLgTYPEVENTEID().equals("3")) {
-                        cs = (TCashTransaction) em.createQuery("SELECT o FROM TCashTransaction o WHERE o.strRESSOURCEREF=?1")
+                        cs = (TCashTransaction) em
+                                .createQuery("SELECT o FROM TCashTransaction o WHERE o.strRESSOURCEREF=?1")
                                 .setParameter(1, op.getLgPREENREGISTREMENTID()).getSingleResult();
                     } else {
-                        cs = (TCashTransaction) em.createQuery("SELECT o FROM TCashTransaction o WHERE o.strRESSOURCEREF=?1 AND o.intAMOUNTDEBIT =0 ")
+                        cs = (TCashTransaction) em.createQuery(
+                                "SELECT o FROM TCashTransaction o WHERE o.strRESSOURCEREF=?1 AND o.intAMOUNTDEBIT =0 ")
                                 .setParameter(1, op.getLgPREENREGISTREMENTID()).getSingleResult();
                     }
 
@@ -1744,21 +1750,21 @@ public class MyBean extends HttpServlet {
                 if (cs != null) {
                     String reg = cs.getLgTYPEREGLEMENTID();
                     switch (reg) {
-                        case "1":
-                        case "4":
+                    case "1":
+                    case "4":
 
-                            montantES += (cs.getIntAMOUNT() > 0 ? cs.getIntACCOUNT() : 0);
+                        montantES += (cs.getIntAMOUNT() > 0 ? cs.getIntACCOUNT() : 0);
 
-                            break;
-                        case "2":
-                            cheques += (cs.getIntAMOUNT() > 0 ? cs.getIntACCOUNT() : 0);
-                            break;
-                        case "3":
-                            cb += (cs.getIntAMOUNT() > 0 ? cs.getIntACCOUNT() : 0);
-                            break;
+                        break;
+                    case "2":
+                        cheques += (cs.getIntAMOUNT() > 0 ? cs.getIntACCOUNT() : 0);
+                        break;
+                    case "3":
+                        cb += (cs.getIntAMOUNT() > 0 ? cs.getIntACCOUNT() : 0);
+                        break;
 
-                        default:
-                            break;
+                    default:
+                        break;
 
                     }
 
@@ -1770,9 +1776,8 @@ public class MyBean extends HttpServlet {
                     dif += diff.getIntPRICERESTE();
                 }
             }
-            json.putOpt("montant", montant).putOpt("montantES", montantES)
-                    .put("tp", tp).put("remise", remise).put("monantTTC", monantTTC)
-                    .put("cb", cb).put("cheques", cheques).put("differe", dif);
+            json.putOpt("montant", montant).putOpt("montantES", montantES).put("tp", tp).put("remise", remise)
+                    .put("monantTTC", monantTTC).put("cb", cb).put("cheques", cheques).put("differe", dif);
 
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, e.getLocalizedMessage(), e);
@@ -1800,19 +1805,26 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.equal(pr.get(TPreenregistrement_.bISCANCEL), false));
             predicate = cb.and(predicate, cb.equal(pr.get(TPreenregistrement_.strTYPEVENTE), typevente));
             Predicate ge = cb.greaterThan(pr.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, pr.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, pr.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             sub.select(pr.get(TPreenregistrement_.lgPREENREGISTREMENTID)).where(predicate, btw, ge);
             Predicate ge2 = cb.greaterThan(root.get(TCashTransaction_.intAMOUNT), 0);
             cq.multiselect(
-                    cb.selectCase().when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "1"),
-                            cb.sum((AMOUNT2 == 1 ? root.get(TCashTransaction_.intAMOUNT2) : root.get(TCashTransaction_.intAMOUNT))))
-                            .otherwise(0), cb.selectCase().when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "2"),
-                    cb.sum(root.get(TCashTransaction_.intAMOUNT)))
-                    .otherwise(0), cb.selectCase().when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "3"),
-                    cb.sum(root.get(TCashTransaction_.intAMOUNT)))
-                    .otherwise(0), cb.selectCase().when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "4"),
-                    cb.sum(root.get(TCashTransaction_.intAMOUNT)))
-                    .otherwise(0));
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "1"),
+                                    cb.sum((AMOUNT2 == 1 ? root.get(TCashTransaction_.intAMOUNT2)
+                                            : root.get(TCashTransaction_.intAMOUNT))))
+                            .otherwise(0),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "2"),
+                                    cb.sum(root.get(TCashTransaction_.intAMOUNT)))
+                            .otherwise(0),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "3"),
+                                    cb.sum(root.get(TCashTransaction_.intAMOUNT)))
+                            .otherwise(0),
+                    cb.selectCase().when(cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), "4"),
+                            cb.sum(root.get(TCashTransaction_.intAMOUNT))).otherwise(0));
             cq.where(ge2, cb.in(root.get(TCashTransaction_.strRESSOURCEREF)).value(sub));
 
             Query q = em.createQuery(cq);
@@ -1822,7 +1834,8 @@ public class MyBean extends HttpServlet {
                 try {
 
                     json.putOpt("montantES", Integer.valueOf(t[0].toString()) + Integer.valueOf(t[3].toString()))
-                            .put("Cheques", Integer.valueOf(t[1].toString())).put("cb", Integer.valueOf(t[2].toString()));
+                            .put("Cheques", Integer.valueOf(t[1].toString()))
+                            .put("cb", Integer.valueOf(t[2].toString()));
 
                 } catch (JSONException ex) {
                     LOGGER.log(Level.SEVERE, ex.getLocalizedMessage(), ex);
@@ -1848,7 +1861,8 @@ public class MyBean extends HttpServlet {
             Join<TBonLivraison, TOrder> or = root.join("lgORDERID", JoinType.INNER);
             Predicate criteria = cb.conjunction();
 
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get("dtUPDATED")), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get("dtUPDATED")),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             criteria = cb.and(criteria, cb.equal(root.get(TBonLivraison_.strSTATUT), "is_Closed"));
             criteria = cb.and(criteria, cb.equal(us.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
             criteria = cb.and(criteria);
@@ -1884,10 +1898,12 @@ public class MyBean extends HttpServlet {
 
             Predicate criteria = cb.conjunction();
 
-            Predicate btw = cb.between(cb.function("DATE", Date.class, us.get("dtUPDATED")), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, us.get("dtUPDATED")),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             criteria = cb.and(criteria, cb.equal(us.get(TBonLivraison_.strSTATUT), "is_Closed"));
             criteria = cb.and(criteria, cb.equal(root.get("lgFAMILLEID").get("lgZONEGEOID").get("boolACCOUNT"), false));
-            criteria = cb.and(criteria, cb.equal(us.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
+            criteria = cb.and(criteria,
+                    cb.equal(us.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
             criteria = cb.and(criteria);
 
             cq.multiselect(cb.sumAsLong(root.get(TBonLivraisonDetail_.intPAF)));
@@ -1920,23 +1936,30 @@ public class MyBean extends HttpServlet {
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
             Join<TPreenregistrementDetail, TPreenregistrement> pr = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
             Join<TPreenregistrementDetail, TFamille> prf = root.join("lgFAMILLEID", JoinType.INNER);
-            Join< TFamille, TCodeTva> tva = prf.join("lgCODETVAID", JoinType.INNER);
+            Join<TFamille, TCodeTva> tva = prf.join("lgCODETVAID", JoinType.INNER);
             Predicate criteria = cb.conjunction();
 
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get("lgPREENREGISTREMENTID").get("dtUPDATED")), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(
+                    cb.function("DATE", Date.class, root.get("lgPREENREGISTREMENTID").get("dtUPDATED")),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("strSTATUT"), "is_Closed"));
             criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("bISCANCEL"), false));
-            criteria = cb.and(criteria, cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
-            //criteria = cb.and(criteria, cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "4"));
+            criteria = cb.and(criteria,
+                    cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
+            // criteria = cb.and(criteria,
+            // cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "4"));
             Predicate pu = cb.greaterThan(root.get("lgPREENREGISTREMENTID").get("intPRICE"), 0);
-            criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
+            criteria = cb.and(criteria, cb.equal(
+                    root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
+                    emp));
 
             cq.where(criteria, pu, btw);
 
             Query q = em.createQuery(cq);
             List<TPreenregistrementDetail> oblist = q.getResultList();
 
-            Map<TCodeTva, List<TPreenregistrementDetail>> mysList = oblist.stream().collect(Collectors.groupingBy(s -> s.getLgFAMILLEID().getLgCODETVAID()));
+            Map<TCodeTva, List<TPreenregistrementDetail>> mysList = oblist.stream()
+                    .collect(Collectors.groupingBy(s -> s.getLgFAMILLEID().getLgCODETVAID()));
 
             Double montHT2 = 0.0;
             Double TVA = 0.0;
@@ -1975,23 +1998,30 @@ public class MyBean extends HttpServlet {
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
             Join<TPreenregistrementDetail, TPreenregistrement> pr = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
             Join<TPreenregistrementDetail, TFamille> prf = root.join("lgFAMILLEID", JoinType.INNER);
-            Join< TFamille, TCodeTva> tva = prf.join("lgCODETVAID", JoinType.INNER);
+            Join<TFamille, TCodeTva> tva = prf.join("lgCODETVAID", JoinType.INNER);
             Predicate criteria = cb.conjunction();
 
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get("lgPREENREGISTREMENTID").get("dtUPDATED")), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(
+                    cb.function("DATE", Date.class, root.get("lgPREENREGISTREMENTID").get("dtUPDATED")),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("strSTATUT"), "is_Closed"));
             criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("bISCANCEL"), false));
-            criteria = cb.and(criteria, cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
-            criteria = cb.and(criteria, cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "2"));
+            criteria = cb.and(criteria,
+                    cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
+            criteria = cb.and(criteria,
+                    cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "2"));
             Predicate pu = cb.greaterThan(root.get("lgPREENREGISTREMENTID").get("intPRICE"), 0);
-            criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
+            criteria = cb.and(criteria, cb.equal(
+                    root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
+                    emp));
             criteria = cb.and(criteria, cb.equal(root.get(TPreenregistrementDetail_.boolACCOUNT), false));
             cq.where(criteria, pu, btw);
 
             Query q = em.createQuery(cq);
             List<TPreenregistrementDetail> oblist = q.getResultList();
 
-            Map<TCodeTva, List<TPreenregistrementDetail>> mysList = oblist.stream().collect(Collectors.groupingBy(s -> s.getLgFAMILLEID().getLgCODETVAID()));
+            Map<TCodeTva, List<TPreenregistrementDetail>> mysList = oblist.stream()
+                    .collect(Collectors.groupingBy(s -> s.getLgFAMILLEID().getLgCODETVAID()));
 
             Double montHT2 = 0.0;
             Double TVA = 0.0;
@@ -2027,7 +2057,8 @@ public class MyBean extends HttpServlet {
             CriteriaQuery<Integer> cq = cb.createQuery(Integer.class);
 
             Root<TPreenregistrementCompteClient> root = cq.from(TPreenregistrementCompteClient.class);
-            Join<TPreenregistrementCompteClient, TPreenregistrement> r = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
+            Join<TPreenregistrementCompteClient, TPreenregistrement> r = root.join("lgPREENREGISTREMENTID",
+                    JoinType.INNER);
             Join<TPreenregistrementCompteClient, TUser> pu = root.join("lgUSERID", JoinType.INNER);
 
             Predicate predicate = cb.conjunction();
@@ -2038,7 +2069,8 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.equal(r.get(TPreenregistrement_.strSTATUT), "is_Closed"));
             Predicate ge = cb.greaterThan(r.get(TPreenregistrement_.intPRICE), 0);
             predicate = cb.and(predicate, cb.equal(r.get(TPreenregistrement_.strTYPEVENTE), typevente));
-            Predicate btw = cb.between(cb.function("DATE", Date.class, r.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, r.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             cq.select(cb.sum(root.get(TPreenregistrementCompteClient_.intPRICERESTE)));
             cq.where(predicate, btw, ge);
             Query q = em.createQuery(cq);
@@ -2054,7 +2086,8 @@ public class MyBean extends HttpServlet {
         return diff;
     }
 
-    public Integer getBalanceRegl(String dt_start, String dt_end, String typevente, String lgEmp, int AMOUNT2, String lgTYPEREGLEMENTID) {
+    public Integer getBalanceRegl(String dt_start, String dt_end, String typevente, String lgEmp, int AMOUNT2,
+            String lgTYPEREGLEMENTID) {
 
         EntityManager em = getEntityManager();
         Integer diff = 0;
@@ -2077,13 +2110,14 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.equal(pr.get(TPreenregistrement_.strTYPEVENTE), typevente));
             predicate = cb.and(predicate, cb.equal(root.get(TCashTransaction_.lgTYPEREGLEMENTID), lgTYPEREGLEMENTID));
             Predicate ge = cb.greaterThan(pr.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, pr.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, pr.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             sub.select(pr.get(TPreenregistrement_.lgPREENREGISTREMENTID)).where(predicate, btw, ge);
 
             Predicate ge2 = cb.greaterThan(root.get(TCashTransaction_.intAMOUNT), 0);
 
-            cq.select(cb.sum((AMOUNT2 == 1 ? root.get(TCashTransaction_.intAMOUNT2) : root.get(TCashTransaction_.intAMOUNT)))
-            );
+            cq.select(cb.sum(
+                    (AMOUNT2 == 1 ? root.get(TCashTransaction_.intAMOUNT2) : root.get(TCashTransaction_.intAMOUNT))));
             cq.where(ge2, cb.in(root.get(TCashTransaction_.strRESSOURCEREF)).value(sub));
 
             Query q = em.createQuery(cq);
@@ -2119,20 +2153,34 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
-            cq.multiselect(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE))),
-                    cb.sum(root.get(TPreenregistrement_.intPRICEREMISE)),
-                    cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE)), root.get(TPreenregistrement_.intPRICEREMISE))),
-                    root.get(TPreenregistrement_.strTYPEVENTE),
-                    cb.selectCase().when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
-                            .otherwise(cb.sum(cb.diff((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE)),
-                                    root.get(TPreenregistrement_.intPRICEREMISE)))), cb.count(root),
-                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE))),
-                            cb.count(root)), cb.selectCase()
-                    .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intCUSTPART)))).otherwise(0))
-                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE)).orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            cq.multiselect(cb.sum(
+                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER) : root.get(TPreenregistrement_.intPRICE))),
+                    cb.sum(root.get(TPreenregistrement_.intPRICEREMISE)), cb
+                            .sum(cb.diff(
+                                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                                            : root.get(TPreenregistrement_.intPRICE)),
+                                    root.get(TPreenregistrement_.intPRICEREMISE))),
+                    root.get(TPreenregistrement_.strTYPEVENTE), cb
+                            .selectCase().when(
+                                    cb.equal(root
+                                            .get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(root.get(TPreenregistrement_.intCUSTPART)))
+                            .otherwise(cb.sum(cb.diff(
+                                    (isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                                            : root.get(TPreenregistrement_.intPRICE)),
+                                    root.get(TPreenregistrement_.intPRICEREMISE)))),
+                    cb.count(root),
+                    cb.quot(cb.sum((isOk == 1 ? root.get(TPreenregistrement_.intPRICEOTHER)
+                            : root.get(TPreenregistrement_.intPRICE))), cb.count(root)),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE),
+                                            root.get(TPreenregistrement_.intCUSTPART))))
+                            .otherwise(0))
+                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE))
+                    .orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
             cq.where(predicate, btw, ge);
             Query q = em.createQuery(cq);
 
@@ -2145,18 +2193,20 @@ public class MyBean extends HttpServlet {
             Integer totalcq = 0, totalcb = 0, totalEs = 0;
             for (Object[] t : list) {
                 try {
-                    //Integer TOTAL_DIFFERE = 0;
-                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""),
-                            TOTAL_REMISE = Integer.valueOf(t[1] + ""),
-                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""), PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
+                    // Integer TOTAL_DIFFERE = 0;
+                    Integer VENTE_BRUT = Integer.valueOf(t[0] + ""), TOTAL_REMISE = Integer.valueOf(t[1] + ""),
+                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""),
+                            PANIER_MOYEN = Math.round(Double.valueOf(t[6] + "").intValue()),
                             PART_TIERSPAYANT = Integer.valueOf(t[7] + "");
                     Integer TOTAL_DIFFERE = getBalanceDiff(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp);
 
-                    Integer montantES = getBalanceRegl(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "1");
+                    Integer montantES = getBalanceRegl(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk,
+                            "1");
                     montantES = (montantES != null ? montantES : 0);
                     montantES += getBalanceRegl(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "4");
 
-                    Integer Cheques = getBalanceRegl(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "2");
+                    Integer Cheques = getBalanceRegl(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk,
+                            "2");
                     Cheques = (Cheques != null ? Cheques : 0);
                     Integer cba = getBalanceRegl(dt_start.toString(), dt_end.toString(), t[3] + "", lgEmp, isOk, "3");
                     cba = (cba != null ? cba : 0);
@@ -2188,8 +2238,7 @@ public class MyBean extends HttpServlet {
                     nb += Integer.valueOf(t[5] + "");
                     JSONObject ob = new JSONObject();
                     ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_DIFFERE", TOTAL_DIFFERE)
-                            .put("TOTAL_REMISE", TOTAL_REMISE)
-                            .put("VENTE_NET", VENTE_NET);
+                            .put("TOTAL_REMISE", TOTAL_REMISE).put("VENTE_NET", VENTE_NET);
                     ob.put("str_TYPE_VENTE", t[3] + "");
                     ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
                     ob.put("NB", Integer.valueOf(t[5] + ""));
@@ -2240,20 +2289,31 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "2"));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
-            predicate = cb.and(predicate, cb.notEqual(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)));
+            predicate = cb.and(predicate,
+                    cb.notEqual(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)));
 
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
-            cq.multiselect(cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
-                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICEREMISE), root.get(TPreenregistrement_.intREMISEPARA))),
-                    cb.sum(cb.diff(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)), cb.diff(root.get(TPreenregistrement_.intPRICEREMISE), root.get(TPreenregistrement_.intREMISEPARA)))),
-                    root.get(TPreenregistrement_.strTYPEVENTE),
-                    cb.count(root),
-                    cb.quot(cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
-                            cb.count(root)), cb.selectCase()
-                    .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)))).otherwise(0))
-                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE)).orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            cq.multiselect(
+                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
+                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICEREMISE),
+                            root.get(TPreenregistrement_.intREMISEPARA))),
+                    cb.sum(cb.diff(
+                            cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)),
+                            cb.diff(root.get(TPreenregistrement_.intPRICEREMISE),
+                                    root.get(TPreenregistrement_.intREMISEPARA)))),
+                    root.get(TPreenregistrement_.strTYPEVENTE), cb.count(root),
+                    cb.quot(cb.sum(
+                            cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
+                            cb.count(root)),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE),
+                                            root.get(TPreenregistrement_.intACCOUNT))))
+                            .otherwise(0))
+                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE))
+                    .orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
             cq.where(predicate, btw, ge);
             Query q = em.createQuery(cq);
 
@@ -2263,17 +2323,16 @@ public class MyBean extends HttpServlet {
 
             for (Object[] t : list) {
                 try {
-                    //Integer TOTAL_DIFFERE = 0;
+                    // Integer TOTAL_DIFFERE = 0;
                     VENTE_BRUT = Integer.valueOf(t[0] + "");
-                    Integer TOTAL_REMISE = Integer.valueOf(t[1] + ""),
-                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""), PANIER_MOYEN = Math.round(Double.valueOf(t[5] + "").intValue()),
+                    Integer TOTAL_REMISE = Integer.valueOf(t[1] + ""), VENTE_NET = Integer.valueOf(t[2] + ""),
+                            TOTAL_CAISSE = Integer.valueOf(t[4] + ""),
+                            PANIER_MOYEN = Math.round(Double.valueOf(t[5] + "").intValue()),
                             PART_TIERSPAYANT = Integer.valueOf(t[6] + "");
 
                     nb += Integer.valueOf(t[4] + "");
                     JSONObject ob = new JSONObject();
-                    ob.put("VENTE_BRUT", VENTE_BRUT)
-                            .put("TOTAL_REMISE", 0)
-                            .put("VENTE_NET", VENTE_BRUT);
+                    ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_REMISE", 0).put("VENTE_NET", VENTE_BRUT);
                     ob.put("str_TYPE_VENTE", t[3] + "");
                     ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
                     ob.put("NB", Integer.valueOf(t[4] + ""));
@@ -2306,38 +2365,38 @@ public class MyBean extends HttpServlet {
 
             Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
             Join<TPreenregistrement, TUser> pu = root.join("lgUSERID", JoinType.INNER);
-//            Join<TPreenregistrement, TReglement> pr = root.join("lgREGLEMENTID", JoinType.INNER);
+            // Join<TPreenregistrement, TReglement> pr = root.join("lgREGLEMENTID", JoinType.INNER);
 
             Predicate predicate = cb.conjunction();
 
             predicate = cb.and(predicate, cb.equal(pu.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmp));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.bISCANCEL), Boolean.FALSE));
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
-//             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "4"));
+            // predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "4"));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
-//            predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VNO"));
-//            predicate = cb.and(predicate, cb.or(cb.equal(pr.get("lgMODEREGLEMENTID").get("lgMODEREGLEMENTID"), "1"), cb.equal(pr.get("lgMODEREGLEMENTID").get("lgMODEREGLEMENTID"), "2")));
+            // predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VNO"));
+            // predicate = cb.and(predicate, cb.or(cb.equal(pr.get("lgMODEREGLEMENTID").get("lgMODEREGLEMENTID"), "1"),
+            // cb.equal(pr.get("lgMODEREGLEMENTID").get("lgMODEREGLEMENTID"), "2")));
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
             predicate = cb.and(predicate, ge);
-            /* if (exclude) {
-                Predicate greaterThan = cb.greaterThan(cb.diff(root.get(TPreenregistrement_.intACCOUNT),
-                        root.get(TPreenregistrement_.intREMISEPARA)), root.get(TPreenregistrement_.intPRICEOTHER));
-                predicate = cb.and(predicate, greaterThan);
-            } else {
-                Predicate greaterthan = cb.greaterThan(cb.diff(root.get(TPreenregistrement_.intPRICE),
-                        root.get(TPreenregistrement_.intPRICEREMISE)), root.get(TPreenregistrement_.intPRICEOTHER));
-                predicate = cb.and(predicate, greaterthan);
-            }*/
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtCREATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            /*
+             * if (exclude) { Predicate greaterThan = cb.greaterThan(cb.diff(root.get(TPreenregistrement_.intACCOUNT),
+             * root.get(TPreenregistrement_.intREMISEPARA)), root.get(TPreenregistrement_.intPRICEOTHER)); predicate =
+             * cb.and(predicate, greaterThan); } else { Predicate greaterthan =
+             * cb.greaterThan(cb.diff(root.get(TPreenregistrement_.intPRICE),
+             * root.get(TPreenregistrement_.intPRICEREMISE)), root.get(TPreenregistrement_.intPRICEOTHER)); predicate =
+             * cb.and(predicate, greaterthan); }
+             */
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtCREATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             predicate = cb.and(predicate, btw);
-            /* if (exclude) {
-                cq.select(cb.sum(cb.diff(cb.diff(root.get(TPreenregistrement_.intACCOUNT),
-                        root.get(TPreenregistrement_.intREMISEPARA)), root.get(TPreenregistrement_.intPRICEOTHER))));
-            } else {
-
-                cq.select(cb.sum(cb.diff(cb.diff(root.get(TPreenregistrement_.intPRICE),
-                        root.get(TPreenregistrement_.intPRICEREMISE)), root.get(TPreenregistrement_.intPRICEOTHER))));
-            }*/
+            /*
+             * if (exclude) { cq.select(cb.sum(cb.diff(cb.diff(root.get(TPreenregistrement_.intACCOUNT),
+             * root.get(TPreenregistrement_.intREMISEPARA)), root.get(TPreenregistrement_.intPRICEOTHER)))); } else {
+             *
+             * cq.select(cb.sum(cb.diff(cb.diff(root.get(TPreenregistrement_.intPRICE),
+             * root.get(TPreenregistrement_.intPRICEREMISE)), root.get(TPreenregistrement_.intPRICEOTHER)))); }
+             */
             cq.select(cb.sum(root.get(TPreenregistrement_.intPRICEOTHER)));
 
             cq.where(predicate);
@@ -2360,8 +2419,10 @@ public class MyBean extends HttpServlet {
         Integer amountTORemove = 0;
         try {
             try {
-                TParameters KEY_TAKE_INTO_ACCOUNT = this.getEntityManager().getReference(TParameters.class, "KEY_TAKE_INTO_ACCOUNT");
-                if (KEY_TAKE_INTO_ACCOUNT != null && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
+                TParameters KEY_TAKE_INTO_ACCOUNT = this.getEntityManager().getReference(TParameters.class,
+                        "KEY_TAKE_INTO_ACCOUNT");
+                if (KEY_TAKE_INTO_ACCOUNT != null
+                        && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
                     KEYTAKEINTOACCOUNT = true;
                 }
                 KEY_PARAMS = this.getEntityManager().getReference(TParameters.class, "KEY_PARAMS");
@@ -2372,7 +2433,8 @@ public class MyBean extends HttpServlet {
             if (KEY_PARAMS != null && (Integer.valueOf(KEY_PARAMS.getStrVALUE().trim()) == 1)) {
                 amountTORemove = getCA(dt_start, dt_end, "1", KEYTAKEINTOACCOUNT);
             }
-            List<TPreenregistrementDetail> listprePreenregistrementsTVA18 = this.getTvaStatisticDatasByTVA(dt_start, dt_end, KEYTAKEINTOACCOUNT, "2");
+            List<TPreenregistrementDetail> listprePreenregistrementsTVA18 = this.getTvaStatisticDatasByTVA(dt_start,
+                    dt_end, KEYTAKEINTOACCOUNT, "2");
 
             long TVA = 0;
             long MONTANTTTC = 0;
@@ -2395,7 +2457,8 @@ public class MyBean extends HttpServlet {
             GlobalTTC += MONTANTTTC;
             array.put(json);
             MONTANTTTC = 0;
-            List<TPreenregistrementDetail> listprePreenregistrements = this.getTvaStatisticDatasByTVA(dt_start, dt_end, KEYTAKEINTOACCOUNT, "1");
+            List<TPreenregistrementDetail> listprePreenregistrements = this.getTvaStatisticDatasByTVA(dt_start, dt_end,
+                    KEYTAKEINTOACCOUNT, "1");
             MONTANTTTC = listprePreenregistrements.stream().mapToLong((value) -> {
                 return value.getIntPRICE();
             }).sum();
@@ -2417,7 +2480,8 @@ public class MyBean extends HttpServlet {
         return array;
     }
 
-    public List<TPreenregistrementDetail> getTvaStatisticDatasByTVA(String dt_start, String dt_end, boolean KEYTAKEINTOACCOUNT, String tva) {
+    public List<TPreenregistrementDetail> getTvaStatisticDatasByTVA(String dt_start, String dt_end,
+            boolean KEYTAKEINTOACCOUNT, String tva) {
         List<TPreenregistrementDetail> listprePreenregistrements = new ArrayList<>();
 
         try {
@@ -2425,22 +2489,29 @@ public class MyBean extends HttpServlet {
             CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<TPreenregistrementDetail> cq = cb.createQuery(TPreenregistrementDetail.class);
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Join<TPreenregistrementDetail, TPreenregistrement> join = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
+            Join<TPreenregistrementDetail, TPreenregistrement> join = root.join("lgPREENREGISTREMENTID",
+                    JoinType.INNER);
             Join<TPreenregistrementDetail, TFamille> products = root.join("lgFAMILLEID", JoinType.INNER);
 
             Predicate predicate = cb.conjunction();
-            predicate = cb.and(predicate, cb.equal(join.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
+            predicate = cb.and(predicate,
+                    cb.equal(join.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
             predicate = cb.and(predicate, cb.equal(join.get(TPreenregistrement_.bISCANCEL), Boolean.FALSE));
             predicate = cb.and(predicate, cb.equal(products.get("lgCODETVAID").get("lgCODETVAID"), tva));
-            predicate = cb.and(predicate, cb.notLike(join.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_EXTENSION));
-//               predicate = cb.and(predicate, cb.notLike(join.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_AGREE));
-            predicate = cb.and(predicate, cb.equal(root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), "1"));
+            predicate = cb.and(predicate,
+                    cb.notLike(join.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_EXTENSION));
+            // predicate = cb.and(predicate, cb.notLike(join.get("lgTYPEVENTEID").get("lgTYPEVENTEID"),
+            // Parameter.VENTE_DEPOT_AGREE));
+            predicate = cb.and(predicate, cb.equal(
+                    root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
+                    "1"));
             Predicate ge = cb.greaterThan(join.get(TPreenregistrement_.intPRICE), 0);
             predicate = cb.and(predicate, ge);
             if (KEYTAKEINTOACCOUNT) {
                 predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrementDetail_.boolACCOUNT), Boolean.TRUE));
             }
-            Predicate btw = cb.between(cb.function("DATE", Date.class, join.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
             predicate = cb.and(predicate, btw);
             cq.select(root);
 
@@ -2464,8 +2535,10 @@ public class MyBean extends HttpServlet {
         Integer amountTORemove = 0;
         try {
             try {
-                TParameters KEY_TAKE_INTO_ACCOUNT = this.getEntityManager().getReference(TParameters.class, "KEY_TAKE_INTO_ACCOUNT");
-                if (KEY_TAKE_INTO_ACCOUNT != null && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
+                TParameters KEY_TAKE_INTO_ACCOUNT = this.getEntityManager().getReference(TParameters.class,
+                        "KEY_TAKE_INTO_ACCOUNT");
+                if (KEY_TAKE_INTO_ACCOUNT != null
+                        && (Integer.valueOf(KEY_TAKE_INTO_ACCOUNT.getStrVALUE().trim()) == 1)) {
                     KEYTAKEINTOACCOUNT = true;
                 }
                 KEY_PARAMS = this.getEntityManager().getReference(TParameters.class, "KEY_PARAMS");
@@ -2476,7 +2549,8 @@ public class MyBean extends HttpServlet {
             if (KEY_PARAMS != null && (Integer.valueOf(KEY_PARAMS.getStrVALUE().trim()) == 1)) {
                 amountTORemove = getCA(dt_start, dt_end, "1", KEYTAKEINTOACCOUNT);
             }
-            List<TPreenregistrementDetail> listprePreenregistrementsTVA18 = this.getTvaStatisticDatasByTVA(dt_start, dt_end, KEYTAKEINTOACCOUNT, "2");
+            List<TPreenregistrementDetail> listprePreenregistrementsTVA18 = this.getTvaStatisticDatasByTVA(dt_start,
+                    dt_end, KEYTAKEINTOACCOUNT, "2");
 
             long TVA = 0;
             long MONTANTTTC = 0;
@@ -2499,7 +2573,8 @@ public class MyBean extends HttpServlet {
             GlobalTTC += MONTANTTTC;
             array.put(json);
             MONTANTTTC = 0;
-            List<TPreenregistrementDetail> listprePreenregistrements = this.getTvaStatisticDatasByTVA(dt_start, dt_end, KEYTAKEINTOACCOUNT, "1");
+            List<TPreenregistrementDetail> listprePreenregistrements = this.getTvaStatisticDatasByTVA(dt_start, dt_end,
+                    KEYTAKEINTOACCOUNT, "1");
             MONTANTTTC = listprePreenregistrements.stream().mapToLong((value) -> {
                 return value.getIntPRICE();
             }).sum();
@@ -2535,19 +2610,30 @@ public class MyBean extends HttpServlet {
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
             predicate = cb.and(predicate, cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "2"));
             predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.strSTATUT), "is_Closed"));
-            predicate = cb.and(predicate, cb.notEqual(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)));
+            predicate = cb.and(predicate,
+                    cb.notEqual(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)));
             Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
-            cq.multiselect(cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
-                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICEREMISE), root.get(TPreenregistrement_.intREMISEPARA))),
-                    cb.sum(cb.diff(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)), cb.diff(root.get(TPreenregistrement_.intPRICEREMISE), root.get(TPreenregistrement_.intREMISEPARA)))),
-                    root.get(TPreenregistrement_.strTYPEVENTE),
-                    cb.count(root),
-                    cb.quot(cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
-                            cb.count(root)), cb.selectCase()
-                    .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
-                            cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)))).otherwise(0))
-                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE)).orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(dt_start), java.sql.Date.valueOf(dt_end));
+            cq.multiselect(
+                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
+                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICEREMISE),
+                            root.get(TPreenregistrement_.intREMISEPARA))),
+                    cb.sum(cb.diff(
+                            cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT)),
+                            cb.diff(root.get(TPreenregistrement_.intPRICEREMISE),
+                                    root.get(TPreenregistrement_.intREMISEPARA)))),
+                    root.get(TPreenregistrement_.strTYPEVENTE), cb.count(root),
+                    cb.quot(cb.sum(
+                            cb.diff(root.get(TPreenregistrement_.intPRICE), root.get(TPreenregistrement_.intACCOUNT))),
+                            cb.count(root)),
+                    cb.selectCase()
+                            .when(cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), "VO"),
+                                    cb.sum(cb.diff(root.get(TPreenregistrement_.intPRICE),
+                                            root.get(TPreenregistrement_.intACCOUNT))))
+                            .otherwise(0))
+                    .groupBy(root.get(TPreenregistrement_.strTYPEVENTE))
+                    .orderBy(cb.desc(root.get(TPreenregistrement_.strTYPEVENTE)));
             cq.where(predicate, btw, ge);
             Query q = em.createQuery(cq);
 
@@ -2557,19 +2643,18 @@ public class MyBean extends HttpServlet {
 
             for (Object[] t : list) {
                 try {
-                    //Integer TOTAL_DIFFERE = 0;
+                    // Integer TOTAL_DIFFERE = 0;
                     System.out.println("t[0] " + t[0] + " t[1] " + t[1] + " t[2] " + t[2]);
                     VENTE_BRUT = Integer.valueOf(t[0] + "");
-                    Integer TOTAL_REMISE = Integer.valueOf(t[1] + ""),
-                            VENTE_NET = Integer.valueOf(t[2] + ""), TOTAL_CAISSE = Integer.valueOf(t[4] + ""), PANIER_MOYEN = Math.round(Double.valueOf(t[5] + "").intValue()),
+                    Integer TOTAL_REMISE = Integer.valueOf(t[1] + ""), VENTE_NET = Integer.valueOf(t[2] + ""),
+                            TOTAL_CAISSE = Integer.valueOf(t[4] + ""),
+                            PANIER_MOYEN = Math.round(Double.valueOf(t[5] + "").intValue()),
                             PART_TIERSPAYANT = Integer.valueOf(t[6] + "");
 
                     nb += Integer.valueOf(t[4] + "");
                     JSONObject ob = new JSONObject();
                     if (VENTE_BRUT > 0) {
-                        ob.put("VENTE_BRUT", VENTE_BRUT)
-                                .put("TOTAL_REMISE", TOTAL_REMISE)
-                                .put("VENTE_NET", VENTE_NET);
+                        ob.put("VENTE_BRUT", VENTE_BRUT).put("TOTAL_REMISE", TOTAL_REMISE).put("VENTE_NET", VENTE_NET);
                         ob.put("str_TYPE_VENTE", t[3] + "");
                         ob.put("TOTAL_CAISSE", TOTAL_CAISSE);
                         ob.put("NB", Integer.valueOf(t[4] + ""));
@@ -2596,8 +2681,8 @@ public class MyBean extends HttpServlet {
                     ration = (Gbl / achat);
                     rat = new BigDecimal(ration).setScale(2, RoundingMode.HALF_UP).doubleValue();
                 }
-                totaux.put("NB", nb).put("TOTALMARGE", marge).
-                        put("GLOBAL", Gbl).put("TOTALACHAT", achat).put("TOTALRATIO", rat);
+                totaux.put("NB", nb).put("TOTALMARGE", marge).put("GLOBAL", Gbl).put("TOTALACHAT", achat)
+                        .put("TOTALRATIO", rat);
                 array.put(totaux);
             }
         } catch (Exception e) {

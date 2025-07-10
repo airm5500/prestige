@@ -12,7 +12,6 @@ import dal.TOrder;
 import dal.TOrderDetail;
 import dal.TUser;
 import javax.ejb.Local;
-import javax.persistence.EntityManager;
 import javax.servlet.http.Part;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -22,20 +21,20 @@ import org.json.JSONObject;
  * @author DICI
  */
 @Local
-//@Remote
 public interface CommandeService {
 
     JSONObject cloturerBonLivraison(String id, TUser user) throws JSONException;
 
-    void closureOrder(TOrder OTOrder, EntityManager em);
+    void closureOrder(TOrder order);
 
     JSONObject cloturerInvetaire(String inventaireId, TUser user) throws JSONException;
 
-    String generateCIP(String int_CIP);
+    String generateCIP(String cip);
 
     JSONObject createProduct(Params params) throws JSONException;
 
-    default int calculPrixMoyenPondereReception(int ancienStock, int ancienPrixAchat, int nouveauStock, int nouveauPrixAchat) {
+    default int calculPrixMoyenPondereReception(int ancienStock, int ancienPrixAchat, int nouveauStock,
+            int nouveauPrixAchat) {
         return ((ancienStock * ancienPrixAchat) + (nouveauStock * nouveauPrixAchat)) / (ancienStock + nouveauStock);
     }
 
@@ -49,9 +48,6 @@ public interface CommandeService {
 
     void addRuptureHistory(TOrderDetail item, TGrossiste grossiste);
 
-    JSONObject verificationCommande(Part part, String orderId, TUser OTUser);
-
-    
-    
+    JSONObject verificationCommande(Part part, String orderId, TUser user);
 
 }

@@ -27,7 +27,7 @@ import javax.persistence.TemporalType;
 @Entity
 @Table(name = "annulation_snapshot")
 @NamedQueries({
-    @NamedQuery(name = "AnnulationSnapshot.findAll", query = "SELECT a FROM AnnulationSnapshot a WHERE a.dateOp=:dateOp  ")})
+        @NamedQuery(name = "AnnulationSnapshot.findAll", query = "SELECT a FROM AnnulationSnapshot a WHERE a.dateOp=:dateOp  ") })
 public class AnnulationSnapshot implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -107,7 +107,8 @@ public class AnnulationSnapshot implements Serializable {
         this.id = id;
     }
 
-    public AnnulationSnapshot(String id, Date dateOp, Date createdAt, Date updatedAt, Integer montant, Integer montantPaye) {
+    public AnnulationSnapshot(String id, Date dateOp, Date createdAt, Date updatedAt, Integer montant,
+            Integer montantPaye) {
         this.id = id;
         this.dateOp = dateOp;
         this.createdAt = createdAt;

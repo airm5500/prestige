@@ -71,6 +71,7 @@ import dal.dataManager;
 import dal.jconnexion;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.logger;
+import util.Constant;
 
 /**
  *
@@ -95,27 +96,43 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     public List<TFamille> findFamilleBLDetail(String lg_BON_LIVRAISON_ID) {
 
-        List<TFamille> lstTFamille = new ArrayList<TFamille>();
+        List<TFamille> lstTFamille = new ArrayList<>();
 
         try {
 
-            /* lstTBonLivraisonDetail = this.getTBonLivraisonDetailBis(lg_BON_LIVRAISON_ID);
+            /*
+             * lstTBonLivraisonDetail = this.getTBonLivraisonDetailBis(lg_BON_LIVRAISON_ID);
+             *
+             * lstTFamille = new ArrayList<TFamille>();
+             */
+            lstTFamille = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TFamille t, TBonLivraisonDetail b WHERE t.lgFAMILLEID = b.lgFAMILLEID.lgFAMILLEID AND b.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?1 AND b.strSTATUT = ?2")
+                    .setParameter(1, lg_BON_LIVRAISON_ID).setParameter(2, commonparameter.statut_is_Closed)
+                    .getResultList();
 
-             lstTFamille = new ArrayList<TFamille>();*/
-            lstTFamille = this.getOdataManager().getEm().createQuery("SELECT t FROM TFamille t, TBonLivraisonDetail b WHERE t.lgFAMILLEID = b.lgFAMILLEID.lgFAMILLEID AND b.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?1 AND b.strSTATUT = ?2")
-                    .setParameter(1, lg_BON_LIVRAISON_ID).setParameter(2, commonparameter.statut_is_Closed).getResultList();
-
-            /* for (TBonLivraisonDetail OTBonLivraisonDetail : lstTBonLivraisonDetail) {
-
-             lstTFamille.add(OTBonLivraisonDetail.getLgFAMILLEID());
-
-             }*/
+            /*
+             * for (TBonLivraisonDetail OTBonLivraisonDetail : lstTBonLivraisonDetail) {
+             *
+             * lstTFamille.add(OTBonLivraisonDetail.getLgFAMILLEID());
+             *
+             * }
+             */
         } catch (Exception e) {
             e.printStackTrace();
 
         }
         new logger().OCategory.info("lstTFamille " + lstTFamille.size());
         return lstTFamille;
+
+    }
+
+    public int articleStatus(String lgFamilleID) {
+        int status = getStatusInOrder(lgFamilleID);
+        if (status == 0) {
+            status = articleStatusSuggestion(lgFamilleID);
+        }
+
+        return status;
 
     }
 
@@ -128,7 +145,12 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            String qry = "SELECT lg_FAMILLE_ID, str_DESCRIPTION, int_CIP, int_PAF, lg_GROSSISTE_ID, int_EAN13, lg_BON_LIVRAISON_ID, str_REF_LIVRAISON, str_STATUT FROM v_famille_retour WHERE (lg_BON_LIVRAISON_ID LIKE '" + lg_BON_LIVRAISON_ID + "' OR str_REF_LIVRAISON LIKE '" + lg_BON_LIVRAISON_ID + "') AND (int_CIP LIKE '" + search_value + "%' OR str_DESCRIPTION LIKE '" + search_value + "%' OR int_EAN13 LIKE '" + search_value + "%' OR str_CODE_ARTICLE LIKE '" + search_value + "%') AND str_STATUT = '" + commonparameter.statut_is_Closed + "' GROUP BY lg_FAMILLE_ID ORDER BY str_DESCRIPTION";
+            String qry = "SELECT lg_FAMILLE_ID, str_DESCRIPTION, int_CIP, int_PAF, lg_GROSSISTE_ID, int_EAN13, lg_BON_LIVRAISON_ID, str_REF_LIVRAISON, str_STATUT FROM v_famille_retour WHERE (lg_BON_LIVRAISON_ID LIKE '"
+                    + lg_BON_LIVRAISON_ID + "' OR str_REF_LIVRAISON LIKE '" + lg_BON_LIVRAISON_ID
+                    + "') AND (int_CIP LIKE '" + search_value + "%' OR str_DESCRIPTION LIKE '" + search_value
+                    + "%' OR int_EAN13 LIKE '" + search_value + "%' OR str_CODE_ARTICLE LIKE '" + search_value
+                    + "%') AND str_STATUT = '" + commonparameter.statut_is_Closed
+                    + "' GROUP BY lg_FAMILLE_ID ORDER BY str_DESCRIPTION";
             new logger().OCategory.info(qry);
             Ojconnexion.set_Request(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -154,17 +176,17 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public TBonLivraisonDetail findTBonLivraisonDetail(String str_REF_LIVRAISON, String lg_FAMILLE_ID) {
         TBonLivraisonDetail OTBonLivraisonDetail = null;
         try {
-            OTBonLivraisonDetail = (TBonLivraisonDetail) this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.strREFLIVRAISON LIKE ?1 AND t.lgFAMILLEID.lgFAMILLEID = ?2").
-                    setParameter(1, str_REF_LIVRAISON).
-                    setParameter(2, lg_FAMILLE_ID).
-                    getSingleResult();
+            OTBonLivraisonDetail = (TBonLivraisonDetail) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.strREFLIVRAISON LIKE ?1 AND t.lgFAMILLEID.lgFAMILLEID = ?2")
+                    .setParameter(1, str_REF_LIVRAISON).setParameter(2, lg_FAMILLE_ID).getSingleResult();
         } catch (Exception e) {
             this.buildErrorTraceMessage(e.getMessage());
         }
         return OTBonLivraisonDetail;
     }
 
-    public void ChangePrice(String lg_BON_LIVRAISON_DETAIL, int int_PRIX_REFERENCE, int int_PRIX_VENTE, int int_PAF, int int_PAT, String lg_ZONE_GEO_ID) {
+    public void ChangePrice(String lg_BON_LIVRAISON_DETAIL, int int_PRIX_REFERENCE, int int_PRIX_VENTE, int int_PAF,
+            int int_PAT, String lg_ZONE_GEO_ID) {
 
         dal.TBonLivraisonDetail OTBonLivraisonDetail = null;
         dal.TZoneGeographique OTZoneGeographique = null;
@@ -185,30 +207,35 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 OTFamille = OTBonLivraisonDetail.getLgFAMILLEID();
                 if (OTZoneGeographique != null && OTFamille != null) {
                     OTBonLivraisonDetail.setLgZONEGEOID(OTZoneGeographique);
-                    /*OTFamille.setLgZONEGEOID(OTZoneGeographique);
-                     this.persiste(OTFamille);*/
+                    /*
+                     * OTFamille.setLgZONEGEOID(OTZoneGeographique); this.persiste(OTFamille);
+                     */
                 }
 
                 this.persiste(OTBonLivraisonDetail);
-                //  updateBonLivraisonAmount(OTBonLivraisonDetail, OldPrice);
-//                new suggestionManagement(this.getOdataManager(), this.getOTUser()).updatePriceArticleByDuringCommand(OTFamille.getLgFAMILLEID(), int_PRIX_VENTE, int_PRIX_REFERENCE, int_PAF, int_PAT, commonparameter.code_action_commande, OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), commonparameter.str_ACTION_ENTREESTOCK); // a decommenter en cas de probleme
-                new suggestionManagement(this.getOdataManager(), this.getOTUser()).updatePriceArticleByDuringCommand(OTFamille.getLgFAMILLEID(), int_PRIX_VENTE, int_PRIX_REFERENCE, int_PAF, int_PAT, commonparameter.code_action_commande, OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), "");
+                // updateBonLivraisonAmount(OTBonLivraisonDetail, OldPrice);
+                // new suggestionManagement(this.getOdataManager(),
+                // this.getOTUser()).updatePriceArticleByDuringCommand(OTFamille.getLgFAMILLEID(), int_PRIX_VENTE,
+                // int_PRIX_REFERENCE, int_PAF, int_PAT, commonparameter.code_action_commande,
+                // OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(),
+                // commonparameter.str_ACTION_ENTREESTOCK); // a decommenter en cas de probleme
+                new suggestionManagement(this.getOdataManager(), this.getOTUser()).updatePriceArticleByDuringCommand(
+                        OTFamille.getLgFAMILLEID(), int_PRIX_VENTE, int_PRIX_REFERENCE, int_PAF, int_PAT,
+                        commonparameter.code_action_commande,
+                        OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), "");
                 /*
-                 && OTFamille != null) {
-
-                 OTFamille.setIntPRICE(int_PRIX_VENTE);
-                 OTFamille.setIntPRICETIPS(int_PRIX_REFERENCE);
-                 OTFamille.setIntPAT(int_PAT);
-                 OTFamille.setIntPAF(int_PAF);
-
-                 if (OTZoneGeographique != null) {
-                 OTFamille.setLgZONEGEOID(OTZoneGeographique);
-                 }
-
-                 this.persiste(OTFamille);
-                 new logger().OCategory.info(" UPDATE FAMILLE DEPUIS public void ChangePrice");
-
-                 }*/
+                 * && OTFamille != null) {
+                 *
+                 * OTFamille.setIntPRICE(int_PRIX_VENTE); OTFamille.setIntPRICETIPS(int_PRIX_REFERENCE);
+                 * OTFamille.setIntPAT(int_PAT); OTFamille.setIntPAF(int_PAF);
+                 *
+                 * if (OTZoneGeographique != null) { OTFamille.setLgZONEGEOID(OTZoneGeographique); }
+                 *
+                 * this.persiste(OTFamille); new
+                 * logger().OCategory.info(" UPDATE FAMILLE DEPUIS public void ChangePrice");
+                 *
+                 * }
+                 */
             }
 
         } catch (Exception e) {
@@ -220,10 +247,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public TBonLivraison findOrderInTBonLivraison(String lg_ORDER_ID) {
         TBonLivraison OTBonLivraison = null;
         try {
-            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t WHERE t.lgORDERID.lgORDERID = ?1  AND t.strSTATUT LIKE ?2 ").
-                    setParameter(1, lg_ORDER_ID).
-                    setParameter(2, commonparameter.statut_enable).
-                    getSingleResult();
+            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm()
+                    .createQuery(
+                            "SELECT t FROM TBonLivraison t WHERE t.lgORDERID.lgORDERID = ?1  AND t.strSTATUT LIKE ?2 ")
+                    .setParameter(1, lg_ORDER_ID).setParameter(2, commonparameter.statut_enable).getSingleResult();
 
             new logger().OCategory.info(" ***OTBonLivraison   5555 *** " + OTBonLivraison.getLgBONLIVRAISONID());
 
@@ -237,11 +264,9 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public List<TBonLivraisonDetail> getTBonLivraisonDetail(String lg_BON_LIVRAISON_ID, String str_STATUT) {
         List<TBonLivraisonDetail> lstT = new ArrayList<TBonLivraisonDetail>();
         try {
-            lstT = this.getOdataManager().getEm().
-                    createQuery("SELECT t FROM TBonLivraisonDetail t WHERE t.strSTATUT LIKE ?1 AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 ").
-                    setParameter(1, str_STATUT).
-                    setParameter(2, lg_BON_LIVRAISON_ID).
-                    getResultList();
+            lstT = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraisonDetail t WHERE t.strSTATUT LIKE ?1 AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 ")
+                    .setParameter(1, str_STATUT).setParameter(2, lg_BON_LIVRAISON_ID).getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -256,10 +281,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
             String query = "SELECT t FROM TBonLivraisonDetail t WHERE  t.lgBONLIVRAISONID.lgBONLIVRAISONID =?1";
 
-            lstT = this.getOdataManager().getEm().
-                    createQuery(query).
-                    setParameter(1, lg_BON_LIVRAISON_ID).
-                    getResultList();
+            lstT = this.getOdataManager().getEm().createQuery(query).setParameter(1, lg_BON_LIVRAISON_ID)
+                    .getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -276,13 +299,9 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             }
             String query = "SELECT t FROM TBonLivraisonDetail t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?3) AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) ORDER BY t.dtUPDATED DESC";
 
-            lstT = this.getOdataManager().getEm().
-                    createQuery(query).
-                    setParameter(1, commonparameter.statut_enable).
-                    setParameter(2, lg_BON_LIVRAISON_ID).
-                    setParameter(3, commonparameter.statut_is_Closed).
-                    setParameter(4, search_value + "%").
-                    getResultList();
+            lstT = this.getOdataManager().getEm().createQuery(query).setParameter(1, commonparameter.statut_enable)
+                    .setParameter(2, lg_BON_LIVRAISON_ID).setParameter(3, commonparameter.statut_is_Closed)
+                    .setParameter(4, search_value + "%").getResultList();
             for (TBonLivraisonDetail OBonLivraisonDetail : lstT) {
                 this.refresh(OBonLivraisonDetail);
 
@@ -294,7 +313,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return lstT;
     }
 
-    public List<TBonLivraisonDetail> getTBonLivraisonDetailBis(String search_value, String lg_BON_LIVRAISON_ID, String str_TYPE_TRANSACTION, boolean bool_CHECKEXPIRATIONDATE) {
+    public List<TBonLivraisonDetail> getTBonLivraisonDetailBis(String search_value, String lg_BON_LIVRAISON_ID,
+            String str_TYPE_TRANSACTION, boolean bool_CHECKEXPIRATIONDATE) {
         List<TBonLivraisonDetail> lstT = new ArrayList<>();
         try {
             if (search_value.equalsIgnoreCase("")) {
@@ -306,29 +326,23 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 if (bool_CHECKEXPIRATIONDATE) {
                     query = "SELECT t FROM TBonLivraisonDetail t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?3) AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) AND t.lgFAMILLEID.boolCHECKEXPIRATIONDATE=TRUE ORDER BY t.lgFAMILLEID.strNAME ";
                 }
-                lstT = this.getOdataManager().getEm().
-                        createQuery(query).
-                        setParameter(1, commonparameter.statut_enable).
-                        setParameter(2, lg_BON_LIVRAISON_ID).
-                        setParameter(3, commonparameter.statut_is_Closed).
-                        setParameter(4, search_value + "%").
-                        getResultList();
+                lstT = this.getOdataManager().getEm().createQuery(query).setParameter(1, commonparameter.statut_enable)
+                        .setParameter(2, lg_BON_LIVRAISON_ID).setParameter(3, commonparameter.statut_is_Closed)
+                        .setParameter(4, search_value + "%").getResultList();
             } else {
-                String diff="  ";
-                if(str_TYPE_TRANSACTION.equals("PRIX")){
-                    diff=" AND t.intPRIXVENTE <> t.lgFAMILLEID.intPRICE ";
+                String diff = "  ";
+                if (str_TYPE_TRANSACTION.equals("PRIX")) {
+                    diff = " AND t.intPRIXVENTE <> t.lgFAMILLEID.intPRICE ";
                 }
-                String query = "SELECT t FROM TBonLivraisonDetail t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?3) AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) AND t.intQTERECUE = 0 "+diff+"  ORDER BY t.dtUPDATED DESC";
+                String query = "SELECT t FROM TBonLivraisonDetail t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?3) AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) AND t.intQTERECUE = 0 "
+                        + diff + "  ORDER BY t.dtUPDATED DESC";
                 if (bool_CHECKEXPIRATIONDATE) {
-                    query = "SELECT t FROM TBonLivraisonDetail t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?3) AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) AND t.intQTERECUE = 0  AND t.lgFAMILLEID.boolCHECKEXPIRATIONDATE=TRUE "+diff+"   ORDER BY t.dtUPDATED DESC";
+                    query = "SELECT t FROM TBonLivraisonDetail t WHERE (t.strSTATUT LIKE ?1 OR t.strSTATUT LIKE ?3) AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND (t.lgFAMILLEID.intCIP LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?4) AND t.intQTERECUE = 0  AND t.lgFAMILLEID.boolCHECKEXPIRATIONDATE=TRUE "
+                            + diff + "   ORDER BY t.dtUPDATED DESC";
                 }
-                lstT = this.getOdataManager().getEm().
-                        createQuery(query).
-                        setParameter(1, commonparameter.statut_enable).
-                        setParameter(2, lg_BON_LIVRAISON_ID).
-                        setParameter(3, commonparameter.statut_is_Closed).
-                        setParameter(4, search_value + "%").
-                        getResultList();
+                lstT = this.getOdataManager().getEm().createQuery(query).setParameter(1, commonparameter.statut_enable)
+                        .setParameter(2, lg_BON_LIVRAISON_ID).setParameter(3, commonparameter.statut_is_Closed)
+                        .setParameter(4, search_value + "%").getResultList();
             }
 
         } catch (Exception e) {
@@ -338,13 +352,16 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return lstT;
     }
 
-    public TBonLivraisonDetail UpdateTBonLivraisonDetail(String lg_BON_LIVRAISON_DETAIL, String lg_BON_LIVRAISON_ID, int int_QTE_CMDE, int int_QTE_RECUE, int int_PRIX_REFERENCE, int int_PAF, int int_PA_REEL, int int_PRIX_VENTE, String str_STATUT) {
+    public TBonLivraisonDetail UpdateTBonLivraisonDetail(String lg_BON_LIVRAISON_DETAIL, String lg_BON_LIVRAISON_ID,
+            int int_QTE_CMDE, int int_QTE_RECUE, int int_PRIX_REFERENCE, int int_PAF, int int_PA_REEL,
+            int int_PRIX_VENTE, String str_STATUT) {
 
         TBonLivraisonDetail oTBonLivraisonDetail = null;
 
         try {
 
-            oTBonLivraisonDetail = this.getOdataManager().getEm().find(TBonLivraisonDetail.class, lg_BON_LIVRAISON_DETAIL);
+            oTBonLivraisonDetail = this.getOdataManager().getEm().find(TBonLivraisonDetail.class,
+                    lg_BON_LIVRAISON_DETAIL);
 
             oTBonLivraisonDetail.setLgBONLIVRAISONID(this.FindTBonLivraison(lg_BON_LIVRAISON_ID));
             oTBonLivraisonDetail.setIntPAF(int_PAF);
@@ -360,24 +377,26 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             this.persiste(oTBonLivraisonDetail);
             this.refresh(oTBonLivraisonDetail);
 
-            new logger().OCategory.info(" update de oTBonLivraisonDetail  " + oTBonLivraisonDetail.getLgBONLIVRAISONDETAIL());
+            new logger().OCategory
+                    .info(" update de oTBonLivraisonDetail  " + oTBonLivraisonDetail.getLgBONLIVRAISONDETAIL());
 
         } catch (Exception E) {
 
-//            oTOrderDetail = this.createOrderDetail(lg_ORDER_ID, lg_FAMILLE_GROSSISTE_ID, int_NUMBER);
-            new logger().OCategory.info(" CREATE de oTBonLivraisonDetail  " + oTBonLivraisonDetail.getLgBONLIVRAISONDETAIL());
+            // oTOrderDetail = this.createOrderDetail(lg_ORDER_ID, lg_FAMILLE_GROSSISTE_ID, int_NUMBER);
+            new logger().OCategory
+                    .info(" CREATE de oTBonLivraisonDetail  " + oTBonLivraisonDetail.getLgBONLIVRAISONDETAIL());
         }
         return oTBonLivraisonDetail;
     }
 
-    public TBonLivraisonDetail findFamilleInTBonLivraisonDetail(String lg_BON_LIVRAISON_ID, String lg_FAMILLE_ID, String str_STATUT) {
+    public TBonLivraisonDetail findFamilleInTBonLivraisonDetail(String lg_BON_LIVRAISON_ID, String lg_FAMILLE_ID,
+            String str_STATUT) {
         TBonLivraisonDetail OTBonLivraisonDetail = null;
         try {
-            OTBonLivraisonDetail = (TBonLivraisonDetail) this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraisonDetail t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND t.strSTATUT LIKE ?3  ").
-                    setParameter(2, lg_BON_LIVRAISON_ID).
-                    setParameter(1, lg_FAMILLE_ID).
-                    setParameter(3, str_STATUT).
-                    getSingleResult();
+            OTBonLivraisonDetail = (TBonLivraisonDetail) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraisonDetail t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgBONLIVRAISONID.lgBONLIVRAISONID LIKE ?2 AND t.strSTATUT LIKE ?3  ")
+                    .setParameter(2, lg_BON_LIVRAISON_ID).setParameter(1, lg_FAMILLE_ID).setParameter(3, str_STATUT)
+                    .getSingleResult();
         } catch (Exception e) {
             this.buildErrorTraceMessage(e.getMessage());
         }
@@ -390,7 +409,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         try {
 
             OTBonLivraisonDetail = (TBonLivraisonDetail) this.find(lg_BON_LIVRAISON_DETAIL, new TBonLivraisonDetail());
-            new logger().OCategory.info("Succes OTBonLivraisonDetail trouve   " + OTBonLivraisonDetail.getLgBONLIVRAISONDETAIL());
+            new logger().OCategory
+                    .info("Succes OTBonLivraisonDetail trouve   " + OTBonLivraisonDetail.getLgBONLIVRAISONDETAIL());
 
         } catch (Exception E) {
             new logger().OCategory.info("Echec OTBonLivraisonDetail non trouve   " + E);
@@ -404,10 +424,12 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         TBonLivraison OTBonLivraison = null;
 
         try {
-            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t WHERE (t.lgBONLIVRAISONID = ?1 OR t.strREFLIVRAISON = ?1) AND t.strSTATUT = ?2")
-                    .setParameter(1, lg_BON_LIVRAISON_ID).setParameter(2, commonparameter.statut_is_Closed).getSingleResult();
-//            OTBonLivraison = (TBonLivraison) this.find(lg_BON_LIVRAISON_ID, new TBonLivraison());
-//            new logger().OCategory.info("Succes OTBonLivraison trouve   " + OTBonLivraison.getLgBONLIVRAISONID());
+            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraison t WHERE (t.lgBONLIVRAISONID = ?1 OR t.strREFLIVRAISON = ?1) AND t.strSTATUT = ?2")
+                    .setParameter(1, lg_BON_LIVRAISON_ID).setParameter(2, commonparameter.statut_is_Closed)
+                    .getSingleResult();
+            // OTBonLivraison = (TBonLivraison) this.find(lg_BON_LIVRAISON_ID, new TBonLivraison());
+            // new logger().OCategory.info("Succes OTBonLivraison trouve " + OTBonLivraison.getLgBONLIVRAISONID());
 
         } catch (Exception E) {
             this.buildErrorTraceMessage("Bon de livraison inexistant");
@@ -422,7 +444,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         TBonLivraison OTBonLivraison = null;
 
         try {
-            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t WHERE (t.lgBONLIVRAISONID = ?1 OR t.strREFLIVRAISON = ?1) AND t.strSTATUT = ?2")
+            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraison t WHERE (t.lgBONLIVRAISONID = ?1 OR t.strREFLIVRAISON = ?1) AND t.strSTATUT = ?2")
                     .setParameter(1, lg_BON_LIVRAISON_ID).setParameter(2, str_STATUT).getSingleResult();
 
         } catch (Exception E) {
@@ -433,7 +456,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public TBonLivraison MakeOrderToBonLivraison(String lg_ORDER_ID, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT, int int_TVA) {
+    public TBonLivraison MakeOrderToBonLivraison(String lg_ORDER_ID, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON,
+            int int_MHT, int int_TVA) {
         tellerManagement OtellerManagement = new tellerManagement(this.getOdataManager(), this.getOTUser());
         TOrder OTOrder;
         orderManagement OorderManagement = new orderManagement(this.getOdataManager(), this.getOTUser());
@@ -441,7 +465,6 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         TBonLivraison OTBonLivraison = null;
         TBonLivraisonDetail OTBonLivraisonDetail;
         TFamilleStock OTFamilleStock;
-      
 
         try {
 
@@ -455,19 +478,23 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             }
             OTBonLivraison = this.CreateBL(OTOrder, str_REF_LIVRAISON, dt_DATE_LIVRAISON, int_MHT, int_TVA);
             ListTOrderDetail = OorderManagement.getTOrderDetail(lg_ORDER_ID, commonparameter.orderIsPassed);
-            // Parcours la liste des DetailsSuggestions      
+            // Parcours la liste des DetailsSuggestions
             this.getOdataManager().BeginTransaction();
             for (TOrderDetail OListTOrderDetail : ListTOrderDetail) {
 
                 if (OListTOrderDetail.getStrSTATUT().equals(commonparameter.orderIsPassed)) {
                     OTFamilleStock = OtellerManagement.getTProductItemStock(OListTOrderDetail.getLgFAMILLEID());
 
-                    OTBonLivraisonDetail = this.CreateBLDetail(OTBonLivraison, OTBonLivraison.getLgORDERID().getLgGROSSISTEID(), OListTOrderDetail.getLgFAMILLEID(),
+                    OTBonLivraisonDetail = this.CreateBLDetail(OTBonLivraison,
+                            OTBonLivraison.getLgORDERID().getLgGROSSISTEID(), OListTOrderDetail.getLgFAMILLEID(),
                             OListTOrderDetail.getIntQTEREPGROSSISTE(),
-                            (OListTOrderDetail.getIntQTEREPGROSSISTE() - OListTOrderDetail.getIntQTEMANQUANT()), OListTOrderDetail.getIntPRICEDETAIL(), "",
-                            "", "", OListTOrderDetail.getIntPRICEDETAIL(), OListTOrderDetail.getIntPAFDETAIL(), OListTOrderDetail.getLgFAMILLEID().getIntPAT(), OListTOrderDetail.getLgFAMILLEID().getLgZONEGEOID(), OTFamilleStock.getIntNUMBERAVAILABLE());
+                            (OListTOrderDetail.getIntQTEREPGROSSISTE() - OListTOrderDetail.getIntQTEMANQUANT()),
+                            OListTOrderDetail.getIntPRICEDETAIL(), "", "", "", OListTOrderDetail.getIntPRICEDETAIL(),
+                            OListTOrderDetail.getIntPAFDETAIL(), OListTOrderDetail.getLgFAMILLEID().getIntPAT(),
+                            OListTOrderDetail.getLgFAMILLEID().getLgZONEGEOID(),
+                            OTFamilleStock.getIntNUMBERAVAILABLE());
                     if (OTBonLivraisonDetail != null) {
-//                        OListTOrderDetail.setStrSTATUT(commonparameter.statut_is_Closed);
+                        // OListTOrderDetail.setStrSTATUT(commonparameter.statut_is_Closed);
                         OListTOrderDetail.setStrSTATUT(Parameter.STATUT_ENTREE_STOCK);
                         OListTOrderDetail.setDtUPDATED(new Date());
                         OListTOrderDetail.setIntORERSTATUS((short) 4);
@@ -482,11 +509,11 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTOrder.setDtUPDATED(new Date());
             this.getOdataManager().getEm().merge(OTOrder);
 
-            //mise a jour du chiffre d'affaire du grossiste
+            // mise a jour du chiffre d'affaire du grossiste
             TGrossiste OTGrossiste = OTOrder.getLgGROSSISTEID();
             OTGrossiste.setDblCHIFFREDAFFAIRE(OTGrossiste.getDblCHIFFREDAFFAIRE() + int_MHT);
             this.getOdataManager().getEm().merge(OTGrossiste);
-            //fin mise a jour du chiffre d'affaire du grossiste
+            // fin mise a jour du chiffre d'affaire du grossiste
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             this.getOdataManager().CloseTransaction();
 
@@ -499,18 +526,19 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public TBonLivraison CreateBL(TOrder OTOrder, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT, int int_TVA) {
+    public TBonLivraison CreateBL(TOrder OTOrder, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT,
+            int int_TVA) {
 
         TBonLivraison OTBonLivraison = new TBonLivraison();
-//        TOrder OTOrder = null;
+        // TOrder OTOrder = null;
         int int_HTTC = 0;
 
         try {
 
-//            OTOrder = getOdataManager().getEm().find(TOrder.class, lg_ORDER_ID);
+            // OTOrder = getOdataManager().getEm().find(TOrder.class, lg_ORDER_ID);
             if (OTOrder != null) {
                 OTBonLivraison.setLgORDERID(OTOrder);
-//                new logger().oCategory.info("lg_ORDER_ID     Create   " + lg_ORDER_ID);
+                // new logger().oCategory.info("lg_ORDER_ID Create " + lg_ORDER_ID);
             }
 
             OTBonLivraison.setLgBONLIVRAISONID(this.getKey().getComplexId());
@@ -520,13 +548,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTBonLivraison.setLgUSERID(this.getOTUser());
             OTBonLivraison.setIntTVA(int_TVA);
             OTBonLivraison.setIntHTTC(OTBonLivraison.getIntMHT() + OTBonLivraison.getIntTVA());
-            /*if (int_TVA == 0) {
-             int_HTTC = int_MHT;
-             OTBonLivraison.setIntHTTC(int_HTTC);
-             } else {
-             int_HTTC = int_MHT + ((int_MHT * int_TVA) / 100);
-             OTBonLivraison.setIntHTTC(int_HTTC);
-             }*/
+            /*
+             * if (int_TVA == 0) { int_HTTC = int_MHT; OTBonLivraison.setIntHTTC(int_HTTC); } else { int_HTTC = int_MHT
+             * + ((int_MHT * int_TVA) / 100); OTBonLivraison.setIntHTTC(int_HTTC); }
+             */
 
             OTBonLivraison.setStrSTATUT(commonparameter.statut_enable);
             OTBonLivraison.setDtCREATED(new Date());
@@ -540,7 +565,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public TBonLivraisonDetail CreateBLDetail(TBonLivraison OTBonLivraison, TGrossiste OTGrossiste, TFamille OTFamille, int int_QTE_CMDE, int int_QTE_RECUE, int int_PRIX_REFERENCE, String str_LIVRAISON_ADP, String str_MANQUE_FORCES, String str_ETAT_ARTICLE, int int_PRIX_VENTE, int int_PAF, int int_PA_REEL, TZoneGeographique OTZoneGeographique, int int_INITSTOCK) {
+    public TBonLivraisonDetail CreateBLDetail(TBonLivraison OTBonLivraison, TGrossiste OTGrossiste, TFamille OTFamille,
+            int int_QTE_CMDE, int int_QTE_RECUE, int int_PRIX_REFERENCE, String str_LIVRAISON_ADP,
+            String str_MANQUE_FORCES, String str_ETAT_ARTICLE, int int_PRIX_VENTE, int int_PAF, int int_PA_REEL,
+            TZoneGeographique OTZoneGeographique, int int_INITSTOCK) {
 
         try {
 
@@ -581,12 +609,11 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         List<TBonLivraison> ListTBonLivraison = new ArrayList<>();
 
         try {
-            ListTBonLivraison = this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t, TBonLivraisonDetail tb WHERE t.lgBONLIVRAISONID = tb.lgBONLIVRAISONID.lgBONLIVRAISONID AND t.lgBONLIVRAISONID LIKE ?1 AND t.strSTATUT LIKE ?2 AND (t.strREFLIVRAISON LIKE ?3 OR tb.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR tb.lgFAMILLEID.intCIP LIKE ?3 OR tb.lgFAMILLEID.intEAN13 LIKE ?3) GROUP BY tb.lgBONLIVRAISONID.lgBONLIVRAISONID ORDER BY t.dtCREATED DESC").
-                    setParameter(1, lg_BON_LIVRAISON_ID).
-                    setParameter(2, str_STATUT).
-                    setParameter(3, search_value + "%").
-                    getResultList();
-            //new logger().OCategory.info("ListTBonLivraison " + ListTBonLivraison.size());
+            ListTBonLivraison = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraison t, TBonLivraisonDetail tb WHERE t.lgBONLIVRAISONID = tb.lgBONLIVRAISONID.lgBONLIVRAISONID AND t.lgBONLIVRAISONID LIKE ?1 AND t.strSTATUT LIKE ?2 AND (t.strREFLIVRAISON LIKE ?3 OR tb.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR tb.lgFAMILLEID.intCIP LIKE ?3 OR tb.lgFAMILLEID.intEAN13 LIKE ?3) GROUP BY tb.lgBONLIVRAISONID.lgBONLIVRAISONID ORDER BY t.dtCREATED DESC")
+                    .setParameter(1, lg_BON_LIVRAISON_ID).setParameter(2, str_STATUT)
+                    .setParameter(3, search_value + "%").getResultList();
+            // new logger().OCategory.info("ListTBonLivraison " + ListTBonLivraison.size());
         } catch (Exception Ex) {
             Ex.printStackTrace();
         }
@@ -595,17 +622,16 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public List<TBonLivraison> getAllBL(String search_value, String lg_BON_LIVRAISON_ID, String str_STATUT, Date dt_BEGIN, Date dt_END) {
+    public List<TBonLivraison> getAllBL(String search_value, String lg_BON_LIVRAISON_ID, String str_STATUT,
+            Date dt_BEGIN, Date dt_END) {
         List<TBonLivraison> ListTBonLivraison = new ArrayList<TBonLivraison>();
         try {
-            ListTBonLivraison = this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t, TBonLivraisonDetail tb WHERE t.lgBONLIVRAISONID = tb.lgBONLIVRAISONID.lgBONLIVRAISONID AND t.lgBONLIVRAISONID LIKE ?1 AND t.strSTATUT LIKE ?2 AND (t.strREFLIVRAISON LIKE ?3 OR tb.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR tb.lgFAMILLEID.intCIP LIKE ?3 OR tb.lgFAMILLEID.intEAN13 LIKE ?3) AND (FUNCTION('DATE',t.dtCREATED) >= ?5 AND FUNCTION('DATE',t.dtCREATED) <= ?6) GROUP BY tb.lgBONLIVRAISONID.lgBONLIVRAISONID ORDER BY t.dtCREATED DESC").
-                    setParameter(1, lg_BON_LIVRAISON_ID).
-                    setParameter(2, str_STATUT).
-                    setParameter(3, search_value + "%").
-                    setParameter(5, dt_BEGIN, TemporalType.DATE).
-                    setParameter(6, dt_END, TemporalType.DATE).
-                    getResultList();
-            //new logger().OCategory.info("ListTBonLivraison " + ListTBonLivraison.size());
+            ListTBonLivraison = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraison t, TBonLivraisonDetail tb WHERE t.lgBONLIVRAISONID = tb.lgBONLIVRAISONID.lgBONLIVRAISONID AND t.lgBONLIVRAISONID LIKE ?1 AND t.strSTATUT LIKE ?2 AND (t.strREFLIVRAISON LIKE ?3 OR tb.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR tb.lgFAMILLEID.intCIP LIKE ?3 OR tb.lgFAMILLEID.intEAN13 LIKE ?3) AND (FUNCTION('DATE',t.dtCREATED) >= ?5 AND FUNCTION('DATE',t.dtCREATED) <= ?6) GROUP BY tb.lgBONLIVRAISONID.lgBONLIVRAISONID ORDER BY t.dtCREATED DESC")
+                    .setParameter(1, lg_BON_LIVRAISON_ID).setParameter(2, str_STATUT)
+                    .setParameter(3, search_value + "%").setParameter(5, dt_BEGIN, TemporalType.DATE)
+                    .setParameter(6, dt_END, TemporalType.DATE).getResultList();
+            // new logger().OCategory.info("ListTBonLivraison " + ListTBonLivraison.size());
         } catch (Exception Ex) {
             Ex.printStackTrace();
         }
@@ -620,11 +646,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
         try {
 
-            ListTBonLivraison = this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t WHERE  t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID LIKE ?1 AND (t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?3) ORDER BY t.dtCREATED DESC").
-                    setParameter(1, lg_GROSSISTE_ID).
-                    setParameter(2, commonparameter.statut_enable).
-                    setParameter(3, commonparameter.statut_is_Closed).
-                    getResultList();
+            ListTBonLivraison = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraison t WHERE  t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID LIKE ?1 AND (t.strSTATUT LIKE ?2 OR t.strSTATUT LIKE ?3) ORDER BY t.dtCREATED DESC")
+                    .setParameter(1, lg_GROSSISTE_ID).setParameter(2, commonparameter.statut_enable)
+                    .setParameter(3, commonparameter.statut_is_Closed).getResultList();
             new logger().OCategory.info("ListTBonLivraison " + ListTBonLivraison.size());
         } catch (Exception Ex) {
 
@@ -634,12 +659,13 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    //verification de l'autorisation de l'entrée en stock
+    // verification de l'autorisation de l'entrée en stock
     public boolean isEntreeStockIsAuthorize(List<TBonLivraisonDetail> lstTBonLivraisonDetail) {
         boolean result = true;
         try {
             for (TBonLivraisonDetail OTBonLivraisonDetail : lstTBonLivraisonDetail) {
-                if ((OTBonLivraisonDetail.getIntQTERECUE() < OTBonLivraisonDetail.getIntQTECMDE()) && (OTBonLivraisonDetail.getLgFAMILLEID().getBoolCHECKEXPIRATIONDATE())) {
+                if ((OTBonLivraisonDetail.getIntQTERECUE() < OTBonLivraisonDetail.getIntQTECMDE())
+                        && (OTBonLivraisonDetail.getLgFAMILLEID().getBoolCHECKEXPIRATIONDATE())) {
                     return false;
                 }
             }
@@ -648,18 +674,25 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         }
         return result;
     }
-    //fin verification de l'autorisation de l'entrée en stock
+    // fin verification de l'autorisation de l'entrée en stock
 
-    //entree en stock sans saisie de date de peremption
+    // entree en stock sans saisie de date de peremption
     public boolean ClosureBonlivraisonSansDatePeremption(String lg_BON_LIVRAISON_ID) {
         boolean result = false;
         List<TBonLivraisonDetail> lstTBonLivraisonDetail = new ArrayList<>();
         String str_TYPE_TRANSACTION = "ALL";
         WarehouseManager OWarehouseManager = new WarehouseManager(this.getOdataManager(), this.getOTUser());
         try {
-            lstTBonLivraisonDetail = this.getTBonLivraisonDetailBis("", lg_BON_LIVRAISON_ID, str_TYPE_TRANSACTION, false);
+            lstTBonLivraisonDetail = this.getTBonLivraisonDetailBis("", lg_BON_LIVRAISON_ID, str_TYPE_TRANSACTION,
+                    false);
             for (TBonLivraisonDetail OTBonLivraisonDetail : lstTBonLivraisonDetail) {
-                OWarehouseManager.AddLot(OTBonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(), OTBonLivraisonDetail.getIntQTECMDE(), OTBonLivraisonDetail.getLgGROSSISTEID().getLgGROSSISTEID(), OTBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(), "", "", 0, OTBonLivraisonDetail.getLgFAMILLEID().getLgTYPEETIQUETTEID().getLgTYPEETIQUETTEID(), OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), OTBonLivraisonDetail.getLgBONLIVRAISONDETAIL(), "");
+                OWarehouseManager.AddLot(OTBonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
+                        OTBonLivraisonDetail.getIntQTECMDE(),
+                        OTBonLivraisonDetail.getLgGROSSISTEID().getLgGROSSISTEID(),
+                        OTBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(), "", "", 0,
+                        OTBonLivraisonDetail.getLgFAMILLEID().getLgTYPEETIQUETTEID().getLgTYPEETIQUETTEID(),
+                        OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(),
+                        OTBonLivraisonDetail.getLgBONLIVRAISONDETAIL(), "");
             }
             result = this.closureBonlivraison(lg_BON_LIVRAISON_ID);
         } catch (Exception e) {
@@ -667,16 +700,17 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         }
         return result;
     }
-    //fin entree en stock sans saisie de date de peremption
+    // fin entree en stock sans saisie de date de peremption
 
-    //fonction cloture livraison
+    // fonction cloture livraison
     public boolean closureBonlivraison(String lg_BON_LIVRAISON_ID) {
         boolean result = false;
         List<TBonLivraisonDetail> lstTBonLivraisonDetail;
         List<TLot> lst;
         String lg_TYPE_ETIQUETTE_ID = "";
         suggestionManagement OsuggestionManagement = new suggestionManagement(this.getOdataManager(), this.getOTUser());
-//        WarehouseManager OWarehouseManager = new WarehouseManager(this.getOdataManager(), this.getOTUser(), new SnapshotManager(this.getOdataManager(), this.getOTUser()));
+        // WarehouseManager OWarehouseManager = new WarehouseManager(this.getOdataManager(), this.getOTUser(), new
+        // SnapshotManager(this.getOdataManager(), this.getOTUser()));
         familleGrossisteManagement OfamilleGrossisteManagement = new familleGrossisteManagement(this.getOdataManager());
         TParameters OTParameters;
         Date now = new Date();
@@ -686,42 +720,54 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         SnapshotManager OSnapshotManager = new SnapshotManager(this.getOdataManager(), this.getOTUser());
         tellerManagement OtellerManagement = new tellerManagement(this.getOdataManager(), this.getOTUser());
         try {
-            OTParameters = new TparameterManager(this.getOdataManager()).getParameter(Parameter.KEY_ACTIVATE_PEREMPTION_DATE);
-            if (OTParameters == null) { //replace true apres par la valeur boolean qui reprensente de la fermeture automatique. False = fermeture automatique desactivée
-                this.buildErrorTraceMessage("Paramètre d'autorisation de saisie de produit sans date de péremption inexistant");
+            OTParameters = new TparameterManager(this.getOdataManager())
+                    .getParameter(Parameter.KEY_ACTIVATE_PEREMPTION_DATE);
+            if (OTParameters == null) { // replace true apres par la valeur boolean qui reprensente de la fermeture
+                // automatique. False = fermeture automatique desactivée
+                this.buildErrorTraceMessage(
+                        "Paramètre d'autorisation de saisie de produit sans date de péremption inexistant");
                 return false;
             }
             OTBonLivraison = this.FindTBonLivraison(lg_BON_LIVRAISON_ID, commonparameter.statut_enable);
-            lstTBonLivraisonDetail = this.getTBonLivraisonDetail(OTBonLivraison.getLgBONLIVRAISONID());//modifie le 12/02/2018
+            lstTBonLivraisonDetail = this.getTBonLivraisonDetail(OTBonLivraison.getLgBONLIVRAISONID());// modifie le
+            // 12/02/2018
             new logger().OCategory.info("lstTBonLivraisonDetail size " + lstTBonLivraisonDetail.size());
 
             if (Integer.valueOf(OTParameters.getStrVALUE()) == 1) {
                 if (!this.isEntreeStockIsAuthorize(lstTBonLivraisonDetail)) {
-                    this.buildErrorTraceMessage("La reception de certains produits n'a pas ete faites. Veuillez verifier vos saisie");
+                    this.buildErrorTraceMessage(
+                            "La reception de certains produits n'a pas ete faites. Veuillez verifier vos saisie");
                     if (this.getOdataManager().getEm().getTransaction().isActive()) {
                         this.getOdataManager().getEm().getTransaction().rollback();
                         this.getOdataManager().getEm().clear();
-                        
+
                     }
                     return false;
                 }
             }
-            // ajout de lot en masse 
+            // ajout de lot en masse
             // this.getOdataManager().BeginTransaction();
             EntityManager em = this.getOdataManager().getEm();
             em.getTransaction().begin();
-            this.bulkAddLot(lstTBonLivraisonDetail, OTBonLivraison, OfamilleGrossisteManagement, OsuggestionManagement, em);
-            List<TOrderDetail> list = this.getOdataManager().getEm().createQuery("SELECT o FROM TOrderDetail o WHERE o.lgORDERID.lgORDERID=?1 ").setParameter(1, OTBonLivraison.getLgORDERID().getLgORDERID()).getResultList();
-//updateFamilleGrossisteCodeArticle
-            //entree en stock 
+            this.bulkAddLot(lstTBonLivraisonDetail, OTBonLivraison, OfamilleGrossisteManagement, OsuggestionManagement,
+                    em);
+            List<TOrderDetail> list = this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM TOrderDetail o WHERE o.lgORDERID.lgORDERID=?1 ")
+                    .setParameter(1, OTBonLivraison.getLgORDERID().getLgORDERID()).getResultList();
+            // updateFamilleGrossisteCodeArticle
+            // entree en stock
             lst = this.listTLot(OTBonLivraison.getStrREFLIVRAISON());
 
             for (TLot OTLot : lst) {
                 if (OTLot.getLgTYPEETIQUETTEID() != null) {
                     OTLot.getLgTYPEETIQUETTEID().getLgTYPEETIQUETTEID();
                 }
-                //04072020
-                this.addStock(null,OfamilleManagement, OStockManager, OSnapshotManager, OtellerManagement, OTLot.getLgFAMILLEID(), OTLot.getIntNUMBER(), OTLot.getLgGROSSISTEID(), OTLot.getStrREFLIVRAISON(), OTLot.getDtSORTIEUSINE(), OTLot.getDtPEREMPTION(), OTLot.getIntNUMBERGRATUIT(), OTLot.getLgTYPEETIQUETTEID(), OTLot.getStrREFORDER(), OTLot.getIntNUMLOT(), OTLot.getIntNUMBERGRATUIT(), em);
+                // 04072020
+                this.addStock(null, OfamilleManagement, OStockManager, OSnapshotManager, OtellerManagement,
+                        OTLot.getLgFAMILLEID(), OTLot.getIntNUMBER(), OTLot.getLgGROSSISTEID(),
+                        OTLot.getStrREFLIVRAISON(), OTLot.getDtSORTIEUSINE(), OTLot.getDtPEREMPTION(),
+                        OTLot.getIntNUMBERGRATUIT(), OTLot.getLgTYPEETIQUETTEID(), OTLot.getStrREFORDER(),
+                        OTLot.getIntNUMLOT(), OTLot.getIntNUMBERGRATUIT(), em);
 
                 OTLot.setStrSTATUT(commonparameter.statut_is_Closed);
                 OTLot.setDtUPDATED(now);
@@ -761,20 +807,21 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().getEm().getTransaction().rollback();
                 this.getOdataManager().getEm().clear();
-//                
+                //
             }
             this.buildErrorTraceMessage("Echec de clôture de la commande");
             new logger().OCategory.info("Echec de clôture de la commande");
         }
         return result;
     }
-    //fin fonction cloture livraison
+    // fin fonction cloture livraison
 
-    //liste des lots fonction d une reference de livraison
+    // liste des lots fonction d une reference de livraison
     public List<TLot> listTLot(String str_REF_LIVRAISON) {
         List<TLot> lst = new ArrayList<>();
         try {
-            lst = this.getOdataManager().getEm().createQuery("SELECT t FROM TLot t WHERE t.strREFLIVRAISON = ?1 AND t.strSTATUT = ?2  ")
+            lst = this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TLot t WHERE t.strREFLIVRAISON = ?1 AND t.strSTATUT = ?2  ")
                     .setParameter(1, str_REF_LIVRAISON).setParameter(2, commonparameter.statut_enable).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
@@ -783,22 +830,24 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return lst;
     }
 
-    //recuperation du montant d'une livraison
+    // recuperation du montant d'une livraison
     public TBonLivraison getMontantLivraison(String str_REF) {
         TBonLivraison OTBonLivraison = null;
 
         try {
-            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1")
-                    .setParameter(1, str_REF).getSingleResult();
-            new logger().OCategory.info("Montant " + OTBonLivraison.getIntHTTC() + " Date " + OTBonLivraison.getDtDATELIVRAISON());
+            OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm()
+                    .createQuery("SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1").setParameter(1, str_REF)
+                    .getSingleResult();
+            new logger().OCategory
+                    .info("Montant " + OTBonLivraison.getIntHTTC() + " Date " + OTBonLivraison.getDtDATELIVRAISON());
         } catch (Exception e) {
             e.printStackTrace();
         }
         return OTBonLivraison;
     }
-    //fin recuperation du montant d'une livraison
+    // fin recuperation du montant d'une livraison
 
-    //prix d'achat total machine d'un bon de livraison
+    // prix d'achat total machine d'un bon de livraison
     public int getPrixAchatBonLivraisonMachine(List<TBonLivraisonDetail> lstTBonLivraisonDetail) {
         int result = 0;
         try {
@@ -808,12 +857,12 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         } catch (Exception e) {
             e.printStackTrace();
         }
-//        new logger().OCategory.info("result " + result);
+        // new logger().OCategory.info("result " + result);
         return result;
     }
-    //fin prix d'achat total machine d'un bon de livraison
+    // fin prix d'achat total machine d'un bon de livraison
 
-    //liste bon de livraison non affecté a des retours fournisseur
+    // liste bon de livraison non affecté a des retours fournisseur
     public List<TBonLivraison> getAllBLForRetourFournisseur(String search_value, String lg_BON_LIVRAISON_ID) {
 
         List<TBonLivraison> ListTBonLivraison = new ArrayList<TBonLivraison>();
@@ -821,23 +870,27 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         orderManagement OorderManagement = new orderManagement(this.getOdataManager(), this.getOTUser());
         TOrder OTOrder = null;
         try {
-            /*if ("".equals(search_value) || search_value == null) {
-             search_value = "%%";
-             }
-
-             ListTBonLivraison = this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t, TRetourFournisseur r WHERE r.lgBONLIVRAISONID.lgBONLIVRAISONID != t.lgBONLIVRAISONID AND t.lgBONLIVRAISONID LIKE ?1 AND t.strSTATUT = ?2 AND t.strREFLIVRAISON LIKE ?3 GROUP BY t.lgBONLIVRAISONID ORDER BY t.dtCREATED DESC").
-             setParameter(1, lg_BON_LIVRAISON_ID).
-             setParameter(2, commonparameter.statut_is_Closed).
-             setParameter(3, search_value + "%").
-             getResultList();*/
+            /*
+             * if ("".equals(search_value) || search_value == null) { search_value = "%%"; }
+             *
+             * ListTBonLivraison = this.getOdataManager().getEm().
+             * createQuery("SELECT t FROM TBonLivraison t, TRetourFournisseur r WHERE r.lgBONLIVRAISONID.lgBONLIVRAISONID != t.lgBONLIVRAISONID AND t.lgBONLIVRAISONID LIKE ?1 AND t.strSTATUT = ?2 AND t.strREFLIVRAISON LIKE ?3 GROUP BY t.lgBONLIVRAISONID ORDER BY t.dtCREATED DESC"
+             * ). setParameter(1, lg_BON_LIVRAISON_ID). setParameter(2, commonparameter.statut_is_Closed).
+             * setParameter(3, search_value + "%"). getResultList();
+             */
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
             jconnexion Ojconnexion = new jconnexion();
             Ojconnexion.initConnexion();
             Ojconnexion.OpenConnexion();
-            //String qry = "SELECT * FROM t_bon_livraison t WHERE t.lg_BON_LIVRAISON_ID NOT IN (SELECT r.lg_BON_LIVRAISON_ID FROM t_retour_fournisseur r) AND t.str_REF_LIVRAISON LIKE '" + search_value + "%' AND t.str_STATUT = '" + commonparameter.statut_is_Closed + "' AND t.lg_BON_LIVRAISON_ID LIKE '" + lg_BON_LIVRAISON_ID + "'";
-            String qry = "SELECT * FROM t_bon_livraison t WHERE  t.str_REF_LIVRAISON LIKE '" + search_value + "%' AND t.str_STATUT = '" + commonparameter.statut_is_Closed + "' AND t.lg_BON_LIVRAISON_ID LIKE '" + lg_BON_LIVRAISON_ID + "'";
+            // String qry = "SELECT * FROM t_bon_livraison t WHERE t.lg_BON_LIVRAISON_ID NOT IN (SELECT
+            // r.lg_BON_LIVRAISON_ID FROM t_retour_fournisseur r) AND t.str_REF_LIVRAISON LIKE '" + search_value + "%'
+            // AND t.str_STATUT = '" + commonparameter.statut_is_Closed + "' AND t.lg_BON_LIVRAISON_ID LIKE '" +
+            // lg_BON_LIVRAISON_ID + "'";
+            String qry = "SELECT * FROM t_bon_livraison t WHERE  t.str_REF_LIVRAISON LIKE '" + search_value
+                    + "%' AND t.str_STATUT = '" + commonparameter.statut_is_Closed
+                    + "' AND t.lg_BON_LIVRAISON_ID LIKE '" + lg_BON_LIVRAISON_ID + "'";
             new logger().OCategory.info(qry);
             Ojconnexion.set_Request(qry);
             ResultSetMetaData rsmddatas = Ojconnexion.get_resultat().getMetaData();
@@ -861,30 +914,32 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             Ex.printStackTrace();
 
         }
-        //  new logger().OCategory.info("ListTBonLivraison " + ListTBonLivraison.size());
+        // new logger().OCategory.info("ListTBonLivraison " + ListTBonLivraison.size());
         return ListTBonLivraison;
 
     }
 
-    //fin 
-    //verifier si une reference de bon de livraison n'existe pas encore pour ce grossiste
+    // fin
+    // verifier si une reference de bon de livraison n'existe pas encore pour ce grossiste
     public boolean isRefBLExistForGrossiste(String str_REF_LIVRAISON, String lg_GROSSISTE_ID) {
         boolean result = false;
         try {
-            TBonLivraison OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 AND t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID = ?2")
-                    .setParameter(1, str_REF_LIVRAISON).setParameter(2, lg_GROSSISTE_ID).setMaxResults(1).getSingleResult();
+            TBonLivraison OTBonLivraison = (TBonLivraison) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 AND t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID = ?2")
+                    .setParameter(1, str_REF_LIVRAISON).setParameter(2, lg_GROSSISTE_ID).setMaxResults(1)
+                    .getSingleResult();
             if (OTBonLivraison != null) {
                 result = true;
                 this.buildErrorTraceMessage("Désolé. Cette référence a déjà été utilisé pour ce grossiste");
             }
         } catch (Exception e) {
-//            e.printStackTrace();
+            // e.printStackTrace();
         }
         return result;
     }
-    //fin verifier si une reference de bon de livraison n'existe pas encore pour ce grossiste
+    // fin verifier si une reference de bon de livraison n'existe pas encore pour ce grossiste
 
-    /* supprimere bon de commande*/
+    /* supprimere bon de commande */
     public boolean deleteBonLivraison(String lg_BON_LIVRAISON) {
         boolean isDelete = true;
         try {
@@ -914,8 +969,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     private void deleteLots(String str_REF_LIVRAISON) {
 
         try {
-            List<TLot> lot = this.getOdataManager().getEm().createQuery("SELECT o FROM  TLot o WHERE o.strREFLIVRAISON=?1")
-                    .setParameter(1, str_REF_LIVRAISON)
+            List<TLot> lot = this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM  TLot o WHERE o.strREFLIVRAISON=?1").setParameter(1, str_REF_LIVRAISON)
                     .getResultList();
             for (TLot Object : lot) {
                 this.getOdataManager().getEm().remove(Object);
@@ -929,10 +984,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
         try {
             EntityManager em = this.getOdataManager().getEm();
-            List<TBonLivraisonDetail> lot = em.createQuery("SELECT o FROM  TBonLivraisonDetail o WHERE o.lgBONLIVRAISONID.lgBONLIVRAISONID=?1 ")
-                    .setParameter(1, str_BONLIVRAISON_ID)
-                    .getResultList();
-           
+            List<TBonLivraisonDetail> lot = em
+                    .createQuery("SELECT o FROM  TBonLivraisonDetail o WHERE o.lgBONLIVRAISONID.lgBONLIVRAISONID=?1 ")
+                    .setParameter(1, str_BONLIVRAISON_ID).getResultList();
+
             lot.forEach((Object) -> {
                 this.getOdataManager().getEm().remove(Object);
             });
@@ -965,12 +1020,12 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     }
 
     private void updateOrderDetails(String lg_ORDER_ID) {
-        List<TOrderDetail> details ;
+        List<TOrderDetail> details;
 
         try {
-            details = this.getOdataManager().getEm().createQuery("SELECT o FROM  TOrderDetail o WHERE o.lgORDERID.lgORDERID=?1 ")
-                    .setParameter(1, lg_ORDER_ID)
-                    .getResultList();
+            details = this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM  TOrderDetail o WHERE o.lgORDERID.lgORDERID=?1 ")
+                    .setParameter(1, lg_ORDER_ID).getResultList();
             for (TOrderDetail detail : details) {
                 detail.setDtUPDATED(new Date());
                 detail.setStrSTATUT(commonparameter.statut_is_Process);
@@ -986,25 +1041,21 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public List<TLot> getAllLots(String search_value, String lg_LOT_ID, Date dt_start, Date dt_end) {
         List<TLot> list = new ArrayList<>();
         try {
-            list = this.getOdataManager().getEm().createQuery("SELECT o FROM TLot o WHERE o.lgLOTID LIKE ?1 AND (o.lgFAMILLEID.strNAME LIKE ?2 OR o.lgFAMILLEID.intCIP LIKE ?2 OR  o.strREFLIVRAISON LIKE ?2 OR o.strREFORDER LIKE ?2 ) AND o.strSTATUT =?3 AND  FUNCTION('DATE',o.dtUPDATED ) >=?4 AND FUNCTION('DATE',o.dtUPDATED)<=?5   ").
-                    setParameter(1, "%" + lg_LOT_ID + "%").
-                    setParameter(2, search_value + "%")
-                    .setParameter(3, commonparameter.statut_is_Closed)
-                    .setParameter(4, dt_start)
-                    .setParameter(5, dt_end)
-                    .getResultList();
+            list = this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TLot o WHERE o.lgLOTID LIKE ?1 AND (o.lgFAMILLEID.strNAME LIKE ?2 OR o.lgFAMILLEID.intCIP LIKE ?2 OR  o.strREFLIVRAISON LIKE ?2 OR o.strREFORDER LIKE ?2 )  AND  FUNCTION('DATE',o.dtUPDATED ) >=?3 AND FUNCTION('DATE',o.dtUPDATED)<=?4   ")
+                    .setParameter(1, "%" + lg_LOT_ID + "%").setParameter(2, search_value + "%")
+                    .setParameter(3, dt_start).setParameter(4, dt_end).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
         return list;
     }
 
-    public boolean updateLot(String lg_LOT_ID, String int_NUM_LOT,
-            int int_NUMBER, String dt_SORTIE_USINE,
+    public boolean updateLot(String lg_LOT_ID, String int_NUM_LOT, int int_NUMBER, String dt_SORTIE_USINE,
             String dt_PEREMPTION, int int_NUMBER_GRATUIT, String lg_TYPEETIQUETTE_ID) {
         boolean isUpdate = false;
-        TTypeetiquette OTTypeetiquette ;
-        TLot OLot ;
+        TTypeetiquette OTTypeetiquette;
+        TLot OLot;
         try {
 
             OTTypeetiquette = this.getOdataManager().getEm().find(TTypeetiquette.class, lg_TYPEETIQUETTE_ID);
@@ -1029,11 +1080,13 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return isUpdate;
     }
 
-    //fonction de mise a jour des prix d'un article durant le processus de commande
-    private boolean updatePriceArticleByDuringCommand(familleManagement OfamilleManagement, SnapshotManager snapshotManager, String lg_FAMILLE_ID, int int_PRICE, int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step) {
+    // fonction de mise a jour des prix d'un article durant le processus de commande
+    private boolean updatePriceArticleByDuringCommand(familleManagement OfamilleManagement,
+            SnapshotManager snapshotManager, String lg_FAMILLE_ID, int int_PRICE, int int_PRICE_TIPS, int int_PAF,
+            int int_PAT, String action, String str_REF, String step) {
         boolean result = false;
         int int_PAF_OLD = 0, int_PAT_OLD = 0, int_PRICE_OLD = 0, int_PRICE_TIPS_OLD = 0;
-//        familleManagement OfamilleManagement = new familleManagement(this.getOdataManager());
+        // familleManagement OfamilleManagement = new familleManagement(this.getOdataManager());
         try {
             TFamille OTFamille = this.getOdataManager().getEm().find(TFamille.class, lg_FAMILLE_ID);
 
@@ -1050,19 +1103,24 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 OTFamille.setIntPRICE(int_PRICE);
                 OTFamille.setIntPRICETIPS(int_PRICE_TIPS);
                 OTFamille.setDtCREATED(new Date());
-//                this.persiste(OTFamille); //a decommenter en cas de probleme
+                // this.persiste(OTFamille); //a decommenter en cas de probleme
                 this.getOdataManager().getEm().persist(OTFamille);
             }
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             result = true;
 
-            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT) || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
-                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION() + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME() + ".";
+            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT)
+                    || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
+                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION()
+                        + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " "
+                        + this.getOTUser().getStrLASTNAME() + ".";
                 if (int_PRICE_OLD != int_PRICE) {
                     Description += "Prix de vente: " + int_PRICE_OLD + " remplacé par " + int_PRICE + ".";
-//                    new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille, commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
-                    snapshotManager.SaveMouvementPrice(OTFamille, commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
+                    // new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille,
+                    // commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
+                    snapshotManager.SaveMouvementPrice(OTFamille, commonparameter.code_action_commande, int_PRICE,
+                            int_PRICE_OLD, str_REF);
 
                 }
                 if (int_PAF_OLD != int_PAF) {
@@ -1075,7 +1133,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                     Description += "Prix TIP: " + int_PRICE_TIPS_OLD + " remplacé par " + int_PRICE_TIPS + ".";
                 }
 
-                OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE", "Modification de prix à la vente");
+                OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE",
+                        "Modification de prix à la vente");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1084,13 +1143,15 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         new logger().OCategory.info(this.getDetailmessage());
         return result;
     }
-    //fin fonction de mise a jour des prix d'un article durant le processus de commande
+    // fin fonction de mise a jour des prix d'un article durant le processus de commande
 
     // debut calcul prix moyen pondéré
     public void calculPrixMoyenPondere(TFamille OTFamille, TBonLivraisonDetail OTBonLivraisonDetail, int int_STOCK) {
         double prixMoyenPonderer = 0;
         try {
-            prixMoyenPonderer = ((int_STOCK * OTFamille.getIntPAT()) + (OTBonLivraisonDetail.getIntQTERECUE() * OTFamille.getIntPAF())) / (int_STOCK + OTBonLivraisonDetail.getIntQTERECUE());
+            prixMoyenPonderer = ((int_STOCK * OTFamille.getIntPAT())
+                    + (OTBonLivraisonDetail.getIntQTERECUE() * OTFamille.getIntPAF()))
+                    / (int_STOCK + OTBonLivraisonDetail.getIntQTERECUE());
             OTFamille.setDblPRIXMOYENPONDERE(prixMoyenPonderer);
             this.merge(OTFamille);
             new logger().OCategory.info("prixMoyenPonderer " + prixMoyenPonderer);
@@ -1099,10 +1160,13 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public void calculPrixMoyenPondere(TFamille OTFamille, TBonLivraisonDetail OTBonLivraisonDetail, int int_STOCK, EntityManager em) {
+    public void calculPrixMoyenPondere(TFamille OTFamille, TBonLivraisonDetail OTBonLivraisonDetail, int int_STOCK,
+            EntityManager em) {
         double prixMoyenPonderer = 0;
         try {
-            prixMoyenPonderer = ((int_STOCK * OTFamille.getIntPAT()) + (OTBonLivraisonDetail.getIntQTERECUE() * OTFamille.getIntPAF())) / (int_STOCK + OTBonLivraisonDetail.getIntQTERECUE());
+            prixMoyenPonderer = ((int_STOCK * OTFamille.getIntPAT())
+                    + (OTBonLivraisonDetail.getIntQTERECUE() * OTFamille.getIntPAF()))
+                    / (int_STOCK + OTBonLivraisonDetail.getIntQTERECUE());
             OTFamille.setDblPRIXMOYENPONDERE(prixMoyenPonderer);
             em.merge(OTFamille);
             new logger().OCategory.info("prixMoyenPonderer " + prixMoyenPonderer);
@@ -1114,11 +1178,13 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     // fin calcul prix moyen pondéré
     @Override
     public TBonLivraisonDetail getTBonLivraisonDetailLast(String lg_BON_LIVRAISON_ID, String lg_FAMILLE_ID) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+        // Tools | Templates.
     }
 
     @Override
-    public boolean updateInfoBonlivraison(String lg_ORDER_ID, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT, int int_TVA) {
+    public boolean updateInfoBonlivraison(String lg_ORDER_ID, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON,
+            int int_MHT, int int_TVA) {
         boolean result = false;
         TBonLivraison OTBonLivraison = null;
         try {
@@ -1133,12 +1199,14 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTBonLivraison.setIntTVA(int_TVA);
             OTBonLivraison.setIntHTTC(OTBonLivraison.getIntMHT() + OTBonLivraison.getIntTVA());
             this.persiste(OTBonLivraison);
-            this.buildSuccesTraceMessage("Bon de livraison " + OTBonLivraison.getStrREFLIVRAISON() + " mis à jour avec succès");
+            this.buildSuccesTraceMessage(
+                    "Bon de livraison " + OTBonLivraison.getStrREFLIVRAISON() + " mis à jour avec succès");
             result = true;
 
         } catch (Exception e) {
             e.printStackTrace();
-            this.buildErrorTraceMessage("Echec de mise à jour des informations du bon de livraison " + str_REF_LIVRAISON);
+            this.buildErrorTraceMessage(
+                    "Echec de mise à jour des informations du bon de livraison " + str_REF_LIVRAISON);
         }
         return result;
     }
@@ -1147,7 +1215,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public TBonLivraison getTBonlivraisonByOrder(String lg_ORDER_ID) {
         TBonLivraison OTBonLivraison = null;
         try {
-            Query qry = this.getOdataManager().getEm().createQuery("SELECT t FROM TBonLivraison t WHERE (t.lgORDERID.lgORDERID = ?1 OR t.lgORDERID.strREFORDER = ?1) AND t.lgORDERID.strSTATUT = ?2")
+            Query qry = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TBonLivraison t WHERE (t.lgORDERID.lgORDERID = ?1 OR t.lgORDERID.strREFORDER = ?1) AND t.lgORDERID.strSTATUT = ?2")
                     .setParameter(1, lg_ORDER_ID).setParameter(2, commonparameter.statut_is_Closed);
             if (qry.getResultList().size() > 0) {
                 OTBonLivraison = (TBonLivraison) qry.getSingleResult();
@@ -1158,7 +1227,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return OTBonLivraison;
     }
 
-    public TBonLivraisonDetail createBLDetail(TBonLivraison OTBonLivraison, TGrossiste OTGrossiste, TFamille OTFamille, int int_QTE_CMDE, int int_QTE_RECUE, int int_PRIX_REFERENCE, String str_LIVRAISON_ADP, String str_MANQUE_FORCES, String str_ETAT_ARTICLE, int int_PRIX_VENTE, int int_PAF, int int_PA_REEL, TZoneGeographique OTZoneGeographique, int int_INITSTOCK) {
+    public TBonLivraisonDetail createBLDetail(TBonLivraison OTBonLivraison, TGrossiste OTGrossiste, TFamille OTFamille,
+            int int_QTE_CMDE, int int_QTE_RECUE, int int_PRIX_REFERENCE, String str_LIVRAISON_ADP,
+            String str_MANQUE_FORCES, String str_ETAT_ARTICLE, int int_PRIX_VENTE, int int_PAF, int int_PA_REEL,
+            TZoneGeographique OTZoneGeographique, int int_INITSTOCK) {
 
         try {
 
@@ -1195,7 +1267,9 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     }
 
     private TFamilleGrossiste findFamilleGrossiste(TFamille famille, TGrossiste grossiste, EntityManager em) {
-        TypedQuery<TFamilleGrossiste> query = em.createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID =?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2", TFamilleGrossiste.class);
+        TypedQuery<TFamilleGrossiste> query = em.createQuery(
+                "SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID =?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2",
+                TFamilleGrossiste.class);
         query.setParameter(1, famille.getLgFAMILLEID()).setParameter(2, grossiste.getLgGROSSISTEID());
         return query.getSingleResult();
     }
@@ -1203,15 +1277,19 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     private void updateBonLivraisonAmount(TBonLivraisonDetail detail, int oldPrice, EntityManager em) {
         try {
             TBonLivraison bonLivraison = detail.getLgBONLIVRAISONID();
-            bonLivraison.setIntMHT((bonLivraison.getIntMHT() - oldPrice) + (detail.getIntPAF() * detail.getIntQTECMDE()));
-            bonLivraison.setIntHTTC((bonLivraison.getIntHTTC() - oldPrice) + (detail.getIntPAF() * detail.getIntQTECMDE()));
+            bonLivraison
+                    .setIntMHT((bonLivraison.getIntMHT() - oldPrice) + (detail.getIntPAF() * detail.getIntQTECMDE()));
+            bonLivraison
+                    .setIntHTTC((bonLivraison.getIntHTTC() - oldPrice) + (detail.getIntPAF() * detail.getIntQTECMDE()));
             bonLivraison.setDtUPDATED(new Date());
             em.merge(bonLivraison);
         } catch (Exception e) {
         }
     }
 
-    public boolean updatePriceArticleByDuringCommand(TFamille OTFamille, TGrossiste grossiste, int int_PRICE, int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step, EntityManager em) {
+    public boolean updatePriceArticleByDuringCommand(TFamille OTFamille, TGrossiste grossiste, int int_PRICE,
+            int int_PRICE_TIPS, int int_PAF, int int_PAT, String action, String str_REF, String step,
+            EntityManager em) {
 
         boolean result = false;
         int int_PAF_OLD, int_PAT_OLD = 0, int_PRICE_OLD = 0, int_PRICE_TIPS_OLD = 0;
@@ -1221,7 +1299,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             int_PRICE_OLD = OTFamille.getIntPRICE();
             int_PAF_OLD = OTFamille.getIntPAF();
             int_PAT_OLD = OTFamille.getIntPAT();
-            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS() : OTFamille.getIntPRICE();
+            int_PRICE_TIPS_OLD = OTFamille.getIntPRICETIPS() != null ? OTFamille.getIntPRICETIPS()
+                    : OTFamille.getIntPRICE();
             OTFamille.setIntPAF(int_PAF);
             OTFamille.setIntPAT(int_PAT);
             OTFamille.setIntPRICE(int_PRICE);
@@ -1239,11 +1318,15 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             result = true;
 
-            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT) || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
-                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION() + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " " + this.getOTUser().getStrLASTNAME() + ".";
+            if ((int_PRICE_OLD != int_PRICE) || (int_PAF_OLD != int_PAF) || (int_PAT_OLD != int_PAT)
+                    || (int_PRICE_TIPS_OLD != int_PRICE_TIPS)) {
+                String Description = "Modification de prix à la commande de " + OTFamille.getStrDESCRIPTION()
+                        + " par l'utilisateur " + this.getOTUser().getStrFIRSTNAME() + " "
+                        + this.getOTUser().getStrLASTNAME() + ".";
                 if (int_PRICE_OLD != int_PRICE) {
                     Description += "Prix de vente: " + int_PRICE_OLD + " remplacé par " + int_PRICE + ".";
-//                      new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille, commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
+                    // new SnapshotManager(this.getOdataManager(), this.getOTUser()).SaveMouvementPrice(OTFamille,
+                    // commonparameter.code_action_commande, int_PRICE, int_PRICE_OLD, str_REF);
                 }
                 if (int_PAF_OLD != int_PAF) {
                     Description += "Prix d'achat facture: " + int_PAF_OLD + " remplacé par " + int_PAF + ".";
@@ -1255,7 +1338,7 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                     Description += "Prix TIP: " + int_PRICE_TIPS_OLD + " remplacé par " + int_PRICE_TIPS + ".";
                 }
 
-                //  OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
+                // OfamilleManagement.sendSMS(Description, "TFamille", action, "N_UPDATE_FAMILLE_PRICE");
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -1265,7 +1348,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return result;
     }
 
-    public JSONObject changePrice(String lg_BON_LIVRAISON_DETAIL, int int_PRIX_REFERENCE, int int_PRIX_VENTE, int int_PAF, int int_PAT, String lg_ZONE_GEO_ID) {
+    public JSONObject changePrice(String lg_BON_LIVRAISON_DETAIL, int int_PRIX_REFERENCE, int int_PRIX_VENTE,
+            int int_PAF, int int_PAT, String lg_ZONE_GEO_ID) {
         JSONObject json = new JSONObject();
         dal.TBonLivraisonDetail OTBonLivraisonDetail;
         dal.TZoneGeographique OTZoneGeographique;
@@ -1289,8 +1373,9 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 OTFamille = OTBonLivraisonDetail.getLgFAMILLEID();
                 if (OTZoneGeographique != null && OTFamille != null) {
                     OTBonLivraisonDetail.setLgZONEGEOID(OTZoneGeographique);
-                    /*OTFamille.setLgZONEGEOID(OTZoneGeographique);
-                     this.persiste(OTFamille);*/
+                    /*
+                     * OTFamille.setLgZONEGEOID(OTZoneGeographique); this.persiste(OTFamille);
+                     */
                 }
 
                 em.merge(OTBonLivraisonDetail);
@@ -1300,7 +1385,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 json.put("montantMHT", amountMHT);
                 json.put("amountMTTC", amountMTTC);
 
-                updatePriceArticleByDuringCommand(OTFamille, OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getLgGROSSISTEID(), int_PRIX_VENTE, int_PRIX_REFERENCE, int_PAF, int_PAT, commonparameter.code_action_commande, OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), "", em);
+                updatePriceArticleByDuringCommand(OTFamille,
+                        OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getLgGROSSISTEID(), int_PRIX_VENTE,
+                        int_PRIX_REFERENCE, int_PAF, int_PAT, commonparameter.code_action_commande,
+                        OTBonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getStrREFORDER(), "", em);
                 em.getTransaction().commit();
             }
 
@@ -1318,9 +1406,9 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         boolean isExist = false;
         try {
 
-            TFamille famille = (TFamille) this.getOdataManager().getEm().createQuery("SELECT o  FROM TFamille o WHERE o.lgFAMILLEID=?1 AND o  IN (SELECT p.lgFAMILLEID FROM TOrder r,TOrderDetail p WHERE p.lgORDERID.lgORDERID=r.lgORDERID AND p.strSTATUT='passed' OR p.strSTATUT='is_Process' )  ").setParameter(1, lgFamilleID)
-                    .setMaxResults(1)
-                    .getSingleResult();
+            TFamille famille = (TFamille) this.getOdataManager().getEm().createQuery(
+                    "SELECT o  FROM TFamille o WHERE o.lgFAMILLEID=?1 AND o  IN (SELECT p.lgFAMILLEID FROM TOrder r,TOrderDetail p WHERE p.lgORDERID.lgORDERID=r.lgORDERID AND p.strSTATUT='passed' OR p.strSTATUT='is_Process' )  ")
+                    .setParameter(1, lgFamilleID).setMaxResults(1).getSingleResult();
 
             if (famille != null) {
                 isExist = true;
@@ -1333,88 +1421,14 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return isExist;
     }
 
-    public JSONObject updateBL(String idBL, String dt_DATELIVRAISON, int intMHT, int intTVA, String lgGROSSISTEIDEDIT, String ref) {
-        JSONObject json = new JSONObject();
-        try {
-            TBonLivraison bl = this.getOdataManager().getEm().find(TBonLivraison.class, idBL);
-
-            TGrossiste tg = (TGrossiste) this.getOdataManager().getEm().createQuery("SELECT o FROM TGrossiste o WHERE (o.strLIBELLE LIKE ?1 OR o.lgGROSSISTEID LIKE ?1 )")
-                    .
-                    setParameter(1, lgGROSSISTEIDEDIT.trim()).getSingleResult();
-            List<TBonLivraisonDetail> list = getByBL(bl.getLgBONLIVRAISONID());
-
-            long amount = getDetailsAmount(list);
-            if (intMHT != amount) {
-                json.put("status", 0).put("message", "Le montant HT saisie est différent du montant HT de la somme des différents articles du BL qui est : " + amount);
-                return json;
-            }
-            if (!this.getOdataManager().getEm().getTransaction().isActive()) {
-                this.getOdataManager().getEm().getTransaction().begin();
-            }
-
-            bl.setDtDATELIVRAISON(java.sql.Date.valueOf(dt_DATELIVRAISON));
-            bl.setIntMHT(intMHT);
-            bl.setIntTVA(intTVA);
-            bl.setIntHTTC(intTVA + intMHT);
-            bl.setStrREFLIVRAISON(ref);
-            TOrder o = bl.getLgORDERID();
-            o.setLgGROSSISTEID(tg);
-//            o.setIntPRICE(intMHT);
-
-            list.forEach((detail) -> {
-
-                detail.setLgGROSSISTEID(tg);
-                this.getOdataManager().getEm().merge(detail);
-            });
-            this.getOdataManager().getEm().merge(o);
-            this.getOdataManager().getEm().merge(bl);
-
-            if (this.getOdataManager().getEm().getTransaction().isActive()) {
-                this.getOdataManager().getEm().getTransaction().commit();
-            }
-            json.put("status", 1).put("message", "Le BL mis à jour avec succès");
-        } catch (Exception e) {
-            e.printStackTrace();
-
-        }
-        return json;
-    }
-
-    private List<TBonLivraisonDetail> getByBL(String id) {
-        List<TBonLivraisonDetail> list = new ArrayList<>();
-        try {
-            list = this.getOdataManager().getEm().createQuery("SELECT o FROM TBonLivraisonDetail o WHERE o.lgBONLIVRAISONID.lgBONLIVRAISONID =?1 ").
-                    setParameter(1, id).getResultList();
-        } catch (Exception e) {
-
-        }
-        return list;
-    }
-
-    private long getDetailsAmount(List<TBonLivraisonDetail> bonLivraisonDetails) {
-        return bonLivraisonDetails.stream().mapToLong((value) -> {
-            return (value.getIntPAF() * value.getIntQTERECUE());
-        }).sum();
-    }
-
-    public int articleStatus(String lgFamilleID) {
-        int status = getStatusInOrder(lgFamilleID);
-        if (status == 0) {
-            status = articleStatusSuggestion(lgFamilleID);
-        }
-
-        return status;
-
-    }
-
     public int articleStatusSuggestion(String lgFamilleID) {
         int status = 0;
 
         try {
 
-            long count = (long) this.getOdataManager().getEm().createQuery("SELECT COUNT(o)  FROM TSuggestionOrderDetails o WHERE o.strSTATUT='is_Process' AND o.lgFAMILLEID.lgFAMILLEID =?1 ").setParameter(1, lgFamilleID)
-                    .setMaxResults(1)
-                    .getSingleResult();
+            long count = (long) this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(o)  FROM TSuggestionOrderDetails o WHERE o.strSTATUT='is_Process' AND o.lgFAMILLEID.lgFAMILLEID =?1 ")
+                    .setParameter(1, lgFamilleID).setMaxResults(1).getSingleResult();
 
             if (count > 0) {
                 status = 1;
@@ -1430,12 +1444,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     private int getStatusInOrder(String lgFamilleID) {
         int status = 0;
         try {
-            long count = (long) this.getOdataManager().getEm().createQuery("SELECT COUNT(p) FROM TOrder r,TOrderDetail p WHERE p.lgORDERID.lgORDERID=r.lgORDERID AND (p.lgFAMILLEID.intORERSTATUS =?2 OR p.lgFAMILLEID.intORERSTATUS =?3 OR p.lgFAMILLEID.intORERSTATUS=?4 ) AND  p.lgFAMILLEID.lgFAMILLEID =?1  ORDER BY p.lgFAMILLEID.intORERSTATUS DESC").setParameter(1, lgFamilleID)
-                    .setParameter(2, (short) 2)
-                    .setParameter(3, (short) 3)
-                    .setParameter(4, (short) 4)
-                    .setMaxResults(1)
-                    .getSingleResult();
+            long count = (long) this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(p) FROM TOrder r,TOrderDetail p WHERE p.lgORDERID.lgORDERID=r.lgORDERID AND (p.lgFAMILLEID.intORERSTATUS =?2 OR p.lgFAMILLEID.intORERSTATUS =?3 OR p.lgFAMILLEID.intORERSTATUS=?4 ) AND  p.lgFAMILLEID.lgFAMILLEID =?1  ORDER BY p.lgFAMILLEID.intORERSTATUS DESC")
+                    .setParameter(1, lgFamilleID).setParameter(2, (short) 2).setParameter(3, (short) 3)
+                    .setParameter(4, (short) 4).setMaxResults(1).getSingleResult();
             if (count > 0) {
                 status = new Integer(count + "");
             }
@@ -1449,13 +1461,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     private int getStatusInOrder(String lgFamilleID, String orderDetailID) {
         int status = 0;
         try {
-            long count = (long) this.getOdataManager().getEm().createQuery("SELECT COUNT(p) FROM TOrder r,TOrderDetail p WHERE p.lgORDERID.lgORDERID=r.lgORDERID AND (p.lgFAMILLEID.intORERSTATUS=?2 OR p.lgFAMILLEID.intORERSTATUS=?3 OR p.lgFAMILLEID.intORERSTATUS=?4 ) AND  p.lgFAMILLEID.lgFAMILLEID =?1   AND p.lgORDERDETAILID <>?5 ORDER BY p.lgFAMILLEID.intORERSTATUS DESC").setParameter(1, lgFamilleID)
-                    .setParameter(2, (short) 2)
-                    .setParameter(3, (short) 3)
-                    .setParameter(4, (short) 4)
-                    .setParameter(5, orderDetailID)
-                    .setMaxResults(1)
-                    .getSingleResult();
+            long count = (long) this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(p) FROM TOrder r,TOrderDetail p WHERE p.lgORDERID.lgORDERID=r.lgORDERID AND (p.lgFAMILLEID.intORERSTATUS=?2 OR p.lgFAMILLEID.intORERSTATUS=?3 OR p.lgFAMILLEID.intORERSTATUS=?4 ) AND  p.lgFAMILLEID.lgFAMILLEID =?1   AND p.lgORDERDETAILID <>?5 ORDER BY p.lgFAMILLEID.intORERSTATUS DESC")
+                    .setParameter(1, lgFamilleID).setParameter(2, (short) 2).setParameter(3, (short) 3)
+                    .setParameter(4, (short) 4).setParameter(5, orderDetailID).setMaxResults(1).getSingleResult();
             if (count > 0) {
                 status = new Integer(count + "");
             }
@@ -1488,9 +1497,11 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     }
 
     private TPrivilege getPrivilge(String id) {
-        TPrivilege privilege = null;//P_BTN_UPDATEBL
+        TPrivilege privilege = null;// P_BTN_UPDATEBL
         try {
-            privilege = (TPrivilege) this.getOdataManager().getEm().createQuery("SELECT o FROM TPrivilege o WHERE o.strNAME =?1 ").setParameter(1, id).getSingleResult();
+            privilege = (TPrivilege) this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM TPrivilege o WHERE o.strNAME =?1 ").setParameter(1, id)
+                    .getSingleResult();
         } catch (Exception e) {
         }
         return privilege;
@@ -1523,8 +1534,9 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public TLot getLot(String lg_FAMILLE_ID, String lg_LIVRAISON_ID) {
         TLot lot = null;
         try {
-            List<TLot> list = this.getOdataManager().getEm().createQuery("SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID =?1 AND o.strREFLIVRAISON =?2").setParameter(1, lg_FAMILLE_ID).
-                    setParameter(2, lg_LIVRAISON_ID).setMaxResults(1).getResultList();
+            List<TLot> list = this.getOdataManager().getEm()
+                    .createQuery("SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID =?1 AND o.strREFLIVRAISON =?2")
+                    .setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_LIVRAISON_ID).setMaxResults(1).getResultList();
             if (!list.isEmpty()) {
                 lot = list.get(0);
             }
@@ -1534,7 +1546,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return lot;
     }
 
-    public TLot createTLot(TFamille OTFamille, int int_NUMBER, String str_REF_LIVRAISON, TGrossiste OTGrossiste, String str_REF_ORDER, int int_UG) {
+    public TLot createTLot(TFamille OTFamille, int int_NUMBER, String str_REF_LIVRAISON, TGrossiste OTGrossiste,
+            String str_REF_ORDER, int int_UG) {
 
         Date now = new Date();
         TLot OTLot = null;
@@ -1542,7 +1555,7 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTLot = new TLot(this.getKey().getComplexId());
             OTLot.setLgUSERID(this.getOTUser());
             OTLot.setLgFAMILLEID(OTFamille);
-            OTLot.setIntNUMBER(int_NUMBER); //quantite commandé + quantité livré
+            OTLot.setIntNUMBER(int_NUMBER); // quantite commandé + quantité livré
             OTLot.setDtSORTIEUSINE(now);
             OTLot.setStrREFLIVRAISON(str_REF_LIVRAISON);
             OTLot.setLgGROSSISTEID(OTGrossiste);
@@ -1561,7 +1574,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return OTLot;
     }
 
-    public TLot createTLot(TBonLivraisonDetail bonLivraisonDetail,TFamille OTFamille, int int_NUMBER, String str_REF_LIVRAISON, TGrossiste OTGrossiste, String str_REF_ORDER, int int_UG, EntityManager em) {
+    public TLot createTLot(TBonLivraisonDetail bonLivraisonDetail, TFamille OTFamille, int int_NUMBER,
+            String str_REF_LIVRAISON, TGrossiste OTGrossiste, String str_REF_ORDER, int int_UG, EntityManager em) {
 
         Date now = new Date();
         TLot OTLot = null;
@@ -1569,7 +1583,7 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTLot = new TLot(this.getKey().getComplexId());
             OTLot.setLgUSERID(this.getOTUser());
             OTLot.setLgFAMILLEID(OTFamille);
-            OTLot.setIntNUMBER(int_NUMBER); //quantite commandé + quantité livré
+            OTLot.setIntNUMBER(int_NUMBER); // quantite commandé + quantité livré
             OTLot.setDtSORTIEUSINE(now);
             OTLot.setStrREFLIVRAISON(str_REF_LIVRAISON);
             OTLot.setLgGROSSISTEID(OTGrossiste);
@@ -1581,20 +1595,23 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTLot.setIntQTYVENDUE(0);
             em.persist(OTLot);
             this.buildSuccesTraceMessage("Lot ajouté avec succès");
-            addWarehouse(bonLivraisonDetail,OTFamille, int_NUMBER, OTGrossiste, str_REF_LIVRAISON, new Date(), null, 0, null, str_REF_ORDER, null, em);
+            addWarehouse(bonLivraisonDetail, OTFamille, int_NUMBER, OTGrossiste, str_REF_LIVRAISON, new Date(), null, 0,
+                    null, str_REF_ORDER, null, em);
         } catch (Exception e) {
             this.buildErrorTraceMessage("Echec d'ajout de lot");
         }
         return OTLot;
     }
 
-    public TBonLivraisonDetail UpdateTBonLivraisonDetailFromBonLivraison(String lg_BON_LIVRAISON_DETAIL, int int_QTE_LIVRE, int int_QUANTITE_FREE, EntityManager em) {
+    public TBonLivraisonDetail UpdateTBonLivraisonDetailFromBonLivraison(String lg_BON_LIVRAISON_DETAIL,
+            int int_QTE_LIVRE, int int_QUANTITE_FREE, EntityManager em) {
         TBonLivraisonDetail OTBonLivraisonDetail = null;
         try {
 
             OTBonLivraisonDetail = em.find(TBonLivraisonDetail.class, lg_BON_LIVRAISON_DETAIL);
             OTBonLivraisonDetail.setIntQTERECUE(OTBonLivraisonDetail.getIntQTERECUE() + int_QTE_LIVRE);
-            OTBonLivraisonDetail.setIntQTEMANQUANT(OTBonLivraisonDetail.getIntQTEMANQUANT() - (int_QTE_LIVRE - int_QUANTITE_FREE));
+            OTBonLivraisonDetail
+                    .setIntQTEMANQUANT(OTBonLivraisonDetail.getIntQTEMANQUANT() - (int_QTE_LIVRE - int_QUANTITE_FREE));
             OTBonLivraisonDetail.setIntQTEUG(OTBonLivraisonDetail.getIntQTEUG() + int_QUANTITE_FREE);
             OTBonLivraisonDetail.setDtUPDATED(new Date());
             OTBonLivraisonDetail.setStrSTATUT(commonparameter.statut_is_Closed);
@@ -1618,7 +1635,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             Predicate criteria = cb.conjunction();
             criteria = cb.and(criteria, cb.equal(or.get(TFamille_.lgFAMILLEID), famille.getLgFAMILLEID()));
             criteria = cb.and(criteria, cb.equal(root.get(TLot_.strREFLIVRAISON), on.getStrREFLIVRAISON()));
-            criteria = cb.and(criteria, cb.equal(root.get("lgGROSSISTEID").get("lgGROSSISTEID"), lg_BON_LIVRAISON_DETAIL.getLgGROSSISTEID().getLgGROSSISTEID()));
+            criteria = cb.and(criteria, cb.equal(root.get("lgGROSSISTEID").get("lgGROSSISTEID"),
+                    lg_BON_LIVRAISON_DETAIL.getLgGROSSISTEID().getLgGROSSISTEID()));
             cq.select(cb.sumAsLong(root.get(TLot_.intNUMBER)));
             cq.where(criteria);
             Query q = em.createQuery(cq);
@@ -1630,31 +1648,46 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public void bulkAddLot(List<TBonLivraisonDetail> lstTBonLivraisonDetail, TBonLivraison OTBonLivraison, familleGrossisteManagement OfamilleGrossisteManagement, suggestionManagement OsuggestionManagement, EntityManager em) {
+    public void bulkAddLot(List<TBonLivraisonDetail> lstTBonLivraisonDetail, TBonLivraison OTBonLivraison,
+            familleGrossisteManagement OfamilleGrossisteManagement, suggestionManagement OsuggestionManagement,
+            EntityManager em) {
         try {
 
             for (TBonLivraisonDetail OBonLivraisonDetail : lstTBonLivraisonDetail) {
 
-                TLot OTLot = getLot(OBonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(), OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON());
+                TLot OTLot = getLot(OBonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
+                        OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON());
 
                 if (OTLot == null) {
 
-                    OTLot = this.createTLot(OBonLivraisonDetail,OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntQTECMDE(), OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(), OBonLivraisonDetail.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0, em);
+                    OTLot = this.createTLot(OBonLivraisonDetail, OBonLivraisonDetail.getLgFAMILLEID(),
+                            OBonLivraisonDetail.getIntQTECMDE(),
+                            OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(),
+                            OBonLivraisonDetail.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0,
+                            em);
 
-                    UpdateTBonLivraisonDetailFromBonLivraison(OBonLivraisonDetail.getLgBONLIVRAISONDETAIL(), OTLot.getIntNUMBER(), OTLot.getIntNUMBERGRATUIT(), em);
+                    UpdateTBonLivraisonDetailFromBonLivraison(OBonLivraisonDetail.getLgBONLIVRAISONDETAIL(),
+                            OTLot.getIntNUMBER(), OTLot.getIntNUMBERGRATUIT(), em);
                 }
 
-                OfamilleGrossisteManagement.updatePriceFamilleGrossiste(OTBonLivraison.getLgORDERID().getLgGROSSISTEID(), OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPAF(), em);
+                OfamilleGrossisteManagement.updatePriceFamilleGrossiste(
+                        OTBonLivraison.getLgORDERID().getLgGROSSISTEID(), OBonLivraisonDetail.getLgFAMILLEID(),
+                        OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPAF(), em);
 
-                OsuggestionManagement.updatePriceArticleByDuringCommand(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPRIXREFERENCE(), OBonLivraisonDetail.getIntPAF(), OBonLivraisonDetail.getIntPAREEL(), commonparameter.code_action_commande, OTBonLivraison.getLgORDERID().getStrREFORDER(), commonparameter.str_ACTION_ENTREESTOCK);
+                OsuggestionManagement.updatePriceArticleByDuringCommand(OBonLivraisonDetail.getLgFAMILLEID(),
+                        OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPRIXREFERENCE(),
+                        OBonLivraisonDetail.getIntPAF(), OBonLivraisonDetail.getIntPAREEL(),
+                        commonparameter.code_action_commande, OTBonLivraison.getLgORDERID().getStrREFORDER(),
+                        commonparameter.str_ACTION_ENTREESTOCK);
 
-                this.calculPrixMoyenPondere(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail, OBonLivraisonDetail.getIntINITSTOCK(), em);
+                this.calculPrixMoyenPondere(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail,
+                        OBonLivraisonDetail.getIntINITSTOCK(), em);
 
             }
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
-//            this.getOdataManager().getEm().getTransaction().rollback();
+            // this.getOdataManager().getEm().getTransaction().rollback();
             e.printStackTrace();
         }
 
@@ -1670,12 +1703,14 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             Root<TBonLivraisonDetail> root = cq.from(TBonLivraisonDetail.class);
             Join<TBonLivraisonDetail, TBonLivraison> j = root.join("lgBONLIVRAISONID", JoinType.INNER);
             cq.set(root.get(TBonLivraisonDetail_.strSTATUT), commonparameter.statut_is_Closed);
-            cq.where(cb.equal(root.get("lgBONLIVRAISONID").get("lgBONLIVRAISONID"), bonLivraison.getLgBONLIVRAISONID()));
+            cq.where(
+                    cb.equal(root.get("lgBONLIVRAISONID").get("lgBONLIVRAISONID"), bonLivraison.getLgBONLIVRAISONID()));
 
             em.createQuery(cq).executeUpdate();
-            executeStoreEntreeStock(bonLivraison.getLgBONLIVRAISONID(), tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), tUser.getLgUSERID(), em);
+            executeStoreEntreeStock(bonLivraison.getLgBONLIVRAISONID(), tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
+                    tUser.getLgUSERID(), em);
 
-//            em.close();
+            // em.close();
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
 
         } catch (Exception e) {
@@ -1685,10 +1720,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    private void executeStoreEntreeStock(String lg_BON_LIVRAISON_ID, String LGEMPLACEMENTID, String LGUSERID, EntityManager em) {
+    private void executeStoreEntreeStock(String lg_BON_LIVRAISON_ID, String LGEMPLACEMENTID, String LGUSERID,
+            EntityManager em) {
         try {
-            StoredProcedureQuery q = em
-                    .createStoredProcedureQuery("proc_update_mouvement_entreestock");
+            StoredProcedureQuery q = em.createStoredProcedureQuery("proc_update_mouvement_entreestock");
 
             q.registerStoredProcedureParameter(1, String.class, ParameterMode.IN);
             q.registerStoredProcedureParameter(2, String.class, ParameterMode.IN);
@@ -1703,10 +1738,14 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    //12022018
-    public boolean addStock(TBonLivraisonDetail bonLivraisonDetail,familleManagement OfamilleManagement, StockManager OStockManager, SnapshotManager OSnapshotManager, tellerManagement OtellerManagement, TFamille OTFamille, Integer int_NUMBER, TGrossiste OTGrossiste, String str_REF_LIVRAISON, Date dt_SORTIE_USINE, Date dt_PEREMPTION, int int_NUMBER_GRATUIT, TTypeetiquette OTTypeetiquette, String str_REF_ORDER, String int_NUM_LOT, int ug, EntityManager em) {
+    // 12022018
+    public boolean addStock(TBonLivraisonDetail bonLivraisonDetail, familleManagement OfamilleManagement,
+            StockManager OStockManager, SnapshotManager OSnapshotManager, tellerManagement OtellerManagement,
+            TFamille OTFamille, Integer int_NUMBER, TGrossiste OTGrossiste, String str_REF_LIVRAISON,
+            Date dt_SORTIE_USINE, Date dt_PEREMPTION, int int_NUMBER_GRATUIT, TTypeetiquette OTTypeetiquette,
+            String str_REF_ORDER, String int_NUM_LOT, int ug, EntityManager em) {
         boolean result = false;
-//        TTypeStockFamille OTTypeStockFamille;
+        // TTypeStockFamille OTTypeStockFamille;
         TFamilleStock OTFamilleStock;
         TEtiquette OTEtiquette;
         Date now = new Date();
@@ -1726,20 +1765,25 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTWarehouse.setIntNUMLOT(int_NUM_LOT);
             OTWarehouse.setIntNUMBERGRATUIT(int_NUMBER_GRATUIT);
             OTWarehouse.setStrSTATUT(commonparameter.statut_enable);
-            OTWarehouse.setLgTYPEETIQUETTEID(OTTypeetiquette == null ? this.getOdataManager().getEm().find(TTypeetiquette.class, Parameter.DEFAUL_TYPEETIQUETTE) : OTFamille.getLgTYPEETIQUETTEID());
-            OTEtiquette = createEtiquetteBis( bonLivraisonDetail,OTWarehouse.getLgTYPEETIQUETTEID(), OTWarehouse, OTFamille, String.valueOf(OTWarehouse.getIntNUMBER()), em);
+            OTWarehouse.setLgTYPEETIQUETTEID(OTTypeetiquette == null
+                    ? this.getOdataManager().getEm().find(TTypeetiquette.class, Parameter.DEFAUL_TYPEETIQUETTE)
+                    : OTFamille.getLgTYPEETIQUETTEID());
+            OTEtiquette = createEtiquetteBis(bonLivraisonDetail, OTWarehouse.getLgTYPEETIQUETTEID(), OTWarehouse,
+                    OTFamille, String.valueOf(OTWarehouse.getIntNUMBER()), em);
             OTWarehouse.setStrCODEETIQUETTE(OTEtiquette.getStrCODE());
             em.persist(OTWarehouse);
 
-//            OTTypeStockFamille = getTypeStockFamilleByTypestock("1", OTWarehouse.getLgFAMILLEID(), this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID(),em);
+            // OTTypeStockFamille = getTypeStockFamilleByTypestock("1", OTWarehouse.getLgFAMILLEID(),
+            // this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID(),em);
             OTFamilleStock = OtellerManagement.geProductItemStock(OTWarehouse.getLgFAMILLEID().getLgFAMILLEID());
-            OSnapshotManager.createSnapshotMouvementArticleBons(OTFamille, int_NUMBER, this.getOTUser().getLgEMPLACEMENTID(), OTFamilleStock, em);
+            OSnapshotManager.createSnapshotMouvementArticleBons(OTFamille, int_NUMBER,
+                    this.getOTUser().getLgEMPLACEMENTID(), OTFamilleStock, em);
 
-//            OTTypeStockFamille.setIntNUMBER(OTTypeStockFamille.getIntNUMBER() + int_NUMBER);
+            // OTTypeStockFamille.setIntNUMBER(OTTypeStockFamille.getIntNUMBER() + int_NUMBER);
             OTFamilleStock.setIntNUMBER(OTFamilleStock.getIntNUMBER() + int_NUMBER);
             OTFamilleStock.setIntNUMBERAVAILABLE(OTFamilleStock.getIntNUMBERAVAILABLE() + int_NUMBER);
             OTFamilleStock.setIntUG((OTFamilleStock.getIntUG() != null ? (OTFamilleStock.getIntUG() + ug) : 0));
-//           em.merge(OTTypeStockFamille);
+            // em.merge(OTTypeStockFamille);
             em.merge(OTFamilleStock);
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -1751,16 +1795,20 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return result;
     }
 
-    public TTypeStockFamille getTypeStockFamilleByTypestock(String lg_TYPE_STOCK_ID, TFamille lg_FAMILLE_ID, String lg_EMPLACEMENT_ID, EntityManager em) {
+    public TTypeStockFamille getTypeStockFamilleByTypestock(String lg_TYPE_STOCK_ID, TFamille lg_FAMILLE_ID,
+            String lg_EMPLACEMENT_ID, EntityManager em) {
         TTypeStockFamille OTTypeStockFamille;
         try {
 
-            OTTypeStockFamille = (TTypeStockFamille) this.getOdataManager().getEm().createQuery("SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = ?1 AND t.lgFAMILLEID.lgFAMILLEID = ?2 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?3")
-                    .setParameter(1, lg_TYPE_STOCK_ID).setParameter(2, lg_FAMILLE_ID.getLgFAMILLEID()).setParameter(3, lg_EMPLACEMENT_ID).getSingleResult();
+            OTTypeStockFamille = (TTypeStockFamille) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = ?1 AND t.lgFAMILLEID.lgFAMILLEID = ?2 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?3")
+                    .setParameter(1, lg_TYPE_STOCK_ID).setParameter(2, lg_FAMILLE_ID.getLgFAMILLEID())
+                    .setParameter(3, lg_EMPLACEMENT_ID).getSingleResult();
 
         } catch (Exception e) {
             TTypeStock stock = this.getOdataManager().getEm().getReference(TTypeStock.class, lg_TYPE_STOCK_ID);
-            OTTypeStockFamille = new TTypeStockFamille(this.getKey().getComplexId(), lg_FAMILLE_ID.getStrNAME(), lg_FAMILLE_ID.getStrNAME());
+            OTTypeStockFamille = new TTypeStockFamille(this.getKey().getComplexId(), lg_FAMILLE_ID.getStrNAME(),
+                    lg_FAMILLE_ID.getStrNAME());
             OTTypeStockFamille.setDtCREATED(new Date());
             OTTypeStockFamille.setDtUPDATED(new Date());
             OTTypeStockFamille.setLgEMPLACEMENTID(this.getOTUser().getLgEMPLACEMENTID());
@@ -1774,7 +1822,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return OTTypeStockFamille;
     }
 
-    public TEtiquette createEtiquette(TWarehouse OTWarehouse, TTypeetiquette OTTypeetiquette, String str_CODE, String str_NAME, TFamille OTFamille, String int_NUMBER, EntityManager em) {
+    public TEtiquette createEtiquette(TWarehouse OTWarehouse, TTypeetiquette OTTypeetiquette, String str_CODE,
+            String str_NAME, TFamille OTFamille, String int_NUMBER, EntityManager em) {
         TEtiquette OTEtiquette = null;
         try {
             OTEtiquette = new TEtiquette();
@@ -1795,7 +1844,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return OTEtiquette;
     }
 
-    public TEtiquette createEtiquetteBis(TBonLivraisonDetail bonLivraisonDetail,TTypeetiquette OTTypeetiquette, TWarehouse OTWarehouse, TFamille OFamille, String int_NUMBER, EntityManager em) {
+    public TEtiquette createEtiquetteBis(TBonLivraisonDetail bonLivraisonDetail, TTypeetiquette OTTypeetiquette,
+            TWarehouse OTWarehouse, TFamille OFamille, String int_NUMBER, EntityManager em) {
         TEtiquette OTEtiquette = null;
         String result = "";
         try {
@@ -1803,17 +1853,21 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             if (str_NAME_TYPE_ETIQUETTE.equalsIgnoreCase("CIP")) {
                 result = OFamille.getIntCIP();
             } else if (str_NAME_TYPE_ETIQUETTE.equalsIgnoreCase("CIP_PRIX")) {
-                result = this.getKey().getShortId(4) + "-" + OFamille.getIntCIP() + "-" + bonLivraisonDetail.getIntPRIXVENTE();
+                result = this.getKey().getShortId(4) + "-" + OFamille.getIntCIP() + "-"
+                        + bonLivraisonDetail.getIntPRIXVENTE();
             } else if (str_NAME_TYPE_ETIQUETTE.equalsIgnoreCase("CIP_DESIGNATION")) {
                 result = this.getKey().getShortId(4) + "-" + OFamille.getIntCIP() + "-" + OFamille.getStrNAME();
             } else if (str_NAME_TYPE_ETIQUETTE.equalsIgnoreCase("CIP_PRIX_DESIGNATION")) {
-                result = this.getKey().getShortId(4) + "-" + OFamille.getIntCIP() + "-" + bonLivraisonDetail.getIntPRIXVENTE() + "-" + OFamille.getStrNAME();
+                result = this.getKey().getShortId(4) + "-" + OFamille.getIntCIP() + "-"
+                        + bonLivraisonDetail.getIntPRIXVENTE() + "-" + OFamille.getStrNAME();
             } else if (str_NAME_TYPE_ETIQUETTE.equalsIgnoreCase("POSITION")) {
                 result = this.getKey().getShortId(4) + "-" + OFamille.getLgZONEGEOID().getStrLIBELLEE();
             } else {
-                result = this.getKey().getShortId(4) + "-" + OFamille.getIntCIP() + "-" +  bonLivraisonDetail.getIntPRIXVENTE() + "-" + OFamille.getStrNAME();
+                result = this.getKey().getShortId(4) + "-" + OFamille.getIntCIP() + "-"
+                        + bonLivraisonDetail.getIntPRIXVENTE() + "-" + OFamille.getStrNAME();
             }
-            OTEtiquette = this.createEtiquette(OTWarehouse, OTTypeetiquette, result, str_NAME_TYPE_ETIQUETTE, OFamille, int_NUMBER, em);
+            OTEtiquette = this.createEtiquette(OTWarehouse, OTTypeetiquette, result, str_NAME_TYPE_ETIQUETTE, OFamille,
+                    int_NUMBER, em);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1829,9 +1883,11 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         TBonLivraison OTBonLivraison;
         tellerManagement OtellerManagement = new tellerManagement(this.getOdataManager(), this.getOTUser());
         try {
-            OTParameters = new TparameterManager(this.getOdataManager()).getParameter(Parameter.KEY_ACTIVATE_PEREMPTION_DATE);
-            if (OTParameters == null) { 
-                this.buildErrorTraceMessage("Paramètre d'autorisation de saisie de produit sans date de péremption inexistant");
+            OTParameters = new TparameterManager(this.getOdataManager())
+                    .getParameter(Parameter.KEY_ACTIVATE_PEREMPTION_DATE);
+            if (OTParameters == null) {
+                this.buildErrorTraceMessage(
+                        "Paramètre d'autorisation de saisie de produit sans date de péremption inexistant");
                 return false;
             }
             OTBonLivraison = this.FindTBonLivraison(lg_BON_LIVRAISON_ID, commonparameter.statut_enable);
@@ -1840,7 +1896,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 avecPeremption = true;
 
             }
-            List<TBonLivraisonDetail> lstTBonLivraisonDetail = this.getTBonLivraisonDetail(OTBonLivraison.getLgBONLIVRAISONID());
+            List<TBonLivraisonDetail> lstTBonLivraisonDetail = this
+                    .getTBonLivraisonDetail(OTBonLivraison.getLgBONLIVRAISONID());
             EntityManager em = this.getOdataManager().getEm();
             em.getTransaction().begin();
 
@@ -1848,7 +1905,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 TFamille OFamille = bn.getLgFAMILLEID();
                 List<Object[]> lst = this.listLot(OTBonLivraison.getStrREFLIVRAISON(), em, OFamille.getLgFAMILLEID());
                 if (lst.isEmpty()) {
-                    this.createTLot(bn,OFamille, bn.getIntQTECMDE(), OTBonLivraison.getStrREFLIVRAISON(), bn.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0, em);
+                    this.createTLot(bn, OFamille, bn.getIntQTECMDE(), OTBonLivraison.getStrREFLIVRAISON(),
+                            bn.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0, em);
                     addToStock(bn.getIntQTECMDE(), 0, em, OtellerManagement, OFamille);
                     bn.setIntQTERECUE(bn.getIntQTECMDE());
                     bn.setIntQTEMANQUANT(0);
@@ -1858,16 +1916,18 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                         Integer cmde = Integer.valueOf(item[0] + ""), qu = Integer.valueOf(item[1] + "");
 
                         if (cmde < bn.getIntQTECMDE()) {
-                            this.buildErrorTraceMessage("La reception de certains produits n'a pas ete faite. Veuillez verifier vos saisie");
+                            this.buildErrorTraceMessage(
+                                    "La reception de certains produits n'a pas ete faite. Veuillez verifier vos saisie");
                             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                                 this.getOdataManager().getEm().getTransaction().rollback();
                                 this.getOdataManager().getEm().clear();
-//                                
+                                //
                             }
                             return false;
-                            //break;
+                            // break;
                         }
-                        cmde = (cmde > (bn.getIntQTECMDE() + bn.getIntQTEUG()) ? (bn.getIntQTECMDE() + bn.getIntQTEUG()) : cmde);// a voir 
+                        cmde = (cmde > (bn.getIntQTECMDE() + bn.getIntQTEUG()) ? (bn.getIntQTECMDE() + bn.getIntQTEUG())
+                                : cmde);// a voir
                         addToStock(cmde, qu, em, OtellerManagement, OFamille);
 
                     }
@@ -1895,7 +1955,7 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             if (this.getOdataManager().getEm().getTransaction().isActive()) {
                 this.getOdataManager().getEm().getTransaction().rollback();
                 this.getOdataManager().getEm().clear();
-//                
+                //
             }
             this.buildErrorTraceMessage("Echec de clôture de la commande");
             new logger().OCategory.info("Echec de clôture de la commande");
@@ -1903,9 +1963,12 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return result;
     }
 
-    public boolean addWarehouse(TBonLivraisonDetail bonLivraisonDetail,TFamille OTFamille, Integer int_NUMBER, TGrossiste OTGrossiste, String str_REF_LIVRAISON, Date dt_SORTIE_USINE, Date dt_PEREMPTION, int int_NUMBER_GRATUIT, TTypeetiquette OTTypeetiquette, String str_REF_ORDER, String int_NUM_LOT, EntityManager em) {
+    public boolean addWarehouse(TBonLivraisonDetail bonLivraisonDetail, TFamille OTFamille, Integer int_NUMBER,
+            TGrossiste OTGrossiste, String str_REF_LIVRAISON, Date dt_SORTIE_USINE, Date dt_PEREMPTION,
+            int int_NUMBER_GRATUIT, TTypeetiquette OTTypeetiquette, String str_REF_ORDER, String int_NUM_LOT,
+            EntityManager em) {
         boolean result = false;
-//        TTypeStockFamille OTTypeStockFamille;
+        // TTypeStockFamille OTTypeStockFamille;
 
         TEtiquette OTEtiquette;
         Date now = new Date();
@@ -1925,8 +1988,11 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             OTWarehouse.setIntNUMLOT(int_NUM_LOT);
             OTWarehouse.setIntNUMBERGRATUIT(int_NUMBER_GRATUIT);
             OTWarehouse.setStrSTATUT(commonparameter.statut_enable);
-            OTWarehouse.setLgTYPEETIQUETTEID(OTTypeetiquette == null ? this.getOdataManager().getEm().find(TTypeetiquette.class, Parameter.DEFAUL_TYPEETIQUETTE) : OTFamille.getLgTYPEETIQUETTEID());
-            OTEtiquette = createEtiquetteBis(bonLivraisonDetail,OTWarehouse.getLgTYPEETIQUETTEID(), OTWarehouse, OTFamille, String.valueOf(OTWarehouse.getIntNUMBER()), em);
+            OTWarehouse.setLgTYPEETIQUETTEID(OTTypeetiquette == null
+                    ? this.getOdataManager().getEm().find(TTypeetiquette.class, Parameter.DEFAUL_TYPEETIQUETTE)
+                    : OTFamille.getLgTYPEETIQUETTEID());
+            OTEtiquette = createEtiquetteBis(bonLivraisonDetail, OTWarehouse.getLgTYPEETIQUETTEID(), OTWarehouse,
+                    OTFamille, String.valueOf(OTWarehouse.getIntNUMBER()), em);
             OTWarehouse.setStrCODEETIQUETTE(OTEtiquette.getStrCODE());
             em.persist(OTWarehouse);
 
@@ -1939,9 +2005,11 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return result;
     }
 
-    private void addToStock(Integer int_NUMBER, int ug, EntityManager em, tellerManagement OtellerManagement, TFamille OTFamille) {
+    private void addToStock(Integer int_NUMBER, int ug, EntityManager em, tellerManagement OtellerManagement,
+            TFamille OTFamille) {
         TFamilleStock OTFamilleStock = OtellerManagement.geProductItemStock(OTFamille.getLgFAMILLEID());
-        createSnapshotMouvementArticleBons(OTFamille, int_NUMBER, this.getOTUser().getLgEMPLACEMENTID(), OTFamilleStock, em);
+        createSnapshotMouvementArticleBons(OTFamille, int_NUMBER, this.getOTUser().getLgEMPLACEMENTID(), OTFamilleStock,
+                em);
         OTFamilleStock.setIntNUMBER(OTFamilleStock.getIntNUMBER() + int_NUMBER);
         OTFamilleStock.setIntNUMBERAVAILABLE(OTFamilleStock.getIntNUMBERAVAILABLE() + int_NUMBER);
         OTFamilleStock.setIntUG((OTFamilleStock.getIntUG() != null ? (OTFamilleStock.getIntUG() + ug) : 0));
@@ -1954,9 +2022,10 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
             CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
             Root<TLot> root = cq.from(TLot.class);
-            cq.multiselect(cb.sum(root.get(TLot_.intNUMBER)), cb.sum(root.get(TLot_.intNUMBERGRATUIT)), root.get("lgFAMILLEID").get("lgFAMILLEID"))
-                    .groupBy(root.get("lgFAMILLEID").get("lgFAMILLEID"));
-            cq.where(cb.and(cb.equal(root.get(TLot_.strREFLIVRAISON), str_REF_LIVRAISON), cb.equal(root.get("lgFAMILLEID").get("lgFAMILLEID"), idArticle)));
+            cq.multiselect(cb.sum(root.get(TLot_.intNUMBER)), cb.sum(root.get(TLot_.intNUMBERGRATUIT)),
+                    root.get("lgFAMILLEID").get("lgFAMILLEID")).groupBy(root.get("lgFAMILLEID").get("lgFAMILLEID"));
+            cq.where(cb.and(cb.equal(root.get(TLot_.strREFLIVRAISON), str_REF_LIVRAISON),
+                    cb.equal(root.get("lgFAMILLEID").get("lgFAMILLEID"), idArticle)));
             Query q = em.createQuery(cq);
             lst = q.getResultList();
         } catch (Exception e) {
@@ -1972,20 +2041,24 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         CriteriaQuery<TBonLivraisonDetail> cq = cb.createQuery(TBonLivraisonDetail.class);
         Root<TBonLivraisonDetail> root = cq.from(TBonLivraisonDetail.class);
         Join<TBonLivraisonDetail, TBonLivraison> j = root.join("lgBONLIVRAISONID", JoinType.INNER);
-        cq.where(cb.and(cb.equal(j.get(TBonLivraison_.lgBONLIVRAISONID), bonLivraison.getLgBONLIVRAISONID()), cb.equal(root.get(TBonLivraisonDetail_.lgFAMILLEID), famille)));
+        cq.where(cb.and(cb.equal(j.get(TBonLivraison_.lgBONLIVRAISONID), bonLivraison.getLgBONLIVRAISONID()),
+                cb.equal(root.get(TBonLivraisonDetail_.lgFAMILLEID), famille)));
         TypedQuery<TBonLivraisonDetail> q = em.createQuery(cq);
 
         return q.getSingleResult();
     }
 
-    public TMouvementSnapshot createSnapshotMouvementArticleBons(TFamille OTFamille, int int_NUMBER, TEmplacement OTEmplacement, TFamilleStock stock, EntityManager em) {
+    public TMouvementSnapshot createSnapshotMouvementArticleBons(TFamille OTFamille, int int_NUMBER,
+            TEmplacement OTEmplacement, TFamilleStock stock, EntityManager em) {
 
         TMouvementSnapshot OTMouvementSnapshot = null;
         TMouvement oMouvement = null;
         try {
-            OTMouvementSnapshot = this.getTMouvementSnapshotForCurrentDay(OTFamille.getLgFAMILLEID(), OTEmplacement, em);
+            OTMouvementSnapshot = this.getTMouvementSnapshotForCurrentDay(OTFamille.getLgFAMILLEID(), OTEmplacement,
+                    em);
             if (OTMouvementSnapshot == null) {
-                OTMouvementSnapshot = createSnapshotMouvement(OTFamille, stock.getIntNUMBERAVAILABLE() + int_NUMBER, stock.getIntNUMBERAVAILABLE(), OTEmplacement, em);
+                OTMouvementSnapshot = createSnapshotMouvement(OTFamille, stock.getIntNUMBERAVAILABLE() + int_NUMBER,
+                        stock.getIntNUMBERAVAILABLE(), OTEmplacement, em);
                 createMouvement(OTFamille, int_NUMBER, OTEmplacement, em);
             } else {
 
@@ -1998,7 +2071,7 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
                 } catch (Exception e) {
                 }
                 if (oMouvement == null) {
-                     createMouvement(OTFamille, int_NUMBER, OTEmplacement, em);
+                    createMouvement(OTFamille, int_NUMBER, OTEmplacement, em);
                 } else {
                     oMouvement.setIntNUMBER(oMouvement.getIntNUMBER() + int_NUMBER);
                     oMouvement.setIntNUMBERTRANSACTION(oMouvement.getIntNUMBERTRANSACTION() + 1);
@@ -2014,13 +2087,15 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return OTMouvementSnapshot;
     }
 
-    public TMouvementSnapshot getTMouvementSnapshotForCurrentDay(String lg_FAMILLE_ID, TEmplacement OTEmplacement, EntityManager em) {
+    public TMouvementSnapshot getTMouvementSnapshotForCurrentDay(String lg_FAMILLE_ID, TEmplacement OTEmplacement,
+            EntityManager em) {
         TMouvementSnapshot OTMouvementSnapshot = null;
         try {
-            OTMouvementSnapshot = em.createQuery("SELECT t FROM TMouvementSnapshot t WHERE  FUNCTION('DATE',t.dtDAY) = FUNCTION('DATE', ?3)   AND t.lgFAMILLEID.lgFAMILLEID = ?6 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?7 ", TMouvementSnapshot.class).
-                    setParameter(3, java.sql.Date.valueOf(LocalDate.now()), TemporalType.DATE).
-                    setParameter(6, lg_FAMILLE_ID).
-                    setParameter(7, OTEmplacement.getLgEMPLACEMENTID()).setMaxResults(1).getSingleResult();
+            OTMouvementSnapshot = em.createQuery(
+                    "SELECT t FROM TMouvementSnapshot t WHERE  FUNCTION('DATE',t.dtDAY) = FUNCTION('DATE', ?3)   AND t.lgFAMILLEID.lgFAMILLEID = ?6 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?7 ",
+                    TMouvementSnapshot.class).setParameter(3, java.sql.Date.valueOf(LocalDate.now()), TemporalType.DATE)
+                    .setParameter(6, lg_FAMILLE_ID).setParameter(7, OTEmplacement.getLgEMPLACEMENTID()).setMaxResults(1)
+                    .getSingleResult();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -2028,7 +2103,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return OTMouvementSnapshot;
     }
 
-    public TMouvementSnapshot createSnapshotMouvement(TFamille OTFamille, int int_NUMBER, int int_STOCK_DEBUT, TEmplacement OTEmplacement, EntityManager em) {
+    public TMouvementSnapshot createSnapshotMouvement(TFamille OTFamille, int int_NUMBER, int int_STOCK_DEBUT,
+            TEmplacement OTEmplacement, EntityManager em) {
         TMouvementSnapshot OTMouvementSnapshot = null;
         Date d = new Date();
         try {
@@ -2054,7 +2130,8 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
         return OTMouvementSnapshot;
     }
 
-    public TMouvement createMouvement(TFamille OTFamille, int int_NUMBER, TEmplacement OTEmplacement, EntityManager em) {
+    public TMouvement createMouvement(TFamille OTFamille, int int_NUMBER, TEmplacement OTEmplacement,
+            EntityManager em) {
         TMouvement OTMouvementSnapshot = null;
         Date d = new Date();
         try {
@@ -2083,29 +2160,47 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     }
 
     public TMouvement findMouvement(TFamille OTFamille, TEmplacement OTEmplacement, EntityManager em) {
-        TypedQuery<TMouvement> query = em.createQuery("SELECT t FROM TMouvement t WHERE  FUNCTION('DATE',t.dtDAY) = FUNCTION('DATE', ?1)   AND t.lgFAMILLEID.lgFAMILLEID = ?2 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?3 AND t.strACTION='ENTREESTOCK' AND t.strTYPEACTION='ADD'   ", TMouvement.class);
+        TypedQuery<TMouvement> query = em.createQuery(
+                "SELECT t FROM TMouvement t WHERE  FUNCTION('DATE',t.dtDAY) = FUNCTION('DATE', ?1)   AND t.lgFAMILLEID.lgFAMILLEID = ?2 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?3 AND t.strACTION='ENTREESTOCK' AND t.strTYPEACTION='ADD'   ",
+                TMouvement.class);
         query.setParameter(1, java.sql.Date.valueOf(LocalDate.now()), TemporalType.DATE);
         query.setParameter(2, OTFamille.getLgFAMILLEID());
         query.setParameter(3, OTEmplacement.getLgEMPLACEMENTID());
         return query.getSingleResult();
     }
 
-    public void batchAddLot(List<TBonLivraisonDetail> lstTBonLivraisonDetail, TBonLivraison OTBonLivraison, familleGrossisteManagement OfamilleGrossisteManagement, suggestionManagement OsuggestionManagement, EntityManager em, tellerManagement OtellerManagement) {
+    public void batchAddLot(List<TBonLivraisonDetail> lstTBonLivraisonDetail, TBonLivraison OTBonLivraison,
+            familleGrossisteManagement OfamilleGrossisteManagement, suggestionManagement OsuggestionManagement,
+            EntityManager em, tellerManagement OtellerManagement) {
         try {
             TOrder order = OTBonLivraison.getLgORDERID();
             TGrossiste grossiste = order.getLgGROSSISTEID();
             for (TBonLivraisonDetail OBonLivraisonDetail : lstTBonLivraisonDetail) {
-                addToStock(OBonLivraisonDetail.getIntQTECMDE(), 0, em, OtellerManagement, OBonLivraisonDetail.getLgFAMILLEID());
-                addWarehouse(OBonLivraisonDetail,OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntQTECMDE(), grossiste, OTBonLivraison.getStrREFLIVRAISON(), new Date(), null, 0, null, order.getStrREFORDER(), null, em);
-                TLot OTLot = this.createTLot(OBonLivraisonDetail,OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntQTECMDE(), OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(), OBonLivraisonDetail.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0, em);
+                addToStock(OBonLivraisonDetail.getIntQTECMDE(), 0, em, OtellerManagement,
+                        OBonLivraisonDetail.getLgFAMILLEID());
+                addWarehouse(OBonLivraisonDetail, OBonLivraisonDetail.getLgFAMILLEID(),
+                        OBonLivraisonDetail.getIntQTECMDE(), grossiste, OTBonLivraison.getStrREFLIVRAISON(), new Date(),
+                        null, 0, null, order.getStrREFORDER(), null, em);
+                TLot OTLot = this.createTLot(OBonLivraisonDetail, OBonLivraisonDetail.getLgFAMILLEID(),
+                        OBonLivraisonDetail.getIntQTECMDE(),
+                        OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(),
+                        OBonLivraisonDetail.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0, em);
 
-                UpdateTBonLivraisonDetailFromBonLivraison(OBonLivraisonDetail.getLgBONLIVRAISONDETAIL(), OTLot.getIntNUMBER(), OTLot.getIntNUMBERGRATUIT(), em);
+                UpdateTBonLivraisonDetailFromBonLivraison(OBonLivraisonDetail.getLgBONLIVRAISONDETAIL(),
+                        OTLot.getIntNUMBER(), OTLot.getIntNUMBERGRATUIT(), em);
 
-                OfamilleGrossisteManagement.updatePriceFamilleGrossiste(OTBonLivraison.getLgORDERID().getLgGROSSISTEID(), OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPAF(), em);
+                OfamilleGrossisteManagement.updatePriceFamilleGrossiste(
+                        OTBonLivraison.getLgORDERID().getLgGROSSISTEID(), OBonLivraisonDetail.getLgFAMILLEID(),
+                        OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPAF(), em);
 
-                OsuggestionManagement.updatePriceArticleByDuringCommand(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPRIXREFERENCE(), OBonLivraisonDetail.getIntPAF(), OBonLivraisonDetail.getIntPAREEL(), commonparameter.code_action_commande, OTBonLivraison.getLgORDERID().getStrREFORDER(), commonparameter.str_ACTION_ENTREESTOCK);
+                OsuggestionManagement.updatePriceArticleByDuringCommand(OBonLivraisonDetail.getLgFAMILLEID(),
+                        OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPRIXREFERENCE(),
+                        OBonLivraisonDetail.getIntPAF(), OBonLivraisonDetail.getIntPAREEL(),
+                        commonparameter.code_action_commande, OTBonLivraison.getLgORDERID().getStrREFORDER(),
+                        commonparameter.str_ACTION_ENTREESTOCK);
 
-                this.calculPrixMoyenPondere(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail, OBonLivraisonDetail.getIntINITSTOCK(), em);
+                this.calculPrixMoyenPondere(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail,
+                        OBonLivraisonDetail.getIntINITSTOCK(), em);
 
             }
 
@@ -2116,20 +2211,33 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public void batchUpdate(TBonLivraisonDetail OBonLivraisonDetail, TBonLivraison OTBonLivraison, familleGrossisteManagement OfamilleGrossisteManagement, suggestionManagement OsuggestionManagement, EntityManager em, tellerManagement OtellerManagement) {
+    public void batchUpdate(TBonLivraisonDetail OBonLivraisonDetail, TBonLivraison OTBonLivraison,
+            familleGrossisteManagement OfamilleGrossisteManagement, suggestionManagement OsuggestionManagement,
+            EntityManager em, tellerManagement OtellerManagement) {
         try {
 
-            addToStock(OBonLivraisonDetail.getIntQTECMDE(), 0, em, OtellerManagement, OBonLivraisonDetail.getLgFAMILLEID());
+            addToStock(OBonLivraisonDetail.getIntQTECMDE(), 0, em, OtellerManagement,
+                    OBonLivraisonDetail.getLgFAMILLEID());
 
-            TLot OTLot = this.createTLot(OBonLivraisonDetail,OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntQTECMDE(), OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(), OBonLivraisonDetail.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0, em);
+            TLot OTLot = this.createTLot(OBonLivraisonDetail, OBonLivraisonDetail.getLgFAMILLEID(),
+                    OBonLivraisonDetail.getIntQTECMDE(), OBonLivraisonDetail.getLgBONLIVRAISONID().getStrREFLIVRAISON(),
+                    OBonLivraisonDetail.getLgGROSSISTEID(), OTBonLivraison.getLgORDERID().getStrREFORDER(), 0, em);
 
-            UpdateTBonLivraisonDetailFromBonLivraison(OBonLivraisonDetail.getLgBONLIVRAISONDETAIL(), OTLot.getIntNUMBER(), OTLot.getIntNUMBERGRATUIT(), em);
+            UpdateTBonLivraisonDetailFromBonLivraison(OBonLivraisonDetail.getLgBONLIVRAISONDETAIL(),
+                    OTLot.getIntNUMBER(), OTLot.getIntNUMBERGRATUIT(), em);
 
-            OfamilleGrossisteManagement.updatePriceFamilleGrossiste(OTBonLivraison.getLgORDERID().getLgGROSSISTEID(), OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPAF(), em);
+            OfamilleGrossisteManagement.updatePriceFamilleGrossiste(OTBonLivraison.getLgORDERID().getLgGROSSISTEID(),
+                    OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntPRIXVENTE(),
+                    OBonLivraisonDetail.getIntPAF(), em);
 
-            OsuggestionManagement.updatePriceArticleByDuringCommand(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPRIXREFERENCE(), OBonLivraisonDetail.getIntPAF(), OBonLivraisonDetail.getIntPAREEL(), commonparameter.code_action_commande, OTBonLivraison.getLgORDERID().getStrREFORDER(), commonparameter.str_ACTION_ENTREESTOCK);
+            OsuggestionManagement.updatePriceArticleByDuringCommand(OBonLivraisonDetail.getLgFAMILLEID(),
+                    OBonLivraisonDetail.getIntPRIXVENTE(), OBonLivraisonDetail.getIntPRIXREFERENCE(),
+                    OBonLivraisonDetail.getIntPAF(), OBonLivraisonDetail.getIntPAREEL(),
+                    commonparameter.code_action_commande, OTBonLivraison.getLgORDERID().getStrREFORDER(),
+                    commonparameter.str_ACTION_ENTREESTOCK);
 
-            this.calculPrixMoyenPondere(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail, OBonLivraisonDetail.getIntINITSTOCK(), em);
+            this.calculPrixMoyenPondere(OBonLivraisonDetail.getLgFAMILLEID(), OBonLivraisonDetail,
+                    OBonLivraisonDetail.getIntINITSTOCK(), em);
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {

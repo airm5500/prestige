@@ -100,6 +100,9 @@ Ext.define('testextjs.model.caisse.ClientAssurance', {
         , {
             name: 'email',
             type: 'string'
+        }, {
+            name: 'libelleTypeClient',
+            type: 'string'
         }
 
     ]

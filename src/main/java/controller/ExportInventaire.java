@@ -33,7 +33,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 
-@WebServlet(name = "ExportInventaire", urlPatterns = {"/ExportInventaire"})
+@WebServlet(name = "ExportInventaire", urlPatterns = { "/ExportInventaire" })
 public class ExportInventaire extends HttpServlet {
 
     DateFormat df = new SimpleDateFormat("dd_MM_YYYY_HH_mm_ss");
@@ -41,12 +41,12 @@ public class ExportInventaire extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        //  TUser OTUser = null;
+        // TUser OTUser = null;
         dataManager OdataManager = new dataManager();
         OdataManager.initEntityManager();
         String format = request.getParameter("format");
         String lg_INVENTAIRE_ID = request.getParameter("lg_INVENTAIRE_ID");
-//        String statut ="is_Closed";// "enable";
+        // String statut ="is_Closed";// "enable";
         try {
             List<TInventaireFamille> list = getInventaireFamilles(lg_INVENTAIRE_ID, OdataManager.getEm());
             if (format.equals("csv")) {
@@ -90,12 +90,13 @@ public class ExportInventaire extends HttpServlet {
             response.setHeader("Content-disposition", "inline; filename=" + filename);
 
             Writer writer = new OutputStreamWriter(out, "UTF-8");
-            try (CSVPrinter printer = CSVFormat.DEFAULT
-                    .withHeader(ArticleHeader.class).print(writer)) {
+            try (CSVPrinter printer = CSVFormat.DEFAULT.withHeader(ArticleHeader.class).print(writer)) {
 
                 for (TInventaireFamille famille : list) {
                     TFamille OFamille = famille.getLgFAMILLEID();
-                    printer.printRecord( OFamille.getLgFAMILLEID(), OFamille.getIntCIP(), OFamille.getLgZONEGEOID().getStrLIBELLEE(), famille.getIntNUMBERINIT(), OFamille.getIntPAF(), OFamille.getIntPRICE());
+                    printer.printRecord(OFamille.getLgFAMILLEID(), OFamille.getIntCIP(),
+                            OFamille.getLgZONEGEOID().getStrLIBELLEE(), famille.getIntNUMBERINIT(),
+                            OFamille.getIntPAF(), OFamille.getIntPRICE());
 
                 }
                 printer.flush();
@@ -119,8 +120,10 @@ public class ExportInventaire extends HttpServlet {
         IDARTICLE, CIP, EMPLACEMENT, QTEINITIAL, PRIXACHAT, PRIXVENTE
     }
 
-    public List<TInventaireFamille> getInventaireFamilles(String lg_INVENTAIRE_ID,  EntityManager em) throws Exception {
-        TypedQuery<TInventaireFamille> query = em.createQuery("SELECT o FROM TInventaireFamille o WHERE o.lgINVENTAIREID.lgINVENTAIREID =?1", TInventaireFamille.class);
+    public List<TInventaireFamille> getInventaireFamilles(String lg_INVENTAIRE_ID, EntityManager em) throws Exception {
+        TypedQuery<TInventaireFamille> query = em.createQuery(
+                "SELECT o FROM TInventaireFamille o WHERE o.lgINVENTAIREID.lgINVENTAIREID =?1",
+                TInventaireFamille.class);
         query.setParameter(1, lg_INVENTAIRE_ID);
         return query.getResultList();
     }
@@ -132,41 +135,40 @@ public class ExportInventaire extends HttpServlet {
         try {
             out = response.getOutputStream();
             response.setContentType("application/vnd.ms-excel");
-//             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            // response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
             response.setHeader("Content-disposition", "inline; filename=" + filename);
-            //  XSSFWorkbook wb = new XSSFWorkbook();
+            // XSSFWorkbook wb = new XSSFWorkbook();
             Workbook wb = new HSSFWorkbook();
-           
+
             Sheet sheet = wb.createSheet("INVENTAIRE");
-         
+
             sheet.setColumnWidth(0, 7000);
             sheet.setColumnWidth(1, 6000);
             sheet.setColumnWidth(2, 12000);
             sheet.setColumnWidth(3, 4000);
             sheet.setColumnWidth(4, 4000);
             sheet.setColumnWidth(5, 4000);
-     
+
             Row titleheaderrow = sheet.createRow((short) 0);
-           
+
             titleheaderrow.setHeightInPoints(20);
-//            titleheaderrow.createCell((short) 0).setCellValue(ArticleHeader.ID.name());
+            // titleheaderrow.createCell((short) 0).setCellValue(ArticleHeader.ID.name());
             titleheaderrow.createCell((short) 0).setCellValue(ArticleHeader.IDARTICLE.name());
             titleheaderrow.createCell((short) 1).setCellValue(ArticleHeader.CIP.name());
             titleheaderrow.createCell((short) 2).setCellValue(ArticleHeader.EMPLACEMENT.name());
             titleheaderrow.createCell((short) 3).setCellValue(ArticleHeader.QTEINITIAL.name());
-            
+
             titleheaderrow.createCell((short) 4).setCellValue(ArticleHeader.PRIXACHAT.name());
             titleheaderrow.createCell((short) 5).setCellValue(ArticleHeader.PRIXVENTE.name());
-           
+
             int count = 1;
             for (int i = 0; i < list.size(); i++) {
                 Row row = sheet.createRow((short) count + i);
-                //   ID,IDARTICLE, CIP, EMPLACEMENT, QTEINITIAL, PRIXACHAT, PRIXVENTE
+                // ID,IDARTICLE, CIP, EMPLACEMENT, QTEINITIAL, PRIXACHAT, PRIXVENTE
                 TInventaireFamille famille = list.get(i);
                 TFamille tf = famille.getLgFAMILLEID();
-              
-            
+
                 Cell IDARTICLE = row.createCell((short) 0);
                 IDARTICLE.setCellValue(tf.getLgFAMILLEID());
 

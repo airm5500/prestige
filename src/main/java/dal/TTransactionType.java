@@ -26,10 +26,9 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_transaction_type")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTransactionType.findAll", query = "SELECT t FROM TTransactionType t"),
-    @NamedQuery(name = "TTransactionType.findByStrtransactiontypeID", query = "SELECT t FROM TTransactionType t WHERE t.strtransactiontypeID = :strtransactiontypeID"),
-    @NamedQuery(name = "TTransactionType.findByStrDescription", query = "SELECT t FROM TTransactionType t WHERE t.strDescription = :strDescription")})
+@NamedQueries({ @NamedQuery(name = "TTransactionType.findAll", query = "SELECT t FROM TTransactionType t"),
+        @NamedQuery(name = "TTransactionType.findByStrtransactiontypeID", query = "SELECT t FROM TTransactionType t WHERE t.strtransactiontypeID = :strtransactiontypeID"),
+        @NamedQuery(name = "TTransactionType.findByStrDescription", query = "SELECT t FROM TTransactionType t WHERE t.strDescription = :strDescription") })
 public class TTransactionType implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -87,7 +86,9 @@ public class TTransactionType implements Serializable {
             return false;
         }
         TTransactionType other = (TTransactionType) object;
-        if ((this.strtransactiontypeID == null && other.strtransactiontypeID != null) || (this.strtransactiontypeID != null && !this.strtransactiontypeID.equals(other.strtransactiontypeID))) {
+        if ((this.strtransactiontypeID == null && other.strtransactiontypeID != null)
+                || (this.strtransactiontypeID != null
+                        && !this.strtransactiontypeID.equals(other.strtransactiontypeID))) {
             return false;
         }
         return true;
@@ -97,5 +98,5 @@ public class TTransactionType implements Serializable {
     public String toString() {
         return "dal.TTransactionType[ strtransactiontypeID=" + strtransactiontypeID + " ]";
     }
-    
+
 }

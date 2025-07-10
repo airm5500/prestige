@@ -29,17 +29,16 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_fabriquant")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFabriquant.findAll", query = "SELECT t FROM TFabriquant t"),
-    @NamedQuery(name = "TFabriquant.findByLgFABRIQUANTID", query = "SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID = :lgFABRIQUANTID"),
-    @NamedQuery(name = "TFabriquant.findByStrCODE", query = "SELECT t FROM TFabriquant t WHERE t.strCODE = :strCODE"),
-    @NamedQuery(name = "TFabriquant.findByStrNAME", query = "SELECT t FROM TFabriquant t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TFabriquant.findByStrDESCRIPTION", query = "SELECT t FROM TFabriquant t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TFabriquant.findByStrADRESSE", query = "SELECT t FROM TFabriquant t WHERE t.strADRESSE = :strADRESSE"),
-    @NamedQuery(name = "TFabriquant.findByStrTELEPHONE", query = "SELECT t FROM TFabriquant t WHERE t.strTELEPHONE = :strTELEPHONE"),
-    @NamedQuery(name = "TFabriquant.findByDtCREATED", query = "SELECT t FROM TFabriquant t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TFabriquant.findByDtUPDATED", query = "SELECT t FROM TFabriquant t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TFabriquant.findByStrSTATUT", query = "SELECT t FROM TFabriquant t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TFabriquant.findAll", query = "SELECT t FROM TFabriquant t"),
+        @NamedQuery(name = "TFabriquant.findByLgFABRIQUANTID", query = "SELECT t FROM TFabriquant t WHERE t.lgFABRIQUANTID = :lgFABRIQUANTID"),
+        @NamedQuery(name = "TFabriquant.findByStrCODE", query = "SELECT t FROM TFabriquant t WHERE t.strCODE = :strCODE"),
+        @NamedQuery(name = "TFabriquant.findByStrNAME", query = "SELECT t FROM TFabriquant t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TFabriquant.findByStrDESCRIPTION", query = "SELECT t FROM TFabriquant t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TFabriquant.findByStrADRESSE", query = "SELECT t FROM TFabriquant t WHERE t.strADRESSE = :strADRESSE"),
+        @NamedQuery(name = "TFabriquant.findByStrTELEPHONE", query = "SELECT t FROM TFabriquant t WHERE t.strTELEPHONE = :strTELEPHONE"),
+        @NamedQuery(name = "TFabriquant.findByDtCREATED", query = "SELECT t FROM TFabriquant t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TFabriquant.findByDtUPDATED", query = "SELECT t FROM TFabriquant t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TFabriquant.findByStrSTATUT", query = "SELECT t FROM TFabriquant t WHERE t.strSTATUT = :strSTATUT") })
 public class TFabriquant implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -169,7 +168,8 @@ public class TFabriquant implements Serializable {
             return false;
         }
         TFabriquant other = (TFabriquant) object;
-        if ((this.lgFABRIQUANTID == null && other.lgFABRIQUANTID != null) || (this.lgFABRIQUANTID != null && !this.lgFABRIQUANTID.equals(other.lgFABRIQUANTID))) {
+        if ((this.lgFABRIQUANTID == null && other.lgFABRIQUANTID != null)
+                || (this.lgFABRIQUANTID != null && !this.lgFABRIQUANTID.equals(other.lgFABRIQUANTID))) {
             return false;
         }
         return true;
@@ -179,5 +179,5 @@ public class TFabriquant implements Serializable {
     public String toString() {
         return "dal.TFabriquant[ lgFABRIQUANTID=" + lgFABRIQUANTID + " ]";
     }
-    
+
 }

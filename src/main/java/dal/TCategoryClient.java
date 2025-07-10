@@ -25,11 +25,10 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_category_client")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TCategoryClient.findAll", query = "SELECT t FROM TCategoryClient t")
-    , @NamedQuery(name = "TCategoryClient.findByLgCATEGORYCLIENTID", query = "SELECT t FROM TCategoryClient t WHERE t.lgCATEGORYCLIENTID = :lgCATEGORYCLIENTID")
-    , @NamedQuery(name = "TCategoryClient.findByStrLIBELLE", query = "SELECT t FROM TCategoryClient t WHERE t.strLIBELLE = :strLIBELLE")
-    , @NamedQuery(name = "TCategoryClient.findByStrDESCRIPTION", query = "SELECT t FROM TCategoryClient t WHERE t.strDESCRIPTION = :strDESCRIPTION")})
+@NamedQueries({ @NamedQuery(name = "TCategoryClient.findAll", query = "SELECT t FROM TCategoryClient t"),
+        @NamedQuery(name = "TCategoryClient.findByLgCATEGORYCLIENTID", query = "SELECT t FROM TCategoryClient t WHERE t.lgCATEGORYCLIENTID = :lgCATEGORYCLIENTID"),
+        @NamedQuery(name = "TCategoryClient.findByStrLIBELLE", query = "SELECT t FROM TCategoryClient t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TCategoryClient.findByStrDESCRIPTION", query = "SELECT t FROM TCategoryClient t WHERE t.strDESCRIPTION = :strDESCRIPTION") })
 public class TCategoryClient implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -41,8 +40,9 @@ public class TCategoryClient implements Serializable {
     private String strLIBELLE;
     @Column(name = "str_DESCRIPTION")
     private String strDESCRIPTION;
- @OneToMany(mappedBy = "lgCATEGORYCLIENTID")
+    @OneToMany(mappedBy = "lgCATEGORYCLIENTID")
     private Collection<TClient> cliens;
+
     public TCategoryClient() {
     }
 
@@ -88,7 +88,8 @@ public class TCategoryClient implements Serializable {
             return false;
         }
         TCategoryClient other = (TCategoryClient) object;
-        if ((this.lgCATEGORYCLIENTID == null && other.lgCATEGORYCLIENTID != null) || (this.lgCATEGORYCLIENTID != null && !this.lgCATEGORYCLIENTID.equals(other.lgCATEGORYCLIENTID))) {
+        if ((this.lgCATEGORYCLIENTID == null && other.lgCATEGORYCLIENTID != null)
+                || (this.lgCATEGORYCLIENTID != null && !this.lgCATEGORYCLIENTID.equals(other.lgCATEGORYCLIENTID))) {
             return false;
         }
         return true;
@@ -98,14 +99,14 @@ public class TCategoryClient implements Serializable {
     public String toString() {
         return "dal.TCategoryClient[ lgCATEGORYCLIENTID=" + lgCATEGORYCLIENTID + " ]";
     }
+
     public void setTClientCollection(Collection<TClient> clientscollection) {
-        this.cliens= clientscollection;
+        this.cliens = clientscollection;
     }
-    
+
     @XmlTransient
     public Collection<TClient> getTClientCollection() {
         return cliens;
     }
 
-   
 }

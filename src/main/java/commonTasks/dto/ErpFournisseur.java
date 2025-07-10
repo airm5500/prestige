@@ -16,7 +16,12 @@ import java.io.Serializable;
 public class ErpFournisseur implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String fournisseurId, fournisseurLibelle, adresse, telephone, groupeId, groupeLibelle;
+    private String fournisseurId;
+    private String fournisseurLibelle;
+    private String adresse;
+    private String telephone;
+    private String groupeId;
+    private String groupeLibelle;
 
     public String getFournisseurId() {
         return fournisseurId;

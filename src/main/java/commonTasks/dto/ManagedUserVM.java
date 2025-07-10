@@ -10,8 +10,8 @@ package commonTasks.dto;
  * @author koben
  */
 public class ManagedUserVM {
-       private String password;
-       private String login;
+    private String password;
+    private String login;
 
     public String getPassword() {
         return password;

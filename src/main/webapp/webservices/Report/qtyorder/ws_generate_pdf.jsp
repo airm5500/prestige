@@ -11,7 +11,7 @@
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <title></title>
     </head>
-    
+
     <%@page import="bll.common.Parameter"%>
 
 
@@ -40,11 +40,11 @@
         TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
         dataManager OdataManager = new dataManager();
 
-        String search_value = "%%";
-        int year = new Integer(date.FORMATTERYEAR.format(new Date()));
+        String search_value = "%%", rayonId = "%%";
+        int year = Integer.valueOf(date.FORMATTERYEAR.format(new Date()));
 
         if (request.getParameter("year") != null && !"".equals(request.getParameter("year"))) {
-            year = new Integer(request.getParameter("year"));
+            year = Integer.valueOf(request.getParameter("year"));
         }
 
         if (request.getParameter("search_value") != null && !"".equals(request.getParameter("search_value"))) {
@@ -53,7 +53,9 @@
         if (request.getParameter("query") != null && !"".equals(request.getParameter("query"))) {
             search_value = request.getParameter("query");
         }
-
+        if (request.getParameter("rayonId") != null && !"".equals(request.getParameter("rayonId"))) {
+            rayonId = request.getParameter("rayonId");
+        }
         String pdf_file_name = "rp_qtystat";
 
         TParameters OTParameters;
@@ -79,7 +81,7 @@
 
         String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
         String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
-      
+
         parameters.put("P_YEAR", year);
         parameters.put("P_H_CLT_INFOS", "Statistique des produits vendus en  " + year);
 
@@ -111,7 +113,7 @@
             String finalphonestring = oTOfficine.getStrPHONE() != null ? "- Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
             if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
                 String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                for (String va : phone) {
+                for (String va  : phone) {
                     finalphonestring += " / " + conversion.PhoneNumberFormat(va);
                 }
             }
@@ -126,7 +128,7 @@
         parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
         parameters.put("P_FOOTER_RC", P_FOOTER_RC);
         parameters.put("P_SEARCH", search_value + "%");
-
+        parameters.put("P_RAYON", rayonId);
         OreportManager.BuildReport(parameters, Ojconnexion);
 // fin
         Ojconnexion.CloseConnexion();

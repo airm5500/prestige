@@ -29,7 +29,7 @@
     GroupeTierspayantController groupeCtl = new GroupeTierspayantController(OdataManager.getEmf());
     String search_value = "";
     if (request.getParameter("lg_GROUPE_ID") != null && !"".equals(request.getParameter("lg_GROUPE_ID"))) {
-        lg_GROUPE_ID = new Integer(request.getParameter("lg_GROUPE_ID"));
+        lg_GROUPE_ID =  Integer.valueOf(request.getParameter("lg_GROUPE_ID"));
     }
     if (request.getParameter("search_value") != null && !"".equals(request.getParameter("search_value"))) {
         search_value = request.getParameter("search_value");

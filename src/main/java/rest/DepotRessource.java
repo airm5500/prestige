@@ -26,7 +26,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.MvtProduitService;
 import rest.service.impl.ImportationVente;
-import toolkits.parameters.commonparameter;
+import util.Constant;
 
 /**
  *
@@ -48,9 +48,9 @@ public class DepotRessource {
     @Path("validerretourdepot/{id}")
     public Response validerRetourDepot(@PathParam("id") String id) throws JSONException {
         HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter")).build();
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = mvtProduitService.validerRetourDepot(id, tu);
         return Response.ok().entity(json.toString()).build();
@@ -58,14 +58,12 @@ public class DepotRessource {
 
     @GET
     @Path("historiques")
-    @Produces("application/json") 
-    public Response listeHistoriques(
-            @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd
-    ) throws JSONException {
-        List<HistoriqueImportationDTO> data = importationVente.listHistoriqueImportation(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), null);
-        JSONObject json = new JSONObject().put("total", data.size())
-                .put("data", new JSONArray(data));
+    @Produces("application/json")
+    public Response listeHistoriques(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        List<HistoriqueImportationDTO> data = importationVente.listHistoriqueImportation(LocalDate.parse(dtStart),
+                LocalDate.parse(dtEnd), null);
+        JSONObject json = new JSONObject().put("total", data.size()).put("data", new JSONArray(data));
         return Response.ok().entity(json.toString()).build();
     }
 }

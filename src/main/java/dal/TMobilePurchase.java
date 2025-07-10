@@ -25,17 +25,16 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_mobile_purchase")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMobilePurchase.findAll", query = "SELECT t FROM TMobilePurchase t"),
-    @NamedQuery(name = "TMobilePurchase.findByLgPURCHASEID", query = "SELECT t FROM TMobilePurchase t WHERE t.lgPURCHASEID = :lgPURCHASEID"),
-    @NamedQuery(name = "TMobilePurchase.findByStrPURCHASETOKEN", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASETOKEN = :strPURCHASETOKEN"),
-    @NamedQuery(name = "TMobilePurchase.findByStrPURCHASESTATUS", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASESTATUS = :strPURCHASESTATUS"),
-    @NamedQuery(name = "TMobilePurchase.findByStrPURCHASEMONTANT", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASEMONTANT = :strPURCHASEMONTANT"),
-    @NamedQuery(name = "TMobilePurchase.findByStrPURCHASECONTACT", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASECONTACT = :strPURCHASECONTACT"),
-    @NamedQuery(name = "TMobilePurchase.findByStrPURCHASEINFO", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASEINFO = :strPURCHASEINFO"),
-    @NamedQuery(name = "TMobilePurchase.findByStrPURCHASEREFERENCE", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASEREFERENCE = :strPURCHASEREFERENCE"),
-    @NamedQuery(name = "TMobilePurchase.findByDtPURCHASECREATEDDATE", query = "SELECT t FROM TMobilePurchase t WHERE t.dtPURCHASECREATEDDATE = :dtPURCHASECREATEDDATE"),
-    @NamedQuery(name = "TMobilePurchase.findByStrPURCHASETIMESTAMP", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASETIMESTAMP = :strPURCHASETIMESTAMP")})
+@NamedQueries({ @NamedQuery(name = "TMobilePurchase.findAll", query = "SELECT t FROM TMobilePurchase t"),
+        @NamedQuery(name = "TMobilePurchase.findByLgPURCHASEID", query = "SELECT t FROM TMobilePurchase t WHERE t.lgPURCHASEID = :lgPURCHASEID"),
+        @NamedQuery(name = "TMobilePurchase.findByStrPURCHASETOKEN", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASETOKEN = :strPURCHASETOKEN"),
+        @NamedQuery(name = "TMobilePurchase.findByStrPURCHASESTATUS", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASESTATUS = :strPURCHASESTATUS"),
+        @NamedQuery(name = "TMobilePurchase.findByStrPURCHASEMONTANT", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASEMONTANT = :strPURCHASEMONTANT"),
+        @NamedQuery(name = "TMobilePurchase.findByStrPURCHASECONTACT", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASECONTACT = :strPURCHASECONTACT"),
+        @NamedQuery(name = "TMobilePurchase.findByStrPURCHASEINFO", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASEINFO = :strPURCHASEINFO"),
+        @NamedQuery(name = "TMobilePurchase.findByStrPURCHASEREFERENCE", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASEREFERENCE = :strPURCHASEREFERENCE"),
+        @NamedQuery(name = "TMobilePurchase.findByDtPURCHASECREATEDDATE", query = "SELECT t FROM TMobilePurchase t WHERE t.dtPURCHASECREATEDDATE = :dtPURCHASECREATEDDATE"),
+        @NamedQuery(name = "TMobilePurchase.findByStrPURCHASETIMESTAMP", query = "SELECT t FROM TMobilePurchase t WHERE t.strPURCHASETIMESTAMP = :strPURCHASETIMESTAMP") })
 public class TMobilePurchase implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -73,7 +72,8 @@ public class TMobilePurchase implements Serializable {
         this.lgPURCHASEID = lgPURCHASEID;
     }
 
-    public TMobilePurchase(String lgPURCHASEID, String strPURCHASETOKEN, String strPURCHASESTATUS, String strPURCHASEMONTANT, String strPURCHASECONTACT, String strPURCHASEREFERENCE) {
+    public TMobilePurchase(String lgPURCHASEID, String strPURCHASETOKEN, String strPURCHASESTATUS,
+            String strPURCHASEMONTANT, String strPURCHASECONTACT, String strPURCHASEREFERENCE) {
         this.lgPURCHASEID = lgPURCHASEID;
         this.strPURCHASETOKEN = strPURCHASETOKEN;
         this.strPURCHASESTATUS = strPURCHASESTATUS;
@@ -168,7 +168,8 @@ public class TMobilePurchase implements Serializable {
             return false;
         }
         TMobilePurchase other = (TMobilePurchase) object;
-        if ((this.lgPURCHASEID == null && other.lgPURCHASEID != null) || (this.lgPURCHASEID != null && !this.lgPURCHASEID.equals(other.lgPURCHASEID))) {
+        if ((this.lgPURCHASEID == null && other.lgPURCHASEID != null)
+                || (this.lgPURCHASEID != null && !this.lgPURCHASEID.equals(other.lgPURCHASEID))) {
             return false;
         }
         return true;
@@ -178,5 +179,5 @@ public class TMobilePurchase implements Serializable {
     public String toString() {
         return "dal.TMobilePurchase[ lgPURCHASEID=" + lgPURCHASEID + " ]";
     }
-    
+
 }

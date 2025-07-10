@@ -38,7 +38,8 @@ public class TDossierReglement implements Serializable {
     private String strLIBELLE;
     @Column(name = "str_NATURE_DOSSIER", length = 40)
     private String strNATUREDOSSIER;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_AMOUNT", precision = 15, scale = 3)
     private Double dblAMOUNT;
     @Column(name = "str_ORGANISME_ID", length = 40)
@@ -64,7 +65,6 @@ public class TDossierReglement implements Serializable {
     @JoinColumn(name = "lg_FACTURE_ID", referencedColumnName = "lg_FACTURE_ID")
     @ManyToOne
     private TFacture lgFACTUREID;
-    
 
     public TDossierReglement() {
     }
@@ -158,7 +158,8 @@ public class TDossierReglement implements Serializable {
         return tDossierReglementDetailCollection;
     }
 
-    public void setTDossierReglementDetailCollection(Collection<TDossierReglementDetail> tDossierReglementDetailCollection) {
+    public void setTDossierReglementDetailCollection(
+            Collection<TDossierReglementDetail> tDossierReglementDetailCollection) {
         this.tDossierReglementDetailCollection = tDossierReglementDetailCollection;
     }
 
@@ -192,7 +193,9 @@ public class TDossierReglement implements Serializable {
             return false;
         }
         TDossierReglement other = (TDossierReglement) object;
-        if ((this.lgDOSSIERREGLEMENTID == null && other.lgDOSSIERREGLEMENTID != null) || (this.lgDOSSIERREGLEMENTID != null && !this.lgDOSSIERREGLEMENTID.equals(other.lgDOSSIERREGLEMENTID))) {
+        if ((this.lgDOSSIERREGLEMENTID == null && other.lgDOSSIERREGLEMENTID != null)
+                || (this.lgDOSSIERREGLEMENTID != null
+                        && !this.lgDOSSIERREGLEMENTID.equals(other.lgDOSSIERREGLEMENTID))) {
             return false;
         }
         return true;
@@ -202,5 +205,5 @@ public class TDossierReglement implements Serializable {
     public String toString() {
         return "dal.TDossierReglement[ lgDOSSIERREGLEMENTID=" + lgDOSSIERREGLEMENTID + " ]";
     }
-    
+
 }

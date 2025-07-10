@@ -29,17 +29,15 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_groupe_famille", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_GROUPE_FAMILLE_ID"})})
+@Table(name = "t_groupe_famille", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_GROUPE_FAMILLE_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TGroupeFamille.findAll", query = "SELECT t FROM TGroupeFamille t"),
-    @NamedQuery(name = "TGroupeFamille.findByLgGROUPEFAMILLEID", query = "SELECT t FROM TGroupeFamille t WHERE t.lgGROUPEFAMILLEID = :lgGROUPEFAMILLEID"),
-    @NamedQuery(name = "TGroupeFamille.findByStrLIBELLE", query = "SELECT t FROM TGroupeFamille t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TGroupeFamille.findByStrSTATUT", query = "SELECT t FROM TGroupeFamille t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TGroupeFamille.findByDtCREATED", query = "SELECT t FROM TGroupeFamille t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TGroupeFamille.findByDtUPDATED", query = "SELECT t FROM TGroupeFamille t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TGroupeFamille.findByStrCODEGROUPEFAMILLE", query = "SELECT t FROM TGroupeFamille t WHERE t.strCODEGROUPEFAMILLE = :strCODEGROUPEFAMILLE")})
+@NamedQueries({ @NamedQuery(name = "TGroupeFamille.findAll", query = "SELECT t FROM TGroupeFamille t"),
+        @NamedQuery(name = "TGroupeFamille.findByLgGROUPEFAMILLEID", query = "SELECT t FROM TGroupeFamille t WHERE t.lgGROUPEFAMILLEID = :lgGROUPEFAMILLEID"),
+        @NamedQuery(name = "TGroupeFamille.findByStrLIBELLE", query = "SELECT t FROM TGroupeFamille t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TGroupeFamille.findByStrSTATUT", query = "SELECT t FROM TGroupeFamille t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TGroupeFamille.findByDtCREATED", query = "SELECT t FROM TGroupeFamille t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TGroupeFamille.findByDtUPDATED", query = "SELECT t FROM TGroupeFamille t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TGroupeFamille.findByStrCODEGROUPEFAMILLE", query = "SELECT t FROM TGroupeFamille t WHERE t.strCODEGROUPEFAMILLE = :strCODEGROUPEFAMILLE") })
 public class TGroupeFamille implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -150,7 +148,8 @@ public class TGroupeFamille implements Serializable {
             return false;
         }
         TGroupeFamille other = (TGroupeFamille) object;
-        if ((this.lgGROUPEFAMILLEID == null && other.lgGROUPEFAMILLEID != null) || (this.lgGROUPEFAMILLEID != null && !this.lgGROUPEFAMILLEID.equals(other.lgGROUPEFAMILLEID))) {
+        if ((this.lgGROUPEFAMILLEID == null && other.lgGROUPEFAMILLEID != null)
+                || (this.lgGROUPEFAMILLEID != null && !this.lgGROUPEFAMILLEID.equals(other.lgGROUPEFAMILLEID))) {
             return false;
         }
         return true;
@@ -160,5 +159,5 @@ public class TGroupeFamille implements Serializable {
     public String toString() {
         return "dal.TGroupeFamille[ lgGROUPEFAMILLEID=" + lgGROUPEFAMILLEID + " ]";
     }
-    
+
 }

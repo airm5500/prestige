@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package dal;
 
 import java.io.Serializable;
@@ -27,22 +26,23 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_suggestion_order_details",indexes = {
-            @Index(name = "t_suggestion_order_detailsIdex", columnList = "str_STATUT")
-           
-        })
+@Table(name = "t_suggestion_order_details", indexes = {
+        @Index(name = "t_suggestion_order_detailsIdex", columnList = "str_STATUT")
+
+})
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TSuggestionOrderDetails.findAll", query = "SELECT t FROM TSuggestionOrderDetails t"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByLgSUGGESTIONORDERDETAILSID", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.lgSUGGESTIONORDERDETAILSID = :lgSUGGESTIONORDERDETAILSID"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByIntNUMBER", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByIntPRICE", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intPRICE = :intPRICE"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByIntPRICEDETAIL", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intPRICEDETAIL = :intPRICEDETAIL"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByIntPAFDETAIL", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intPAFDETAIL = :intPAFDETAIL"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByDtCREATED", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByDtUPDATED", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSuggestionOrderDetails.findByStrSTATUT", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.strSTATUT = :strSTATUT")})
-public class TSuggestionOrderDetails implements Serializable {
+        @NamedQuery(name = "TSuggestionOrderDetails.findAll", query = "SELECT t FROM TSuggestionOrderDetails t"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByLgSUGGESTIONORDERDETAILSID", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.lgSUGGESTIONORDERDETAILSID = :lgSUGGESTIONORDERDETAILSID"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByIntNUMBER", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByIntPRICE", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intPRICE = :intPRICE"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByIntPRICEDETAIL", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intPRICEDETAIL = :intPRICEDETAIL"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByIntPAFDETAIL", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.intPAFDETAIL = :intPAFDETAIL"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByDtCREATED", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByDtUPDATED", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSuggestionOrderDetails.findByStrSTATUT", query = "SELECT t FROM TSuggestionOrderDetails t WHERE t.strSTATUT = :strSTATUT") })
+public class TSuggestionOrderDetails implements Serializable, Cloneable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -73,8 +73,9 @@ public class TSuggestionOrderDetails implements Serializable {
     @JoinColumn(name = "lg_GROSSISTE_ID", referencedColumnName = "lg_GROSSISTE_ID")
     @ManyToOne
     private TGrossiste lgGROSSISTEID;
-   @Column(name = "b_falg")
+    @Column(name = "b_falg")
     private Boolean bFalg;
+
     public TSuggestionOrderDetails() {
     }
 
@@ -176,7 +177,7 @@ public class TSuggestionOrderDetails implements Serializable {
         hash += (lgSUGGESTIONORDERDETAILSID != null ? lgSUGGESTIONORDERDETAILSID.hashCode() : 0);
         return hash;
     }
-  
+
     @Override
     public boolean equals(Object object) {
         // TODO: Warning - this method won't work in the case the id fields are not set
@@ -184,7 +185,9 @@ public class TSuggestionOrderDetails implements Serializable {
             return false;
         }
         TSuggestionOrderDetails other = (TSuggestionOrderDetails) object;
-        if ((this.lgSUGGESTIONORDERDETAILSID == null && other.lgSUGGESTIONORDERDETAILSID != null) || (this.lgSUGGESTIONORDERDETAILSID != null && !this.lgSUGGESTIONORDERDETAILSID.equals(other.lgSUGGESTIONORDERDETAILSID))) {
+        if ((this.lgSUGGESTIONORDERDETAILSID == null && other.lgSUGGESTIONORDERDETAILSID != null)
+                || (this.lgSUGGESTIONORDERDETAILSID != null
+                        && !this.lgSUGGESTIONORDERDETAILSID.equals(other.lgSUGGESTIONORDERDETAILSID))) {
             return false;
         }
         return true;
@@ -202,5 +205,16 @@ public class TSuggestionOrderDetails implements Serializable {
     public void setBFalg(Boolean bFalg) {
         this.bFalg = bFalg;
     }
-    
+
+    @Override
+    public TSuggestionOrderDetails clone() {
+
+        try {
+            return (TSuggestionOrderDetails) super.clone();
+        } catch (CloneNotSupportedException ex) {
+            return null;
+        }
+
+    }
+
 }

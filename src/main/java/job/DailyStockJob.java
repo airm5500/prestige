@@ -38,7 +38,7 @@ public class DailyStockJob {
     @Inject
     private UserTransaction userTransaction;
 
-    @Schedule(hour = "11,18", dayOfMonth = "*", persistent = false)
+    @Schedule(hour = "12,18")
     public void execute() throws InterruptedException {
         DailyStockTask dailyStockTask = new DailyStockTask();
         dailyStockTask.setDateStock(LocalDate.now());

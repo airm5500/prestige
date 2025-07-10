@@ -12,12 +12,12 @@ import java.time.LocalDate;
  *
  * @author DICI
  */
-public class MvtArticleParams implements Serializable{
+public class MvtArticleParams implements Serializable {
     private static final long serialVersionUID = 1L;
-    private LocalDate dtStart=LocalDate.now(),dtEnd=dtStart;
-    private String search,categorieId,fabricantId,rayonId,magasinId,produitId;
-    private int start=0,limit=30;
-    private boolean  all=false;
+    private LocalDate dtStart = LocalDate.now(), dtEnd = dtStart;
+    private String search, categorieId, fabricantId, rayonId, magasinId, produitId;
+    private int start = 0, limit = 30;
+    private boolean all = false;
 
     public LocalDate getDtStart() {
         return dtStart;
@@ -85,7 +85,9 @@ public class MvtArticleParams implements Serializable{
 
     @Override
     public String toString() {
-        return "MvtArticleParams{" + "dtStart=" + dtStart + ", dtEnd=" + dtEnd + ", search=" + search + ", categorieId=" + categorieId + ", fabricantId=" + fabricantId + ", rayonId=" + rayonId + ", magasinId=" + magasinId + '}';
+        return "MvtArticleParams{" + "dtStart=" + dtStart + ", dtEnd=" + dtEnd + ", search=" + search + ", categorieId="
+                + categorieId + ", fabricantId=" + fabricantId + ", rayonId=" + rayonId + ", magasinId=" + magasinId
+                + '}';
     }
 
     public MvtArticleParams() {
@@ -114,5 +116,5 @@ public class MvtArticleParams implements Serializable{
     public void setAll(boolean all) {
         this.all = all;
     }
-    
+
 }

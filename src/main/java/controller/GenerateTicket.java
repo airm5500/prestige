@@ -27,9 +27,9 @@ import toolkits.utils.jdom;
 
 /**
  *
- * 
+ *
  */
-@WebServlet(name = "GenerateTicket", urlPatterns = {"/generateTicket"})
+@WebServlet(name = "GenerateTicket", urlPatterns = { "/generateTicket" })
 public class GenerateTicket extends HttpServlet {
 
     private final static Logger LOGGER = Logger.getLogger(GenerateTicket.class.getName());
@@ -41,13 +41,14 @@ public class GenerateTicket extends HttpServlet {
         jdom.LoadRessource();
         dataManager OdataManager = new dataManager();
         OdataManager.initEntityManager();
-//        EntityManager entityManager = OdataManager.getEm();
+        // EntityManager entityManager = OdataManager.getEm();
         response.setContentType("application/json;charset=UTF-8");
         HttpSession session = request.getSession();
         TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
         String action = request.getParameter("mode");
 
-        String lg_PREENREGISTREMENT_ID = "", str_FIRST_NAME_FACTURE = "", str_LAST_NAME_FACTURE = "", int_NUMBER_FACTURE = "";
+        String lg_PREENREGISTREMENT_ID = "", str_FIRST_NAME_FACTURE = "", str_LAST_NAME_FACTURE = "",
+                int_NUMBER_FACTURE = "";
 
         JSONObject json = new JSONObject();
 
@@ -74,18 +75,21 @@ public class GenerateTicket extends HttpServlet {
             Preenregistrement OPreenregistrement = new Preenregistrement(OdataManager, OTUser);
 
             barecodeManager obarecodeManager = new barecodeManager();
-            TPreenregistrement oTPreenregistrement = OdataManager.getEm().find(TPreenregistrement.class, lg_PREENREGISTREMENT_ID);
+            TPreenregistrement oTPreenregistrement = OdataManager.getEm().find(TPreenregistrement.class,
+                    lg_PREENREGISTREMENT_ID);
             OdataManager.getEm().refresh(oTPreenregistrement);
             LOGGER.log(Level.INFO, "find oTPreenregistrement {0}", oTPreenregistrement);
             String fileBarecode = obarecodeManager.buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             LOGGER.log(Level.INFO, " jdom.barecode_file  {0}", jdom.barecode_file + "" + fileBarecode + ".png");
             if (fileBarecode != null) {
-                OPreenregistrement.lunchPrinterForTicket(oTPreenregistrement, jdom.barecode_file + "" + fileBarecode + ".png");
+                OPreenregistrement.lunchPrinterForTicket(oTPreenregistrement,
+                        jdom.barecode_file + "" + fileBarecode + ".png");
                 json.put("success", OPreenregistrement.getMessage());
                 json.put("errors", OPreenregistrement.getDetailmessage());
             } else {
                 json.put("success", 0);
-                json.put("errors", "Erreur de génération du ticket,une erreur c'est produite ,veuillez résaissir la vente.");
+                json.put("errors",
+                        "Erreur de génération du ticket,une erreur c'est produite ,veuillez résaissir la vente.");
             }
 
             out.println(json);

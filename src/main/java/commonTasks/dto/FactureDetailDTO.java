@@ -24,16 +24,11 @@ public class FactureDetailDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private LocalDateTime dateOperation;
-    private String lgFACTUREDETAILID, lgFACTUREID,
-            ayantDroitId, clientId, clientFirstName,
-            clientLastName, clientNumAssurance,
-            ayantDroitFirstName, ayantDroitLastName,
-            ayantDroitNumAssurance;
+    private String lgFACTUREDETAILID, lgFACTUREID, ayantDroitId, clientId, clientFirstName, clientLastName,
+            clientNumAssurance, ayantDroitFirstName, ayantDroitLastName, ayantDroitNumAssurance;
     private String strREF;
-    private Integer dblMONTANT, dblMONTANTPAYE,
-            dblMONTANTRESTANT, dblMONTANTREMISE,
-            montantRemiseVente, montantTvaVente,
-            montantVente,dblMONTANTBrut;
+    private Integer dblMONTANT, dblMONTANTPAYE, dblMONTANTRESTANT, dblMONTANTREMISE, montantRemiseVente,
+            montantTvaVente, montantVente, dblMONTANTBrut;
     private String dateVente;
     List<VenteDetailsDTO> ventes = new ArrayList<>();
 
@@ -212,6 +207,7 @@ public class FactureDetailDTO implements Serializable {
     public void setDateVente(String dateVente) {
         this.dateVente = dateVente;
     }
+
     private String strREFDESCRIPTION;
 
     public String getStrREFDESCRIPTION() {
@@ -221,6 +217,7 @@ public class FactureDetailDTO implements Serializable {
     public void setStrREFDESCRIPTION(String strREFDESCRIPTION) {
         this.strREFDESCRIPTION = strREFDESCRIPTION;
     }
+
     private String pKey;
 
     public FactureDetailDTO(TFactureDetail factureDetail) {
@@ -247,7 +244,7 @@ public class FactureDetailDTO implements Serializable {
         this.dblMONTANTRESTANT = factureDetail.getDblMONTANTRESTANT().intValue();
         this.dblMONTANTREMISE = factureDetail.getDblMONTANTREMISE().intValue();
         this.montantRemiseVente = factureDetail.getMontantRemiseVente();
-        this.dblMONTANTBrut=factureDetail.getDblMONTANTBrut().intValue();
+        this.dblMONTANTBrut = factureDetail.getDblMONTANTBrut().intValue();
         this.montantTvaVente = factureDetail.getMontantTvaVente();
         this.montantVente = factureDetail.getMontantVente();
         this.dateVente = dateFormat.format(factureDetail.getDateOperation());

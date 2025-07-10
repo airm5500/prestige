@@ -144,7 +144,7 @@
         // lg_RISQUE_ID
         json.put("lg_RISQUE_ID", lg_RISQUE_ID); 
         // lg_VILLE_ID
-        json.put("lg_VILLE_ID", OTClient.getLgVILLEID().getStrName());
+        json.put("lg_VILLE_ID", OTClient.getLgVILLEID()!=null?OTClient.getLgVILLEID().getStrName():"");
         // lg_CATEGORIE_AYANTDROIT_ID
         json.put("lg_CATEGORIE_AYANTDROIT_ID", lg_CATEGORIE_AYANTDROIT_ID);
         

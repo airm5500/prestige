@@ -10,7 +10,8 @@ package dal.enumeration;
  * @author Kobena
  */
 public enum TypeVente {
-     VNO("Comptant"), VO("Assurance"), DEPOT("Dépôt agrée"), EXTENSION("Dépôt extension"), VC("Carnet");
+    VNO("Comptant"), VO("Assurance"), DEPOT("Dépôt agrée"), EXTENSION("Dépôt extension"), VC("Carnet");
+
     private final String value;
 
     public String getValue() {

@@ -79,8 +79,8 @@ closeWindows: function () {
         me.getGammeProduitForm().destroy();
     },
     saveRecord: function () {
-        var me = this;
-        form = me.getForm();
+        const me = this;
+       const form = me.getForm();
         if (form.isValid()) {
             let datas = form.getValues();
             var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');

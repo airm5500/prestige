@@ -40,7 +40,8 @@ public class TCompteClient implements Serializable {
     private String strTYPE;
     @Column(name = "P_KEY", length = 40)
     private String pKey;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_QUOTA_CONSO_MENSUELLE", precision = 12, scale = 2)
     private Double dblQUOTACONSOMENSUELLE;
     @Column(name = "dbl_CAUTION", precision = 12, scale = 2)
@@ -69,7 +70,7 @@ public class TCompteClient implements Serializable {
     @JoinColumn(name = "lg_CLIENT_ID", referencedColumnName = "lg_CLIENT_ID")
     @ManyToOne
     private TClient lgCLIENTID;
-    @OneToMany( mappedBy = "lgCOMPTECLIENTID")
+    @OneToMany(mappedBy = "lgCOMPTECLIENTID")
     private Collection<TEmplacement> tEmplacementCollection;
     @OneToMany(mappedBy = "struseraccountID")
     private Collection<TTransaction> tTransactionCollection;
@@ -79,17 +80,17 @@ public class TCompteClient implements Serializable {
     private Collection<TCompteClientTiersPayant> tCompteClientTiersPayantCollection;
     @OneToMany(mappedBy = "struseraccountID")
     private Collection<TUserAccountSnapShot> tUserAccountSnapShotCollection;
-//
-//    public int getVersion() {
-//        return version;
-//    }
-//
-//    public void setVersion(int version) {
-//        this.version = version;
-//    }
-//
-//    @Version
-//    private int version;
+    //
+    // public int getVersion() {
+    // return version;
+    // }
+    //
+    // public void setVersion(int version) {
+    // this.version = version;
+    // }
+    //
+    // @Version
+    // private int version;
 
     public TCompteClient() {
     }
@@ -249,7 +250,8 @@ public class TCompteClient implements Serializable {
         return tPreenregistrementCompteClientCollection;
     }
 
-    public void setTPreenregistrementCompteClientCollection(Collection<TPreenregistrementCompteClient> tPreenregistrementCompteClientCollection) {
+    public void setTPreenregistrementCompteClientCollection(
+            Collection<TPreenregistrementCompteClient> tPreenregistrementCompteClientCollection) {
         this.tPreenregistrementCompteClientCollection = tPreenregistrementCompteClientCollection;
     }
 
@@ -258,7 +260,8 @@ public class TCompteClient implements Serializable {
         return tCompteClientTiersPayantCollection;
     }
 
-    public void setTCompteClientTiersPayantCollection(Collection<TCompteClientTiersPayant> tCompteClientTiersPayantCollection) {
+    public void setTCompteClientTiersPayantCollection(
+            Collection<TCompteClientTiersPayant> tCompteClientTiersPayantCollection) {
         this.tCompteClientTiersPayantCollection = tCompteClientTiersPayantCollection;
     }
 
@@ -285,7 +288,8 @@ public class TCompteClient implements Serializable {
             return false;
         }
         TCompteClient other = (TCompteClient) object;
-        if ((this.lgCOMPTECLIENTID == null && other.lgCOMPTECLIENTID != null) || (this.lgCOMPTECLIENTID != null && !this.lgCOMPTECLIENTID.equals(other.lgCOMPTECLIENTID))) {
+        if ((this.lgCOMPTECLIENTID == null && other.lgCOMPTECLIENTID != null)
+                || (this.lgCOMPTECLIENTID != null && !this.lgCOMPTECLIENTID.equals(other.lgCOMPTECLIENTID))) {
             return false;
         }
         return true;

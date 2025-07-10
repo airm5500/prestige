@@ -31,8 +31,6 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
     frame: true,
     config: {
         odatasource: ''
-
-
     },
     initComponent: function () {
         var mydataSource = this.getOdatasource();
@@ -157,7 +155,6 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                                         new testextjs.view.tierspayantmanagement.groupetierspayant.action.facturegroupe({
                                             odatasource: rec.get('CODEFACTURE'),
                                             parentview: this,
-
                                             titre: "Les factures du groupe [" + rec.get('str_LIB') + "]"
                                         });
                                     }
@@ -168,7 +165,6 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                             xtype: 'actioncolumn',
                             width: 30,
                             sortable: false,
-//                    hidden:true,
                             menuDisabled: true,
                             items: [{
                                     getClass: function (v, meta, rec) {
@@ -191,8 +187,6 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                                             return 'Sold&eacute;e ';
                                         }
                                     },
-                                    // icon: 'resources/images/icons/fam/folder_go.png',
-                                    // tooltip: 'R&eacute;gler Facture',
                                     scope: this,
                                     handler: this.onPaidFactureClick
                                 }]
@@ -240,6 +234,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                                     handler: function (grid, rowIndex) {
                                         var rec = grid.getStore().getAt(rowIndex);
                                         if (rec.get('STATUT') === "paid") {
+                                            Ext.MessageBox.alert('INFO', 'Deja subi un reglement');
                                             return;
                                         }
                                         testextjs.app.getController('App').ShowWaitingProcess();
@@ -393,11 +388,11 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                         specialKey: function (field, e, options) {
                             if (e.getKey() === e.ENTER)
                             {
-                                var combox = Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue();
+                                let combox = Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue();
                                 if (combox === '' || combox === null) {
                                     combox = '';
                                 }
-                                var mystore = Ext.getCmp('invoiceGRID').getStore();
+                                const mystore = Ext.getCmp('invoiceGRID').getStore();
                                 mystore.getProxy().url = "../webservices/configmanagement/groupe/ws_groupeInvoices.jsp";
 
                                 mystore.load({params: {
@@ -426,7 +421,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                     scope: this,
                     handler: function () {
                         {
-                            var combox = Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue();
+                            let combox = Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue();
                             if (combox === '' || combox === null) {
                                 combox = '';
                             }
@@ -455,7 +450,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                 displayInfo: true,
                 listeners: {
                     beforechange: function (page, currentPage) {
-                        var myProxy = this.store.getProxy();
+                        let myProxy = this.store.getProxy();
 
                         myProxy.params = {
                             dt_end: '',
@@ -465,7 +460,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
 
 
                         };
-                        var combox = Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue();
+                        let combox = Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue();
                         if (combox === '' || combox === null) {
                             combox = '';
                         }
@@ -497,35 +492,23 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
 
     },
     loadStore: function () {
-        this.getStore().load({
-            callback: this.onStoreLoad
-        });
-    },
-    onStoreLoad: function () {
+        this.getStore().load();
     },
 
     onPrint: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-        var lg_GROUPE_ID = rec.get('lg_GROUPE_ID');
-        var CODEFACTURE = rec.get('CODEFACTURE');
-        var linkUrl = "../webservices/configmanagement/groupe/group_invoice_pdf.jsp" + "?lg_GROUPE_ID=" + lg_GROUPE_ID + "&CODEFACTURE=" + CODEFACTURE;
-        window.open(linkUrl);
-
-
-
+        const rec = grid.getStore().getAt(rowIndex);
+        const lg_GROUPE_ID = rec.get('lg_GROUPE_ID');
+        const CODEFACTURE = rec.get('CODEFACTURE');
+        window.open("../webservices/configmanagement/groupe/group_invoice_pdf.jsp" + "?lg_GROUPE_ID=" + lg_GROUPE_ID + "&CODEFACTURE=" + CODEFACTURE);
     },
     onPaidFactureClick: function (grid, rowIndex) {
-
-        var rec = grid.getStore().getAt(rowIndex);
-
+        const rec = grid.getStore().getAt(rowIndex);
         if (rec.get('STATUT') !== "paid" && rec.get('ACTION_REGLER_FACTURE')) {
-            var xtype = "reglementGroupeFacture";
-            var alias = 'widget.' + xtype;
-            var rec = grid.getStore().getAt(rowIndex);
+            const xtype = "reglementGroupeFacture";
+            const alias = 'widget.' + xtype;
+            const rec = grid.getStore().getAt(rowIndex);
             testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Faire un r&eacute;glement", rec.get('lg_GROUPE_ID'), rec.data);
 
         }
     }
-
-
 });

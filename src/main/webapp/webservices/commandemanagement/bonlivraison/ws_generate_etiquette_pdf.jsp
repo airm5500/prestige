@@ -68,8 +68,8 @@
 
     String str_final_file = "";
 
-    List<EntityData> lstEntityData = new ArrayList<EntityData>();
-    List<InputStream> inputPdfList = new ArrayList<InputStream>();
+    List<EntityData> lstEntityData = new ArrayList<>();
+    List<InputStream> inputPdfList = new ArrayList<>();
 
     TBonLivraison OTBonLivraison = OdataManager.getEm().find(TBonLivraison.class, lg_BON_LIVRAISON_ID);
     lstEntityData = OWarehouseManager.generateDataForEtiquette(lg_FAMILLE_ID, OTBonLivraison.getStrREFLIVRAISON());

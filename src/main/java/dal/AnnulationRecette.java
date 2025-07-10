@@ -51,7 +51,7 @@ public class AnnulationRecette extends AbstractEntity {
     private TUser caissier;
     @NotNull
     @Column(name = "mvtDate", nullable = false)
-     private  LocalDate mvtDate;
+    private LocalDate mvtDate;
 
     public Integer getMontantVente() {
         return montantVente;
@@ -111,15 +111,17 @@ public class AnnulationRecette extends AbstractEntity {
 
     @Override
     public String toString() {
-        return "AnnulationRecette{" + "montantVente=" + montantVente + ", montantRegle=" + montantRegle + ", montantTiersPayant=" + montantTiersPayant + ", montantPaye=" + montantPaye + ", preenregistrement=" + preenregistrement + '}';
+        return "AnnulationRecette{" + "montantVente=" + montantVente + ", montantRegle=" + montantRegle
+                + ", montantTiersPayant=" + montantTiersPayant + ", montantPaye=" + montantPaye + ", preenregistrement="
+                + preenregistrement + '}';
     }
 
     public AnnulationRecette() {
         super();
-        this.id= UUID.randomUUID().toString();
-        this.status=Statut.ENABLE;
+        this.id = UUID.randomUUID().toString();
+        this.status = Statut.ENABLE;
         this.createdAt = this.modifiedAt = LocalDateTime.now();
-        
+
     }
 
     public LocalDate getMvtDate() {
@@ -129,7 +131,5 @@ public class AnnulationRecette extends AbstractEntity {
     public void setMvtDate(LocalDate mvtDate) {
         this.mvtDate = mvtDate;
     }
-    
-    
 
 }

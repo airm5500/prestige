@@ -27,20 +27,18 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_famille_history", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_ID"})})
+@Table(name = "t_famille_history", uniqueConstraints = { @UniqueConstraint(columnNames = { "lg_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TFamilleHistory.findAll", query = "SELECT t FROM TFamilleHistory t"),
-    @NamedQuery(name = "TFamilleHistory.findByLgID", query = "SELECT t FROM TFamilleHistory t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TFamilleHistory.findByLgFAMILLEID", query = "SELECT t FROM TFamilleHistory t WHERE t.lgFAMILLEID = :lgFAMILLEID"),
-    @NamedQuery(name = "TFamilleHistory.findByIntPRICE", query = "SELECT t FROM TFamilleHistory t WHERE t.intPRICE = :intPRICE"),
-    @NamedQuery(name = "TFamilleHistory.findByIntPRICETIPS", query = "SELECT t FROM TFamilleHistory t WHERE t.intPRICETIPS = :intPRICETIPS"),
-    @NamedQuery(name = "TFamilleHistory.findByIntPAF", query = "SELECT t FROM TFamilleHistory t WHERE t.intPAF = :intPAF"),
-    @NamedQuery(name = "TFamilleHistory.findByIntPAT", query = "SELECT t FROM TFamilleHistory t WHERE t.intPAT = :intPAT"),
-    @NamedQuery(name = "TFamilleHistory.findByIntTAUXMARQUE", query = "SELECT t FROM TFamilleHistory t WHERE t.intTAUXMARQUE = :intTAUXMARQUE"),
-    @NamedQuery(name = "TFamilleHistory.findByLgGROSSISTEID", query = "SELECT t FROM TFamilleHistory t WHERE t.lgGROSSISTEID = :lgGROSSISTEID"),
-    @NamedQuery(name = "TFamilleHistory.findByDtCREATED", query = "SELECT t FROM TFamilleHistory t WHERE t.dtCREATED = :dtCREATED")})
+@NamedQueries({ @NamedQuery(name = "TFamilleHistory.findAll", query = "SELECT t FROM TFamilleHistory t"),
+        @NamedQuery(name = "TFamilleHistory.findByLgID", query = "SELECT t FROM TFamilleHistory t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TFamilleHistory.findByLgFAMILLEID", query = "SELECT t FROM TFamilleHistory t WHERE t.lgFAMILLEID = :lgFAMILLEID"),
+        @NamedQuery(name = "TFamilleHistory.findByIntPRICE", query = "SELECT t FROM TFamilleHistory t WHERE t.intPRICE = :intPRICE"),
+        @NamedQuery(name = "TFamilleHistory.findByIntPRICETIPS", query = "SELECT t FROM TFamilleHistory t WHERE t.intPRICETIPS = :intPRICETIPS"),
+        @NamedQuery(name = "TFamilleHistory.findByIntPAF", query = "SELECT t FROM TFamilleHistory t WHERE t.intPAF = :intPAF"),
+        @NamedQuery(name = "TFamilleHistory.findByIntPAT", query = "SELECT t FROM TFamilleHistory t WHERE t.intPAT = :intPAT"),
+        @NamedQuery(name = "TFamilleHistory.findByIntTAUXMARQUE", query = "SELECT t FROM TFamilleHistory t WHERE t.intTAUXMARQUE = :intTAUXMARQUE"),
+        @NamedQuery(name = "TFamilleHistory.findByLgGROSSISTEID", query = "SELECT t FROM TFamilleHistory t WHERE t.lgGROSSISTEID = :lgGROSSISTEID"),
+        @NamedQuery(name = "TFamilleHistory.findByDtCREATED", query = "SELECT t FROM TFamilleHistory t WHERE t.dtCREATED = :dtCREATED") })
 public class TFamilleHistory implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -175,5 +173,5 @@ public class TFamilleHistory implements Serializable {
     public String toString() {
         return "dal.TFamilleHistory[ lgID=" + lgID + " ]";
     }
-    
+
 }

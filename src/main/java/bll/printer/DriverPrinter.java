@@ -215,14 +215,16 @@ public class DriverPrinter extends bllBase implements Printable {
         this.datas = datas;
     }
 
-    //fonction pour imprimer les tickets de vente
+    // fonction pour imprimer les tickets de vente
     public void PrintTicketVente(int int_NUMBER_COPY) {
         PrinterJob job = null;
         try {
-            this.setCodeShow(true); //affiche code barre sur le ticket
-            // Utils.setDefaultPrinter(printerName);  a decommenter en cas de probleme. definition de l'imprimante par defaut
+            this.setCodeShow(true); // affiche code barre sur le ticket
+            // Utils.setDefaultPrinter(printerName); a decommenter en cas de probleme. definition de l'imprimante par
+            // defaut
             job = this.findPrinterJob().getPrinterJob();
-            TImprimante OTImprimante = new PrinterManager(this.getOdataManager(), this.getOTUser()).getTImprimanteByName(this.findPrintService().getName());
+            TImprimante OTImprimante = new PrinterManager(this.getOdataManager(), this.getOTUser())
+                    .getTImprimanteByName(this.findPrintService().getName());
             if (OTImprimante != null) {
                 int_BEGIN = OTImprimante.getIntBEGIN();
                 int_COLUMN1 = OTImprimante.getIntCOLUMN1();
@@ -230,19 +232,21 @@ public class DriverPrinter extends bllBase implements Printable {
                 int_COLUMN3 = OTImprimante.getIntCOLUMN3();
                 int_COLUMN4 = OTImprimante.getIntCOLUMN4();
             }
-//definition des parametres de l'impression
+            // definition des parametres de l'impression
             PrintRequestAttributeSet OPrintRequestAttributeSet = new HashPrintRequestAttributeSet();
             if (job != null) {
                 PageFormat pageFormat = job.defaultPage();
                 Paper paper = new Paper();
                 new logger().OCategory.info("int_BEGIN:" + int_BEGIN);
-                paper.setImageableArea(9 + int_BEGIN, -70, paper.getWidth(), paper.getHeight()); //definition des marges de la feuille
-                // paper.setImageableArea(20, -70, paper.getWidth(), paper.getHeight()); //definition des marges de la feuille
+                paper.setImageableArea(9 + int_BEGIN, -70, paper.getWidth(), paper.getHeight()); // definition des
+                                                                                                 // marges de la feuille
+                // paper.setImageableArea(20, -70, paper.getWidth(), paper.getHeight()); //definition des marges de la
+                // feuille
                 pageFormat.setPaper(paper);
-                pageFormat.setOrientation(PageFormat.PORTRAIT); //orientation de la page
+                pageFormat.setOrientation(PageFormat.PORTRAIT); // orientation de la page
 
-                OPrintRequestAttributeSet.add(new Copies(int_NUMBER_COPY)); //nombre de copie a imprimer
-                OPrintRequestAttributeSet.add(Chromaticity.COLOR); //insiste sur la netteté de la couleur du texte
+                OPrintRequestAttributeSet.add(new Copies(int_NUMBER_COPY)); // nombre de copie a imprimer
+                OPrintRequestAttributeSet.add(Chromaticity.COLOR); // insiste sur la netteté de la couleur du texte
 
                 job.setPrintable(this, pageFormat);
                 try {
@@ -255,7 +259,7 @@ public class DriverPrinter extends bllBase implements Printable {
                 }
             }
 
-            //fin definition des parametres de l'impression
+            // fin definition des parametres de l'impression
         } catch (Exception ex) {
             ex.printStackTrace();
             new logger().OCategory.info("Echec de l'impression du ticket de vente");
@@ -263,15 +267,15 @@ public class DriverPrinter extends bllBase implements Printable {
         }
 
     }
-    //fin fonction pour imprimer les tickets de vente
+    // fin fonction pour imprimer les tickets de vente
 
-    //fonction d'impression document A4
+    // fonction d'impression document A4
     public void doPrintSimpleByPrinterName(String printerName, int int_NUMBER_COPY, String name_file) {
         try {
             PrintRequestAttributeSet OPrintRequestAttributeSet = new HashPrintRequestAttributeSet();
             OPrintRequestAttributeSet.add(MediaSizeName.ISO_A4);
-            OPrintRequestAttributeSet.add(new Copies(int_NUMBER_COPY)); //nombre de copie a imprimer
-            OPrintRequestAttributeSet.add(Chromaticity.COLOR); //insiste sur la netteté de la couleur du texte
+            OPrintRequestAttributeSet.add(new Copies(int_NUMBER_COPY)); // nombre de copie a imprimer
+            OPrintRequestAttributeSet.add(Chromaticity.COLOR); // insiste sur la netteté de la couleur du texte
 
             PrintServiceAttributeSet printServiceAttributeSet = new HashPrintServiceAttributeSet();
 
@@ -282,10 +286,10 @@ public class DriverPrinter extends bllBase implements Printable {
             Doc myDoc = new SimpleDoc(stream, flavor, null);
 
             // DocPrintJob job = svc.createPrintJob();
-//              job.print(myDoc, null);
+            // job.print(myDoc, null);
             PrintService printService = PrintServiceLookup.lookupDefaultPrintService();
 
-            //System.out.println("Printing to default printer: " + printService.getName());
+            // System.out.println("Printing to default printer: " + printService.getName());
             DocPrintJob job = printService.createPrintJob();
 
             job.print(myDoc, OPrintRequestAttributeSet);
@@ -294,19 +298,19 @@ public class DriverPrinter extends bllBase implements Printable {
             e.printStackTrace();
         }
     }
-    //fin 
+    // fin
 
-    //recherche d'une imprimante 
+    // recherche d'une imprimante
     public PrinterJob findPrinterJob() throws PrinterException {
 
-//        try
+        // try
         // Retrieve the Printer Service
         PrintService printService = this.findPrintService();
 
         // Validate the Printer Service
         if (printService == null) {
             this.buildErrorTraceMessage("Imprimante inconnue");
-            //return null;
+            // return null;
             throw new IllegalStateException("Imprimante inconnue");
         }
         // Obtain a Printer Job instance.
@@ -317,9 +321,9 @@ public class DriverPrinter extends bllBase implements Printable {
 
         // Return Print Job
         return printerJob;
-//        } catch (Exception e) {
-//            return null;
-//        }
+        // } catch (Exception e) {
+        // return null;
+        // }
 
     }
 
@@ -351,8 +355,8 @@ public class DriverPrinter extends bllBase implements Printable {
         return service;
     }
 
-    //fin recherche d'une imprimante 
-    //implementation de la fonction d'impression de JAVA
+    // fin recherche d'une imprimante
+    // implementation de la fonction d'impression de JAVA
     @Override
     public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) throws PrinterException {
         // datas = generateData();
@@ -366,16 +370,16 @@ public class DriverPrinter extends bllBase implements Printable {
         g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
 
         int scale_image = 2; // coefficient de proportion des images
-        int scale_texte = 12; //hauteur d'une ligne de texte
+        int scale_texte = 12; // hauteur d'une ligne de texte
 
-//        Font font = new Font("Times New Roman", Font.PLAIN, 10);
+        // Font font = new Font("Times New Roman", Font.PLAIN, 10);
         Font font = new Font("Calibri (Corps)", Font.PLAIN, 9 + int_FONT);
 
         g2d.setFont(font);
 
         limit = 85;
-        //new logger().OCategory.info("taille liste " + datas.size());
-        this.buildHeader(g2d, scale_image, scale_texte, limit); //definition de l'entete
+        // new logger().OCategory.info("taille liste " + datas.size());
+        this.buildHeader(g2d, scale_image, scale_texte, limit); // definition de l'entete
         if (this.getDatasInfoTiersPayant().size() > 0) {
             buildInfoTiersPayant(g2d, scale_texte, limit, this.getDatasInfoTiersPayant());
         }
@@ -383,7 +387,7 @@ public class DriverPrinter extends bllBase implements Printable {
             this.buildInfoSeller(g2d, scale_texte, limit, this.getDatasInfoSeller());
         }
 
-        this.buildContent(g2d, scale_texte, limit, this.getDatas()); //definition du corps du ticket
+        this.buildContent(g2d, scale_texte, limit, this.getDatas()); // definition du corps du ticket
 
         if (this.getDatasSubTotal().size() > 0) {
             this.buildSubTotal(g2d, scale_texte, limit, this.getDatasSubTotal());
@@ -393,21 +397,22 @@ public class DriverPrinter extends bllBase implements Printable {
             this.buildSubCommentaire(g2d, scale_texte, limit, this.getDataCommentaires());
         }
 
-        this.buildFooter(g2d, scale_image, scale_texte, limit); //definition du pied de page
+        this.buildFooter(g2d, scale_image, scale_texte, limit); // definition du pied de page
 
-        /*font = new Font("control", Font.PLAIN, 10);
-         g2d.setFont(font);
-         g2d.drawString("A", 0, limit);*/
- /* tell the caller that this page is part of the printed document */
+        /*
+         * font = new Font("control", Font.PLAIN, 10); g2d.setFont(font); g2d.drawString("A", 0, limit);
+         */
+        /* tell the caller that this page is part of the printed document */
         return PAGE_EXISTS;
     }
-    //implementation de la fonction d'impression de JAVA
+    // implementation de la fonction d'impression de JAVA
 
-    //definition de l'entete
+    // definition de l'entete
     public void buildHeader(Graphics2D graphics, int scale_image, int scale_texte, int start) {
         int logoWidth = 20, logoHeight = 20, i = 1;
         int Lw = scale_image * logoWidth, Lh = scale_image * logoHeight;
-        boolean result = this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID().equalsIgnoreCase(commonparameter.PROCESS_SUCCESS);
+        boolean result = this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID()
+                .equalsIgnoreCase(commonparameter.PROCESS_SUCCESS);
 
         Image logo = new ImageIcon(jdom.scr_report_file_logo).getImage();
         TOfficine OTOfficine = this.getOdataManager().getEm().find(TOfficine.class, "1");
@@ -415,19 +420,23 @@ public class DriverPrinter extends bllBase implements Printable {
         Font font = new Font("Calibri (Corps)", Font.PLAIN, 15 + int_FONT);
         graphics.setFont(font);
 
-//        graphics.drawString(OTOfficine.getStrNOMCOMPLET(), 35, start); //ancienne bonne version
+        // graphics.drawString(OTOfficine.getStrNOMCOMPLET(), 35, start); //ancienne bonne version
         graphics.drawString(OTOfficine.getStrNOMCOMPLET(), 0, start);
         font = new Font("Arial Narrow", Font.PLAIN, 9 + int_FONT);
         graphics.setFont(font);
 
         if (!result) {
-            graphics.drawString(this.getOTUser().getLgEMPLACEMENTID().getLgTYPEDEPOTID().getStrDESCRIPTION() + ": " + this.getOTUser().getLgEMPLACEMENTID().getStrDESCRIPTION(), 0, start + (scale_texte * i));
+            graphics.drawString(this.getOTUser().getLgEMPLACEMENTID().getLgTYPEDEPOTID().getStrDESCRIPTION() + ": "
+                    + this.getOTUser().getLgEMPLACEMENTID().getStrDESCRIPTION(), 0, start + (scale_texte * i));
             i++;
         }
-        graphics.drawString(OTOfficine.getStrFIRSTNAME() + " " + OTOfficine.getStrLASTNAME(), 0, start + (scale_texte * i));
-//        graphics.drawString("Tél: " + conversion.PhoneNumberFormat("+225", OTOfficine.getStrPHONE()), 0, start + (scale_texte * 2));
-        graphics.drawString(OTOfficine.getStrPHONE() + "   |    " + OTOfficine.getStrADRESSSEPOSTALE(), 0, start + (scale_texte * ++i));
-      
+        graphics.drawString(OTOfficine.getStrFIRSTNAME() + " " + OTOfficine.getStrLASTNAME(), 0,
+                start + (scale_texte * i));
+        // graphics.drawString("Tél: " + conversion.PhoneNumberFormat("+225", OTOfficine.getStrPHONE()), 0, start +
+        // (scale_texte * 2));
+        graphics.drawString(OTOfficine.getStrPHONE() + "   |    " + OTOfficine.getStrADRESSSEPOSTALE(), 0,
+                start + (scale_texte * ++i));
+
         if (!OTOfficine.getStrENTETE().equals("") && OTOfficine.getStrENTETE() != null) {
             if (result) {
                 i++;
@@ -442,41 +451,41 @@ public class DriverPrinter extends bllBase implements Printable {
         }
 
     }
-    //fin definition de l'entete
+    // fin definition de l'entete
 
-    //definition du pied de page
+    // definition du pied de page
     public void buildContent(Graphics2D graphics, int scale_texte, int start, List<String> datas) {
 
         if (this.getType_ticket().equalsIgnoreCase(commonparameter.str_ACTION_VENTE)) {
-            //  Font font = new Font("Arial Narrow", Font.BOLD, 8);
+            // Font font = new Font("Arial Narrow", Font.BOLD, 8);
             Font font = new Font("Arial Narrow", Font.PLAIN, 9 + int_FONT);
 
             graphics.drawString("QTE", 0 + int_COLUMN1, start); /// imprimante thermique
             graphics.drawString("ARTICLES", 25 + int_COLUMN2, start);
             graphics.drawString("P.U", 125 + int_COLUMN3, start);
             graphics.drawString("MONTANT", 158 + int_COLUMN4, start);
-            /*  graphics.drawString("QTE", 0, start); //imprimante matricielle
-             graphics.drawString("ARTICLES", 25, start);
-             graphics.drawString("P.U", 125, start);
-             graphics.drawString("MONTANT", 148, start);
-             font = new Font("Arial Narrow", Font.PLAIN, 8);*/
+            /*
+             * graphics.drawString("QTE", 0, start); //imprimante matricielle graphics.drawString("ARTICLES", 25,
+             * start); graphics.drawString("P.U", 125, start); graphics.drawString("MONTANT", 148, start); font = new
+             * Font("Arial Narrow", Font.PLAIN, 8);
+             */
             graphics.setFont(font);
             for (int i = 0; i < datas.size(); i++) {
                 String[] parts = datas.get(i).split(";");
-                /* imprimante matricielle
-                 graphics.drawString(parts[0], 0, start + (scale_texte * (i + 1)));
-                 graphics.drawString(parts[1], 10, start + (scale_texte * (i + 1)));
-                 graphics.drawString(parts[2], 25, start + (scale_texte * (i + 1)));
-                 graphics.drawString(parts[3], 125, start + (scale_texte * (i + 1)));
-                 graphics.drawString(parts[4], 148, start + (scale_texte * (i + 1)));*/
+                /*
+                 * imprimante matricielle graphics.drawString(parts[0], 0, start + (scale_texte * (i + 1)));
+                 * graphics.drawString(parts[1], 10, start + (scale_texte * (i + 1))); graphics.drawString(parts[2], 25,
+                 * start + (scale_texte * (i + 1))); graphics.drawString(parts[3], 125, start + (scale_texte * (i +
+                 * 1))); graphics.drawString(parts[4], 148, start + (scale_texte * (i + 1)));
+                 */
 
-                //imprimante thermique
+                // imprimante thermique
                 graphics.drawString(parts[0], 0, start + (scale_texte * (i + 1)));
                 graphics.drawString(parts[1], 10 + int_COLUMN1, start + (scale_texte * (i + 1)));
                 graphics.drawString(parts[2], 25 + int_COLUMN2, start + (scale_texte * (i + 1)));
                 graphics.drawString(parts[3], 125 + int_COLUMN3, start + (scale_texte * (i + 1)));
                 graphics.drawString(parts[4], 158 + int_COLUMN4, start + (scale_texte * (i + 1)));
-                //fin imprimante thermique
+                // fin imprimante thermique
             }
         } else if (this.getType_ticket().equalsIgnoreCase(commonparameter.str_TICKETZ)) {
             Font font;
@@ -492,21 +501,21 @@ public class DriverPrinter extends bllBase implements Printable {
                 if (parts[5].equalsIgnoreCase(commonparameter.PROCESS_FAILED)) {
                     graphics.drawString(parts[0], 0, start + (scale_texte * (i + 1)));
                 } else {
-                 
+
                     if (parts.length > 6) {
                         graphics.drawString(parts[0], 0, start + (scale_texte * (i + 1)));
-//                    graphics.drawString(parts[1], 30 + int_COLUMN2, start + (scale_texte * (i + 1)));
-//                    graphics.drawString(parts[2], 90 + int_COLUMN3, start + (scale_texte * (i + 1)));
-//                    graphics.drawString(parts[3], 150 + int_COLUMN4, start + (scale_texte * (i + 1)));
+                        // graphics.drawString(parts[1], 30 + int_COLUMN2, start + (scale_texte * (i + 1)));
+                        // graphics.drawString(parts[2], 90 + int_COLUMN3, start + (scale_texte * (i + 1)));
+                        // graphics.drawString(parts[3], 150 + int_COLUMN4, start + (scale_texte * (i + 1)));
 
                         graphics.drawString(parts[1], 85 + int_COLUMN2, start + (scale_texte * (i + 1)));
                         graphics.drawString(parts[2], 130 + int_COLUMN3, start + (scale_texte * (i + 1)));
                         graphics.drawString(parts[3], 140 + int_COLUMN4, start + (scale_texte * (i + 1)));
                     } else {
                         graphics.drawString(parts[0], 0, start + (scale_texte * (i + 1)));
-//                    graphics.drawString(parts[1], 30 + int_COLUMN2, start + (scale_texte * (i + 1)));
-//                    graphics.drawString(parts[2], 90 + int_COLUMN3, start + (scale_texte * (i + 1)));
-//                    graphics.drawString(parts[3], 150 + int_COLUMN4, start + (scale_texte * (i + 1)));
+                        // graphics.drawString(parts[1], 30 + int_COLUMN2, start + (scale_texte * (i + 1)));
+                        // graphics.drawString(parts[2], 90 + int_COLUMN3, start + (scale_texte * (i + 1)));
+                        // graphics.drawString(parts[3], 150 + int_COLUMN4, start + (scale_texte * (i + 1)));
 
                         graphics.drawString(parts[1], 65 + int_COLUMN2, start + (scale_texte * (i + 1)));
                         graphics.drawString(parts[2], 130 + int_COLUMN3, start + (scale_texte * (i + 1)));
@@ -527,30 +536,30 @@ public class DriverPrinter extends bllBase implements Printable {
 
         limit = start + (scale_texte * datas.size());
     }
-    //fin definition du detail de la vente
+    // fin definition du detail de la vente
 
-//    public void buildContent(Graphics2D graphics, int scale_texte, int start, List<String> datas) {
-//        
-//        for (int i = 0; i < datas.size(); i++) {
-//            String[] parts = datas.get(i).split(";");
-//            graphics.drawString(parts[0], 0, start + (scale_texte * (i+1)));
-//            graphics.drawString(parts[1], 75, start + (scale_texte * (i+1)));
-//            graphics.drawString(parts[2], 100, start + (scale_texte * (i+1)));
-//        }
-//        limit = start + (scale_texte * (datas.size() + 1));
-//    }
-    //definition infos ayant droit
+    // public void buildContent(Graphics2D graphics, int scale_texte, int start, List<String> datas) {
+    //
+    // for (int i = 0; i < datas.size(); i++) {
+    // String[] parts = datas.get(i).split(";");
+    // graphics.drawString(parts[0], 0, start + (scale_texte * (i+1)));
+    // graphics.drawString(parts[1], 75, start + (scale_texte * (i+1)));
+    // graphics.drawString(parts[2], 100, start + (scale_texte * (i+1)));
+    // }
+    // limit = start + (scale_texte * (datas.size() + 1));
+    // }
+    // definition infos ayant droit
     public void buildInfoTiersPayant(Graphics2D graphics, int scale_texte, int start, List<String> datas) {
         for (int i = 0; i < datas.size(); i++) {
             graphics.drawString(datas.get(i), 0, start + (scale_texte * i));
         }
 
         limit = start + (scale_texte * (datas.size() + 1));
-//        limit = start + (scale_texte * datas.size());
+        // limit = start + (scale_texte * datas.size());
     }
-    //fin definition infos ayant droit
+    // fin definition infos ayant droit
 
-    //definition infos vendeur et caissier
+    // definition infos vendeur et caissier
     public void buildInfoSeller(Graphics2D graphics, int scale_texte, int start, List<String> datas) {
         for (int i = 0; i < datas.size(); i++) {
             graphics.drawString(datas.get(i), 0, start + (scale_texte * i));
@@ -558,9 +567,9 @@ public class DriverPrinter extends bllBase implements Printable {
 
         limit = start + (scale_texte * (datas.size() + 1));
     }
-    //fin definition infos vendeur et caissier
+    // fin definition infos vendeur et caissier
 
-    //sous total
+    // sous total
     public void buildSubTotal(Graphics2D graphics, int scale_texte, int start, List<String> datas) {
         graphics.drawString("", 0, start);
         Font font;
@@ -575,29 +584,33 @@ public class DriverPrinter extends bllBase implements Printable {
             graphics.setFont(font);
             graphics.drawString(parts[0], 35, start + (scale_texte * (i + 1)));
             graphics.drawString(parts[1], 110, start + (scale_texte * (i + 1)));
-            //  graphics.drawString(parts[2], 160, start + (scale_texte * (i + 1))); //imprimante termique
-            graphics.drawString(parts[2], 150, start + (scale_texte * (i + 1))); //imprimante matricielle
+            // graphics.drawString(parts[2], 160, start + (scale_texte * (i + 1))); //imprimante termique
+            graphics.drawString(parts[2], 150, start + (scale_texte * (i + 1))); // imprimante matricielle
         }
         limit = start + (scale_texte * (datas.size()));
     }
-    //fin sous total
+    // fin sous total
 
-    //definition du pied de page
+    // definition du pied de page
     public void buildFooter(Graphics2D graphics, int scale_image, int scale_texte, int start) {
         int codeBarWidth = 50;
         int codeBarHeight = 15;
         int Cw = scale_image * codeBarWidth;
         int Ch = scale_image * codeBarHeight;
 
-        /* if (this.getType_ticket().equalsIgnoreCase(commonparameter.str_ACTION_VENTE)) {
-         graphics.drawString("***** Merci de votre confiance.*****", 15, start);
-         }*/
-        graphics.drawString("Logiciel DICI", 125, start + (scale_texte * 2)); //a decommenter apres 11/06/2016
-//        graphics.drawString("Logiciel DICI", 0, start + (scale_texte * 2));
+        /*
+         * if (this.getType_ticket().equalsIgnoreCase(commonparameter.str_ACTION_VENTE)) {
+         * graphics.drawString("***** Merci de votre confiance.*****", 15, start); }
+         */
+        graphics.drawString("Logiciel DICI", 125, start + (scale_texte * 2)); // a decommenter apres 11/06/2016
+        // graphics.drawString("Logiciel DICI", 0, start + (scale_texte * 2));
 
-        graphics.drawString(date.DateToString((dateOperation != null ? dateOperation : new Date()), date.formatterOrange), 125, start + (scale_texte * 1)); // imprimante matricielle
-//graphics.drawString(date.DateToString((dateOperation != null ? dateOperation : new Date()), date.formatterOrange), 0, start + (scale_texte * 1)); // code ajouté imprimante thermique
-        if (this.isCodeShow()) { //a decommenter apres generation 11/06/2016
+        graphics.drawString(
+                date.DateToString((dateOperation != null ? dateOperation : new Date()), date.formatterOrange), 125,
+                start + (scale_texte * 1)); // imprimante matricielle
+        // graphics.drawString(date.DateToString((dateOperation != null ? dateOperation : new Date()),
+        // date.formatterOrange), 0, start + (scale_texte * 1)); // code ajouté imprimante thermique
+        if (this.isCodeShow()) { // a decommenter apres generation 11/06/2016
             // Image codeBar = new ImageIcon(jdom.barecode_file + this.getName_code_bare() + ".png").getImage();
             new logger().OCategory.info("path " + this.getName_code_bare());
             Image codeBar = new ImageIcon(this.getName_code_bare()).getImage();
@@ -606,21 +619,21 @@ public class DriverPrinter extends bllBase implements Printable {
                 graphics.drawImage(codeBar, -5, start + 5, (int) Cw, (int) Ch, null);
             }
 
-            //        graphics.drawImage(codeBar, -5, start + 5, codeBar.getWidth(null), codeBar.getHeight(null), null);
+            // graphics.drawImage(codeBar, -5, start + 5, codeBar.getWidth(null), codeBar.getHeight(null), null);
         }
 
     }
-    //fin definition du pied de page
+    // fin definition du pied de page
 
-    //sous commentaires
+    // sous commentaires
     public void buildSubCommentaire(Graphics2D graphics, int scale_texte, int start, List<String> datas) {
 
-        /*Font font = new Font("Arial Narrow", Font.PLAIN, 9); // a decommenter en cas de probleme
-         graphics.setFont(font);
-         for (int i = 0; i < datas.size(); i++) {
-         graphics.drawString(datas.get(i), 0, start + (scale_texte * (i + 1)));
-         }*/
-        //code ajouté
+        /*
+         * Font font = new Font("Arial Narrow", Font.PLAIN, 9); // a decommenter en cas de probleme
+         * graphics.setFont(font); for (int i = 0; i < datas.size(); i++) { graphics.drawString(datas.get(i), 0, start +
+         * (scale_texte * (i + 1))); }
+         */
+        // code ajouté
         Font font;
 
         for (int i = 0; i < datas.size(); i++) {
@@ -632,12 +645,12 @@ public class DriverPrinter extends bllBase implements Printable {
             }
             graphics.setFont(font);
             graphics.drawString(parts[0], 0, start + (scale_texte * (i + 1)));
-//            graphics.drawString(datas.get(i), 0, start + (scale_texte * (i + 1)));
+            // graphics.drawString(datas.get(i), 0, start + (scale_texte * (i + 1)));
         }
 
-        //fin code ajouté
+        // fin code ajouté
         limit = start + (scale_texte * (datas.size()));
     }
-    //fin sous commentaires
+    // fin sous commentaires
 
 }

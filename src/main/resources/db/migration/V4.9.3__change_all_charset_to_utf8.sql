@@ -6,15 +6,12 @@ ALTER TABLE   `groupefournisseur` CONVERT TO CHARACTER SET utf8 COLLATE utf8_gen
 ALTER TABLE   `historique_importation` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `hmvtproduit` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `laboratoire` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE   `licence` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `medecin` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE   `migration` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `mvttransaction` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `notification` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `notification_client` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `rupture` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `rupture_detail` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-ALTER TABLE   `stock_daily_value` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `stock_snapshot` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `typemvtproduit` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 ALTER TABLE   `t_ajustement` CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;

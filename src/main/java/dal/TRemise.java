@@ -32,10 +32,8 @@ import javax.xml.bind.annotation.XmlTransient;
 @Table(name = "t_remise")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TRemise.findByStrSTATUT", query = "SELECT t FROM TRemise t WHERE t.strSTATUT = :strSTATUT AND t.lgTYPEREMISEID.lgTYPEREMISEID=:typeId"),
-     @NamedQuery(name = "TRemise.findByAll", query = "SELECT t FROM TRemise t WHERE t.strSTATUT = :strSTATUT ")
-   }
-)
+        @NamedQuery(name = "TRemise.findByStrSTATUT", query = "SELECT t FROM TRemise t WHERE t.strSTATUT = :strSTATUT AND t.lgTYPEREMISEID.lgTYPEREMISEID=:typeId"),
+        @NamedQuery(name = "TRemise.findByAll", query = "SELECT t FROM TRemise t WHERE t.strSTATUT = :strSTATUT ") })
 public class TRemise implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -46,7 +44,8 @@ public class TRemise implements Serializable {
     private String strNAME;
     @Column(name = "str_CODE", length = 40)
     private String strCODE;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_TAUX", precision = 5, scale = 2)
     private Double dblTAUX;
     @Column(name = "str_IDS")
@@ -178,7 +177,8 @@ public class TRemise implements Serializable {
             return false;
         }
         TRemise other = (TRemise) object;
-        if ((this.lgREMISEID == null && other.lgREMISEID != null) || (this.lgREMISEID != null && !this.lgREMISEID.equals(other.lgREMISEID))) {
+        if ((this.lgREMISEID == null && other.lgREMISEID != null)
+                || (this.lgREMISEID != null && !this.lgREMISEID.equals(other.lgREMISEID))) {
             return false;
         }
         return true;
@@ -188,5 +188,5 @@ public class TRemise implements Serializable {
     public String toString() {
         return "dal.TRemise[ lgREMISEID=" + lgREMISEID + " ]";
     }
-    
+
 }

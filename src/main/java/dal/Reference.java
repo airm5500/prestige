@@ -26,9 +26,10 @@ import javax.validation.constraints.NotNull;
  */
 @Entity
 @Table(name = "Reference", uniqueConstraints = {
-    @UniqueConstraint(name = "UK_Refch0c4o3olc65u3yap006nxq0i", columnNames = {"id", "emplacement_id", "devis"})})
+        @UniqueConstraint(name = "UK_Refch0c4o3olc65u3yap006nxq0i", columnNames = { "id", "emplacement_id",
+                "devis" }) })
 @NamedQueries({
-    @NamedQuery(name = "Reference.lastReference", query = "SELECT a FROM Reference a WHERE a.id=:id AND a.emplacement.lgEMPLACEMENTID=:emplacement AND a.devis=:devis")})
+        @NamedQuery(name = "Reference.lastReference", query = "SELECT a FROM Reference a WHERE a.id=:id AND a.emplacement.lgEMPLACEMENTID=:emplacement AND a.devis=:devis") })
 public class Reference implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -38,7 +39,7 @@ public class Reference implements Serializable {
     private String id;
     @NotBlank
     @NotNull
-    @Column(name = "reference", length = 20, nullable = false)
+    @Column(length = 20, nullable = false)
     private String reference;
     @Column(name = "reference_temp", length = 20)
     private String referenceTemp;
@@ -121,7 +122,6 @@ public class Reference implements Serializable {
         this.emplacement = emplacement;
     }
 
-  
     @Override
     public int hashCode() {
         int hash = 3;

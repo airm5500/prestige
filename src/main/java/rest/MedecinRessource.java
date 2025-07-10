@@ -30,8 +30,7 @@ public class MedecinRessource {
 
     @GET
     @Path("medecins")
-    public Response getUsers(
-            @QueryParam(value = "query") String query) throws JSONException {
+    public Response getUsers(@QueryParam(value = "query") String query) throws JSONException {
         JSONObject json = medecinService.findAllByNonOrNumOrder(query);
         return Response.ok().entity(json.toString()).build();
     }

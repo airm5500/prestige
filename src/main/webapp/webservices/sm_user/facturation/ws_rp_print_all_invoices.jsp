@@ -49,7 +49,7 @@
 <%
     Translate OTranslate = new Translate();
     dataManager OdataManager = new dataManager();
-    List<EntityData> entityDatas = new ArrayList<EntityData>();
+    List<EntityData> entityDatas = new ArrayList<>();
 
     bllBase ObllBase = new bllBase();
     factureManagement facManagement = null;
@@ -69,8 +69,8 @@
     JsonDataSourceApp app = null;
 
     if (request.getParameter("printAll") != null) {
-        Set<TFacture> invoicesToPrint = new HashSet<TFacture>();
-        List<InputStream> inputPdfList = new ArrayList<InputStream>();
+        Set<TFacture> invoicesToPrint = new HashSet<>();
+        List<InputStream> inputPdfList = new ArrayList<>();
         jdom Ojdom = new jdom();
         Ojdom.InitRessource();
         Ojdom.LoadRessource();
@@ -102,7 +102,7 @@
             TTypeMvtCaisse OTypeMvtCaisse = obllBase.getOdataManager().getEm().find(TTypeMvtCaisse.class, OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
             String scr_report_file = "rp_facturerecap";
             String codeModelFacture = OTiersPayant.getLgMODELFACTUREID().getLgMODELFACTUREID();
-            int codeFACT = new Integer(codeModelFacture);
+            int codeFACT =  Integer.parseInt(codeModelFacture);
             //31102017
             Map<String, Object> parameters = new HashMap();
             String recap = "";
@@ -113,7 +113,7 @@
                 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
             }
             /* Ceation du recap debut  */
-
+        Double montantRecap=facManagement.getAmount(OFacture.getLgFACTUREID());
             report_generate_file = report_generate_file + ".pdf";
             OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
             OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_facturerecap" + report_generate_file);
@@ -122,13 +122,12 @@
             String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
             String P_H_CLT_INFOS = "PERIODE DU " + date.formatterShort.format(OFacture.getDtDEBUTFACTURE()) + " AU " + date.formatterShort.format(OFacture.getDtFINFACTURE());
             String P_H_LOGO = jdom.scr_report_file_logo;
-            // Map parameters = new HashMap();
+          
             parameters.put("P_H_LOGO", P_H_LOGO);
             parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
             parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
             parameters.put("P_PRINTED_BY", " ");
-//            parameters.put("P_PRINTED_BY", " LE PHARMACIEN ");
-            // parameters.put("P_AUTRE_DESC",  oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+
             parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
             parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
             parameters.put("P_LG_FACTURE_ID", OFacture.getLgFACTUREID());
@@ -136,6 +135,7 @@
             parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
             parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
+             parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(montantRecap).toUpperCase() + " (" + conversion.AmountFormat(montantRecap.intValue()) + " FCFA)");
             String P_FOOTER_RC = "";
 
             if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
@@ -162,7 +162,7 @@
                 }
 
                 P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
-                // P_INSTITUTION_ADRESSE += " - Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE());
+               
             }
             if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
                 P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
@@ -185,7 +185,7 @@
                 inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + recap));
             }
 
-            //} //fin if statement
+          
             long P_ATT_AMOUNT = 0;
             String finalpath = "";
 
@@ -199,8 +199,7 @@
                     Path = app.fill(parameters, controller.generateInvoices(OFacture.getLgFACTUREID()), Ojdom.scr_report_file + "rp_groupbycompany.jrxml", "rp_groupbycompany_" + date.FILENAME.format(new Date()) + ".pdf");
 
                     String _outputStreamFile = Ojdom.scr_report_pdf + Path;
-                    // inputPdfList.add(new FileInputStream(_outputStreamFile));
-                    //   String _str_file = "rp_facture_" + date.FILENAME.format(new Date()) + ".pdf";
+                
 
                     finalpath = _outputStreamFile;
 
@@ -214,7 +213,7 @@
 
                     String str_file = "rp_facture_" + date.FILENAME.format(new Date()) + ".pdf";
                     String outputStreamFile = Ojdom.scr_report_pdf + str_file;
-                    // inputPdfList.add(new FileInputStream(complementairePath));
+                    
                     finalpath = outputStreamFile;
 
                     break;
@@ -276,7 +275,7 @@
 
                         parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
                         OreportManager.BuildReport(parameters, Ojconnexion);
-                        // inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_percentage_" + report_generate_file));
+                        
                         finalpath = Ojdom.scr_report_pdf + "rp_facture_percentage_" + report_generate_file;
                         tauxpath += finalpath + "@";
                     }
@@ -298,8 +297,7 @@
                         OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file);
                         parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(idCMP.getDouble("Montant")).toUpperCase() + " (" + conversion.AmountFormat(Double.valueOf(idCMP.getDouble("Montant")).intValue()) + " FCFA)");
                         OreportManager.BuildReport(parameters, Ojconnexion);
-                        //  inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
-
+                 
                         finalpath = Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file;
                     }
                     break;
@@ -367,7 +365,6 @@
                     OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
                     OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file);
                     OreportManager.BuildReport(parameters, Ojconnexion);
-                    // inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
                     finalpath = Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file;
                     break;
 

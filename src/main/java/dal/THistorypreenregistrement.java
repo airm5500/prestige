@@ -29,14 +29,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_historypreenregistrement")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "THistorypreenregistrement.findAll", query = "SELECT t FROM THistorypreenregistrement t"),
-    @NamedQuery(name = "THistorypreenregistrement.findByLgHISTORYPREENREGISTREMENTID", query = "SELECT t FROM THistorypreenregistrement t WHERE t.lgHISTORYPREENREGISTREMENTID = :lgHISTORYPREENREGISTREMENTID"),
-    @NamedQuery(name = "THistorypreenregistrement.findByIntLASTNUMBER", query = "SELECT t FROM THistorypreenregistrement t WHERE t.intLASTNUMBER = :intLASTNUMBER"),
-    @NamedQuery(name = "THistorypreenregistrement.findByStrREF", query = "SELECT t FROM THistorypreenregistrement t WHERE t.strREF = :strREF"),
-    @NamedQuery(name = "THistorypreenregistrement.findByDtDAY", query = "SELECT t FROM THistorypreenregistrement t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "THistorypreenregistrement.findByDtCREATED", query = "SELECT t FROM THistorypreenregistrement t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "THistorypreenregistrement.findByDtUPDATED", query = "SELECT t FROM THistorypreenregistrement t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "THistorypreenregistrement.findByStrSTATUT", query = "SELECT t FROM THistorypreenregistrement t WHERE t.strSTATUT = :strSTATUT")})
+        @NamedQuery(name = "THistorypreenregistrement.findAll", query = "SELECT t FROM THistorypreenregistrement t"),
+        @NamedQuery(name = "THistorypreenregistrement.findByLgHISTORYPREENREGISTREMENTID", query = "SELECT t FROM THistorypreenregistrement t WHERE t.lgHISTORYPREENREGISTREMENTID = :lgHISTORYPREENREGISTREMENTID"),
+        @NamedQuery(name = "THistorypreenregistrement.findByIntLASTNUMBER", query = "SELECT t FROM THistorypreenregistrement t WHERE t.intLASTNUMBER = :intLASTNUMBER"),
+        @NamedQuery(name = "THistorypreenregistrement.findByStrREF", query = "SELECT t FROM THistorypreenregistrement t WHERE t.strREF = :strREF"),
+        @NamedQuery(name = "THistorypreenregistrement.findByDtDAY", query = "SELECT t FROM THistorypreenregistrement t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "THistorypreenregistrement.findByDtCREATED", query = "SELECT t FROM THistorypreenregistrement t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "THistorypreenregistrement.findByDtUPDATED", query = "SELECT t FROM THistorypreenregistrement t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "THistorypreenregistrement.findByStrSTATUT", query = "SELECT t FROM THistorypreenregistrement t WHERE t.strSTATUT = :strSTATUT") })
 public class THistorypreenregistrement implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -155,7 +155,9 @@ public class THistorypreenregistrement implements Serializable {
             return false;
         }
         THistorypreenregistrement other = (THistorypreenregistrement) object;
-        if ((this.lgHISTORYPREENREGISTREMENTID == null && other.lgHISTORYPREENREGISTREMENTID != null) || (this.lgHISTORYPREENREGISTREMENTID != null && !this.lgHISTORYPREENREGISTREMENTID.equals(other.lgHISTORYPREENREGISTREMENTID))) {
+        if ((this.lgHISTORYPREENREGISTREMENTID == null && other.lgHISTORYPREENREGISTREMENTID != null)
+                || (this.lgHISTORYPREENREGISTREMENTID != null
+                        && !this.lgHISTORYPREENREGISTREMENTID.equals(other.lgHISTORYPREENREGISTREMENTID))) {
             return false;
         }
         return true;
@@ -165,5 +167,5 @@ public class THistorypreenregistrement implements Serializable {
     public String toString() {
         return "dal.THistorypreenregistrement[ lgHISTORYPREENREGISTREMENTID=" + lgHISTORYPREENREGISTREMENTID + " ]";
     }
-    
+
 }

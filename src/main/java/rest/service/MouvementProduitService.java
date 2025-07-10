@@ -14,6 +14,7 @@ import dal.TPreenregistrement;
 import dal.TPreenregistrementDetail;
 import dal.TUser;
 import dal.Typemvtproduit;
+import java.time.LocalDateTime;
 import java.util.List;
 import javax.ejb.Local;
 import javax.persistence.EntityManager;
@@ -25,47 +26,39 @@ import org.json.JSONObject;
  * @author DICI
  */
 @Local
-//@Remote
 public interface MouvementProduitService {
 
-    void saveMvtProduit(String pkey, Typemvtproduit typemvtproduit,
-            TFamilleStock familleStock, TUser lgUSERID, TEmplacement emplacement,
-            Integer qteMvt, Integer qteDebut, EntityManager emg, Integer valeurTva);
+    void saveMvtProduit(String pkey, Typemvtproduit typemvtproduit, TFamilleStock familleStock, TUser lgUSERID,
+            TEmplacement emplacement, Integer qteMvt, Integer qteDebut, EntityManager emg, Integer valeurTva);
 
-    void saveMvtProduit(String pkey, Typemvtproduit typemvtproduit,
-            TFamille famille, TUser lgUSERID, TEmplacement emplacement,
-            Integer qteMvt, Integer qteDebut, Integer qteFinale,
-            EntityManager emg, Integer valeurTva, boolean checked);
+    void saveMvtProduit(String pkey, Typemvtproduit typemvtproduit, TFamille famille, TUser lgUSERID,
+            TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, EntityManager emg,
+            Integer valeurTva, boolean checked);
 
-    void saveMvtProduit(Integer prixUn, String pkey,
-            Typemvtproduit typemvtproduit, TFamille famille,
-            TUser lgUSERID, TEmplacement emplacement,
-            Integer qteMvt, Integer qteDebut, Integer qteFinale,
-            EntityManager emg, Integer valeurTva, boolean checked,int ug);
+    void saveMvtProduit(Integer prixUn, TPreenregistrementDetail preenregistrementDetail, Typemvtproduit typemvtproduit,
+            TFamille famille, TUser lgUSERID, TEmplacement emplacement, Integer qteMvt, Integer qteDebut,
+            Integer qteFinale, Integer valeurTva, boolean checked, int ug);
 
-    void saveMvtProduit(String pkey, String typemvtproduit,
-            TFamille famille, TUser lgUSERID, TEmplacement emplacement,
-            Integer qteMvt, Integer qteDebut, Integer qteFinale, EntityManager emg, Integer valeurTva);
+    void saveMvtProduit2(Integer prixUn, String pkey, Typemvtproduit typemvtproduit, TFamille famille, TUser lgUSERID,
+            TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,
+            boolean checked, int ug);
 
-    void saveMvtProduit(Integer prixUn, Integer prixAchat, String pkey,
-            String typemvtproduit, TFamille famille, TUser lgUSERID,
-            TEmplacement emplacement, Integer qteMvt, Integer qteDebut,
-            Integer qteFinale, EntityManager emg, Integer valeurTva);
+    void saveMvtProduit(String pkey, String typemvtproduit, TFamille famille, TUser lgUSERID, TEmplacement emplacement,
+            Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva);
+
+    void saveMvtProduit(Integer prixUn, Integer prixAchat, String pkey, String typemvtproduit, TFamille famille,
+            TUser lgUSERID, TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale,
+            Integer valeurTva);
 
     JSONObject creerAjustement(Params params) throws JSONException;
 
-    JSONObject deconditionner(Params params) throws JSONException;
-
-//    void deconditionner(String produitId, String produitParentId, Integer qty,String emplacementId);
     JSONObject ajusterProduitAjustement(Params params) throws JSONException;
 
     JSONObject modifierProduitAjustement(Params params) throws JSONException;
 
-    TFamilleStock findStock(String OTFamille, TEmplacement emplacement, EntityManager emg);
+    TFamilleStock findStock(String produitId, TEmplacement emplacement);
 
     JSONObject cloreAjustement(Params params) throws JSONException;
-
-    JSONObject findOneAjustement(String idAjustement) throws JSONException;
 
     JSONObject removeAjustementDetail(String id) throws JSONException;
 
@@ -75,18 +68,20 @@ public interface MouvementProduitService {
 
     JSONObject ajsutementsDetails(SalesStatsParams params, String idAjustement) throws JSONException;
 
-    void updatefamillenbvente(TFamille famille, Integer qty, boolean updatable, EntityManager emg);
+    void updatefamillenbvente(TFamille famille, Integer qty, boolean updatable);
 
-    void updateVenteStock(String idVente);
+    void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, EntityManager emg,
+            TEmplacement depot) throws Exception;
 
-    void updateVenteStock(TPreenregistrement tp, List<TPreenregistrementDetail> list, EntityManager emg);
+    void updateStockDepot(TUser ooTUser, TPreenregistrement op, TEmplacement emplacement, EntityManager emg)
+            throws Exception;
 
-    void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, EntityManager emg, TEmplacement depot) throws Exception;
-
-    void updateStockDepot(TUser ooTUser, TPreenregistrement op, TEmplacement OTEmplacement, EntityManager emg) throws Exception;
-
-    Typemvtproduit getTypemvtproduitByID(String id, EntityManager emg);
+    Typemvtproduit getTypemvtproduitByID(String id);
 
     void updateVenteStock(TUser user, List<TPreenregistrementDetail> list) throws Exception;
+
+    void saveMvtProduit(String venteId, LocalDateTime dateVente, TFamille famille, TUser lgUSERID,
+            TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,
+            boolean checked);
 
 }

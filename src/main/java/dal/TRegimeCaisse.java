@@ -29,15 +29,14 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_regime_caisse")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRegimeCaisse.findAll", query = "SELECT t FROM TRegimeCaisse t"),
-    @NamedQuery(name = "TRegimeCaisse.findByLgREGIMECAISSEID", query = "SELECT t FROM TRegimeCaisse t WHERE t.lgREGIMECAISSEID = :lgREGIMECAISSEID"),
-    @NamedQuery(name = "TRegimeCaisse.findByStrCODEREGIMECAISSE", query = "SELECT t FROM TRegimeCaisse t WHERE t.strCODEREGIMECAISSE = :strCODEREGIMECAISSE"),
-    @NamedQuery(name = "TRegimeCaisse.findByStrLIBELLEREGIMECAISSE", query = "SELECT t FROM TRegimeCaisse t WHERE t.strLIBELLEREGIMECAISSE = :strLIBELLEREGIMECAISSE"),
-    @NamedQuery(name = "TRegimeCaisse.findByBoolCONTROLEMATRICULE", query = "SELECT t FROM TRegimeCaisse t WHERE t.boolCONTROLEMATRICULE = :boolCONTROLEMATRICULE"),
-    @NamedQuery(name = "TRegimeCaisse.findByStrSTATUT", query = "SELECT t FROM TRegimeCaisse t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TRegimeCaisse.findByDtCREATED", query = "SELECT t FROM TRegimeCaisse t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRegimeCaisse.findByDtUPDATED", query = "SELECT t FROM TRegimeCaisse t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TRegimeCaisse.findAll", query = "SELECT t FROM TRegimeCaisse t"),
+        @NamedQuery(name = "TRegimeCaisse.findByLgREGIMECAISSEID", query = "SELECT t FROM TRegimeCaisse t WHERE t.lgREGIMECAISSEID = :lgREGIMECAISSEID"),
+        @NamedQuery(name = "TRegimeCaisse.findByStrCODEREGIMECAISSE", query = "SELECT t FROM TRegimeCaisse t WHERE t.strCODEREGIMECAISSE = :strCODEREGIMECAISSE"),
+        @NamedQuery(name = "TRegimeCaisse.findByStrLIBELLEREGIMECAISSE", query = "SELECT t FROM TRegimeCaisse t WHERE t.strLIBELLEREGIMECAISSE = :strLIBELLEREGIMECAISSE"),
+        @NamedQuery(name = "TRegimeCaisse.findByBoolCONTROLEMATRICULE", query = "SELECT t FROM TRegimeCaisse t WHERE t.boolCONTROLEMATRICULE = :boolCONTROLEMATRICULE"),
+        @NamedQuery(name = "TRegimeCaisse.findByStrSTATUT", query = "SELECT t FROM TRegimeCaisse t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TRegimeCaisse.findByDtCREATED", query = "SELECT t FROM TRegimeCaisse t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRegimeCaisse.findByDtUPDATED", query = "SELECT t FROM TRegimeCaisse t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TRegimeCaisse implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -147,7 +146,8 @@ public class TRegimeCaisse implements Serializable {
             return false;
         }
         TRegimeCaisse other = (TRegimeCaisse) object;
-        if ((this.lgREGIMECAISSEID == null && other.lgREGIMECAISSEID != null) || (this.lgREGIMECAISSEID != null && !this.lgREGIMECAISSEID.equals(other.lgREGIMECAISSEID))) {
+        if ((this.lgREGIMECAISSEID == null && other.lgREGIMECAISSEID != null)
+                || (this.lgREGIMECAISSEID != null && !this.lgREGIMECAISSEID.equals(other.lgREGIMECAISSEID))) {
             return false;
         }
         return true;
@@ -157,5 +157,5 @@ public class TRegimeCaisse implements Serializable {
     public String toString() {
         return "dal.TRegimeCaisse[ lgREGIMECAISSEID=" + lgREGIMECAISSEID + " ]";
     }
-    
+
 }

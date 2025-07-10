@@ -26,56 +26,115 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
     title: 'Evaluation des ventes',
     plain: true,
     maximizable: true,
-    //    tools: [{type: "pin"}],
+
     closable: false,
     frame: true,
-    viewConfig: {
-        listeners: {
-            cellclick: function(view, cell, cellIndex, record, row, rowIndex, e) { //gere le click sur la cellule d'une grid donné
 
-                var clickedDataIndex = view.panel.headerCt.getHeaderAtIndex(cellIndex).dataIndex; //recupere l'index de la colonne sur lequel l'on a cliqué
-                var clickedColumnName = view.panel.headerCt.getHeaderAtIndex(cellIndex).text; //recupere le nom de la colonne sur lequel l'on a cliqué 
-                var clickedCellValue = record.get(clickedDataIndex); //recupere la valeur de la colonne sur lequel l'on a cliqué
-
-                //                alert('clickedCellValue '+clickedCellValue);
-            }
-        }
-    },
-    initComponent: function() {
-//set months of year
-        
-
-        var AppController = testextjs.app.getController('App');
-
+    initComponent: function () {
+        const AppController = testextjs.app.getController('App');
         var itemsPerPage = 20;
         Me = this;
-        var store = new Ext.data.Store({
-            model: 'testextjs.model.FamilleStock',
-            pageSize: itemsPerPage,
-            autoLoad: true,
+        const famillearticles = Ext.create('Ext.data.Store', {
+            idProperty: 'id',
+            fields:
+                    [
+                        {name: 'id',
+                            type: 'string'
+
+                        },
+
+                        {name: 'libelle',
+                            type: 'string'
+
+                        }
+
+                    ],
+            autoLoad: false,
+            pageSize: 9999,
+
             proxy: {
                 type: 'ajax',
-                url: url_services_data_evaluationventemoyenne,
+                url: '../api/v1/common/famillearticles',
                 reader: {
                     type: 'json',
-                    root: 'results',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+
+            }
+
+        });
+        const rayons = Ext.create('Ext.data.Store', {
+            idProperty: 'id',
+            fields:
+                    [
+                        {name: 'id',
+                            type: 'string'
+
+                        },
+
+                        {name: 'libelle',
+                            type: 'string'
+
+                        }
+
+                    ],
+            autoLoad: false,
+            pageSize: 9999,
+
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/rayons',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+
+            }
+
+        });
+        const store_type = new Ext.data.Store({
+            fields: ['str_TYPE_TRANSACTION', 'str_desc'],
+            data: [{str_TYPE_TRANSACTION: 'LESS', str_desc: 'Inferieur à'}, {str_TYPE_TRANSACTION: 'MORE', str_desc: 'Superieur à'}, {str_TYPE_TRANSACTION: 'EQUAL', str_desc: 'Egal à'},
+                {str_TYPE_TRANSACTION: 'LESSOREQUAL', str_desc: 'Inferieur ou egal à'}, {str_TYPE_TRANSACTION: 'MOREOREQUAL', str_desc: 'Superieur ou egal à'},
+                {str_TYPE_TRANSACTION: 'NOT', str_desc: "Différent"},
+                {str_TYPE_TRANSACTION: null, str_desc: "Tout"}
+            ]
+        });
+
+        const store = new Ext.data.Store({
+            idProperty: 'id',
+            fields: [
+                {name: 'codeCip', type: 'string'},
+                {name: 'libelle', type: 'string'},
+                {name: 'stock', type: 'number'},
+                {name: 'moyenne', type: 'number'},
+                {name: 'quantiteVendue', type: 'number'},
+                {name: 'quantiteVendueCurrentMonth', type: 'number'},
+                {name: 'totalvente', type: 'number'},
+                {name: 'quantiteVendueMonthMinusOne', type: 'number'},
+                {name: 'quantiteVendueMonthMinusTwo', type: 'number'},
+                {name: 'quantiteVendueMonthMinusThree', type: 'number'}
+            ],
+            pageSize: itemsPerPage,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/evaluation-vente/data',
+                reader: {
+                    type: 'json',
+                    root: 'data',
                     totalProperty: 'total'
                 },
                 timeout: 240000
             }
 
         });
-
-
-        this.cellEditing = new Ext.grid.plugin.CellEditing({
-            clicksToEdit: 1
-        });
-
-
         Ext.apply(this, {
             width: '98%',
             height: 580,
-            plugins: [this.cellEditing],
+
             store: store,
             id: 'GridSuiviStockVenteID',
             columns: [{
@@ -83,66 +142,80 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
                     text: 'Num.Ligne',
                     width: 45,
                     hidden: true,
-                    sortable: true/*,
-                     locked: true*/
+                    sortable: true
                 }, {
-                    header: 'lg_FAMILLE_ID',
-                    dataIndex: 'lg_FAMILLE_ID',
+                    header: 'id',
+                    dataIndex: 'id',
                     hidden: true,
-                    flex: 1/*,
-                     editor: {
-                     allowBlank: false
-                     }*/
+                    flex: 1
                 }, {
                     header: 'CIP',
-                    dataIndex: 'int_CIP',
+                    dataIndex: 'codeCip',
                     flex: 0.5
                 },
                 {
-                    header: 'Article',
-                    dataIndex: 'str_NAME',
+                    header: 'Designation',
+                    dataIndex: 'libelle',
                     flex: 1.5
+                },
+
+                {
+                    header: 'Stock',
+                    align: 'right',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
+                    dataIndex: 'stock',
+                    flex: 0.5
                 },
                 {
                     header: 'Moyenne',
-                    dataIndex: 'int_NUMBER',
-                    renderer: amountformat,
+                    dataIndex: 'moyenne',
+                    align: 'right',
                     flex: 0.5
                 }, {
                     header: 'Qte Total Vendue',
-                    align: 'center',
-                    renderer: amountformat,
-                    dataIndex: 'int_STOCK_REAPROVISONEMENT',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
+                    align: 'right',
+                    dataIndex: 'quantiteVendue',
                     flex: 0.7
                 }, {
                     header: 'Co&ucirc;t total',
-                    dataIndex: 'int_NUMBER_SORTIE',
+                    dataIndex: 'totalvente',
                     align: 'right',
+                    renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
                     flex: 0.7
                 }, {
-                    header: 'Periode',
-                    dataIndex: 'dt_UPDATED',
-                    hidden: true,
-                    flex: 1.3
-                }, {
                     header: AppController.getMonthToDisplay(0, currentMonth),
-                    dataIndex: 'int_VALUE0',
-                    align: 'center',
+                    dataIndex: 'quantiteVendueCurrentMonth',
+                    align: 'right', renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
                     flex: 0.7
                 }, {
                     header: AppController.getMonthToDisplay(1, currentMonth),
-                    dataIndex: 'int_VALUE1',
-                    align: 'center',
+                    dataIndex: 'quantiteVendueMonthMinusOne', renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
+                    align: 'right',
                     flex: 0.7
                 }, {
                     header: AppController.getMonthToDisplay(2, currentMonth),
-                    dataIndex: 'int_VALUE2',
-                    align: 'center',
+                    dataIndex: 'quantiteVendueMonthMinusTwo', renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
+                    align: 'right',
                     flex: 0.7
                 }, {
                     header: AppController.getMonthToDisplay(3, currentMonth),
-                    dataIndex: 'int_VALUE3',
-                    align: 'center',
+                    dataIndex: 'quantiteVendueMonthMinusThree', renderer: function (v) {
+                        return Ext.util.Format.number(v, '0,000.');
+                    },
+                    align: 'right',
                     flex: 0.7
                 }],
             selModel: {
@@ -150,46 +223,81 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
             },
             tbar: [
                 {
-                    xtype: 'datefield',
-                    id: 'datedebut',
-                    fieldLabel: 'Du',
-                    name: 'datedebut',
-                     hidden:true,
-                    emptyText: 'Date debut',
-                    submitFormat: 'Y-m-d',
-                    maxValue: new Date(), //                    flex: 0.7,
-                    format: 'd/m/Y',
+                    xtype: 'combobox',
+                    flex: 1,
+                    fieldLabel: 'Emplacements',
+                    labelWidth: 90,
+                    itemId: 'emplacementId',
+                    id: 'emplacementId',
+                    store: rayons,
+                    pageSize: 99999,
+                    valueField: 'id',
+                    displayField: 'libelle',
+                    typeAhead: false,
+                    queryMode: 'remote',
+                    minChars: 2,
+                    emptyText: 'Sélectionnez un emplacement',
                     listeners: {
-                        'change': function(me) {
-                            Ext.getCmp('datefin').setMinValue(me.getValue());
+                        select: function (cmp) {
+                            Me.onRechClick();
                         }
                     }
                 },
+
                 {
-                    xtype: 'datefield',
-                    id: 'datefin',
-                    fieldLabel: 'Au',
-                    name: 'datefin',
-                    hidden:true,
-                    emptyText: 'Date fin',
-                    maxValue: new Date(),
-                    //                    flex: 0.7,
-                    submitFormat: 'Y-m-d',
-                    format: 'd/m/Y',
+                    xtype: 'combobox',
+                    flex: 1,
+                    fieldLabel: 'Familles',
+                    labelWidth: 50,
+                    itemId: 'familleId',
+                    id: 'familleId',
+                    store: famillearticles,
+                    pageSize: 99999,
+                    valueField: 'id',
+                    displayField: 'libelle',
+                    typeAhead: false,
+                    queryMode: 'remote',
+                    minChars: 2,
+                    emptyText: 'Sélectionnez une famille',
                     listeners: {
-                        'change': function(me) {
-                            Ext.getCmp('datedebut').setMaxValue(me.getValue());
+                        select: function (cmp) {
+                            Me.onRechClick();
                         }
                     }
-                }, '-', {
+                },
+
+                {
+                    xtype: 'combobox',
+                    fieldLabel: 'Filtre',
+                    name: 'str_TYPE_TRANSACTION',
+                    id: 'filtre',
+                    labelWidth: 35,
+                    store: store_type,
+                    valueField: 'str_TYPE_TRANSACTION',
+                    displayField: 'str_desc',
+                    typeAhead: true,
+                    flex: 0.8,
+                    queryMode: 'local',
+                    emptyText: 'Filtre ...'
+
+                }, '-',
+
+                {
+                    xtype: 'textfield',
+                    fieldLabel: 'Moyenne',
+                    labelWidth: 55,
+                    id: 'filtreValue',
+                    flex: 0.8,
+                    emptyText: 'Moyenne'},
+
+                '-', {
                     xtype: 'textfield',
                     id: 'rechecher',
-                       width: 350,
-                    name: 'facture',
+                    flex: 0.8,
                     emptyText: 'Rech',
                     listeners: {
-                        'render': function(cmp) {
-                            cmp.getEl().on('keypress', function(e) {
+                        'render': function (cmp) {
+                            cmp.getEl().on('keypress', function (e) {
                                 if (e.getKey() === e.ENTER) {
                                     Me.onRechClick();
 
@@ -202,7 +310,23 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
                     iconCls: 'searchicon',
                     tooltip: 'rechercher', scope: this,
                     handler: this.onRechClick
-                }],
+                }
+                , {
+                    text: 'Imprimer',
+                    tooltip: 'imprimer',
+                    iconCls: 'printable',
+                    scope: this,
+                    handler: this.onPdfClick
+                }, '-',
+                {
+                    text: 'Suggerer',
+                    tooltip: 'Suggerer',
+                    iconCls: 'suggestionreapro',
+                    scope: this,
+                    handler: this.onSuggereClick
+                }
+
+            ],
             bbar: {
                 xtype: 'pagingtoolbar',
                 store: store, // same store GridPanel is using
@@ -210,14 +334,20 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
                 pageSize: itemsPerPage,
                 displayInfo: true, // same store GridPanel is using
                 listeners: {
-                    beforechange: function(page, currentPage) {
-                        var myProxy = this.store.getProxy();
+                    beforechange: function (page, currentPage) {
+                        const myProxy = this.store.getProxy();
                         myProxy.params = {
-                            datedebut: '',
-                            datefin: '',
-                            search_value: ''
+                            familleId: null,
+                            emplacementId: null,
+                            filtre: null,
+                            filtreValue: null,
+                            query: null
                         };
-                        myProxy.setExtraParam('search_value', Ext.getCmp('rechecher').getValue());
+                        myProxy.setExtraParam('familleId', Ext.getCmp('familleId').getValue());
+                        myProxy.setExtraParam('emplacementId', Ext.getCmp('emplacementId').getValue());
+                        myProxy.setExtraParam('filtre', Ext.getCmp('filtre').getValue());
+                        myProxy.setExtraParam('filtreValue', Ext.getCmp('filtreValue').getValue());
+                        myProxy.setExtraParam('query', Ext.getCmp('rechecher').getValue());
                     }
 
                 }
@@ -229,26 +359,92 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
-        })
-
-
-    },
-    loadStore: function() {
-        this.getStore().load({
-            callback: this.onStoreLoad
         });
+
+
     },
-    onStoreLoad: function() {
+    loadStore: function () {
+        this.onRechClick();
     },
-    onRechClick: function() {
-        var val = Ext.getCmp('rechecher');
+    onStoreLoad: function () {
+    },
+    onRechClick: function () {
+        const val = Ext.getCmp('rechecher');
+
         this.getStore().load({
             params: {
-                search_value: val.getValue(),
-                datedebut: '',
-                datefin: ''
+                query: val.getValue(),
+                familleId: Ext.getCmp('familleId').getValue(),
+                emplacementId: Ext.getCmp('emplacementId').getValue(),
+                filtre: Ext.getCmp('filtre').getValue(),
+                filtreValue: Ext.getCmp('filtreValue').getValue()
             }
-        }, url_services_data_evaluationventemoyenne);
-    }
+        });
+    },
+    onPdfClick: function () {
+        const query = Ext.getCmp('rechecher').getValue() != null ? Ext.getCmp('rechecher').getValue() : "";
+        const  familleId = Ext.getCmp('familleId').getValue() != null ? Ext.getCmp('familleId').getValue() : "";
+        const emplacementId = Ext.getCmp('emplacementId').getValue() != null ? Ext.getCmp('emplacementId').getValue() : "";
+        const filtre = Ext.getCmp('filtre').getValue() != null ? Ext.getCmp('filtre').getValue() : "";
+        const filtreValue = Ext.getCmp('filtreValue').getValue() != null ? Ext.getCmp('filtreValue').getValue() : "";
+        const linkUrl = '../EvaluationVenteServlet?familleId=' + familleId + '&emplacementId=' + emplacementId + '&query=' + query + '&filtre=' + filtre + '&filtreValue=' + filtreValue;
+        window.open(linkUrl);
+    },
+    onSuggereClick: function () {
+        if (Ext.getCmp('filtre').getValue() != null && Ext.getCmp('filtreValue').getValue() != null) {
+            let data = {
+                query: Ext.getCmp('rechecher').getValue() != null ? Ext.getCmp('rechecher').getValue() : "",
+                familleId: Ext.getCmp('familleId').getValue() != null ? Ext.getCmp('familleId').getValue() : "",
+                emplacementId: Ext.getCmp('emplacementId').getValue() != null ? Ext.getCmp('emplacementId').getValue() : "",
+                filtre: Ext.getCmp('filtre').getValue() != null ? Ext.getCmp('filtre').getValue() : "",
+                filtreValue: Ext.getCmp('filtreValue').getValue() != null ? Ext.getCmp('filtreValue').getValue() : ""
+            };
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                url: '../api/v1/evaluation-vente/suggerer',
+                method: 'GET',
+                params: data,
+                timeout: 2400000,
+                success: function (response)
+                {
+                    progress.hide();
+                    var result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        Ext.MessageBox.show({
+                            title: 'Message',
+                            width: 320,
+                            msg: 'Nombre de produits en compte : ' + result.count,
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.INFO
 
+                        });
+                    }
+
+                },
+                failure: function (response)
+                {
+                    progress.hide();
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 320,
+                        msg: "L'opération n'a pas abouti",
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+
+                    });
+                }
+            });
+        } else {
+            Ext.MessageBox.show({
+                title: 'Message d\'erreur',
+                width: 320,
+                msg: "Aucun filtre appliqué",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+
+            });
+        }
+
+
+    }
 });

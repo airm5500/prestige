@@ -7,6 +7,8 @@ package dal;
 
 import java.io.Serializable;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -20,21 +22,20 @@ import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
 import javax.xml.bind.annotation.XmlRootElement;
+import org.hibernate.annotations.Type;
 
 /**
  *
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_order_detail", indexes = {
-    @Index(name = "t_order_detailIdex", columnList = "str_STATUT")
+@Table(name = "t_order_detail", indexes = { @Index(name = "t_order_detailIdex", columnList = "str_STATUT")
 
 })
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TOrderDetail.findByLgORDERID", query = "SELECT t FROM TOrderDetail t WHERE t.lgORDERID = :lgORDERID"),
-    @NamedQuery(name = "TOrderDetail.findByLgORDERIDAndLgFAMILLEID", query = "SELECT t FROM TOrderDetail t WHERE t.lgORDERID = :lgORDERID AND t.lgFAMILLEID =:lgFAMILLEID")}
-)
+        @NamedQuery(name = "TOrderDetail.findByLgORDERID", query = "SELECT t FROM TOrderDetail t WHERE t.lgORDERID = :lgORDERID"),
+        @NamedQuery(name = "TOrderDetail.findByLgORDERIDAndLgFAMILLEID", query = "SELECT t FROM TOrderDetail t WHERE t.lgORDERID = :lgORDERID AND t.lgFAMILLEID =:lgFAMILLEID") })
 public class TOrderDetail implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -74,15 +75,26 @@ public class TOrderDetail implements Serializable {
     @ManyToOne(optional = false)
     private TFamille lgFAMILLEID;
     @Column(name = "prixUnitaire")
-    private Integer prixUnitaire = 0;
+    private Integer prixUnitaire;
     @Column(name = "prixAchat")
     private Integer prixAchat = 0;
     @Column(name = "int_ORERSTATUS")
     private Short intORERSTATUS;
-      @Column(name = "ug")
+    @Column(name = "ug")
     private int ug = 0;
+    @Type(type = "json")
+    @Column(columnDefinition = "json", name = "lots")
+    private Set<OrderDetailLot> lots = new HashSet<>();
 
     public TOrderDetail() {
+    }
+
+    public Set<OrderDetailLot> getLots() {
+        return lots;
+    }
+
+    public void setLots(Set<OrderDetailLot> lots) {
+        this.lots = lots;
     }
 
     public TOrderDetail(String lgORDERDETAILID) {
@@ -215,7 +227,8 @@ public class TOrderDetail implements Serializable {
             return false;
         }
         TOrderDetail other = (TOrderDetail) object;
-        if ((this.lgORDERDETAILID == null && other.lgORDERDETAILID != null) || (this.lgORDERDETAILID != null && !this.lgORDERDETAILID.equals(other.lgORDERDETAILID))) {
+        if ((this.lgORDERDETAILID == null && other.lgORDERDETAILID != null)
+                || (this.lgORDERDETAILID != null && !this.lgORDERDETAILID.equals(other.lgORDERDETAILID))) {
             return false;
         }
         return true;

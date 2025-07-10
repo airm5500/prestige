@@ -39,8 +39,6 @@ public class StockSnapshotValue implements Serializable {
         this.prixPaf = prixPaf;
     }
 
-  
-
     public Integer getPrixUni() {
         return prixUni;
     }
@@ -67,8 +65,6 @@ public class StockSnapshotValue implements Serializable {
         this.qty = qty;
     }
 
-    
-
     public Integer getPrixMoyentpondere() {
         return prixMoyentpondere;
     }
@@ -80,9 +76,11 @@ public class StockSnapshotValue implements Serializable {
     public int getStockOfDay() {
         return stockOfDay;
     }
-public void setStockOfDay(int stockOfDay) {
+
+    public void setStockOfDay(int stockOfDay) {
         this.stockOfDay = stockOfDay;
     }
+
     public StockSnapshotValue stockOfDay(int stockOfDay) {
         this.stockOfDay = stockOfDay;
         return this;
@@ -112,6 +110,5 @@ public void setStockOfDay(int stockOfDay) {
         }
         return true;
     }
-
 
 }

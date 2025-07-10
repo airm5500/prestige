@@ -32,12 +32,11 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_promotion")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TPromotion.findAll", query = "SELECT t FROM TPromotion t"),
-    @NamedQuery(name = "TPromotion.findByLgCODEPROMOTIONID", query = "SELECT t FROM TPromotion t WHERE t.lgCODEPROMOTIONID = :lgCODEPROMOTIONID"),
-    @NamedQuery(name = "TPromotion.findByDtSTARTDATE", query = "SELECT t FROM TPromotion t WHERE t.dtSTARTDATE = :dtSTARTDATE"),
-    @NamedQuery(name = "TPromotion.findByDtENDDATE", query = "SELECT t FROM TPromotion t WHERE t.dtENDDATE = :dtENDDATE"),
-    @NamedQuery(name = "TPromotion.findByStrTYPE", query = "SELECT t FROM TPromotion t WHERE t.strTYPE = :strTYPE")})
+@NamedQueries({ @NamedQuery(name = "TPromotion.findAll", query = "SELECT t FROM TPromotion t"),
+        @NamedQuery(name = "TPromotion.findByLgCODEPROMOTIONID", query = "SELECT t FROM TPromotion t WHERE t.lgCODEPROMOTIONID = :lgCODEPROMOTIONID"),
+        @NamedQuery(name = "TPromotion.findByDtSTARTDATE", query = "SELECT t FROM TPromotion t WHERE t.dtSTARTDATE = :dtSTARTDATE"),
+        @NamedQuery(name = "TPromotion.findByDtENDDATE", query = "SELECT t FROM TPromotion t WHERE t.dtENDDATE = :dtENDDATE"),
+        @NamedQuery(name = "TPromotion.findByStrTYPE", query = "SELECT t FROM TPromotion t WHERE t.strTYPE = :strTYPE") })
 public class TPromotion implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -55,7 +54,7 @@ public class TPromotion implements Serializable {
     private Date dtENDDATE;
     @Column(name = "str_TYPE", length = 40)
     private String strTYPE;
-    @OneToMany( mappedBy = "lgCODEPROMOTIONID")
+    @OneToMany(mappedBy = "lgCODEPROMOTIONID")
     private Collection<TPromotionProduct> tPromotionProductCollection;
 
     public TPromotion() {
@@ -126,7 +125,8 @@ public class TPromotion implements Serializable {
             return false;
         }
         TPromotion other = (TPromotion) object;
-        if ((this.lgCODEPROMOTIONID == null && other.lgCODEPROMOTIONID != null) || (this.lgCODEPROMOTIONID != null && !this.lgCODEPROMOTIONID.equals(other.lgCODEPROMOTIONID))) {
+        if ((this.lgCODEPROMOTIONID == null && other.lgCODEPROMOTIONID != null)
+                || (this.lgCODEPROMOTIONID != null && !this.lgCODEPROMOTIONID.equals(other.lgCODEPROMOTIONID))) {
             return false;
         }
         return true;
@@ -136,5 +136,5 @@ public class TPromotion implements Serializable {
     public String toString() {
         return "dal.TPromotion[ lgCODEPROMOTIONID=" + lgCODEPROMOTIONID + " ]";
     }
-    
+
 }

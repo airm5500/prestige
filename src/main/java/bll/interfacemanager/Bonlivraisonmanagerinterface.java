@@ -15,7 +15,10 @@ import java.util.Date;
  * @author MKABOU
  */
 public interface Bonlivraisonmanagerinterface {
-    public TBonLivraisonDetail getTBonLivraisonDetailLast(String lg_BON_LIVRAISON_ID, String lg_FAMILLE_ID);
-    public boolean updateInfoBonlivraison(String lg_ORDER_ID, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT, int int_TVA);
-    public TBonLivraison getTBonlivraisonByOrder(String lg_ORDER_ID);
+    TBonLivraisonDetail getTBonLivraisonDetailLast(String lg_BON_LIVRAISON_ID, String lg_FAMILLE_ID);
+
+    boolean updateInfoBonlivraison(String lg_ORDER_ID, String str_REF_LIVRAISON, Date dt_DATE_LIVRAISON, int int_MHT,
+            int int_TVA);
+
+    TBonLivraison getTBonlivraisonByOrder(String lg_ORDER_ID);
 }

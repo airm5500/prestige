@@ -42,12 +42,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
 
         LaborexWorkFlow = Ext.create('testextjs.controller.LaborexWorkFlow', {});
 
-        //url 
-        var url_services_data_retourfournisseurdetails = '../webservices/commandemanagement/retourfournisseurdetail/ws_data.jsp?lg_RETOUR_FRS_ID=' + ref;
-        //fin url
 
-        //store
-//        var store = LaborexWorkFlow.BuildStore('testextjs.model.RetourFournisseurDetail', itemsPerPage, url_services_data_retourfournisseurdetails, true);
+        var url_services_data_retourfournisseurdetails = '../webservices/commandemanagement/retourfournisseurdetail/ws_data.jsp?lg_RETOUR_FRS_ID=' + ref;
+
         var store = new Ext.data.Store({
             idProperty: 'lgRETOURFRSDETAIL',
             fields: [
@@ -96,7 +93,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
             params: {
                 retourId: ref
             }
-        })
+        });
         this.cellEditing = new Ext.grid.plugin.CellEditing({
             clicksToEdit: 1
         });
@@ -238,11 +235,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
                                 store: store,
                                 displayInfo: true,
                                 plugins: new Ext.ux.ProgressBarPager()
-                            }/*,
-                             listeners: {
-                             scope: this,
-                             //selectionchange: this.onSelectionChange
-                             }*/
+                            }
                         }]
                 },
                 {
@@ -270,31 +263,26 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
         });
 
         this.callParent();
-        /*this.on('afterlayout', this.loadStore, this, {
-         delay: 1,
-         single: true
-         });*/
+
 
         Ext.getCmp('str_GROSSISTE_REPONSERETOUR').setValue(this.getOdatasource().str_GROSSISTE_LIBELLE);
         Ext.getCmp('str_REF_BL_REPONSERETOUR').setValue(this.getOdatasource().str_REF_LIVRAISON);
-        Ext.getCmp('dbl_AMOUNT_REPONSERETOUR').setValue(Ext.util.Format.number(this.getOdatasource().MONTANTRETOUR, '0,000.') + "CFA");
+        Ext.getCmp('dbl_AMOUNT_REPONSERETOUR').setValue(Ext.util.Format.number(this.getOdatasource().MONTANTRETOUR, '0,000.') + " CFA");
 
         Ext.getCmp('gridpanelReponseretourID').on('validateedit', function (editor, e) {
             var plugin2 = Ext.getCmp('gridpanelReponseretourID').getPlugin();
             if (e.value <= e.record.data.intNUMBERRETURN) {
                 Ext.Ajax.request({
-                    url: url_services_transaction_retourfournisseur + 'updateanswer',
-                    params: {
-                        lg_RETOUR_FRS_DETAIL: e.record.data.lgRETOURFRSDETAIL,
-                        int_NUMBER_RETURN: e.value
-                    },
+                    url: '../api/v1/retourfournisseur/update-item-response',
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    params: Ext.JSON.encode({
+                        retourtItemId: e.record.data.lgRETOURFRSDETAIL,
+                        quantity: e.value
+                    }),
                     success: function (response)
                     {
-                        var object = Ext.JSON.decode(response.responseText, false);
-                        if (object.success == 0) {
-                            Ext.MessageBox.alert('Error Message', object.errors);
-                            return;
-                        }
+
                         e.record.commit();
                     },
                     failure: function (response)
@@ -309,16 +297,14 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
                             e.record.data.intNUMBERANSWER = e.record.data.intNUMBERANSWER;
                             plugin2.startEdit(e.rowIdx, e.colIdx);
                         });
-                return;
+
             }
 
         });
     },
     onbtncancel: function () {
 
-        var xtype = "";
-        xtype = "retourfrsmanager";
-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource("retourfrsmanager", "", "", "");
     },
     onbtnvalider: function () {
         Ext.MessageBox.confirm('Confirmation',
@@ -327,21 +313,17 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
                     if (btn == 'yes') {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_retourfournisseur + 'Response',
-                            params: {
-                                lg_RETOUR_FRS_ID: ref,
-                                str_REPONSE_FRS: "Prise en compte de la réponse du retour fournisseur liée au BL N° " + Ext.getCmp('str_REF_BL_REPONSERETOUR').getValue()
+                            url: '../api/v1/retourfournisseur/finaliser-retour-response',
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            params: Ext.JSON.encode({
+                                retourId: ref,
+                                comment: "Prise en compte de la réponse du retour fournisseur liée au BL N° " + Ext.getCmp('str_REF_BL_REPONSERETOUR').getValue()
 
-                            },
+                            }),
                             success: function (response)
                             {
-                                testextjs.app.getController('App').StopWaitingProcess();
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == "0") {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                    return;
-                                }
-                                Ext.MessageBox.alert('Confirmation', object.errors);
+                                  testextjs.app.getController('App').StopWaitingProcess();
                                 Me.onbtncancel();
 
 
@@ -349,8 +331,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.reponsere
                             failure: function (response)
                             {
                                 testextjs.app.getController('App').StopWaitingProcess();
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                console.log("Bug " + response.responseText);
+                            
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });

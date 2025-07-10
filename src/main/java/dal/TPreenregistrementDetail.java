@@ -6,8 +6,11 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -15,6 +18,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -28,9 +32,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_preenregistrement_detail")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TPreenregistrementDetail.findAvoir", query = "SELECT t FROM TPreenregistrementDetail t WHERE t.bISAVOIR=TRUE AND t.strSTATUT='is_Closed' AND t.intQUANTITY <> t.intQUANTITYSERVED AND t.intQUANTITY >0"),
-    @NamedQuery(name = "TPreenregistrementDetail.findAll", query = "SELECT t FROM TPreenregistrementDetail t"),
-    @NamedQuery(name = "TPreenregistrementDetail.findByVenteId", query = "SELECT t FROM TPreenregistrementDetail t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = :lgPREENREGISTREMENTID"),})
+        @NamedQuery(name = "TPreenregistrementDetail.findAvoir", query = "SELECT t FROM TPreenregistrementDetail t WHERE t.bISAVOIR=TRUE AND t.strSTATUT='is_Closed' AND t.intQUANTITY <> t.intQUANTITYSERVED AND t.intQUANTITY >0"),
+        @NamedQuery(name = "TPreenregistrementDetail.findAll", query = "SELECT t FROM TPreenregistrementDetail t"),
+        @NamedQuery(name = "TPreenregistrementDetail.findByVenteId", query = "SELECT t FROM TPreenregistrementDetail t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  = :lgPREENREGISTREMENTID"), })
 public class TPreenregistrementDetail implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -93,6 +97,20 @@ public class TPreenregistrementDetail implements Serializable {
     private Integer prixAchat = 0;
     @Column(name = "montanttvaug")
     private Integer montantTvaUg = 0;
+
+    @OneToMany(cascade = { CascadeType.REMOVE, CascadeType.PERSIST }, mappedBy = "preenregistrementDetail")
+    private List<PrixReferenceVente> prixReferenceVentes = new ArrayList<>();
+
+    public List<PrixReferenceVente> getPrixReferenceVentes() {
+        if (prixReferenceVentes == null) {
+            this.prixReferenceVentes = new ArrayList<>();
+        }
+        return prixReferenceVentes;
+    }
+
+    public void setPrixReferenceVentes(List<PrixReferenceVente> prixReferenceVentes) {
+        this.prixReferenceVentes = prixReferenceVentes;
+    }
 
     public TPreenregistrementDetail() {
     }
@@ -296,7 +314,9 @@ public class TPreenregistrementDetail implements Serializable {
             return false;
         }
         TPreenregistrementDetail other = (TPreenregistrementDetail) object;
-        if ((this.lgPREENREGISTREMENTDETAILID == null && other.lgPREENREGISTREMENTDETAILID != null) || (this.lgPREENREGISTREMENTDETAILID != null && !this.lgPREENREGISTREMENTDETAILID.equals(other.lgPREENREGISTREMENTDETAILID))) {
+        if ((this.lgPREENREGISTREMENTDETAILID == null && other.lgPREENREGISTREMENTDETAILID != null)
+                || (this.lgPREENREGISTREMENTDETAILID != null
+                        && !this.lgPREENREGISTREMENTDETAILID.equals(other.lgPREENREGISTREMENTDETAILID))) {
             return false;
         }
         return true;
@@ -357,6 +377,7 @@ public class TPreenregistrementDetail implements Serializable {
         this.valeurTva = p.getValeurTva();
         this.prixAchat = p.getPrixAchat();
         this.montantTvaUg = p.getMontantTvaUg();
+
     }
 
 }

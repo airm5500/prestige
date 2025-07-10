@@ -2,35 +2,33 @@
 <%@page import="bll.stock.Stock"%>
 <%@page import="org.json.JSONObject"%>
 <%@page import="org.json.JSONArray"%>
-<%@page import="dal.TFamilleStock"%>
+
 <%@page import="toolkits.utils.jdom"%>
 <%@page import="java.io.File"%>
 <%@page import="org.apache.commons.fileupload.FileItem"%>
 <%@page import="org.apache.commons.fileupload.DiskFileUpload"%>
 <%@page import="org.apache.commons.fileupload.FileUpload"%>
 <%@page import="bll.commandeManagement.suggestionManagement"%>
-<%@page import="bll.configManagement.familleGrossisteManagement"%>
+
 <%@page import="dal.TOrderDetail"%>
 <%@page import="bll.commandeManagement.bonLivraisonManagement"%>
 <%@page import="dal.TFamille"%>
-<%@page import="dal.TGrossiste"%>
-<%@page import="dal.TFamilleGrossiste"%>
+
 <%@page import="bll.commandeManagement.orderManagement"%>
-<%@page import="bll.warehouse.WarehouseManager"%>
+
 <%@page import="dal.TOrder"%>
-<%@page import="dal.TTypeRemise"%>
+
 <%@page import="toolkits.utils.logger"  %>
 <%@page import="dal.dataManager"  %>
 <%@page import="dal.TUser"  %>
-<%@page import="dal.TRole"  %>
+
 <%@page import="bll.bllBase"  %>
 <%@page import="java.util.*"  %>
 <%@page import="multilangue.Translate"  %>
 <%@page import="toolkits.utils.date"  %>
-<%@page import="bll.userManagement.privilege"  %>
+
 <%@page import="toolkits.parameters.commonparameter"  %>
-<%@page import="java.math.BigInteger"  %>
-<%@page import="bll.configManagement.familleManagement"  %>
+
 
 <%
     Translate oTranslate = new Translate();
@@ -48,7 +46,7 @@
 %>
 
 
-<%    List<TOrderDetail> lstTOrderDetail = new ArrayList<TOrderDetail>();
+<%    List<TOrderDetail> lstTOrderDetail = new ArrayList<>();
     int PRIX_ACHAT_TOTAL = 0, PRIX_VENTE_TOTAL = 0, total_lineproduct = 0;
 
     String SUGG_ORDER = "COMMANDE", ID_SUGG_ORDER = "", str_STATUT = commonparameter.statut_is_Process,
@@ -168,7 +166,7 @@
 
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     OdataManager.initEntityManager();
-TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
+    TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     bllBase ObllBase = new bllBase();
     ObllBase.setOTUser(user);
     ObllBase.LoadDataManger(OdataManager);
@@ -176,10 +174,9 @@ TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     ObllBase.setMessage(commonparameter.PROCESS_FAILED);
 
     ObllBase.setDetailmessage("SUGGESTION WS TRANSACTION");
-    
+
     orderManagement OorderManagement = new orderManagement(OdataManager, user);
     suggestionManagement OsuggestionManagement = new suggestionManagement(OdataManager, user);
-  
 
     if (request.getParameter("mode") != null) {
 
@@ -216,7 +213,7 @@ TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
             //MODE MODIFICATION
         } else if (request.getParameter("mode").equals("update")) {
             //mise a jour des prix
-           OTOrder = OorderManagement.FindOrder(lg_ORDER_ID);
+            OTOrder = OorderManagement.FindOrder(lg_ORDER_ID);
             OsuggestionManagement.updateItemPriceWhenOrdering(lg_GROSSISTE_ID, lg_FAMILLE_ID, lg_FAMILLE_PRIX_VENTE, int_PRIX_REFERENCE, int_PAF, lg_FAMILLE_PRIX_ACHAT, str_ACTION, OTOrder.getStrREFORDER(), "");
             ObllBase.setMessage(OsuggestionManagement.getMessage());
             ObllBase.setDetailmessage(OsuggestionManagement.getDetailmessage());
@@ -244,13 +241,7 @@ TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
                 ObllBase.setDetailmessage("Echec " + e.getLocalizedMessage());
             }
 
-            // OorderManagement.deleteOrder(lg_ORDER_ID);
-        } else if (request.getParameter("mode").equals("RollBackPasseOrderToCommandeProcess")) {
-
-            OorderManagement.RollBackPasseOrderToCommandeProcess(lg_ORDER_ID);
-            ObllBase.setMessage(OorderManagement.getMessage());
-            ObllBase.setDetailmessage(OorderManagement.getDetailmessage());
-
+            
         } else if (request.getParameter("mode").equals("deleteItem")) {
             String lgFAMILLEID = request.getParameter("lg_FAMILLE_ID");
             String strREFLIVRAISON = request.getParameter("str_REF_LIVRAISON");
@@ -259,7 +250,7 @@ TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
             ObllBase.setDetailmessage(OorderManagement.getDetailmessage());
         } else if (request.getParameter("mode").equals("deleteDetail")) {
 
-             Stock stock = new StockImpl(OdataManager.getEm());
+            Stock stock = new StockImpl(OdataManager.getEm());
             OTOrderDetail = ObllBase.getOdataManager().getEm().find(dal.TOrderDetail.class, lg_ORDERDETAIL_ID);
 
             TFamille Of = OTOrderDetail.getLgFAMILLEID();
@@ -271,14 +262,8 @@ TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
             PRIX_ACHAT_TOTAL = OorderManagement.getPriceTotalAchat(lstTOrderDetail);
             PRIX_VENTE_TOTAL = OorderManagement.getPriceTotalVente(lstTOrderDetail);
             total_lineproduct = lstTOrderDetail.size();
-           
+
             str_REF = OTOrderDetail.getLgORDERID().getLgORDERID();
-
-        } else if (request.getParameter("mode").equals("passeorder")) {
-
-            OTOrder = OorderManagement.PasseOrderToGrossiste(lg_ORDER_ID);
-            ObllBase.setMessage(OorderManagement.getMessage());
-            ObllBase.setDetailmessage(OorderManagement.getDetailmessage());
 
         } else if (request.getParameter("mode").equals("updateBL")) {
 
@@ -287,25 +272,6 @@ TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
             ObonLivraisonManagement.MakeOrderToBonLivraison(lg_ORDER_ID, str_REF_LIVRAISON, dt_DATE_LIVRAISON, int_MHT, int_TVA);
             ObllBase.setMessage(ObonLivraisonManagement.getMessage());
             ObllBase.setDetailmessage(ObonLivraisonManagement.getDetailmessage());
-        } else if (request.getParameter("mode").equals("changeGrossiste")) {
-            ID_SUGG_ORDER = lg_ORDER_ID;
-            OorderManagement.ChangeGrossisteOrder(SUGG_ORDER, ID_SUGG_ORDER, lg_GROSSISTE_ID);
-            ObllBase.setMessage(OorderManagement.getMessage());
-            OorderManagement.setDetailmessage(OorderManagement.getDetailmessage());
-            new logger().OCategory.info("Grossiste change ");
-
-        } else if (request.getParameter("mode").equals("mergeOrder")) {
-            JSONArray checkedList = new JSONArray();
-            if (request.getParameter("checkedList") != null && !"".equals(request.getParameter("checkedList"))) {
-                checkedList = new JSONArray(request.getParameter("checkedList"));
-
-            }
-            ID_SUGG_ORDER = lg_ORDER_ID;
-            OorderManagement.mergeOrder(checkedList);
-            ObllBase.setMessage(OorderManagement.getMessage());
-            OorderManagement.setDetailmessage(OorderManagement.getDetailmessage());
-            new logger().OCategory.info("Grossiste change ");
-
         } else if (request.getParameter("mode").equals("rupture")) {
             OTOrderDetail = OdataManager.getEm().find(dal.TOrderDetail.class, lg_ORDERDETAIL_ID);
             OorderManagement.addToruptureProduct(OTOrderDetail);

@@ -21,16 +21,16 @@ import javax.persistence.EntityManager;
  */
 public class MvtProduitObselete {
 
-//    private final EntityManager em;
+    // private final EntityManager em;
 
     public MvtProduitObselete() {
-//        this.em = _em;
+        // this.em = _em;
 
     }
 
-   
-
-    public void saveMvtProduit(String pkey, Typemvtproduit typemvtproduit, TFamille famille, TUser lgUSERID, TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,EntityManager em) {
+    public void saveMvtProduit(String pkey, Typemvtproduit typemvtproduit, TFamille famille, TUser lgUSERID,
+            TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,
+            EntityManager em) {
         HMvtProduit h = new HMvtProduit();
         h.setUuid(UUID.randomUUID().toString());
         h.setCreatedAt(LocalDateTime.now());
@@ -49,11 +49,13 @@ public class MvtProduitObselete {
         em.persist(h);
     }
 
-    private Typemvtproduit getTypemvtproduitByID(String id,EntityManager em) {
+    private Typemvtproduit getTypemvtproduitByID(String id, EntityManager em) {
         return em.find(Typemvtproduit.class, id);
     }
 
-    public void saveMvtProduit(Integer prixUn, String pkey, String typemvtproduit, TFamille famille, TUser lgUSERID, TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,EntityManager em) {
+    public void saveMvtProduit(Integer prixUn, String pkey, String typemvtproduit, TFamille famille, TUser lgUSERID,
+            TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,
+            EntityManager em) {
         HMvtProduit h = new HMvtProduit();
         h.setUuid(UUID.randomUUID().toString());
         h.setCreatedAt(LocalDateTime.now());
@@ -61,7 +63,7 @@ public class MvtProduitObselete {
         h.setLgUSERID(lgUSERID);
         h.setFamille(famille);
         h.setMvtDate(LocalDate.now());
-        h.setTypemvtproduit(getTypemvtproduitByID(typemvtproduit,em));
+        h.setTypemvtproduit(getTypemvtproduitByID(typemvtproduit, em));
         h.setQteMvt(qteMvt);
         h.setValeurTva(valeurTva);
         h.setQteDebut(qteDebut);
@@ -72,7 +74,9 @@ public class MvtProduitObselete {
         em.persist(h);
     }
 
-    public void saveMvtProduit(String pkey, String typemvtproduit, TFamille famille, TUser lgUSERID, TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,EntityManager em) {
+    public void saveMvtProduit(String pkey, String typemvtproduit, TFamille famille, TUser lgUSERID,
+            TEmplacement emplacement, Integer qteMvt, Integer qteDebut, Integer qteFinale, Integer valeurTva,
+            EntityManager em) {
         HMvtProduit h = new HMvtProduit();
         h.setUuid(UUID.randomUUID().toString());
         h.setCreatedAt(LocalDateTime.now());
@@ -80,7 +84,7 @@ public class MvtProduitObselete {
         h.setLgUSERID(lgUSERID);
         h.setFamille(famille);
         h.setMvtDate(LocalDate.now());
-        h.setTypemvtproduit(getTypemvtproduitByID(typemvtproduit,em));
+        h.setTypemvtproduit(getTypemvtproduitByID(typemvtproduit, em));
         h.setQteMvt(qteMvt);
         h.setValeurTva(valeurTva);
         h.setQteDebut(qteDebut);

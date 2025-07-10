@@ -58,18 +58,23 @@ public class DataExportService {
 
     private TFamille detail(String idParent) {
         try {
-            TypedQuery<TFamille> q = getEntityManager().createQuery("SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID=?1", TFamille.class);
+            TypedQuery<TFamille> q = getEntityManager().createQuery(
+                    "SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID=?1",
+                    TFamille.class);
             q.setMaxResults(1);
             q.setParameter(1, idParent);
             return q.getSingleResult();
         } catch (Exception e) {
-//            LOG.log(Level.SEVERE, "factures =====>>", e);
+            // LOG.log(Level.SEVERE, "factures =====>>", e);
             return null;
         }
     }
 
     private List<TFamille> familles() {
-        return getEntityManager().createQuery("SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID=''", TFamille.class).getResultList();
+        return getEntityManager()
+                .createQuery("SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID=''",
+                        TFamille.class)
+                .getResultList();
     }
 
     private ProduitDTO build(TFamille f) {
@@ -90,7 +95,8 @@ public class DataExportService {
             o.getFournisseurProduits().add(a);
         });
 
-        Optional<TFamilleStock> familleStock = f.getTFamilleStockCollection().stream().filter(s -> s.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equals(DateConverter.OFFICINE)).findFirst();
+        Optional<TFamilleStock> familleStock = f.getTFamilleStockCollection().stream()
+                .filter(s -> s.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equals(DateConverter.OFFICINE)).findFirst();
         if (familleStock.isPresent()) {
             TFamilleStock s = familleStock.get();
             o.setTotalQuantity(s.getIntNUMBERAVAILABLE());
@@ -168,7 +174,9 @@ public class DataExportService {
     }
 
     private List<TPreenregistrement> fromDtStartToDtEndAndByType(String dtStart, String dtEnd, String type) {
-        TypedQuery<TPreenregistrement> l = getEntityManager().createQuery("SELECT o from TPreenregistrement o WHERE  FUNCTION('DATE',o.dtUPDATED) BETWEEN ?1 AND ?2 AND o.strTYPEVENTE=?3 AND o.bISCANCEL=FALSE AND o.intPRICE>0 AND o.strSTATUT ='is_Closed'", TPreenregistrement.class);
+        TypedQuery<TPreenregistrement> l = getEntityManager().createQuery(
+                "SELECT o from TPreenregistrement o WHERE  FUNCTION('DATE',o.dtUPDATED) BETWEEN ?1 AND ?2 AND o.strTYPEVENTE=?3 AND o.bISCANCEL=FALSE AND o.intPRICE>0 AND o.strSTATUT ='is_Closed'",
+                TPreenregistrement.class);
         l.setParameter(1, java.sql.Date.valueOf(dtStart));
         l.setParameter(2, java.sql.Date.valueOf(dtEnd));
         l.setParameter(3, type);
@@ -177,7 +185,9 @@ public class DataExportService {
     }
 
     private List<TPreenregistrementDetail> findItemsById(String id) {
-        TypedQuery<TPreenregistrementDetail> l = getEntityManager().createQuery("SELECT o from TPreenregistrementDetail o WHERE  o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1", TPreenregistrementDetail.class);
+        TypedQuery<TPreenregistrementDetail> l = getEntityManager().createQuery(
+                "SELECT o from TPreenregistrementDetail o WHERE  o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1",
+                TPreenregistrementDetail.class);
         l.setParameter(1, id);
         return l.getResultList();
 
@@ -185,7 +195,8 @@ public class DataExportService {
 
     private MvtTransaction findPaymentById(String id) {
         try {
-            TypedQuery<MvtTransaction> l = getEntityManager().createQuery("SELECT o from MvtTransaction o WHERE  o.pkey=?1", MvtTransaction.class);
+            TypedQuery<MvtTransaction> l = getEntityManager()
+                    .createQuery("SELECT o from MvtTransaction o WHERE  o.pkey=?1", MvtTransaction.class);
             l.setParameter(1, id);
             l.setMaxResults(1);
             return l.getSingleResult();
@@ -228,15 +239,15 @@ public class DataExportService {
             t.setUpdatedAt(DateConverter.convertDateToLocalDateTime(i.getDtUPDATED()).toInstant(ZoneOffset.UTC));
             t.setEffectiveUpdateDate(t.getUpdatedAt());
             t.setProduitLibelle(i.getLgFAMILLEID().getStrNAME());
-          HMvtProduit h= findSnapshotByPkey(i.getLgPREENREGISTREMENTDETAILID());
-          if(h!=null){
-              commonTasks.dto.InventoryTransactionDTO n=new commonTasks.dto.InventoryTransactionDTO();
-              n.setProduitLibelle(t.getProduitLibelle());
-              n.setQuantity(h.getQteMvt());
-              n.setQuantityAfter(h.getQteFinale());
-              n.setQuantityBefor(h.getQteDebut());
-              t.setSnapshot(n);
-          }
+            HMvtProduit h = findSnapshotByPkey(i.getLgPREENREGISTREMENTDETAILID());
+            if (h != null) {
+                commonTasks.dto.InventoryTransactionDTO n = new commonTasks.dto.InventoryTransactionDTO();
+                n.setProduitLibelle(t.getProduitLibelle());
+                n.setQuantity(h.getQteMvt());
+                n.setQuantityAfter(h.getQteFinale());
+                n.setQuantityBefor(h.getQteDebut());
+                t.setSnapshot(n);
+            }
             d.add(t);
         }
         o.setCostAmount(costAmount);
@@ -251,7 +262,8 @@ public class DataExportService {
         o.setCreatedAt(DateConverter.convertDateToLocalDateTime(tp.getDtCREATED()).toInstant(ZoneOffset.UTC));
         o.setUpdatedAt(DateConverter.convertDateToLocalDateTime(tp.getDtUPDATED()).toInstant(ZoneOffset.UTC));
         o.setEffectiveUpdateDate(o.getUpdatedAt());
-        o.setDateDimensionId(Integer.parseInt(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()).format(DateTimeFormatter.ofPattern("yyyyMMdd"))));
+        o.setDateDimensionId(Integer.parseInt(DateConverter.convertDateToLocalDate(tp.getDtUPDATED())
+                .format(DateTimeFormatter.ofPattern("yyyyMMdd"))));
         o.setDiscountAmount(tp.getIntPRICEREMISE());
         o.setGrossAmount(tp.getIntPRICE());
         o.setType(tp.getStrTYPEVENTE().toUpperCase());
@@ -303,18 +315,23 @@ public class DataExportService {
 
     public MaxAndMinDate getMaxAndMinDate() {
         MaxAndMinDate andMinDate = new MaxAndMinDate();
-        TypedQuery<TPreenregistrement> q = getEntityManager().createQuery("SELECT o FROM TPreenregistrement o ORDER BY o.dtUPDATED DESC ", TPreenregistrement.class);
+        TypedQuery<TPreenregistrement> q = getEntityManager()
+                .createQuery("SELECT o FROM TPreenregistrement o ORDER BY o.dtUPDATED DESC ", TPreenregistrement.class);
         q.setMaxResults(1);
-        andMinDate.setMaxDate(DateConverter.convertDateToLocalDate(q.getSingleResult().getDtUPDATED()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
-        q = getEntityManager().createQuery("SELECT o FROM TPreenregistrement o ORDER BY o.dtUPDATED ASC ", TPreenregistrement.class);
+        andMinDate.setMaxDate(DateConverter.convertDateToLocalDate(q.getSingleResult().getDtUPDATED())
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+        q = getEntityManager().createQuery("SELECT o FROM TPreenregistrement o ORDER BY o.dtUPDATED ASC ",
+                TPreenregistrement.class);
         q.setMaxResults(1);
-        andMinDate.setMinDate(DateConverter.convertDateToLocalDate(q.getSingleResult().getDtUPDATED()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
+        andMinDate.setMinDate(DateConverter.convertDateToLocalDate(q.getSingleResult().getDtUPDATED())
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd")));
         return andMinDate;
     }
 
     private HMvtProduit findSnapshotByPkey(String pkey) {
         try {
-            TypedQuery<HMvtProduit> q = getEntityManager().createQuery("SELECT o FROM HMvtProduit o WHERE o.pkey=?1", HMvtProduit.class);
+            TypedQuery<HMvtProduit> q = getEntityManager().createQuery("SELECT o FROM HMvtProduit o WHERE o.pkey=?1",
+                    HMvtProduit.class);
             q.setParameter(1, pkey);
             q.setMaxResults(1);
             return q.getSingleResult();

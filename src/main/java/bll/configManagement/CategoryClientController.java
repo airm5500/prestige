@@ -28,13 +28,14 @@ import javax.persistence.criteria.CriteriaBuilder;
 public class CategoryClientController implements Serializable {
 
     /**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
+     *
+     */
+    private static final long serialVersionUID = 1L;
 
-	public CategoryClientController(EntityManagerFactory emf) {
+    public CategoryClientController(EntityManagerFactory emf) {
         this.emf = emf;
     }
+
     private EntityManagerFactory emf = null;
 
     public EntityManager getEntityManager() {
@@ -42,7 +43,7 @@ public class CategoryClientController implements Serializable {
     }
 
     public boolean create(TCategoryClient TCategoryClient) throws PreexistingEntityException, Exception {
-       boolean isOK=false;
+        boolean isOK = false;
         if (TCategoryClient.getTClientCollection() == null) {
             TCategoryClient.setTClientCollection(new ArrayList<>());
         }
@@ -52,50 +53,56 @@ public class CategoryClientController implements Serializable {
             em.getTransaction().begin();
             Collection<TClient> attachedTClientCollection = new ArrayList<>();
             for (TClient TClientCollectionTClientToAttach : TCategoryClient.getTClientCollection()) {
-                TClientCollectionTClientToAttach = em.getReference(TClientCollectionTClientToAttach.getClass(), TClientCollectionTClientToAttach.getLgCLIENTID());
+                TClientCollectionTClientToAttach = em.getReference(TClientCollectionTClientToAttach.getClass(),
+                        TClientCollectionTClientToAttach.getLgCLIENTID());
                 attachedTClientCollection.add(TClientCollectionTClientToAttach);
             }
             TCategoryClient.setTClientCollection(attachedTClientCollection);
             em.persist(TCategoryClient);
             for (TClient TClientCollectionTClient : TCategoryClient.getTClientCollection()) {
-                TCategoryClient oldLgCATEGORYCLIENTIDOfTClientCollectionTClient = TClientCollectionTClient.getLgCATEGORYCLIENTID();
+                TCategoryClient oldLgCATEGORYCLIENTIDOfTClientCollectionTClient = TClientCollectionTClient
+                        .getLgCATEGORYCLIENTID();
                 TClientCollectionTClient.setLgCATEGORYCLIENTID(TCategoryClient);
                 TClientCollectionTClient = em.merge(TClientCollectionTClient);
                 if (oldLgCATEGORYCLIENTIDOfTClientCollectionTClient != null) {
-                    oldLgCATEGORYCLIENTIDOfTClientCollectionTClient.getTClientCollection().remove(TClientCollectionTClient);
-                    oldLgCATEGORYCLIENTIDOfTClientCollectionTClient = em.merge(oldLgCATEGORYCLIENTIDOfTClientCollectionTClient);
+                    oldLgCATEGORYCLIENTIDOfTClientCollectionTClient.getTClientCollection()
+                            .remove(TClientCollectionTClient);
+                    oldLgCATEGORYCLIENTIDOfTClientCollectionTClient = em
+                            .merge(oldLgCATEGORYCLIENTIDOfTClientCollectionTClient);
                 }
             }
             em.getTransaction().commit();
-            isOK=true;
+            isOK = true;
         } catch (Exception ex) {
-           
+
             if (findTCategoryClient(TCategoryClient.getLgCATEGORYCLIENTID()) != null) {
-                
+
                 throw new PreexistingEntityException("TCategoryClient " + TCategoryClient + " already exists.", ex);
             }
             throw ex;
         } finally {
             if (em != null) {
-                
+
             }
-            
+
         }
         return isOK;
     }
 
     public boolean edit(TCategoryClient TCategoryClient) throws NonexistentEntityException, Exception {
         EntityManager em = null;
-        boolean isOK=false;
+        boolean isOK = false;
         try {
             em = getEntityManager();
             em.getTransaction().begin();
-            TCategoryClient persistentTCategoryClient = em.find(TCategoryClient.class, TCategoryClient.getLgCATEGORYCLIENTID());
+            TCategoryClient persistentTCategoryClient = em.find(TCategoryClient.class,
+                    TCategoryClient.getLgCATEGORYCLIENTID());
             Collection<TClient> TClientCollectionOld = persistentTCategoryClient.getTClientCollection();
             Collection<TClient> TClientCollectionNew = TCategoryClient.getTClientCollection();
             Collection<TClient> attachedTClientCollectionNew = new ArrayList<>();
             for (TClient TClientCollectionNewTClientToAttach : TClientCollectionNew) {
-                TClientCollectionNewTClientToAttach = em.getReference(TClientCollectionNewTClientToAttach.getClass(), TClientCollectionNewTClientToAttach.getLgCLIENTID());
+                TClientCollectionNewTClientToAttach = em.getReference(TClientCollectionNewTClientToAttach.getClass(),
+                        TClientCollectionNewTClientToAttach.getLgCLIENTID());
                 attachedTClientCollectionNew.add(TClientCollectionNewTClientToAttach);
             }
             TClientCollectionNew = attachedTClientCollectionNew;
@@ -109,17 +116,21 @@ public class CategoryClientController implements Serializable {
             }
             for (TClient TClientCollectionNewTClient : TClientCollectionNew) {
                 if (!TClientCollectionOld.contains(TClientCollectionNewTClient)) {
-                    TCategoryClient oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient = TClientCollectionNewTClient.getLgCATEGORYCLIENTID();
+                    TCategoryClient oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient = TClientCollectionNewTClient
+                            .getLgCATEGORYCLIENTID();
                     TClientCollectionNewTClient.setLgCATEGORYCLIENTID(TCategoryClient);
                     TClientCollectionNewTClient = em.merge(TClientCollectionNewTClient);
-                    if (oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient != null && !oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient.equals(TCategoryClient)) {
-                        oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient.getTClientCollection().remove(TClientCollectionNewTClient);
-                        oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient = em.merge(oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient);
+                    if (oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient != null
+                            && !oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient.equals(TCategoryClient)) {
+                        oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient.getTClientCollection()
+                                .remove(TClientCollectionNewTClient);
+                        oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient = em
+                                .merge(oldLgCATEGORYCLIENTIDOfTClientCollectionNewTClient);
                     }
                 }
             }
             em.getTransaction().commit();
-            isOK=true;
+            isOK = true;
         } catch (Exception ex) {
             String msg = ex.getLocalizedMessage();
             if (msg == null || msg.length() == 0) {
@@ -131,7 +142,7 @@ public class CategoryClientController implements Serializable {
             throw ex;
         } finally {
             if (em != null) {
-                
+
             }
         }
         return isOK;
@@ -139,7 +150,7 @@ public class CategoryClientController implements Serializable {
 
     public boolean destroy(String id) throws NonexistentEntityException {
         EntityManager em = null;
-        boolean isOK=false;
+        boolean isOK = false;
         try {
             em = getEntityManager();
             em.getTransaction().begin();
@@ -157,31 +168,32 @@ public class CategoryClientController implements Serializable {
             }
             em.remove(TCategoryClient);
             em.getTransaction().commit();
-            isOK=true;
+            isOK = true;
         } finally {
             if (em != null) {
-                
+
             }
         }
         return isOK;
     }
 
     public List<TCategoryClient> findTCategoryClientEntities() {
-        return findTCategoryClientEntities(true, -1, -1,"");
+        return findTCategoryClientEntities(true, -1, -1, "");
     }
 
-    public List<TCategoryClient> findTCategoryClientEntities(int maxResults, int firstResult,String str_LIBELLE) {
+    public List<TCategoryClient> findTCategoryClientEntities(int maxResults, int firstResult, String str_LIBELLE) {
         return findTCategoryClientEntities(false, maxResults, firstResult, str_LIBELLE);
     }
 
-    private List<TCategoryClient> findTCategoryClientEntities(boolean all, int maxResults, int firstResult,String str_LIBELLE) {
+    private List<TCategoryClient> findTCategoryClientEntities(boolean all, int maxResults, int firstResult,
+            String str_LIBELLE) {
         EntityManager em = getEntityManager();
         try {
-            CriteriaBuilder cb=em.getCriteriaBuilder();
+            CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<TCategoryClient> cq = cb.createQuery(TCategoryClient.class);
-            Root<TCategoryClient> root=cq.from(TCategoryClient.class);
-           cq.select(root);
-            cq.where(cb.like(root.get("strLIBELLE"), str_LIBELLE+"%")); 
+            Root<TCategoryClient> root = cq.from(TCategoryClient.class);
+            cq.select(root);
+            cq.where(cb.like(root.get("strLIBELLE"), str_LIBELLE + "%"));
             Query q = em.createQuery(cq);
             if (!all) {
                 q.setMaxResults(maxResults);
@@ -189,7 +201,7 @@ public class CategoryClientController implements Serializable {
             }
             return q.getResultList();
         } finally {
-            
+
         }
     }
 
@@ -198,30 +210,29 @@ public class CategoryClientController implements Serializable {
         try {
             return em.find(TCategoryClient.class, id);
         } finally {
-            
+
         }
     }
 
     public int getTCategoryClientCount(String search) {
         EntityManager em = getEntityManager();
         try {
-           /* CriteriaQuery cq = em.getCriteriaBuilder().createQuery();
-            Root<TCategoryClient> rt = cq.from(TCategoryClient.class);
-            cq.select(em.getCriteriaBuilder().count(rt));*/
-            
-            
-            
-             CriteriaBuilder cb=em.getCriteriaBuilder();
+            /*
+             * CriteriaQuery cq = em.getCriteriaBuilder().createQuery(); Root<TCategoryClient> rt =
+             * cq.from(TCategoryClient.class); cq.select(em.getCriteriaBuilder().count(rt));
+             */
+
+            CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<Long> cq = cb.createQuery(Long.class);
             Root<TCategoryClient> rt = cq.from(TCategoryClient.class);
             cq.select(cb.count(rt));
-            cq.where(cb.like(rt.get("strLIBELLE"), search+"%"));
+            cq.where(cb.like(rt.get("strLIBELLE"), search + "%"));
             Query q = em.createQuery(cq);
-          
+
             return ((Long) q.getSingleResult()).intValue();
         } finally {
-            
+
         }
     }
-    
+
 }

@@ -123,11 +123,11 @@
 
     OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     OdataManager.initEntityManager();
-
+  TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     new logger().oCategory.info("Utilisateur conecté : " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
 
     bllBase ObllBase = new bllBase();
-    ObllBase.setOTUser(OTUser);
+    ObllBase.setOTUser(user);
     ObllBase.LoadDataManger(OdataManager);
     ObllBase.LoadMultilange(oTranslate);
     ObllBase.setMessage(commonparameter.PROCESS_FAILED);
@@ -135,8 +135,8 @@
     ObllBase.setDetailmessage("PAS D'ACTION");
     new logger().oCategory.info("le mode : " + request.getParameter("mode"));
     new logger().oCategory.info("ID @" + request.getParameter("lg_RETROCESSION_ID") + "@");
-    RetrocessionManagement ORetrocessionManagement = new RetrocessionManagement(OdataManager, OTUser);
-    RetrocessionDetailManagement ORetrocessionDetailManagement = new RetrocessionDetailManagement(OdataManager, OTUser);
+    RetrocessionManagement ORetrocessionManagement = new RetrocessionManagement(OdataManager, user);
+    RetrocessionDetailManagement ORetrocessionDetailManagement = new RetrocessionDetailManagement(OdataManager, user);
     str_ref = lg_RETROCESSION_ID;
     if (request.getParameter("mode") != null) {
         //  TFamille OTFamille = OfamilleManagement.getTFamille(lg_FAMILLE_ID);

@@ -3,12 +3,14 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import javax.persistence.Basic;
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -16,6 +18,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -28,18 +31,18 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_resume_caisse")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TResumeCaisse.findAll", query = "SELECT t FROM TResumeCaisse t"),
-    @NamedQuery(name = "TResumeCaisse.findByLdCAISSEID", query = "SELECT t FROM TResumeCaisse t WHERE t.ldCAISSEID = :ldCAISSEID"),
-    @NamedQuery(name = "TResumeCaisse.findByIntSOLDEMATIN", query = "SELECT t FROM TResumeCaisse t WHERE t.intSOLDEMATIN = :intSOLDEMATIN"),
-    @NamedQuery(name = "TResumeCaisse.findByIntSOLDESOIR", query = "SELECT t FROM TResumeCaisse t WHERE t.intSOLDESOIR = :intSOLDESOIR"),
-    @NamedQuery(name = "TResumeCaisse.findByDtDAY", query = "SELECT t FROM TResumeCaisse t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TResumeCaisse.findByDtCREATED", query = "SELECT t FROM TResumeCaisse t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TResumeCaisse.findByLgCREATEDBY", query = "SELECT t FROM TResumeCaisse t WHERE t.lgCREATEDBY = :lgCREATEDBY"),
-    @NamedQuery(name = "TResumeCaisse.findByDtUPDATED", query = "SELECT t FROM TResumeCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TResumeCaisse.findByLgUPDATEDBY", query = "SELECT t FROM TResumeCaisse t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
-    @NamedQuery(name = "TResumeCaisse.findByStrSTATUT", query = "SELECT t FROM TResumeCaisse t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TResumeCaisse.findAll", query = "SELECT t FROM TResumeCaisse t"),
+        @NamedQuery(name = "TResumeCaisse.findByLdCAISSEID", query = "SELECT t FROM TResumeCaisse t WHERE t.ldCAISSEID = :ldCAISSEID"),
+        @NamedQuery(name = "TResumeCaisse.findByIntSOLDEMATIN", query = "SELECT t FROM TResumeCaisse t WHERE t.intSOLDEMATIN = :intSOLDEMATIN"),
+        @NamedQuery(name = "TResumeCaisse.findByIntSOLDESOIR", query = "SELECT t FROM TResumeCaisse t WHERE t.intSOLDESOIR = :intSOLDESOIR"),
+        @NamedQuery(name = "TResumeCaisse.findByDtDAY", query = "SELECT t FROM TResumeCaisse t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TResumeCaisse.findByDtCREATED", query = "SELECT t FROM TResumeCaisse t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TResumeCaisse.findByLgCREATEDBY", query = "SELECT t FROM TResumeCaisse t WHERE t.lgCREATEDBY = :lgCREATEDBY"),
+        @NamedQuery(name = "TResumeCaisse.findByDtUPDATED", query = "SELECT t FROM TResumeCaisse t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TResumeCaisse.findByLgUPDATEDBY", query = "SELECT t FROM TResumeCaisse t WHERE t.lgUPDATEDBY = :lgUPDATEDBY"),
+        @NamedQuery(name = "TResumeCaisse.findByStrSTATUT", query = "SELECT t FROM TResumeCaisse t WHERE t.strSTATUT = :strSTATUT") })
 public class TResumeCaisse implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -70,6 +73,12 @@ public class TResumeCaisse implements Serializable {
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser lgUSERID;
+    @OneToMany(cascade = { CascadeType.REMOVE,
+            CascadeType.PERSIST/* , CascadeType.MERGE */ }, mappedBy = "resumeCaisse")
+    private List<LigneResumeCaisse> ligneResumeCaisses = new ArrayList<>();
+    // 404 {"requestError":{"serviceException":{"messageId":"SVC0004","text":"No valid addresses provided in message
+    // part %1","variables":["Invalid recipient address: tel:+22507 47 60 03 68","Only numeric phone number is
+    // accepted"]}}} 07 47 60 03 68
 
     public TResumeCaisse() {
     }
@@ -166,6 +175,14 @@ public class TResumeCaisse implements Serializable {
         this.lgUSERID = lgUSERID;
     }
 
+    public List<LigneResumeCaisse> getLigneResumeCaisses() {
+        return ligneResumeCaisses;
+    }
+
+    public void setLigneResumeCaisses(List<LigneResumeCaisse> ligneResumeCaisses) {
+        this.ligneResumeCaisses = ligneResumeCaisses;
+    }
+
     @Override
     public int hashCode() {
         int hash = 0;
@@ -180,7 +197,8 @@ public class TResumeCaisse implements Serializable {
             return false;
         }
         TResumeCaisse other = (TResumeCaisse) object;
-        if ((this.ldCAISSEID == null && other.ldCAISSEID != null) || (this.ldCAISSEID != null && !this.ldCAISSEID.equals(other.ldCAISSEID))) {
+        if ((this.ldCAISSEID == null && other.ldCAISSEID != null)
+                || (this.ldCAISSEID != null && !this.ldCAISSEID.equals(other.ldCAISSEID))) {
             return false;
         }
         return true;
@@ -190,5 +208,5 @@ public class TResumeCaisse implements Serializable {
     public String toString() {
         return "dal.TResumeCaisse[ ldCAISSEID=" + ldCAISSEID + " ]";
     }
-    
+
 }

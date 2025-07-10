@@ -3,10 +3,6 @@
 Ext.define('testextjs.view.vente.VentesFinis', {
     extend: 'Ext.panel.Panel',
     xtype: 'ventemanager',
-    requires: [
-        'Ext.grid.plugin.RowExpander'
-    ],
-
     frame: true,
     title: 'Liste des Ventes',
     iconCls: 'icon-grid',
@@ -18,11 +14,25 @@ Ext.define('testextjs.view.vente.VentesFinis', {
         type: 'fit'
     },
     initComponent: function () {
-        var store = Ext.create('Ext.data.ArrayStore', {
+        const store = Ext.create('Ext.data.ArrayStore', {
             data: [['VNO'], ['VO']],
             fields: [{name: 'typeVente', type: 'string'}]
         });
-        var vente = Ext.create('Ext.data.Store', {
+        const natureventeStore = new Ext.data.Store({
+            model: 'testextjs.model.caisse.Nature',
+            pageSize: null,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/natures',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        const vente = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.caisse.Vente',
             autoLoad: false,
             pageSize: 15,
@@ -37,7 +47,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
 
             }
         });
-        var me = this;
+        const me = this;
         Ext.applyIf(me, {
             dockedItems: [
                 {
@@ -50,7 +60,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             fieldLabel: 'Du',
                             itemId: 'dtStart',
                             labelWidth: 15,
-                            flex: 1,
+                            flex: 0.8,
                             submitFormat: 'Y-m-d',
                             maxValue: new Date(),
                             format: 'd/m/Y',
@@ -63,19 +73,20 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             fieldLabel: 'Au',
                             itemId: 'dtEnd',
                             labelWidth: 15,
-                            flex: 1,
+                            flex: 0.8,
                             submitFormat: 'Y-m-d',
                             maxValue: new Date(),
                             format: 'd/m/Y',
                             value: new Date()
 
-                        }, '-', {
+                        },
+                        '-', {
 
                             xtype: 'timefield',
                             fieldLabel: 'De',
                             itemId: 'hStart',
                             emptyText: 'Heure debut(HH:mm)',
-                            flex: 0.8,
+                            flex: 0.6,
                             labelWidth: 15,
                             increment: 30,
                             value: '00:00',
@@ -87,12 +98,12 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             fieldLabel: 'A',
                             itemId: 'hEnd',
                             emptyText: 'Heure fin(HH:mm)',
-                            flex: 0.8,
+                            flex: 0.6,
                             labelWidth: 15,
                             increment: 30,
                             value: '23:59',
                             format: 'H:i'
-                        }, '-', 
+                        }, '-',
                         {
                             xtype: 'combobox',
                             fieldLabel: 'Type.vente',
@@ -104,14 +115,32 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             displayField: 'typeVente',
                             typeAhead: false,
                             mode: 'local',
-                            minChars: 1,
+                            minChars: 1.2,
                             emptyText: 'Selectionner un type de vente'
 
                         }, '-',
                         {
+                            xtype: 'combobox',
+                            itemId: 'nature',
+                            fieldLabel: 'Nature.vente',
+                            store: natureventeStore,
+                            editable: false,
+                            flex: 1.2,
+                            labelWidth: 70,
+                            valueField: 'lgNATUREVENTEID',
+                            displayField: 'strLIBELLE',
+                            typeAhead: false,
+                            queryMode: 'remote',
+                            emptyText: 'Selectionner la nature ...'
+
+                        },
+
+                        '-',
+
+                        {
                             xtype: 'textfield',
                             itemId: 'query',
-                            flex: 1,
+                            flex: 1.2,
                             enableKeyEvents: true,
                             emptyText: 'Recherche'
                         }, '-',
@@ -130,13 +159,6 @@ Ext.define('testextjs.view.vente.VentesFinis', {
             items: [
                 {
                     xtype: 'gridpanel',
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            rowBodyTpl: new Ext.XTemplate(
-                                    '<p>{details}</p>'
-                                    )
-                        }
-                    ],
                     store: vente,
                     viewConfig: {
                         forceFit: true,
@@ -392,6 +414,27 @@ Ext.define('testextjs.view.vente.VentesFinis', {
 
                                 }]
                         },
+                        {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/table_refresh.png',
+                                    tooltip: 'Modifier la date',
+                                    menuDisabled: true,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('onUpdateDate', view, rowIndex, colIndex, item, e, record, row);
+                                    },
+                                    getClass: function (value, metadata, record) {
+                                        if (record.get('intPRICE') > 0 && !record.get('cancel') && record.get('modificationVenteDate') && (record.get('strTYPEVENTE') === "VO")) {
+                                            return 'x-display-hide';
+                                        }
+                                        return 'x-hide-display';
+                                    }
+
+                                }]
+                        },
 
                         {
                             xtype: 'actioncolumn',
@@ -401,7 +444,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             items: [{
                                     icon: 'resources/images/download.png',
                                     tooltip: 'Exporter',
-                                   
+
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('toExportToJson', view, rowIndex, colIndex, item, e, record, row);
                                     },
@@ -413,6 +456,24 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     }
 
                                 }]
+                        },
+
+                        {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [
+                                {
+                                    icon: 'resources/images/icons/fam/application_view_list.png',
+                                    tooltip: 'Voir détail',
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('goto', view, rowIndex, colIndex, item, e, record, row);
+                                    }
+
+
+                                }
+                            ]
                         }
                     ],
 

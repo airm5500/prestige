@@ -19,7 +19,7 @@ import org.json.JSONObject;
  * @author DICI
  */
 @Local
-//@Remote
+// @Remote
 public interface VenteService {
 
     JSONObject annulerVente(TUser ooTUser, String lg_PREENREGISTREMENT_ID);

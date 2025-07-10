@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_grille_remise")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TGrilleRemise.findAll", query = "SELECT t FROM TGrilleRemise t"),
-    @NamedQuery(name = "TGrilleRemise.findByLgGRILLEREMISEID", query = "SELECT t FROM TGrilleRemise t WHERE t.lgGRILLEREMISEID = :lgGRILLEREMISEID"),
-    @NamedQuery(name = "TGrilleRemise.findByStrCODEGRILLE", query = "SELECT t FROM TGrilleRemise t WHERE t.strCODEGRILLE = :strCODEGRILLE"),
-    @NamedQuery(name = "TGrilleRemise.findByDblTAUX", query = "SELECT t FROM TGrilleRemise t WHERE t.dblTAUX = :dblTAUX"),
-    @NamedQuery(name = "TGrilleRemise.findByStrSTATUT", query = "SELECT t FROM TGrilleRemise t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TGrilleRemise.findByDtCREATED", query = "SELECT t FROM TGrilleRemise t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TGrilleRemise.findByDtUPDATED", query = "SELECT t FROM TGrilleRemise t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TGrilleRemise.findAll", query = "SELECT t FROM TGrilleRemise t"),
+        @NamedQuery(name = "TGrilleRemise.findByLgGRILLEREMISEID", query = "SELECT t FROM TGrilleRemise t WHERE t.lgGRILLEREMISEID = :lgGRILLEREMISEID"),
+        @NamedQuery(name = "TGrilleRemise.findByStrCODEGRILLE", query = "SELECT t FROM TGrilleRemise t WHERE t.strCODEGRILLE = :strCODEGRILLE"),
+        @NamedQuery(name = "TGrilleRemise.findByDblTAUX", query = "SELECT t FROM TGrilleRemise t WHERE t.dblTAUX = :dblTAUX"),
+        @NamedQuery(name = "TGrilleRemise.findByStrSTATUT", query = "SELECT t FROM TGrilleRemise t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TGrilleRemise.findByDtCREATED", query = "SELECT t FROM TGrilleRemise t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TGrilleRemise.findByDtUPDATED", query = "SELECT t FROM TGrilleRemise t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TGrilleRemise implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -48,7 +47,8 @@ public class TGrilleRemise implements Serializable {
     @Lob
     @Column(name = "str_DESCRIPTION", length = 65535)
     private String strDESCRIPTION;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_TAUX", precision = 15, scale = 3)
     private Double dblTAUX;
     @Column(name = "str_STATUT", length = 20)
@@ -148,7 +148,8 @@ public class TGrilleRemise implements Serializable {
             return false;
         }
         TGrilleRemise other = (TGrilleRemise) object;
-        if ((this.lgGRILLEREMISEID == null && other.lgGRILLEREMISEID != null) || (this.lgGRILLEREMISEID != null && !this.lgGRILLEREMISEID.equals(other.lgGRILLEREMISEID))) {
+        if ((this.lgGRILLEREMISEID == null && other.lgGRILLEREMISEID != null)
+                || (this.lgGRILLEREMISEID != null && !this.lgGRILLEREMISEID.equals(other.lgGRILLEREMISEID))) {
             return false;
         }
         return true;
@@ -158,5 +159,5 @@ public class TGrilleRemise implements Serializable {
     public String toString() {
         return "dal.TGrilleRemise[ lgGRILLEREMISEID=" + lgGRILLEREMISEID + " ]";
     }
-    
+
 }

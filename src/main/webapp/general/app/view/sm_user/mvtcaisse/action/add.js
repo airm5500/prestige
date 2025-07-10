@@ -2,9 +2,7 @@
 
 var url_services_data_modereglement_mvt_caisse = '../webservices/sm_user/modereglement/ws_data.jsp';
 var url_services_data_typereglement_mvt_caisse = '../webservices/sm_user/typereglement/ws_data.jsp';
-var url_services_data_typemvtcaisse_mvt_caisse = '../webservices/sm_user/typemvtcaisse/ws_data.jsp';
 var url_services_data_mvtcaisse_mvt_caisse = '../webservices/sm_user/mvtcaisse/ws_data.jsp';
-var url_services_transaction_mvtcaisse_mvt_caisse = '../webservices/sm_user/mvtcaisse/ws_transaction.jsp?mode=';
 var url_services_pdf_ticket_mouvement = '../webservices/sm_user/mvtcaisse/ws_generate_pdf.jsp';
 
 var Me_add_mvt_caisse;
@@ -54,8 +52,23 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
         LaborexWorkFlow_Add_MvtCaisse = Ext.create('testextjs.controller.LaborexWorkFlow', {});
         var store_modereglement_Add_MvtCaisse = LaborexWorkFlow_Add_MvtCaisse.BuildStore('testextjs.model.ModeReglement', itemsPerPage, url_services_data_modereglement_mvt_caisse);
         var store_typereglement_Add_MvtCaisse = LaborexWorkFlow_Add_MvtCaisse.BuildStore('testextjs.model.TypeReglement', itemsPerPage, url_services_data_typereglement_mvt_caisse);
-        var store_typemvtcaisse_Add_MvtCaisse = LaborexWorkFlow_Add_MvtCaisse.BuildStore('testextjs.model.TypeEcartMvt', itemsPerPage, url_services_data_typemvtcaisse_mvt_caisse);
+        const store_typemvtcaisse_Add_MvtCaisse = Ext.create('Ext.data.Store', {
 
+            model: 'testextjs.model.TypeEcartMvt',
+            autoLoad: true,
+            pageSize: 999999,
+
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/typeMvtCaisse/list',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+
+            }
+        });
         var form = new Ext.form.Panel({
             bodyPadding: 10,
             //    id: 'AddCltGridId',
@@ -355,7 +368,6 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
             Ext.getCmp('str_NUM_COMPTE').setValue(this.getOdatasource().str_NUM_COMPTE);
             Ext.getCmp('int_MONTANT_Add_MvtCaisse').disable();
             Ext.getCmp('int_MONTANT_Add_MvtCaisse').setValue(this.getOdatasource().int_AMOUNT);
-//   Ext.getCmp('str_NUM_PIECE_COMPTABLE').setValue(this.getOdatasource().str_NUM_PIECE_COMPTABLE);
             Ext.getCmp('str_NUM_PIECE_COMPTABLE').setValue(this.getOdatasource().str_ref);
             Ext.getCmp('lg_MODE_REGLEMENT_ID').setValue(this.getOdatasource().lg_MODE_REGLEMENT_ID);
             Ext.getCmp('str_BANQUE').setValue(this.getOdatasource().str_BANQUE);
@@ -407,18 +419,12 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
     },
     onbtnsave_mvtcaisse: function () {
 
-        var fenetre = Ext.getCmp("paydebtID"),
+        const fenetre = Ext.getCmp("paydebtID"),
                 formulaire = fenetre.down('form');
         if (formulaire.isValid()) {
-            var internal_url = "";
-            if (Omode === "create") {
-                internal_url = url_services_transaction_mvtcaisse_mvt_caisse + 'create';
-            } else {
-                internal_url = url_services_transaction_mvtcaisse_mvt_caisse + 'update&lg_MVT_CAISSE_ID=' + ref;
-            }
 
             testextjs.app.getController('App').ShowWaitingProcess();
-            var datas = {
+            let datas = {
                 "idTypeRegl": Ext.getCmp('lg_TYPE_REGLEMENT_ID').getValue(),
                 "numPieceComptable": Ext.getCmp('str_NUM_PIECE_COMPTABLE').getValue(),
                 "idTypeMvt": Ext.getCmp('lg_TYPE_MVT_CAISSE_ID').getValue(),
@@ -441,11 +447,11 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                 success: function (response)
                 {
                     testextjs.app.getController('App').StopWaitingProcess();
-                    var object = Ext.JSON.decode(response.responseText, false);
+                    const object = Ext.JSON.decode(response.responseText, false);
 
                     if (!object.success) {
                         Ext.MessageBox.alert('Error Message', object.msg);
-                        return;
+
                     } else {
                         Ext.MessageBox.show({
                             title: 'Message d\'erreur',
@@ -460,7 +466,8 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                                 }
                             }
                         });
-                        Oview.getStore().reload();
+                        // Oview.getStore().load();
+                        Oview.onRechClick();
                         fenetre.destroy();
 
                     }
@@ -469,7 +476,7 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                 failure: function (response)
                 {
                     testextjs.app.getController('App').StopWaitingProcess();
-                    var object = Ext.JSON.decode(response.responseText, false);
+                    const object = Ext.JSON.decode(response.responseText, false);
                     console.log("Bug " + response.responseText);
                     Ext.MessageBox.alert('Error Message', response.responseText);
                 }
@@ -487,231 +494,24 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
             });
         }
     },
-    checkIfGridIsEmpty: function () {
-        var gridTotalCount = Ext.getCmp('gridpanelID').getStore().getTotalCount();
-        return gridTotalCount;
-    },
+
     lunchPrinter: function (str_REF) {
 
         Ext.Ajax.request({
-            url: url_services_pdf_ticket_mouvement + "?str_REF=" + str_REF,
-            success: function (response)
-            {
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success == "0") {
-                    Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
-                }
-
-            },
+            method: 'GET',
+            url: '../api/v1/caisse/ticke-mvt-caisse?mvtCaisseId=' + str_REF,
             failure: function (response)
             {
 
-                var object = Ext.JSON.decode(response.responseText, false);
+                const object = Ext.JSON.decode(response.responseText, false);
+                console.log("Bug " + object);
                 console.log("Bug " + response.responseText);
                 Ext.MessageBox.alert('Error Message', response.responseText);
 
             }
         });
-    },
-    setTitleFrame: function (str_data) {
-        /*this.title = this.title + " :: Ref " + str_data;
-         ref = str_data;
-         url_services_data_detail_facture = '../webservices/commandemanagement/orderdetail/ws_data.jsp?lg_ORDER_ID=' + ref;
-         var OGrid = Ext.getCmp('gridpanelID');
-         url_services_data_detail_facture = '../webservices/commandemanagement/orderdetail/ws_data.jsp?lg_ORDER_ID=' + ref;
-         OGrid.getStore().getProxy().url = url_services_data_detail_facture;
-         OGrid.getStore().reload();*/
-    },
-    onfiltercheck: function () {
-        var str_name = Ext.getCmp('str_NAME').getValue();
-        var int_name_size = str_name.length;
-        if (int_name_size < 4) {
-            Ext.getCmp('btn_add').disable();
-        }
+    }
 
-    },
-    DisplayTotal: function (int_price, int_qte) {
-        var TotalAmount_final = 0;
-        var TotalAmount_temp = int_qte * int_price;
-        var TotalAmount = Number(TotalAmount_temp);
-        return TotalAmount;
-    },
-    DisplayAmount: function () {
-        alert('amount');
-    },
-    onbtnadd: function () {
-        var internal_url = "";
-        if (ref === "") {
-            ref = null;
-        } else if (ref === undefined) {
-            ref = null;
-        }
-
-        /*   if (Ext.getCmp('cmb_CUSTOMER_ID').getValue() === null) {
-         
-         Ext.MessageBox.alert('Error Message', 'Renseignez le Destinateur ');
-         } else  {*/
-
-        /*  alert(Ext.getCmp('cmb_CUSTOMER_ID').getValue());
-         alert(Ext.getCmp('lg_TYPE_FACTURE_ID').getValue());
-         alert(Ext.getCmp('dt_debut').getValue());
-         alert(Ext.getCmp('dt_fin').getValue());*/
-        dt_debut = Ext.Date.format(Ext.getCmp('dt_debut').getValue(), 'Y-m-d');
-        dt_fin = Ext.Date.format(Ext.getCmp('dt_fin').getValue(), 'Y-m-d');
-        type_facture = Ext.getCmp('lg_TYPE_FACTURE_ID').getValue();
-        str_CUSTOMER = Ext.getCmp('cmb_CUSTOMER_ID').getValue();
-        if (type_facture == "1") {
-            url_services_data_detail_facture_tiers_payant = '../webservices/sm_user/facturation/ws_data_detail_tiers_payant.jsp?lg_customer_id=' + str_CUSTOMER + '&lg_type_facture=' + type_facture + '&dt_debut=' + dt_debut + '&dt_fin=' + dt_fin;
-            var OGrid = Ext.getCmp('gridpanelID');
-            OGrid.getStore().getProxy().url = url_services_data_detail_facture_tiers_payant;
-            OGrid.getStore().reload();
-
-
-
-
-            Ext.Ajax.request({
-                url: '../webservices/sm_user/facturation/ws_data_detail_tiers_payant.jsp',
-                params: {
-                    dt_debut: dt_debut,
-                    dt_fin: dt_fin,
-                    type_facture: type_facture,
-                    str_CUSTOMER: str_CUSTOMER
-
-                },
-                success: function (response)
-                {
-                    var object = Ext.JSON.decode(response.responseText, false);
-                    //  console.log(object);
-                    //alert('Montant_total  ' + object.Montant_total);
-                    // var int_total = Number(object.total);
-                    Ext.getCmp('int_Nbr_Dossier').setValue(object.results[0].int_NB_DOSSIER);
-                    Ext.getCmp('int_MONTANT').setValue(object.Montant_total);
-                },
-                failure: function (response)
-                {
-                    var object = Ext.JSON.decode(response.responseText, false);
-                    console.log("Bug " + response.responseText);
-                    Ext.MessageBox.alert('Error Message', response.responseText);
-                }
-            });
-
-
-
-
-        } else {
-            url_services_data_detail_facture = '../webservices/sm_user/facturation/ws_data_detail_fournisseur.jsp?lg_customer_id=' + str_CUSTOMER + '&lg_type_facture=' + type_facture + '&dt_debut=' + dt_debut + '&dt_fin=' + dt_fin;
-            var OGrid = Ext.getCmp('gridpanelFournisseurID');
-            OGrid.getStore().getProxy().url = url_services_data_detail_facture;
-            OGrid.getStore().reload();
-        }
-
-
-    },
-    onPdfClick: function () {
-        var chaine = location.pathname;
-        var reg = new RegExp("[/]+", "g");
-        var tableau = chaine.split(reg);
-        var sitename = tableau[1];
-        var linkUrl = url_services_pdf_ticket + '?lg_PREENREGISTREMENT_ID=' + ref;
-        window.open(linkUrl);
-        var xtype = "";
-        if (my_view_title === "by_cloturer_vente") {
-            xtype = "ventemanager";
-            testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
-        } else {
-            xtype = "preenregistrementmanager";
-            testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
-        }
-
-    },
-    changeRenderer: function (val) {
-        if (val > 0) {
-            return '<span style="color:green;">' + val + '</span>';
-        } else if (val < 0) {
-            return '<span style="color:red;">' + val + '</span>';
-        }
-        return val;
-    },
-    pctChangeRenderer: function (val) {
-        if (val > 0) {
-            return '<span style="color:green;">' + val + '%</span>';
-        } else if (val < 0) {
-            return '<span style="color:red;">' + val + '%</span>';
-        }
-        return val;
-    },
-    renderRating: function (val) {
-        switch (val) {
-            case 0:
-                return 'A';
-            case 1:
-                return 'B';
-            case 2:
-                return 'C';
-        }
-    },
-    onSelectionChange: function (model, records) {
-        var rec = records[0];
-        if (rec) {
-            this.getForm().loadRecord(rec);
-        }
-    },
-    onsplitovalue: function (Ovalue) {
-
-        var int_ovalue;
-        var string = Ovalue.split(" ");
-        int_ovalue = string[0];
-        return int_ovalue;
-    },
-    CreateFacture: function (val) {
-        dt_debut = Ext.Date.format(Ext.getCmp('dt_debut').getValue(), 'Y-m-d');
-        dt_fin = Ext.Date.format(Ext.getCmp('dt_fin').getValue(), 'Y-m-d');
-        type_facture = Ext.getCmp('lg_TYPE_FACTURE_ID').getValue();
-        str_CUSTOMER = Ext.getCmp('cmb_CUSTOMER_ID').getValue();
-        url_services_data_detail_transaction = '../webservices/sm_user/facturation/ws_transaction.jsp';
-
-        if (type_facture == 1) {
-            str_mode = 'create facture tiers';
-        } else {
-            str_mode = 'create facture fournisseur';
-        }
-
-        Ext.Ajax.request({
-            url: url_services_data_detail_transaction,
-            params: {
-                lg_customer_id: str_CUSTOMER,
-                lg_type_facture: type_facture,
-                dt_fin: dt_fin,
-                dt_debut: dt_debut,
-                mode: str_mode
-
-            },
-            success: function (response)
-            {
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success == 0) {
-                    Ext.MessageBox.alert('Error Message', 'impossible de creer la facture');
-                    return;
-                }
-                if (object.success == 1) {
-                    var xtype = "facturemanager";
-                    testextjs.app.getController('App').onLoadNewComponent(xtype, "", "");
-                }
-                //Oview.getStore().reload();
-
-            },
-            failure: function (response)
-            {
-
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
-
-            }
-        });
-
-    },
 });
 
 

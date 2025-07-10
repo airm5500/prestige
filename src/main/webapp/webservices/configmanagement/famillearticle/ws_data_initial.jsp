@@ -1,3 +1,4 @@
+<%@page import="org.apache.commons.lang3.StringUtils"%>
 <%@page import="dal.TDci"%>
 <%@page import="bll.configManagement.dciManagement"%>
 <%@page import="bll.teller.tellerManagement"%>
@@ -23,18 +24,17 @@
 <jsp:useBean id="Os_Search_poste_data" class="services.ShowDataBean" scope="session" />
 
 
-<% 
+<%
     dataManager OdataManager = new dataManager();
 
     date key = new date();
-    
-    List<TDci> lstTDCI = new ArrayList<dal.TDci>();
+
+    List<TDci> lstTDCI = new ArrayList<>();
 
 
 %>
 
-<%
-    int DATA_PER_PAGE = jdom.int_size_pagination, count = 0, pages_curr = 0;
+<%    int DATA_PER_PAGE = jdom.int_size_pagination, count = 0, pages_curr = 0;
     new logger().OCategory.info("dans ws data dci ");
 %>
 
@@ -80,7 +80,8 @@
 %>
 <!-- fin logic de gestion des page -->
 
-<%    String lg_FAMILLE_ID = "%%", lg_GROUPE_FAMILLE_ID = "%%", str_NAME = "%%", str_DESCRIPTION = "%%", str_TYPE_TRANSACTION = "%%";
+<%    String lg_FAMILLE_ID = "%%", lg_GROUPE_FAMILLE_ID = "%%", str_NAME = "%%", str_DESCRIPTION = "%%",
+            str_TYPE_TRANSACTION = "%%";
     if (request.getParameter("search_value") != null) {
         //Os_Search_poste.setOvalue("%" + request.getParameter("search_value") + "%");
         Os_Search_poste.setOvalue(request.getParameter("search_value") + "%");
@@ -88,19 +89,20 @@
     } else {
         Os_Search_poste.setOvalue("%%");
     }
-    
 
     new logger().OCategory.info("search_value  = " + Os_Search_poste.getOvalue());
-   
+
     String search_value = Os_Search_poste.getOvalue();
-    
+    if (StringUtils.isNotEmpty(request.getParameter("query"))) {
+        search_value = request.getParameter("query");
+    }
     new logger().OCategory.info("search_value    " + search_value);
     OdataManager.initEntityManager();
 
     dciManagement OdciManagement = new dciManagement(OdataManager);
 
     lstTDCI = OdciManagement.showAllInitial(search_value);
-    
+
     new logger().OCategory.info("lstDCI dans le ws " + lstTDCI.size());
 
 %>
@@ -141,23 +143,19 @@
         JSONObject json = new JSONObject();
 
         json.put("lg_DCI_ID", lstTDCI.get(i).getLgDCIID());
-        json.put("str_NAME", lstTDCI.get(i).getStrNAME());        
-        json.put("str_CODE", lstTDCI.get(i).getStrCODE());        
-        
-        
+        json.put("str_NAME", lstTDCI.get(i).getStrNAME());
+        json.put("str_CODE", lstTDCI.get(i).getStrCODE());
 
         json.put("str_STATUT", lstTDCI.get(i).getStrSTATUT());
 
-       // dt_CREATED = lstTDCI.get(i).getDtCREATED();
-       // if (dt_CREATED != null) {
-      //      json.put("dt_CREATED", key.DateToString(dt_CREATED, key.formatterOrange));
-      //  }
-
-       // dt_UPDATED = lstTDCI.get(i).getDtUPDATED();
-       // if (dt_UPDATED != null) {
-         //   json.put("dt_UPDATED", key.DateToString(dt_UPDATED, key.formatterOrange));
+        // dt_CREATED = lstTDCI.get(i).getDtCREATED();
+        // if (dt_CREATED != null) {
+        //      json.put("dt_CREATED", key.DateToString(dt_CREATED, key.formatterOrange));
+        //  }
+        // dt_UPDATED = lstTDCI.get(i).getDtUPDATED();
+        // if (dt_UPDATED != null) {
+        //   json.put("dt_UPDATED", key.DateToString(dt_UPDATED, key.formatterOrange));
         //}
-
         arrayObj.put(json);
     }
     String result = "({\"total\":\"" + lstTDCI.size() + " \",\"results\":" + arrayObj.toString() + "})";

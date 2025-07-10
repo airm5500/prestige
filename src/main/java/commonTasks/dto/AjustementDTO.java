@@ -22,7 +22,7 @@ public class AjustementDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private final SimpleDateFormat heureFormat = new SimpleDateFormat("HH:mm");
-    private String lgUSERID, userFullName, details = " ",lgAJUSTEMENTID, description, commentaire;
+    private String lgUSERID, userFullName, details = " ", lgAJUSTEMENTID, description, commentaire;
     private String dtUPDATED, heure;
     private boolean beCancel = false;
 
@@ -98,8 +98,6 @@ public class AjustementDTO implements Serializable {
         this.lgAJUSTEMENTID = lgAJUSTEMENTID;
     }
 
-  
-
     public AjustementDTO(TAjustement ajustement, List<TAjustementDetail> tpds, boolean becancel) {
         TUser tUser = ajustement.getLgUSERID();
         this.lgUSERID = tUser.getLgUSERID();
@@ -108,16 +106,22 @@ public class AjustementDTO implements Serializable {
         this.commentaire = ajustement.getStrCOMMENTAIRE();
         this.dtUPDATED = dateFormat.format(ajustement.getDtUPDATED());
         this.heure = heureFormat.format(ajustement.getDtUPDATED());
-        this.lgAJUSTEMENTID=ajustement.getLgAJUSTEMENTID();
-    
+        this.lgAJUSTEMENTID = ajustement.getLgAJUSTEMENTID();
+
         tpds.forEach((tpd) -> {
-            MotifAjustement motif=tpd.getTypeAjustement();
-             String typeLibelle="";
-            if(motif!=null){
-                typeLibelle=motif.getLibelle();
+            MotifAjustement motif = tpd.getTypeAjustement();
+            String typeLibelle = "";
+            if (motif != null) {
+                typeLibelle = motif.getLibelle();
             }
-           
-            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP() + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrNAME() + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntNUMBER() + ")</span><span style='display:inline-block;width: 15%;'>" + DateConverter.amountFormat(tpd.getLgFAMILLEID().getIntPAF(), '.') + " F CFA " + "</span><span style='display:inline-block;width: 15%;'>" + typeLibelle + "</span></b><br> " + this.details;
+
+            this.details = "<b><span style='display:inline-block;width: 7%;'>" + tpd.getLgFAMILLEID().getIntCIP()
+                    + "</span><span style='display:inline-block;width: 25%;'>" + tpd.getLgFAMILLEID().getStrNAME()
+                    + "</span><span style='display:inline-block;width: 10%;'>(" + tpd.getIntNUMBER()
+                    + ")</span><span style='display:inline-block;width: 15%;'>"
+                    + DateConverter.amountFormat(tpd.getLgFAMILLEID().getIntPAF(), '.') + " F CFA "
+                    + "</span><span style='display:inline-block;width: 15%;'>" + typeLibelle + "</span></b><br> "
+                    + this.details;
         });
     }
 

@@ -29,7 +29,8 @@ public class Search {
     }
 
     /**
-     * @param odata the odata to set
+     * @param odata
+     *            the odata to set
      */
     public void setOdata(String odata) {
         this.odata = odata;

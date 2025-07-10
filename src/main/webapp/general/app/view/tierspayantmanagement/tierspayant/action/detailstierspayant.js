@@ -111,7 +111,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                 defaults: {
                     flex: 1
                 }
-                
+
             },
             items: [
                 {
@@ -127,7 +127,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                             xtype: 'container',
                             layout: {
                                 type: 'hbox',
-                                flex:1,
+                                flex: 1,
                                 align: 'right'
                             },
 
@@ -163,14 +163,22 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                                     id: 'tiersaddresse',
                                     fieldStyle: "color:blue;font-weight:300;"
 //                                  
+                                }, {
+                                    xtype: 'displayfield',
+                                    fieldLabel: 'Caution',
+                                    align: 'right',
+                                    id: 'caution',
+                                    fieldStyle: "color:blue;font-weight:300;"
+//                                  
                                 }
+
 
                             ]
                         }
                         , {
                             xtype: 'container',
                             layout: {
-                                type: 'hbox',flex:1,
+                                type: 'hbox', flex: 1,
                                 align: 'right'
                             },
                             defaultType: 'displayfield',
@@ -220,7 +228,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                             layout: {
                                 type: 'hbox',
                                 align: 'right',
-                                flex:1
+                                flex: 1
                             },
                             defaultType: 'displayfield',
                             margin: '0 0 5 0',
@@ -230,7 +238,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                                     fieldLabel: 'Risque',
                                     id: 'RISQUE',
                                     align: 'right',
-                                    flex:1,
+                                    flex: 1,
                                     fieldStyle: "color:blue;font-weight:300;"
 
                                 }, {
@@ -238,7 +246,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                                     fieldLabel: 'Code Officine',
                                     id: 'CODEOFICINE',
                                     align: 'right',
-                                    flex:1,
+                                    flex: 1,
                                     fieldStyle: "color:blue;font-weight:300;"
 
                                 },
@@ -247,10 +255,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                                     xtype: 'displayfield',
                                     id: 'REGIMECAISSE',
                                     align: 'right',
-                                    flex:1,
+                                    flex: 1,
                                     fieldStyle: "color:blue;font-weight:300;"
                                 }
-                                
+
                                 , {
                                     xtype: 'displayfield',
                                     fieldLabel: 'Num&eacute;ro  T&eacute;l&eacute;phone ',
@@ -261,7 +269,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                                     fieldStyle: "color:blue;font-weight:300;"
 
                                 }
-                                
+
 
 
                             ]
@@ -271,7 +279,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                             xtype: 'container',
                             layout: {
                                 type: 'hbox',
-                                flex:1,
+                                flex: 1,
                                 align: 'right'
                             },
                             defaultType: 'displayfield',
@@ -282,7 +290,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                                     xtype: 'displayfield',
                                     id: 'intNUMBERCLIENT',
                                     align: 'right',
-                                    flex:1,
+                                    flex: 1,
                                     fieldStyle: "color:blue;font-weight:300;"
                                 }
                                 ,
@@ -291,24 +299,24 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
                                     xtype: 'displayfield',
                                     id: 'dblPLAFONDCREDIT',
                                     align: 'right',
-                                    flex:1,
+                                    flex: 1,
                                     fieldStyle: "color:blue;font-weight:300;"
                                 },
-                                 
-                                 {
+
+                                {
                                     fieldLabel: 'Montant par facture',
                                     xtype: 'displayfield',
                                     id: 'montantFact',
                                     align: 'right',
-                                    flex:1,
+                                    flex: 1,
                                     fieldStyle: "color:blue;font-weight:300;"
                                 }, {
                                     fieldLabel: 'Nombre de bons par facture',
                                     xtype: 'displayfield',
-                                    flex:1,
+                                    flex: 1,
                                     id: 'nbrbons',
                                     align: 'right',
-                                    labelWidth:200, 
+                                    labelWidth: 200,
                                     fieldStyle: "color:blue;font-weight:300;"
                                 }
                             ]
@@ -435,11 +443,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
 
                             ]
 
-
-
-
-
-
                         },
                         {
                             xtype: 'panel',
@@ -536,6 +539,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
         Ext.getCmp('CODEORGANISME').setValue(this.getOdatasource().str_CODE_ORGANISME);
         Ext.getCmp('FULNAME').setValue(this.getOdatasource().str_FULLNAME);
         Ext.getCmp('tiersaddresse').setValue(this.getOdatasource().str_ADRESSE);
+        Ext.getCmp('caution').setValue(this.getOdatasource().caution);
         Ext.getCmp('TEL').setValue(this.getOdatasource().str_TELEPHONE);
         Ext.getCmp('TYPETIERSPAYANTID').setValue(this.getOdatasource().lg_TYPE_TIERS_PAYANT_ID);
         Ext.getCmp('VILLE').setValue(this.getOdatasource().lg_VILLE_ID);

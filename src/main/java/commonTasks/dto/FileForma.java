@@ -10,5 +10,5 @@ package commonTasks.dto;
  * @author koben
  */
 public enum FileForma {
-    PDF,WORD,EXCEL,CSV,JSON
+    PDF, WORD, EXCEL, CSV, JSON
 }

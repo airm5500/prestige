@@ -915,42 +915,42 @@ public class FamilleDTO {
     }
 
     private static TTypeetiquette etiquetteFromId(String id) {
-         if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(id)) {
             return null;
         }
         return new TTypeetiquette(id);
     }
 
     private static TFormeArticle formeFromId(String id) {
-         if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(id)) {
             return null;
         }
         return new TFormeArticle(id);
     }
 
     private static TCodeTva tvaFromId(String id) {
-         if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(id)) {
             return null;
         }
         return new TCodeTva(id);
     }
 
     private static TCodeActe acteFromId(String id) {
-         if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(id)) {
             return null;
         }
         return new TCodeActe(id);
     }
 
     private static TGrossiste grossisteFromId(String id) {
-         if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(id)) {
             return null;
         }
         return new TGrossiste(id);
     }
 
     private static TFamillearticle familleFromId(String id) {
-         if (StringUtils.isEmpty(id)) {
+        if (StringUtils.isEmpty(id)) {
             return null;
         }
         return new TFamillearticle(id);

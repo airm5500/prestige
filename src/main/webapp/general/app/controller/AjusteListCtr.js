@@ -215,14 +215,14 @@ Ext.define('testextjs.controller.AjusteListCtr', {
         }
     },
     doBeforechangeDetails: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getItemAjustementGrid().getStore().getProxy();
-        var ajustement = me.getData();
-        var ajustementId = null;
+        const me = this;
+        const myProxy = me.getItemAjustementGrid().getStore().getProxy();
+        let ajustement = me.getData();
+        let ajustementId = null;
         if (ajustement) {
             ajustementId = ajustement.lgAJUSTEMENTID;
         }
-        var query = me.getDetailQuery().getValue();
+        let query = me.getDetailQuery().getValue();
         myProxy.params = {
             ajustementId: ajustementId,
             query: query

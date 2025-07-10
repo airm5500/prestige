@@ -24,7 +24,8 @@ public class TventeEntity {
     }
 
     /**
-     * @param int_NB_VO the int_NB_VO to set
+     * @param int_NB_VO
+     *            the int_NB_VO to set
      */
     public void setInt_NB_VO(int int_NB_VO) {
         this.int_NB_VO = int_NB_VO;
@@ -38,7 +39,8 @@ public class TventeEntity {
     }
 
     /**
-     * @param int_NB_NO the int_NB_NO to set
+     * @param int_NB_NO
+     *            the int_NB_NO to set
      */
     public void setInt_NB_NO(int int_NB_NO) {
         this.int_NB_NO = int_NB_NO;
@@ -52,7 +54,8 @@ public class TventeEntity {
     }
 
     /**
-     * @param dbl_amount the dbl_amount to set
+     * @param dbl_amount
+     *            the dbl_amount to set
      */
     public void setDbl_amount(Double dbl_amount) {
         this.dbl_amount = dbl_amount;
@@ -66,7 +69,8 @@ public class TventeEntity {
     }
 
     /**
-     * @param dbl_amount_remise the dbl_amount_remise to set
+     * @param dbl_amount_remise
+     *            the dbl_amount_remise to set
      */
     public void setDbl_amount_remise(Double dbl_amount_remise) {
         this.dbl_amount_remise = dbl_amount_remise;

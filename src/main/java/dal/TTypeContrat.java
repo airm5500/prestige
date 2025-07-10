@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_contrat")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeContrat.findAll", query = "SELECT t FROM TTypeContrat t"),
-    @NamedQuery(name = "TTypeContrat.findByLgTYPECONTRATID", query = "SELECT t FROM TTypeContrat t WHERE t.lgTYPECONTRATID = :lgTYPECONTRATID"),
-    @NamedQuery(name = "TTypeContrat.findByStrCODETYPECONTRAT", query = "SELECT t FROM TTypeContrat t WHERE t.strCODETYPECONTRAT = :strCODETYPECONTRAT"),
-    @NamedQuery(name = "TTypeContrat.findByStrLIBELLETYPECONTRAT", query = "SELECT t FROM TTypeContrat t WHERE t.strLIBELLETYPECONTRAT = :strLIBELLETYPECONTRAT"),
-    @NamedQuery(name = "TTypeContrat.findByDtCREATED", query = "SELECT t FROM TTypeContrat t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeContrat.findByDtUPDATED", query = "SELECT t FROM TTypeContrat t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypeContrat.findByStrSTATUT", query = "SELECT t FROM TTypeContrat t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypeContrat.findAll", query = "SELECT t FROM TTypeContrat t"),
+        @NamedQuery(name = "TTypeContrat.findByLgTYPECONTRATID", query = "SELECT t FROM TTypeContrat t WHERE t.lgTYPECONTRATID = :lgTYPECONTRATID"),
+        @NamedQuery(name = "TTypeContrat.findByStrCODETYPECONTRAT", query = "SELECT t FROM TTypeContrat t WHERE t.strCODETYPECONTRAT = :strCODETYPECONTRAT"),
+        @NamedQuery(name = "TTypeContrat.findByStrLIBELLETYPECONTRAT", query = "SELECT t FROM TTypeContrat t WHERE t.strLIBELLETYPECONTRAT = :strLIBELLETYPECONTRAT"),
+        @NamedQuery(name = "TTypeContrat.findByDtCREATED", query = "SELECT t FROM TTypeContrat t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeContrat.findByDtUPDATED", query = "SELECT t FROM TTypeContrat t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypeContrat.findByStrSTATUT", query = "SELECT t FROM TTypeContrat t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypeContrat implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +135,8 @@ public class TTypeContrat implements Serializable {
             return false;
         }
         TTypeContrat other = (TTypeContrat) object;
-        if ((this.lgTYPECONTRATID == null && other.lgTYPECONTRATID != null) || (this.lgTYPECONTRATID != null && !this.lgTYPECONTRATID.equals(other.lgTYPECONTRATID))) {
+        if ((this.lgTYPECONTRATID == null && other.lgTYPECONTRATID != null)
+                || (this.lgTYPECONTRATID != null && !this.lgTYPECONTRATID.equals(other.lgTYPECONTRATID))) {
             return false;
         }
         return true;
@@ -146,5 +146,5 @@ public class TTypeContrat implements Serializable {
     public String toString() {
         return "dal.TTypeContrat[ lgTYPECONTRATID=" + lgTYPECONTRATID + " ]";
     }
-    
+
 }

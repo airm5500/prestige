@@ -28,22 +28,22 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_snap_shop_daly_recette")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSnapShopDalyRecette.findAll", query = "SELECT t FROM TSnapShopDalyRecette t"),
-    @NamedQuery(name = "TSnapShopDalyRecette.findByLgID", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TSnapShopDalyRecette.findByIntAMOUNT", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.intAMOUNT = :intAMOUNT"),
-    @NamedQuery(name = "TSnapShopDalyRecette.findByDtDAY", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TSnapShopDalyRecette.findByDtCREATED", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapShopDalyRecette.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSnapShopDalyRecette.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSnapShopDalyRecette.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION")})
+@NamedQueries({ @NamedQuery(name = "TSnapShopDalyRecette.findAll", query = "SELECT t FROM TSnapShopDalyRecette t"),
+        @NamedQuery(name = "TSnapShopDalyRecette.findByLgID", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TSnapShopDalyRecette.findByIntAMOUNT", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.intAMOUNT = :intAMOUNT"),
+        @NamedQuery(name = "TSnapShopDalyRecette.findByDtDAY", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TSnapShopDalyRecette.findByDtCREATED", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapShopDalyRecette.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSnapShopDalyRecette.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSnapShopDalyRecette.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalyRecette t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION") })
 public class TSnapShopDalyRecette implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
     @Column(name = "lg_ID", nullable = false, length = 50)
     private String lgID;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_AMOUNT", precision = 15, scale = 3)
     private Double intAMOUNT;
     @Column(name = "dt_DAY")
@@ -158,5 +158,5 @@ public class TSnapShopDalyRecette implements Serializable {
     public String toString() {
         return "dal.TSnapShopDalyRecette[ lgID=" + lgID + " ]";
     }
-    
+
 }

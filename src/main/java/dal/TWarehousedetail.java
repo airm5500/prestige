@@ -28,14 +28,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_warehousedetail")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TWarehousedetail.findAll", query = "SELECT t FROM TWarehousedetail t"),
-    @NamedQuery(name = "TWarehousedetail.findByLgWAREHOUSEDETAILID", query = "SELECT t FROM TWarehousedetail t WHERE t.lgWAREHOUSEDETAILID = :lgWAREHOUSEDETAILID"),
-    @NamedQuery(name = "TWarehousedetail.findByDtCREATED", query = "SELECT t FROM TWarehousedetail t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TWarehousedetail.findByDtUPDATED", query = "SELECT t FROM TWarehousedetail t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TWarehousedetail.findByStrREFLIVRAISON", query = "SELECT t FROM TWarehousedetail t WHERE t.strREFLIVRAISON = :strREFLIVRAISON"),
-    @NamedQuery(name = "TWarehousedetail.findByDtPEREMPTION", query = "SELECT t FROM TWarehousedetail t WHERE t.dtPEREMPTION = :dtPEREMPTION"),
-    @NamedQuery(name = "TWarehousedetail.findByStrSTATUT", query = "SELECT t FROM TWarehousedetail t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TWarehousedetail.findAll", query = "SELECT t FROM TWarehousedetail t"),
+        @NamedQuery(name = "TWarehousedetail.findByLgWAREHOUSEDETAILID", query = "SELECT t FROM TWarehousedetail t WHERE t.lgWAREHOUSEDETAILID = :lgWAREHOUSEDETAILID"),
+        @NamedQuery(name = "TWarehousedetail.findByDtCREATED", query = "SELECT t FROM TWarehousedetail t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TWarehousedetail.findByDtUPDATED", query = "SELECT t FROM TWarehousedetail t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TWarehousedetail.findByStrREFLIVRAISON", query = "SELECT t FROM TWarehousedetail t WHERE t.strREFLIVRAISON = :strREFLIVRAISON"),
+        @NamedQuery(name = "TWarehousedetail.findByDtPEREMPTION", query = "SELECT t FROM TWarehousedetail t WHERE t.dtPEREMPTION = :dtPEREMPTION"),
+        @NamedQuery(name = "TWarehousedetail.findByStrSTATUT", query = "SELECT t FROM TWarehousedetail t WHERE t.strSTATUT = :strSTATUT") })
 public class TWarehousedetail implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -147,7 +146,8 @@ public class TWarehousedetail implements Serializable {
             return false;
         }
         TWarehousedetail other = (TWarehousedetail) object;
-        if ((this.lgWAREHOUSEDETAILID == null && other.lgWAREHOUSEDETAILID != null) || (this.lgWAREHOUSEDETAILID != null && !this.lgWAREHOUSEDETAILID.equals(other.lgWAREHOUSEDETAILID))) {
+        if ((this.lgWAREHOUSEDETAILID == null && other.lgWAREHOUSEDETAILID != null)
+                || (this.lgWAREHOUSEDETAILID != null && !this.lgWAREHOUSEDETAILID.equals(other.lgWAREHOUSEDETAILID))) {
             return false;
         }
         return true;
@@ -157,5 +157,5 @@ public class TWarehousedetail implements Serializable {
     public String toString() {
         return "dal.TWarehousedetail[ lgWAREHOUSEDETAILID=" + lgWAREHOUSEDETAILID + " ]";
     }
-    
+
 }

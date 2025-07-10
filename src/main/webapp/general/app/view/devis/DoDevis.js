@@ -234,7 +234,7 @@ Ext.define('testextjs.view.devis.DoDevis', {
 
                                         },
                                         {
-                                            text: 'Enregistrer le dévis',
+                                            text: 'Enregistrer la proforma',
                                             itemId: 'btnCloture',
                                             iconCls: 'icon-clear-group',
                                             scope: this,

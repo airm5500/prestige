@@ -16,8 +16,13 @@ import java.util.List;
 public class MontantAPaye implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private Integer remise = 0, marge = 0, montantTva = 0;
-    private Integer montantNet = 0, montant = 0, montantTp = 0, montantAccount = 0;
+    private Integer remise = 0;
+    private Integer marge = 0;
+    private Integer montantTva = 0;
+    private Integer montantNet = 0;
+    private Integer montant = 0;
+    private Integer montantTp = 0;
+    private Integer montantAccount = 0;
     private int montantNetUg = 0;
     private int montantTtcUg = 0;
     private int margeUg = 0;
@@ -25,9 +30,35 @@ public class MontantAPaye implements Serializable {
     private boolean restructuring;
     private String message;
     private int montantTvaUg = 0;
+    private int cmuAmount = 0;
+    private List<MontantTp> montantTierspayants = new ArrayList<>();
+    private boolean prixReference;
+    private boolean taux;
+    private int tiersPayantBaseAmount;// montant de reference + montant de produt sans prix de reference
 
     public boolean isRestructuring() {
         return restructuring;
+    }
+
+    public int getTiersPayantBaseAmount() {
+        return tiersPayantBaseAmount;
+    }
+
+    public void setTiersPayantBaseAmount(int tiersPayantBaseAmount) {
+        this.tiersPayantBaseAmount = tiersPayantBaseAmount;
+    }
+
+    public int getCmuAmount() {
+        return cmuAmount;
+    }
+
+    public void setCmuAmount(int cmuAmount) {
+        this.cmuAmount = cmuAmount;
+    }
+
+    public MontantAPaye cmuAmount(int cmuAmount) {
+        this.cmuAmount = cmuAmount;
+        return this;
     }
 
     public void setRestructuring(boolean restructuring) {
@@ -78,8 +109,17 @@ public class MontantAPaye implements Serializable {
         this.message = message;
     }
 
-    public MontantAPaye(Integer montantNet, Integer montant, Integer montantTp,
-            Integer remise, Integer marge, Integer montantTva) {
+    public List<MontantTp> getMontantTierspayants() {
+        return montantTierspayants;
+    }
+
+    public MontantAPaye setMontantTierspayants(List<MontantTp> montantTierspayants) {
+        this.montantTierspayants = montantTierspayants;
+        return this;
+    }
+
+    public MontantAPaye(Integer montantNet, Integer montant, Integer montantTp, Integer remise, Integer marge,
+            Integer montantTva) {
         this.montant = montant;
         this.montantNet = montantNet;
         this.montantTp = montantTp;
@@ -126,7 +166,12 @@ public class MontantAPaye implements Serializable {
 
     @Override
     public String toString() {
-        return "MontantAPaye{" + "remise=" + remise + ", montantNet=" + montantNet + ", montant=" + montant + ", montantTp=" + montantTp + '}';
+        return "MontantAPaye{" + "remise=" + remise + ", marge=" + marge + ", montantTva=" + montantTva
+                + ", montantNet=" + montantNet + ", montant=" + montant + ", montantTp=" + montantTp
+                + ", montantAccount=" + montantAccount + ", montantNetUg=" + montantNetUg + ", montantTtcUg="
+                + montantTtcUg + ", margeUg=" + margeUg + ", tierspayants=" + tierspayants + ", restructuring="
+                + restructuring + ", message=" + message + ", montantTvaUg=" + montantTvaUg + ", cmuAmount=" + cmuAmount
+                + '}';
     }
 
     public int getMontantNetUg() {
@@ -175,9 +220,26 @@ public class MontantAPaye implements Serializable {
     public void setMontantTvaUg(int montantTvaUg) {
         this.montantTvaUg = montantTvaUg;
     }
-    
-       public MontantAPaye montantTvaUg(int montantTvaUg) {
+
+    public MontantAPaye montantTvaUg(int montantTvaUg) {
         this.montantTvaUg = montantTvaUg;
         return this;
     }
+
+    public boolean isPrixReference() {
+        return prixReference;
+    }
+
+    public void setPrixReference(boolean prixReference) {
+        this.prixReference = prixReference;
+    }
+
+    public boolean isTaux() {
+        return taux;
+    }
+
+    public void setTaux(boolean taux) {
+        this.taux = taux;
+    }
+
 }

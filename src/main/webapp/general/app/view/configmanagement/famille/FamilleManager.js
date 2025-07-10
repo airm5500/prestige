@@ -35,29 +35,26 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         'testextjs.view.configmanagement.famille.action.comptabilite',
         'testextjs.view.configmanagement.famille.action.autreinfos',
         'Ext.ux.ProgressBarPager',
-        'testextjs.view.stockmanagement.suivistockvente.action.detailStock'
+        'testextjs.view.stockmanagement.suivistockvente.action.detailStock',
+        'testextjs.view.produits.PrixReference'
 
     ],
     title: 'Gestion des Articles',
     plain: true,
     maximizable: true,
-//    tools: [{type: "pin"}],
     closable: false,
     frame: true,
     initComponent: function () {
-
         Me_Workflow = this;
         lg_EMPLACEMENT_ID = loadEmplacement();
-
-
-        var itemsPerPage = 20;
-        var store = new Ext.data.Store({
+        let itemsPerPage = 20;
+        const store = new Ext.data.Store({
             model: 'testextjs.model.Famille',
             pageSize: itemsPerPage,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_famille_famille,
+                url: '../api/v1/produit-search/fiche',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -68,7 +65,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
         });
 
-        var store_dci = new Ext.data.Store({
+        const store_dci = new Ext.data.Store({
             model: 'testextjs.model.Dci',
             pageSize: itemsPerPage,
             autoLoad: false,
@@ -85,7 +82,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         });
 
 
-        var store_type = new Ext.data.Store({
+        const store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
             data: [{str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}, {str_TYPE_TRANSACTION: 'DECONDITION', str_desc: 'Les articles deconditionnables'}, {str_TYPE_TRANSACTION: 'DECONDITIONNE', str_desc: 'Les articles deconditionnes'}, {str_TYPE_TRANSACTION: 'SANSEMPLACEMENT', str_desc: 'Les articles sans emplacement'}]
         });
@@ -111,29 +108,24 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 {
 
                     header: 'Etat.cmde',
-                    dataIndex: 'STATUS',
+                    dataIndex: 'produitState',
                     renderer: function (v, m, r) {
-                        var STATUS = r.data.STATUS;
-                        switch (STATUS) {
-                            case 1:
-                                m.style = 'background-color:#73C774;';
-                                break;
-                            case 2:
-                                m.style = 'background-color:#5fa2dd;';
-                                break;
-                            case 3:
-                                m.style = 'background-color:#f98012;';
-                                break;
-                            case 4:
-                                m.style = 'background-color:#a62a3e;';
-                                break;
-                            default:
-                                m.style = 'background-color:#d4d4d4;';
-                                break;
+                        const produitState = r.data.produitState;
+                        const enSuggestion = produitState?.enSuggestion;
+                        const enCommande = produitState?.enCommande;
+                        const entree = produitState?.entree;
+                        if (enSuggestion && enSuggestion > 0) {
+                            m.style = 'background-color:#73C774;';
+                            return 1;
+                        } else if (enCommande && enCommande > 0) {
+                            m.style = 'background-color:#5fa2dd;';
+                            return 2;
+                        } else if (entree && entree > 0) {
+                            m.style = 'background-color:#ffc107;';
+                            return 3;
                         }
+                        return null;
 
-
-                        return v;
                     },
                     width: 35
                 },
@@ -141,14 +133,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 {
                     header: 'CIP',
                     dataIndex: 'int_CIP',
-                    flex: 0.7,
+                    flex: 0.6,
                     renderer: function (v, m, r) {
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return v;
@@ -157,15 +149,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 {
                     header: 'Designation',
                     dataIndex: 'str_DESCRIPTION',
-                    flex: 2.5,
+                    flex: 2,
                     renderer: function (v, m, r) {
 
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return v;
@@ -178,17 +170,35 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 0.5,
                     renderer: function (v, m, r) {
 
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return amountformat(v);
                     }
                 },
+                {
+                    header: 'P.CMU',
+                    dataIndex: 'cmu_price',
+                    align: 'right',
+                    flex: 0.5,
+                    renderer: function (v, m, r) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
+                            m.style = 'background-color:#B0F2B6;font-weight:800;';
+                        } else if (stock > 0) {
+                            m.style = 'font-weight:800;';
+                        } else if (stock < 0) {
+                            m.style = 'background-color:#F5BCA9;font-weight:800;';
+                        }
+                        return amountformat(v);
+                    }
+                },
+
                 {
                     header: 'P.A F',
                     dataIndex: 'int_PAF',
@@ -196,12 +206,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 0.5,
                     renderer: function (v, m, r) {
 
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return amountformat(v);
@@ -214,12 +224,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     flex: 0.5,
                     renderer: function (v, m, r) {
 
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return v;
@@ -232,12 +242,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ,
                     renderer: function (v, m, r) {
 
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return v;
@@ -250,12 +260,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ,
                     renderer: function (v, m, r) {
 
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return v;
@@ -268,12 +278,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     ,
                     renderer: function (v, m, r) {
 
-                        var Stock = r.data.int_NUMBER_AVAILABLE;
-                        if (Stock == 0) {
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
                             m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (Stock > 0) {
+                        } else if (stock > 0) {
                             m.style = 'font-weight:800;';
-                        } else if (Stock < 0) {
+                        } else if (stock < 0) {
                             m.style = 'background-color:#F5BCA9;font-weight:800;';
                         }
                         return v;
@@ -286,7 +296,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     xtype: 'checkcolumn',
                     listeners: {
                         checkChange: function (column, rowIndex, checked, eOpts) {
-                            var record = store.getAt(rowIndex);
+                            const record = store.getAt(rowIndex);
                             Ext.Ajax.request({
                                 url: '../webservices/sm_user/famille/ws_updateperemptiondate.jsp',
                                 params: {
@@ -295,7 +305,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 },
                                 success: function (response)
                                 {
-                                    var object = Ext.JSON.decode(response.responseText, false);
+                                    const object = Ext.JSON.decode(response.responseText, false);
                                     if (object.success === 1) {
                                         record.commit();
                                     }
@@ -304,7 +314,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 failure: function (response)
                                 {
 
-                                    var object = Ext.JSON.decode(response.responseText, false);
 
                                     Ext.MessageBox.alert('Error Message', response.responseText);
 
@@ -321,7 +330,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     xtype: 'checkcolumn',
                     listeners: {
                         checkChange: function (column, rowIndex, checked, eOpts) {
-                            var record = store.getAt(rowIndex);
+                            const record = store.getAt(rowIndex);
                             Ext.Ajax.request({
                                 url: '../api/v1/commande/update/scheduled',
                                 method: 'POST',
@@ -332,7 +341,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 }),
                                 success: function (response)
                                 {
-                                    var result = Ext.JSON.decode(response.responseText, true);
+                                    const result = Ext.JSON.decode(response.responseText, true);
                                     if (result.success) {
                                         record.commit();
                                     }
@@ -341,7 +350,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 failure: function (response)
                                 {
 
-                                    var object = Ext.JSON.decode(response.responseText, false);
+                                    const object = Ext.JSON.decode(response.responseText, false);
 
                                     Ext.MessageBox.alert('Error Message', response.responseText);
 
@@ -350,7 +359,21 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                     }
                 },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/duplicate_3671686.png',
+                            tooltip: 'Gérer les prix de référence',
+                            scope: this,
+                            handler: function (grid, rowIndex, colIndex) {
+                                new testextjs.view.produits.PrixReference({produit: grid.getStore().getAt(rowIndex)});
+                            }
 
+                        }]
+                },
                 {
                     xtype: 'actioncolumn',
                     width: 30,
@@ -518,7 +541,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             scope: this,
                             handler:
                                     function (grid, rowIndex) {
-                                        var rec = grid.getStore().getAt(rowIndex);
+                                        const rec = grid.getStore().getAt(rowIndex);
                                         Me_Workflow.showPeriodeForm(rec.get('lg_FAMILLE_ID'), rec.get('str_NAME'));
 
                                     }
@@ -568,6 +591,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     displayField: 'str_NAME',
                     typeAhead: true,
 //                    editable: false,
+                    width: 350,
+                    minChars: 2,
                     queryMode: 'remote',
 //                    flex: 2,
                     emptyText: 'Selectionner un DCI...',
@@ -613,20 +638,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     scope: this,
                     handler: this.onbtnimport
                 }, '-',
+
                 {
-                    text: 'Exporter CSV',
-                    tooltip: 'EXPORTER CSV',
-                    iconCls: 'export_csv_icon',
-                    scope: this,
-                    handler: this.onbtnexportCsv
-                }, '-',
-                {
-                    text: 'Exporter EXCEL',
-                    tooltip: 'EXPORTER EXCEL',
-                    iconCls: 'export_excel_icon',
-                    scope: this,
-                    handler: this.onbtnexportExcel
-                }, '-', {
                     text: 'Verifier l\'importation',
                     tooltip: 'Verifier l\'importation',
                     id: 'btn_checkimport',
@@ -637,15 +650,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
                 {
                     text: 'Importer des articles',
-                    tooltip: 'Importer Stock',
+                    tooltip: 'Importer stock',
                     iconCls: 'importicon',
                     scope: this,
                     hidden: (lg_EMPLACEMENT_ID === '1'),
                     handler: function () {
 
-                        var win = new Ext.window.Window({
+                        const win = new Ext.window.Window({
                             autoShow: false,
-                            title: 'Importer Stock dépôt',
+                            title: 'Importer stock dépôt',
                             width: 500,
                             height: 150,
                             layout: 'fit',
@@ -702,16 +715,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 plugins: new Ext.ux.ProgressBarPager(),
                 listeners: {
                     beforechange: function (page, currentPage) {
-                        var myProxy = this.store.getProxy();
+                        const myProxy = this.store.getProxy();
                         myProxy.params = {
                             search_value: '',
                             str_TYPE_TRANSACTION: '',
                             lg_DCI_ID: ''
                         };
 
-                        var lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
-                        var str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
-                        var search_value = Ext.getCmp('rechecher').getValue();
+                        const lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
+                        const str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
+                        const search_value = Ext.getCmp('rechecher').getValue();
 
                         myProxy.setExtraParam('str_TYPE_TRANSACTION', str_TYPE_TRANSACTION);
                         myProxy.setExtraParam('lg_DCI_ID', lg_DCI_PRINCIPAL_ID);
@@ -723,7 +736,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             listeners: {
                 afterrender: function () { // a decommenter apres les tests
                     Ext.getCmp('rechecher').focus();
-//                    alert(lg_EMPLACEMENT_ID);
                     if (lg_EMPLACEMENT_ID == "1") {
                         Ext.getCmp('btn_add').show();
                         Ext.getCmp('btn_import').show();
@@ -749,14 +761,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     onStoreLoad: function () {
 
     },
-    onWizardClick: function () {
-        new testextjs.view.configmanagement.famille.action.WizardForm({
-            odatasource: "",
-            parentview: this,
-            mode: "create",
-            titre: "Ajouter Article"
-        });
-    },
+
     onAddClick: function () {
         new testextjs.view.configmanagement.famille.action.add({
             odatasource: "",
@@ -817,23 +822,19 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         window.location = '../MigrationServlet?table_name=TABLE_FAMILLE' + "&extension=" + extension + "&liste_param=" + liste_param;
     },
     onPdfClick: function () {
-        var lg_DCI_PRINCIPAL_ID = "", str_TYPE_TRANSACTION = "";
+        let lg_DCI_PRINCIPAL_ID = "", str_TYPE_TRANSACTION = "";
         if (Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() != null) {
             lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
         }
         if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() != null) {
             str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
         }
-        var linkUrl = url_services_article_generate_pdf + '?str_TYPE_TRANSACTION=' + str_TYPE_TRANSACTION + '&lg_DCI_ID=' + lg_DCI_PRINCIPAL_ID + '&search_value=' + Ext.getCmp('rechecher').getValue();
+        const linkUrl = url_services_article_generate_pdf + '?str_TYPE_TRANSACTION=' + str_TYPE_TRANSACTION + '&lg_DCI_ID=' + lg_DCI_PRINCIPAL_ID + '&search_value=' + Ext.getCmp('rechecher').getValue();
 
 
         window.open(linkUrl);
     },
-    onListArticleDeconditionClick: function () {
-        var OGrid = Ext.getCmp('GridArticleID');
-        OGrid.getStore().getProxy().url = url_services_data_famille_famille + "?action=DECONDITION";
-        OGrid.getStore().reload();
-    },
+
     onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message',
                 'Confirmer la suppresssion',
@@ -867,37 +868,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
                         });
 
-
-
-//                        Ext.Ajax.request({
-//                            url: url_services_transaction_famille + 'delete',
-//                            params: {
-//                                lg_FAMILLE_ID: rec.get('lg_FAMILLE_ID')
-//                            },
-//                            success: function (response)
-//                            {
-//                                var object = Ext.JSON.decode(response.responseText, false);
-//                                if (object.success == "0") {
-//                                    Ext.MessageBox.alert('Erreur Message', object.errors);
-//                                    return;
-//                                } else {
-//                                    Ext.MessageBox.alert('Confirmation', object.errors);
-//                                    grid.getStore().reload();
-//                                }
-//
-//                            },
-//                            failure: function (response)
-//                            {
-//
-//                                var object = Ext.JSON.decode(response.responseText, false);
-//                                //  alert(object);
-//
-//                                console.log("Bug " + response.responseText);
-//                                Ext.MessageBox.alert('Error Message', response.responseText);
-//
-//                            }
-//                        });
-//                        return;
                     }
                 });
 
@@ -938,47 +908,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
                         });
 
-//                        Ext.Ajax.request({
-//                            url: url_services_transaction_famille + 'disable',
-//                            params: {
-//                                lg_FAMILLE_ID: rec.get('lg_FAMILLE_ID')
-//                            },
-//                            success: function (response)
-//                            {
-//                                var object = Ext.JSON.decode(response.responseText, false);
-//                                if (object.success === 0) {
-//                                    Ext.MessageBox.alert('Desactivation ' + '[' + rec.get('str_NAME') + ']', 'Impossible de desactiver cette ligne');
-//                                    return;
-//                                } else {
-//                                    Ext.MessageBox.alert('Desactivation ' + '[' + rec.get('str_NAME') + ']', 'Desactivation effectuee avec succes');
-////                                    
-//                                }
-//                                grid.getStore().reload();
-//                            },
-//                            failure: function (response)
-//                            {
-//
-//                                var object = Ext.JSON.decode(response.responseText, false);
-//                                //  alert(object);
-//
-//                                console.log("Bug " + response.responseText);
-//                                Ext.MessageBox.alert('Error Message', response.responseText);
-//
-//                            }
-//                        });
-//                        return;
+
                     }
                 });
 
 
     },
-    onChooseProductClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-//        alert("oki depuis famillemanager");
 
-    },
     onEditClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
 
         if (rec.get('lg_EMPLACEMENT_ID') == "1") {
             new testextjs.view.configmanagement.famille.action.add({
@@ -989,7 +927,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 titre: "Modification Article [" + rec.get('str_DESCRIPTION') + "]"
             });
         } else {
-//            alert(rec.get('lg_EMPLACEMENT_ID'));
+
             new testextjs.view.configmanagement.famille.action.updatezonegeo({
                 odatasource: rec.data,
                 parentview: this,
@@ -1001,16 +939,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     },
     onDetailClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
         new testextjs.view.configmanagement.famille.action.detailArticle({
             odatasource: rec.data,
+            produitId: rec.get('lg_FAMILLE_ID'),
             parentview: this,
             mode: "update",
             titre: "Detail sur l'article [" + rec.get('str_DESCRIPTION') + "]"
         });
     },
     onCreateDeconditionClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
 
         if (rec.get('bool_DECONDITIONNE') == "1") {
             Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionne');
@@ -1029,7 +968,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         }
 
     }, onDeconditionClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
 
         if (rec.get('bool_DECONDITIONNE') == "1") {
             Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionne. Il ne peut pas etre deconditionne');
@@ -1054,7 +993,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     },
     onRechClick: function () {
-        var val = Ext.getCmp('rechecher');
+        const val = Ext.getCmp('rechecher');
 
         Ext.getCmp('GridArticleID').getStore().load({
             params: {
@@ -1063,14 +1002,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 lg_DCI_ID: Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue()
 
             }
-        }, url_services_data_famille_famille);
+        });
         Ext.getCmp('rechecher').focus(true, 100, function () {
 //            Ext.getCmp('rechecher').selectText(0, 1);
         });
     },
     onAddGrossisteClick: function (grid, rowIndex) {
 
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
 
         new testextjs.view.configmanagement.famille.action.addgrossiste({
             obtntext: "Grossiste",
@@ -1092,40 +1031,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             titre: "Valeur maximale de vente des produits"
         });
     },
-    onCheckBoxClick: function ()
-    {
-        var internal_url = "";
-        bool_check = Ext.getCmp('checkRemiseId').getValue();
-        //Ext.MessageBox.alert("checkRemiseId",bool_check);
-        internal_url = url_services_transaction_app_remise + 'update&bool_check=' + bool_check;
 
-        Ext.Ajax.request({
-            url: internal_url,
-            params: {
-                //int_NUMBER_AVAILABLE: Ext.getCmp('int_NUMBER_AVAILABLE').getValue()          
-
-            },
-            success: function (response)
-            {
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success === 0) {
-                    //Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
-                } else {
-                    //Ext.MessageBox.alert('Confirmation', object.errors);
-                }
-
-            },
-            failure: function (response)
-            {
-
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
-
-            }
-        });
-    },
     showPeriodeForm: function (id, str_NAME) {
         var win = Ext.create("Ext.window.Window", {
             title: "Choisir une periode",
@@ -1214,24 +1120,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             text: 'Valider',
                             listeners: {
                                 click: function () {
-                                    var form = Ext.getCmp('periodeform');
+                                    const form = Ext.getCmp('periodeform');
 
                                     if (form && form.isValid()) {
 
-                                        var dt_debut = Ext.getCmp('dt_debut').getSubmitValue();
-                                        var dt_fin = Ext.getCmp('dt_fin').getSubmitValue();
-                                     /*   new testextjs.view.stockmanagement.suivistockvente.action.detailStock({
-                                            odatasource: id,
-                                            parentview: this,
-                                            mode: "update",
-                                            datedebut: dt_debut,
-                                            datedin: dt_fin,
-                                            titre: str_NAME
-                                        });
-                                        */
-                                        Me_Workflow.buildDetail(id,dt_debut,dt_fin,str_NAME);
-                                        
-                                        
+                                        let dt_debut = Ext.getCmp('dt_debut').getSubmitValue();
+                                        let dt_fin = Ext.getCmp('dt_fin').getSubmitValue();
+
+                                        Me_Workflow.buildDetail(id, dt_debut, dt_fin, str_NAME);
+
+
                                         win.close();
                                     }
                                 }
@@ -1257,8 +1155,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     },
     onbtnImporter: function (button) {
-        var fenetre = button.up('window'),
-                formulaire = fenetre.down('form');
+        const fenetre = button.up('window');
+        const     formulaire = fenetre.down('form');
         if (!formulaire.isValid()) {
             return;
         }
@@ -1269,15 +1167,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             success: function (formulaire, action) {
 
                 if (action.result.statut === 1) {
-                    var grid = Ext.getCmp('GridArticleID');
+                    const grid = Ext.getCmp('GridArticleID');
                     Ext.MessageBox.alert('Confirmation', action.result.success);
                     grid.getStore().reload();
                 } else {
                     Ext.MessageBox.alert('Erreur', action.result.success);
                 }
 
-                var bouton = button.up('window');
-                bouton.close();
+
+                button.up('window').close();
             },
             failure: function (formulaire, action) {
                 Ext.MessageBox.alert('Erreur', 'Erreur  ' + action.result.errors);
@@ -1287,9 +1185,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
 
     addPeremptiondate: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
+        const rec = grid.getStore().getAt(rowIndex);
 
-        var win = Ext.create("Ext.window.Window", {
+        const win = Ext.create("Ext.window.Window", {
             title: "[ " + rec.get('str_NAME') + " ]",
             modal: true,
             width: 400,
@@ -1362,16 +1260,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                                         }
                                                     });
 
-
+                                                    //focus sur le champ cip
+                                                    Ext.getCmp('rechecher').focus(true, 100, function () { });
                                                 }
 
 
                                             }
-                                        }/*,
-                                         afterrender: function (field) {
-                                         console.log('fffffff  ', field);
-                                         field.focus();
-                                         }*/
+                                        }
                                     }
                                 }
 
@@ -1454,7 +1349,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         });
 
     },
-     buildDetail: function (id,dtStart,dtEnd,libelle) {
+    buildDetail: function (id, dtStart, dtEnd, libelle) {
         var me = this;
         var storeProduits = new Ext.data.Store({
             fields:
@@ -1516,7 +1411,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             name: 'qtyEntree',
                             type: 'number'
                         },
-                         {
+                        {
                             name: 'ecartInventaire',
                             type: 'number'
                         }
@@ -1553,7 +1448,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             params: {
                 produitId: id,
                 dtStart: dtStart,
-                dtEnd:dtEnd
+                dtEnd: dtEnd
             }
         });
         var form = Ext.create('Ext.window.Window',
@@ -1561,14 +1456,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     xtype: 'mvtdetail',
                     alias: 'widget.mvtdetail',
                     autoShow: true,
-                    height: 570,
+                    height: 530,
                     width: '80%',
                     modal: true,
                     title: "Détail de l'article [ " + libelle + " ]",
                     closeAction: 'hide',
 
                     closable: true,
-                    maximizable: true,
+                    maximizable: false,
                     layout: {
                         type: 'fit'
 
@@ -1585,7 +1480,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                     tooltip: 'imprimer',
                                     scope: this,
                                     handler: function () {
-                                       
+
                                         var linkUrl = '../BalancePdfServlet?mode=SUIVIMVT&dtStart=' + dtStart + '&dtEnd=' + dtEnd + "&produitId=" + id;
                                         window.open(linkUrl);
                                     }
@@ -1612,8 +1507,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Ret.Four',
-                                    labelWidth: 70,
+                                    fieldLabel: 'Retour Fournisseur',
+                                    labelWidth: 120,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
                                     },
@@ -1636,8 +1531,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Entrée',
-                                    labelWidth: 60,
+                                    fieldLabel: 'Entrée en stock',
+                                    labelWidth: 100,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
                                     },
@@ -1649,7 +1544,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Ajust.Entrant',
+                                    fieldLabel: 'Ajust (+)',
                                     labelWidth: 80,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
@@ -1662,7 +1557,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Ajust.Sortant',
+                                    fieldLabel: 'Ajust (-)',
                                     labelWidth: 80,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
@@ -1682,8 +1577,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Décon.Entrant',
-                                    labelWidth: 85,
+                                    fieldLabel: 'Décond. Detail',
+                                    labelWidth: 100,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
                                     },
@@ -1694,8 +1589,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Décon.Sortie',
-                                    labelWidth: 80,
+                                    fieldLabel: 'Décond Boite CH',
+                                    labelWidth: 120,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
                                     },
@@ -1706,8 +1601,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Ret.Dépôt',
-                                    labelWidth: 80,
+                                    fieldLabel: 'Retour Dépôt',
+                                    labelWidth: 100,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
                                     },
@@ -1717,8 +1612,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 {
                                     xtype: 'displayfield',
                                     flex: 1,
-                                    fieldLabel: 'Inv',
-                                    labelWidth: 40,
+                                    fieldLabel: 'Inventaire',
+                                    labelWidth: 100,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
                                     },
@@ -1730,7 +1625,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                     xtype: 'displayfield',
                                     flex: 1,
                                     fieldLabel: 'Annulation',
-                                    labelWidth: 80,
+                                    labelWidth: 100,
                                     renderer: function (v) {
                                         return Ext.util.Format.number(v, '0,000.');
                                     },
@@ -1758,12 +1653,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                     sortable: false,
                                     menuDisabled: true,
                                     dataIndex: 'dateOp',
-                                    flex: 1
+                                    width: 90
                                 }, {
-                                    text: 'Qté.Init',
+                                    text: 'Stock Debut',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'stockInit',
-                                    flex: 0.7,
+                                    width: 95,
                                     align: 'right',
                                     format: '0,000.'
                                 },
@@ -1775,39 +1670,39 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                                     text: 'Vente',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyVente',
-                                                    flex: 0.7,
+                                                    width: 55,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Ret.four',
+                                                    text: 'Retour',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyRetour',
-                                                    flex: 0.7,
+                                                    width: 60,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Qté.périmé',
+                                                    text: 'Périmé',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyPerime',
-                                                    flex: 0.7,
+                                                    width: 60,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Qté.Ajustée',
+                                                    text: 'Ajust(-)',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjustSortie',
-                                                    flex: 0.7,
+                                                    width: 60,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Qté.Décon',
+                                                    text: 'Décon(-)',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyDecondSortant',
-                                                    flex: 0.7,
+                                                    width: 70,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 }
@@ -1818,42 +1713,42 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                     columns:
                                             [
                                                 {
-                                                    text: 'Qté.Entrée',
+                                                    text: 'Entrée',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyEntree',
-                                                    flex: 0.7,
+                                                    width: 60,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Qté.Ajustée',
+                                                    text: 'Ajust(+)',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjust',
-                                                    flex: 0.7,
+                                                    width: 60,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Qté.Décon',
+                                                    text: 'Décon(+)',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyDeconEntrant',
-                                                    flex: 0.7,
+                                                    width: 70,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Qté.Annulée',
+                                                    text: 'Annulation',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAnnulation',
-                                                    flex: 0.7,
+                                                    width: 80,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 },
                                                 {
-                                                    text: 'Qté.Ret.Depôt',
+                                                    text: 'Retour Depot',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyRetourDepot',
-                                                    flex: 0.7,
+                                                    width: 100,
                                                     align: 'right',
                                                     format: '0,000.'
                                                 }
@@ -1861,26 +1756,26 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 }
                                 ,
                                 {
-                                    text: 'Qté.Inv',
+                                    text: 'INV',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'qtyInv',
-                                    flex: 0.7,
+                                    width: 50,
                                     align: 'right',
                                     format: '0,000.'
                                 },
                                 {
-                                    text: 'Ecart.Inv',
+                                    text: 'Ecart INV',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'ecartInventaire',
-                                    flex: 0.7,
+                                    width: 80,
                                     align: 'right',
                                     format: '0,000.'
                                 },
                                 {
-                                    text: 'Stock',
+                                    text: 'Stock Final',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'stockFinal',
-                                    flex: 0.7,
+                                    width: 90,
                                     align: 'right',
                                     format: '0,000.'
                                 }
@@ -1893,7 +1788,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 dock: 'bottom',
                                 displayInfo: true,
                                 beforechange: function (page, currentPage) {
-                                    var myProxy = storeProduits.getProxy();
+                                    const myProxy = storeProduits.getProxy();
                                     myProxy.params = {
                                         produitId: null,
                                         dtStart: null,
@@ -1910,7 +1805,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 });
 
     }
-    
+
 
 });
 

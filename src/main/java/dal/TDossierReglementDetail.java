@@ -29,13 +29,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_dossier_reglement_detail")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TDossierReglementDetail.findAll", query = "SELECT t FROM TDossierReglementDetail t"),
-    @NamedQuery(name = "TDossierReglementDetail.findByLgDOSSIERREGLEMENTDETAILID", query = "SELECT t FROM TDossierReglementDetail t WHERE t.lgDOSSIERREGLEMENTDETAILID = :lgDOSSIERREGLEMENTDETAILID"),
-    @NamedQuery(name = "TDossierReglementDetail.findByStrREF", query = "SELECT t FROM TDossierReglementDetail t WHERE t.strREF = :strREF"),
-    @NamedQuery(name = "TDossierReglementDetail.findByDblAMOUNT", query = "SELECT t FROM TDossierReglementDetail t WHERE t.dblAMOUNT = :dblAMOUNT"),
-    @NamedQuery(name = "TDossierReglementDetail.findByStrSTATUT", query = "SELECT t FROM TDossierReglementDetail t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TDossierReglementDetail.findByDtUPDATED", query = "SELECT t FROM TDossierReglementDetail t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TDossierReglementDetail.findByDtCREATED", query = "SELECT t FROM TDossierReglementDetail t WHERE t.dtCREATED = :dtCREATED")})
+        @NamedQuery(name = "TDossierReglementDetail.findAll", query = "SELECT t FROM TDossierReglementDetail t"),
+        @NamedQuery(name = "TDossierReglementDetail.findByLgDOSSIERREGLEMENTDETAILID", query = "SELECT t FROM TDossierReglementDetail t WHERE t.lgDOSSIERREGLEMENTDETAILID = :lgDOSSIERREGLEMENTDETAILID"),
+        @NamedQuery(name = "TDossierReglementDetail.findByStrREF", query = "SELECT t FROM TDossierReglementDetail t WHERE t.strREF = :strREF"),
+        @NamedQuery(name = "TDossierReglementDetail.findByDblAMOUNT", query = "SELECT t FROM TDossierReglementDetail t WHERE t.dblAMOUNT = :dblAMOUNT"),
+        @NamedQuery(name = "TDossierReglementDetail.findByStrSTATUT", query = "SELECT t FROM TDossierReglementDetail t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TDossierReglementDetail.findByDtUPDATED", query = "SELECT t FROM TDossierReglementDetail t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TDossierReglementDetail.findByDtCREATED", query = "SELECT t FROM TDossierReglementDetail t WHERE t.dtCREATED = :dtCREATED") })
 public class TDossierReglementDetail implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -44,7 +44,8 @@ public class TDossierReglementDetail implements Serializable {
     private String lgDOSSIERREGLEMENTDETAILID;
     @Column(name = "str_REF", length = 40)
     private String strREF;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_AMOUNT", precision = 15, scale = 3)
     private Double dblAMOUNT;
     @Column(name = "str_STATUT", length = 40)
@@ -147,7 +148,9 @@ public class TDossierReglementDetail implements Serializable {
             return false;
         }
         TDossierReglementDetail other = (TDossierReglementDetail) object;
-        if ((this.lgDOSSIERREGLEMENTDETAILID == null && other.lgDOSSIERREGLEMENTDETAILID != null) || (this.lgDOSSIERREGLEMENTDETAILID != null && !this.lgDOSSIERREGLEMENTDETAILID.equals(other.lgDOSSIERREGLEMENTDETAILID))) {
+        if ((this.lgDOSSIERREGLEMENTDETAILID == null && other.lgDOSSIERREGLEMENTDETAILID != null)
+                || (this.lgDOSSIERREGLEMENTDETAILID != null
+                        && !this.lgDOSSIERREGLEMENTDETAILID.equals(other.lgDOSSIERREGLEMENTDETAILID))) {
             return false;
         }
         return true;
@@ -157,5 +160,5 @@ public class TDossierReglementDetail implements Serializable {
     public String toString() {
         return "dal.TDossierReglementDetail[ lgDOSSIERREGLEMENTDETAILID=" + lgDOSSIERREGLEMENTDETAILID + " ]";
     }
-    
+
 }

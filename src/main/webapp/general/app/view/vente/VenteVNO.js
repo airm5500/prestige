@@ -21,7 +21,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         align: 'stretch'
     },
     initComponent: function () {
-        var store_typereglement = new Ext.data.Store({
+        let store_typereglement = new Ext.data.Store({
             model: 'testextjs.model.caisse.Reglement',
             pageSize: null,
             autoLoad: false,
@@ -35,7 +35,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                 }
             }
         });
-        var produit = new Ext.data.Store({
+        let produit = new Ext.data.Store({
             model: 'testextjs.model.caisse.Produit',
             pageSize: 10,
             autoLoad: false,
@@ -49,7 +49,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                 }
             }
         });
-        var typeremise = new Ext.data.Store({
+        let typeremise = new Ext.data.Store({
             model: 'testextjs.model.caisse.TypeRemise',
             pageSize: null,
             autoLoad: false,
@@ -63,18 +63,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                 }
             }
         });
-//        var remise = new Ext.data.Store({
-//            model: 'testextjs.model.caisse.Remise',
-//            pageSize: null,
-//            autoLoad: false,//remises-client
-//            proxy: {
-//                type: 'memory',
-//                reader: {
-//                    model: 'testextjs.model.caisse.Remise',
-//                    type: 'json'
-//                }
-//            }
-//        });
         var remise = new Ext.data.Store({
             model: 'testextjs.model.caisse.Remise',
             pageSize: null,
@@ -107,7 +95,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                 }
             }
         });
-        var me = this;
+        const me = this;
         Ext.applyIf(me, {
 
             dockedItems: [
@@ -125,7 +113,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                             text: 'AFFICHER NET A PAYER',
                             itemId: 'netBtn',
                             iconCls: 'afficheur_caisse',
-//                            disabled: true,
                             scope: this
 
 
@@ -150,15 +137,11 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                         },
 
                         {
-                            text: 'Retour',
+                            text: 'RETOUR',
                             itemId: 'btnGoBack',
                             iconCls: 'icon-clear-group',
                             scope: this
-
-
                         }
-
-
                     ]
                 }
 
@@ -208,7 +191,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     style: 'background-color:#F0F8FF !important;',
                                     title: '<span style="color:blue;">INFOS ASSURE</span>',
                                     itemId: 'assureCmp',
-//                                    hidden: true,
                                     margin: '0 5 0 0',
                                     flex: 1.2,
                                     layout: {
@@ -339,7 +321,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                             xtype: 'fieldset',
                             title: '<span style="color:blue;">INFOS TIERS PAYANTS</span>',
                             itemId: 'tpContainer',
-//                            hidden: true,
                             layout: {type: 'fit'},
                             bodyStyle: 'background:#F0F8FF !important;',
                             flex: 1,
@@ -365,8 +346,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                     collapsible: false,
                     defaultType: 'textfield',
                     layout: 'anchor',
-//                    bodyPadding: 5,
-//                    height: 70,
                     cls: 'background_gray',
                     defaults: {
                         anchor: '100%'
@@ -375,7 +354,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                         {
                             xtype: 'fieldcontainer',
                             layout: 'hbox',
-//                            bodyPadding: 5,
                             height: 40,
                             defaultType: 'textfield',
                             fieldLabel: 'PRODUIT',
@@ -395,12 +373,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     typeAhead: false,
                                     typeAheadDelay: 0,
                                     forceSelection: true,
-//                                    enableKeyEvents: true,
                                     minChars: 3,
                                     queryCaching: false,
-//                                    selectOnFocus: true,
                                     emptyText: 'Choisir un article par Nom ou Cip...',
-//                                    triggerAction: 'all',
                                     listConfig: {
                                         loadingText: 'Recherche...',
                                         emptyText: 'Pas de données trouvées.',
@@ -447,7 +422,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                             height: 30,
                             defaultType: 'textfield',
                             margin: '0 0 10 0',
-
                             items: [
                                 {
                                     xtype: 'displayfield',
@@ -571,7 +545,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     flex: 1,
                                     editor: {
                                         xtype: 'numberfield',
-//                                         completeOnEnter: false,
                                         allowBlank: true,
                                         minValue: 1,
                                         maskRe: /[0-9.]/,
@@ -591,7 +564,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     editor: {
                                         xtype: 'numberfield',
                                         allowBlank: true,
-//                                        minValue: 1,
                                         maskRe: /[0-9.]/,
                                         selectOnFocus: true,
                                         hideTrigger: true
@@ -599,11 +571,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     renderer: function (value, metadata, record) {
 
                                         if (record.get('BISAVOIR') === true) {
-//                                            metadata.tdStyle = " font-size:0.9em; color: red;font-weight: bold;bgcolor='ffc6c6'";
                                             metadata.style = "color: red;font-weight: bold;";
-//                                            metadata.tdAttr = 'bgcolor="ffc6c6"';
-//                                            metadata.tdCls = myclass;
-//                                            value = '<span style="color: red;font-weight: bold;">' + value + '</span>';
+//                                          
                                         }
                                         return value;
                                     }
@@ -641,11 +610,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     items: [{
                                             icon: 'resources/images/icons/fam/delete.png',
                                             tooltip: 'Supprimer le produit',
-                                            scope: this/*,
-                                             handler: function () {
-                                             me.fireEvent('removeRow', this);
-                                             },*/
-//                                            itemId: 'btnRemoveItem',
+                                            scope: this
                                             , getClass: function (value, metadata, record) {
                                                 if (record.get('bISAVOIR') === true) {
                                                     return 'x-hide-display';
@@ -812,7 +777,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                             border: true,
                             hidden: true,
                             style: 'border-bottom:1px #9999ff solid;padding-bottom:3px;',
-//                            hidden: true,
                             bodyPadding: 2,
                             margin: '5 0 5 0',
                             items: [
@@ -865,6 +829,27 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     minValue: 0,
                                     value: 0,
 //                                    readOnly: true,
+                                    enableKeyEvents: true,
+                                    selectOnFocus: true
+
+                                },
+                                
+                                
+                                
+                                 {
+                                    xtype: 'numberfield',
+                                    hideTrigger: true,
+                                    itemId: 'montantExtra',
+                                    hidden:true,
+                                    fieldLabel: '',
+                                    flex: 1,
+                                    height: 30,
+                                    labelWidth: 120,
+                                    regex: /[0-9.]/,
+                                    margin: '0 30 0 0',
+                                    minValue: 0,
+                                    value: 0,
+                                    readOnly: true,
                                     enableKeyEvents: true,
                                     selectOnFocus: true
 

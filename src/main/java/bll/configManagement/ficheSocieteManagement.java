@@ -31,13 +31,11 @@ public class ficheSocieteManagement extends bllBase {
     public void create(String str_CODE_INTERNE, String str_LIBELLE_ENTREPRISE, String str_TYPE_SOCIETE,
             String str_CODE_REGROUPEMENT, String str_CONTACTS_TELEPHONIQUES, String str_COMPTE_COMPTABLE,
             double dbl_CHIFFRE_AFFAIRE, String str_DOMICIALIATION_BANCAIRE, String str_RIB_SOCIETE,
-            String str_CODE_EXONERATION_TVA, String str_CODE_REMISE, boolean bool_CLIENT_EN_COMPTE,
-            boolean bool_LIVRE, double dbl_REMISE_SUPPLEMENTAIRE, double dbl_MONTANT_PORT,
-            int int_ECHEANCE_PAIEMENT, boolean bool_EDIT_FACTION_FIN_VENTE, String str_CODE_FACTURE,
-            String str_CODE_BON_LIVRAISON, String str_RAISON_SOCIALE, String str_ADRESSE_PRINCIPALE,
-            String str_AUTRE_ADRESSE, String str_CODE_POSTAL, String str_BUREAU_DISTRIBUTEUR,
-            String lg_VILLE_ID, String lg_ESCOMPTE_SOCIETE_ID
-    ) {
+            String str_CODE_EXONERATION_TVA, String str_CODE_REMISE, boolean bool_CLIENT_EN_COMPTE, boolean bool_LIVRE,
+            double dbl_REMISE_SUPPLEMENTAIRE, double dbl_MONTANT_PORT, int int_ECHEANCE_PAIEMENT,
+            boolean bool_EDIT_FACTION_FIN_VENTE, String str_CODE_FACTURE, String str_CODE_BON_LIVRAISON,
+            String str_RAISON_SOCIALE, String str_ADRESSE_PRINCIPALE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL,
+            String str_BUREAU_DISTRIBUTEUR, String lg_VILLE_ID, String lg_ESCOMPTE_SOCIETE_ID) {
 
         try {
 
@@ -54,7 +52,7 @@ public class ficheSocieteManagement extends bllBase {
             OTFicheSociete.setStrDOMICIALIATIONBANCAIRE(str_DOMICIALIATION_BANCAIRE);
             OTFicheSociete.setStrRIBSOCIETE(str_RIB_SOCIETE);
             OTFicheSociete.setStrCODEEXONERATIONTVA(str_CODE_EXONERATION_TVA);
-             OTFicheSociete.setStrCODEREMISE(str_CODE_REMISE);
+            OTFicheSociete.setStrCODEREMISE(str_CODE_REMISE);
             OTFicheSociete.setBoolCLIENTENCOMPTE(bool_CLIENT_EN_COMPTE);
             OTFicheSociete.setBoolLIVRE(bool_LIVRE);
             OTFicheSociete.setDblREMISESUPPLEMENTAIRE(dbl_REMISE_SUPPLEMENTAIRE);
@@ -76,8 +74,9 @@ public class ficheSocieteManagement extends bllBase {
                 new logger().oCategory.info("lg_VILLE_ID     Create   " + lg_VILLE_ID);
             }
 
-            //lg_ESCOMPTE_SOCIETE_ID
-            TEscompteSociete OTEscompteSociete = getOdataManager().getEm().find(TEscompteSociete.class, lg_ESCOMPTE_SOCIETE_ID);
+            // lg_ESCOMPTE_SOCIETE_ID
+            TEscompteSociete OTEscompteSociete = getOdataManager().getEm().find(TEscompteSociete.class,
+                    lg_ESCOMPTE_SOCIETE_ID);
             if (OTEscompteSociete != null) {
                 OTFicheSociete.setLgESCOMPTESOCIETEID(OTEscompteSociete);
                 new logger().oCategory.info("lg_ESCOMPTE_SOCIETE_ID     Create   " + lg_ESCOMPTE_SOCIETE_ID);
@@ -94,20 +93,20 @@ public class ficheSocieteManagement extends bllBase {
 
     }
 
-    public void update(String lg_FICHE_SOCIETE_ID, String str_CODE_INTERNE, String str_LIBELLE_ENTREPRISE, String str_TYPE_SOCIETE,
-            String str_CODE_REGROUPEMENT, String str_CONTACTS_TELEPHONIQUES, String str_COMPTE_COMPTABLE,
-            double dbl_CHIFFRE_AFFAIRE, String str_DOMICIALIATION_BANCAIRE, String str_RIB_SOCIETE,
-            String str_CODE_EXONERATION_TVA, String str_CODE_REMISE, boolean bool_CLIENT_EN_COMPTE,
-            boolean bool_LIVRE, double dbl_REMISE_SUPPLEMENTAIRE, double dbl_MONTANT_PORT,
-            int int_ECHEANCE_PAIEMENT, boolean bool_EDIT_FACTION_FIN_VENTE, String str_CODE_FACTURE,
-            String str_CODE_BON_LIVRAISON, String str_RAISON_SOCIALE, String str_ADRESSE_PRINCIPALE,
-            String str_AUTRE_ADRESSE, String str_CODE_POSTAL, String str_BUREAU_DISTRIBUTEUR,
-            String lg_VILLE_ID, String lg_ESCOMPTE_SOCIETE_ID) {
-    
+    public void update(String lg_FICHE_SOCIETE_ID, String str_CODE_INTERNE, String str_LIBELLE_ENTREPRISE,
+            String str_TYPE_SOCIETE, String str_CODE_REGROUPEMENT, String str_CONTACTS_TELEPHONIQUES,
+            String str_COMPTE_COMPTABLE, double dbl_CHIFFRE_AFFAIRE, String str_DOMICIALIATION_BANCAIRE,
+            String str_RIB_SOCIETE, String str_CODE_EXONERATION_TVA, String str_CODE_REMISE,
+            boolean bool_CLIENT_EN_COMPTE, boolean bool_LIVRE, double dbl_REMISE_SUPPLEMENTAIRE,
+            double dbl_MONTANT_PORT, int int_ECHEANCE_PAIEMENT, boolean bool_EDIT_FACTION_FIN_VENTE,
+            String str_CODE_FACTURE, String str_CODE_BON_LIVRAISON, String str_RAISON_SOCIALE,
+            String str_ADRESSE_PRINCIPALE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL,
+            String str_BUREAU_DISTRIBUTEUR, String lg_VILLE_ID, String lg_ESCOMPTE_SOCIETE_ID) {
+
         try {
 
             TFicheSociete OTFicheSociete = null;
-            
+
             OTFicheSociete = getOdataManager().getEm().find(TFicheSociete.class, lg_FICHE_SOCIETE_ID);
 
             // lg_VILLE_ID
@@ -117,8 +116,9 @@ public class ficheSocieteManagement extends bllBase {
                 new logger().oCategory.info("lg_VILLE_ID     Create   " + lg_VILLE_ID);
             }
 
-            //lg_ESCOMPTE_SOCIETE_ID
-            dal.TEscompteSociete OTEscompteSociete = getOdataManager().getEm().find(dal.TEscompteSociete.class, lg_ESCOMPTE_SOCIETE_ID);
+            // lg_ESCOMPTE_SOCIETE_ID
+            dal.TEscompteSociete OTEscompteSociete = getOdataManager().getEm().find(dal.TEscompteSociete.class,
+                    lg_ESCOMPTE_SOCIETE_ID);
             if (OTEscompteSociete != null) {
                 OTFicheSociete.setLgESCOMPTESOCIETEID(OTEscompteSociete);
                 new logger().oCategory.info("lg_ESCOMPTE_SOCIETE_ID     Create   " + lg_ESCOMPTE_SOCIETE_ID);
@@ -134,7 +134,7 @@ public class ficheSocieteManagement extends bllBase {
             OTFicheSociete.setStrDOMICIALIATIONBANCAIRE(str_DOMICIALIATION_BANCAIRE);
             OTFicheSociete.setStrRIBSOCIETE(str_RIB_SOCIETE);
             OTFicheSociete.setStrCODEEXONERATIONTVA(str_CODE_EXONERATION_TVA);
-             OTFicheSociete.setStrCODEREMISE(str_CODE_REMISE);
+            OTFicheSociete.setStrCODEREMISE(str_CODE_REMISE);
             OTFicheSociete.setBoolCLIENTENCOMPTE(bool_CLIENT_EN_COMPTE);
             OTFicheSociete.setBoolLIVRE(bool_LIVRE);
             OTFicheSociete.setDblREMISESUPPLEMENTAIRE(dbl_REMISE_SUPPLEMENTAIRE);
@@ -157,6 +157,6 @@ public class ficheSocieteManagement extends bllBase {
         } catch (Exception e) {
             this.buildErrorTraceMessage("Impossible de creer un " + Otable, e.getMessage());
         }
-    
+
     }
 }

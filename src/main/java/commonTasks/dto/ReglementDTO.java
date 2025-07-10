@@ -11,9 +11,9 @@ import java.io.Serializable;
  *
  * @author Kobena
  */
-public class ReglementDTO implements Serializable{
+public class ReglementDTO implements Serializable {
     private String lgTYPEREGLEMENTID;
-   
+
     private String strNAME;
 
     public ReglementDTO(String lgTYPEREGLEMENTID, String strNAME) {
@@ -39,6 +39,5 @@ public class ReglementDTO implements Serializable{
     public void setStrNAME(String strNAME) {
         this.strNAME = strNAME;
     }
-    
-    
+
 }

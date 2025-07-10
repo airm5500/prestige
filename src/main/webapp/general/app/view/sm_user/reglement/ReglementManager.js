@@ -4,7 +4,7 @@ var url_services_data_diffclient = '../webservices/sm_user/diffclient/ws_data.js
 var url_ws_generate_reglement_pdf = '../webservices/sm_user/reglement/ws_generate_reglement_pdf.jsp';
 var url_services_transaction_diffclient = '../webservices/sm_user/diffclient/ws_transaction.jsp?mode=';
 var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_search_data.jsp';
-var url_services_pdf_ticket = '../webservices/sm_user/reglement/ws_generate_pdf.jsp';
+
 
 var Me;
 var view_title;
@@ -40,7 +40,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
         'Ext.ux.ProgressBarPager',
     ],
     frame: true,
-    initComponent: function() {
+    initComponent: function () {
         var url_services_data_reglement = '../webservices/sm_user/reglement/ws_data.jsp';
         var url_services_data_reglement_transact = '../webservices/sm_user/diffclient/ws_transaction.jsp?mode=';
 
@@ -69,15 +69,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
         if (customer_id === undefined) {
             customer_id = "ALL";
         }
-
-
-
         url_services_data_diffclient = url_services_data_diffclient + "?str_BENEFICIAIRE=" + customer_id + "&lg_TYPE_ECART_MVT=1&str_task=" + str_task_diff;
-
-
-
-
-
         var itemsPerPage = 20;
         var store = new Ext.data.Store({
             model: 'testextjs.model.Reglement',
@@ -94,8 +86,6 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                 }
             }
         });
-
-
 
         Ext.apply(this, {
             width: '98%',
@@ -120,7 +110,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     dataIndex: 'str_ORGANISME',
                     flex: 1.5,
                     summaryType: "count",
-                    summaryRenderer: function(value) {
+                    summaryRenderer: function (value) {
                         return "<b>Nombre de R&egrave;glements </b><span style='color:blue;font-weight:600;'>" + value + "</span>";
 
                     }
@@ -146,7 +136,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     align: 'right',
                     flex: 1,
                     summaryType: "sum",
-                    summaryRenderer: function(value) {
+                    summaryRenderer: function (value) {
                         return "<b>Total </b>:  <span style='color:blue;font-weight:600;'>" + Ext.util.Format.number(Ext.Number.toFixed(value, 0), '0,000.') + "  FCFA</span> ";
                     }
                 }
@@ -156,7 +146,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     renderer: amountformat,
                     align: 'right',
                     flex: 1
-                    
+
                 }
 
 
@@ -210,45 +200,42 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     scope: this,
                     hidden: true,
                     handler: this.onDoreglement
-                },{
+                }, {
                     xtype: 'textfield',
                     id: 're_search',
-                   
+
                     width: 150,
                     emptyText: 'Rech',
                     listeners: {
-                        'render': function(cmp) {
-                            cmp.getEl().on('keypress', function(e) {
+                        'render': function (cmp) {
+                            cmp.getEl().on('keypress', function (e) {
                                 if (e.getKey() === e.ENTER) {
-                                   
+
                                     var re_search = Ext.getCmp('re_search').getValue();
-                                    var OGrid = Ext.getCmp('Grid_Reglement_ID'),lg_TIERS_PAYANT_ID  ='';
-                                    
-                               var dt_fin='',dt_debut='';
-                            if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() != null && Ext.getCmp('datefin').getValue() != "") {
-                                lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
-                            }
-                            
-                            if (Ext.getCmp('datefin').getSubmitValue() != null && Ext.getCmp('datefin').getSubmitValue() != "") {
-                                dt_fin = Ext.getCmp('datefin').getSubmitValue();
-                            }
-                              
-                                
-                            if (Ext.getCmp('datedebut').getSubmitValue() != null && Ext.getCmp('datedebut').getSubmitValue() != "") {
-                                dt_debut = Ext.getCmp('datedebut').getSubmitValue();
-                            }
-                            OGrid.getStore().load({
-                                params: {
-                                    lg_TIERS_PAYANT_ID:lg_TIERS_PAYANT_ID,
-                                    dt_fin: dt_fin,
-                                    dt_debut: dt_debut,
-                                    search_value:re_search
+                                    var OGrid = Ext.getCmp('Grid_Reglement_ID'), lg_TIERS_PAYANT_ID = '';
 
-                                }
-                            });
-                                   
-                                   
+                                    var dt_fin = '', dt_debut = '';
+                                    if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() != null && Ext.getCmp('datefin').getValue() != "") {
+                                        lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
+                                    }
 
+                                    if (Ext.getCmp('datefin').getSubmitValue() != null && Ext.getCmp('datefin').getSubmitValue() != "") {
+                                        dt_fin = Ext.getCmp('datefin').getSubmitValue();
+                                    }
+
+
+                                    if (Ext.getCmp('datedebut').getSubmitValue() != null && Ext.getCmp('datedebut').getSubmitValue() != "") {
+                                        dt_debut = Ext.getCmp('datedebut').getSubmitValue();
+                                    }
+                                    OGrid.getStore().load({
+                                        params: {
+                                            lg_TIERS_PAYANT_ID: lg_TIERS_PAYANT_ID,
+                                            dt_fin: dt_fin,
+                                            dt_debut: dt_debut,
+                                            search_value: re_search
+
+                                        }
+                                    });
                                 }
                             });
                         }
@@ -273,7 +260,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     enableKeyEvents: true,
                     emptyText: 'Sectionner un tiers payant...',
                     listeners: {
-                        keypress: function(field, e) {
+                        keypress: function (field, e) {
 
                             if (e.getKey() === e.BACKSPACE || e.getKey() === 46) {
 
@@ -284,11 +271,11 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                             }
 
                         },
-                        select: function(cmp) {
+                        select: function (cmp) {
                             var value = cmp.getValue();
 
                             var OGrid = Ext.getCmp('Grid_Reglement_ID');
-                               var dt_fin='',dt_debut='';
+                            var dt_fin = '', dt_debut = '';
                             if (Ext.getCmp('datefin').getSubmitValue() !== null && Ext.getCmp('datefin').getSubmitValue() !== "") {
                                 dt_fin = Ext.getCmp('datefin').getSubmitValue();
                             }
@@ -307,7 +294,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
 
 
                         },
-                        change: function() {
+                        change: function () {
                             var value = this.getValue();
                             if (value != '') {
 
@@ -326,11 +313,11 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     maxValue: new Date(),
                     format: 'd/m/Y',
                     listeners: {
-                        'change': function(me) {
-                           
+                        'change': function (me) {
+
                             valdatedebut = me.getSubmitValue();
-                             Ext.getCmp('datefin').setMinValue(this.getValue());
-                             
+                            Ext.getCmp('datefin').setMinValue(this.getValue());
+
                         }
                     }
                 }, {
@@ -342,11 +329,11 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     submitFormat: 'Y-m-d',
                     format: 'd/m/Y',
                     listeners: {
-                        'change': function(me) {
+                        'change': function (me) {
                             //alert(me.getSubmitValue());
                             valdatefin = me.getSubmitValue();
-                             Ext.getCmp('datedebut').setMaxValue(this.getValue());
-                            
+                            Ext.getCmp('datedebut').setMaxValue(this.getValue());
+
                         }
                     }
                 }, {
@@ -364,6 +351,12 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     id: 'btnprintreglement',
                     disabled: true,
                     handler: this.onPdfClick
+                }, {
+                    text: 'Impression groupée',
+                    iconCls: 'printable',
+                    tooltip: 'imprimer',
+                    scope: this,
+                    handler: this.onPdfPrint
                 }
 
 
@@ -386,7 +379,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
         })
 
 
-        this.on('edit', function(editor, e) {
+        this.on('edit', function (editor, e) {
 
 
 
@@ -399,13 +392,13 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     int_PRICE: e.record.data.int_PRICE
 
                 },
-                success: function(response)
+                success: function (response)
                 {
                     console.log(response.responseText);
                     e.record.commit();
                     store.reload();
                 },
-                failure: function(response)
+                failure: function (response)
                 {
                     console.log("Bug " + response.responseText);
                     alert(response.responseText);
@@ -420,21 +413,21 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
          
          }*/
     },
-    loadStore: function() {
+    loadStore: function () {
         this.getStore().load({
             callback: this.onStoreLoad
         });
     },
-    onStoreLoad: function() {
+    onStoreLoad: function () {
     },
-    onManageDetailsClick: function(grid, rowIndex) {
+    onManageDetailsClick: function (grid, rowIndex) {
 
         var rec = grid.getStore().getAt(rowIndex);
         var xtype = "reglementdetails";
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Les dossiers li&eacute;s au r&eacute;glement", rec.get('lg_DOSSIER_REGLEMENT_ID'), rec.data);
 
-    }, onTransformClick: function(grid, rowIndex) {
+    }, onTransformClick: function (grid, rowIndex) {
 
         var rec = grid.getStore().getAt(rowIndex);
         var xtype = "doventemanager";
@@ -442,42 +435,42 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Devis_en_vente", rec.get('str_REF'), rec.data);
 
     },
-    onAddClick: function() {
+    onAddClick: function () {
         var xtype = "doventemanager";
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponent(xtype, "by_devis", "0");
     },
-    onLoadCustomer: function() {
+    onLoadCustomer: function () {
         var xtype = "clientmanager";
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponent(xtype, "by_", "0");
     },
-    onAddCarnetClick: function() {
+    onAddCarnetClick: function () {
 
         //  var rec = grid.getStore().getAt(rowIndex);
         var xtype = "doventecarnetmanager";
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponent(xtype, "Vente avec carnet", "0");
     },
-    onAddAssuranceClick: function() {
+    onAddAssuranceClick: function () {
 
         //  var rec = grid.getStore().getAt(rowIndex);
         var xtype = "doreglementmanager";
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponent(xtype, "Faire R&eacute;glement ", "0");
     },
-    onDoreglement: function() {
+    onDoreglement: function () {
 
         //  var rec = grid.getStore().getAt(rowIndex);
         var xtype = "doreglementmanager";
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponent(xtype, "Faire R&eacute;glement ", "0");
     },
-    
-    onRemoveClick: function(grid, rowIndex) {
+
+    onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message',
                 'confirm la suppresssion',
-                function(btn) {
+                function (btn) {
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
@@ -486,7 +479,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                                 mode: 'deletedetail',
                                 lg_PREENREGISTREMENT_ID: rec.get('lg_PREENREGISTREMENT_ID')
                             },
-                            success: function(response)
+                            success: function (response)
                             {
                                 var object = Ext.JSON.decode(response.responseText, false);
                                 if (object.success === 0) {
@@ -495,7 +488,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                                 }
                                 grid.getStore().reload();
                             },
-                            failure: function(response)
+                            failure: function (response)
                             {
                                 var object = Ext.JSON.decode(response.responseText, false);
                                 console.log("Bug " + response.responseText);
@@ -506,7 +499,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
                     }
                 });
     },
-    onEditClick: function(grid, rowIndex) {
+    onEditClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
         new testextjs.view.sm_user.preenregistrement.action.add({
             odatasource: rec.data,
@@ -515,7 +508,7 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
             titre: "Modification Preenregistrement  [" + rec.get('str_REF') + "]"
         });
     },
-    onRechDifClick: function() {
+    onRechDifClick: function () {
         var lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
         if (lg_TIERS_PAYANT_ID == '') {
             Ext.MessageBox.alert('Message ', "Veuillez choisir un tiers payant");
@@ -530,8 +523,8 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
         if (Ext.getCmp('datedebut').getSubmitValue() != null && Ext.getCmp('datedebut').getSubmitValue() != "") {
             dt_debut = Ext.getCmp('datedebut').getSubmitValue();
         }
-       
-                grid.getStore().load({
+
+        grid.getStore().load({
             params: {
                 lg_TIERS_PAYANT_ID: lg_TIERS_PAYANT_ID,
                 dt_fin: dt_fin,
@@ -539,43 +532,33 @@ Ext.define('testextjs.view.sm_user.reglement.ReglementManager', {
             }
         });
     },
-    onPdfClickTicket: function(grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-        var linkUrl = url_services_pdf_ticket + '?lg_DOSSIER_REGLEMENT_ID=' + rec.get('lg_DOSSIER_REGLEMENT_ID');
-        Me.lunchPrinter(linkUrl);
-
-
-    },
-    lunchPrinter: function(url) {
+    onPdfClickTicket: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
         Ext.Ajax.request({
-            url: url,
-            success: function(response)
+            method: 'GET',
+            url: '../api/v1/facturation/ticket-facture/' + rec.get('lg_DOSSIER_REGLEMENT_ID'),
+            failure: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.success == "0") {
-                    Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
-                }
-
-            },
-            failure: function(response)
-            {
-
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
+                const object = Ext.JSON.decode(response.responseText, false);
                 Ext.MessageBox.alert('Error Message', response.responseText);
-
             }
         });
     },
-    onPdfClick: function() {
-        var lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),
+    onPdfClick: function () {
+        const lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),
                 dt_fin = Ext.getCmp('datefin').getSubmitValue(), dt_debut = Ext.getCmp('datedebut').getSubmitValue()
                 ;
-        var linkUrl = url_ws_generate_reglement_pdf + "?lg_TIERS_PAYANT_ID=" + lg_TIERS_PAYANT_ID + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin;
+        const linkUrl = url_ws_generate_reglement_pdf + "?lg_TIERS_PAYANT_ID=" + lg_TIERS_PAYANT_ID + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin;
         window.open(linkUrl);
+    },
+    onPdfPrint: function () {
+        let tiersPayantId = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),
+                dtEnd = Ext.getCmp('datefin').getSubmitValue(), dtStart = Ext.getCmp('datedebut').getSubmitValue();
+        if (tiersPayantId == null || tiersPayantId == undefined) {
+            tiersPayantId = '';
+        }
+        const linkUrl = '../FacturePdfServlet?dtStart=' + dtStart + "&dtEnd=" + dtEnd + "&mode=REGLEMENT_FACTURE_GROUPE" + "&tiersPayantId=" + tiersPayantId;
 
-
-
+        window.open(linkUrl);
     }
 });

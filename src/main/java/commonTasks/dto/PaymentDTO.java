@@ -21,7 +21,6 @@ public class PaymentDTO {
     private Instant updatedAt;
     private String paymentCode;
 
-
     public Integer getReelPaidAmount() {
         return reelPaidAmount;
     }
@@ -77,6 +76,5 @@ public class PaymentDTO {
     public void setPaymentCode(String paymentCode) {
         this.paymentCode = paymentCode;
     }
-
 
 }

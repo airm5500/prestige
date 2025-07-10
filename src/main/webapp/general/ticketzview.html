@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Ticket Z</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="./iframe/resources/css/bootstrap.min.css">
+        <style>
+            #spinner{
+                margin: 20rem !important;
+            }
+            .card{
+                padding-left: 3px;
+                padding-right: 3px;
+            }
+            .card-body{
+                padding-left: 3px;
+                padding-right: 3px;
+                padding-bottom: 2px;
+                padding-top:5px;
+            }
+
+            .col{
+                padding-left: 5px;
+                padding-right: 5px;
+            }
+            table tr td:last-child{
+                text-align: right;
+                font-weight: 700;
+            }
+            table tr td:first-child{
+                text-align: left;
+            }
+            .col-md-4{
+                padding-left: 0.2rem;
+                padding-right: 0.2rem;
+            }
+            .col-md-3{
+                padding-right: calc(var(--bs-gutter-x)* .2);
+                padding-left: calc(var(--bs-gutter-x)* .2);
+            }
+            .card{
+                margin-top: 3px;
+            }
+
+        </style>
+    </head>
+    <body>
+        <script src="./iframe/resources/js/jquery.min.js"></script>
+        <script src="./iframe/resources/js/bootstrap.js"></script>
+
+        <div class="container-fluid row ">
+
+            <div class="col-md-2 p-1">
+                <div class="card" >
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Type</label>
+                            <select id="description" class="form-select" >
+                                <option selected value="ALL">Tous les mouvements</option>
+                                <option value="VENTE">Ventes uniquements</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="userId" class="form-label">Utilisateurs</label>
+                            <select id="userId" class="form-select" >
+                                <option selected value="ALL">Tout</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dtStart">Date début</label>
+                            <input class="form-control"  type="date" id="dtStart"  />
+
+                        </div>
+                        <div class="mb-3">
+                            <label for="hrStart" class="form-label">Heure début</label>
+                            <select id="hrStart" class="form-select" >
+                                <option selected value="00:00">00:00</option>
+                                <option  value="00:30">00:30</option>
+                                <option  value="01:00">01:00</option>
+                                <option  value="01:30">01:30</option>
+                                <option  value="02:00">02:00</option>
+                                <option  value="02:30">02:30</option>
+                                <option  value="03:00">03:00</option>
+                                <option  value="04:00">04:00</option>
+                                <option  value="05:00">05:00</option>
+                                <option  value="06:00">06:00</option>
+                                <option  value="07:00">07:00</option>
+                                <option  value="08:00">08:00</option>
+                                <option  value="09:00">09:00</option>
+                                <option  value="10:00">10:00</option>
+                                <option  value="11:00">11:00</option>
+                                <option  value="12:00">12:00</option>
+                                <option  value="13:00">13:00</option>
+                                <option  value="14:00">14:00</option>
+                                <option  value="15:00">15:00</option>
+                                <option  value="16:00">16:00</option>
+                                <option  value="17:00">17:00</option>
+                                <option  value="18:00">18:00</option>
+                                <option  value="19:00">19:00</option>
+                                <option  value="20:00">20:00</option>
+                                <option  value="21:00">21:00</option>
+                                <option  value="22:00">22:00</option>
+                                <option  value="23:00">23:00</option>
+                                <option  value="23:59">23:59</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dtEnd">Date fin</label>
+                            <input class="form-control"  type="date" id="dtEnd"  />
+
+                        </div>
+                        <div class="mb-3">
+                            <label for="hrEnd" class="form-label">Heure fin</label>
+                            <select id="hrEnd" class="form-select" >
+                                <option  value="00:00">00:00</option>
+                                <option  value="00:30">00:30</option>
+                                <option  value="01:00">01:00</option>
+                                <option  value="01:30">01:30</option>
+                                <option  value="02:00">02:00</option>
+                                <option  value="02:30">02:30</option>
+                                <option  value="03:00">03:00</option>
+                                <option  value="04:00">04:00</option>
+                                <option  value="05:00">05:00</option>
+                                <option  value="06:00">06:00</option>
+                                <option  value="07:00">07:00</option>
+                                <option  value="08:00">08:00</option>
+                                <option  value="09:00">09:00</option>
+                                <option  value="10:00">10:00</option>
+                                <option  value="11:00">11:00</option>
+                                <option  value="12:00">12:00</option>
+                                <option  value="13:00">13:00</option>
+                                <option  value="14:00">14:00</option>
+                                <option  value="15:00">15:00</option>
+                                <option  value="16:00">16:00</option>
+                                <option  value="17:00">17:00</option>
+                                <option  value="18:00">18:00</option>
+                                <option  value="19:00">19:00</option>
+                                <option  value="20:00">20:00</option>
+                                <option  value="21:00">21:00</option>
+                                <option  value="22:00">22:00</option>
+                                <option  value="23:00">23:00</option>
+                                <option selected  value="23:59">23:59</option>
+                            </select>
+                        </div>
+
+                        <div class="card-body">
+                            <div class="btn-group" role="group">
+                                <button id="afficher" type="button" class="btn btn-outline-primary btn-sm">Afficher</button>
+                                   <button id="send-sms" type="button" class="btn btn-outline-warning btn-sm">Envoyer SMS</button>
+                                <button  id="imprimer" type="button" class="btn btn-outline-success btn-sm">Imprimer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+            <div class="col-md-10 p-1 row" id="ticket-container">
+
+
+            </div>
+        </div> 
+        <script   src="./iframe/resources/js/ticketZ.js"></script>
+    </body>
+</html>

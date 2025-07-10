@@ -138,7 +138,7 @@
     } else if ((oTOfficine.getStrCENTREIMPOSITION() == null || "".equals(oTOfficine.getStrCENTREIMPOSITION())) && (oTOfficine.getStrREGISTREIMPOSITION() != null || !"".equals(oTOfficine.getStrREGISTREIMPOSITION()))) {
         P_H_CI_P_H_RI = oTOfficine.getStrREGISTREIMPOSITION();
     }
-        List<EntityData> list=new ArrayList<EntityData>();
+        List<EntityData> list=new ArrayList<>();
        reglementManager OreManager=new reglementManager(OdataManager, null);
     list = OreManager.getReleverReglementData(lg_TIERS_PAYANT_ID, date.formatterMysqlShort.parse(dt_debut), date.formatterMysql2.parse(dt_fin));
     

@@ -46,7 +46,7 @@ Ext.define('testextjs.view.devis.Devis', {
                     dock: 'top',
                     items: [
                         {
-                            text: 'Nouveau dévis',
+                            text: 'Nouvelle PROFORMA',
                             scope: this,
                             itemId: 'addBtn',
                             iconCls: 'addicon'
@@ -135,7 +135,7 @@ Ext.define('testextjs.view.devis.Devis', {
                             sortable: false,
                             menuDisabled: true,
                             dataIndex: 'strREF',
-                            flex: 1
+                            flex: 0.5
                         }, {
                             header: 'MONTANT',
                             align: 'right',
@@ -143,7 +143,7 @@ Ext.define('testextjs.view.devis.Devis', {
                             menuDisabled: true,
                             xtype: 'numbercolumn',
                             dataIndex: 'intPRICE',
-                            flex: 1,
+                            flex: 0.5,
                             format: '0,000.'
 
                         },
@@ -152,14 +152,14 @@ Ext.define('testextjs.view.devis.Devis', {
                             sortable: false,
                             menuDisabled: true,
                             dataIndex: 'dtUPDATED',
-                            flex: 0.6,
+                            flex: 0.4,
                             align: 'center'
                         }, {
                             header: 'Heure',
                             sortable: false,
                             menuDisabled: true,
                             dataIndex: 'heure',
-                            flex: 0.6,
+                            flex: 0.4,
                             align: 'center'
                         }
 
@@ -169,7 +169,30 @@ Ext.define('testextjs.view.devis.Devis', {
                             menuDisabled: true,
                             dataIndex: 'userFullName',
                             flex: 1
+                        }
+                        , {
+                            header: 'Client',
+                            sortable: false,
+                            menuDisabled: true,
+                            dataIndex: 'clientFullName',
+                            flex: 1
                         },
+                        
+                          {
+                            header: 'Tiers-payant',
+                            sortable: false,
+                            menuDisabled: true,
+                            dataIndex: 'tierspayants',
+                            flex: 1,
+                               renderer: function (v) {
+                                   if(v.length>0){
+                                       return  v[0].tpFullName;
+                                   }
+                                   return '';
+                               }
+                        },
+                        
+                        
                         {
                             xtype: 'actioncolumn',
                             width: 30,
@@ -250,6 +273,20 @@ Ext.define('testextjs.view.devis.Devis', {
                                     tooltip: 'Imprimer',
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('toPdf', view, rowIndex, colIndex, item, e, record, row);
+                                    }
+
+                                }]
+                        },
+                         {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/pdf.png',
+                                    tooltip: 'Bon livraison',
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('toBonPdf', view, rowIndex, colIndex, item, e, record, row);
                                     }
 
                                 }]

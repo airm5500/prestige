@@ -117,7 +117,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.detailInventaireMan
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste,
+                     url: '../api/v1/grossiste/all',
                 reader: {
                     type: 'json',
                     root: 'results',

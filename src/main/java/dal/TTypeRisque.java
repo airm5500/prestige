@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_risque")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeRisque.findAll", query = "SELECT t FROM TTypeRisque t"),
-    @NamedQuery(name = "TTypeRisque.findByLgTYPERISQUEID", query = "SELECT t FROM TTypeRisque t WHERE t.lgTYPERISQUEID = :lgTYPERISQUEID"),
-    @NamedQuery(name = "TTypeRisque.findByStrNAME", query = "SELECT t FROM TTypeRisque t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypeRisque.findByStrDESCRIPTION", query = "SELECT t FROM TTypeRisque t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypeRisque.findByStrSTATUT", query = "SELECT t FROM TTypeRisque t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypeRisque.findByDtCREATED", query = "SELECT t FROM TTypeRisque t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeRisque.findByDtUPDATED", query = "SELECT t FROM TTypeRisque t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypeRisque.findAll", query = "SELECT t FROM TTypeRisque t"),
+        @NamedQuery(name = "TTypeRisque.findByLgTYPERISQUEID", query = "SELECT t FROM TTypeRisque t WHERE t.lgTYPERISQUEID = :lgTYPERISQUEID"),
+        @NamedQuery(name = "TTypeRisque.findByStrNAME", query = "SELECT t FROM TTypeRisque t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypeRisque.findByStrDESCRIPTION", query = "SELECT t FROM TTypeRisque t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypeRisque.findByStrSTATUT", query = "SELECT t FROM TTypeRisque t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeRisque.findByDtCREATED", query = "SELECT t FROM TTypeRisque t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeRisque.findByDtUPDATED", query = "SELECT t FROM TTypeRisque t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypeRisque implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -136,7 +135,8 @@ public class TTypeRisque implements Serializable {
             return false;
         }
         TTypeRisque other = (TTypeRisque) object;
-        if ((this.lgTYPERISQUEID == null && other.lgTYPERISQUEID != null) || (this.lgTYPERISQUEID != null && !this.lgTYPERISQUEID.equals(other.lgTYPERISQUEID))) {
+        if ((this.lgTYPERISQUEID == null && other.lgTYPERISQUEID != null)
+                || (this.lgTYPERISQUEID != null && !this.lgTYPERISQUEID.equals(other.lgTYPERISQUEID))) {
             return false;
         }
         return true;
@@ -146,5 +146,5 @@ public class TTypeRisque implements Serializable {
     public String toString() {
         return "dal.TTypeRisque[ lgTYPERISQUEID=" + lgTYPERISQUEID + " ]";
     }
-    
+
 }

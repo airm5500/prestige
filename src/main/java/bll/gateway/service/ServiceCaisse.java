@@ -38,7 +38,8 @@ public class ServiceCaisse extends bll.bllBase implements Iservice {
 
     @Override
     public String BuidlDataToNotify(String strResult, TInboudMessage OTInboudMessage) {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        throw new UnsupportedOperationException("Not supported yet."); // To change body of generated methods, choose
+                                                                       // Tools | Templates.
     }
 
 }

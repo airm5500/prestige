@@ -29,9 +29,10 @@ public class tauxMarqueManagement extends bllBase {
         try {
 
             TTauxMarque OTTauxMarque = new TTauxMarque();
-            OTTauxMarque.setLgTAUXMARQUEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTTauxMarque.setLgTAUXMARQUEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de
+                                                                          // la date courante
             OTTauxMarque.setStrNAME(STR_NAME);
-            OTTauxMarque.setStrCODE(STR_CODE);            
+            OTTauxMarque.setStrCODE(STR_CODE);
             OTTauxMarque.setStrSTATUT(commonparameter.statut_enable);
             OTTauxMarque.setDtCREATED(new Date());
 
@@ -53,8 +54,8 @@ public class tauxMarqueManagement extends bllBase {
 
             OTTauxMarque.setLgTAUXMARQUEID(lg_TAUX_MARQUE_ID);
             OTTauxMarque.setStrNAME(STR_NAME);
-            OTTauxMarque.setStrCODE(STR_CODE);            
-            OTTauxMarque.setStrSTATUT(commonparameter.statut_enable);           
+            OTTauxMarque.setStrCODE(STR_CODE);
+            OTTauxMarque.setStrSTATUT(commonparameter.statut_enable);
             OTTauxMarque.setDtUPDATED(new Date());
 
             this.persiste(OTTauxMarque);

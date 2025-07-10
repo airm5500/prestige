@@ -15,6 +15,7 @@ var myAppController;
 var groupeStore, groupesStore;
 var factureStore;
 var searchstore;
+
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
@@ -33,22 +34,29 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         'testextjs.model.Facture',
         'testextjs.view.sm_user.editfacture.action.add',
         'Ext.ux.ProgressBarPager'
-
     ],
     title: 'Gestion des facturations ',
     frame: true,
     width: "98%",
     height: 580,
+    listeners: {
+        render: function (grid) {
+            this.onRechClick();
+        }
+    },
     initComponent: function () {
 
         Me = this;
         var _this = this;
+
         myAppController = Ext.create('testextjs.controller.App', {});
+
+
         var itemsPerPage = 20;
         factureStore = new Ext.data.Store({
             model: 'testextjs.model.Facture',
             pageSize: itemsPerPage,
-            autoLoad: true,
+            autoLoad: false,
             proxy: {
                 type: 'ajax',
                 url: url_services_data_facturation,
@@ -98,29 +106,53 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         scope: this,
                         iconCls: 'addicon',
                         handler: this.onAddCreate
+                    }, '-', {
+                        xtype: 'datefield',
+                        id: 'datedebut',
+                        name: 'datedebut',
+                        emptyText: 'Date debut',
+                        flex: 1,
+                        submitFormat: 'Y-m-d',
+                        maxValue: new Date(),
+                        format: 'd/m/Y',
+                        value: sessionStorage.getItem('dateStart') || null,
+                        listeners: {
+                            'change': function (me) {
+
+                                valdatedebut = me.getSubmitValue();
+                                Ext.getCmp('datefin').setMinValue(me.getValue());
+                            }
+                        }
+                    }, {
+                        xtype: 'tbseparator'
+                    }, {
+                        xtype: 'datefield',
+                        id: 'datefin',
+                        name: 'datefin',
+                        emptyText: 'Date fin',
+                        maxValue: new Date(),
+                        submitFormat: 'Y-m-d',
+                        flex: 1,
+                        format: 'd/m/Y',
+                        value: sessionStorage.getItem('datefin') || null,
+                        listeners: {
+                            'change': function (me) {
+                                valdatefin = me.getSubmitValue();
+                                Ext.getCmp('datedebut').setMaxValue(me.getValue());
+                            }
+                        }
                     }
                     , '-',
                     {
                         xtype: 'textfield',
                         id: 'rechecherFacture',
                         width: 150,
+                        value: sessionStorage.getItem('searchQuery') || '',
                         emptyText: 'Rech',
                         listeners: {
                             specialKey: function (field, e) {
                                 if (e.getKey() === e.ENTER) {
-                                    var val = field.getValue();
-                                    var lg_customer_id = "";
-                                    if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== null && Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== "") {
-                                        lg_customer_id = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
-                                    }
-                                    Ext.getCmp('facturemanagerID').getStore().load({
-                                        params: {
-                                            search_value: val,
-                                            lg_customer_id: lg_customer_id,
-                                            dt_fin: Ext.getCmp('datefin').getSubmitValue(),
-                                            dt_debut: Ext.getCmp('datedebut').getSubmitValue()
-                                        }
-                                    });
+                                    Me.onRechClick();
                                 }
                             }
                         }
@@ -129,6 +161,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         xtype: 'textfield',
                         id: 'rechecherCode',
                         width: 150,
+                        value: sessionStorage.getItem('codeGroupe') || '',
                         emptyText: 'Rech Code facture',
                         listeners: {
                             specialKey: function (field, e) {
@@ -138,6 +171,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                                             CODEGROUPE: field.getValue()
                                         }
                                     });
+
+                                    sessionStorage.setItem('codeGroupe', field.getValue());
+
+
                                 }
                             }
                         }
@@ -156,6 +193,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         queryMode: 'remote',
                         enableKeyEvents: true,
                         emptyText: 'Selectionner tiers payant...',
+                        value: sessionStorage.getItem('customer') || null,
                         listConfig: {
                             loadingText: 'Recherche...',
                             emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',
@@ -181,46 +219,45 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                             }
 
                         }
-                    }, '-', {
-                        xtype: 'datefield',
-                        id: 'datedebut',
-                        name: 'datedebut',
-                        emptyText: 'Date debut',
-                        flex: 1,
-                        submitFormat: 'Y-m-d',
-                        maxValue: new Date(),
-                        format: 'd/m/Y',
-                        listeners: {
-                            'change': function (me) {
+                    }, {
+                        xtype: 'tbseparator'
+                    },
 
-                                valdatedebut = me.getSubmitValue();
-                                Ext.getCmp('datefin').setMinValue(me.getValue());
-                            }
-                        }
-                    }, {
-                        xtype: 'tbseparator'
-                    }, {
-                        xtype: 'datefield',
-                        id: 'datefin',
-                        name: 'datefin',
-                        emptyText: 'Date fin',
-                        maxValue: new Date(),
-                        submitFormat: 'Y-m-d',
+                    {
+                        xtype: 'combobox',
                         flex: 1,
-                        format: 'd/m/Y',
+                        margin: '0 5 0 0',
+                        labelWidth: 5,
+                        id: 'filtreImpayes',
+                        store: Ext.create('Ext.data.ArrayStore', {
+                            data: [['', 'Tout'], ['impayes', 'Non réglées ou partiellement réglée'], ['payes', 'Factures réglées']],
+                            fields: [{name: 'id', type: 'string'}, {name: 'libelle', type: 'string'}]
+                        }),
+
+                        valueField: 'id',
+                        displayField: 'libelle',
+                        typeAhead: false,
+                        queryMode: 'local',
+                        value: '',
                         listeners: {
-                            'change': function (me) {
-                                valdatefin = me.getSubmitValue();
-                                Ext.getCmp('datedebut').setMaxValue(me.getValue());
+
+                            select: function (cmp) {
+                                Me.onRechClick();
                             }
+
                         }
-                    }, {
+
+                    },
+                    {
                         xtype: 'tbseparator'
-                    }, {
+                    }
+
+
+                    , {
                         text: 'rechercher',
                         tooltip: 'rechercher',
                         iconCls: 'searchicon',
-                        flex: 0.8,
+
                         scope: this,
                         handler: this.onRechClick
                     },
@@ -232,7 +269,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         tooltip: 'Imprimer',
                         iconCls: 'importicon',
                         id: 'printInvoicereport',
-                        flex: 0.7,
+
                         scope: this,
                         handler: this.onPrint
                     },
@@ -243,7 +280,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     {
                         text: 'Exporter',
                         scope: this,
-                        flex: 0.7,
+
                         iconCls: 'export_excel_icon',
                         handler: this.exportToExcel
                     }
@@ -260,13 +297,15 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 emptyMsg: "Pas de donnée à afficher",
                 listeners: {
                     beforechange: function (page, currentPage) {
+                        console.log('on beforechange ');
                         var myProxy = this.store.getProxy();
                         myProxy.params = {
                             search_value: '',
                             dt_fin: '',
                             dt_debut: '',
                             lg_customer_id: '',
-                            CODEGROUPE: ''
+                            CODEGROUPE: '',
+                            'impayes': ''
                         };
                         var val = Ext.getCmp('rechecherFacture').getValue();
                         var lg_customer_id = "";
@@ -274,7 +313,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== null && Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== "") {
                             lg_customer_id = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
                         }
-
+                        let filtreImpayes = Ext.getCmp('filtreImpayes').getValue();
+                        if (filtreImpayes == null || filtreImpayes == undefined) {
+                            filtreImpayes = '';
+                        }
 
                         var dt_debut = Ext.getCmp('datedebut').getSubmitValue();
                         var dt_fin = Ext.getCmp('datefin').getSubmitValue();
@@ -282,7 +324,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         myProxy.setExtraParam('search_value', val);
                         myProxy.setExtraParam('dt_debut', dt_debut);
                         myProxy.setExtraParam('dt_fin', dt_fin);
-
+                        myProxy.setExtraParam('impayes', filtreImpayes);
                         myProxy.setExtraParam('CODEGROUPE', Ext.getCmp('rechecherCode').getValue());
 
                     }
@@ -408,7 +450,19 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
                 ]
             },
-
+            {
+                xtype: 'actioncolumn',
+                hidden: true,
+                width: 30,
+                sortable: false,
+                menuDisabled: true,
+                items: [{
+                        icon: 'resources/images/icons/certication.png',
+                        tooltip: 'Certification',
+                        scope: this,
+                        handler: this.certify
+                    }]
+            },
             {
                 xtype: 'actioncolumn',
                 width: 30,
@@ -485,8 +539,8 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                                 return 'groupe';
                             } else if (rec.get('str_STATUT') === 'paid') {
                                 return 'regle';
-                            }else{
-                                 return 'x-hide-display';
+                            } else {
+                                return 'x-hide-display';
                             }
                         },
                         getTip: function (v, meta, rec) {
@@ -511,12 +565,30 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             }
         ];
     },
+    certify: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
 
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            url: '../api/v1/fne/invoices/sign/' + rec.get('lg_FACTURE_ID'),
+            method: 'GET',
+            success: function (response)
+            {
+                progress.hide();
+                Ext.MessageBox.alert('Info', 'Opération effectuée ');
+
+            },
+            failure: function (response)
+            {
+                progress.hide();
+                Ext.MessageBox.alert('Error Message', response.responseText);
+            }
+        });
+
+    },
     onAddCreate: function () {
-        var xtype = "addeditfacture";
-        var alias = 'widget.' + xtype;
-        //A DECOMMENTER EN CAS DE PROBLEME
-        testextjs.app.getController('App').onLoadNewComponent(xtype, "Cr&eacute;er une facture", "0");
+
+        testextjs.app.getController('App').onLoadNewComponent('addeditfacture', "Cr&eacute;er une facture", "0");
 
 
     },
@@ -526,8 +598,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         if ((rec.get('str_STATUT') === "enable" || rec.get('str_STATUT') === "is_Process") && rec.get('ACTION_REGLER_FACTURE')) {
             var xtype = "doreglementmanager";
             var alias = 'widget.' + xtype;
-            //  testextjs.app.getController('App').onLoadNewComponent(xtype, "Faire un r&eacute;glement", "0");
-//            var rec = grid.getStore().getAt(rowIndex);
+
             testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Faire un r&eacute;glement", rec.get('lg_FACTURE_ID'), rec.data);
         } else if (rec.get('str_STATUT') === "group") {
             var xtype = "groupeInvoices";
@@ -595,7 +666,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
                                 }
                             });
-                            return;
+
                         }
                     });
 
@@ -618,7 +689,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== null && Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== "") {
             lg_customer_id = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
         }
-
+        let filtreImpayes = Ext.getCmp('filtreImpayes').getValue();
+        if (filtreImpayes == null || filtreImpayes == undefined) {
+            filtreImpayes = '';
+        }
 
         this.getStore().load({
             params: {
@@ -626,8 +700,16 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 lg_customer_id: lg_customer_id,
                 dt_fin: Ext.getCmp('datefin').getSubmitValue(),
                 dt_debut: Ext.getCmp('datedebut').getSubmitValue(),
-                'CODEGROUPE': Ext.getCmp('rechecherCode').getValue()
+                'CODEGROUPE': Ext.getCmp('rechecherCode').getValue(),
+                'impayes': filtreImpayes
             }});
+        sessionStorage.setItem('impayes', filtreImpayes);
+        sessionStorage.setItem('customer', lg_customer_id);
+        sessionStorage.setItem('searchQuery', val);
+        sessionStorage.setItem('datefin', Ext.getCmp('datefin').getSubmitValue());
+        sessionStorage.setItem('dateStart', Ext.getCmp('datedebut').getSubmitValue());
+        sessionStorage.setItem('codeGroupe', Ext.getCmp('rechecherCode').getValue());
+
     },
     onExel: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
@@ -665,8 +747,12 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() === null) {
             lg_customer_id = "";
         }
+        let filtreImpayes = Ext.getCmp('filtreImpayes').getValue();
+        if (filtreImpayes == null || filtreImpayes == undefined) {
+            filtreImpayes = '';
+        }
         var search_value = Ext.getCmp('rechecherFacture').getValue();
-        var linkUrl = "../webservices/sm_user/facturation/ws_data_relever_facture.jsp" + "?lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value;
+        var linkUrl = "../webservices/sm_user/facturation/ws_data_relever_facture.jsp" + "?lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes;
         window.open(linkUrl);
     },
     exportToExcel: function () {
@@ -676,8 +762,12 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() === null) {
             lg_customer_id = "";
         }
+        let filtreImpayes = Ext.getCmp('filtreImpayes').getValue();
+        if (filtreImpayes == null || filtreImpayes == undefined) {
+            filtreImpayes = '';
+        }
         var search_value = Ext.getCmp('rechecherFacture').getValue();
-        window.location = "../FactureDataExport?action=facture&lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value;
+        window.location = "../FactureDataExport?action=facture&lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes;
 
     }
 

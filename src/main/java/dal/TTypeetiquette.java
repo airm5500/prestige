@@ -29,14 +29,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_typeetiquette")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeetiquette.findAll", query = "SELECT t FROM TTypeetiquette t"),
-    @NamedQuery(name = "TTypeetiquette.findByLgTYPEETIQUETTEID", query = "SELECT t FROM TTypeetiquette t WHERE t.lgTYPEETIQUETTEID = :lgTYPEETIQUETTEID"),
-    @NamedQuery(name = "TTypeetiquette.findByStrNAME", query = "SELECT t FROM TTypeetiquette t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypeetiquette.findByStrDESCRIPTION", query = "SELECT t FROM TTypeetiquette t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypeetiquette.findByDtCREATED", query = "SELECT t FROM TTypeetiquette t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypeetiquette.findByDtUPDATED", query = "SELECT t FROM TTypeetiquette t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TTypeetiquette.findByStrSTATUT", query = "SELECT t FROM TTypeetiquette t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TTypeetiquette.findAll", query = "SELECT t FROM TTypeetiquette t"),
+        @NamedQuery(name = "TTypeetiquette.findByLgTYPEETIQUETTEID", query = "SELECT t FROM TTypeetiquette t WHERE t.lgTYPEETIQUETTEID = :lgTYPEETIQUETTEID"),
+        @NamedQuery(name = "TTypeetiquette.findByStrNAME", query = "SELECT t FROM TTypeetiquette t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypeetiquette.findByStrDESCRIPTION", query = "SELECT t FROM TTypeetiquette t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypeetiquette.findByDtCREATED", query = "SELECT t FROM TTypeetiquette t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypeetiquette.findByDtUPDATED", query = "SELECT t FROM TTypeetiquette t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TTypeetiquette.findByStrSTATUT", query = "SELECT t FROM TTypeetiquette t WHERE t.strSTATUT = :strSTATUT") })
 public class TTypeetiquette implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -177,7 +176,8 @@ public class TTypeetiquette implements Serializable {
             return false;
         }
         TTypeetiquette other = (TTypeetiquette) object;
-        if ((this.lgTYPEETIQUETTEID == null && other.lgTYPEETIQUETTEID != null) || (this.lgTYPEETIQUETTEID != null && !this.lgTYPEETIQUETTEID.equals(other.lgTYPEETIQUETTEID))) {
+        if ((this.lgTYPEETIQUETTEID == null && other.lgTYPEETIQUETTEID != null)
+                || (this.lgTYPEETIQUETTEID != null && !this.lgTYPEETIQUETTEID.equals(other.lgTYPEETIQUETTEID))) {
             return false;
         }
         return true;
@@ -187,5 +187,5 @@ public class TTypeetiquette implements Serializable {
     public String toString() {
         return "dal.TTypeetiquette[ lgTYPEETIQUETTEID=" + lgTYPEETIQUETTEID + " ]";
     }
-    
+
 }

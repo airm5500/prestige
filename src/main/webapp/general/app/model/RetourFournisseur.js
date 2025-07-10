@@ -101,6 +101,11 @@ Ext.define('testextjs.model.RetourFournisseur', {
         { 
              name: 'USEREMPLACEMENT', 
              type: 'string'
+        },
+        
+         { 
+             name: 'closed', 
+             type: 'boolean'
         }
         
         

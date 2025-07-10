@@ -12,17 +12,17 @@ import java.util.Objects;
 /**
  *
  * @author Kobena
+ *
  * @param <T>
  */
-@SuppressWarnings({ "rawtypes", "unchecked" }) 
+@SuppressWarnings({ "rawtypes", "unchecked" })
 public class Result<T> implements Serializable {
 
-    final private boolean success;
-    final private T data;
-    final private String msg;
-    final private long total;
-    final private T metaData;
-//    final private int error;
+    private final boolean success;
+    private final T data;
+    private final String msg;
+    private final long total;
+    private final T metaData;
 
     Result(boolean success, T data, long total) {
         this.success = success;
@@ -44,6 +44,14 @@ public class Result<T> implements Serializable {
         this.success = success;
         this.data = null;
         this.msg = msg;
+        this.total = 0;
+        this.metaData = null;
+    }
+
+    Result(T data) {
+        this.success = true;
+        this.data = data;
+        this.msg = null;
         this.total = 0;
         this.metaData = null;
     }

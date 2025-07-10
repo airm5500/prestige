@@ -28,17 +28,16 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_evaluationoffreprix")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TEvaluationoffreprix.findAll", query = "SELECT t FROM TEvaluationoffreprix t"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByLgEVALUATIONOFFREPRIXID", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.lgEVALUATIONOFFREPRIXID = :lgEVALUATIONOFFREPRIXID"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByIntNUMBER", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intNUMBER = :intNUMBER"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByIntNUMBERGRATUIT", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intNUMBERGRATUIT = :intNUMBERGRATUIT"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByIntPRICEOFFRE", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intPRICEOFFRE = :intPRICEOFFRE"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByIntMOISLIQUIDATION", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intMOISLIQUIDATION = :intMOISLIQUIDATION"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByIntQTEPRODUCTVENDU", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intQTEPRODUCTVENDU = :intQTEPRODUCTVENDU"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByDtCREATED", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByDtUPDATED", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TEvaluationoffreprix.findByStrSTATUT", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TEvaluationoffreprix.findAll", query = "SELECT t FROM TEvaluationoffreprix t"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByLgEVALUATIONOFFREPRIXID", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.lgEVALUATIONOFFREPRIXID = :lgEVALUATIONOFFREPRIXID"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByIntNUMBER", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intNUMBER = :intNUMBER"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByIntNUMBERGRATUIT", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intNUMBERGRATUIT = :intNUMBERGRATUIT"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByIntPRICEOFFRE", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intPRICEOFFRE = :intPRICEOFFRE"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByIntMOISLIQUIDATION", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intMOISLIQUIDATION = :intMOISLIQUIDATION"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByIntQTEPRODUCTVENDU", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.intQTEPRODUCTVENDU = :intQTEPRODUCTVENDU"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByDtCREATED", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByDtUPDATED", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TEvaluationoffreprix.findByStrSTATUT", query = "SELECT t FROM TEvaluationoffreprix t WHERE t.strSTATUT = :strSTATUT") })
 public class TEvaluationoffreprix implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -168,7 +167,9 @@ public class TEvaluationoffreprix implements Serializable {
             return false;
         }
         TEvaluationoffreprix other = (TEvaluationoffreprix) object;
-        if ((this.lgEVALUATIONOFFREPRIXID == null && other.lgEVALUATIONOFFREPRIXID != null) || (this.lgEVALUATIONOFFREPRIXID != null && !this.lgEVALUATIONOFFREPRIXID.equals(other.lgEVALUATIONOFFREPRIXID))) {
+        if ((this.lgEVALUATIONOFFREPRIXID == null && other.lgEVALUATIONOFFREPRIXID != null)
+                || (this.lgEVALUATIONOFFREPRIXID != null
+                        && !this.lgEVALUATIONOFFREPRIXID.equals(other.lgEVALUATIONOFFREPRIXID))) {
             return false;
         }
         return true;
@@ -178,5 +179,5 @@ public class TEvaluationoffreprix implements Serializable {
     public String toString() {
         return "dal.TEvaluationoffreprix[ lgEVALUATIONOFFREPRIXID=" + lgEVALUATIONOFFREPRIXID + " ]";
     }
-    
+
 }

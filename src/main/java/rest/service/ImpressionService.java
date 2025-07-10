@@ -16,8 +16,10 @@ public interface ImpressionService extends Printable {
 
     public void PrintTicketVente();
 
-    public void buildTicket(List<String> datas, List<String> infoSellers, List<String> infoClientAvoir, List<String> subtotal, List<String> commentaires, String codeBar);
+    public void buildTicket(List<String> datas, List<String> infoSellers, List<String> infoClientAvoir,
+            List<String> subtotal, List<String> commentaires, String codeBar);
 
-    public void buildTicketVo(List<String> datas, List<String> infoSellers, List<String> infoTiersPayants, List<String> subtotal, List<String> commentaires, String codeBar);
+    public void buildTicketVo(List<String> datas, List<String> infoSellers, List<String> infoTiersPayants,
+            List<String> subtotal, List<String> commentaires, String codeBar);
 
 }

@@ -5,13 +5,16 @@
  */
 package rest.repo;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
  *
  * @author koben
+ *
+ * @param <T>
  */
-public interface AbstractRepo<T> {
+public interface AbstractRepo<T /* extends Entity */> {
 
     void save(T entity);
 
@@ -30,4 +33,7 @@ public interface AbstractRepo<T> {
     int deleteById(Integer entityId);
 
     Optional<T> findById(Integer entityId);
+
+    List<T> findAll();
+
 }

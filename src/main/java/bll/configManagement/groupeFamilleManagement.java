@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 package bll.configManagement;
- 
+
 import dal.TGroupeFamille;
 
 import bll.bllBase;
@@ -25,18 +25,19 @@ public class groupeFamilleManagement extends bllBase {
         this.checkDatamanager();
     }
 
-    public void create(String str_CODE_GROUPE_FAMILLE, String str_LIBELLE , String str_COMMENTAIRE) {
+    public void create(String str_CODE_GROUPE_FAMILLE, String str_LIBELLE, String str_COMMENTAIRE) {
 
         try {
 
             TGroupeFamille OTGroupeFamille = new TGroupeFamille();
 
-            OTGroupeFamille.setLgGROUPEFAMILLEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTGroupeFamille.setLgGROUPEFAMILLEID(this.getKey().getComplexId()); // Génération automatique d'un ID à
+                                                                                // partir de la date courante
             OTGroupeFamille.setStrLIBELLE(str_LIBELLE);
             OTGroupeFamille.setStrCOMMENTAIRE(str_COMMENTAIRE);
             OTGroupeFamille.setStrCODEGROUPEFAMILLE(str_CODE_GROUPE_FAMILLE);
 
-            OTGroupeFamille.setStrSTATUT(commonparameter.statut_enable);           
+            OTGroupeFamille.setStrSTATUT(commonparameter.statut_enable);
             OTGroupeFamille.setDtCREATED(new Date());
 
             this.persiste(OTGroupeFamille);
@@ -47,8 +48,9 @@ public class groupeFamilleManagement extends bllBase {
 
     }
 
-    public void update(String lg_GROUPE_FAMILLE_ID,String str_CODE_GROUPE_FAMILLE, String str_LIBELLE , String str_COMMENTAIRE) {
-        
+    public void update(String lg_GROUPE_FAMILLE_ID, String str_CODE_GROUPE_FAMILLE, String str_LIBELLE,
+            String str_COMMENTAIRE) {
+
         TGroupeFamille OTGroupeFamille = null;
         try {
 
@@ -56,7 +58,7 @@ public class groupeFamilleManagement extends bllBase {
             OTGroupeFamille.setStrCODEGROUPEFAMILLE(str_CODE_GROUPE_FAMILLE);
             OTGroupeFamille.setStrLIBELLE(str_LIBELLE);
             OTGroupeFamille.setStrCOMMENTAIRE(str_COMMENTAIRE);
-            
+
             OTGroupeFamille.setStrSTATUT(commonparameter.statut_enable);
             OTGroupeFamille.setDtUPDATED(new Date());
 
@@ -66,6 +68,6 @@ public class groupeFamilleManagement extends bllBase {
             this.buildErrorTraceMessage("Impossible de creer un " + Otable, e.getMessage());
         }
 
-    }  
-    
+    }
+
 }

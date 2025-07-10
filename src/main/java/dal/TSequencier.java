@@ -29,13 +29,12 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_sequencier")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSequencier.findAll", query = "SELECT t FROM TSequencier t"),
-    @NamedQuery(name = "TSequencier.findByLgSEQUENCIERID", query = "SELECT t FROM TSequencier t WHERE t.lgSEQUENCIERID = :lgSEQUENCIERID"),
-    @NamedQuery(name = "TSequencier.findByIntSEQUENCE", query = "SELECT t FROM TSequencier t WHERE t.intSEQUENCE = :intSEQUENCE"),
-    @NamedQuery(name = "TSequencier.findByDtCREATED", query = "SELECT t FROM TSequencier t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSequencier.findByDtUPDATED", query = "SELECT t FROM TSequencier t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSequencier.findByStrSTATUT", query = "SELECT t FROM TSequencier t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TSequencier.findAll", query = "SELECT t FROM TSequencier t"),
+        @NamedQuery(name = "TSequencier.findByLgSEQUENCIERID", query = "SELECT t FROM TSequencier t WHERE t.lgSEQUENCIERID = :lgSEQUENCIERID"),
+        @NamedQuery(name = "TSequencier.findByIntSEQUENCE", query = "SELECT t FROM TSequencier t WHERE t.intSEQUENCE = :intSEQUENCE"),
+        @NamedQuery(name = "TSequencier.findByDtCREATED", query = "SELECT t FROM TSequencier t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSequencier.findByDtUPDATED", query = "SELECT t FROM TSequencier t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSequencier.findByStrSTATUT", query = "SELECT t FROM TSequencier t WHERE t.strSTATUT = :strSTATUT") })
 public class TSequencier implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -125,7 +124,8 @@ public class TSequencier implements Serializable {
             return false;
         }
         TSequencier other = (TSequencier) object;
-        if ((this.lgSEQUENCIERID == null && other.lgSEQUENCIERID != null) || (this.lgSEQUENCIERID != null && !this.lgSEQUENCIERID.equals(other.lgSEQUENCIERID))) {
+        if ((this.lgSEQUENCIERID == null && other.lgSEQUENCIERID != null)
+                || (this.lgSEQUENCIERID != null && !this.lgSEQUENCIERID.equals(other.lgSEQUENCIERID))) {
             return false;
         }
         return true;
@@ -135,5 +135,5 @@ public class TSequencier implements Serializable {
     public String toString() {
         return "dal.TSequencier[ lgSEQUENCIERID=" + lgSEQUENCIERID + " ]";
     }
-    
+
 }

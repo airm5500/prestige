@@ -26,12 +26,11 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_type_recette")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypeRecette.findAll", query = "SELECT t FROM TTypeRecette t"),
-    @NamedQuery(name = "TTypeRecette.findByLgTYPERECETTEID", query = "SELECT t FROM TTypeRecette t WHERE t.lgTYPERECETTEID = :lgTYPERECETTEID"),
-    @NamedQuery(name = "TTypeRecette.findByStrTYPERECETTE", query = "SELECT t FROM TTypeRecette t WHERE t.strTYPERECETTE = :strTYPERECETTE"),
-    @NamedQuery(name = "TTypeRecette.findByStrNUMEROCOMPTE", query = "SELECT t FROM TTypeRecette t WHERE t.strNUMEROCOMPTE = :strNUMEROCOMPTE"),
-    @NamedQuery(name = "TTypeRecette.findByIsUSETVA", query = "SELECT t FROM TTypeRecette t WHERE t.isUSETVA = :isUSETVA")})
+@NamedQueries({ @NamedQuery(name = "TTypeRecette.findAll", query = "SELECT t FROM TTypeRecette t"),
+        @NamedQuery(name = "TTypeRecette.findByLgTYPERECETTEID", query = "SELECT t FROM TTypeRecette t WHERE t.lgTYPERECETTEID = :lgTYPERECETTEID"),
+        @NamedQuery(name = "TTypeRecette.findByStrTYPERECETTE", query = "SELECT t FROM TTypeRecette t WHERE t.strTYPERECETTE = :strTYPERECETTE"),
+        @NamedQuery(name = "TTypeRecette.findByStrNUMEROCOMPTE", query = "SELECT t FROM TTypeRecette t WHERE t.strNUMEROCOMPTE = :strNUMEROCOMPTE"),
+        @NamedQuery(name = "TTypeRecette.findByIsUSETVA", query = "SELECT t FROM TTypeRecette t WHERE t.isUSETVA = :isUSETVA") })
 public class TTypeRecette implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -104,7 +103,8 @@ public class TTypeRecette implements Serializable {
         return tSnapShopDalyRecetteCaisseCollection;
     }
 
-    public void setTSnapShopDalyRecetteCaisseCollection(Collection<TSnapShopDalyRecetteCaisse> tSnapShopDalyRecetteCaisseCollection) {
+    public void setTSnapShopDalyRecetteCaisseCollection(
+            Collection<TSnapShopDalyRecetteCaisse> tSnapShopDalyRecetteCaisseCollection) {
         this.tSnapShopDalyRecetteCaisseCollection = tSnapShopDalyRecetteCaisseCollection;
     }
 
@@ -131,7 +131,8 @@ public class TTypeRecette implements Serializable {
             return false;
         }
         TTypeRecette other = (TTypeRecette) object;
-        if ((this.lgTYPERECETTEID == null && other.lgTYPERECETTEID != null) || (this.lgTYPERECETTEID != null && !this.lgTYPERECETTEID.equals(other.lgTYPERECETTEID))) {
+        if ((this.lgTYPERECETTEID == null && other.lgTYPERECETTEID != null)
+                || (this.lgTYPERECETTEID != null && !this.lgTYPERECETTEID.equals(other.lgTYPERECETTEID))) {
             return false;
         }
         return true;
@@ -141,5 +142,5 @@ public class TTypeRecette implements Serializable {
     public String toString() {
         return "dal.TTypeRecette[ lgTYPERECETTEID=" + lgTYPERECETTEID + " ]";
     }
-    
+
 }

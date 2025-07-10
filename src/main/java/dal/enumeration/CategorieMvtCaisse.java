@@ -10,5 +10,5 @@ package dal.enumeration;
  * @author DICI
  */
 public enum CategorieMvtCaisse {
-     VENTE, ENTREE_CAISSE, SORTIE_CAISSE, ACHAT, 
+    VENTE, ENTREE_CAISSE, SORTIE_CAISSE, ACHAT,
 }

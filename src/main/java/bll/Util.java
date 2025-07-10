@@ -29,29 +29,29 @@ public class Util {
     public static final String ACTIONDELETERETOUR = "030920171";
     public static final String ACTIONDELETEAJUSTEMENT = "030920172";
     public static final String ACTIONDELETE = "06042016";
-     public static final String DEPOT_EXTENSION = "5";
-      public static final String DEPOT_AGREE = "4";
-      public static final String VENTE_ASSURANCE = "2";
-        public static final String ACTION_REGLER_FACTURE = "16012021";
+    public static final String DEPOT_EXTENSION = "5";
+    public static final String DEPOT_AGREE = "4";
+    public static final String VENTE_ASSURANCE = "2";
+    public static final String ACTION_REGLER_FACTURE = "16012021";
 
-    public static boolean isAllowed(EntityManager em,String actionID,String roleID) {
+    public static boolean isAllowed(EntityManager em, String actionID, String roleID) {
         try {
-        CriteriaBuilder cb = em.getCriteriaBuilder();
-        CriteriaQuery<Long> cq = cb.createQuery(Long.class);
-        Root<TRolePrivelege> root = cq.from(TRolePrivelege.class);
-        Join<TRolePrivelege, TPrivilege> rp = root.join("lgPRIVILEGEID", JoinType.INNER);
-        Join<TRolePrivelege, TRole> r = root.join("lgROLEID", JoinType.INNER);
-          Predicate criteria = cb.conjunction();
-           criteria = cb.and(criteria, cb.equal(r.get(TRole_.lgROLEID), roleID));
-           criteria = cb.and(criteria, cb.equal(rp.get(TPrivilege_.lgPRIVELEGEID), actionID));
-           cq.select(cb.count(root) );
-           cq.where(criteria);
+            CriteriaBuilder cb = em.getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<TRolePrivelege> root = cq.from(TRolePrivelege.class);
+            Join<TRolePrivelege, TPrivilege> rp = root.join("lgPRIVILEGEID", JoinType.INNER);
+            Join<TRolePrivelege, TRole> r = root.join("lgROLEID", JoinType.INNER);
+            Predicate criteria = cb.conjunction();
+            criteria = cb.and(criteria, cb.equal(r.get(TRole_.lgROLEID), roleID));
+            criteria = cb.and(criteria, cb.equal(rp.get(TPrivilege_.lgPRIVELEGEID), actionID));
+            cq.select(cb.count(root));
+            cq.where(criteria);
             Query q = em.createQuery(cq);
 
-            return (((Long) q.getSingleResult()).intValue()>0);
-        }finally {
+            return (((Long) q.getSingleResult()).intValue() > 0);
+        } finally {
             if (em != null) {
-               // em.close();
+                // em.close();
             }
         }
     }

@@ -82,7 +82,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
 
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/caisse/balancesalecash',
+                url: '../api/v1/balance/balancesalecash',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -95,10 +95,7 @@ Ext.define('testextjs.view.caisseManager.balance.BalanceSaleCash', {
         });
         var me = this;
         Ext.applyIf(me, {
-            /*tools: [{
-             type: 'refresh',
-             tooltip: 'Actualiser'
-             }],*/
+
             dockedItems: [
 
                 {

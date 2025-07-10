@@ -22,7 +22,6 @@ public class Laboratoire extends AbstractEntity {
     @Column(name = "libelle", nullable = false, unique = true)
     private String libelle;
 
-
     public String getLibelle() {
         return libelle;
     }
@@ -38,8 +37,6 @@ public class Laboratoire extends AbstractEntity {
 
     @Override
     public String toString() {
-        return "Laboratoire{"
-                + ", libelle='" + getLibelle() + "'"
-                + "}";
+        return "Laboratoire{" + ", libelle='" + getLibelle() + "'" + "}";
     }
 }

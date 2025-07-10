@@ -1274,13 +1274,13 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
         wind.destroy();
     },
     loadVenteById: function (id) {
-        var me = this;
+        const me = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/vente/find/infosclienttpforupdating',
             params: {"id": id},
             success: function (response, options) {
-                var result = Ext.JSON.decode(response.responseText, true);
+                const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
                     me.data = result.data;
                     me.typeVente = me.getData().lgTYPEVENTEID;
@@ -1310,9 +1310,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
         });
     },
     buildTpData: function (me) {
-        var tpContainerForm = me.down('form').down('#tpContainer').down('#tpContainerform');
-        var items = tpContainerForm.items;
-        var tierspayants = [];
+        const tpContainerForm = me.down('form').down('#tpContainer').down('#tpContainerform');
+        const items = tpContainerForm.items;
+        const tierspayants = [];
         Ext.each(items.items, function (item) {
             if (item.items) {
                 let numBonCmp = item.down('textfield:first');
@@ -1613,12 +1613,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
          console.log(hiddenfield);
         console.log(hiddenfield.getValue());
         rebonCmp.setValue(numBon);
-        /* let obj;
-         if (selectedData != null) {
-         obj = {"numBon": selectedData.numBon, "tpFullName": fullName, "compteTp": lgTiersPayantId, "taux": selectedData.taux, "itemId": detailId};
-         } else {
-         obj = {"numBon": numBon ? numBon : null, "tpFullName": fullName, "compteTp": lgTiersPayantId, "taux": me.getTaux(), "itemId": detailId};
-         }*/
+        
 
     },
 

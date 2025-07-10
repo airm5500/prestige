@@ -60,6 +60,7 @@
     new logger().OCategory.info("Dans edition scr_report_file "+scr_report_file);
     bllBase obllBase = new bllBase();
     obllBase.checkDatamanager();
+   OTUser=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
    TOfficine oTOfficine = obllBase.getOdataManager().getEm().find(dal.TOfficine.class, "1");
     
 

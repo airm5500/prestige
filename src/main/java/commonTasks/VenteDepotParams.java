@@ -133,7 +133,11 @@ public class VenteDepotParams implements Serializable {
         this.lg_PREENREGISTREMENT_DETAIL_ID = lg_PREENREGISTREMENT_DETAIL_ID;
     }
 
-    public VenteDepotParams(@JsonProperty("lg_PREENREGISTREMENT_ID") String lg_PREENREGISTREMENT_ID,@JsonProperty("lg_EMPLACEMENT_ID") String lg_EMPLACEMENT_ID,@JsonProperty("lg_USER_VENDEUR_ID") String lg_USER_VENDEUR_ID,@JsonProperty("lg_FAMILLE_ID") String lg_FAMILLE_ID,@JsonProperty("lg_REMISE_ID") String lg_REMISE_ID,@JsonProperty("int_QUANTITY") int int_QUANTITY) {
+    public VenteDepotParams(@JsonProperty("lg_PREENREGISTREMENT_ID") String lg_PREENREGISTREMENT_ID,
+            @JsonProperty("lg_EMPLACEMENT_ID") String lg_EMPLACEMENT_ID,
+            @JsonProperty("lg_USER_VENDEUR_ID") String lg_USER_VENDEUR_ID,
+            @JsonProperty("lg_FAMILLE_ID") String lg_FAMILLE_ID, @JsonProperty("lg_REMISE_ID") String lg_REMISE_ID,
+            @JsonProperty("int_QUANTITY") int int_QUANTITY) {
         this.lg_PREENREGISTREMENT_ID = lg_PREENREGISTREMENT_ID;
         this.lg_EMPLACEMENT_ID = lg_EMPLACEMENT_ID;
         this.lg_USER_VENDEUR_ID = lg_USER_VENDEUR_ID;
@@ -142,7 +146,9 @@ public class VenteDepotParams implements Serializable {
         this.int_quantite = int_QUANTITY;
     }
 
-    public VenteDepotParams(@JsonProperty("lg_PREENREGISTREMENT_DETAIL_ID") String lg_PREENREGISTREMENT_DETAIL_ID,@JsonProperty("lg_FAMILLE_ID") String lg_FAMILLE_ID,@JsonProperty("int_PRICE_DETAIL") int int_PRICE_DETAIL,@JsonProperty("lg_REMISE_ID") String lg_REMISE_ID,@JsonProperty("int_QUANTITY") int int_QUANTITY) {
+    public VenteDepotParams(@JsonProperty("lg_PREENREGISTREMENT_DETAIL_ID") String lg_PREENREGISTREMENT_DETAIL_ID,
+            @JsonProperty("lg_FAMILLE_ID") String lg_FAMILLE_ID, @JsonProperty("int_PRICE_DETAIL") int int_PRICE_DETAIL,
+            @JsonProperty("lg_REMISE_ID") String lg_REMISE_ID, @JsonProperty("int_QUANTITY") int int_QUANTITY) {
         this.lg_PREENREGISTREMENT_DETAIL_ID = lg_PREENREGISTREMENT_DETAIL_ID;
         this.lg_FAMILLE_ID = lg_FAMILLE_ID;
         this.int_PRICE_DETAIL = int_PRICE_DETAIL;

@@ -27,10 +27,9 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_transaction_code")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTransactionCode.findAll", query = "SELECT t FROM TTransactionCode t"),
-    @NamedQuery(name = "TTransactionCode.findByStrtransactioncodeID", query = "SELECT t FROM TTransactionCode t WHERE t.strtransactioncodeID = :strtransactioncodeID"),
-    @NamedQuery(name = "TTransactionCode.findByStrDescription", query = "SELECT t FROM TTransactionCode t WHERE t.strDescription = :strDescription")})
+@NamedQueries({ @NamedQuery(name = "TTransactionCode.findAll", query = "SELECT t FROM TTransactionCode t"),
+        @NamedQuery(name = "TTransactionCode.findByStrtransactioncodeID", query = "SELECT t FROM TTransactionCode t WHERE t.strtransactioncodeID = :strtransactioncodeID"),
+        @NamedQuery(name = "TTransactionCode.findByStrDescription", query = "SELECT t FROM TTransactionCode t WHERE t.strDescription = :strDescription") })
 public class TTransactionCode implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -39,7 +38,7 @@ public class TTransactionCode implements Serializable {
     private String strtransactioncodeID;
     @Column(name = "str_description", length = 200)
     private String strDescription;
-    @OneToMany( mappedBy = "strtransactioncodeID")
+    @OneToMany(mappedBy = "strtransactioncodeID")
     private Collection<TTransaction> tTransactionCollection;
 
     public TTransactionCode() {
@@ -88,7 +87,9 @@ public class TTransactionCode implements Serializable {
             return false;
         }
         TTransactionCode other = (TTransactionCode) object;
-        if ((this.strtransactioncodeID == null && other.strtransactioncodeID != null) || (this.strtransactioncodeID != null && !this.strtransactioncodeID.equals(other.strtransactioncodeID))) {
+        if ((this.strtransactioncodeID == null && other.strtransactioncodeID != null)
+                || (this.strtransactioncodeID != null
+                        && !this.strtransactioncodeID.equals(other.strtransactioncodeID))) {
             return false;
         }
         return true;
@@ -98,5 +99,5 @@ public class TTransactionCode implements Serializable {
     public String toString() {
         return "dal.TTransactionCode[ strtransactioncodeID=" + strtransactioncodeID + " ]";
     }
-    
+
 }

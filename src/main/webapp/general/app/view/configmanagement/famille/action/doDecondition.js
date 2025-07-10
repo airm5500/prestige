@@ -34,9 +34,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
 
         Me = this;
         var itemsPerPage = 20;
-
-
-
         str_DESCRIPTION = new Ext.form.field.Display(
                 {
                     xtype: 'displayfield',
@@ -126,12 +123,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
                                 change: function (field) {
 //                                    var int_NUMBER_AVAILABLE = (Ext.getCmp('int_NUMBER_AVAILABLE').getValue());
                                     Me.DisplayQuantity(field.getValue(), int_NUMBERDETAIL);
-                                }/*,
-                                 keypress: function(field, e) {
-                                 if (e.getKey() === e.ENTER) {
-                                 Me.onbtnsave();
-                                 }
-                                 }*/
+                                }
 
 
 
@@ -227,53 +219,37 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
         });
     },
     onbtnsave: function (button) {
-        var win = button.up('window');
-        var internal_url = "";
+        const win = button.up('window');
 
-        if (Omode === "deconditionarticle" || Omode === "deconditionarticlevente") {
-            internal_url = url_services_transaction_famille + 'deconditionarticle';
-        }
         testextjs.app.getController('App').ShowWaitingProcess();
+
         Ext.Ajax.request({
-            url: '../Deconditionnement?mode=deconditionarticle',
-            params: {
-                lg_FAMILLE_ID: ref,
-                lg_FAMILLE_PARENT_ID: lg_FAMILLE_PARENT_ID,
-                int_NUMBER_AVAILABLE: Ext.getCmp('int_NUMBER_AVAILABLE').getValue()
-            },
-            success: function (response)
-            {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/decondition/deconditionner',
+            params: Ext.JSON.encode({
+                'produitId': ref,
+                'quantity': Ext.getCmp('int_NUMBER_AVAILABLE').getValue()
+            }),
+            success: function (response, options) {
                 testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
-                // alert(object.success);
-                if (object.success == "0") {
-                    Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
-                } else {
-                    win.close();
-                    Ext.MessageBox.alert('Confirmation', object.errors, function () {
-                        if (type == "famillemanager") {
-                            Me_Workflow = Oview;
-                            Me_Workflow.onRechClick();
-//                        Oview.getStore().reload(); a decommenter en cas de probleme
-                        } else if (type == "bonlivraison") {
-                            var OGrid = Ext.getCmp('gridpanelID');
-                            OGrid.getStore().reload();
-                        }
-                    });
+                 win.close();
+                Ext.MessageBox.alert('Message', 'Le produit a été déconditionné');
+                if (type === "famillemanager") {
+                    Me_Workflow = Oview;
+                    Me_Workflow.onRechClick();
+
+                } else if (type === "bonlivraison") {
+                    Ext.getCmp('gridpanelID').getStore().reload();
 
                 }
 
-
             },
-            failure: function (response)
-            {
+            failure: function (response, options) {
                 testextjs.app.getController('App').StopWaitingProcess();
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
-
+                Ext.Msg.alert("Message", "L'opération a échoué " + response.status);
             }
+
         });
 
     }

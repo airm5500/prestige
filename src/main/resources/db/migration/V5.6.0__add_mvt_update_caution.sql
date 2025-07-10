@@ -1,0 +1,2 @@
+
+ALTER TABLE `caution` ADD COLUMN IF NOT EXISTS `mvt_update` DATETIME NOT NULL ;

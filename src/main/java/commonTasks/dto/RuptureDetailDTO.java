@@ -20,11 +20,11 @@ import java.util.Objects;
  */
 public class RuptureDetailDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-       private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private Integer prixAchat = 0;
-    private Integer prixVente = 0,montantAchat=0;
-    private Integer qty = 0,seuil=0,qteReappro,stock=0;
-    private String codeCip,libelle,id,grossisteId,grossisteLibelle,ruptureId,dateRrupture,familleLibelle;
+    private Integer prixVente = 0, montantAchat = 0;
+    private Integer qty = 0, seuil = 0, qteReappro, stock = 0;
+    private String codeCip, libelle, id, grossisteId, grossisteLibelle, ruptureId, dateRrupture, familleLibelle;
 
     public Integer getPrixAchat() {
         return prixAchat;
@@ -131,21 +131,19 @@ public class RuptureDetailDTO implements Serializable {
     }
 
     public RuptureDetailDTO(RuptureDetail d) {
-        TFamille f=d.getProduit();
-        Rupture r=d.getRupture();
-        TGrossiste g=r.getGrossiste();
+        TFamille f = d.getProduit();
+        Rupture r = d.getRupture();
+        TGrossiste g = r.getGrossiste();
         this.codeCip = f.getIntCIP();
         this.libelle = f.getStrNAME();
         this.id = d.getId();
         this.grossisteId = g.getLgGROSSISTEID();
         this.grossisteLibelle = g.getStrLIBELLE();
         this.ruptureId = r.getId();
-        this.prixAchat=d.getPrixAchat();
-        this.prixVente=d.getPrixVente();
-        this.qty=d.getQty();
-       
-        
-        
+        this.prixAchat = d.getPrixAchat();
+        this.prixVente = d.getPrixVente();
+        this.qty = d.getQty();
+
     }
 
     public Integer getMontantAchat() {
@@ -155,29 +153,30 @@ public class RuptureDetailDTO implements Serializable {
     public void setMontantAchat(Integer montantAchat) {
         this.montantAchat = montantAchat;
     }
- public RuptureDetailDTO(RuptureDetail d,int stock) {
-        TFamille f=d.getProduit();
-        Rupture r=d.getRupture();
-        TGrossiste g=r.getGrossiste();
+
+    public RuptureDetailDTO(RuptureDetail d, int stock) {
+        TFamille f = d.getProduit();
+        Rupture r = d.getRupture();
+        TGrossiste g = r.getGrossiste();
         this.codeCip = f.getIntCIP();
         this.libelle = f.getStrNAME();
         this.id = d.getId();
         this.grossisteId = g.getLgGROSSISTEID();
         this.grossisteLibelle = g.getStrLIBELLE();
         this.ruptureId = r.getId();
-        this.prixAchat=d.getPrixAchat();
-        this.prixVente=d.getPrixVente();
-        this.qty=d.getQty();
-        this.montantAchat=d.getQty()*d.getPrixAchat();
-        this.qteReappro=f.getIntQTEREAPPROVISIONNEMENT();
-        this.seuil=f.getIntSEUILMIN();
-        this.stock=stock;
-        this.dateRrupture=r.getDtCreated().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        this.prixAchat = d.getPrixAchat();
+        this.prixVente = d.getPrixVente();
+        this.qty = d.getQty();
+        this.montantAchat = d.getQty() * d.getPrixAchat();
+        this.qteReappro = f.getIntQTEREAPPROVISIONNEMENT();
+        this.seuil = f.getIntSEUILMIN();
+        this.stock = stock;
+        this.dateRrupture = r.getDtCreated().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         try {
-            this.familleLibelle=f.getLgFAMILLEARTICLEID().getStrLIBELLE();
+            this.familleLibelle = f.getLgFAMILLEARTICLEID().getStrLIBELLE();
         } catch (Exception e) {
         }
-        
+
     }
 
     public Integer getStock() {
@@ -187,8 +186,7 @@ public class RuptureDetailDTO implements Serializable {
     public void setStock(Integer stock) {
         this.stock = stock;
     }
- 
- 
+
     @Override
     public int hashCode() {
         int hash = 5;
@@ -213,6 +211,5 @@ public class RuptureDetailDTO implements Serializable {
         }
         return true;
     }
-     
 
 }

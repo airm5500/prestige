@@ -17,7 +17,8 @@ public class MessagePayloadDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     private String from, message, message_id, sent_to, secret, device_id, sent_timestamp;
 
-    public MessagePayloadDTO(String from, String message, String message_id, String sent_to, String secret, String device_id, String sent_timestamp) {
+    public MessagePayloadDTO(String from, String message, String message_id, String sent_to, String secret,
+            String device_id, String sent_timestamp) {
         this.from = from;
         this.message = message;
         this.message_id = message_id;
@@ -113,8 +114,9 @@ public class MessagePayloadDTO implements Serializable {
 
     @Override
     public String toString() {
-        return "MessagePayloadDTO{" + "from=" + from + ", message=" + message + ", message_id=" + message_id + ", sent_to=" + sent_to + ", secret=" + secret + ", device_id=" + device_id + ", sent_timestamp=" + sent_timestamp + '}';
+        return "MessagePayloadDTO{" + "from=" + from + ", message=" + message + ", message_id=" + message_id
+                + ", sent_to=" + sent_to + ", secret=" + secret + ", device_id=" + device_id + ", sent_timestamp="
+                + sent_timestamp + '}';
     }
-    
-    
+
 }

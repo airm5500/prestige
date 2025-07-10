@@ -29,9 +29,10 @@ public class motifretourManagement extends bllBase {
     public void create(String str_CODE, String str_LIBELLE) {
 
         try {
-            
+
             dal.TMotifRetour OTMotifRetour = new dal.TMotifRetour();
-            OTMotifRetour.setLgMOTIFRETOUR(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTMotifRetour.setLgMOTIFRETOUR(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de
+                                                                          // la date courante
             OTMotifRetour.setStrCODE(str_CODE);
             OTMotifRetour.setStrLIBELLE(str_LIBELLE);
             OTMotifRetour.setStrSTATUT(commonparameter.statut_enable);

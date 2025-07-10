@@ -5,20 +5,28 @@
  */
 package rest.repo;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.persistence.EntityManager;
-import rest.repo.AbstractRepo;
+import javax.persistence.TypedQuery;
 
 /**
  *
  * @author koben
+ *
+ * @param <T>
  */
 public abstract class AbstractRepoImpl<T> implements AbstractRepo<T> {
 
-    protected abstract EntityManager getEntityManager();
-    private Class<T> entityClass;
+    protected static final Logger LOG = Logger.getLogger(AbstractRepoImpl.class.getName());
 
-    public AbstractRepoImpl(Class<T> entityClass) {
+    protected abstract EntityManager getEntityManager();
+
+    private final Class<T> entityClass;
+
+    protected AbstractRepoImpl(Class<T> entityClass) {
         this.entityClass = entityClass;
     }
 
@@ -57,7 +65,7 @@ public abstract class AbstractRepoImpl<T> implements AbstractRepo<T> {
             }
             return Optional.empty();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return Optional.empty();
         }
     }
@@ -81,14 +89,14 @@ public abstract class AbstractRepoImpl<T> implements AbstractRepo<T> {
             }
             return Optional.empty();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return Optional.empty();
         }
     }
 
     @Override
     public int deleteById(Integer entityId) {
-     T obj = getEntityManager().find(entityClass, entityId);
+        T obj = getEntityManager().find(entityClass, entityId);
         if (obj != null) {
             getEntityManager().remove(getEntityManager().merge(obj));
             return 1;
@@ -98,22 +106,35 @@ public abstract class AbstractRepoImpl<T> implements AbstractRepo<T> {
 
     @Override
     public Optional<T> findById(Integer entityId) {
-         try {
+        try {
             T obj = getEntityManager().find(entityClass, entityId);
             if (obj != null) {
                 return Optional.of(obj);
             }
             return Optional.empty();
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            LOG.log(Level.SEVERE, null, e);
             return Optional.empty();
         }
     }
-//  @Override
-//public Optional<T> find(Class<T> clazz, ID id) {
-//if (id == null) {
-//throw new IllegalArgumentException("ID cannot be null");
-//}
-//return Optional.ofNullable(entityManager.find(clazz, id));
-//}
+
+    // @Override
+    // public Optional<T> find(Class<T> clazz, ID id) {
+    // if (id == null) {
+    // throw new IllegalArgumentException("ID cannot be null");
+    // }
+    // return Optional.ofNullable(entityManager.find(clazz, id));
+    // }
+    @Override
+    public List<T> findAll() {
+        try {
+            TypedQuery<T> q = getEntityManager().createNamedQuery(entityClass.getSimpleName().concat(".all"),
+                    entityClass);
+            return q.getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return List.of();
+        }
+    }
+
 }

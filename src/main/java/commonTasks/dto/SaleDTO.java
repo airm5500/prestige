@@ -44,11 +44,11 @@ public class SaleDTO implements Serializable {
     private String type;
     private Boolean copy = false;
     private boolean imported = false;
-      private Integer margeUg = 0;
+    private Integer margeUg = 0;
     private Integer montantttcUg = 0;
     private Integer montantnetUg = 0;
     private Integer montantTvaUg = 0;
- 
+
     private Integer marge = 0;
 
     public Boolean getCopy() {
@@ -91,10 +91,6 @@ public class SaleDTO implements Serializable {
         this.montantnetUg = montantnetUg;
     }
 
-  
-
-  
-
     public Integer getMontantTvaUg() {
         return montantTvaUg;
     }
@@ -111,8 +107,6 @@ public class SaleDTO implements Serializable {
         this.marge = marge;
     }
 
-    
-    
     public Integer getDiscountAmount() {
         return discountAmount;
     }

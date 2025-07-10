@@ -5,15 +5,20 @@
  */
 package dal;
 
+import dal.enumeration.TypeReglementCarnet;
+import dal.enumeration.TypeTiersPayant;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Index;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
@@ -24,7 +29,10 @@ import javax.validation.constraints.NotNull;
  * @author koben
  */
 @Entity
-@Table(name = "reglement_carnet")
+@Table(name = "reglement_carnet", indexes = {
+        @Index(name = "reglement_carnet_type_tiers_payant", columnList = "type_tiers_payant")
+
+})
 public class ReglementCarnet implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -55,12 +63,56 @@ public class ReglementCarnet implements Serializable {
     @ManyToOne
     private TTiersPayant tiersPayant;
     @Column(name = "createdAt", nullable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private LocalDateTime createdAt;
     @NotNull
     @Column(name = "reference", nullable = false)
-    private Integer reference=0;
+    private Integer reference = 0;
+    @JoinColumn(name = "type_reglement_id", referencedColumnName = "lg_TYPE_REGLEMENT_ID", nullable = false)
+    @ManyToOne
+    private TTypeReglement typeReglement;
+    @Column(name = "id_dossier", length = 50)
+    private String idDossier;
+    @NotNull
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_tiers_payant", nullable = false, length = 30)
+    private TypeTiersPayant typeTiersPayant = TypeTiersPayant.CARNET_AS_DEPOT;
+    @ManyToOne
+    private MotifReglement motifReglement;
 
-    public ReglementCarnet() {
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type_reglement", length = 30)
+    private TypeReglementCarnet typeReglementCarnet = TypeReglementCarnet.REGLEMENT;
+
+    public MotifReglement getMotifReglement() {
+        return motifReglement;
+    }
+
+    public TypeReglementCarnet getTypeReglementCarnet() {
+        return typeReglementCarnet;
+    }
+
+    public void setTypeReglementCarnet(TypeReglementCarnet typeReglementCarnet) {
+        this.typeReglementCarnet = typeReglementCarnet;
+    }
+
+    public void setMotifReglement(MotifReglement motifReglement) {
+        this.motifReglement = motifReglement;
+    }
+
+    public String getIdDossier() {
+        return idDossier;
+    }
+
+    public void setIdDossier(String idDossier) {
+        this.idDossier = idDossier;
+    }
+
+    public TypeTiersPayant getTypeTiersPayant() {
+        return typeTiersPayant;
+    }
+
+    public void setTypeTiersPayant(TypeTiersPayant typeTiersPayant) {
+        this.typeTiersPayant = typeTiersPayant;
     }
 
     public Integer getId() {
@@ -69,6 +121,14 @@ public class ReglementCarnet implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public TTypeReglement getTypeReglement() {
+        return typeReglement;
+    }
+
+    public void setTypeReglement(TTypeReglement typeReglement) {
+        this.typeReglement = typeReglement;
     }
 
     public String getDescription() {
@@ -154,7 +214,9 @@ public class ReglementCarnet implements Serializable {
 
     @Override
     public String toString() {
-        return "ReglementCarnet{" + "id=" + id + ", description=" + description + ", montantPaye=" + montantPaye + ", montantPayer=" + montantPayer + ", montantRestant=" + montantRestant + ", createdAt=" + createdAt + '}';
+        return "ReglementCarnet{" + "id=" + id + ", description=" + description + ", montantPaye=" + montantPaye
+                + ", montantPayer=" + montantPayer + ", montantRestant=" + montantRestant + ", createdAt=" + createdAt
+                + '}';
     }
 
     public Integer getReference() {

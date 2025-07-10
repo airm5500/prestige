@@ -29,9 +29,10 @@ public class etiquetteManagement extends bllBase {
         try {
 
             TEtiquette OTEtiquette = new TEtiquette();
-            OTEtiquette.setLgETIQUETTEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la date courante
+            OTEtiquette.setLgETIQUETTEID(this.getKey().getComplexId()); // Génération automatique d'un ID à partir de la
+                                                                        // date courante
             OTEtiquette.setStrNAME(STR_NAME);
-            OTEtiquette.setStrCODE(STR_CODE);            
+            OTEtiquette.setStrCODE(STR_CODE);
             OTEtiquette.setStrSTATUT(commonparameter.statut_enable);
             OTEtiquette.setDtCREATED(new Date());
 
@@ -53,8 +54,8 @@ public class etiquetteManagement extends bllBase {
 
             OTEtiquette.setLgETIQUETTEID(lg_ETIQUETTE_ID);
             OTEtiquette.setStrNAME(STR_NAME);
-            OTEtiquette.setStrCODE(STR_CODE);            
-            OTEtiquette.setStrSTATUT(commonparameter.statut_enable);           
+            OTEtiquette.setStrCODE(STR_CODE);
+            OTEtiquette.setStrSTATUT(commonparameter.statut_enable);
             OTEtiquette.setDtUPDATED(new Date());
 
             this.persiste(OTEtiquette);

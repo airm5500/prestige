@@ -45,6 +45,11 @@ Ext.define('testextjs.model.Suggestion', {
             name: 'dt_UPDATED',
             type: 'string'
         },
+        
+        {
+            name: 'int_SEUIL_MIN',
+            type: 'string'
+        },
         {
             name: 'str_STATUT',
             type: 'String'

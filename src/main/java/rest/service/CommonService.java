@@ -20,6 +20,7 @@ import dal.TPrivilege;
 import dal.TTypeVente;
 import dal.TVille;
 import dal.MotifAjustement;
+import dal.MotifRetourCarnet;
 import java.util.List;
 import javax.ejb.Local;
 import javax.print.PrintService;
@@ -31,7 +32,6 @@ import org.json.JSONObject;
  * @author Kobena
  */
 @Local
-//@Remote
 public interface CommonService {
 
     List<ReglementDTO> findReglements();
@@ -56,9 +56,9 @@ public interface CommonService {
 
     List<TNatureVente> findNatureVente();
 
-    boolean hasAuthority(List<TPrivilege> LstTPrivilege, String authorityName);
+    boolean hasAuthority(List<TPrivilege> lstTPrivilege, String authorityName);
 
-    boolean canShowAllSales(List<TPrivilege> LstTPrivilege);
+    boolean canShowAllSales(List<TPrivilege> lstTPrivilege);
 
     int nombreTickets(String param);
 
@@ -79,8 +79,6 @@ public interface CommonService {
     List<CategorieAyantdroitDTO> findCategorieAyantdroits(String query);
 
     boolean sansBon();
-
-    boolean plafondVenteIsActive();
 
     Integer maximunproduit();
 
@@ -103,6 +101,14 @@ public interface CommonService {
     boolean checkUg();
 
     List<TMotifRetour> motifsRetour();
-    
-     List<MotifAjustement> findAllTypeAjustements();
+
+    List<MotifAjustement> findAllTypeAjustements();
+
+    List<MotifRetourCarnet> motifRetourCarnets();
+
+    boolean findParam(String key);
+
+    List<ComboDTO> findAllTypeReglement();
+
+    boolean isNormalUse();
 }

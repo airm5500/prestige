@@ -26,21 +26,20 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_reglement_dossier")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TReglementDossier.findAll", query = "SELECT t FROM TReglementDossier t"),
-    @NamedQuery(name = "TReglementDossier.findByLgREGLEMENTDOSSIERID", query = "SELECT t FROM TReglementDossier t WHERE t.lgREGLEMENTDOSSIERID = :lgREGLEMENTDOSSIERID"),
-    @NamedQuery(name = "TReglementDossier.findByStrREFRESSOURCE", query = "SELECT t FROM TReglementDossier t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
-    @NamedQuery(name = "TReglementDossier.findByDblMONTANT", query = "SELECT t FROM TReglementDossier t WHERE t.dblMONTANT = :dblMONTANT"),
-    @NamedQuery(name = "TReglementDossier.findByDblMONTANTRESTANT", query = "SELECT t FROM TReglementDossier t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
-    @NamedQuery(name = "TReglementDossier.findByDblMONTANTPAYE", query = "SELECT t FROM TReglementDossier t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
-    @NamedQuery(name = "TReglementDossier.findByStrSTATUT", query = "SELECT t FROM TReglementDossier t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TReglementDossier.findByBISPARTIEL", query = "SELECT t FROM TReglementDossier t WHERE t.bISPARTIEL = :bISPARTIEL"),
-    @NamedQuery(name = "TReglementDossier.findByLgMODEREGLEMENT", query = "SELECT t FROM TReglementDossier t WHERE t.lgMODEREGLEMENT = :lgMODEREGLEMENT"),
-    @NamedQuery(name = "TReglementDossier.findByStrBANQUE", query = "SELECT t FROM TReglementDossier t WHERE t.strBANQUE = :strBANQUE"),
-    @NamedQuery(name = "TReglementDossier.findByDtDATEREGLEMENT", query = "SELECT t FROM TReglementDossier t WHERE t.dtDATEREGLEMENT = :dtDATEREGLEMENT"),
-    @NamedQuery(name = "TReglementDossier.findByStrPEREREGLEMENT", query = "SELECT t FROM TReglementDossier t WHERE t.strPEREREGLEMENT = :strPEREREGLEMENT"),
-    @NamedQuery(name = "TReglementDossier.findByDtCREATED", query = "SELECT t FROM TReglementDossier t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TReglementDossier.findByDtUPDATED", query = "SELECT t FROM TReglementDossier t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TReglementDossier.findAll", query = "SELECT t FROM TReglementDossier t"),
+        @NamedQuery(name = "TReglementDossier.findByLgREGLEMENTDOSSIERID", query = "SELECT t FROM TReglementDossier t WHERE t.lgREGLEMENTDOSSIERID = :lgREGLEMENTDOSSIERID"),
+        @NamedQuery(name = "TReglementDossier.findByStrREFRESSOURCE", query = "SELECT t FROM TReglementDossier t WHERE t.strREFRESSOURCE = :strREFRESSOURCE"),
+        @NamedQuery(name = "TReglementDossier.findByDblMONTANT", query = "SELECT t FROM TReglementDossier t WHERE t.dblMONTANT = :dblMONTANT"),
+        @NamedQuery(name = "TReglementDossier.findByDblMONTANTRESTANT", query = "SELECT t FROM TReglementDossier t WHERE t.dblMONTANTRESTANT = :dblMONTANTRESTANT"),
+        @NamedQuery(name = "TReglementDossier.findByDblMONTANTPAYE", query = "SELECT t FROM TReglementDossier t WHERE t.dblMONTANTPAYE = :dblMONTANTPAYE"),
+        @NamedQuery(name = "TReglementDossier.findByStrSTATUT", query = "SELECT t FROM TReglementDossier t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TReglementDossier.findByBISPARTIEL", query = "SELECT t FROM TReglementDossier t WHERE t.bISPARTIEL = :bISPARTIEL"),
+        @NamedQuery(name = "TReglementDossier.findByLgMODEREGLEMENT", query = "SELECT t FROM TReglementDossier t WHERE t.lgMODEREGLEMENT = :lgMODEREGLEMENT"),
+        @NamedQuery(name = "TReglementDossier.findByStrBANQUE", query = "SELECT t FROM TReglementDossier t WHERE t.strBANQUE = :strBANQUE"),
+        @NamedQuery(name = "TReglementDossier.findByDtDATEREGLEMENT", query = "SELECT t FROM TReglementDossier t WHERE t.dtDATEREGLEMENT = :dtDATEREGLEMENT"),
+        @NamedQuery(name = "TReglementDossier.findByStrPEREREGLEMENT", query = "SELECT t FROM TReglementDossier t WHERE t.strPEREREGLEMENT = :strPEREREGLEMENT"),
+        @NamedQuery(name = "TReglementDossier.findByDtCREATED", query = "SELECT t FROM TReglementDossier t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TReglementDossier.findByDtUPDATED", query = "SELECT t FROM TReglementDossier t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TReglementDossier implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -49,7 +48,8 @@ public class TReglementDossier implements Serializable {
     private String lgREGLEMENTDOSSIERID;
     @Column(name = "str_REF_RESSOURCE", length = 40)
     private String strREFRESSOURCE;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "dbl_MONTANT", precision = 15, scale = 3)
     private Double dblMONTANT;
     @Column(name = "dbl_MONTANT_RESTANT", precision = 15, scale = 3)
@@ -201,7 +201,9 @@ public class TReglementDossier implements Serializable {
             return false;
         }
         TReglementDossier other = (TReglementDossier) object;
-        if ((this.lgREGLEMENTDOSSIERID == null && other.lgREGLEMENTDOSSIERID != null) || (this.lgREGLEMENTDOSSIERID != null && !this.lgREGLEMENTDOSSIERID.equals(other.lgREGLEMENTDOSSIERID))) {
+        if ((this.lgREGLEMENTDOSSIERID == null && other.lgREGLEMENTDOSSIERID != null)
+                || (this.lgREGLEMENTDOSSIERID != null
+                        && !this.lgREGLEMENTDOSSIERID.equals(other.lgREGLEMENTDOSSIERID))) {
             return false;
         }
         return true;
@@ -211,5 +213,5 @@ public class TReglementDossier implements Serializable {
     public String toString() {
         return "dal.TReglementDossier[ lgREGLEMENTDOSSIERID=" + lgREGLEMENTDOSSIERID + " ]";
     }
-    
+
 }

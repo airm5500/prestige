@@ -1,4 +1,4 @@
-var url_transaction_caisse = "../webservices/sm_user/caisse/ws_transaction.jsp?mode=";
+
 var Me_caisse;
 
 Ext.define('testextjs.view.sm_user.caisse.CaisseManager', {
@@ -9,10 +9,9 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseManager', {
     title: 'Cl&ocirc;ture de Caisse',
     bodyPadding: 10,
     autoScroll: true,
-//    width: '30%',
-    width: 400,
+    width: 420,
     fieldDefaults: {
-        labelAlign: 'right',
+        labelAlign: 'left',
         labelWidth: 115,
         msgTarget: 'side'
     },
@@ -22,8 +21,6 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseManager', {
     },
     initComponent: function () {
         Me_caisse = this;
-        var url_data = "../webservices/sm_user/caisse/ws_data_user_cloture.jsp";
-
         this.items = [
             {
                 xtype: 'fieldset',
@@ -78,7 +75,7 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseManager', {
 
         this.callParent();
 
-        this.LoadData(url_data);
+        this.LoadData();
     },
     buttons: [
         {
@@ -91,71 +88,29 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseManager', {
                         'Voulez-vous cl&ocirc;turer votre caisse',
                         function (btn) {
                             if (btn === 'yes') {
-                                Ext.MessageBox.confirm('CONFIRMATION',
-                                        'Etes vous s&ucirc;r de vouloir cl&ocirc;turer la caisse',
-                                        function (btn) {
-                                            if (btn === 'yes') {
-                                                testextjs.app.getController('App').ShowWaitingProcess();
-                                                Ext.Ajax.request({
-                                                    url: url_transaction_caisse + "close",
-                                                    params: {
-                                                        lg_RESUME_CAISSE_ID: Ext.getCmp('lg_RESUME_CAISSE_ID').getValue()
-                                                    },
-                                                    success: function (response)
-                                                    {
-                                                        testextjs.app.getController('App').StopWaitingProcess();
-                                                        var object = Ext.JSON.decode(response.responseText, false);
-                                                        if (object.success == 0) {
-                                                            Ext.MessageBox.alert('Error Message', object.errors);
-                                                            return;
-                                                        }
-                                                        Me_caisse.callBilletage_window();
-
-                                                        //Ext.MessageBox.alert('Message', object.errors);
-                                                    },
-                                                    failure: function (response)
-                                                    {
-                                                        testextjs.app.getController('App').StopWaitingProcess();
-                                                        var object = Ext.JSON.decode(response.responseText, false);
-                                                        console.log("Bug " + response.responseText);
-                                                        Ext.MessageBox.alert('Error Message', response.responseText);
-
-                                                    }
-
-                                                });
-                                                return;
-                                            }
-
-                                        });
-                                return;
+                             
+                                 Me_caisse.doBilletage();
+                          
                             }
 
                         });
             }
         }],
-    LoadData: function (url) {
+    LoadData: function () {
         Ext.Ajax.request({
-            url: url,
+            url: '../api/v1/billetage/cloture-data',
             success: function (response)
             {
+               
+                const object = Ext.JSON.decode(response.responseText, false);
 
-                var object = Ext.JSON.decode(response.responseText, false);
-                if (object.errors_code == "0") {
-                    Ext.MessageBox.show({
-                        title: "Message d'erreur",
-                        width: 320,
-                        msg: object.errors,
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.WARNING
-                    });
-                }
-                var Caisse = object.results[0];
-                Ext.getCmp('str_NAME_USER').setValue(Caisse.str_NAME_USER);
-                Ext.getCmp('int_AMOUNT_FOND_CAISSE').setValue(Ext.util.Format.number(Caisse.int_AMOUNT_FOND_CAISSE, '0,000.') + " CFA");
-                Ext.getCmp('lg_RESUME_CAISSE_ID').setValue(Caisse.lg_RESUME_CAISSE_ID);
-                Ext.getCmp('dt_CREATED').setValue(Caisse.dt_CREATED);
-                Ext.getCmp('lg_CAISSE_ID').setValue(Caisse.lg_CAISSE_ID);
-                if (Caisse.display == true) {
+                const caisse = object.data;
+                Ext.getCmp('str_NAME_USER').setValue(caisse?.userFullName);
+                Ext.getCmp('int_AMOUNT_FOND_CAISSE').setValue(Ext.util.Format.number(caisse?.cashFund, '0,000.') + " CFA");
+                Ext.getCmp('lg_RESUME_CAISSE_ID').setValue(caisse?.resumeCaisseId);
+                Ext.getCmp('dt_CREATED').setValue(caisse?.createAt);
+                Ext.getCmp('lg_CAISSE_ID').setValue(caisse?.caisseId);
+                if (caisse?.display === true) {
                     Ext.getCmp('btn_validate').show();
                 }
 
@@ -163,14 +118,14 @@ Ext.define('testextjs.view.sm_user.caisse.CaisseManager', {
             },
             failure: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
+                const object = Ext.JSON.decode(response.responseText, false);
                 Ext.MessageBox.alert('Error Message', response.responseText);
 
             }
 
         });
     },
-    callBilletage_window: function () {
+    doBilletage: function () {
         new testextjs.view.sm_user.caisse.action.DoBilletage({
             odatasource: Ext.getCmp('lg_RESUME_CAISSE_ID').getValue(),
             parentview: this,

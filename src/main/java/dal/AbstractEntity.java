@@ -37,7 +37,7 @@ public abstract class AbstractEntity implements Serializable {
     protected String id = UUID.randomUUID().toString();
     @NotNull
     @Column(name = "created_at", nullable = false)
-//    @DateTimeFormat(pattern = "yyyy-MM-dd")
+    // @DateTimeFormat(pattern = "yyyy-MM-dd")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss")
     protected LocalDateTime createdAt;
     @NotNull
@@ -83,7 +83,7 @@ public abstract class AbstractEntity implements Serializable {
     @PreUpdate
     public void onPreUpdate() {
         modifiedAt = LocalDateTime.now();
-          status = Statut.ENABLE;
+        status = Statut.ENABLE;
     }
 
     public Statut getStatus() {

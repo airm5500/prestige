@@ -27,15 +27,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_workflow_remise_article")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TWorkflowRemiseArticle.findAll", query = "SELECT t FROM TWorkflowRemiseArticle t"),
-    @NamedQuery(name = "TWorkflowRemiseArticle.findByLgWORKFLOWREMISEARTICLEID", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.lgWORKFLOWREMISEARTICLEID = :lgWORKFLOWREMISEARTICLEID"),
-    @NamedQuery(name = "TWorkflowRemiseArticle.findByStrCODEREMISEARTICLE", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strCODEREMISEARTICLE = :strCODEREMISEARTICLE"),
-    @NamedQuery(name = "TWorkflowRemiseArticle.findByStrCODEGRILLEVO", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strCODEGRILLEVO = :strCODEGRILLEVO"),
-    @NamedQuery(name = "TWorkflowRemiseArticle.findByStrCODEGRILLEVNO", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strCODEGRILLEVNO = :strCODEGRILLEVNO"),
-    @NamedQuery(name = "TWorkflowRemiseArticle.findByStrSTATUT", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TWorkflowRemiseArticle.findByDtCREATED", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TWorkflowRemiseArticle.findByDtUPDATED", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TWorkflowRemiseArticle.findAll", query = "SELECT t FROM TWorkflowRemiseArticle t"),
+        @NamedQuery(name = "TWorkflowRemiseArticle.findByLgWORKFLOWREMISEARTICLEID", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.lgWORKFLOWREMISEARTICLEID = :lgWORKFLOWREMISEARTICLEID"),
+        @NamedQuery(name = "TWorkflowRemiseArticle.findByStrCODEREMISEARTICLE", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strCODEREMISEARTICLE = :strCODEREMISEARTICLE"),
+        @NamedQuery(name = "TWorkflowRemiseArticle.findByStrCODEGRILLEVO", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strCODEGRILLEVO = :strCODEGRILLEVO"),
+        @NamedQuery(name = "TWorkflowRemiseArticle.findByStrCODEGRILLEVNO", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strCODEGRILLEVNO = :strCODEGRILLEVNO"),
+        @NamedQuery(name = "TWorkflowRemiseArticle.findByStrSTATUT", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TWorkflowRemiseArticle.findByDtCREATED", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TWorkflowRemiseArticle.findByDtUPDATED", query = "SELECT t FROM TWorkflowRemiseArticle t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TWorkflowRemiseArticle implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -145,7 +144,9 @@ public class TWorkflowRemiseArticle implements Serializable {
             return false;
         }
         TWorkflowRemiseArticle other = (TWorkflowRemiseArticle) object;
-        if ((this.lgWORKFLOWREMISEARTICLEID == null && other.lgWORKFLOWREMISEARTICLEID != null) || (this.lgWORKFLOWREMISEARTICLEID != null && !this.lgWORKFLOWREMISEARTICLEID.equals(other.lgWORKFLOWREMISEARTICLEID))) {
+        if ((this.lgWORKFLOWREMISEARTICLEID == null && other.lgWORKFLOWREMISEARTICLEID != null)
+                || (this.lgWORKFLOWREMISEARTICLEID != null
+                        && !this.lgWORKFLOWREMISEARTICLEID.equals(other.lgWORKFLOWREMISEARTICLEID))) {
             return false;
         }
         return true;
@@ -155,5 +156,5 @@ public class TWorkflowRemiseArticle implements Serializable {
     public String toString() {
         return "dal.TWorkflowRemiseArticle[ lgWORKFLOWREMISEARTICLEID=" + lgWORKFLOWREMISEARTICLEID + " ]";
     }
-    
+
 }

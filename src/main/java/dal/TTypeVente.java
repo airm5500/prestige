@@ -27,9 +27,8 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_type_vente")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TTypeVente.findByStrSTATUT", query = "SELECT t FROM TTypeVente t WHERE t.strSTATUT = :strSTATUT"),
-     @NamedQuery(name = "TTypeVente.findByStrNAME", query = "SELECT t FROM TTypeVente t WHERE t.strNAME = :strNAME")
-    })
+        @NamedQuery(name = "TTypeVente.findByStrSTATUT", query = "SELECT t FROM TTypeVente t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypeVente.findByStrNAME", query = "SELECT t FROM TTypeVente t WHERE t.strNAME = :strNAME") })
 public class TTypeVente implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -50,7 +49,6 @@ public class TTypeVente implements Serializable {
     @Column(name = "dt_UPDATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED;
-
 
     public TTypeVente() {
     }
@@ -115,9 +113,6 @@ public class TTypeVente implements Serializable {
         this.dtUPDATED = dtUPDATED;
     }
 
-   
-  
-
     @Override
     public int hashCode() {
         int hash = 0;
@@ -132,7 +127,8 @@ public class TTypeVente implements Serializable {
             return false;
         }
         TTypeVente other = (TTypeVente) object;
-        if ((this.lgTYPEVENTEID == null && other.lgTYPEVENTEID != null) || (this.lgTYPEVENTEID != null && !this.lgTYPEVENTEID.equals(other.lgTYPEVENTEID))) {
+        if ((this.lgTYPEVENTEID == null && other.lgTYPEVENTEID != null)
+                || (this.lgTYPEVENTEID != null && !this.lgTYPEVENTEID.equals(other.lgTYPEVENTEID))) {
             return false;
         }
         return true;
@@ -142,5 +138,5 @@ public class TTypeVente implements Serializable {
     public String toString() {
         return "dal.TTypeVente[ lgTYPEVENTEID=" + lgTYPEVENTEID + " ]";
     }
-    
+
 }

@@ -29,17 +29,13 @@ import javax.xml.bind.annotation.XmlRootElement;
  * @author Kobena
  */
 @Entity
-@Table(name = "MvtTransaction",
-        indexes = {
-            @Index(name = "indexMvtTranstionmvdate", columnList = "mvtdate"),
-            @Index(name = "indexMvtTranstype", columnList = "typeTransaction"),
-            @Index(name = "indexMvtpkey", columnList = "pkey"),
-            @Index(name = "indexMvtchecked", columnList = "checked"),
-            @Index(name = "indexMvtcategorie", columnList = "categorie"),
-            @Index(name = "indexMvtRef", columnList = "reference")
+@Table(name = "MvtTransaction", indexes = { @Index(name = "indexMvtTranstionmvdate", columnList = "mvtdate"),
+        @Index(name = "indexMvtTranstype", columnList = "typeTransaction"),
+        @Index(name = "indexMvtpkey", columnList = "pkey"), @Index(name = "indexMvtchecked", columnList = "checked"),
+        @Index(name = "indexMvtcategorie", columnList = "categorie"),
+        @Index(name = "indexMvtRef", columnList = "reference")
 
-        }
-)
+})
 @XmlRootElement
 public class MvtTransaction implements Serializable {
 
@@ -58,16 +54,16 @@ public class MvtTransaction implements Serializable {
     @Column(name = "montantRemise")
     private Integer montantRemise = 0;
     @Column(name = "montantPaye")
-    private Integer montantPaye = 0;//arrondi de la caisse
+    private Integer montantPaye = 0;// arrondi de la caisse
     @Column(name = "avoidAmount")
     private Integer avoidAmount = 0;
     @Column(name = "montantAcc")
     private Integer montantAcc = 0;
     @Column(name = "checked")
     private Boolean checked = true;
-    @Column(name = "mvtdate", nullable = false, updatable = false)
+    @Column(name = "mvtdate", nullable = false)
     private LocalDate mvtDate = LocalDate.now();
-    @Column(name = "createdAt", nullable = false, updatable = false)
+    @Column(name = "createdAt", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID", nullable = false)
     @ManyToOne
@@ -111,7 +107,7 @@ public class MvtTransaction implements Serializable {
     private Integer montantnetug = 0;
     @Column(name = "montanttvaug")
     private Integer montantTvaUg = 0;
-    @JoinColumn(name = "vente_id", referencedColumnName = "lg_PREENREGISTREMENT_ID", nullable = true)
+    @JoinColumn(name = "vente_id", referencedColumnName = "lg_PREENREGISTREMENT_ID")
     @ManyToOne
     private TPreenregistrement preenregistrement;
     @Column(name = "flag")
@@ -370,7 +366,15 @@ public class MvtTransaction implements Serializable {
 
     @Override
     public String toString() {
-        return "MvtTransaction{" + "uuid=" + uuid + ", montant=" + montant + ", montantRestant=" + montantRestant + ", montantRegle=" + montantRegle + ", montantCredit=" + montantCredit + ", montantVerse=" + montantVerse + ", montantNet=" + montantNet + ", montantRemise=" + montantRemise + ", montantPaye=" + montantPaye + ", avoidAmount=" + avoidAmount + ", checked=" + checked + ", mvtDate=" + mvtDate + ", createdAt=" + createdAt + ", user=" + user + ", magasin=" + magasin + ", reglement=" + reglement + ", grossiste=" + grossiste + ", tTypeMvtCaisse=" + tTypeMvtCaisse + ", typeTransaction=" + typeTransaction + ", categoryTransaction=" + categoryTransaction + ", pkey=" + pkey + ", reference=" + reference + ", caisse=" + caisse + ", montantTva=" + montantTva + ", marge=" + marge + ", organisme=" + organisme + '}';
+        return "MvtTransaction{" + "uuid=" + uuid + ", montant=" + montant + ", montantRestant=" + montantRestant
+                + ", montantRegle=" + montantRegle + ", montantCredit=" + montantCredit + ", montantVerse="
+                + montantVerse + ", montantNet=" + montantNet + ", montantRemise=" + montantRemise + ", montantPaye="
+                + montantPaye + ", avoidAmount=" + avoidAmount + ", checked=" + checked + ", mvtDate=" + mvtDate
+                + ", createdAt=" + createdAt + ", user=" + user + ", magasin=" + magasin + ", reglement=" + reglement
+                + ", grossiste=" + grossiste + ", tTypeMvtCaisse=" + tTypeMvtCaisse + ", typeTransaction="
+                + typeTransaction + ", categoryTransaction=" + categoryTransaction + ", pkey=" + pkey + ", reference="
+                + reference + ", caisse=" + caisse + ", montantTva=" + montantTva + ", marge=" + marge + ", organisme="
+                + organisme + '}';
     }
 
     public Integer getMargeug() {

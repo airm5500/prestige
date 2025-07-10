@@ -12,9 +12,7 @@ Ext.define('testextjs.view.Report.statistiquevente.action.SalesController', {
             },
             'staticdatagrid button#cancel': {
                 click: this.onButtonClickCancel
-            }/*, 'staticdatagrid button#delete': { 
-             itemclick: me.handleActionColumn
-             }*/
+            }
 
 
         });

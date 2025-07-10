@@ -78,7 +78,7 @@ public class JsonDataSourceApp extends AbstractSampleApp {
 
     public static void main(String[] args) {
         try {
-            //		main(new JsonDataSourceApp(), args);//71011175771271903909
+            // main(new JsonDataSourceApp(), args);//71011175771271903909
             JsonDataSourceApp app = new JsonDataSourceApp();
             app.test();
         } catch (JRException ex) {
@@ -96,8 +96,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             String TPSHORTNAME = json.getString("TPSHORTNAME");
             String seconLabel = json.getString("seconLabel");
 
-//            params.put(JsonQueryExecuterFactory.JSON_DATE_PATTERN, "yyyy-MM-dd");
-//            params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
+            // params.put(JsonQueryExecuterFactory.JSON_DATE_PATTERN, "yyyy-MM-dd");
+            // params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
             params.put(JsonQueryExecuterFactory.JSON_LOCALE, Locale.FRANCE);
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             InputStream iostream = new ByteArrayInputStream(data.toString().getBytes(StandardCharsets.UTF_8));
@@ -112,25 +112,18 @@ public class JsonDataSourceApp extends AbstractSampleApp {
     }
 
     public void test() throws JRException {
-//        fill("71011175771271903909");
+        // fill("71011175771271903909");
         // fill();
         // pdf();
         exTopdf();
         xlsx();
-        docx();rtf();
+        docx();
+        rtf();
 
-//                print();
-        /*xmlEmbed();
-		xml();
-		html();
-		rtf();
-		xls();
-		csv();
-		odt();
-		ods();
-		docx();
-		xlsx();
-		pptx();*/
+        // print();
+        /*
+         * xmlEmbed(); xml(); html(); rtf(); xls(); csv(); odt(); ods(); docx(); xlsx(); pptx();
+         */
     }
 
     /**
@@ -147,7 +140,7 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put(JsonQueryExecuterFactory.JSON_LOCALE, Locale.FRANCE);
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, new FileInputStream(new File("D:\\invoice.json")));
-            //params.put(JSon, Locale.FRANCE);
+            // params.put(JSon, Locale.FRANCE);
             JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper", params);
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (FileNotFoundException ex) {
@@ -170,7 +163,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
      */
     public void pdf() throws JRException {
         long start = System.currentTimeMillis();
-        JasperExportManager.exportReportToPdfFile(jdom.scr_report_file + "rp_complementaire.jrprint", jdom.scr_report_pdf + "facturecomplementaire_" + DATEFORMAT.format(new Date()) + ".pdf");
+        JasperExportManager.exportReportToPdfFile(jdom.scr_report_file + "rp_complementaire.jrprint",
+                jdom.scr_report_pdf + "facturecomplementaire_" + DATEFORMAT.format(new Date()) + ".pdf");
         System.err.println("PDF creation time : " + (System.currentTimeMillis() - start));
     }
 
@@ -185,10 +179,10 @@ public class JsonDataSourceApp extends AbstractSampleApp {
     }
 
     public String exTopdf(String scr_report_file, String pathName) throws JRException {
-        //  String fileName = facturecomplementaire_" + DATEFORMAT.format(new Date()) + ".pdf";
+        // String fileName = facturecomplementaire_" + DATEFORMAT.format(new Date()) + ".pdf";
         long start = System.currentTimeMillis();
         // String pathName = jdom.scr_report_pdf + fileName;
-        //JasperExportManager.exportReportToPdfFile(jdom.scr_report_file + "rp_complementaire.jrprint", pathName);
+        // JasperExportManager.exportReportToPdfFile(jdom.scr_report_file + "rp_complementaire.jrprint", pathName);
         JasperExportManager.exportReportToPdfFile(scr_report_file, pathName);
         System.err.println("PDF creation time : " + (System.currentTimeMillis() - start));
         return pathName;
@@ -283,7 +277,7 @@ public class JsonDataSourceApp extends AbstractSampleApp {
 
         exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
         exporter.setExporterOutput(new SimpleWriterExporterOutput(destFile));
-        //exporter.setParameter(JRCsvExporterParameter.FIELD_DELIMITER, "|");
+        // exporter.setParameter(JRCsvExporterParameter.FIELD_DELIMITER, "|");
 
         exporter.exportReport();
 
@@ -344,7 +338,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
 
         JasperPrint jasperPrint = (JasperPrint) JRLoader.loadObject(sourceFile);
 
-        // File destFile = new File(jdom.scr_report_pdf+"facturecomplementaire_" +DATEFORMAT.format(new Date())+ ".docx");
+        // File destFile = new File(jdom.scr_report_pdf+"facturecomplementaire_" +DATEFORMAT.format(new Date())+
+        // ".docx");
         File destFile = new File(sourceFile.getParent(), jasperPrint.getName() + ".docx");
         JRDocxExporter exporter = new JRDocxExporter();
 
@@ -365,7 +360,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
 
         JasperPrint jasperPrint = (JasperPrint) JRLoader.loadObject(sourceFile);
 
-//        File destFile = new File(jdom.scr_report_pdf+"facturecomplementaire_" +DATEFORMAT.format(new Date()) + ".xlsx");
+        // File destFile = new File(jdom.scr_report_pdf+"facturecomplementaire_" +DATEFORMAT.format(new Date()) +
+        // ".xlsx");
         File destFile = new File(sourceFile.getParent(), jasperPrint.getName() + ".xlsx");
         JRXlsxExporter exporter = new JRXlsxExporter();
 
@@ -413,7 +409,7 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             String seconLabel = json.getString("seconLabel");
 
             params.put(JsonQueryExecuterFactory.JSON_DATE_PATTERN, "yyyy-MM-dd");
-//            params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
+            // params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
             params.put(JsonQueryExecuterFactory.JSON_LOCALE, Locale.FRANCE);
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             InputStream iostream = new ByteArrayInputStream(data.toString().getBytes(StandardCharsets.UTF_8));
@@ -422,12 +418,13 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put("seconLabel", seconLabel);
 
             pathName = jdom.scr_report_pdf + fileName;
-//            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper", params);
-            JasperReport jasperReport = JasperCompileManager.compileReport(jdom.scr_report_file + "rp_complementaire.jrxml");
-//            JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
+            // JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper", params);
+            JasperReport jasperReport = JasperCompileManager
+                    .compileReport(jdom.scr_report_file + "rp_complementaire.jrxml");
+            // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params);
             JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-            
+
         } catch (JSONException ex) {
             Logger.getLogger(JsonDataSourceApp.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -440,12 +437,12 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             JSONObject data = json.getJSONObject("invoice");
             long start = System.currentTimeMillis();
 
-//            Map<String, Object> params = ReportDataSource.getParametters(idInvoice);
+            // Map<String, Object> params = ReportDataSource.getParametters(idInvoice);
             String TPSHORTNAME = json.getString("TPSHORTNAME");
             String seconLabel = json.getString("seconLabel");
 
             params.put(JsonQueryExecuterFactory.JSON_DATE_PATTERN, "yyyy-MM-dd");
-//            params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
+            // params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
             params.put(JsonQueryExecuterFactory.JSON_LOCALE, Locale.FRANCE);
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             InputStream iostream = new ByteArrayInputStream(data.toString().getBytes(StandardCharsets.UTF_8));
@@ -454,7 +451,7 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put("seconLabel", seconLabel);
 
             JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper", params);
-//            JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
+            // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (JSONException ex) {
@@ -462,21 +459,22 @@ public class JsonDataSourceApp extends AbstractSampleApp {
         }
     }
 
-    public String fill(Map<String, Object> params, JSONObject json, String scr_report_file,String fileName) throws JRException {
+    public String fill(Map<String, Object> params, JSONObject json, String scr_report_file, String fileName)
+            throws JRException {
         String pathName;
         try {
             long start = System.currentTimeMillis();
             params.put(JsonQueryExecuterFactory.JSON_DATE_PATTERN, "yyyy-MM-dd");
-//            params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
+            // params.put(JsonQueryExecuterFactory.JSON_NUMBER_PATTERN, "#,##0.##");
             params.put(JsonQueryExecuterFactory.JSON_LOCALE, Locale.FRANCE);
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             InputStream iostream = new ByteArrayInputStream(json.toString().getBytes(StandardCharsets.UTF_8));
             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, iostream);
-              JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
-                  pathName = jdom.scr_report_pdf + fileName;
-              JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params);
+            JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
+            pathName = jdom.scr_report_pdf + fileName;
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params);
             JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-//            JasperFillManager.fillReportToFile(scr_report_file, params);
+            // JasperFillManager.fillReportToFile(scr_report_file, params);
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (Exception ex) {
@@ -484,7 +482,5 @@ public class JsonDataSourceApp extends AbstractSampleApp {
         }
         return fileName;
     }
-    
-    
 
 }

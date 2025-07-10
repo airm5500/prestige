@@ -28,15 +28,14 @@ public class medecinManagement extends bllBase {
         this.checkDatamanager();
     }
 
-    public void create(String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
-            String str_ADRESSE, String str_PHONE, String str_MAIL,
-            String str_SEXE, String str_Commentaire,
-            String lg_VILLE_ID, String lg_SPECIALITE_ID) {
+    public void create(String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME, String str_ADRESSE,
+            String str_PHONE, String str_MAIL, String str_SEXE, String str_Commentaire, String lg_VILLE_ID,
+            String lg_SPECIALITE_ID) {
 
         try {
 
             TMedecin OTMedecin = new TMedecin();
-            
+
             OTMedecin.setLgMEDECINID(this.getKey().getComplexId());
             OTMedecin.setStrCODEINTERNE(str_CODE_INTERNE);
             OTMedecin.setStrFIRSTNAME(str_FIRST_NAME);
@@ -54,7 +53,7 @@ public class medecinManagement extends bllBase {
                 new logger().oCategory.info("lg_VILLE_ID     Create   " + lg_VILLE_ID);
             }
 
-            //lg_SPECIALITE_ID
+            // lg_SPECIALITE_ID
             TSpecialite OTSpecialite = getOdataManager().getEm().find(TSpecialite.class, lg_SPECIALITE_ID);
             if (OTSpecialite != null) {
                 OTMedecin.setLgSPECIALITEID(OTSpecialite);
@@ -73,9 +72,8 @@ public class medecinManagement extends bllBase {
 
     }
 
-    public void update(String lg_MEDECIN_ID, String str_CODE_INTERNE , String str_FIRST_NAME, String str_LAST_NAME,
-            String str_ADRESSE, String str_PHONE, String str_MAIL,
-            String str_SEXE, String str_Commentaire,
+    public void update(String lg_MEDECIN_ID, String str_CODE_INTERNE, String str_FIRST_NAME, String str_LAST_NAME,
+            String str_ADRESSE, String str_PHONE, String str_MAIL, String str_SEXE, String str_Commentaire,
             String lg_VILLE_ID, String lg_SPECIALITE_ID) {
 
         try {
@@ -90,7 +88,7 @@ public class medecinManagement extends bllBase {
                 new logger().oCategory.info("lg_VILLE_ID     Create   " + lg_VILLE_ID);
             }
 
-            //lg_SPECIALITE_ID
+            // lg_SPECIALITE_ID
             dal.TSpecialite OTSpecialite = getOdataManager().getEm().find(dal.TSpecialite.class, lg_SPECIALITE_ID);
             if (OTSpecialite != null) {
                 OTMedecin.setLgSPECIALITEID(OTSpecialite);

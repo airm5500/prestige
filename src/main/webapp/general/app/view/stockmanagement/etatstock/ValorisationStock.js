@@ -66,7 +66,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.ValorisationStock', {
         });
         var storerepartiteur = new Ext.data.Store({
             model: 'testextjs.model.Grossiste',
-            pageSize: itemsPerPage,
+            pageSize: 999,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
@@ -296,7 +296,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.ValorisationStock', {
                         store: storerepartiteur,
                         valueField: 'lg_GROSSISTE_ID',
                         displayField: 'str_LIBELLE',
-                        pageSize: itemsPerPage, //ajout la barre de pagination
+                        pageSize: 999, //ajout la barre de pagination
                         hidden: true,
                         typeAhead: true,
                         queryMode: 'remote',

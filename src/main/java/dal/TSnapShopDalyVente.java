@@ -28,22 +28,22 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_snap_shop_daly_vente")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TSnapShopDalyVente.findAll", query = "SELECT t FROM TSnapShopDalyVente t"),
-    @NamedQuery(name = "TSnapShopDalyVente.findByLgID", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TSnapShopDalyVente.findByIntAMOUNT", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.intAMOUNT = :intAMOUNT"),
-    @NamedQuery(name = "TSnapShopDalyVente.findByDtDAY", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.dtDAY = :dtDAY"),
-    @NamedQuery(name = "TSnapShopDalyVente.findByDtCREATED", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TSnapShopDalyVente.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TSnapShopDalyVente.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TSnapShopDalyVente.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION")})
+@NamedQueries({ @NamedQuery(name = "TSnapShopDalyVente.findAll", query = "SELECT t FROM TSnapShopDalyVente t"),
+        @NamedQuery(name = "TSnapShopDalyVente.findByLgID", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TSnapShopDalyVente.findByIntAMOUNT", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.intAMOUNT = :intAMOUNT"),
+        @NamedQuery(name = "TSnapShopDalyVente.findByDtDAY", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.dtDAY = :dtDAY"),
+        @NamedQuery(name = "TSnapShopDalyVente.findByDtCREATED", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TSnapShopDalyVente.findByDtUPDATED", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TSnapShopDalyVente.findByStrSTATUT", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TSnapShopDalyVente.findByIntNUMBERTRANSACTION", query = "SELECT t FROM TSnapShopDalyVente t WHERE t.intNUMBERTRANSACTION = :intNUMBERTRANSACTION") })
 public class TSnapShopDalyVente implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
     @Column(name = "lg_ID", nullable = false, length = 50)
     private String lgID;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_AMOUNT", precision = 15, scale = 3)
     private Double intAMOUNT;
     @Column(name = "dt_DAY")
@@ -158,5 +158,5 @@ public class TSnapShopDalyVente implements Serializable {
     public String toString() {
         return "dal.TSnapShopDalyVente[ lgID=" + lgID + " ]";
     }
-    
+
 }

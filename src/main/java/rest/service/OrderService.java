@@ -6,6 +6,7 @@
 package rest.service;
 
 import commonTasks.dto.ArticleDTO;
+import commonTasks.dto.EntreeStockDetailFiltre;
 import commonTasks.dto.GenererFactureDTO;
 import commonTasks.dto.Params;
 import commonTasks.dto.RuptureDTO;
@@ -20,16 +21,18 @@ import dal.TOrderDetail;
 import dal.TUser;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import javax.ejb.Local;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.dto.*;
 
 /**
  *
  * @author DICI
  */
 @Local
-//@Remote
 public interface OrderService {
 
     List<RuptureDetail> ruptureDetaisDtoByRupture(String idRupture);
@@ -40,10 +43,6 @@ public interface OrderService {
 
     List<TOrderDetail> findByOrderId(String idCommande);
 
-    void changeOrderStatuts(TOrder order);
-
-    void removeItemsFromOrder(List<TOrderDetail> items);
-
     TOrderDetail findByCipAndOrderId(String codeCip, String idCommande);
 
     Rupture creerRupture(TOrder order);
@@ -52,11 +51,14 @@ public interface OrderService {
 
     JSONObject removeRupture(String id);
 
-    List<RuptureDTO> listeRuptures(LocalDate dtStart, LocalDate dtEnd, String query, String grossisteId, int start, int limit, boolean all);
+    List<RuptureDTO> listeRuptures(LocalDate dtStart, LocalDate dtEnd, String query, String grossisteId, int start,
+            int limit, boolean all);
 
-    JSONObject listeRuptures(LocalDate dtStart, LocalDate dtEnd, String query, String grossisteId, int start, int limit) throws JSONException;
+    JSONObject listeRuptures(LocalDate dtStart, LocalDate dtEnd, String query, String grossisteId, int start, int limit)
+            throws JSONException;
 
-    List<RuptureDetailDTO> listeRuptures(LocalDate dtStart, LocalDate dtEnd, String query, String grossisteId, String emplacementId);
+    List<RuptureDetailDTO> listeRuptures(LocalDate dtStart, LocalDate dtEnd, String query, String grossisteId,
+            String emplacementId);
 
     int findProduitStock(String idProduit, String emplacementId);
 
@@ -72,17 +74,56 @@ public interface OrderService {
 
     RuptureDetail ruptureDetaisByRuptureAndProduitId(String idRupture, String produitCip);
 
-    TOrderDetail modificationProduitCommandeEncours(ArticleDTO dto, TUser user) throws Exception;
-
-    JSONObject supprimerProduitCommandeEncours(String idCommande) throws JSONException;
+    TOrderDetail modificationProduitCommandeEncours(ArticleDTO dto, TUser user);
 
     TFamilleGrossiste finFamilleGrossisteByByFamilleAndIdGrossiste(String idFamille, String grossisteId);
 
     TFamilleGrossiste findOrCreateFamilleGrossisteByFamilleAndGrossiste(TFamille famille, TGrossiste grossiste);
 
-    TFamille findFamilleByCipOrEan(String cipOrEan);
-
     TGrossiste findGrossiste(String id);
 
     JSONObject updateScheduled(String idProduit, boolean scheduled) throws JSONException;
+
+    List<CommandeEncourDetailDTO> fetchOrderItems(CommandeFiltre filtre, String orderId, String query, int start,
+            int limit, boolean all);
+
+    JSONObject fetchOrderItems(CommandeFiltre filtre, String orderId, String query, int start, int limit);
+
+    String modifierProduitPrixVenteCommandeEnCours(ArticleDTO dto, TUser user);
+
+    JSONObject fetch(String query, Set<String> status, int start, int limit);
+
+    void removeItem(String itemId);
+
+    JSONObject getCommandeAmount(String commandeId);
+
+    JSONObject addItem(OrderDetailDTO orderDetail, TUser user);
+
+    Map<String, List<CommandeCsvDTO>> commandeEncoursCsv(String idCommande);
+
+    void passerLaCommande(String orderId);
+
+    void changerEnCommandeEnCours(String orderId);
+
+    void transformSuggestionToOrder(String suggestionId, TUser user);
+
+    void removeOrder(String orderId);
+
+    void mergeOrder(CommandeIdsDTO commandeIds);
+
+    void changeGrossiste(String idCommande, String grossisteId);
+
+    JSONObject getListBons(String statut, String search);
+
+    void deleteBonLivraison(String id);
+
+    JSONObject getListBonsDetails(String bonId, String search, int start, int limit, EntreeStockDetailFiltre filtre,
+            Boolean checkDatePeremption);
+
+    void removeLot(DeleteLot deleteLot);
+
+    JSONObject addLot(AddLot lot);
+
+    JSONObject getListBonsDetailsByProduits(String produits, String search, String dtStart, String dtEnd, int start,
+            int limit, String grossisteId);
 }

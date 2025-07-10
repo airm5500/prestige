@@ -13,8 +13,7 @@ import java.io.Serializable;
  */
 public class CodeFactureDTO implements Serializable {
     private static final long serialVersionUID = 1L;
-    private String code,factureId;
-
+    private String code, factureId;
 
     public String getCode() {
         return code;
@@ -32,8 +31,6 @@ public class CodeFactureDTO implements Serializable {
         this.factureId = factureId;
     }
 
-   
-
     public CodeFactureDTO(String code, String factureId) {
         this.code = code;
         this.factureId = factureId;
@@ -45,7 +42,5 @@ public class CodeFactureDTO implements Serializable {
 
     public CodeFactureDTO() {
     }
-    
-    
-    
+
 }

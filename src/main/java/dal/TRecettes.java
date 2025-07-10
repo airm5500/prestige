@@ -28,16 +28,15 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_recettes")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRecettes.findAll", query = "SELECT t FROM TRecettes t"),
-    @NamedQuery(name = "TRecettes.findByIdRecette", query = "SELECT t FROM TRecettes t WHERE t.idRecette = :idRecette"),
-    @NamedQuery(name = "TRecettes.findByDtCREATED", query = "SELECT t FROM TRecettes t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRecettes.findByStrCREATEDBY", query = "SELECT t FROM TRecettes t WHERE t.strCREATEDBY = :strCREATEDBY"),
-    @NamedQuery(name = "TRecettes.findByDtUPDATED", query = "SELECT t FROM TRecettes t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TRecettes.findByStrUPDATEDBY", query = "SELECT t FROM TRecettes t WHERE t.strUPDATEDBY = :strUPDATEDBY"),
-    @NamedQuery(name = "TRecettes.findByIntAMOUNT", query = "SELECT t FROM TRecettes t WHERE t.intAMOUNT = :intAMOUNT"),
-    @NamedQuery(name = "TRecettes.findByStrDESCRIPTION", query = "SELECT t FROM TRecettes t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TRecettes.findByStrREFFACTURE", query = "SELECT t FROM TRecettes t WHERE t.strREFFACTURE = :strREFFACTURE")})
+@NamedQueries({ @NamedQuery(name = "TRecettes.findAll", query = "SELECT t FROM TRecettes t"),
+        @NamedQuery(name = "TRecettes.findByIdRecette", query = "SELECT t FROM TRecettes t WHERE t.idRecette = :idRecette"),
+        @NamedQuery(name = "TRecettes.findByDtCREATED", query = "SELECT t FROM TRecettes t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRecettes.findByStrCREATEDBY", query = "SELECT t FROM TRecettes t WHERE t.strCREATEDBY = :strCREATEDBY"),
+        @NamedQuery(name = "TRecettes.findByDtUPDATED", query = "SELECT t FROM TRecettes t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TRecettes.findByStrUPDATEDBY", query = "SELECT t FROM TRecettes t WHERE t.strUPDATEDBY = :strUPDATEDBY"),
+        @NamedQuery(name = "TRecettes.findByIntAMOUNT", query = "SELECT t FROM TRecettes t WHERE t.intAMOUNT = :intAMOUNT"),
+        @NamedQuery(name = "TRecettes.findByStrDESCRIPTION", query = "SELECT t FROM TRecettes t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TRecettes.findByStrREFFACTURE", query = "SELECT t FROM TRecettes t WHERE t.strREFFACTURE = :strREFFACTURE") })
 public class TRecettes implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -54,7 +53,8 @@ public class TRecettes implements Serializable {
     private Date dtUPDATED;
     @Column(name = "str_UPDATED_BY", length = 40)
     private String strUPDATEDBY;
-    // @Max(value=?)  @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce field validation
+    // @Max(value=?) @Min(value=?)//if you know range of your decimal fields consider using these annotations to enforce
+    // field validation
     @Column(name = "int_AMOUNT", precision = 15, scale = 3)
     private Double intAMOUNT;
     @Column(name = "str_DESCRIPTION", length = 2000)
@@ -67,7 +67,7 @@ public class TRecettes implements Serializable {
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser lgUSERID;
-    
+
     public TRecettes() {
     }
 
@@ -161,7 +161,8 @@ public class TRecettes implements Serializable {
             return false;
         }
         TRecettes other = (TRecettes) object;
-        if ((this.idRecette == null && other.idRecette != null) || (this.idRecette != null && !this.idRecette.equals(other.idRecette))) {
+        if ((this.idRecette == null && other.idRecette != null)
+                || (this.idRecette != null && !this.idRecette.equals(other.idRecette))) {
             return false;
         }
         return true;
@@ -179,5 +180,5 @@ public class TRecettes implements Serializable {
     public void setLgUSERID(TUser lgUSERID) {
         this.lgUSERID = lgUSERID;
     }
-    
+
 }

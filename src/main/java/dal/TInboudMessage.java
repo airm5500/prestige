@@ -26,13 +26,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_inboud_message")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TInboudMessage.findAll", query = "SELECT t FROM TInboudMessage t"),
-    @NamedQuery(name = "TInboudMessage.findByLgINBOUNDMESSAGEID", query = "SELECT t FROM TInboudMessage t WHERE t.lgINBOUNDMESSAGEID = :lgINBOUNDMESSAGEID"),
-    @NamedQuery(name = "TInboudMessage.findByDtCREATED", query = "SELECT t FROM TInboudMessage t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TInboudMessage.findByDtUPDATED", query = "SELECT t FROM TInboudMessage t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TInboudMessage.findByStrSTATUT", query = "SELECT t FROM TInboudMessage t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TInboudMessage.findByStrPHONE", query = "SELECT t FROM TInboudMessage t WHERE t.strPHONE = :strPHONE")})
+@NamedQueries({ @NamedQuery(name = "TInboudMessage.findAll", query = "SELECT t FROM TInboudMessage t"),
+        @NamedQuery(name = "TInboudMessage.findByLgINBOUNDMESSAGEID", query = "SELECT t FROM TInboudMessage t WHERE t.lgINBOUNDMESSAGEID = :lgINBOUNDMESSAGEID"),
+        @NamedQuery(name = "TInboudMessage.findByDtCREATED", query = "SELECT t FROM TInboudMessage t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TInboudMessage.findByDtUPDATED", query = "SELECT t FROM TInboudMessage t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TInboudMessage.findByStrSTATUT", query = "SELECT t FROM TInboudMessage t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TInboudMessage.findByStrPHONE", query = "SELECT t FROM TInboudMessage t WHERE t.strPHONE = :strPHONE") })
 public class TInboudMessage implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -128,7 +127,8 @@ public class TInboudMessage implements Serializable {
             return false;
         }
         TInboudMessage other = (TInboudMessage) object;
-        if ((this.lgINBOUNDMESSAGEID == null && other.lgINBOUNDMESSAGEID != null) || (this.lgINBOUNDMESSAGEID != null && !this.lgINBOUNDMESSAGEID.equals(other.lgINBOUNDMESSAGEID))) {
+        if ((this.lgINBOUNDMESSAGEID == null && other.lgINBOUNDMESSAGEID != null)
+                || (this.lgINBOUNDMESSAGEID != null && !this.lgINBOUNDMESSAGEID.equals(other.lgINBOUNDMESSAGEID))) {
             return false;
         }
         return true;

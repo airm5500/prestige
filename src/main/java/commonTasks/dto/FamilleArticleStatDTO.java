@@ -19,13 +19,15 @@ public class FamilleArticleStatDTO implements Serializable {
 
     private static final long serialVersionUID = 1L;
     private String code, libelle, familleId, description, id;
-    private long montantTTC = 0, montantHT = 0, montantAchat = 0, montantMarge = 0, montantCumulTTC = 0, montantCumulHT = 0, montantCumulAchat = 0;
-    private long valeurPeriode = 0, pourcentageMage = 0, pourcentageTH = 0, pourcentageCumulMage = 0, pourcentageCumulTH = 0;
-    private long montantTva = 0, montantCumulTva = 0, montantRemise = 0, montantCumulMarge=0;
-    private long totalRemiseVO=0, totalRemiseVNO=0;
-    private long totalRemiseVetoVO=0, totalRemiseVetoVNO=0, montantCumulRemise=0;
-    private long totalCaVO=0, totalCaVNO=0;
-    private long totalCaVetoVO=0, totalCaVetoVNO=0,totalRemiseVeto=0,totalCaVeto=0;
+    private long montantTTC = 0, montantHT = 0, montantAchat = 0, montantMarge = 0, montantCumulTTC = 0,
+            montantCumulHT = 0, montantCumulAchat = 0;
+    private long valeurPeriode = 0, pourcentageMage = 0, pourcentageTH = 0, pourcentageCumulMage = 0,
+            pourcentageCumulTH = 0;
+    private long montantTva = 0, montantCumulTva = 0, montantRemise = 0, montantCumulMarge = 0;
+    private long totalRemiseVO = 0, totalRemiseVNO = 0;
+    private long totalRemiseVetoVO = 0, totalRemiseVetoVNO = 0, montantCumulRemise = 0;
+    private long totalCaVO = 0, totalCaVNO = 0;
+    private long totalCaVetoVO = 0, totalCaVetoVNO = 0, totalRemiseVeto = 0, totalCaVeto = 0;
 
     public FamilleArticleStatDTO() {
     }
@@ -182,14 +184,16 @@ public class FamilleArticleStatDTO implements Serializable {
         this.totalCaVetoVNO = totalCaVetoVNO;
     }
 
-    public FamilleArticleStatDTO(String code, String libelle, long montantTTC, long montantAchat, long montantTva, long montantRemise, String familleId) {
+    public FamilleArticleStatDTO(String code, String libelle, long montantTTC, long montantAchat, long montantTva,
+            long montantRemise, String familleId) {
         this.code = code;
         this.libelle = libelle;
         this.montantTTC = (montantTTC - montantRemise);
         this.montantHT = (montantTTC - montantRemise - montantTva);
         this.montantAchat = montantAchat;
         this.montantMarge = (this.montantHT - montantAchat);
-        Double p = new BigDecimal(Double.valueOf(this.montantMarge) / this.montantHT).setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+        Double p = new BigDecimal(Double.valueOf(this.montantMarge) / this.montantHT).setScale(2, RoundingMode.HALF_UP)
+                .doubleValue() * 100;
         this.pourcentageMage = p.intValue();
         this.montantTva = montantTva;
         this.montantRemise = montantRemise;
@@ -331,14 +335,16 @@ public class FamilleArticleStatDTO implements Serializable {
         return true;
     }
 
-    public FamilleArticleStatDTO(String code, String libelle, long montantTTC, long montantAchat, long montantTva, long montantRemise, Integer prixAchat, Integer prixVente, long quantite) {
+    public FamilleArticleStatDTO(String code, String libelle, long montantTTC, long montantAchat, long montantTva,
+            long montantRemise, Integer prixAchat, Integer prixVente, long quantite) {
         this.code = code;
         this.libelle = libelle;
         this.montantCumulTTC = (montantTTC - montantRemise);
         this.montantCumulHT = (montantTTC - montantRemise - montantTva);
         this.montantCumulAchat = montantAchat;
         this.montantCumulMarge = (this.montantCumulHT - montantAchat);
-        Double p = new BigDecimal(Double.valueOf(this.montantCumulMarge) / this.montantCumulHT).setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+        Double p = new BigDecimal(Double.valueOf(this.montantCumulMarge) / this.montantCumulHT)
+                .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
         this.pourcentageCumulMage = p.intValue();
         this.montantTva = prixAchat;
         this.montantRemise = prixVente;
@@ -361,8 +367,8 @@ public class FamilleArticleStatDTO implements Serializable {
      * @param montantVente
      * @param seuil
      */
-    public FamilleArticleStatDTO(String id, String code, String libelle, String familleId, String description, long quantiteVNO, long quantiteVO, long quantiteVendue,
-            long nombreSortie, long montantVente, int seuil) {
+    public FamilleArticleStatDTO(String id, String code, String libelle, String familleId, String description,
+            long quantiteVNO, long quantiteVO, long quantiteVendue, long nombreSortie, long montantVente, int seuil) {
         this.code = code;
         this.libelle = libelle;
         this.familleId = familleId;
@@ -371,7 +377,8 @@ public class FamilleArticleStatDTO implements Serializable {
         this.montantCumulHT = quantiteVO;
         this.montantCumulAchat = quantiteVendue;
         this.montantCumulMarge = nombreSortie;
-        Double p = new BigDecimal(Double.valueOf(quantiteVendue) / nombreSortie).setScale(1, RoundingMode.HALF_UP).doubleValue();
+        Double p = new BigDecimal(Double.valueOf(quantiteVendue) / nombreSortie).setScale(1, RoundingMode.HALF_UP)
+                .doubleValue();
         this.pourcentageCumulMage = p.intValue();
         this.montantTva = montantVente;
         this.valeurPeriode = Long.valueOf(seuil);
@@ -379,20 +386,23 @@ public class FamilleArticleStatDTO implements Serializable {
 
     }
 
-    public FamilleArticleStatDTO(String code, String libelle, String familleId, String description, long montantTTC, long montantAchat, long montantTva, long montantRemise, long quantite) {
+    public FamilleArticleStatDTO(String code, String libelle, String familleId, String description, long montantTTC,
+            long montantAchat, long montantTva, long montantRemise, long quantite) {
         this.code = code;
         this.libelle = libelle;
         this.montantCumulTTC = (montantTTC - montantRemise);
         this.montantCumulHT = (montantTTC - montantRemise - montantTva);
         this.montantCumulAchat = montantAchat;
         this.montantCumulMarge = (this.montantCumulHT - montantAchat);
-        Double p = new BigDecimal(Double.valueOf(this.montantCumulMarge) / this.montantCumulHT).setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+        Double p = new BigDecimal(Double.valueOf(this.montantCumulMarge) / this.montantCumulHT)
+                .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
         this.pourcentageCumulMage = p.intValue();
         this.montantCumulTva = quantite;
         this.familleId = familleId;
         this.description = description;
 
     }
+
     private String typeVente;
 
     public String getTypeVente() {
@@ -403,14 +413,16 @@ public class FamilleArticleStatDTO implements Serializable {
         this.typeVente = typeVente;
     }
 
-    public FamilleArticleStatDTO(String code, String libelle, long montantTTC, long montantAchat, long montantTva, long montantRemise, String familleId, String typeVente) {
+    public FamilleArticleStatDTO(String code, String libelle, long montantTTC, long montantAchat, long montantTva,
+            long montantRemise, String familleId, String typeVente) {
         this.code = code;
         this.libelle = libelle;
         this.montantTTC = montantTTC;
         this.montantHT = (montantTTC - montantTva);
         this.montantAchat = montantAchat;
         this.montantMarge = (this.montantHT - montantAchat);
-        Double p = new BigDecimal(Double.valueOf(this.montantMarge) / this.montantHT).setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+        Double p = new BigDecimal(Double.valueOf(this.montantMarge) / this.montantHT).setScale(2, RoundingMode.HALF_UP)
+                .doubleValue() * 100;
         this.pourcentageMage = p.intValue();
         this.montantTva = montantTva;
         this.montantRemise = montantRemise;

@@ -18,9 +18,9 @@ public interface LitigeService {
 
     boolean createTypeLitige(String strNAME, String str_DESCRIPTION);
 
-    boolean createLitige(String str_LITIGE_TYPE, String strCLIENTNAME,
-            String strREFERENCEVENTELITIGE, String str_TIERS_PAYANT_ID, String strLIBELLELITIGE, String strETATLITIGE,
-            String strCONSEQUENCELITIGE, String strDESCRIPTIONLITIGE, String strCOMMENTAIRELITIGE);
+    boolean createLitige(String str_LITIGE_TYPE, String strCLIENTNAME, String strREFERENCEVENTELITIGE,
+            String str_TIERS_PAYANT_ID, String strLIBELLELITIGE, String strETATLITIGE, String strCONSEQUENCELITIGE,
+            String strDESCRIPTIONLITIGE, String strCOMMENTAIRELITIGE);
 
     boolean deleteLitige(String lgLITIGEID);
 
@@ -28,8 +28,9 @@ public interface LitigeService {
 
     TTiersPayant findTiersPayantById(String strTIERSPAYANTID);
 
-    List<TPreenregistrementCompteClientTiersPayent> getVentesForTiersPayantsAndCompteClients(String tiersPayantID, String compteClientID);
+    List<TPreenregistrementCompteClientTiersPayent> getVentesForTiersPayantsAndCompteClients(String tiersPayantID,
+            String compteClientID);
 
-    List< TLitige> getAllLitiges();
+    List<TLitige> getAllLitiges();
 
 }

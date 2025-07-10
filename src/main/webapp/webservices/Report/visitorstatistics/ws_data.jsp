@@ -66,26 +66,7 @@
        
     }
 }
-  /*  if (datas.size() > 0) {
-        JSONObject json = new JSONObject();
-        json.put("id", k + 1);
-
-        json.put("JOUR", "TOTAL");
-        json.put("OP", "");
-        json.put("VALUES", "val_nbre_pan_lig");
-        json.put("UN", UN_AMONT + "_" + UN_COUNT + "_" + UN_PAN + "_" + UN_REFERNCEVALUE);
-        json.put("DEUX", DEUX_AMONT + "_" + DEUX_COUNT + "_" + DEUX_PAN + "_" + DEUX_REFERNCEVALUE);
-        json.put("TROIS", TROIS_AMONT + "_" + TROIS_COUNT + "_" + TROIS_PAN + "_" + TROIS_REFERNCEVALUE);
-        json.put("QUATRE", QUATRE_AMONT + "_" + QUATRE_COUNT + "_" + QUATRE_PAN + "_" + QUATRE_REFERNCEVALUE);
-        json.put("CINQ", CINQ_AMONT + "_" + CINQ_COUNT + "_" + CINQ_PAN + "_" + CINQ_REFERNCEVALUE);
-        json.put("SIX", SIX_AMONT + "_" + SIX_COUNT + "_" + SIX_PAN + "_" + SIX_REFERNCEVALUE);
-        json.put("SEPT", SEPT_AMONT + "_" + SEPT_COUNT + "_" + SEPT_PAN + "_" + SEPT_REFERNCEVALUE);
-        json.put("HUIT", HUIT_AMONT + "_" + HUIT_COUNT + "_" + HUIT_PAN + "_" + HUIT_REFERNCEVALUE);
-        json.put("NEUF", NEUF_AMONT + "_" + NEUF_COUNT + "_" + NEUF_PAN + "_" + NEUF_REFERNCEVALUE);
-        json.put("DIX", DIX_AMONT + "_" + DIX_COUNT + "_" + DIX_PAN + "_" + DIX_REFERNCEVALUE);
-        json.put("TOTAL", TOTAL_AMOUNT + "_" + TOTAL_COUNT + "_" + TOTAL_PAN + "_" + TOTAL_REFERNCEVALUE);
-        arrayObj.put(json);
-    }*/
+  
     data.put("data", arrayObj);
 
     data.put("total", count);

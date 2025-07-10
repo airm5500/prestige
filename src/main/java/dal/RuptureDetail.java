@@ -18,7 +18,7 @@ import javax.persistence.Table;
 
 /**
  *
- * 
+ *
  */
 @Entity
 @Table(name = "rupture_detail")

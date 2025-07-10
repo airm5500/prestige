@@ -28,11 +28,10 @@ import toolkits.utils.date;
 @Entity
 @Table(name = "t_quinzaine")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TQuinzaine.findAll", query = "SELECT t FROM TQuinzaine t"),
-    @NamedQuery(name = "TQuinzaine.findByLgQUINZAINEID", query = "SELECT t FROM TQuinzaine t WHERE t.lgQUINZAINEID = :lgQUINZAINEID"),
-    @NamedQuery(name = "TQuinzaine.findByDtDATESTART", query = "SELECT t FROM TQuinzaine t WHERE t.dtDATESTART = :dtDATESTART"),
-    @NamedQuery(name = "TQuinzaine.findByDtDATEEND", query = "SELECT t FROM TQuinzaine t WHERE t.dtDATEEND = :dtDATEEND")})
+@NamedQueries({ @NamedQuery(name = "TQuinzaine.findAll", query = "SELECT t FROM TQuinzaine t"),
+        @NamedQuery(name = "TQuinzaine.findByLgQUINZAINEID", query = "SELECT t FROM TQuinzaine t WHERE t.lgQUINZAINEID = :lgQUINZAINEID"),
+        @NamedQuery(name = "TQuinzaine.findByDtDATESTART", query = "SELECT t FROM TQuinzaine t WHERE t.dtDATESTART = :dtDATESTART"),
+        @NamedQuery(name = "TQuinzaine.findByDtDATEEND", query = "SELECT t FROM TQuinzaine t WHERE t.dtDATEEND = :dtDATEEND") })
 public class TQuinzaine implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -53,7 +52,7 @@ public class TQuinzaine implements Serializable {
     private TGrossiste lgGROSSISTEID;
 
     public TQuinzaine() {
-//        this.lgQUINZAINEID = new date().getComplexId();
+        // this.lgQUINZAINEID = new date().getComplexId();
     }
 
     public TQuinzaine(TGrossiste lgGROSSISTEID, Date dtDATESTART, Date dtDATEEND) {
@@ -109,7 +108,8 @@ public class TQuinzaine implements Serializable {
             return false;
         }
         TQuinzaine other = (TQuinzaine) object;
-        if ((this.lgQUINZAINEID == null && other.lgQUINZAINEID != null) || (this.lgQUINZAINEID != null && !this.lgQUINZAINEID.equals(other.lgQUINZAINEID))) {
+        if ((this.lgQUINZAINEID == null && other.lgQUINZAINEID != null)
+                || (this.lgQUINZAINEID != null && !this.lgQUINZAINEID.equals(other.lgQUINZAINEID))) {
             return false;
         }
         return true;
@@ -119,5 +119,5 @@ public class TQuinzaine implements Serializable {
     public String toString() {
         return "dal.TQuinzaine[ lgQUINZAINEID=" + lgQUINZAINEID + " ]";
     }
-    
+
 }

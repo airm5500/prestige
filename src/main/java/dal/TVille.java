@@ -29,16 +29,15 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_ville")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TVille.findAll", query = "SELECT t FROM TVille t"),
-    @NamedQuery(name = "TVille.findByLgVILLEID", query = "SELECT t FROM TVille t WHERE t.lgVILLEID = :lgVILLEID"),
-    @NamedQuery(name = "TVille.findByStrName", query = "SELECT t FROM TVille t WHERE t.strName = :strName"),
-    @NamedQuery(name = "TVille.findByStrCodePostal", query = "SELECT t FROM TVille t WHERE t.strCodePostal = :strCodePostal"),
-    @NamedQuery(name = "TVille.findByStrBureauDistributeur", query = "SELECT t FROM TVille t WHERE t.strBureauDistributeur = :strBureauDistributeur"),
-    @NamedQuery(name = "TVille.findByStrStatut", query = "SELECT t FROM TVille t WHERE t.strStatut = :strStatut"),
-    @NamedQuery(name = "TVille.findByDtCreated", query = "SELECT t FROM TVille t WHERE t.dtCreated = :dtCreated"),
-    @NamedQuery(name = "TVille.findByDtUpdated", query = "SELECT t FROM TVille t WHERE t.dtUpdated = :dtUpdated"),
-    @NamedQuery(name = "TVille.findByStrCODE", query = "SELECT t FROM TVille t WHERE t.strCODE = :strCODE")})
+@NamedQueries({ @NamedQuery(name = "TVille.findAll", query = "SELECT t FROM TVille t"),
+        @NamedQuery(name = "TVille.findByLgVILLEID", query = "SELECT t FROM TVille t WHERE t.lgVILLEID = :lgVILLEID"),
+        @NamedQuery(name = "TVille.findByStrName", query = "SELECT t FROM TVille t WHERE t.strName = :strName"),
+        @NamedQuery(name = "TVille.findByStrCodePostal", query = "SELECT t FROM TVille t WHERE t.strCodePostal = :strCodePostal"),
+        @NamedQuery(name = "TVille.findByStrBureauDistributeur", query = "SELECT t FROM TVille t WHERE t.strBureauDistributeur = :strBureauDistributeur"),
+        @NamedQuery(name = "TVille.findByStrStatut", query = "SELECT t FROM TVille t WHERE t.strStatut = :strStatut"),
+        @NamedQuery(name = "TVille.findByDtCreated", query = "SELECT t FROM TVille t WHERE t.dtCreated = :dtCreated"),
+        @NamedQuery(name = "TVille.findByDtUpdated", query = "SELECT t FROM TVille t WHERE t.dtUpdated = :dtUpdated"),
+        @NamedQuery(name = "TVille.findByStrCODE", query = "SELECT t FROM TVille t WHERE t.strCODE = :strCODE") })
 public class TVille implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -61,7 +60,6 @@ public class TVille implements Serializable {
     private Date dtUpdated;
     @Column(name = "str_CODE", length = 20)
     private String strCODE;
-   
 
     public TVille() {
     }
@@ -134,12 +132,6 @@ public class TVille implements Serializable {
         this.strCODE = strCODE;
     }
 
-  
-
-
-   
-
-
     @Override
     public int hashCode() {
         int hash = 0;
@@ -154,7 +146,8 @@ public class TVille implements Serializable {
             return false;
         }
         TVille other = (TVille) object;
-        if ((this.lgVILLEID == null && other.lgVILLEID != null) || (this.lgVILLEID != null && !this.lgVILLEID.equals(other.lgVILLEID))) {
+        if ((this.lgVILLEID == null && other.lgVILLEID != null)
+                || (this.lgVILLEID != null && !this.lgVILLEID.equals(other.lgVILLEID))) {
             return false;
         }
         return true;
@@ -164,5 +157,5 @@ public class TVille implements Serializable {
     public String toString() {
         return "dal.TVille[ lgVILLEID=" + lgVILLEID + " ]";
     }
-    
+
 }

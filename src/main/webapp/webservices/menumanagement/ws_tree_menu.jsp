@@ -1,3 +1,4 @@
+<%@page import="util.Constant"%>
 <%@page import="dal.TMenu"%>
 <%@page import="dal.dataManager"  %>
 <%@page import="dal.TUser"  %>
@@ -28,11 +29,11 @@
     date key = new date();
     privilege Oprivilege = new privilege();
     json Ojson = new json();
-    List<TMenu> lstTMenu = new ArrayList<TMenu>();
+    List<TMenu> lstTMenu = new ArrayList<>();
 %>
 
 <%
-    TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+    TUser OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
     new logger().OCategory.info(" ws tree_menu TUser  " + OTUser.getStrLOGIN());
     OdataManager.initEntityManager();
     Oprivilege.LoadDataManger(OdataManager);
@@ -40,7 +41,7 @@
     Oprivilege.setOTUser(OTUser);
 
     lstTMenu = OdataManager.getEm().createQuery("SELECT t FROM TMenu t  WHERE t.strStatus LIKE ?1 AND t.lgMODULEID.lgMODULEID LIKE ?2 ORDER BY t.intPRIORITY ASC").
-            setParameter(1, commonparameter.statut_enable).
+            setParameter(1, Constant.STATUT_ENABLE).
             setParameter(2, "1").
             getResultList();
     new logger().OCategory.info(" lstTMenu " + lstTMenu.size());
@@ -51,13 +52,13 @@
 
         OdataManager.getEm().refresh(lstTMenu.get(i));
 
-        boolean isValid = privilege.hasAuthorityByName((List<TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE), lstTMenu.get(i).getPKey());
+        boolean isValid = privilege.hasAuthorityByName((List<TPrivilege>) session.getAttribute(Constant.USER_LIST_PRIVILEGE), lstTMenu.get(i).getPKey());
         if (isValid) {
 //    if (Oprivilege.isAvalaible(lstTMenu.get(i).getPKey())) {
-            List<TSousMenu> lstTSousMenu = new ArrayList<TSousMenu>();
+            List<TSousMenu> lstTSousMenu = new ArrayList<>();
             lstTSousMenu = OdataManager.getEm().createQuery("SELECT t FROM TSousMenu t WHERE t.lgMENUID.lgMENUID = ?1  AND t.strStatus = ?2 ORDER BY t.intPRIORITY ASC")
                     .setParameter(1, lstTMenu.get(i).getLgMENUID())
-                    .setParameter(2, commonparameter.statut_enable)
+                    .setParameter(2, Constant.STATUT_ENABLE)
                     .getResultList();
 
             JSONObject json = new JSONObject();
@@ -73,7 +74,7 @@
                 OdataManager.getEm().refresh(OTSousMenu);
                 JSONObject json_sub = new JSONObject();
 
-                boolean isValid2 = privilege.hasAuthorityByName((List<TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE), lstTSousMenu.get(j).getPKey());
+                boolean isValid2 = privilege.hasAuthorityByName((List<TPrivilege>) session.getAttribute(Constant.USER_LIST_PRIVILEGE), lstTSousMenu.get(j).getPKey());
                 //if (Oprivilege.isAvalaible(lstTSousMenu.get(j).getPKey())) {
                 if (isValid2) {
                     json_sub.put("id", OTSousMenu.getStrCOMPOSANT());
@@ -93,7 +94,6 @@
         }
     }
 
-  
 
 %>
 

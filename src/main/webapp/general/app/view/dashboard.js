@@ -1,16 +1,4 @@
-/*Ext.define('testextjs.view.dashboard', {
- extend: 'Ext.panel.Panel',
- xtype: 'dashboard',
- id: 'dashboard-panel',
- border: false,
- title: '&nbsp;',
- // autoScroll: true,
- loader: {
- url: 'dashboard.html',
- autoLoad: true
- },
- 
- });*/
+
 
 /* global Ext, panel */
 
@@ -33,11 +21,10 @@ Ext.define('testextjs.view.dashboard', {
     //bodyBorder: 'false',
     border: false,
     initComponent: function () {
-        var url_order_component = "dashboard.html";
+        const url_order_component = "dashboard.html";
         this.items = [{
                 xtype: "component",
                 autoScroll: false,
-                border: false,
                 autoEl: {
                     tag: "iframe",
                     src: url_order_component

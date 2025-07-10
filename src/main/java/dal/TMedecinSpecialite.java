@@ -28,13 +28,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_medecin_specialite")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TMedecinSpecialite.findAll", query = "SELECT t FROM TMedecinSpecialite t"),
-    @NamedQuery(name = "TMedecinSpecialite.findByLgMEDECINSPECIALITEID", query = "SELECT t FROM TMedecinSpecialite t WHERE t.lgMEDECINSPECIALITEID = :lgMEDECINSPECIALITEID"),
-    @NamedQuery(name = "TMedecinSpecialite.findByStrLIBELLE", query = "SELECT t FROM TMedecinSpecialite t WHERE t.strLIBELLE = :strLIBELLE"),
-    @NamedQuery(name = "TMedecinSpecialite.findByDtCREATED", query = "SELECT t FROM TMedecinSpecialite t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TMedecinSpecialite.findByDtUPDATED", query = "SELECT t FROM TMedecinSpecialite t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TMedecinSpecialite.findByStrSTATUT", query = "SELECT t FROM TMedecinSpecialite t WHERE t.strSTATUT = :strSTATUT")})
+@NamedQueries({ @NamedQuery(name = "TMedecinSpecialite.findAll", query = "SELECT t FROM TMedecinSpecialite t"),
+        @NamedQuery(name = "TMedecinSpecialite.findByLgMEDECINSPECIALITEID", query = "SELECT t FROM TMedecinSpecialite t WHERE t.lgMEDECINSPECIALITEID = :lgMEDECINSPECIALITEID"),
+        @NamedQuery(name = "TMedecinSpecialite.findByStrLIBELLE", query = "SELECT t FROM TMedecinSpecialite t WHERE t.strLIBELLE = :strLIBELLE"),
+        @NamedQuery(name = "TMedecinSpecialite.findByDtCREATED", query = "SELECT t FROM TMedecinSpecialite t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TMedecinSpecialite.findByDtUPDATED", query = "SELECT t FROM TMedecinSpecialite t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TMedecinSpecialite.findByStrSTATUT", query = "SELECT t FROM TMedecinSpecialite t WHERE t.strSTATUT = :strSTATUT") })
 public class TMedecinSpecialite implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -135,7 +134,9 @@ public class TMedecinSpecialite implements Serializable {
             return false;
         }
         TMedecinSpecialite other = (TMedecinSpecialite) object;
-        if ((this.lgMEDECINSPECIALITEID == null && other.lgMEDECINSPECIALITEID != null) || (this.lgMEDECINSPECIALITEID != null && !this.lgMEDECINSPECIALITEID.equals(other.lgMEDECINSPECIALITEID))) {
+        if ((this.lgMEDECINSPECIALITEID == null && other.lgMEDECINSPECIALITEID != null)
+                || (this.lgMEDECINSPECIALITEID != null
+                        && !this.lgMEDECINSPECIALITEID.equals(other.lgMEDECINSPECIALITEID))) {
             return false;
         }
         return true;
@@ -145,5 +146,5 @@ public class TMedecinSpecialite implements Serializable {
     public String toString() {
         return "dal.TMedecinSpecialite[ lgMEDECINSPECIALITEID=" + lgMEDECINSPECIALITEID + " ]";
     }
-    
+
 }

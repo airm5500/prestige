@@ -29,15 +29,14 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_notification")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TNotification.findAll", query = "SELECT t FROM TNotification t"),
-    @NamedQuery(name = "TNotification.findByLgID", query = "SELECT t FROM TNotification t WHERE t.lgID = :lgID"),
-    @NamedQuery(name = "TNotification.findByStrDESCRIPTION", query = "SELECT t FROM TNotification t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TNotification.findByDtCREATED", query = "SELECT t FROM TNotification t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TNotification.findByDtUPDATED", query = "SELECT t FROM TNotification t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TNotification.findByStrSTATUT", query = "SELECT t FROM TNotification t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TNotification.findByStrTYPE", query = "SELECT t FROM TNotification t WHERE t.strTYPE = :strTYPE"),
-    @NamedQuery(name = "TNotification.findByStrREFRESSOURCE", query = "SELECT t FROM TNotification t WHERE t.strREFRESSOURCE = :strREFRESSOURCE")})
+@NamedQueries({ @NamedQuery(name = "TNotification.findAll", query = "SELECT t FROM TNotification t"),
+        @NamedQuery(name = "TNotification.findByLgID", query = "SELECT t FROM TNotification t WHERE t.lgID = :lgID"),
+        @NamedQuery(name = "TNotification.findByStrDESCRIPTION", query = "SELECT t FROM TNotification t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TNotification.findByDtCREATED", query = "SELECT t FROM TNotification t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TNotification.findByDtUPDATED", query = "SELECT t FROM TNotification t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TNotification.findByStrSTATUT", query = "SELECT t FROM TNotification t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TNotification.findByStrTYPE", query = "SELECT t FROM TNotification t WHERE t.strTYPE = :strTYPE"),
+        @NamedQuery(name = "TNotification.findByStrREFRESSOURCE", query = "SELECT t FROM TNotification t WHERE t.strREFRESSOURCE = :strREFRESSOURCE") })
 public class TNotification implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -179,5 +178,5 @@ public class TNotification implements Serializable {
     public String toString() {
         return "dal.TNotification[ lgID=" + lgID + " ]";
     }
-    
+
 }

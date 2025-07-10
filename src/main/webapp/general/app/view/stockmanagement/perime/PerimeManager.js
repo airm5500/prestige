@@ -3,7 +3,6 @@
 var url_services_data_perime = '../webservices/stockmanagement/perime/ws_data.jsp';
 var url_services_transaction_perime = '../webservices/stockmanagement/perime/ws_transaction.jsp?mode=';
 var url_services_data_article = '../webservices/sm_user/famille/ws_data.jsp';
-var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
 var url_services_data_perime_generate_pdf = '../webservices/stockmanagement/perime/ws_generate_pdf.jsp';
 
 var valdatedebut;

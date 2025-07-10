@@ -14,11 +14,13 @@ import java.util.List;
  */
 public interface CommonTasksSrv {
 
-    Integer getBalanceRegl(String dt_start, String dt_end, String typevente, String lgEmp, String lgTYPEREGLEMENTID) throws Exception;
+    Integer getBalanceRegl(String dt_start, String dt_end, String typevente, String lgEmp, String lgTYPEREGLEMENTID)
+            throws Exception;
 
     Integer getBalanceRegl(String dtstart, String typevente, String lgEmp);
 
-    List<VenteResult> cumulDesVentesSurPeriode(String dt_start, String dt_end, String lgEmp, String typevente) throws Exception;
+    List<VenteResult> cumulDesVentesSurPeriode(String dt_start, String dt_end, String lgEmp, String typevente)
+            throws Exception;
 
     List<VenteResult> cumulDesAchatsSurPeriode(String dt_start, String dt_end) throws Exception;
 

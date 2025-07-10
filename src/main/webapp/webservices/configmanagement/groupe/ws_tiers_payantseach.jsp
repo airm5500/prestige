@@ -46,7 +46,6 @@
     int start = Integer.valueOf(request.getParameter("start"));
     int limit = Integer.valueOf(request.getParameter("limit"));
     JSONArray arrayObj = new JSONArray();
-System.out.println("search_value "+search_value+" lg_TYPE_TIERS_PAYANT_ID "+lg_TYPE_TIERS_PAYANT_ID +" lg_GROUPE_ID "+lg_GROUPE_ID);
     List<TTiersPayant> lis = groupeCtl.findTierspayant(false, search_value, lg_TYPE_TIERS_PAYANT_ID, lg_GROUPE_ID, start, limit);
     int count = groupeCtl.findTierspayantCount( search_value,lg_TYPE_TIERS_PAYANT_ID,lg_GROUPE_ID);
     for (TTiersPayant obj : lis) {

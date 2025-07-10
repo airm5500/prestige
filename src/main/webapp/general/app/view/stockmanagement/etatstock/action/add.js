@@ -2,7 +2,6 @@
 
 var url_services_data_entreestock = '../webservices/sm_user/entreestock/ws_data.jsp';
 var url_services_transaction_entreestock = '../webservices/sm_user/entreestock/ws_transaction.jsp?mode=';
-var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
 var url_services_data_typeetiquette = '../webservices/configmanagement/typeetiquette/ws_data.jsp';
 
 var Oview;
@@ -25,8 +24,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
     id: 'addStockID',
     requires: [
         'Ext.form.*',
-        'Ext.window.Window',
-        'testextjs.view.commandemanagement.cmde_passees.action.livraison'
+        'Ext.window.Window'
     ],
     config: {
         odatasource: '',
@@ -34,7 +32,8 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
         mode: '',
         titre: '',
         reference: '',
-        index: ''
+        index: '',
+        directImport: false
     },
     initComponent: function () {
 
@@ -121,7 +120,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
                             name: 'str_SORTIE_USINE',
                             maxValue: new Date(),
                             id: 'str_SORTIE_USINE',
-                            submitFormat: 'd/m/Y',
+                            submitFormat: 'Y-m-d',
 //                            allowBlank: false,
                             listeners: {
                                 'change': function (me) {
@@ -192,7 +191,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
 
 
 
-        var win = new Ext.window.Window({
+        const win = new Ext.window.Window({
             autoShow: true,
             title: this.getTitre(),
             width: 500,
@@ -215,14 +214,23 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
 
     },
     onbtnsave: function (button) {
+     
+        console.log( Me.getDirectImport());
         Me_Workflow = Oview;
-        var fenetre = button.up('window'),
-                formulaire = fenetre.down('form');
-        var internal_url = "";
-
-        var Qte_cmde = MANQUANT;
-        var Qte_livre = Ext.getCmp('int_NUMBER').getValue();
-
+        const fenetre = button.up('window');
+        const formulaire = fenetre.down('form');
+        let Qte_cmde = MANQUANT;
+        let Qte_livre = Ext.getCmp('int_NUMBER').getValue();
+        const payload = Ext.JSON.encode({
+            freeQty: Ext.getCmp('int_QUANTITE_FREE').getValue(),
+            qty: Ext.getCmp('int_NUMBER').getValue(),
+            dateUsine: str_SORTIE_USINE,
+            datePeremption: Ext.getCmp('str_PEREMPTION').getSubmitValue(),
+            idEtiquette: Ext.getCmp('lg_TYPEETIQUETTE_ID').getValue(),
+            idBonDetail: lg_BON_LIVRAISON_DETAIL,
+            numLot: Ext.getCmp('int_NUM_LOT').getValue(),
+            directImport: Me.getDirectImport()
+        });
 
         Ext.MessageBox.confirm('Message',
                 'Confirmer la saisie',
@@ -244,44 +252,25 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
                                                     return;
                                                 }
                                                 if (Omode === "create") {
-                                                    internal_url = url_services_transaction_entreestock + 'create';
-
                                                     button.setDisabled(true);
                                                     Ext.Ajax.request({
-                                                        url: internal_url,
-                                                        params: {
-                                                            // lg_FAMILLE_ID: ref,
-                                                            int_QUANTITE_FREE: Ext.getCmp('int_QUANTITE_FREE').getValue(),
-                                                            int_NUMBER: Ext.getCmp('int_NUMBER').getValue(),
-                                                            //  lg_GROSSISTE_ID: lg_GROSSISTE_ID,
-                                                            //                    lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTE_ADDSTOCK_ID').getValue(),
-                                                            str_REF_LIVRAISON: str_REF_LIVRAISON,
-                                                            // str_REF_LIVRAISON: Ext.getCmp('str_REF_LIVRAISON').getValue(),
-                                                            str_SORTIE_USINE: str_SORTIE_USINE,
-                                                            str_PEREMPTION: Ext.getCmp('str_PEREMPTION').getSubmitValue(),
-                                                            lg_TYPEETIQUETTE_ID: Ext.getCmp('lg_TYPEETIQUETTE_ID').getValue(),
-                                                            // str_REF_ORDER: Ext.getCmp('str_REF_ORDER').getValue(),
-                                                            lg_BON_LIVRAISON_DETAIL: lg_BON_LIVRAISON_DETAIL,
-                                                            int_NUM_LOT: Ext.getCmp('int_NUM_LOT').getValue()
-                                                        },
+                                                        method: 'POST',
+                                                        url: '../api/v1/commande/add-lot',
+                                                        headers: {'Content-Type': 'application/json'},
+                                                        params: payload,
                                                         success: function (response)
                                                         {
                                                             button.enable();
-                                                            var object = Ext.JSON.decode(response.responseText, false);
+                                                            const object = Ext.JSON.decode(response.responseText, false);
 
-                                                            if (object.success == '0') {
-                                                                Ext.MessageBox.alert('Error Message', object.errors);
-                                                                return;
-                                                            } else if (object.success == '2') {
-                                                                Ext.MessageBox.alert('Confirmation', object.errors);
-                                                                var gridpanelID = Ext.getCmp('gridpanelID');
-                                                                return;
+                                                            if (!object.success) {
+                                                                Ext.MessageBox.alert('Confirmation', object.msg);
+
+                                                            } else {
+                                                                Ext.getCmp('gridpanelID').getStore().load();
+                                                                button.up('window').close();
                                                             }
-//                                                             var rec = Ext.getCmp('gridpanelID').getStore().getAt(Number(index));
-//                                                            rec.commit();
-                                                            Ext.getCmp('gridpanelID').getStore().load();
-                                                            var bouton = button.up('window');
-                                                            bouton.close();
+
 
                                                         },
                                                         failure: function (response)
@@ -306,16 +295,6 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
 
                         } else if (Qte_livre > Qte_cmde) {
 
-                            /*  Ext.MessageBox.confirm('Message',
-                             'La quantite livree ' + Qte_livre + '<br> est superieur a celle commandee ' + Qte_cmde,
-                             function (btn) {
-                             
-                             if (btn === 'yes') {
-                             // ****************
-                             
-                             
-                             }
-                             });*/
 
                             if (formulaire.isValid()) {
                                 if (Ext.getCmp('int_NUMBER').getValue() < 0 || Ext.getCmp('int_QUANTITE_FREE').getValue() < 0) {
@@ -324,46 +303,23 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
                                 }
                                 if (Omode === "create") {
                                     button.setDisabled(true);
-                                    internal_url = url_services_transaction_entreestock + 'create';
-                                    //alert("str_PEREMPTION " + str_PEREMPTION + " **** str_SORTIE_USINE " + str_SORTIE_USINE);
                                     Ext.Ajax.request({
-                                        url: internal_url,
-                                        params: {
-                                            // lg_FAMILLE_ID: ref,
-                                            int_QUANTITE_FREE: Ext.getCmp('int_QUANTITE_FREE').getValue(),
-                                            int_NUMBER: Ext.getCmp('int_NUMBER').getValue(),
-                                            //  lg_GROSSISTE_ID: lg_GROSSISTE_ID,
-                                            //                    lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTE_ADDSTOCK_ID').getValue(),
-                                            str_REF_LIVRAISON: str_REF_LIVRAISON,
-                                            // str_REF_LIVRAISON: Ext.getCmp('str_REF_LIVRAISON').getValue(),
-                                            str_SORTIE_USINE: str_SORTIE_USINE,
-                                            str_PEREMPTION: Ext.getCmp('str_PEREMPTION').getSubmitValue(),
-                                            lg_TYPEETIQUETTE_ID: Ext.getCmp('lg_TYPEETIQUETTE_ID').getValue(),
-                                            // str_REF_ORDER: Ext.getCmp('str_REF_ORDER').getValue(),
-                                            lg_BON_LIVRAISON_DETAIL: lg_BON_LIVRAISON_DETAIL,
-                                            int_NUM_LOT: Ext.getCmp('int_NUM_LOT').getValue()
-                                        },
+                                        method: 'POST',
+                                        url: '../api/v1/commande/add-lot',
+                                        headers: {'Content-Type': 'application/json'},
+                                        params: payload,
                                         success: function (response)
                                         {
                                             button.enable();
-                                            var object = Ext.JSON.decode(response.responseText, false);
-                                        
-                                            if (object.success == '0') {
-                                                Ext.MessageBox.alert('Error Message', object.errors);
-                                                return;
-                                            } else if (object.success == '2') {
-                                                Ext.MessageBox.alert('Confirmation', object.errors);
-                                                var gridpanelID = Ext.getCmp('gridpanelID');
-                                                return;
+                                            const object = Ext.JSON.decode(response.responseText, false);
+
+                                            if (!object.success) {
+                                                Ext.MessageBox.alert('Confirmation', object.msg);
+
                                             } else {
-
-                                                var gridpanelID = Ext.getCmp('gridpanelID');
-                                                gridpanelID.getStore().load();
-                                             
+                                                Ext.getCmp('gridpanelID').getStore().load();
+                                                button.up('window').close();
                                             }
-                                            var bouton = button.up('window');
-                                            bouton.close();
-
                                         },
                                         failure: function (response)
                                         {
@@ -382,14 +338,6 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
                                 return;
                             }
 
-
-
-
-
-
-
-
-
                         } else {
                             if (formulaire.isValid()) {
                                 if (Ext.getCmp('int_NUMBER').getValue() < 0 || Ext.getCmp('int_QUANTITE_FREE').getValue() < 0) {
@@ -397,48 +345,28 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
                                     return;
                                 }
                                 if (Omode === "create") {
-                                    internal_url = url_services_transaction_entreestock + 'create';
+
 
                                     button.setDisabled(true);
                                     Ext.Ajax.request({
-                                        url: internal_url,
-                                        params: {
-                                            // lg_FAMILLE_ID: ref,
-                                            int_QUANTITE_FREE: Ext.getCmp('int_QUANTITE_FREE').getValue(),
-                                            int_NUMBER: Ext.getCmp('int_NUMBER').getValue(),
-                                            //  lg_GROSSISTE_ID: lg_GROSSISTE_ID,
-                                            //                    lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTE_ADDSTOCK_ID').getValue(),
-                                            str_REF_LIVRAISON: str_REF_LIVRAISON,
-                                            // str_REF_LIVRAISON: Ext.getCmp('str_REF_LIVRAISON').getValue(),
-                                            str_SORTIE_USINE: str_SORTIE_USINE,
-                                            str_PEREMPTION: Ext.getCmp('str_PEREMPTION').getSubmitValue(),
-                                            lg_TYPEETIQUETTE_ID: Ext.getCmp('lg_TYPEETIQUETTE_ID').getValue(),
-                                            // str_REF_ORDER: Ext.getCmp('str_REF_ORDER').getValue(),
-                                            lg_BON_LIVRAISON_DETAIL: lg_BON_LIVRAISON_DETAIL,
-                                            int_NUM_LOT: Ext.getCmp('int_NUM_LOT').getValue()
-                                        },
+                                        method: 'POST',
+                                        url: '../api/v1/commande/add-lot',
+                                        headers: {'Content-Type': 'application/json'},
+                                        params: payload,
                                         success: function (response)
                                         {
                                             button.enable();
+                                            const object = Ext.JSON.decode(response.responseText, false);
 
-                                            var object = Ext.JSON.decode(response.responseText, false);
-                                            // alert(object.success);
-                                            if (object.success == '0') {
-                                                Ext.MessageBox.alert('Error Message', object.errors);
-                                                return;
-                                            } else if (object.success == '2') {
-                                                Ext.MessageBox.alert('Confirmation', object.errors);
-                                                var gridpanelID = Ext.getCmp('gridpanelID');
-                                                return;
+                                            if (!object.success) {
+                                                Ext.MessageBox.alert('Confirmation', object.msg);
+
                                             } else {
-//                                                 var rec = Ext.getCmp('gridpanelID').getStore().getAt(Number(index));
-//                                                            rec.commit();
-
-                                                var gridpanelID = Ext.getCmp('gridpanelID');
-                                                gridpanelID.getStore().load();
+                                                Ext.getCmp('gridpanelID').getStore().load();
+                                                button.up('window').close();
                                             }
-                                            var bouton = button.up('window');
-                                            bouton.close();
+
+
 
                                         },
                                         failure: function (response)

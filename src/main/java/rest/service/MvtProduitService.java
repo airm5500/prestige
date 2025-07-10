@@ -8,18 +8,20 @@ package rest.service;
 import commonTasks.dto.AjustementDTO;
 import commonTasks.dto.AjustementDetailDTO;
 import commonTasks.dto.Params;
+import commonTasks.dto.RetourDetailsDTO;
+import commonTasks.dto.RetourFournisseurDTO;
 import commonTasks.dto.SalesStatsParams;
+import dal.TBonLivraisonDetail;
 import dal.TEmplacement;
 import dal.TFamille;
 import dal.TFamilleStock;
-import dal.TMouvement;
+import dal.TMotifRetour;
 import dal.TPreenregistrement;
 import dal.TPreenregistrementDetail;
+import dal.TRetourFournisseur;
 import dal.TUser;
 import java.util.List;
-import java.util.Optional;
 import javax.ejb.Local;
-import javax.persistence.EntityManager;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -28,26 +30,14 @@ import org.json.JSONObject;
  * @author Kobena
  */
 @Local
-//@Remote
 public interface MvtProduitService {
 
-    void updatefamillenbvente(TFamille famille, int qty, boolean updatable, EntityManager emg);
+    void updateVenteStock(TPreenregistrement tp, List<TPreenregistrementDetail> list);
 
-    Optional<TMouvement> findMouvement(TFamille OTFamille, String action, String typeAction, String emplacementId, EntityManager emg);
+    void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, TEmplacement depot)
+            throws Exception;
 
-    void createSnapshotMouvementArticle(TFamille OTFamille, int qty, TUser ooTUser, TFamilleStock familleStock, String emplacementId, EntityManager emg);
-
-    void saveMvtArticle(TFamille tf, TUser ooTUser, TFamilleStock familleStock, int qty, String emplacementId, EntityManager emg);
-
-    void updateVenteStock(String idVente);
-
-    public void updateVenteStock(TPreenregistrement tp, List<TPreenregistrementDetail> list, EntityManager emg);
-
-    public void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, EntityManager emg, TEmplacement depot) throws Exception;
-
-    void updateStockDepot(TUser ooTUser, TPreenregistrement op, TEmplacement OTEmplacement, EntityManager emg) throws Exception;
-
-    void saveMvtArticleAddProduct(TFamille tf, TUser ooTUser, TFamilleStock familleStock, Integer qty, Integer initStock, TEmplacement emplacementId, EntityManager emg) throws Exception;
+    void updateStockDepot(TUser ooTUser, TPreenregistrement op, TEmplacement emp) throws Exception;
 
     JSONObject creerAjustement(Params params) throws JSONException;
 
@@ -57,8 +47,6 @@ public interface MvtProduitService {
 
     JSONObject cloreAjustement(Params params) throws JSONException;
 
-    JSONObject findOneAjustement(String idAjustement) throws JSONException;
-
     JSONObject removeAjustementDetail(String id) throws JSONException;
 
     JSONObject annulerAjustement(String id) throws JSONException;
@@ -67,30 +55,30 @@ public interface MvtProduitService {
 
     JSONObject ajsutementsDetails(SalesStatsParams params, String idAjustement) throws JSONException;
 
-    void saveMvtArticle(String action, String typeAction, TFamille tf, TUser ooTUser, TFamilleStock familleStock, Integer qty, Integer intiQty, TEmplacement emplacementId, EntityManager emg);
-
-    void saveMvtArticle(String action, String typeAction, TFamille tf, TUser ooTUser, Integer qty, Integer intiQty, Integer finalQty, TEmplacement emplacementId, EntityManager emg);
-
-    JSONObject deconditionner(Params params) throws JSONException;
-
     JSONObject validerRetourFournisseur(Params params) throws JSONException;
 
-    TFamilleStock updateStock(TFamille tf, TEmplacement emplacementId, int qty, int ug, EntityManager em);
+    TFamilleStock updateStock(TFamille tf, TEmplacement emplacementId, int qty, int ug);
 
-    int updateStockReturnInitStock(TFamille tf, TEmplacement emplacementId, int qty, int ug, EntityManager em);
+    int updateStockReturnInitStock(TFamille tf, TEmplacement emplacementId, int qty, int ug);
 
-    JSONObject loadetourFournisseur(
-            String dtStart,
-            String dtEnd,
-            int start,
-            int limit,
-            String fourId,
-            String query, boolean cunRemove) throws JSONException;
+    JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId, String query,
+            boolean cunRemove, String filtre) throws JSONException;
 
     JSONObject validerRetourDepot(String retourId, TUser user) throws JSONException;
 
     List<AjustementDTO> getAllAjustements(SalesStatsParams params);
 
     List<AjustementDetailDTO> getAllAjustementDetailDTOs(SalesStatsParams params);
+
+    List<RetourFournisseurDTO> loadretoursFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId,
+            String query, boolean cunRemove, String filtre);
+
+    List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
+            String filtre);
+
+    void validerFullBlRetourFournisseur(TRetourFournisseur fournisseur);
+
+    void validerFullBlRetourFournisseur(TRetourFournisseur retourFournisseur, TMotifRetour motifRetour,
+            List<TBonLivraisonDetail> bonLivraisonDetails);
 
 }

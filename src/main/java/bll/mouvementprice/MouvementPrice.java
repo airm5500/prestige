@@ -20,15 +20,16 @@ import toolkits.utils.logger;
  *
  * @author KKOFFI
  */
-public class MouvementPrice  extends  bll.bllBase {
+public class MouvementPrice extends bll.bllBase {
 
     public MouvementPrice(dataManager OdataManager, TUser OTuser) {
         super.setOTUser(OTuser);
         super.setOdataManager(OdataManager);
         super.checkDatamanager();
     }
-public List<TMouvementprice> listPrixModifies(String search_value, Date dtDEBUT, Date dtFin,
-            String lg_USER_ID, String lg_FAMILLE_ID, String str_ACTION) {
+
+    public List<TMouvementprice> listPrixModifies(String search_value, Date dtDEBUT, Date dtFin, String lg_USER_ID,
+            String lg_FAMILLE_ID, String str_ACTION) {
 
         List<TMouvementprice> lstTMouvementprice = new ArrayList<>();
         privilege Oprivilege = new privilege(this.getOdataManager(), this.getOTUser());
@@ -42,13 +43,11 @@ public List<TMouvementprice> listPrixModifies(String search_value, Date dtDEBUT,
             } else {
                 lg_EMPLACEMENT_ID = this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             }
-            lstTMouvementprice = this.getOdataManager().getEm().createQuery("SELECT t FROM TMouvementprice t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND t.lgUSERID.lgUSERID LIKE ?2 AND t.strACTION LIKE ?3 AND  (t.dtCREATED BETWEEN ?4 AND ?5) AND ( t.lgFAMILLEID.intCIP LIKE ?6 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6) AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?7 ORDER BY t.strACTION DESC, t.lgFAMILLEID.strDESCRIPTION ASC, t.dtCREATED DESC")
-                    .setParameter(1,lg_FAMILLE_ID).setParameter(2, lg_USER_ID).setParameter(3, str_ACTION)
-                    .setParameter(4, dtDEBUT)
-                    .setParameter(5, dtFin)
-                    .setParameter(6, search_value+"%")
+            lstTMouvementprice = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TMouvementprice t WHERE t.lgFAMILLEID.lgFAMILLEID LIKE ?1 AND t.lgUSERID.lgUSERID LIKE ?2 AND t.strACTION LIKE ?3 AND  (t.dtCREATED BETWEEN ?4 AND ?5) AND ( t.lgFAMILLEID.intCIP LIKE ?6 OR t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6) AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?7 ORDER BY t.strACTION DESC, t.lgFAMILLEID.strDESCRIPTION ASC, t.dtCREATED DESC")
+                    .setParameter(1, lg_FAMILLE_ID).setParameter(2, lg_USER_ID).setParameter(3, str_ACTION)
+                    .setParameter(4, dtDEBUT).setParameter(5, dtFin).setParameter(6, search_value + "%")
                     .setParameter(7, lg_EMPLACEMENT_ID).getResultList();
-         
 
         } catch (Exception e) {
             e.printStackTrace();

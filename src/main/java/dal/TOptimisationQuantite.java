@@ -29,16 +29,15 @@ import javax.xml.bind.annotation.XmlTransient;
  */
 @Entity
 @Table(name = "t_optimisation_quantite", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"lg_OPTIMISATION_QUANTITE_ID"})})
+        @UniqueConstraint(columnNames = { "lg_OPTIMISATION_QUANTITE_ID" }) })
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TOptimisationQuantite.findAll", query = "SELECT t FROM TOptimisationQuantite t"),
-    @NamedQuery(name = "TOptimisationQuantite.findByLgOPTIMISATIONQUANTITEID", query = "SELECT t FROM TOptimisationQuantite t WHERE t.lgOPTIMISATIONQUANTITEID = :lgOPTIMISATIONQUANTITEID"),
-    @NamedQuery(name = "TOptimisationQuantite.findByStrCODEOPTIMISATION", query = "SELECT t FROM TOptimisationQuantite t WHERE t.strCODEOPTIMISATION = :strCODEOPTIMISATION"),
-    @NamedQuery(name = "TOptimisationQuantite.findByStrLIBELLEOPTIMISATION", query = "SELECT t FROM TOptimisationQuantite t WHERE t.strLIBELLEOPTIMISATION = :strLIBELLEOPTIMISATION"),
-    @NamedQuery(name = "TOptimisationQuantite.findByDtCREATED", query = "SELECT t FROM TOptimisationQuantite t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TOptimisationQuantite.findByStrSTATUT", query = "SELECT t FROM TOptimisationQuantite t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TOptimisationQuantite.findByDtUPDATED", query = "SELECT t FROM TOptimisationQuantite t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TOptimisationQuantite.findAll", query = "SELECT t FROM TOptimisationQuantite t"),
+        @NamedQuery(name = "TOptimisationQuantite.findByLgOPTIMISATIONQUANTITEID", query = "SELECT t FROM TOptimisationQuantite t WHERE t.lgOPTIMISATIONQUANTITEID = :lgOPTIMISATIONQUANTITEID"),
+        @NamedQuery(name = "TOptimisationQuantite.findByStrCODEOPTIMISATION", query = "SELECT t FROM TOptimisationQuantite t WHERE t.strCODEOPTIMISATION = :strCODEOPTIMISATION"),
+        @NamedQuery(name = "TOptimisationQuantite.findByStrLIBELLEOPTIMISATION", query = "SELECT t FROM TOptimisationQuantite t WHERE t.strLIBELLEOPTIMISATION = :strLIBELLEOPTIMISATION"),
+        @NamedQuery(name = "TOptimisationQuantite.findByDtCREATED", query = "SELECT t FROM TOptimisationQuantite t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TOptimisationQuantite.findByStrSTATUT", query = "SELECT t FROM TOptimisationQuantite t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TOptimisationQuantite.findByDtUPDATED", query = "SELECT t FROM TOptimisationQuantite t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TOptimisationQuantite implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -138,7 +137,9 @@ public class TOptimisationQuantite implements Serializable {
             return false;
         }
         TOptimisationQuantite other = (TOptimisationQuantite) object;
-        if ((this.lgOPTIMISATIONQUANTITEID == null && other.lgOPTIMISATIONQUANTITEID != null) || (this.lgOPTIMISATIONQUANTITEID != null && !this.lgOPTIMISATIONQUANTITEID.equals(other.lgOPTIMISATIONQUANTITEID))) {
+        if ((this.lgOPTIMISATIONQUANTITEID == null && other.lgOPTIMISATIONQUANTITEID != null)
+                || (this.lgOPTIMISATIONQUANTITEID != null
+                        && !this.lgOPTIMISATIONQUANTITEID.equals(other.lgOPTIMISATIONQUANTITEID))) {
             return false;
         }
         return true;
@@ -148,5 +149,5 @@ public class TOptimisationQuantite implements Serializable {
     public String toString() {
         return "dal.TOptimisationQuantite[ lgOPTIMISATIONQUANTITEID=" + lgOPTIMISATIONQUANTITEID + " ]";
     }
-    
+
 }

@@ -110,14 +110,16 @@ public class ImportationVente {
     private EntityManager em;
     @EJB
     private CaisseService caisseService;
-   /* @EJB
-    private ProduitService produitService;*/
+    /*
+     * @EJB private ProduitService produitService;
+     */
     @EJB
     private Importaion importaion;
 
     public EntityManager getEntityManager() {
         return em;
     }
+
     @Inject
     private UserTransaction userTransaction;
 
@@ -130,7 +132,7 @@ public class ImportationVente {
             for (TPreenregistrement op : data) {
                 JSONObject json = new JSONObject();
                 json.put("uuid", op.getLgPREENREGISTREMENTID());
-//            json.put("strREF", op.getStrREF());
+                // json.put("strREF", op.getStrREF());
                 json.put("strREFTICKET", op.getStrREFTICKET());
                 json.put("intPRICE", op.getIntPRICE());
                 json.put("intPRICEREMISE", op.getIntPRICEREMISE());
@@ -140,20 +142,20 @@ public class ImportationVente {
                 json.put("strINFOSCLT", op.getStrINFOSCLT());
                 json.put("strSTATUTVENTE", op.getStrSTATUTVENTE());
                 json.put("strTYPEVENTE", op.getStrTYPEVENTE());
-//            json.put("lgREMISEID", op.getLgREMISEID());
-//            json.put("strFIRSTNAMECUSTOMER", op.getStrFIRSTNAMECUSTOMER());
-//            json.put("strLASTNAMECUSTOMER", op.getStrLASTNAMECUSTOMER());
-//            json.put("strPHONECUSTOME", op.getStrPHONECUSTOME());
+                // json.put("lgREMISEID", op.getLgREMISEID());
+                // json.put("strFIRSTNAMECUSTOMER", op.getStrFIRSTNAMECUSTOMER());
+                // json.put("strLASTNAMECUSTOMER", op.getStrLASTNAMECUSTOMER());
+                // json.put("strPHONECUSTOME", op.getStrPHONECUSTOME());
                 json.put("bWITHOUTBON", op.getBWITHOUTBON());
                 json.put("intPRICEOTHER", op.getIntPRICEOTHER());
                 json.put("lgTYPEVENTEID", op.getLgTYPEVENTEID().getStrNAME());
                 json.put("lgNATUREVENTEID", op.getLgNATUREVENTEID().getStrLIBELLE());
                 json.put("intACCOUNT", op.getIntACCOUNT());
                 json.put("intREMISEPARA", op.getIntREMISEPARA());
-//            json.put("pkBrand", op.getPkBrand());
+                // json.put("pkBrand", op.getPkBrand());
                 json.put("montantTva", op.getMontantTva());
-//            json.put("checked", op.getChecked());
-//            json.put("copy", op.getCopy());
+                // json.put("checked", op.getChecked());
+                // json.put("copy", op.getCopy());
 
                 try {
                     json.put("remise", op.getRemise().getLgREMISEID());
@@ -207,7 +209,8 @@ public class ImportationVente {
                     ayantDroit.put("dtNAISSANCE", ayant.getDtNAISSANCE());
                     ayantDroit.put("strSEXE", ayant.getStrSEXE());
                     ayantDroit.put("lgRISQUEID", ayant.getLgRISQUEID().getLgRISQUEID());
-                    ayantDroit.put("lgCATEGORIEAYANTDROITID", ayant.getLgCATEGORIEAYANTDROITID().getLgCATEGORIEAYANTDROITID());
+                    ayantDroit.put("lgCATEGORIEAYANTDROITID",
+                            ayant.getLgCATEGORIEAYANTDROITID().getLgCATEGORIEAYANTDROITID());
 
                 } catch (Exception e) {
                 }
@@ -215,7 +218,8 @@ public class ImportationVente {
                 json.put("ayantDroit", ayantDroit);
 
                 JSONArray clientTierspayantItems = new JSONArray();
-                List<TPreenregistrementCompteClientTiersPayent> l = findClientTiersPayents(op.getLgPREENREGISTREMENTID());
+                List<TPreenregistrementCompteClientTiersPayent> l = findClientTiersPayents(
+                        op.getLgPREENREGISTREMENTID());
                 l.forEach(p -> {
                     JSONObject it = new JSONObject();
                     TCompteClientTiersPayant clientTiersPayant = p.getLgCOMPTECLIENTTIERSPAYANTID();
@@ -266,8 +270,7 @@ public class ImportationVente {
                         it.put("lgGROUPEID", lgGROUPEID.getLgGROUPEID());
                     }
                     clientTierspayantItems.put(it);
-                }
-                );
+                });
 
                 MvtTransaction mt = caisseService.findByVenteId(op.getLgPREENREGISTREMENTID());
                 JSONObject mvtTransaction = new JSONObject();
@@ -282,15 +285,15 @@ public class ImportationVente {
                     mvtTransaction.put("montantPaye", mt.getMontantPaye());
                     mvtTransaction.put("avoidAmount", mt.getAvoidAmount());
                     mvtTransaction.put("montantAcc", mt.getMontantAcc());
-//                mvtTransaction.put("checked", mt.getChecked());
+                    // mvtTransaction.put("checked", mt.getChecked());
                     mvtTransaction.put("typeReglementId", mt.getReglement().getLgTYPEREGLEMENTID());
                     mvtTransaction.put("typeMvtCaisseId", mt.gettTypeMvtCaisse().getLgTYPEMVTCAISSEID());
                     mvtTransaction.put("categoryTransaction", mt.getCategoryTransaction().name());
                     mvtTransaction.put("typeTransaction", mt.getTypeTransaction().name());
-//                mvtTransaction.put("reference", mt.getReference());
+                    // mvtTransaction.put("reference", mt.getReference());
                     mvtTransaction.put("montantTva", mt.getMontantTva());
                     mvtTransaction.put("marge", mt.getMarge());
-//                mvtTransaction.put("organisme", mt.getOrganisme());
+                    // mvtTransaction.put("organisme", mt.getOrganisme());
 
                 } catch (Exception e) {
                 }
@@ -329,7 +332,7 @@ public class ImportationVente {
         } catch (Exception e) {
             e.printStackTrace(System.err);
         }
-//       
+        //
         return array;
     }
 
@@ -338,20 +341,20 @@ public class ImportationVente {
 
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class
-            );
-            Root<TPreenregistrement> root = cq.from(TPreenregistrement.class
-            );
+            CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
+            Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
             cq.select(root).orderBy(cb.asc(root.get(TPreenregistrement_.dtUPDATED)));
-//            cq.select(root).orderBy(cb.asc(root.get(TPreenregistrement_.client).get(TClient_.strFIRSTNAME)), cb.asc(root.get(TPreenregistrement_.client).get(TClient_.strLASTNAME)));
-            Predicate btw = cb.between(cb.function("DATE", Date.class,
-                    root.get(TPreenregistrement_.dtUPDATED)), java.sql.Date.valueOf(LocalDate.parse(params.getDtStart().toString())),
+            // cq.select(root).orderBy(cb.asc(root.get(TPreenregistrement_.client).get(TClient_.strFIRSTNAME)),
+            // cb.asc(root.get(TPreenregistrement_.client).get(TClient_.strLASTNAME)));
+            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
+                    java.sql.Date.valueOf(LocalDate.parse(params.getDtStart().toString())),
                     java.sql.Date.valueOf(LocalDate.parse(params.getDtEnd().toString())));
             predicates.add(btw);
             predicates.add(cb.equal(root.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
             predicates.add(cb.isFalse(root.get(TPreenregistrement_.bISCANCEL)));
             predicates.add(cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0));
-            predicates.add(cb.equal(root.get(TPreenregistrement_.lgTYPEVENTEID).get(TTypeVente_.lgTYPEVENTEID), params.getTypeVenteId()));
+            predicates.add(cb.equal(root.get(TPreenregistrement_.lgTYPEVENTEID).get(TTypeVente_.lgTYPEVENTEID),
+                    params.getTypeVenteId()));
 
             cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
             TypedQuery<TPreenregistrement> q = getEntityManager().createQuery(cq);
@@ -364,29 +367,36 @@ public class ImportationVente {
     }
 
     private List<TPreenregistrementCompteClientTiersPayent> findClientTiersPayents(String idVente) {
-        return getEntityManager().createQuery("SELECT o FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ").setParameter(1, idVente).getResultList();
+        return getEntityManager().createQuery(
+                "SELECT o FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ")
+                .setParameter(1, idVente).getResultList();
     }
 
     private List<TPreenregistrementDetail> findByParent(String idVente) {
-        return getEntityManager().createQuery("SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ").setParameter(1, idVente).getResultList();
+        return getEntityManager().createQuery(
+                "SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ")
+                .setParameter(1, idVente).getResultList();
     }
 
     private TModeReglement findModeReglementByStrNAME(String StrNAME) {
-        TypedQuery<TModeReglement> query = getEntityManager().createNamedQuery("TModeReglement.findByStrNAME", TModeReglement.class);
+        TypedQuery<TModeReglement> query = getEntityManager().createNamedQuery("TModeReglement.findByStrNAME",
+                TModeReglement.class);
         query.setParameter("strNAME", StrNAME);
         query.setMaxResults(1);
         return query.getSingleResult();
     }
 
     private TNatureVente findNatureVente(String strLIBELLE) {
-        TypedQuery<TNatureVente> query = getEntityManager().createNamedQuery("TNatureVente.findByStrLIBELLE", TNatureVente.class);
+        TypedQuery<TNatureVente> query = getEntityManager().createNamedQuery("TNatureVente.findByStrLIBELLE",
+                TNatureVente.class);
         query.setParameter("strLIBELLE", strLIBELLE);
         query.setMaxResults(1);
         return query.getSingleResult();
     }
 
     private TTypeVente findTypeVente(String strNAME) {
-        TypedQuery<TTypeVente> query = getEntityManager().createNamedQuery("TTypeVente.findByStrNAME", TTypeVente.class);
+        TypedQuery<TTypeVente> query = getEntityManager().createNamedQuery("TTypeVente.findByStrNAME",
+                TTypeVente.class);
         query.setParameter("strNAME", strNAME);
         query.setMaxResults(1);
         return query.getSingleResult();
@@ -432,7 +442,8 @@ public class ImportationVente {
         }
     }
 
-    public TAyantDroit addAyantDroitToClient(JSONObject ayantDroitRecord, TClient client, Date dateOperation, Stack<TAyantDroit> ayantDroits) {
+    public TAyantDroit addAyantDroitToClient(JSONObject ayantDroitRecord, TClient client, Date dateOperation,
+            Stack<TAyantDroit> ayantDroits) {
         if (ayantDroitRecord.isEmpty()) {
             return null;
         }
@@ -451,7 +462,8 @@ public class ImportationVente {
             ayantDroit.setStrSTATUT(DateConverter.STATUT_ENABLE);
             ayantDroit.setLgCLIENTID(client);
             ayantDroit.setLgRISQUEID(findRisqueById(ayantDroitRecord.getString("lgRISQUEID")));
-            ayantDroit.setLgCATEGORIEAYANTDROITID(findCateAyantById(ayantDroitRecord.getString("lgCATEGORIEAYANTDROITID")));
+            ayantDroit.setLgCATEGORIEAYANTDROITID(
+                    findCateAyantById(ayantDroitRecord.getString("lgCATEGORIEAYANTDROITID")));
             ayantDroit.setStrCODEINTERNE(DateConverter.getShortId(6));
 
         }
@@ -551,20 +563,24 @@ public class ImportationVente {
         return null;
     }
 
-    public TPreenregistrement createPreVente(JSONObject record, Stack<TTiersPayant> tierspaynts, Stack<TClient> clients, Stack<TAyantDroit> ayantDroits, TUser user, Stack<String> coupleClientTierPayant, Stack<TCompteClientTiersPayant> compteClientTiersPayants) throws Exception {
+    public TPreenregistrement createPreVente(JSONObject record, Stack<TTiersPayant> tierspaynts, Stack<TClient> clients,
+            Stack<TAyantDroit> ayantDroits, TUser user, Stack<String> coupleClientTierPayant,
+            Stack<TCompteClientTiersPayant> compteClientTiersPayants) throws Exception {
 
         Date dateOpearation = DateConverter.dateFromString(record.getString("dtUPDATED"));
-        TReglement reglement = addReglement(record.getJSONObject("reglement"), dateOpearation, record.getString("uuid"), user);
-//        System.out.println("reglement------->>>  " + reglement);
+        TReglement reglement = addReglement(record.getJSONObject("reglement"), dateOpearation, record.getString("uuid"),
+                user);
+        // System.out.println("reglement------->>> " + reglement);
         TNatureVente oTNatureVente = findNatureVente(record.getString("lgNATUREVENTEID"));
         TTypeVente OTTypeVente = findTypeVente(record.getString("lgTYPEVENTEID"));
         TClient client = addClient(record.getJSONObject("client"), dateOpearation, clients);
-//        System.out.println("client------->>>  " + client);
+        // System.out.println("client------->>> " + client);
         TCompteClient compteClient = findOneByClientOrCreate(client);
-//        System.out.println("compteClient------->>>  " + compteClient);
+        // System.out.println("compteClient------->>> " + compteClient);
         TRemise OTRemise = findRemiseById(record.has("remise") ? record.getString("remise") : null);
-        TAyantDroit ayantDroit = addAyantDroitToClient(record.getJSONObject("ayantDroit"), client, dateOpearation, ayantDroits);
-//        System.out.println("ayantDroit------->>>  " + ayantDroit);
+        TAyantDroit ayantDroit = addAyantDroitToClient(record.getJSONObject("ayantDroit"), client, dateOpearation,
+                ayantDroits);
+        // System.out.println("ayantDroit------->>> " + ayantDroit);
         TPreenregistrement OTPreenregistrement = new TPreenregistrement(record.getString("uuid"));
         OTPreenregistrement.setLgREGLEMENTID(reglement);
         OTPreenregistrement.setLgUSERVENDEURID(user);
@@ -604,14 +620,16 @@ public class ImportationVente {
             OTPreenregistrement.setStrPHONECUSTOME("");
             OTPreenregistrement.setStrINFOSCLT("");
         }
-        OTPreenregistrement.setStrREF(buildRef(DateConverter.convertDateToLocalDate(dateOpearation), user.getLgEMPLACEMENTID()).getReference());
+        OTPreenregistrement
+                .setStrREF(buildRef(DateConverter.convertDateToLocalDate(dateOpearation), user.getLgEMPLACEMENTID())
+                        .getReference());
         OTPreenregistrement.setLgREMISEID(OTRemise != null ? OTRemise.getLgREMISEID() : "");
         OTPreenregistrement.setRemise(OTRemise);
         OTPreenregistrement.setLgNATUREVENTEID(oTNatureVente);
         OTPreenregistrement.setLgTYPEVENTEID(OTTypeVente);
         OTPreenregistrement.setStrSTATUT(DateConverter.STATUT_IS_CLOSED);
         OTPreenregistrement.setBISAVOIR(false);
-//        System.out.println("OTPreenregistrement ------->>>  " + OTPreenregistrement);
+        // System.out.println("OTPreenregistrement ------->>> " + OTPreenregistrement);
         getEntityManager().persist(OTPreenregistrement);
         clients.push(client);
         if (ayantDroit != null) {
@@ -619,7 +637,8 @@ public class ImportationVente {
         }
         addMvtTransaction(record.getJSONObject("mvtTransaction"), OTPreenregistrement);
         createDetailsVente(record.getJSONArray("items"), OTPreenregistrement);
-        createVenteTiersPayantItems(record.getJSONArray("venteAssurances"), tierspaynts, compteClient, OTPreenregistrement, coupleClientTierPayant, compteClientTiersPayants);
+        createVenteTiersPayantItems(record.getJSONArray("venteAssurances"), tierspaynts, compteClient,
+                OTPreenregistrement, coupleClientTierPayant, compteClientTiersPayants);
         return OTPreenregistrement;
     }
 
@@ -669,12 +688,15 @@ public class ImportationVente {
             if (o.isPresent()) {
                 r = o.get();
                 r.setLastIntValue(r.getLastIntValue() + 1);
-                r.setReference(ODate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_" + StringUtils.leftPad(String.valueOf(r.getLastIntValue()), 5, '0'));
+                r.setReference(ODate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
+                        + StringUtils.leftPad(String.valueOf(r.getLastIntValue()), 5, '0'));
             } else {
-                r = new Reference().addEmplacement(emplacement).
-                        id(ODate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))).lastIntValue(1).lastIntTmpValue(1)
-                        .reference(ODate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_" + StringUtils.leftPad(String.valueOf(1), 5, '0'))
-                        .referenceTemp(ODate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_" + StringUtils.leftPad(String.valueOf(String.valueOf(1)), 5, '0'));
+                r = new Reference().addEmplacement(emplacement)
+                        .id(ODate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))).lastIntValue(1).lastIntTmpValue(1)
+                        .reference(ODate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
+                                + StringUtils.leftPad(String.valueOf(1), 5, '0'))
+                        .referenceTemp(ODate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
+                                + StringUtils.leftPad(String.valueOf(String.valueOf(1)), 5, '0'));
             }
             getEntityManager().merge(r);
         } catch (Exception e) {
@@ -683,16 +705,18 @@ public class ImportationVente {
         return r;
     }
 
-    private Optional<Reference> getReferenceByDateAndEmplacementId(LocalDate ODate, String emplacementId, boolean isDevis) {
+    private Optional<Reference> getReferenceByDateAndEmplacementId(LocalDate ODate, String emplacementId,
+            boolean isDevis) {
         try {
-            TypedQuery<Reference> query = getEntityManager().createNamedQuery("Reference.lastReference", Reference.class);
+            TypedQuery<Reference> query = getEntityManager().createNamedQuery("Reference.lastReference",
+                    Reference.class);
             query.setParameter("id", ODate.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
             query.setParameter("emplacement", emplacementId);
             query.setParameter("devis", isDevis);
             query.setMaxResults(1);
             return Optional.ofNullable(query.getSingleResult());
         } catch (Exception e) {
-//            e.printStackTrace(System.err);
+            // e.printStackTrace(System.err);
             return Optional.empty();
         }
     }
@@ -801,7 +825,8 @@ public class ImportationVente {
         payant.setDtCREATED(new Date());
         payant.setDtUPDATED(new Date());
         payant.setLgMODELFACTUREID(getEntityManager().find(TModelFacture.class, json.getString("lgMODELFACTUREID")));
-        payant.setLgTYPETIERSPAYANTID(getEntityManager().find(TTypeTiersPayant.class, json.getString("lgTYPETIERSPAYANTID")));
+        payant.setLgTYPETIERSPAYANTID(
+                getEntityManager().find(TTypeTiersPayant.class, json.getString("lgTYPETIERSPAYANTID")));
         payant.setLgRISQUEID(getEntityManager().find(TRisque.class, "55181642844215217016"));
         try {
             if (json.has("lgGROUPEID")) {
@@ -817,7 +842,9 @@ public class ImportationVente {
 
     private TCompteClient findByClientId(String clientId) {
         try {
-            return (TCompteClient) getEntityManager().createQuery("SELECT o FROM TCompteClient o WHERE o.lgCLIENTID.lgCLIENTID=?1 ").setParameter(1, clientId).setMaxResults(1).getSingleResult();
+            return (TCompteClient) getEntityManager()
+                    .createQuery("SELECT o FROM TCompteClient o WHERE o.lgCLIENTID.lgCLIENTID=?1 ")
+                    .setParameter(1, clientId).setMaxResults(1).getSingleResult();
         } catch (Exception e) {
             return null;
         }
@@ -851,20 +878,28 @@ public class ImportationVente {
 
     private TCompteClientTiersPayant findByClientTiersPayantId(String clientId, String tiersPayantId) {
         try {
-            return getEntityManager().createQuery("SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 AND o.strNUMEROSECURITESOCIAL =?2 ", TCompteClientTiersPayant.class).setParameter(1, clientId).setParameter(2, tiersPayantId).setMaxResults(1).getSingleResult();
+            return getEntityManager().createQuery(
+                    "SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 AND o.strNUMEROSECURITESOCIAL =?2 ",
+                    TCompteClientTiersPayant.class).setParameter(1, clientId).setParameter(2, tiersPayantId)
+                    .setMaxResults(1).getSingleResult();
         } catch (Exception e) {
             return null;
         }
     }
 
-    private TCompteClientTiersPayant findOrCreateOneCmpt(JSONObject json, TCompteClient OTCompteClient, TTiersPayant payant, Stack<String> coupleClientTierPayant, Stack<TCompteClientTiersPayant> compteClientTiersPayants) throws Exception {
-        TCompteClientTiersPayant OTCompteClientTiersPayant = findByClientTiersPayantId(OTCompteClient.getLgCLIENTID().getLgCLIENTID(), payant.getLgTIERSPAYANTID());
+    private TCompteClientTiersPayant findOrCreateOneCmpt(JSONObject json, TCompteClient OTCompteClient,
+            TTiersPayant payant, Stack<String> coupleClientTierPayant,
+            Stack<TCompteClientTiersPayant> compteClientTiersPayants) throws Exception {
+        TCompteClientTiersPayant OTCompteClientTiersPayant = findByClientTiersPayantId(
+                OTCompteClient.getLgCLIENTID().getLgCLIENTID(), payant.getLgTIERSPAYANTID());
         if (OTCompteClientTiersPayant != null) {
             return OTCompteClientTiersPayant;
         }
 
-        if (coupleClientTierPayant.contains(OTCompteClient.getLgCLIENTID().getLgCLIENTID() + "" + payant.getLgTIERSPAYANTID())) {
-            for (Iterator<TCompteClientTiersPayant> iterator = compteClientTiersPayants.iterator(); iterator.hasNext();) {
+        if (coupleClientTierPayant
+                .contains(OTCompteClient.getLgCLIENTID().getLgCLIENTID() + "" + payant.getLgTIERSPAYANTID())) {
+            for (Iterator<TCompteClientTiersPayant> iterator = compteClientTiersPayants.iterator(); iterator
+                    .hasNext();) {
                 TCompteClientTiersPayant next = iterator.next();
                 if (next.getLgCOMPTECLIENTID().equals(OTCompteClient) && next.getLgTIERSPAYANTID().equals(payant)) {
                     OTCompteClientTiersPayant = next;
@@ -897,11 +932,14 @@ public class ImportationVente {
         return OTCompteClientTiersPayant;
     }
 
-    private void createVenteTiersPayantItems(JSONArray items, Stack<TTiersPayant> tierspaynts, TCompteClient compteClient, TPreenregistrement OTPreenregistrement, Stack<String> coupleClientTierPayant, Stack<TCompteClientTiersPayant> compteClientTiersPayants) throws Exception {
+    private void createVenteTiersPayantItems(JSONArray items, Stack<TTiersPayant> tierspaynts,
+            TCompteClient compteClient, TPreenregistrement OTPreenregistrement, Stack<String> coupleClientTierPayant,
+            Stack<TCompteClientTiersPayant> compteClientTiersPayants) throws Exception {
         for (int i = 0; i < items.length(); i++) {
             JSONObject json = items.getJSONObject(i);
             TTiersPayant tierspayant = findTiersPayantOrCreateOne(json, tierspaynts);
-            TCompteClientTiersPayant OTCompteClientTiersPayant = findOrCreateOneCmpt(json, compteClient, tierspayant, coupleClientTierPayant, compteClientTiersPayants);
+            TCompteClientTiersPayant OTCompteClientTiersPayant = findOrCreateOneCmpt(json, compteClient, tierspayant,
+                    coupleClientTierPayant, compteClientTiersPayants);
             TPreenregistrementCompteClientTiersPayent _new = new TPreenregistrementCompteClientTiersPayent();
             _new.setLgPREENREGISTREMENTCOMPTECLIENTPAYENTID(UUID.randomUUID().toString());
             _new.setLgPREENREGISTREMENTID(OTPreenregistrement);
@@ -935,7 +973,8 @@ public class ImportationVente {
             userTransaction.begin();
             for (int i = 0; i < data.length(); i++) {
                 JSONObject record = data.getJSONObject(i);
-                createPreVente(record, tierspaynts, clients, ayantDroits, user, coupleClientTierPayant, compteClientTiersPayants);
+                createPreVente(record, tierspaynts, clients, ayantDroits, user, coupleClientTierPayant,
+                        compteClientTiersPayants);
                 count++;
                 if (count > 0 && count % 10 == 0) {
                     getEntityManager().flush();
@@ -946,7 +985,8 @@ public class ImportationVente {
             json.put("count", count);
             json.put("ligne", data.length());
             json.put("success", true);
-        } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+        } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
+                | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
             LOG.log(Level.SEVERE, null, ex);
             json.put("success", false);
         } catch (Exception ex) {
@@ -970,13 +1010,21 @@ public class ImportationVente {
         Set<FamilleDTO> datas = new HashSet<>(items.size());
         for (TPreenregistrementDetail item : items) {
             TFamille famille = item.getLgFAMILLEID();
-            TFamilleStock familleStock = importaion.getByFamille(famille.getLgFAMILLEID()).stream().filter(e -> e.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equals(DateConverter.OFFICINE)).findAny().get();
-            List<TFamilleGrossiste> familleGrossistes = importaion.getFamilleGrossistesByFamille(famille.getLgFAMILLEID());
+            TFamilleStock familleStock = importaion.getByFamille(famille.getLgFAMILLEID()).stream()
+                    .filter(e -> e.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equals(DateConverter.OFFICINE)).findAny()
+                    .get();
+            List<TFamilleGrossiste> familleGrossistes = importaion
+                    .getFamilleGrossistesByFamille(famille.getLgFAMILLEID());
             FamilleStockDTO stock = new FamilleStockDTO(item, familleStock);
-            FamilleDTO dTO = new FamilleDTO(famille, familleGrossistes.stream().map(FamilleGrossisteDTO::new).collect(Collectors.toList()), List.of(stock));
+            FamilleDTO dTO = new FamilleDTO(famille,
+                    familleGrossistes.stream().map(FamilleGrossisteDTO::new).collect(Collectors.toList()),
+                    List.of(stock));
             if (famille.getBoolDECONDITIONNE() == 1) {
                 TFamille parent = findTFamilleById(famille.getLgFAMILLEPARENTID());
-                FamilleDTO parentdTO = new FamilleDTO(parent, importaion.getFamilleGrossistesByFamille(parent.getLgFAMILLEID()).stream().map(FamilleGrossisteDTO::new).collect(Collectors.toList()), Collections.emptyList());
+                FamilleDTO parentdTO = new FamilleDTO(parent,
+                        importaion.getFamilleGrossistesByFamille(parent.getLgFAMILLEID()).stream()
+                                .map(FamilleGrossisteDTO::new).collect(Collectors.toList()),
+                        Collections.emptyList());
                 dTO.parent(parentdTO);
             }
             datas.add(dTO);
@@ -995,7 +1043,8 @@ public class ImportationVente {
 
     private TFamilleStock findFamilleStock(String id, String empl) {
         try {
-            TypedQuery<TFamilleStock> q = getEntityManager().createNamedQuery("TFamilleStock.findFamilleStockByProduitAndEmplacement", TFamilleStock.class);
+            TypedQuery<TFamilleStock> q = getEntityManager()
+                    .createNamedQuery("TFamilleStock.findFamilleStockByProduitAndEmplacement", TFamilleStock.class);
             q.setParameter("lgFAMILLEID", id);
             q.setParameter("lgEMPLACEMENTID", empl);
             q.setMaxResults(1);
@@ -1057,10 +1106,8 @@ public class ImportationVente {
             getEntityManager().merge(familleStock);
         }
     }
-// @Transactional(dontRollbackOn = {EntityNotFoundException.class,NoResultException.class})
-  
+    // @Transactional(dontRollbackOn = {EntityNotFoundException.class,NoResultException.class})
 
-   
     public JSONObject importVenteAsStockFromJsonFile(InputStream inputStream, TUser user) {
         JSONObject json = new JSONObject();
         if (!findpermission()) {
@@ -1117,17 +1164,10 @@ public class ImportationVente {
                     }
                     updateFamilleGrossiste(grossistesParent, familleParent);
                 }
-                importation.addDetail(new HistoriqueImportValue()
-                        .cip(famille.getIntCIP())
-                        .libelle(famille.getStrNAME())
-                        .montantAchat(dto.getIntPAF() * qtyImp)
-                        .montantVente(dto.getIntPRICE() * qtyImp)
-                        .prixPaf(dto.getIntPAF())
-                        .prixUni(dto.getIntPRICE())
-                        .qty(qtyImp)
-                        .stockInit(init)
-                        .stockOfDay(qtyImp + init)
-                );
+                importation.addDetail(new HistoriqueImportValue().cip(famille.getIntCIP()).libelle(famille.getStrNAME())
+                        .montantAchat(dto.getIntPAF() * qtyImp).montantVente(dto.getIntPRICE() * qtyImp)
+                        .prixPaf(dto.getIntPAF()).prixUni(dto.getIntPRICE()).qty(qtyImp).stockInit(init)
+                        .stockOfDay(qtyImp + init));
                 montantAchat += (dto.getIntPAF() * qtyImp);
                 montantVente += (dto.getIntPRICE() * qtyImp);
                 count++;
@@ -1144,7 +1184,8 @@ public class ImportationVente {
             json.put("count", count);
             json.put("ligne", datas.size());
             json.put("success", true);
-        } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+        } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
+                | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
             LOG.log(Level.SEVERE, null, ex);
 
             json.put("success", false);
@@ -1164,8 +1205,7 @@ public class ImportationVente {
             cq.select(root).orderBy(cb.desc(root.get(HistoriqueImportation_.createdAt)));
             predicates.add(cb.between(root.get(HistoriqueImportation_.mvtDate), dtStart, dtEnd));
             if (!StringUtils.isEmpty(user)) {
-                predicates.add(
-                        cb.equal(root.get(HistoriqueImportation_.user).get(TUser_.lgUSERID), user));
+                predicates.add(cb.equal(root.get(HistoriqueImportation_.user).get(TUser_.lgUSERID), user));
             }
             cq.where(cb.and(predicates.toArray(new Predicate[predicates.size()])));
             Query q = getEntityManager().createQuery(cq);

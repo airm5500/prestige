@@ -10,5 +10,5 @@ package dal.enumeration;
  * @author koben
  */
 public enum Canal {
-    SMS, EMAIL, SMS_EMAIL
+    SMS, EMAIL, SMS_EMAIL, SMS_MASSE, EMAIL_MASSE
 }

@@ -28,16 +28,15 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_retourdepotdetail")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TRetourdepotdetail.findAll", query = "SELECT t FROM TRetourdepotdetail t"),
-    @NamedQuery(name = "TRetourdepotdetail.findByLgRETOURDEPOTDETAILID", query = "SELECT t FROM TRetourdepotdetail t WHERE t.lgRETOURDEPOTDETAILID = :lgRETOURDEPOTDETAILID"),
-    @NamedQuery(name = "TRetourdepotdetail.findByIntSTOCK", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intSTOCK = :intSTOCK"),
-    @NamedQuery(name = "TRetourdepotdetail.findByIntNUMBERRETURN", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intNUMBERRETURN = :intNUMBERRETURN"),
-    @NamedQuery(name = "TRetourdepotdetail.findByStrSTATUT", query = "SELECT t FROM TRetourdepotdetail t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TRetourdepotdetail.findByDtCREATED", query = "SELECT t FROM TRetourdepotdetail t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TRetourdepotdetail.findByDtUPDATED", query = "SELECT t FROM TRetourdepotdetail t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TRetourdepotdetail.findByIntPRICEDETAIL", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intPRICEDETAIL = :intPRICEDETAIL"),
-    @NamedQuery(name = "TRetourdepotdetail.findByIntPRICE", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intPRICE = :intPRICE")})
+@NamedQueries({ @NamedQuery(name = "TRetourdepotdetail.findAll", query = "SELECT t FROM TRetourdepotdetail t"),
+        @NamedQuery(name = "TRetourdepotdetail.findByLgRETOURDEPOTDETAILID", query = "SELECT t FROM TRetourdepotdetail t WHERE t.lgRETOURDEPOTDETAILID = :lgRETOURDEPOTDETAILID"),
+        @NamedQuery(name = "TRetourdepotdetail.findByIntSTOCK", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intSTOCK = :intSTOCK"),
+        @NamedQuery(name = "TRetourdepotdetail.findByIntNUMBERRETURN", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intNUMBERRETURN = :intNUMBERRETURN"),
+        @NamedQuery(name = "TRetourdepotdetail.findByStrSTATUT", query = "SELECT t FROM TRetourdepotdetail t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TRetourdepotdetail.findByDtCREATED", query = "SELECT t FROM TRetourdepotdetail t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TRetourdepotdetail.findByDtUPDATED", query = "SELECT t FROM TRetourdepotdetail t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TRetourdepotdetail.findByIntPRICEDETAIL", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intPRICEDETAIL = :intPRICEDETAIL"),
+        @NamedQuery(name = "TRetourdepotdetail.findByIntPRICE", query = "SELECT t FROM TRetourdepotdetail t WHERE t.intPRICE = :intPRICE") })
 public class TRetourdepotdetail implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -168,7 +167,9 @@ public class TRetourdepotdetail implements Serializable {
             return false;
         }
         TRetourdepotdetail other = (TRetourdepotdetail) object;
-        if ((this.lgRETOURDEPOTDETAILID == null && other.lgRETOURDEPOTDETAILID != null) || (this.lgRETOURDEPOTDETAILID != null && !this.lgRETOURDEPOTDETAILID.equals(other.lgRETOURDEPOTDETAILID))) {
+        if ((this.lgRETOURDEPOTDETAILID == null && other.lgRETOURDEPOTDETAILID != null)
+                || (this.lgRETOURDEPOTDETAILID != null
+                        && !this.lgRETOURDEPOTDETAILID.equals(other.lgRETOURDEPOTDETAILID))) {
             return false;
         }
         return true;
@@ -178,5 +179,5 @@ public class TRetourdepotdetail implements Serializable {
     public String toString() {
         return "dal.TRetourdepotdetail[ lgRETOURDEPOTDETAILID=" + lgRETOURDEPOTDETAILID + " ]";
     }
-    
+
 }

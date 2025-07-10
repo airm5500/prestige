@@ -28,13 +28,13 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Table(name = "t_preenregistrement_compte_client")
 @XmlRootElement
 @NamedQueries({
-    @NamedQuery(name = "TPreenregistrementCompteClient.findAll", query = "SELECT t FROM TPreenregistrementCompteClient t"),
-    @NamedQuery(name = "TPreenregistrementCompteClient.findByLgPREENREGISTREMENTCOMPTECLIENTID", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.lgPREENREGISTREMENTCOMPTECLIENTID = :lgPREENREGISTREMENTCOMPTECLIENTID"),
-    @NamedQuery(name = "TPreenregistrementCompteClient.findByStrSTATUT", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TPreenregistrementCompteClient.findByDtCREATED", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TPreenregistrementCompteClient.findByDtUPDATED", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.dtUPDATED = :dtUPDATED"),
-    @NamedQuery(name = "TPreenregistrementCompteClient.findByIntPRICE", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.intPRICE = :intPRICE"),
-    @NamedQuery(name = "TPreenregistrementCompteClient.findByIntPRICERESTE", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.intPRICERESTE = :intPRICERESTE")})
+        @NamedQuery(name = "TPreenregistrementCompteClient.findAll", query = "SELECT t FROM TPreenregistrementCompteClient t"),
+        @NamedQuery(name = "TPreenregistrementCompteClient.findByLgPREENREGISTREMENTCOMPTECLIENTID", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.lgPREENREGISTREMENTCOMPTECLIENTID = :lgPREENREGISTREMENTCOMPTECLIENTID"),
+        @NamedQuery(name = "TPreenregistrementCompteClient.findByStrSTATUT", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TPreenregistrementCompteClient.findByDtCREATED", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TPreenregistrementCompteClient.findByDtUPDATED", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.dtUPDATED = :dtUPDATED"),
+        @NamedQuery(name = "TPreenregistrementCompteClient.findByIntPRICE", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.intPRICE = :intPRICE"),
+        @NamedQuery(name = "TPreenregistrementCompteClient.findByIntPRICERESTE", query = "SELECT t FROM TPreenregistrementCompteClient t WHERE t.intPRICERESTE = :intPRICERESTE") })
 public class TPreenregistrementCompteClient implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -63,7 +63,7 @@ public class TPreenregistrementCompteClient implements Serializable {
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser lgUSERID;
-    
+
     public TPreenregistrementCompteClient() {
     }
 
@@ -157,7 +157,9 @@ public class TPreenregistrementCompteClient implements Serializable {
             return false;
         }
         TPreenregistrementCompteClient other = (TPreenregistrementCompteClient) object;
-        if ((this.lgPREENREGISTREMENTCOMPTECLIENTID == null && other.lgPREENREGISTREMENTCOMPTECLIENTID != null) || (this.lgPREENREGISTREMENTCOMPTECLIENTID != null && !this.lgPREENREGISTREMENTCOMPTECLIENTID.equals(other.lgPREENREGISTREMENTCOMPTECLIENTID))) {
+        if ((this.lgPREENREGISTREMENTCOMPTECLIENTID == null && other.lgPREENREGISTREMENTCOMPTECLIENTID != null)
+                || (this.lgPREENREGISTREMENTCOMPTECLIENTID != null
+                        && !this.lgPREENREGISTREMENTCOMPTECLIENTID.equals(other.lgPREENREGISTREMENTCOMPTECLIENTID))) {
             return false;
         }
         return true;
@@ -165,7 +167,8 @@ public class TPreenregistrementCompteClient implements Serializable {
 
     @Override
     public String toString() {
-        return "dal.TPreenregistrementCompteClient[ lgPREENREGISTREMENTCOMPTECLIENTID=" + lgPREENREGISTREMENTCOMPTECLIENTID + " ]";
+        return "dal.TPreenregistrementCompteClient[ lgPREENREGISTREMENTCOMPTECLIENTID="
+                + lgPREENREGISTREMENTCOMPTECLIENTID + " ]";
     }
 
 }

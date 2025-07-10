@@ -30,14 +30,13 @@ import javax.xml.bind.annotation.XmlTransient;
 @Entity
 @Table(name = "t_typedepot")
 @XmlRootElement
-@NamedQueries({
-    @NamedQuery(name = "TTypedepot.findAll", query = "SELECT t FROM TTypedepot t"),
-    @NamedQuery(name = "TTypedepot.findByLgTYPEDEPOTID", query = "SELECT t FROM TTypedepot t WHERE t.lgTYPEDEPOTID = :lgTYPEDEPOTID"),
-    @NamedQuery(name = "TTypedepot.findByStrNAME", query = "SELECT t FROM TTypedepot t WHERE t.strNAME = :strNAME"),
-    @NamedQuery(name = "TTypedepot.findByStrDESCRIPTION", query = "SELECT t FROM TTypedepot t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
-    @NamedQuery(name = "TTypedepot.findByStrSTATUT", query = "SELECT t FROM TTypedepot t WHERE t.strSTATUT = :strSTATUT"),
-    @NamedQuery(name = "TTypedepot.findByDtCREATED", query = "SELECT t FROM TTypedepot t WHERE t.dtCREATED = :dtCREATED"),
-    @NamedQuery(name = "TTypedepot.findByDtUPDATED", query = "SELECT t FROM TTypedepot t WHERE t.dtUPDATED = :dtUPDATED")})
+@NamedQueries({ @NamedQuery(name = "TTypedepot.findAll", query = "SELECT t FROM TTypedepot t"),
+        @NamedQuery(name = "TTypedepot.findByLgTYPEDEPOTID", query = "SELECT t FROM TTypedepot t WHERE t.lgTYPEDEPOTID = :lgTYPEDEPOTID"),
+        @NamedQuery(name = "TTypedepot.findByStrNAME", query = "SELECT t FROM TTypedepot t WHERE t.strNAME = :strNAME"),
+        @NamedQuery(name = "TTypedepot.findByStrDESCRIPTION", query = "SELECT t FROM TTypedepot t WHERE t.strDESCRIPTION = :strDESCRIPTION"),
+        @NamedQuery(name = "TTypedepot.findByStrSTATUT", query = "SELECT t FROM TTypedepot t WHERE t.strSTATUT = :strSTATUT"),
+        @NamedQuery(name = "TTypedepot.findByDtCREATED", query = "SELECT t FROM TTypedepot t WHERE t.dtCREATED = :dtCREATED"),
+        @NamedQuery(name = "TTypedepot.findByDtUPDATED", query = "SELECT t FROM TTypedepot t WHERE t.dtUPDATED = :dtUPDATED") })
 public class TTypedepot implements Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -137,7 +136,8 @@ public class TTypedepot implements Serializable {
             return false;
         }
         TTypedepot other = (TTypedepot) object;
-        if ((this.lgTYPEDEPOTID == null && other.lgTYPEDEPOTID != null) || (this.lgTYPEDEPOTID != null && !this.lgTYPEDEPOTID.equals(other.lgTYPEDEPOTID))) {
+        if ((this.lgTYPEDEPOTID == null && other.lgTYPEDEPOTID != null)
+                || (this.lgTYPEDEPOTID != null && !this.lgTYPEDEPOTID.equals(other.lgTYPEDEPOTID))) {
             return false;
         }
         return true;
@@ -147,5 +147,5 @@ public class TTypedepot implements Serializable {
     public String toString() {
         return "dal.TTypedepot[ lgTYPEDEPOTID=" + lgTYPEDEPOTID + " ]";
     }
-    
+
 }

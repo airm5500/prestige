@@ -60,7 +60,7 @@
 
     OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     OdataManager.initEntityManager();
-
+OTUser=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     bllBase ObllBase = new bllBase();
     ObllBase.setOTUser(OTUser);
     ObllBase.LoadDataManger(OdataManager);

@@ -37,7 +37,8 @@ public class remiseManagement extends bllBase {
         this.checkDatamanager();
     }
 
-    public TRemise createTRemise(String str_CODE, String str_NAME, int str_IDS, String lg_TYPE_REMISE_ID, double dbl_TAUX) {
+    public TRemise createTRemise(String str_CODE, String str_NAME, int str_IDS, String lg_TYPE_REMISE_ID,
+            double dbl_TAUX) {
         TRemise OTRemise = null;
         try {
 
@@ -87,16 +88,17 @@ public class remiseManagement extends bllBase {
                 new logger().oCategory.info("lg_TYPE_REMISE_ID     Create   " + lg_TYPE_REMISE_ID);
             }
 
-            /* TGrilleRemise OTGrilleRemise = getOdataManager().getEm().find(TGrilleRemise.class, str_CODE_GRILLE);
-             if (OTGrilleRemise != null) {
-             OTRemise.setDblTAUX(OTGrilleRemise.getDblTAUX());
-             new logger().oCategory.info("str_CODE_GRILLE     Create   " + str_CODE_GRILLE);
-             }*/
+            /*
+             * TGrilleRemise OTGrilleRemise = getOdataManager().getEm().find(TGrilleRemise.class, str_CODE_GRILLE); if
+             * (OTGrilleRemise != null) { OTRemise.setDblTAUX(OTGrilleRemise.getDblTAUX()); new
+             * logger().oCategory.info("str_CODE_GRILLE     Create   " + str_CODE_GRILLE); }
+             */
             OTRemise.setStrSTATUT(commonparameter.statut_enable);
             OTRemise.setDtCREATED(new Date());
 
             this.persiste(OTRemise);
-            new logger().oCategory.info("Mise a jour OTRemise " + OTRemise.getLgREMISEID() + " StrName " + OTRemise.getStrNAME());
+            new logger().oCategory
+                    .info("Mise a jour OTRemise " + OTRemise.getLgREMISEID() + " StrName " + OTRemise.getStrNAME());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
@@ -105,7 +107,8 @@ public class remiseManagement extends bllBase {
 
     }
 
-    public boolean update(String lg_REMISE_ID, String str_CODE, String str_NAME, int str_IDS, String lg_TYPE_REMISE_ID, double dbl_TAUX) {
+    public boolean update(String lg_REMISE_ID, String str_CODE, String str_NAME, int str_IDS, String lg_TYPE_REMISE_ID,
+            double dbl_TAUX) {
         boolean result = false;
         try {
 
@@ -156,10 +159,10 @@ public class remiseManagement extends bllBase {
 
         try {
 
-            //TRemise OTRemise = new TRemise();
+            // TRemise OTRemise = new TRemise();
             dal.TGrilleRemise OTGrilleRemise = new TGrilleRemise();
 
-//            OTGrilleRemise.setStrCODEGRILLE(str_CODE_GRILLE);
+            // OTGrilleRemise.setStrCODEGRILLE(str_CODE_GRILLE);
             OTGrilleRemise.setStrDESCRIPTION(str_DESCRIPTION);
             OTGrilleRemise.setDblTAUX(dbl_TAUX);
 
@@ -167,7 +170,8 @@ public class remiseManagement extends bllBase {
             OTGrilleRemise.setDtCREATED(new Date());
 
             this.persiste(OTGrilleRemise);
-//            new logger().oCategory.info("Mise a jour OTRemise " + OTGrilleRemise.getStrCODEGRILLE() + " StrName " + OTGrilleRemise.getStrDESCRIPTION());
+            // new logger().oCategory.info("Mise a jour OTRemise " + OTGrilleRemise.getStrCODEGRILLE() + " StrName " +
+            // OTGrilleRemise.getStrDESCRIPTION());
 
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {
@@ -224,7 +228,8 @@ public class remiseManagement extends bllBase {
         return OTRemise;
     }
 
-    public TGrilleRemise AddGrilleToRemise(int str_CODE_GRILLE, String str_DESCRIPTION, double dbl_TAUX, String lg_REMISE_ID) {
+    public TGrilleRemise AddGrilleToRemise(int str_CODE_GRILLE, String str_DESCRIPTION, double dbl_TAUX,
+            String lg_REMISE_ID) {
 
         TRemise OTRemise = null;
         TGrilleRemise OTGrilleRemise = null;
@@ -258,7 +263,8 @@ public class remiseManagement extends bllBase {
         return OTGrilleRemise;
     }
 
-    public TGrilleRemise UpdateGrilleOfRemise(String lg_GRILLE_REMISE_ID, int str_CODE_GRILLE, String str_DESCRIPTION, double dbl_TAUX, String lg_REMISE_ID) {
+    public TGrilleRemise UpdateGrilleOfRemise(String lg_GRILLE_REMISE_ID, int str_CODE_GRILLE, String str_DESCRIPTION,
+            double dbl_TAUX, String lg_REMISE_ID) {
         TGrilleRemise OTGrilleRemise = null, OTGrilleRemiseOld = null;
         TRemise OTRemise = null;
         try {
@@ -292,7 +298,7 @@ public class remiseManagement extends bllBase {
     }
 
     public TGrilleRemise UpdateGrilleOfRemise(String lg_GRILLE_REMISE_ID, String str_DESCRIPTION, double dbl_TAUX) {
-        //TRemise OTRemise = null;
+        // TRemise OTRemise = null;
         TGrilleRemise OTGrilleRemise = getOdataManager().getEm().find(TGrilleRemise.class, lg_GRILLE_REMISE_ID);
         if (OTGrilleRemise == null) {
             this.buildErrorTraceMessage("Desole cette de grille remise nexiste pas  ");
@@ -301,21 +307,23 @@ public class remiseManagement extends bllBase {
 
         try {
 
-            //OTRemise = (TRemise) this.getOdataManager().getEm().createQuery("SELECT t FROM TRemise t WHERE t.lgREMISEID LIKE ?1 OR t.strCODE LIKE ?2 OR t.strNAME LIKE ?2")
-            //   .setParameter(1, lg_REMISE_ID).setParameter(2, lg_REMISE_ID).getSingleResult();
+            // OTRemise = (TRemise) this.getOdataManager().getEm().createQuery("SELECT t FROM TRemise t WHERE
+            // t.lgREMISEID LIKE ?1 OR t.strCODE LIKE ?2 OR t.strNAME LIKE ?2")
+            // .setParameter(1, lg_REMISE_ID).setParameter(2, lg_REMISE_ID).getSingleResult();
         } catch (Exception e) {
             this.buildErrorTraceMessage("ERROR", "TRemise INEXISTANT  " + e.toString());
             return null;
         }
 
-        //OTGrilleRemise.setLgREMISEID(OTRemise);
-        //OTGrilleRemise.setStrCODEGRILLE(str_CODE_GRILLE);
+        // OTGrilleRemise.setLgREMISEID(OTRemise);
+        // OTGrilleRemise.setStrCODEGRILLE(str_CODE_GRILLE);
         OTGrilleRemise.setStrDESCRIPTION(str_DESCRIPTION);
         OTGrilleRemise.setDblTAUX(dbl_TAUX);
         OTGrilleRemise.setStrSTATUT(commonparameter.statut_enable);
         OTGrilleRemise.setDtUPDATED(new Date());
         this.persiste(OTGrilleRemise);
-        this.buildSuccesTraceMessage(" Grille de la Remise [" + OTGrilleRemise.getLgREMISEID() + OTGrilleRemise.getStrCODEGRILLE() + "]Modifiee Avec Succes");
+        this.buildSuccesTraceMessage(" Grille de la Remise [" + OTGrilleRemise.getLgREMISEID()
+                + OTGrilleRemise.getStrCODEGRILLE() + "]Modifiee Avec Succes");
         return OTGrilleRemise;
     }
 
@@ -340,7 +348,7 @@ public class remiseManagement extends bllBase {
         return result;
     }
 
-    //liste des remises
+    // liste des remises
     public List<TRemise> getListeTRemise(String search_value, String lg_REMISE_ID, String lg_TYPE_REMISE_ID) {
         List<TRemise> lstTRemise = new ArrayList<TRemise>();
 
@@ -348,12 +356,10 @@ public class remiseManagement extends bllBase {
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
-            lstTRemise = this.getOdataManager().getEm().createQuery("SELECT t FROM TRemise t WHERE t.lgREMISEID LIKE ?1 AND t.lgTYPEREMISEID.lgTYPEREMISEID LIKE ?2 AND (t.strCODE LIKE ?3 OR t.strNAME LIKE ?3) AND t.strSTATUT = ?4")
-                    .setParameter(1, lg_REMISE_ID)
-                    .setParameter(2, lg_TYPE_REMISE_ID)
-                    .setParameter(3, search_value + "%")
-                    .setParameter(4, commonparameter.statut_enable)
-                    .getResultList();
+            lstTRemise = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TRemise t WHERE t.lgREMISEID LIKE ?1 AND t.lgTYPEREMISEID.lgTYPEREMISEID LIKE ?2 AND (t.strCODE LIKE ?3 OR t.strNAME LIKE ?3) AND t.strSTATUT = ?4")
+                    .setParameter(1, lg_REMISE_ID).setParameter(2, lg_TYPE_REMISE_ID)
+                    .setParameter(3, search_value + "%").setParameter(4, commonparameter.statut_enable).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -361,20 +367,19 @@ public class remiseManagement extends bllBase {
         return lstTRemise;
     }
 
-    public List<TRemise> getListeTRemise(String search_value, String lg_REMISE_ID, String lg_TYPE_REMISE_ID, int int_IDS) {
+    public List<TRemise> getListeTRemise(String search_value, String lg_REMISE_ID, String lg_TYPE_REMISE_ID,
+            int int_IDS) {
         List<TRemise> lstTRemise = new ArrayList<TRemise>();
 
         try {
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
-            lstTRemise = this.getOdataManager().getEm().createQuery("SELECT t FROM TRemise t WHERE t.lgREMISEID LIKE ?1 AND t.lgTYPEREMISEID.lgTYPEREMISEID LIKE ?2 AND (t.strCODE LIKE ?3 OR t.strNAME LIKE ?3) AND t.strSTATUT = ?4 AND t.strIDS <= ?5 ORDER BY t.strNAME")
-                    .setParameter(1, lg_REMISE_ID)
-                    .setParameter(2, lg_TYPE_REMISE_ID)
-                    .setParameter(3, search_value + "%")
-                    .setParameter(4, commonparameter.statut_enable)
-                    .setParameter(5, int_IDS)
-                    .getResultList();
+            lstTRemise = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TRemise t WHERE t.lgREMISEID LIKE ?1 AND t.lgTYPEREMISEID.lgTYPEREMISEID LIKE ?2 AND (t.strCODE LIKE ?3 OR t.strNAME LIKE ?3) AND t.strSTATUT = ?4 AND t.strIDS <= ?5 ORDER BY t.strNAME")
+                    .setParameter(1, lg_REMISE_ID).setParameter(2, lg_TYPE_REMISE_ID)
+                    .setParameter(3, search_value + "%").setParameter(4, commonparameter.statut_enable)
+                    .setParameter(5, int_IDS).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -382,9 +387,9 @@ public class remiseManagement extends bllBase {
         return lstTRemise;
     }
 
-    //fin liste des remises
-    
-    //liste des types de remise
+    // fin liste des remises
+
+    // liste des types de remise
     public List<TTypeRemise> getListeTTypeRemise(String search_value, String lg_TYPE_REMISE_ID) {
         List<TTypeRemise> lstTTypeRemise = new ArrayList<TTypeRemise>();
 
@@ -392,21 +397,21 @@ public class remiseManagement extends bllBase {
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
-            lstTTypeRemise = this.getOdataManager().getEm().createQuery("SELECT t FROM TTypeRemise t WHERE t.lgTYPEREMISEID LIKE ?2 AND t.strNAME LIKE ?3 AND t.strSTATUT = ?4")
-                    .setParameter(2, lg_TYPE_REMISE_ID)
-                    .setParameter(3, search_value + "%")
-                    .setParameter(4, commonparameter.statut_enable)
-                    .getResultList();
+            lstTTypeRemise = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TTypeRemise t WHERE t.lgTYPEREMISEID LIKE ?2 AND t.strNAME LIKE ?3 AND t.strSTATUT = ?4")
+                    .setParameter(2, lg_TYPE_REMISE_ID).setParameter(3, search_value + "%")
+                    .setParameter(4, commonparameter.statut_enable).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }
         new logger().OCategory.info("lstTTypeRemise taille " + lstTTypeRemise.size());
         return lstTTypeRemise;
     }
-    
-    //fin liste des types de remise
-    //liste des grilles remises
-    public List<TGrilleRemise> getListeTGrilleRemise(String search_value, String lg_GRILLE_REMISE_ID, String lg_REMISE_ID) {
+
+    // fin liste des types de remise
+    // liste des grilles remises
+    public List<TGrilleRemise> getListeTGrilleRemise(String search_value, String lg_GRILLE_REMISE_ID,
+            String lg_REMISE_ID) {
         List<TGrilleRemise> lstTGrilleRemise = new ArrayList<TGrilleRemise>();
         int value = 0;
         try {
@@ -414,35 +419,33 @@ public class remiseManagement extends bllBase {
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
-            lstTGrilleRemise = this.getOdataManager().getEm().createQuery("SELECT t FROM TGrilleRemise t WHERE t.strCODEGRILLE LIKE ?1 AND t.lgGRILLEREMISEID LIKE ?2 AND t.lgREMISEID.lgREMISEID LIKE ?3 AND t.strSTATUT = ?4")
-                    .setParameter(1, value)
-                    .setParameter(2, lg_GRILLE_REMISE_ID)
-                    .setParameter(3, lg_REMISE_ID)
-                    .setParameter(4, commonparameter.statut_enable)
-                    .getResultList();
+            lstTGrilleRemise = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TGrilleRemise t WHERE t.strCODEGRILLE LIKE ?1 AND t.lgGRILLEREMISEID LIKE ?2 AND t.lgREMISEID.lgREMISEID LIKE ?3 AND t.strSTATUT = ?4")
+                    .setParameter(1, value).setParameter(2, lg_GRILLE_REMISE_ID).setParameter(3, lg_REMISE_ID)
+                    .setParameter(4, commonparameter.statut_enable).getResultList();
         } catch (Exception e) {
-//            e.printStackTrace();
+            // e.printStackTrace();
             if (search_value.equalsIgnoreCase("")) {
                 search_value = "%%";
             }
-            lstTGrilleRemise = this.getOdataManager().getEm().createQuery("SELECT t FROM TGrilleRemise t WHERE t.strDESCRIPTION LIKE ?1 AND t.lgGRILLEREMISEID LIKE ?2 AND t.lgREMISEID.lgREMISEID LIKE ?3 AND t.strSTATUT = ?4")
-                    .setParameter(1, search_value + "%")
-                    .setParameter(2, lg_GRILLE_REMISE_ID)
-                    .setParameter(3, lg_REMISE_ID)
-                    .setParameter(4, commonparameter.statut_enable)
-                    .getResultList();
+            lstTGrilleRemise = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TGrilleRemise t WHERE t.strDESCRIPTION LIKE ?1 AND t.lgGRILLEREMISEID LIKE ?2 AND t.lgREMISEID.lgREMISEID LIKE ?3 AND t.strSTATUT = ?4")
+                    .setParameter(1, search_value + "%").setParameter(2, lg_GRILLE_REMISE_ID)
+                    .setParameter(3, lg_REMISE_ID).setParameter(4, commonparameter.statut_enable).getResultList();
         }
         new logger().OCategory.info("lstTGrilleRemise taille " + lstTGrilleRemise.size());
         return lstTGrilleRemise;
     }
-    //fin liste des grilles remises
+    // fin liste des grilles remises
 
-    //verifie si le code de la grille remise n'est pas a pas affecté a une remise en cours
+    // verifie si le code de la grille remise n'est pas a pas affecté a une remise en cours
     public TGrilleRemise checkIsCodeGrilleRemiseExistInRemise(int str_CODE_GRILLE, String lg_REMISE_ID) {
         TGrilleRemise OTGrilleRemise = null;
         try {
-            OTGrilleRemise = (TGrilleRemise) this.getOdataManager().getEm().createQuery("SELECT t FROM TGrilleRemise t WHERE t.strCODEGRILLE = ?1 AND t.lgREMISEID.lgREMISEID = ?2 AND t.strSTATUT = ?3")
-                    .setParameter(1, str_CODE_GRILLE).setParameter(2, lg_REMISE_ID).setParameter(3, commonparameter.statut_enable).getSingleResult();
+            OTGrilleRemise = (TGrilleRemise) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TGrilleRemise t WHERE t.strCODEGRILLE = ?1 AND t.lgREMISEID.lgREMISEID = ?2 AND t.strSTATUT = ?3")
+                    .setParameter(1, str_CODE_GRILLE).setParameter(2, lg_REMISE_ID)
+                    .setParameter(3, commonparameter.statut_enable).getSingleResult();
             if (OTGrilleRemise != null) {
                 this.buildErrorTraceMessage("Désolé! Code grille remise déjà affecté à la remise sélectionnée");
             }
@@ -452,12 +455,13 @@ public class remiseManagement extends bllBase {
         return OTGrilleRemise;
     }
 
-    //fin verifie si le code de la grille remise n'est pas a pas affecté a une remise en cours
-    //recuperation d'une remise 
+    // fin verifie si le code de la grille remise n'est pas a pas affecté a une remise en cours
+    // recuperation d'une remise
     public TRemise getTRemise(String search_value) {
         TRemise OTRemise = null;
         try {
-            OTRemise = (TRemise) this.getOdataManager().getEm().createQuery("SELECT t FROM TRemise t WHERE (t.lgREMISEID LIKE ?1 OR t.strCODE LIKE ?1 OR t.strNAME LIKE ?1)")
+            OTRemise = (TRemise) this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TRemise t WHERE (t.lgREMISEID LIKE ?1 OR t.strCODE LIKE ?1 OR t.strNAME LIKE ?1)")
                     .setParameter(1, search_value).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
@@ -465,12 +469,14 @@ public class remiseManagement extends bllBase {
         return OTRemise;
     }
 
-    //fin recuperation d'une remise 
-    //recuperation d'un type de remise 
+    // fin recuperation d'une remise
+    // recuperation d'un type de remise
     public TTypeRemise getTTypeRemise(String search_value) {
         TTypeRemise OTTypeRemise = null;
         try {
-            OTTypeRemise = (TTypeRemise) this.getOdataManager().getEm().createQuery("SELECT t FROM TTypeRemise t WHERE (t.lgTYPEREMISEID LIKE ?1 OR t.strDESCRIPTION LIKE ?1)")
+            OTTypeRemise = (TTypeRemise) this.getOdataManager().getEm()
+                    .createQuery(
+                            "SELECT t FROM TTypeRemise t WHERE (t.lgTYPEREMISEID LIKE ?1 OR t.strDESCRIPTION LIKE ?1)")
                     .setParameter(1, search_value).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
@@ -478,5 +484,5 @@ public class remiseManagement extends bllBase {
         return OTTypeRemise;
     }
 
-    //fin recuperation d'un type de remise
+    // fin recuperation d'un type de remise
 }
