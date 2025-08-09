@@ -22178,3 +22178,46 @@ body.x-nbr .x-panel-header-light-framed-collapsed-left-frameInfo {
     border-color: #00B74A;
 }
 /*focusCls,labelCls */
+/* Modern UI enhancements */
+:root {
+    --primary-color: #00695c;
+    --accent-color: #ffca28;
+    --font-family: "Open Sans", sans-serif;
+}
+
+body {
+    font-family: var(--font-family);
+    color: #333;
+    background-color: #fafafa;
+}
+
+.x-btn {
+    border-radius: 4px;
+    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.x-btn:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+}
+
+.x-toolbar {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.x-panel {
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.x-form-field {
+    border-radius: 4px;
+    transition: box-shadow 0.3s, border-color 0.3s;
+}
+
+.x-form-field:focus {
+    box-shadow: 0 0 0 2px var(--accent-color);
+    border-color: var(--accent-color);
+}
