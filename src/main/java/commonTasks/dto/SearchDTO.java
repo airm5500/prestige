@@ -21,12 +21,21 @@ public class SearchDTO implements Serializable {
     private Integer intPRICE, intNUMBERAVAILABLE, intNUMBERDETAIL, intPAF, intNUMBER;
     private Date dtUPDATED;
     private String displayDate;
+    private String codeEanFabriquant;
 
     public String getDisplayDate() {
         if (Objects.nonNull(dtUPDATED)) {
             this.displayDate = DateConverter.convertDateToDD_MM_YYYY_HH_mm(dtUPDATED);
         }
         return displayDate;
+    }
+
+    public String getCodeEanFabriquant() {
+        return codeEanFabriquant;
+    }
+
+    public void setCodeEanFabriquant(String codeEanFabriquant) {
+        this.codeEanFabriquant = codeEanFabriquant;
     }
 
     public void setDisplayDate(String displayDate) {
@@ -164,7 +173,7 @@ public class SearchDTO implements Serializable {
 
     public SearchDTO(String lgFAMILLEID, String intCIP, String strNAME, String strLIBELLEE, Integer intPRICE,
             Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER, Short boolDECONDITIONNE,
-            String lgFAMILLEPARENTID) {
+            String lgFAMILLEPARENTID, String codeEanFabriquant) {
         this.lgFAMILLEID = lgFAMILLEID;
         this.strDESCRIPTION = strNAME;
         this.intCIP = intCIP;
@@ -176,10 +185,12 @@ public class SearchDTO implements Serializable {
         this.intNUMBER = intNUMBER;
         this.boolDECONDITIONNE = boolDECONDITIONNE;
         this.lgFAMILLEPARENTID = lgFAMILLEPARENTID;
+        this.codeEanFabriquant = codeEanFabriquant;
     }
 
     public SearchDTO(String lgFAMILLEID, String intCIP, String strNAME, String strLIBELLEE, Integer intPRICE,
-            Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER, Integer intNUMBERDETAIL) {
+            Integer intNUMBERAVAILABLE, Integer intPAF, Integer intNUMBER, Integer intNUMBERDETAIL,
+            String codeEanFabriquant) {
         this.lgFAMILLEID = lgFAMILLEID;
         this.strDESCRIPTION = strNAME;
         this.intCIP = intCIP;
@@ -190,6 +201,7 @@ public class SearchDTO implements Serializable {
         this.intPAF = intPAF;
         this.intNUMBER = intNUMBER;
         this.intNUMBERDETAIL = intNUMBERDETAIL;
+        this.codeEanFabriquant = codeEanFabriquant;
 
     }
 

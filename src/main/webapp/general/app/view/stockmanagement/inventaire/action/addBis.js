@@ -34,6 +34,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
             fields: ['str_TYPE_TRANSACTION', 'str_STATUT_TRANSACTION'],
             data: [{str_TYPE_TRANSACTION: 'Famille', str_STATUT_TRANSACTION: 'Famille'}, {str_TYPE_TRANSACTION: 'Emplacement', str_STATUT_TRANSACTION: 'Emplacement'}, {str_TYPE_TRANSACTION: 'Grossiste', str_STATUT_TRANSACTION: 'Grossiste'}]
         });
+        const stockFilterStore = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            data: [{id: 'ALL', libelle: 'Tout'}, {id: 'LESS_EQUALS', libelle: 'Inférieur ou égal'}, {id: 'LESS', libelle: 'Inférieur'}, {id: 'GREATHER_EQUALS', libelle: 'Supérieur ou égal'}, {id: 'GREATHER', libelle: 'Supérieur'}, {id: 'NOT_EQUALS', libelle: 'Différent'}]
+        });
 
         var storerepartiteur = new Ext.data.Store({
             model: 'testextjs.model.Grossiste',
@@ -67,7 +71,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
 
         });
 
-      
+
 
         var store_zonegeo = new Ext.data.Store({
             model: 'testextjs.model.ZoneGeographique',
@@ -108,11 +112,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             id: 'str_NAME'
                         },
                         {
-                            fieldLabel: 'Commentaire',
-                            emptyText: 'Commentaire',
-                            name: 'str_DESCRIPTION',
-                            id: 'str_DESCRIPTION'
-                        }, {
                             xtype: 'combobox',
                             fieldLabel: 'Inventaire par',
                             name: 'str_TYPE_TRANSACTION',
@@ -229,11 +228,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                                 }
                             }
                         },
+
                         {
                             xtype: 'combobox',
                             fieldLabel: 'Grossiste',
                             name: 'lg_GROSSISTE_ID',
-                            margin: '5 15 0 0',
+
                             id: 'lg_GROSSISTE_ID',
                             store: storerepartiteur,
                             valueField: 'lg_GROSSISTE_ID',
@@ -261,36 +261,42 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             }
 
                         },
-                        /*{
-                         xtype: 'combobox',
-                         name: 'lg_GROSSISTE_ID',
-                         fieldLabel: 'Fournisseur',
-                         margins: '0 0 0 10',
-                         id: 'lg_GROSSISTE_ID',
-                         store: store_fabriquant,
-                         hidden: true,
-                         valueField: 'lg_GROSSISTE_ID',
-                         displayField: 'str_NAME',
-                         typeAhead: true,
-                         queryMode: 'remote',
-                         flex: 1,
-                         emptyText: 'Sectionner un fournisseur...',
-                         listeners: {
-                         select: function(cmp) {
-                         var value = cmp.getValue();
-                         var OContainerInterval = Ext.getCmp('contenaire_intervalle');
-                         if (value == "0") {
-                         OContainerInterval.show();
-                         } else {
-                         OContainerInterval.hide();
-                         Ext.getCmp('str_BEGIN').reset();
-                         Ext.getCmp('str_END').reset();
-                         }
-                         
-                         
-                         }
-                         }
-                         },*/
+
+                        {
+                            xtype: 'combobox',
+                            fieldLabel: 'Filter le stock',
+                            name: 'stockFilter',
+
+                            id: 'stockFilterStore',
+                            store: stockFilterStore,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            queryMode: 'local',
+                            value: 'ALL',
+                            flex: 1,
+                            emptyText: 'Filter le stock...',
+                            listeners: {
+                                select: function (cmp) {
+                                    const value = cmp.getValue();
+                                    const stockProduit = Ext.getCmp('stockProduit');
+                                    if (value !== "ALL") {
+                                        stockProduit.show();
+                                    } else {
+                                        stockProduit.hide();
+
+                                    }
+
+                                }
+                            }
+                        }, {
+                            xtype: 'numberfield',
+                            flex: 1,
+                            fieldLabel: 'Stock produit',
+                            name: 'stockProduit',
+                            hidden: true,
+                            id: 'stockProduit'
+                        },
+
                         {
                             xtype: 'fieldcontainer',
                             fieldLabel: 'Intervalle',
@@ -375,8 +381,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                 Ext.MessageBox.alert('Message d\'erreur', 'Veuillez s&eacute;lectionner un &eacute;l&eacute;ment');
                 return;
             }
-//            alert("debut" + Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() + '-' + Ext.getCmp('lg_ZONE_GEO_ID').getValue() + '-' + Ext.getCmp('lg_GROSSISTE_ID').getValue() + "fin")
-//            return;
+
         }
 
         if (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == "0" || Ext.getCmp('lg_ZONE_GEO_ID').getValue() == "0" || Ext.getCmp('lg_GROSSISTE_ID').getValue() == "0") {
@@ -387,18 +392,18 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
         }
 
         if (formulaire.isValid()) {
-           
+
             formulaire.submit({
                 url:"../webservices/stockmanagement/inventaire/ws_transactions.jsp?mode=createbis",
                 timeout: 1800000,
                 params: {
-                   bool_INVENTAIRE:1
+                    bool_INVENTAIRE: 1
                 },
                 waitMsg: "Veuillez patienter. Traitement en cours...",
                 waitTitle: 'Creation d\'un inventaire',
                 success: function (formulaire, action) {
-                
-                  Ext.MessageBox.alert('Infos',  action.result.nombre);
+
+                    Ext.MessageBox.alert('Infos', action.result.nombre);
                     Oview.getStore().reload();
 
                     var bouton = button.up('window');

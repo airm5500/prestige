@@ -1,0 +1,1 @@
+ALTER TABLE  t_famille ADD COLUMN IF NOT EXISTS `code_ean_fabriquant`  VARCHAR (40) NULL DEFAULT NULL;

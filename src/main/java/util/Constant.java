@@ -135,6 +135,12 @@ public final class Constant {
 
     public static final String EMPLACEMENT = "1";
 
+    public static final String FINDALLDEPOT = "2";
+
+    public static final String REPORTDEPOT = "D:\\CONF\\LABOREX\\REPORTS\\";
+
+    public static final String REPORT_PATH = "D:/CONF/LABOREX/REPORTS/";
+
     /*
      * parametre nombre de mois à considerer
      */
@@ -176,6 +182,9 @@ public final class Constant {
     public static final String STATUT_PERIME = "perime";
     public static final String STATUT_ENCOURS_PEREMPTION = "en peremption";
     public static final String STATUT_UNPAID = "unpaid";
+    public static final String KEY_MONTH_PERIME = "KEY_MONTH_PERIME";
+    public static final String PARAM_TRUE = "1";
+    public static final String PARAM_FALSE = "0";
 
     private Constant() {
     }

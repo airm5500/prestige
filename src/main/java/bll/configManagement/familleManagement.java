@@ -10,7 +10,7 @@ import bll.commandeManagement.bonLivraisonManagement;
 import bll.commandeManagement.suggestionManagement;
 import bll.common.Parameter;
 import bll.entity.EntityData;
-import bll.gateway.outService.ServicesUpdatePriceFamille;
+
 import bll.interfacemanager.Famillemanagerinterface;
 import bll.preenregistrement.Preenregistrement;
 import bll.stockManagement.StockManager;
@@ -321,14 +321,6 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
             int int_price = 0;
 
-            List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList(
-                    oTAlertEvent.getTAlertEventUserFoneCollection());
-            ServicesUpdatePriceFamille OService = new ServicesUpdatePriceFamille(this.getOdataManager(),
-                    this.getOTUser());
-
-            for (int k = 0; k < lstTAlertEventUserFone.size(); k++) {
-                OService.doservice(lstTAlertEventUserFone.get(k));
-            }
             this.refresh(OTFamille);
 
             new logger().OCategory.info("Envoie de SMS effectue");
@@ -350,14 +342,9 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
             // TAlertEvent oTAlertEvent = (TAlertEvent) this.find("N_UPDATE_FAMILLE_PRICE", new TAlertEvent());
             lstTAlertEventUserFone = this.getTAlertEventUserFone(ID_AlertEvent);
-            ServicesUpdatePriceFamille OService = new ServicesUpdatePriceFamille(this.getOdataManager(),
-                    this.getOTUser());
+
             this.getOdataManager().BeginTransaction();
-            for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
-                // OService.doservice(lstTAlertEventUserFone.get(k)); // a decommenter en cas de probleme 09/08/2016
-                OService.saveNotification(Description, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(),
-                        this.getKey().getComplexId()); //
-            }
+
             this.getOdataManager().CloseTransaction();
         } catch (Exception e) {
 
@@ -371,13 +358,6 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
         List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList<>();
         try {
             lstTAlertEventUserFone = this.getTAlertEventUserFone(ID_AlertEvent);
-            ServicesUpdatePriceFamille OService = new ServicesUpdatePriceFamille(this.getOdataManager(),
-                    this.getOTUser());
-            for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
-                // OService.doservice(lstTAlertEventUserFone.get(k)); // a decommenter en cas de probleme 09/08/2016
-                OService.saveNotification(Description, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(),
-                        this.getKey().getComplexId()); //
-            }
 
         } catch (Exception e) {
 
@@ -4090,16 +4070,6 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                             + ".";
                 }
 
-                // this.do_event_log(Ojconnexion, commonparameter.ALL, Description, this.getOTUser().getStrLOGIN(),
-                // commonparameter.statut_enable, "t_famille", "Modification prix", ""); // code ajouté 23/05/2016
-                List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList<TAlertEventUserFone>();
-                ServicesUpdatePriceFamille OService = new ServicesUpdatePriceFamille(this.getOdataManager(),
-                        this.getOTUser());
-                lstTAlertEventUserFone = this.getTAlertEventUserFone("N_UPDATE_FAMILLE_PRICE");
-                for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
-                    OService.saveNotification(Description, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(),
-                            this.getKey().getComplexId());
-                }
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
             }
 

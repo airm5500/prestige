@@ -97,6 +97,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             height: valheight,
             plugins: [this.cellEditing],
             store: store,
+            cls: 'my-grid-header',
             id: 'GridArticleID',
             columns: [
                 {
@@ -186,6 +187,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dataIndex: 'cmu_price',
                     align: 'right',
                     flex: 0.5,
+                    hidden: true,
                     renderer: function (v, m, r) {
                         const stock = r.data.int_NUMBER_AVAILABLE;
                         if (stock == 0) {
@@ -200,7 +202,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 },
 
                 {
-                    header: 'P.A F',
+                    header: 'P.Achat',
                     dataIndex: 'int_PAF',
                     align: 'right',
                     flex: 0.5,
@@ -223,19 +225,22 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     align: 'center',
                     flex: 0.5,
                     renderer: function (v, m, r) {
-
                         const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'background-color:#B0F2B6;font-weight:800;';
-                        } else if (stock > 0) {
-                            m.style = 'font-weight:800;';
-                        } else if (stock < 0) {
-                            m.style = 'background-color:#F5BCA9;font-weight:800;';
+
+                        if (stock < 0) {
+                            // Valeurs négatives : texte en rouge, fond rosé
+                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
+                        } else if (stock == 0) {
+                            // Valeur zéro : texte en noir, fond verdâtre
+                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
+                        } else {
+                            // Valeurs positives : texte en bleu
+                            m.style = 'color:green; font-weight:bold;font-size: 18px;';
                         }
                         return v;
                     }
                 }, {
-                    header: 'Seuil.Reap',
+                    header: 'Seuil',
                     dataIndex: 'int_STOCK_REAPROVISONEMENT',
                     align: 'center',
                     flex: 0.5
@@ -328,6 +333,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dataIndex: 'scheduled',
                     flex: 0.4,
                     xtype: 'checkcolumn',
+                    hidden: true,
                     listeners: {
                         checkChange: function (column, rowIndex, checked, eOpts) {
                             const record = store.getAt(rowIndex);
@@ -437,10 +443,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
+                    hidden: true,
                     items: [{
                             icon: 'resources/images/icons/fam/delete.png',
                             tooltip: 'Supprimer',
                             scope: this,
+
                             getClass: function (value, metadata, record) {
                                 if (record.get('BTNDELETE')) {
                                     if (record.get('lg_EMPLACEMENT_ID') == "1") {  //read your condition from the record
@@ -463,7 +471,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/connect.png',
-                            tooltip: 'Créer deconditionné',
+                            tooltip: 'Créer detail',
                             scope: this,
                             handler: this.onCreateDeconditionClick,
                             getClass: function (value, metadata, record) {
@@ -556,12 +564,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 selType: 'cellmodel'
             },
             tbar: [{
-                    text: 'Créer',
+                    text: ''
+                },
+                {
+                    text: 'Créer un Article',
+                    tooltip: 'rechercher',
+                    cls: 'btn-primary',
                     scope: this,
-                    iconCls: 'addicon',
                     id: 'btn_add',
-//                    width: 90,
-                    hidden: true,
+                    iconCls: 'addicon',
                     handler: this.onAddClick
                 }, {
                     xtype: 'combobox',
@@ -606,6 +617,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     xtype: 'textfield',
                     id: 'rechecher',
                     name: 'user',
+                    fieldStyle: 'background-color: orange; background-image: none;color:blue;font-weight:bold;font-size:1.3em',
                     emptyText: 'Recherche',
                     listeners: {
                         'render': function (cmp) {
@@ -890,6 +902,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 var result = Ext.JSON.decode(response.responseText, true);
                                 if (result.success) {
                                     grid.getStore().reload();
+                                    Ext.getCmp('rechecher').focus(true, 100, function () {
+//                                                      Ext.getCmp('rechecher').selectText(0, 1);
+                                    });
                                 } else {
                                     Ext.MessageBox.show({
                                         title: 'Message d\'erreur',
@@ -962,7 +977,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     parentview: this,
                     mode: "decondition",
                     type: 'famillemanager',
-                    titre: "Creation Article [" + rec.get('str_DESCRIPTION') + "] deconditionne"
+                    titre: "Creation Article [" + rec.get('str_DESCRIPTION') + "] DETAIL"
                 });
             }
         }
@@ -971,10 +986,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         const rec = grid.getStore().getAt(rowIndex);
 
         if (rec.get('bool_DECONDITIONNE') == "1") {
-            Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionne. Il ne peut pas etre deconditionne');
+            Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionné. Il ne peut pas etre deconditionné');
         } else {
             if (rec.get('bool_DECONDITIONNE_EXIST') == "0") {
-                Ext.MessageBox.alert('Alerte Message', 'Aucune version deconditionne existe');
+                Ext.MessageBox.alert('Alerte Message', 'Aucun détail existant pour ce produit');
             } else {
                 if (rec.get('int_NUMBER_AVAILABLE') <= 0) {
                     Ext.MessageBox.alert('Alerte Message', 'Stock insuffisant');
@@ -1190,23 +1205,23 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         const win = Ext.create("Ext.window.Window", {
             title: "[ " + rec.get('str_NAME') + " ]",
             modal: true,
-            width: 400,
+            width: 420,
             layout: {
                 type: 'anchor'
             },
-            height: 180,
+            height: 270,
             items: [{
                     xtype: 'form',
                     id: 'peremptionform',
                     type: 'anchor',
-                    bodyPadding: 5,
+                    bodyPadding: 10,
 
                     modelValidation: true,
                     items: [
                         {
                             xtype: 'fieldset',
+                            bodyPadding: 10,
                             anchor: '100%',
-                            height: 90,
 
                             title: 'Ajouter date de péremption',
                             layout: 'anchor',
@@ -1216,58 +1231,39 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             },
                             items: [
                                 {
+                                    xtype: 'textfield',
+                                    fieldLabel: 'Numéro de lot',
+                                    name: 'numLot',
+                                    id: 'numLot',
+                                    autofocus: true,
+                                    allowBlank: false
+                                },
+                                {
                                     xtype: 'datefield',
                                     fieldLabel: 'Date de péremption',
-                                    name: 'dt_peremption',
+                                    name: 'datePeremption',
                                     id: 'dt_peremption',
                                     autofocus: true,
                                     allowBlank: false,
                                     submitFormat: 'Y-m-d',
-                                    value: new Date(rec.get('dtPEREMPTION')),
+                                    format: 'd/m/Y'
 
-                                    format: 'd/m/Y',
-                                    listeners: {
-                                        specialKey: function (field, e, Familletion) {
-                                            if (e.getKey() === e.ENTER) {
-                                                var form = Ext.getCmp('peremptionform');
-                                                if (form && form.isValid()) {
-                                                    var dt_debut = field.getSubmitValue();
-                                                    var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-                                                    Ext.Ajax.request({
-                                                        method: 'PUT',
-                                                        url: '../api/v1/fichearticle/dateperemption/' + rec.get('lg_FAMILLE_ID') + '/' + dt_debut,
+                                },
 
-                                                        success: function (response)
-                                                        {
-                                                            progress.hide();
-                                                            var object = Ext.JSON.decode(response.responseText, false);
-                                                            if (!object.success) {
-                                                                Ext.MessageBox.alert('Error Message', "Echec d'ajout");
-                                                                return;
-                                                            } else {
-                                                                win.close();
-                                                                grid.getStore().reload();
-                                                            }
+                                {
+                                    xtype: 'numberfield',
+                                    fieldLabel: 'Quantité',
+                                    name: 'quantity',
+                                    id: 'quantity',
+                                    autofocus: true
 
-                                                        },
-                                                        failure: function (response)
-                                                        {
-                                                            progress.hide();
-                                                            var object = Ext.JSON.decode(response.responseText, false);
-                                                            console.log("Bug " + response.responseText);
-                                                            Ext.MessageBox.alert('Error Message', response.responseText);
+                                },
+                                {
+                                    xtype: 'hiddenfield',
+                                    name: 'produitId',
+                                    allowBlank: false,
+                                    value: rec.get('lg_FAMILLE_ID')
 
-                                                        }
-                                                    });
-
-                                                    //focus sur le champ cip
-                                                    Ext.getCmp('rechecher').focus(true, 100, function () { });
-                                                }
-
-
-                                            }
-                                        }
-                                    }
                                 }
 
 
@@ -1281,7 +1277,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     dock: 'bottom',
                     ui: 'footer',
                     layout: {
-                        pack: 'end', //#22
+                        pack: 'end',
                         type: 'hbox'
                     },
                     items: [
@@ -1290,33 +1286,34 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             text: 'Valider',
                             listeners: {
                                 click: function () {
-                                    var form = Ext.getCmp('peremptionform');
-
+                                    const form = Ext.getCmp('peremptionform');
+                                    const formValues = form.getValues();
                                     if (form && form.isValid()) {
-                                        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-                                        var dt_debut = Ext.getCmp('dt_peremption').getSubmitValue();
-                                        Ext.Ajax.request({
-                                            method: 'PUT',
-                                            url: '../api/v1/fichearticle/dateperemption/' + rec.get('lg_FAMILLE_ID') + '/' + dt_debut,
+                                        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                                        const value = Number(formValues.quantity);
+                                        const qty = Number.isNaN(value) ? 1 : value;
+                                        const datas = {
+                                            "produitId": formValues.produitId,
+                                            "numLot": formValues.numLot,
+                                            "datePeremption": formValues.datePeremption,
+                                            "quantity": qty > 0 ? qty : 1
+                                        };
 
+                                        Ext.Ajax.request({
+                                            headers: {'Content-Type': 'application/json'},
+                                            method: 'POST',
+                                            url: '../api/v1/fichearticle/add-lot',
+                                            params: Ext.JSON.encode(datas),
                                             success: function (response)
                                             {
                                                 progress.hide();
-                                                var object = Ext.JSON.decode(response.responseText, false);
-                                                if (!object.success) {
-                                                    Ext.MessageBox.alert('Error Message', "Echec d'ajout");
-                                                    return;
-                                                } else {
-                                                    win.close();
-                                                    grid.getStore().reload();
-                                                }
+                                                win.close();
+                                                grid.getStore().reload();
 
                                             },
                                             failure: function (response)
                                             {
                                                 progress.hide();
-                                                var object = Ext.JSON.decode(response.responseText, false);
-                                                console.log("Bug " + response.responseText);
                                                 Ext.MessageBox.alert('Error Message', response.responseText);
 
                                             }
@@ -1330,7 +1327,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         {
                             xtype: 'button',
                             text: 'Annuler',
-//                   
                             listeners: {
                                 click: function () {
                                     win.close();
@@ -1344,7 +1340,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
         });
         win.show();
-        Ext.getCmp('dt_peremption').focus(true, 100, function () {
+        Ext.getCmp('numLot').focus(true, 100, function () {
 
         });
 

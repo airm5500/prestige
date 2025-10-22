@@ -6,9 +6,9 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.persistence.Basic;
@@ -111,9 +111,22 @@ public class TBonLivraisonDetail implements Serializable, Cloneable {
     private Integer prixUni;
     @Type(type = "json")
     @Column(columnDefinition = "json", name = "lots")
-    private Set<OrderDetailLot> lots = new HashSet<>();
+    private List<OrderDetailLot> lots = new ArrayList<>();
+    @Column(name = "checked")
+    private boolean checked;
+
+    @Column(name = "quantite_controle")
+    private Integer checkedQuantity;
 
     public TBonLivraisonDetail() {
+    }
+
+    public Integer getCheckedQuantity() {
+        return checkedQuantity;
+    }
+
+    public void setCheckedQuantity(Integer checkedQuantity) {
+        this.checkedQuantity = checkedQuantity;
     }
 
     public TBonLivraisonDetail(String lgBONLIVRAISONDETAIL) {
@@ -297,7 +310,7 @@ public class TBonLivraisonDetail implements Serializable, Cloneable {
 
     @Override
     public boolean equals(Object object) {
-        // TODO: Warning - this method won't work in the case the id fields are not set
+
         if (!(object instanceof TBonLivraisonDetail)) {
             return false;
         }
@@ -331,12 +344,20 @@ public class TBonLivraisonDetail implements Serializable, Cloneable {
         this.prixUni = prixUni;
     }
 
-    public Set<OrderDetailLot> getLots() {
+    public List<OrderDetailLot> getLots() {
         return lots;
     }
 
-    public void setLots(Set<OrderDetailLot> lots) {
+    public void setLots(List<OrderDetailLot> lots) {
         this.lots = lots;
+    }
+
+    public boolean isChecked() {
+        return checked;
+    }
+
+    public void setChecked(boolean checked) {
+        this.checked = checked;
     }
 
     @Override

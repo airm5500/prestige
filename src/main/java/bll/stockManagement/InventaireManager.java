@@ -88,15 +88,6 @@ public class InventaireManager extends bllBase {
         TInventaire OInventaire = null;
         String query = "";
         long count = 0;
-        /*
-         * try {
-         *
-         * OInventaire.setLgUSERID(this.getOTUser()); // a decommenter en cas de probleme. 10/08/2016
-         * OInventaire.setStrSTATUT(commonparameter.statut_delete); OInventaire.setDtUPDATED(new Date());
-         * this.persiste(OInventaire); result = true;
-         * this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES")); } catch (Exception e) {
-         * e.printStackTrace(); this.buildErrorTraceMessage("Echec de suppression de l'inventaire"); }
-         */
 
         OInventaire = this.getOdataManager().getEm().find(TInventaire.class, lg_INVENTAIRE_ID);
         if (OInventaire != null) {
@@ -1175,11 +1166,11 @@ public class InventaireManager extends bllBase {
             filepath = jdom.path_export_csv + str_NAMEFILE;
 
             List<String> lstData = new ArrayList<>();
-            // String ItemDataHeader = "Inventaire du " + OTInventaire.getDtCREATED() + "\n\n"
-            // + OTInventaire.getStrNAME() + ";"
-            // + OTInventaire.getStrDESCRIPTION() + ";"
-            // + OTInventaire.getLgUSERID().getStrFIRSTNAME() + " "
-            // + OTInventaire.getLgUSERID().getStrLASTNAME() + "\n\n";
+            // String ItemDataHeader = "Inventaire du " + oTInventaire.getDtCREATED() + "\n\n"
+            // + oTInventaire.getStrNAME() + ";"
+            // + oTInventaire.getStrDESCRIPTION() + ";"
+            // + oTInventaire.getLgUSERID().getStrFIRSTNAME() + " "
+            // + oTInventaire.getLgUSERID().getStrLASTNAME() + "\n\n";
             // lstData.add(ItemDataHeader);
             for (TInventaireFamille OTInventaireFamille : lstTInventaireFamille) {
                 String ItemData = OTInventaireFamille.getLgFAMILLEID().getIntCIP() + ";"
@@ -1202,9 +1193,9 @@ public class InventaireManager extends bllBase {
              * File ff = new File(filepath); // définir l'arborescence ff.createNewFile(); FileWriter ffw = new
              * FileWriter(ff);
              *
-             * try { ffw.write("Inventaire du " + OTInventaire.getDtCREATED() + "\n\n");
-             * ffw.write(OTInventaire.getStrNAME() + ";" + OTInventaire.getStrDESCRIPTION() + ";" +
-             * OTInventaire.getLgUSERID().getStrFIRSTNAME() + " " + OTInventaire.getLgUSERID().getStrLASTNAME() +
+             * try { ffw.write("Inventaire du " + oTInventaire.getDtCREATED() + "\n\n");
+             * ffw.write(oTInventaire.getStrNAME() + ";" + oTInventaire.getStrDESCRIPTION() + ";" +
+             * oTInventaire.getLgUSERID().getStrFIRSTNAME() + " " + oTInventaire.getLgUSERID().getStrLASTNAME() +
              * "\n\n"); //ecriture du detail de l'inventaire for (TInventaireFamille OTInventaireFamille :
              * lstTInventaireFamille) { ffw.write(OTInventaireFamille.getIntCIP() + ";" +
              * OTInventaireFamille.getStrDESCRIPTION() + ";" + OTInventaireFamille.getIntPRICE() + ";" +
@@ -1317,25 +1308,25 @@ public class InventaireManager extends bllBase {
     // function creation inventaire 12042016 kobena
     public long createInventaire(String str_NAME, String lg_FAMILLE_ID, String str_DESCRIPTION,
             String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String str_BEGIN,
-            String str_END, String str_TYPE, int bool_INVENTAIRE) {
+            String str_END, String str_TYPE, int bool_INVENTAIRE, String stockFilter, Integer stockProduit) {
         long count = 0;
         Date today = new Date();
         try {
-            TInventaire OTInventaire = new TInventaire(this.getKey().getComplexId());
-            OTInventaire.setStrNAME(str_NAME);
-            OTInventaire.setStrDESCRIPTION(str_DESCRIPTION);
-            OTInventaire.setLgUSERID(this.getOTUser());
-            OTInventaire.setStrTYPE(str_TYPE.toLowerCase());
-            OTInventaire.setStrSTATUT(commonparameter.statut_enable);
-            OTInventaire.setDtCREATED(today);
-            OTInventaire.setDtUPDATED(today);
-            OTInventaire.setLgEMPLACEMENTID(this.getOTUser().getLgEMPLACEMENTID());
-            if (this.persiste(OTInventaire)) {
-                count = this.createInventaireFamille(lg_FAMILLE_ID, OTInventaire.getLgINVENTAIREID(),
+            TInventaire oTInventaire = new TInventaire(this.getKey().getComplexId());
+            oTInventaire.setStrNAME(str_NAME);
+            oTInventaire.setStrDESCRIPTION(str_NAME);
+            oTInventaire.setLgUSERID(this.getOTUser());
+            oTInventaire.setStrTYPE(str_TYPE.toLowerCase());
+            oTInventaire.setStrSTATUT(commonparameter.statut_enable);
+            oTInventaire.setDtCREATED(today);
+            oTInventaire.setDtUPDATED(today);
+            oTInventaire.setLgEMPLACEMENTID(this.getOTUser().getLgEMPLACEMENTID());
+            if (this.persiste(oTInventaire)) {
+                count = this.createInventaireFamille(lg_FAMILLE_ID, oTInventaire.getLgINVENTAIREID(),
                         lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, str_BEGIN, str_END, bool_INVENTAIRE,
-                        str_TYPE);
+                        str_TYPE, stockFilter, stockProduit);
                 if (count == 0) {
-                    this.delete(OTInventaire);
+                    this.delete(oTInventaire);
                 }
 
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
@@ -1356,42 +1347,48 @@ public class InventaireManager extends bllBase {
 
     public long createInventaireFamille(String lg_FAMILLE_ID, String LG_INVENTAIRE_ID, String lg_FAMILLEARTICLE_ID,
             String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String str_BEGIN, String str_END, int bool_INVENTAIRE,
-            String str_TYPE) {
+            String str_TYPE, String stockFilter, Integer stockProduit) {
         long count = 0;
         String lg_EMPLACEMENT_ID = this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         String lg_TYPE_STOCK = "1";
         if (!lg_EMPLACEMENT_ID.equals("1")) {
             lg_TYPE_STOCK = "3";
         }
-        String query = " CALL `proc_inentaire`('" + lg_FAMILLE_ID + "','" + lg_EMPLACEMENT_ID + "','" + lg_GROSSISTE_ID
+        if (stockProduit == null) {
+            stockFilter = "ALL";
+        }
+        String query = " CALL `proc_inventaire`('" + lg_FAMILLE_ID + "','" + lg_EMPLACEMENT_ID + "','" + lg_GROSSISTE_ID
                 + "','" + lg_FAMILLEARTICLE_ID + "','" + lg_TYPE_STOCK + "','" + lg_ZONE_GEO_ID + "','"
-                + LG_INVENTAIRE_ID + "'," + bool_INVENTAIRE + ")";
+                + LG_INVENTAIRE_ID + "'," + bool_INVENTAIRE + ",'" + stockFilter + "'," + stockProduit + "    )";
 
         if (!"".equals(str_BEGIN)) {
             switch (str_TYPE) {
             case "Famille":
 
-                query = "CALL `proc_inentaire_famille_twocriteria` ('" + str_BEGIN + "','" + str_END + "','"
-                        + lg_EMPLACEMENT_ID + "','" + lg_TYPE_STOCK + "','" + LG_INVENTAIRE_ID + "')";
+                query = "CALL `proc_inventaire_famille_twocriteria` ('" + str_BEGIN + "','" + str_END + "','"
+                        + lg_EMPLACEMENT_ID + "','" + lg_TYPE_STOCK + "','" + LG_INVENTAIRE_ID + "'" + ",'"
+                        + stockFilter + "'," + stockProduit + " )";
 
                 break;
             case "Emplacement":
 
-                query = "CALL `proc_inentaire_zone_twocriteria` ('" + str_BEGIN + "','" + str_END + "','"
-                        + lg_EMPLACEMENT_ID + "','" + lg_TYPE_STOCK + "','" + LG_INVENTAIRE_ID + "')";
+                query = "CALL `proc_inventaire_zone_twocriteria` ('" + str_BEGIN + "','" + str_END + "','"
+                        + lg_EMPLACEMENT_ID + "','" + lg_TYPE_STOCK + "','" + LG_INVENTAIRE_ID + "'" + ",'"
+                        + stockFilter + "'," + stockProduit + " )";
 
                 break;
             case "Grossiste":
 
-                query = "CALL `proc_inentaire_grossiste_twocriteria` ('" + str_BEGIN + "','" + str_END + "','"
-                        + lg_EMPLACEMENT_ID + "','" + lg_TYPE_STOCK + "','" + LG_INVENTAIRE_ID + "')";
+                query = "CALL `proc_inventaire_grossiste_twocriteria` ('" + str_BEGIN + "','" + str_END + "','"
+                        + lg_EMPLACEMENT_ID + "','" + lg_TYPE_STOCK + "','" + LG_INVENTAIRE_ID + "'" + ",'"
+                        + lg_GROSSISTE_ID + "'," + ",'" + stockFilter + "'," + stockProduit + " )";
 
                 break;
 
             }
 
         }
-        // System.out.println("queryquery "+query);
+
         try {
             Object result = this.getOdataManager().getEm().createNativeQuery(query).getSingleResult();
             count = Long.valueOf(result + "");

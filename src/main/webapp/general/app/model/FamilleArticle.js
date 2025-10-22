@@ -33,5 +33,14 @@ Ext.define('testextjs.model.FamilleArticle', {
             name: 'dt_UPDATED',
             type: 'string'
         }
+        ,
+        {
+            name: 'id',
+            type: 'string'
+        },
+        {
+            name: 'libelle',
+            type: 'string'
+        }
     ]
 });

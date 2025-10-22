@@ -2185,14 +2185,24 @@ public class GroupeTierspayantController implements Serializable {
         return isOk;
     }
 
-    public JSONObject getReleveFacture(String dt_start, String dt_end, String search, String lgTP) {
+    public JSONObject getReleveFacture(String dt_start, String dt_end, String search, String lgTP, boolean paid,
+            boolean all) {
         JSONObject json = new JSONObject();
         EntityManager em = null;
         try {
 
+            String impayerClause = " ";
+            if (!all) {
+                if (paid) {
+                    impayerClause = " AND o.dblMONTANTRESTANT = 0 ";
+                } else {
+                    impayerClause = " AND o.dblMONTANTRESTANT >0 ";
+                }
+            }
+
             em = getEntityManager();
 
-            String query = "SELECT SUM(o.dblMONTANTRESTANT),SUM(o.dblMONTANTCMDE),SUM(o.dblMONTANTPAYE) FROM TFacture o,TTiersPayant p WHERE  FUNCTION('DATE',o.dtCREATED)>= FUNCTION('DATE',?3) AND FUNCTION('DATE',o.dtCREATED)<=FUNCTION('DATE',?4) AND  p.lgTIERSPAYANTID=o.strCUSTOMER ";
+            String query = "SELECT SUM(o.dblMONTANTRESTANT),SUM(o.dblMONTANTCMDE),SUM(o.dblMONTANTPAYE) FROM TFacture o JOIN  o.tiersPayant tp  JOIN   o.tFactureDetailCollection fd WHERE  FUNCTION('DATE',o.dtCREATED) BETWEEN ?3 AND ?4  ";
 
             if (!"".equals(lgTP)) {
                 query += "AND o.strCUSTOMER LIKE ?1 ";
@@ -2200,6 +2210,7 @@ public class GroupeTierspayantController implements Serializable {
             if (!"".equals(search)) {
                 query += "AND (p.strFULLNAME LIKE ?2 OR p.strNAME LIKE ?2 OR p.strNUMEROCAISSEOFFICIEL LIKE ?2)";
             }
+            query += impayerClause;
             Query q = em.createQuery(query);
             q.setParameter(3, dt_start);
             q.setParameter(4, dt_end);
@@ -2224,9 +2235,7 @@ public class GroupeTierspayantController implements Serializable {
             });
 
         } finally {
-            if (em != null) {
 
-            }
         }
         return json;
     }
@@ -2242,7 +2251,7 @@ public class GroupeTierspayantController implements Serializable {
         TGroupeTierspayant g = em.find(TGroupeTierspayant.class, lgGRP);
 
         String CODEFACTURE = OParameters.getStrVALUE();
-        OParameters.setStrVALUE((Integer.valueOf(CODEFACTURE) + 1) + "");
+        OParameters.setStrVALUE((Integer.parseInt(CODEFACTURE) + 1) + "");
         em.merge(OParameters);
         payants.forEach((p) -> {
 

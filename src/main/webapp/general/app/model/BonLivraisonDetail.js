@@ -208,10 +208,23 @@ Ext.define('testextjs.model.BonLivraisonDetail', {
             name: 'existLots',
             type: 'boolean'
         }
-        
+
         ,
         {
             name: 'freeQty',
+            type: 'number'
+        },
+        {
+            name: 'datePeremption',
+            type: 'string'
+        },
+        {
+            name: 'lots',
+            type: 'string'
+        }
+        ,
+        {
+            name: 'quantiteSaisie',
             type: 'number'
         }
     ]

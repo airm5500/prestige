@@ -366,8 +366,6 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
             Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
-            // Join<TPreenregistrementDetail, TPreenregistrement> st = root.join("lgPREENREGISTREMENTID",
-            // JoinType.INNER);
             cq.select(root).orderBy(cb.asc(root.get(TPreenregistrement_.dtUPDATED)));
             listePreenregistrement(params, cb, root, predicates);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
@@ -418,33 +416,6 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return getEntityManager().createQuery(
                 "SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 ")
                 .setParameter(1, idVente).getResultList();
-    }
-
-    private void deleteItemsBulk(String venteId) {
-        try {
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaDelete<TPreenregistrementDetail> cq = cb.createCriteriaDelete(TPreenregistrementDetail.class);
-            Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            cq.where(cb.equal(root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID).get("lgPREENREGISTREMENTID"),
-                    venteId));
-            getEntityManager().createQuery(cq).executeUpdate();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-        }
-    }
-
-    private void deletePrixReferenceByVenteId(String venteId) {
-        try {
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaDelete<PrixReferenceVente> cq = cb.createCriteriaDelete(PrixReferenceVente.class);
-            Root<PrixReferenceVente> root = cq.from(PrixReferenceVente.class);
-            cq.where(cb.equal(root.get(PrixReferenceVente_.preenregistrementDetail)
-                    .get(TPreenregistrementDetail_.lgPREENREGISTREMENTID)
-                    .get(TPreenregistrement_.lgPREENREGISTREMENTID), venteId));
-            getEntityManager().createQuery(cq).executeUpdate();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-        }
     }
 
     public void updateItemsBulk(String venteId, String statut) {
@@ -2273,6 +2244,11 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         v.setLgPREENREGISTREMENTID(t.get("id", String.class));
         v.setStrREF(t.get("ref", String.class));
         v.setIntPRICE(t.get("montant", Integer.class));
+        v.setIntPRICEREMISE(t.get("discount", Integer.class));
+        v.setStrREFTICKET(t.get("transactionNumber", String.class));
+        v.setLgTYPEVENTEID(t.get("typeVenteId", String.class));
+        v.setStrSTATUT(t.get("statut", String.class));
+        v.setLgREMISEID(t.get("remiseId", String.class));
         v.setDtUPDATED(t.get("dateVente", String.class));
         v.setHeure(t.get("heureVente", String.class));
         v.setStrTYPEVENTE(t.get("typeVente", String.class));
@@ -2333,7 +2309,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return query;
     }
 
-    private final String preventeSql = "SELECT p.lg_PREENREGISTREMENT_ID AS id, p.str_REF AS ref,p.int_PRICE AS montant,DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y') AS dateVente,DATE_FORMAT(p.dt_UPDATED, '%H:%i') AS heureVente, p.str_TYPE_VENTE AS typeVente,CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeur FROM  t_preenregistrement p JOIN t_preenregistrement_detail dd ON dd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID {user_join} WHERE p.str_STATUT IN(?1) AND p.lg_NATURE_VENTE_ID <> '3' AND DATE(p.dt_UPDATED)=DATE(NOW()) ";
+    private final String preventeSql = "SELECT p.lg_PREENREGISTREMENT_ID AS id, p.str_REF AS ref,p.int_PRICE AS montant,DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y') AS dateVente,DATE_FORMAT(p.dt_UPDATED, '%H:%i:%s') AS heureVente, p.str_TYPE_VENTE AS typeVente,CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeur,p.int_PRICE_REMISE AS  discount,p.remise AS remiseId,p.str_REF_TICKET AS transactionNumber,p.lg_TYPE_VENTE_ID AS typeVenteId,p.str_STATUT AS statut FROM  t_preenregistrement p JOIN t_preenregistrement_detail dd ON dd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID {user_join} WHERE p.str_STATUT IN(?1) AND p.lg_NATURE_VENTE_ID <> '3' AND DATE(p.dt_UPDATED)=DATE(NOW()) ";
     private final String userJoin = " JOIN t_user u ON u.lg_USER_ID=p.lg_USER_ID ";
     private final String emplacementClose = " AND u.lg_EMPLACEMENT_ID='%s' ";
     private final String userClose = " AND p.lg_USER_ID='%s' ";

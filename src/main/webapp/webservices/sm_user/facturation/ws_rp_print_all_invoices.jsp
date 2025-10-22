@@ -288,7 +288,8 @@
                         report_generate_file = key.GetNumberRandom();
 
                         report_generate_file = report_generate_file + ".pdf";
-                        parameters.put("LGCMP", idCMP.get("idcmp"));
+                        parameters.put("DATE_MVT", idCMP.get("dateMvt"));
+                         parameters.put("LGCMP", idCMP.get("idcmp"));
                         parameters.put("DATEFACT", dateFact);
                         parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
                         parameters.put("P_CLIENT_NAME", idCMP.get("strFIRSTNAME"));

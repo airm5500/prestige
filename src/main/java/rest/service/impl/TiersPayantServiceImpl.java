@@ -212,7 +212,8 @@ public class TiersPayantServiceImpl implements TiersPayantService {
         return data;
     }
 
-    private int getAccount(String tp) {
+    @Override
+    public int getAccount(String tp) {
 
         try {
 

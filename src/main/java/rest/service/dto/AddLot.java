@@ -15,6 +15,7 @@ public class AddLot {
     private String dateUsine;
     private String datePeremption;
     private boolean directImport;
+    private boolean onlyFreeQty;
 
     public int getQty() {
         return qty;
@@ -70,6 +71,14 @@ public class AddLot {
 
     public void setDatePeremption(String datePeremption) {
         this.datePeremption = datePeremption;
+    }
+
+    public boolean isOnlyFreeQty() {
+        return onlyFreeQty;
+    }
+
+    public void setOnlyFreeQty(boolean onlyFreeQty) {
+        this.onlyFreeQty = onlyFreeQty;
     }
 
     public boolean isDirectImport() {

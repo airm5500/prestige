@@ -5,7 +5,6 @@ import bll.configManagement.familleGrossisteManagement;
 import bll.configManagement.familleManagement;
 import bll.configManagement.grossisteManagement;
 import bll.entity.EntityData;
-import bll.gateway.outService.ServicesUpdatePriceFamille;
 import bll.preenregistrement.Preenregistrement;
 import bll.teller.SnapshotManager;
 import bll.warehouse.WarehouseManager;
@@ -28,15 +27,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.StringUtils;
@@ -570,13 +565,9 @@ public class suggestionManagement extends bllBase {
                     Description += "Prix TIP: " + int_PRICE_TIPS_OLD + " remplacé par " + int_PRICE_TIPS + ".";
                 }
                 List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList<>();
-                ServicesUpdatePriceFamille OService = new ServicesUpdatePriceFamille(this.getOdataManager(),
-                        this.getOTUser());
+
                 lstTAlertEventUserFone = OfamilleManagement.getTAlertEventUserFone("N_UPDATE_FAMILLE_PRICE");
-                for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
-                    OService.saveNotification(Description, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(),
-                            this.getKey().getComplexId());
-                }
+
                 result = true;
                 this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
 

@@ -6,6 +6,7 @@ import dal.TCompteClientTiersPayant;
 import dal.TFacture;
 import dal.TFactureDetail;
 import dal.TOfficine;
+import dal.TPreenregistrementCompteClientTiersPayent;
 import dal.TTiersPayant;
 import dal.TUser;
 import java.util.logging.Level;
@@ -26,6 +27,7 @@ import rest.service.SessionHelperService;
 import rest.service.exception.FneExeception;
 import util.Constant;
 import util.AppParameters;
+import util.DateUtil;
 
 /**
  *
@@ -54,7 +56,6 @@ public class FneServiceImpl implements FneService {
 
     private void createInvoice(TFacture facture) throws FneExeception {
         TOfficine officine = getOfficine();
-
         Client client = getHttpClient();
         JSONObject payload = new JSONObject(buildFromFacture(facture, officine));
         WebTarget myResource = client.target(sp.fneUrl);
@@ -71,41 +72,31 @@ public class FneServiceImpl implements FneService {
     }
 
     private FneInvoice buildFromFacture(TFacture facture, TOfficine officine) {
-        TUser user = this.sessionHelperService.getCurrentUser();
+
         TTiersPayant tTiersPayant = facture.getTiersPayant();
         FneInvoice fneInvoice = new FneInvoice();
         fneInvoice.setEstablishment(officine.getStrNOMCOMPLET());
         fneInvoice.setClientCompanyName(tTiersPayant.getStrFULLNAME());
         fneInvoice.setClientEmail(tTiersPayant.getStrMAIL());
         fneInvoice.setClientPhone(tTiersPayant.getStrTELEPHONE());
-        fneInvoice.setClientSellerName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME());
         fneInvoice.setPointOfSale(sp.fnepointOfSale);
         fneInvoice.setClientNcc(tTiersPayant.getStrCOMPTECONTRIBUABLE());
-
-        facture.getTFactureDetailCollection()
-                .forEach(t -> fneInvoice.getItems().add(buildFrom(t, tTiersPayant.getLgTIERSPAYANTID())));
+        facture.getTFactureDetailCollection().forEach(t -> fneInvoice.getItems().add(buildFrom(t)));
         return fneInvoice;
     }
 
-    private FneInvoiceItem buildFrom(TFactureDetail d, String idTp) {
+    private FneInvoiceItem buildFrom(TFactureDetail d) {
         TClient client = d.getClient();
-        TCompteClientTiersPayant clientTiersPayant = getClientTiersPayant(client.getLgCLIENTID(), idTp);
+        TPreenregistrementCompteClientTiersPayent clientTiersPayent = em
+                .find(TPreenregistrementCompteClientTiersPayent.class, d.getStrREF());
+
         FneInvoiceItem invoiceItem = new FneInvoiceItem();
         invoiceItem.setAmount(d.getDblMONTANT().intValue());
         invoiceItem.setDescription(client.getStrFIRSTNAME() + " " + client.getStrLASTNAME());
-        invoiceItem.setReference(clientTiersPayant.getStrNUMEROSECURITESOCIAL());
+        invoiceItem.setReference(clientTiersPayent.getStrREFBON());
+        invoiceItem.setMeasurementUnit(DateUtil.convertDateToDD_MM_YYYY(clientTiersPayent.getDtUPDATED()));
         return invoiceItem;
 
-    }
-
-    private TCompteClientTiersPayant getClientTiersPayant(String idClient, String idTp) {
-        TypedQuery<TCompteClientTiersPayant> query = em.createQuery(
-                "SELECT o FROM  TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 AND o.lgTIERSPAYANTID.lgTIERSPAYANTID=?2",
-                TCompteClientTiersPayant.class);
-        query.setParameter(1, idClient);
-        query.setParameter(2, idTp);
-        query.setMaxResults(1);
-        return query.getSingleResult();
     }
 
     private Client getHttpClient() {

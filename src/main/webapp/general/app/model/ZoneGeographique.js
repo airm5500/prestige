@@ -36,6 +36,15 @@ Ext.define('testextjs.model.ZoneGeographique', {
             type: 'boolean',
             defaultValue: false
         }
-
+        ,
+        {
+            name: 'id',
+            type: 'string'
+        },
+        {
+            name: 'libelle',
+            type: 'string'
+        }
+  	
     ]
 });

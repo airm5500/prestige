@@ -84,8 +84,8 @@ Ext.define('testextjs.view.produits.ProduitDesactives', {
                             emptyText: 'Recherche'
                         }, '-',
                         {
-                            text: 'rechercher',
-                            tooltip: 'rechercher',
+                            text: 'Rechercher',
+                            tooltip: 'Rechercher',
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
@@ -156,7 +156,7 @@ Ext.define('testextjs.view.produits.ProduitDesactives', {
                         },
                         
                         {
-                            header: "date",
+                            header: "Date",
                          
                              align: 'right',
                             sortable: false,

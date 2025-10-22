@@ -36,6 +36,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.CommandeService;
 import rest.service.OrderService;
+import rest.service.dto.AddCheckedQuantity;
 import rest.service.dto.AddLot;
 import rest.service.dto.CommandeCsvDTO;
 import rest.service.dto.CommandeFiltre;
@@ -62,20 +63,15 @@ public class CommandeRessource {
     @PUT
     @Path("validerbl/{id}")
     public Response cloturerBonLivration(@PathParam("id") String id) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
-        JSONObject json = commandeService.cloturerBonLivraison(id, tu);
-        return Response.ok().entity(json.toString()).build();
+        return Response.ok().entity(commandeService.cloturerBonLivraison(id).toString()).build();
     }
 
     @PUT
     @Path("clotureinventaire/{id}")
     public Response cloturerInventaire(@PathParam("id") String id) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
-        JSONObject json = commandeService.cloturerInvetaire(id, tu);
+        JSONObject json = commandeService.cloturerInvetaire(id);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -90,10 +86,7 @@ public class CommandeRessource {
     @POST
     @Path("creerbl")
     public Response creerBl(Params params) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
-        params.setOperateur(tu);
         JSONObject json = orderService.creerBonLivraison(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -151,7 +144,7 @@ public class CommandeRessource {
 
     @GET
     @Path("list")
-    public Response findAll(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+    public Response fetchAll(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "query") String query) {
 
         return Response.ok().entity(this.orderService
@@ -281,9 +274,13 @@ public class CommandeRessource {
 
     @GET
     @Path("list-bons")
-    public Response getListBons(@QueryParam(value = "query") String query) throws JSONException {
+    public Response getListBons(@QueryParam(value = "query") String query, @QueryParam(value = "start") int start,
+            @DefaultValue("100") @QueryParam(value = "limit") int limit, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd,
+            @DefaultValue("enable") @QueryParam(value = "statut") String statut) throws JSONException {
 
-        return Response.ok().entity(orderService.getListBons(Constant.STATUT_ENABLE, query).toString()).build();
+        return Response.ok().entity(orderService.getListBons(statut, query, start, limit, dtStart, dtEnd).toString())
+                .build();
     }
 
     @DELETE
@@ -299,10 +296,12 @@ public class CommandeRessource {
     public Response getBonItems(@PathParam("id") String id, @QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit, @DefaultValue("") @QueryParam(value = "query") String query,
             @DefaultValue("ALL") @QueryParam(value = "filtre") EntreeStockDetailFiltre filtre,
-            @DefaultValue("false") @QueryParam(value = "checkDatePeremption") Boolean checkDatePeremption) {
+            @DefaultValue("false") @QueryParam(value = "checkDatePeremption") Boolean checkDatePeremption,
+            @QueryParam(value = "sort") String sort, @QueryParam(value = "dir") String dir) {
 
-        return Response.ok().entity(
-                orderService.getListBonsDetails(id, query, start, limit, filtre, checkDatePeremption).toString())
+        return Response
+                .ok().entity(orderService
+                        .getListBonsDetails(id, query, start, limit, filtre, checkDatePeremption, sort, dir).toString())
                 .build();
     }
 
@@ -331,5 +330,26 @@ public class CommandeRessource {
                 .ok().entity(orderService
                         .getListBonsDetailsByProduits(id, search, dtStart, dtEnd, start, limit, grossisteId).toString())
                 .build();
+    }
+
+    @POST
+    @Path("add-free-qty")
+    public Response addFreeQty(AddLot addLot) {
+
+        return Response.ok(this.orderService.addFreeQty(addLot).toString()).build();
+    }
+
+    @POST
+    @Path("item/checked-quantities")
+    public Response addCheckedQuantity(AddCheckedQuantity addCheckedQuantity) {
+        this.orderService.addCheckedQuantity(addCheckedQuantity);
+        return Response.accepted().build();
+    }
+
+    @POST
+    @Path("bon/items/checked-quantities")
+    public Response addBonItemCheckedQuantity(AddCheckedQuantity addCheckedQuantity) {
+        this.orderService.addBonItemCheckedQuantity(addCheckedQuantity);
+        return Response.accepted().build();
     }
 }

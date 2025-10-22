@@ -5,6 +5,7 @@
  */
 package commonTasks.dto;
 
+import dal.PrixReferenceType;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,9 +33,9 @@ public class MontantAPaye implements Serializable {
     private int montantTvaUg = 0;
     private int cmuAmount = 0;
     private List<MontantTp> montantTierspayants = new ArrayList<>();
-    private boolean prixReference;
-    private boolean taux;
-    private int tiersPayantBaseAmount;// montant de reference + montant de produt sans prix de reference
+
+    private PrixReferenceType type;
+    private int tiersPayantBaseAmount;// montant de reference + montant de produit sans prix de reference
 
     public boolean isRestructuring() {
         return restructuring;
@@ -46,6 +47,14 @@ public class MontantAPaye implements Serializable {
 
     public void setTiersPayantBaseAmount(int tiersPayantBaseAmount) {
         this.tiersPayantBaseAmount = tiersPayantBaseAmount;
+    }
+
+    public PrixReferenceType getType() {
+        return type;
+    }
+
+    public void setType(PrixReferenceType type) {
+        this.type = type;
     }
 
     public int getCmuAmount() {
@@ -224,22 +233,6 @@ public class MontantAPaye implements Serializable {
     public MontantAPaye montantTvaUg(int montantTvaUg) {
         this.montantTvaUg = montantTvaUg;
         return this;
-    }
-
-    public boolean isPrixReference() {
-        return prixReference;
-    }
-
-    public void setPrixReference(boolean prixReference) {
-        this.prixReference = prixReference;
-    }
-
-    public boolean isTaux() {
-        return taux;
-    }
-
-    public void setTaux(boolean taux) {
-        this.taux = taux;
     }
 
 }

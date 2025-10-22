@@ -5,6 +5,7 @@
  */
 package rest.service;
 
+import commonTasks.dto.AddLot;
 import commonTasks.dto.ArticleDTO;
 import commonTasks.dto.VenteDetailsDTO;
 import dal.TUser;
@@ -15,6 +16,7 @@ import javax.ejb.Local;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.dto.UpdateProduit;
 
 /**
  *
@@ -44,13 +46,13 @@ public interface FicheArticleService {
             String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil, int start, int limit,
             boolean all);
 
-    Date dateDerniereVente(String idProduit, String empl);
+    Date getDateDerniereVente(String idProduit, String empl);
 
-    Date dateEntreeStock(String idProduit);
+    Date getDateEntreeStock(String idProduit);
 
-    Date dateBonLivraison(String idProduit);
+    Date getDateBonLivraison(String idProduit);
 
-    Date dateInventaire(String idProduit, String empl);
+    Date getDateInventaire(String idProduit, String empl);
 
     List<VenteDetailsDTO> produitConsomamation(TUser u, String query, String dtStart, String dtEnd, String id);
 
@@ -67,4 +69,8 @@ public interface FicheArticleService {
 
     List<VenteDetailsDTO> saisiePerimes(String query, String dtStart, String dtEnd, String codeFamile, String codeRayon,
             String codeGrossiste, Integer grouby, int start, int limit, boolean all);
+
+    void addLot(AddLot addLot);
+
+    void updateProduitLiteInfo(UpdateProduit updateProduit);
 }

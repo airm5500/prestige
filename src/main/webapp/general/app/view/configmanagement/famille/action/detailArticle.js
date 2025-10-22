@@ -107,9 +107,25 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         });
 
         var store_order = new Ext.data.Store({
-            model: 'testextjs.model.FamilleStock',
+            // Le modèle est maintenant défini directement dans le store pour plus de clarté
+            fields: [
+                // On spécifie que ce sont des dates et on indique leur format
+                {name: 'dt_ENTREE', type: 'date', dateFormat: 'd/m/Y H:i'},
+                {name: 'dt_PEREMPTION', type: 'date', dateFormat: 'd/m/Y'},
+
+                // Le reste des champs de ton modèle
+                {name: 'int_NUM_LOT', type: 'string'},
+                {name: 'lg_GROSSISTE_ID', type: 'string'},
+                {name: 'int_NUMBER', type: 'int'},
+                {name: 'int_STOCK_REAPROVISONEMENT', type: 'int'},
+                {name: 'int_VALUE2', type: 'int'}
+            ],
             pageSize: itemsPerPage,
             autoLoad: true,
+            sorters: [{
+                    property: 'dt_PEREMPTION',
+                    direction: 'ASC' // Tri ascendant (du plus ancien au plus récent)
+                }],
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/commande/produit/commande/' + ref,
@@ -361,7 +377,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     maxValue: 13,
                                     emptyText: 'TVA',
                                     name: 'str_CODE_TVA',
-                                    id: 'str_CODE_TVA'
+                                    id: 'str_CODE_TVA',
+                                    fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 }, {
                                     fieldLabel: 'Quantite.Detail/Article',
                                     width: 400,
@@ -369,14 +386,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     emptyText: 'Quantite.Detail/Article',
                                     name: 'int_QTEDETAIL',
                                     id: 'int_QTEDETAIL',
+                                    fieldStyle: "color:orange;font-weight:bold;font-size:1.5em",
                                     value: 0
                                 }, {
                                     xtype: 'displayfield',
                                     fieldLabel: 'Stock',
+                                    labelStyle: 'color: brown;font-size: 20px',
 //                                    labelWidth: 110,
                                     name: 'int_NUMBER_AVAILABLE',
                                     id: 'int_NUMBER_AVAILABLE',
-                                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
+                                    fieldStyle: "color:brown;font-weight:bold;font-size:1.5em;font-size: 20px",
 //                                    margin: '0 12 0 0',
                                     width: 400,
                                     value: 0
@@ -401,7 +420,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     width: 400,
                                     emptyText: 'Date dernier.BL',
                                     name: 'dt_DATE_LIVRAISON',
-                                    id: 'dt_DATE_LIVRAISON'
+                                    id: 'dt_DATE_LIVRAISON',
+                                    fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 },
                                 {
                                     xtype: 'container',
@@ -436,20 +456,23 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     width: 400,
                                     emptyText: 'Date derniere.Vente',
                                     name: 'dt_LAST_VENTE',
-                                    id: 'dt_LAST_VENTE'
+                                    id: 'dt_LAST_VENTE',
+                                    fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 }, {
                                     fieldLabel: 'Date derniere.Entr&eacute;e',
                                     width: 400,
                                     emptyText: 'Date derniere.Entree',
                                     name: 'dt_LAST_ENTREE',
-                                    id: 'dt_LAST_ENTREE'
+                                    id: 'dt_LAST_ENTREE',
+                                    fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 }
                                 , {
                                     fieldLabel: 'Date dernier.Inventaire',
                                     width: 400,
                                     emptyText: 'Date dernier.Inventaire',
                                     name: 'dt_LAST_INVENTAIRE',
-                                    id: 'dt_LAST_INVENTAIRE'
+                                    id: 'dt_LAST_INVENTAIRE',
+                                    fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 }]
                         }
                     ]
@@ -478,7 +501,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 }, {
                                     header: 'Reference',
                                     dataIndex: 'str_CODE_TVA',
-                                    flex: 1
+                                    flex: 1,
+                                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em"
                                 }, {
                                     header: 'Quantite',
                                     dataIndex: 'int_NUMBER',
@@ -603,16 +627,20 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             margin: '0 0 5 0',
                             store: store_order,
                             height: 200,
-                            columns: [
-                                {
+                            columns: [{
                                     header: 'Date entrée',
                                     dataIndex: 'dt_ENTREE',
-                                    flex: 1
-                                },
-                                {
+                                    flex: 1,
+                                    sortable: true,
+                                    xtype: 'datecolumn',
+                                    format: 'd/m/Y H:i'
+                                }, {
                                     header: 'Date BL',
                                     dataIndex: 'dt_PEREMPTION',
-                                    flex: 1
+                                    flex: 1,
+                                    sortable: true,
+                                    xtype: 'datecolumn',
+                                    format: 'd/m/Y'
                                 },
 
                                 {

@@ -24,7 +24,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
     title: 'Gestion des inventaires',
     plain: true,
     maximizable: true,
-//    tools: [{type: "pin"}],
     closable: false,
     frame: true,
     initComponent: function() {
@@ -46,7 +45,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                 }
             }
 
-        }); 
+        });
 
         var store_type = new Ext.data.Store({
             fields: ['str_TYPE', 'str_STATUT_TRANSACTION'],
@@ -54,23 +53,20 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         });
 
 
-        this.cellEditing = new Ext.grid.plugin.CellEditing({
-            clicksToEdit: 1
-        });
+       
 
 
         Ext.apply(this, {
             width: '98%',
             height: 580,
-            plugins: [this.cellEditing],
+          
             store: store,
             id: 'GridInventaireID',
             columns: [{
                     xtype: 'rownumberer',
                     text: 'Num.Ligne',
                     width: 45,
-                    sortable: true/*,
-                     locked: true*/
+                    sortable: true
                 }, {
                     header: 'lg_INVENTAIRE_ID',
                     dataIndex: 'lg_INVENTAIRE_ID',
@@ -81,11 +77,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     dataIndex: 'str_NAME',
                     flex: 1
                 },
-                {
-                    header: 'Commentaire',
-                    dataIndex: 'str_DESCRIPTION',
-                    flex: 1
-                },
+               
                 {
                     header: 'Utilisateur',
                     dataIndex: 'lg_USER_ID',
@@ -110,13 +102,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             scope: this,
                             handler: this.onAddArticleClick,
                             getClass: function(value, metadata, record) {
-                                if (record.get('etat') == "is_Closed") {  //read your condition from the record
-                                    return 'x-hide-display'; //cache l'icone
+                                if (record.get('etat') == "is_Closed") {
+                                    return 'x-hide-display';
                                 } else {
-                                    if (record.get('str_TYPE') == "unitaire") {  //read your condition from the record
-                                        return 'x-display-hide'; //affiche l'icone
+                                    if (record.get('str_TYPE') == "unitaire") {
+                                        return 'x-display-hide';
                                     } else {
-                                        return 'x-hide-display'; //cache l'icone
+                                        return 'x-hide-display';
                                     }
                                 }
 
@@ -129,15 +121,39 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
+                        icon: 'resources/images/icons/fam/chart_bar.png', // Nouvelle icône
+                        tooltip: 'Effectuer une analyse avancée',
+                        scope: this,
+                        handler: this.onAnalyseAvanceeClick
+                    }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                        icon: 'resources/images/icons/fam/application_view_list.png',
+                        tooltip: 'Effectuer une analyse simple',
+                        scope: this,
+                        handler: this.onAnalyseClick // Garde l'ancienne analyse
+                    }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
                             icon: 'resources/images/icons/fam/paste_plain.png',
                             tooltip: 'Editer un inventaire',
                             scope: this,
                             handler: this.onEditClick,
                             getClass: function(value, metadata, record) {
-                                if (record.get('etat') == "enable") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                if (record.get('etat') == "enable") {
+                                    return 'x-display-hide';
                                 } else {
-                                    return 'x-hide-display'; //cache l'icone
+                                    return 'x-hide-display';
                                 }
                             }
                         }]
@@ -178,10 +194,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             scope: this,
                             handler: this.onbtnprint,
                             getClass: function(value, metadata, record) {
-                                if (record.get('etat') == "is_Closed") {  //read your condition from the record
-                                    return 'x-display-hide'; //affiche l'icone
+                                if (record.get('etat') == "is_Closed") {
+                                    return 'x-display-hide';
                                 } else {
-                                    return 'x-hide-display'; //cache l'icone
+                                    return 'x-hide-display';
                                 }
                             }
                         }]
@@ -209,7 +225,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     displayField: 'str_TYPE',
                     typeAhead: true,
                     queryMode: 'remote',
-//                    flex: 0.5,
                     emptyText: 'Type...',
                     listeners: {
                         select: function(cmp) {
@@ -223,7 +238,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
-                store: store, // same store GridPanel is using
+                store: store,
                 dock: 'bottom',
                 displayInfo: true
             }
@@ -251,7 +266,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                 'Confirmation de l\'impression de la fiche d\'inventaire',
                 function(btn) {
                     if (btn == 'yes') {
-                      
+                       
                         var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=final";
                           window.open(linkUrl);
                         return;
@@ -265,7 +280,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         var tableau = chaine.split(reg);
         var sitename = tableau[1];
         var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + lg_INVENTAIRE_ID + "&str_NAME_FILE=final";
-        //alert("Ok ca marche " + linkUrl);
         window.open(linkUrl);
 
     },
@@ -300,17 +314,32 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         });
 
     },
+    // DEBUT DE LA NOUVELLE FONCTION
+    onAnalyseClick: function(grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        Ext.create('testextjs.view.stockmanagement.inventaire.action.AnalyseInventaire', {
+            odatasource: rec.data,
+            titre: 'Analyse de l\'inventaire : ' + rec.get('str_NAME')
+        }).show();
+    },
+
+    onAnalyseAvanceeClick: function(grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        Ext.create('testextjs.view.stockmanagement.inventaire.action.AnalyseAvancee', {
+            odatasource: rec.data
+            
+        }).show();
+    },
+    // FIN DE LA NOUVELLE FONCTION
     onEditClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
         var xtype = "editinventaireManager";
-//        alert('xtype '+xtype);
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Modification de la fiche d'inventaire", rec.get('lg_INVENTAIRE_ID'), rec.data);
     },
     onDetailClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
         var xtype = "detailinventaireManager";
-//        alert('xtype '+xtype);
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Detail de la fiche d'inventaire", rec.get('lg_INVENTAIRE_ID'), rec.data);
     },
@@ -331,7 +360,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             {
                                 testextjs.app.getController('App').StopWaitingProcess();
                                 var object = Ext.JSON.decode(response.responseText, false);
-//                                alert(object.code_statut + "|" + object.desc_satut);
                                 if (object.code_statut == "0") {
                                     Ext.MessageBox.alert('Error Message', object.desc_satut);
                                     return;
@@ -342,11 +370,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             },
                             failure: function(response)
                             {
-//                                 alert("non ok");
                                 testextjs.app.getController('App').StopWaitingProcess();
                                 var object = Ext.JSON.decode(response.responseText, false);
-                                //  alert(object);
-
                                 console.log("Bug " + response.responseText);
                                 Ext.MessageBox.alert('Error Message', response.responseText);
 

@@ -325,63 +325,55 @@ public class Balance {
         long P_VENTEDEPOT_ESPECE = 0, P_REGLEMENTDEPOT_MOBILE = 0, P_TOTAL_REGLEMENTDEPOT_CAISSE = 0,
                 P_TOTAL_VENTEDEPOT_CAISSE = 0, P_REGLEMENTDEPOT_ESPECE = 0, P_REGLEMENTDEPOT_CB = 0,
                 P_REGLEMENTDEPOT_CHEQUES = 0;
-        if (empl.getLgEMPLACEMENTID().equals(DateConverter.OFFICINE)) {
-            P_VENTEDEPOT_ESPECE = (-1) * caisseService.totalVenteDepot(dtSt, dtEn, empl.getLgEMPLACEMENTID());
-            P_TOTAL_VENTEDEPOT_CAISSE = P_VENTEDEPOT_ESPECE;
-            List<MvtTransaction> transactions = caisseService.venteDepot(dtSt, dtEn, true, empl.getLgEMPLACEMENTID());
-            if (!transactions.isEmpty()) {
-                LongAdder esp = new LongAdder();
-                LongAdder ch = new LongAdder();
-                LongAdder cb = new LongAdder();
-                LongAdder mobile = new LongAdder();
-                for (MvtTransaction de : transactions) {
-                    String typ = de.getReglement().getLgTYPEREGLEMENTID();
-                    switch (typ) {
-                    case DateConverter.MODE_ESP:
-                        esp.add(de.getMontantRegle());
-                        break;
-                    case DateConverter.MODE_CB:
-                        cb.add(de.getMontantRegle());
-                        break;
-                    case DateConverter.MODE_CHEQUE:
-                        ch.add(de.getMontantRegle());
-                        break;
-                    case DateConverter.MODE_MOOV:
-                    case DateConverter.TYPE_REGLEMENT_ORANGE:
-                    case DateConverter.MODE_MTN:
-                    case DateConverter.MODE_WAVE:
-                        mobile.add(de.getMontantRegle());
-                        break;
-                    default:
-                        break;
-                    }
-                }
-
-                P_REGLEMENTDEPOT_ESPECE = esp.longValue();
-                P_REGLEMENTDEPOT_CHEQUES = ch.longValue();
-                P_REGLEMENTDEPOT_CB = cb.longValue();
-                P_REGLEMENTDEPOT_MOBILE = mobile.longValue();
-                P_TOTAL_REGLEMENTDEPOT_CAISSE = P_REGLEMENTDEPOT_ESPECE + P_REGLEMENTDEPOT_CHEQUES + P_REGLEMENTDEPOT_CB
-                        + P_REGLEMENTDEPOT_MOBILE;
-            }
-        }
+        /*
+         * if (empl.getLgEMPLACEMENTID().equals(DateConverter.OFFICINE)) { P_VENTEDEPOT_ESPECE = (-1) *
+         * caisseService.totalVenteDepot(dtSt, dtEn, empl.getLgEMPLACEMENTID()); P_TOTAL_VENTEDEPOT_CAISSE =
+         * P_VENTEDEPOT_ESPECE; List<MvtTransaction> transactions = caisseService.venteDepot(dtSt, dtEn, true,
+         * empl.getLgEMPLACEMENTID()); if (!transactions.isEmpty()) { LongAdder esp = new LongAdder(); LongAdder ch =
+         * new LongAdder(); LongAdder cb = new LongAdder(); LongAdder mobile = new LongAdder(); for (MvtTransaction de :
+         * transactions) { String typ = de.getReglement().getLgTYPEREGLEMENTID(); switch (typ) { case
+         * DateConverter.MODE_ESP: esp.add(de.getMontantRegle()); break; case DateConverter.MODE_CB:
+         * cb.add(de.getMontantRegle()); break; case DateConverter.MODE_CHEQUE: ch.add(de.getMontantRegle()); break;
+         * case DateConverter.MODE_MOOV: case DateConverter.TYPE_REGLEMENT_ORANGE: case DateConverter.MODE_MTN: case
+         * DateConverter.MODE_WAVE: mobile.add(de.getMontantRegle()); break; default: break; } }
+         *
+         * P_REGLEMENTDEPOT_ESPECE = esp.longValue(); P_REGLEMENTDEPOT_CHEQUES = ch.longValue(); P_REGLEMENTDEPOT_CB =
+         * cb.longValue(); P_REGLEMENTDEPOT_MOBILE = mobile.longValue(); P_TOTAL_REGLEMENTDEPOT_CAISSE =
+         * P_REGLEMENTDEPOT_ESPECE + P_REGLEMENTDEPOT_CHEQUES + P_REGLEMENTDEPOT_CB + P_REGLEMENTDEPOT_MOBILE; } }
+         */
         String P_VENTEDEPOT_LABEL = "Ventes aux dépôts extensions",
                 P_REGLEMENTDEPOT_LABEL = "Règlement des ventes des dépôts";
         P_VENTEDEPOT_LABEL = (P_TOTAL_VENTEDEPOT_CAISSE != 0 ? P_VENTEDEPOT_LABEL : "");
         P_REGLEMENTDEPOT_LABEL = (P_TOTAL_REGLEMENTDEPOT_CAISSE > 0 ? P_REGLEMENTDEPOT_LABEL : "");
 
         parameters.put("P_VENTEDEPOT_LABEL", P_VENTEDEPOT_LABEL);
-        parameters.put("P_VENTEDEPOT_ESPECE", DateConverter.amountFormat(P_VENTEDEPOT_ESPECE, ' '));
+        parameters.put("P_VENTEDEPOT_ESPECE", "0");
         parameters.put("P_VENTEDEPOT_CHEQUES", "0");
         parameters.put("P_VENTEDEPOT_CB", "0");
-        parameters.put("P_TOTAL_VENTEDEPOT_CAISSE", DateConverter.amountFormat(P_TOTAL_VENTEDEPOT_CAISSE, ' '));
+        parameters.put("P_TOTAL_VENTEDEPOT_CAISSE", "0");
 
         parameters.put("P_REGLEMENTDEPOT_LABEL", P_REGLEMENTDEPOT_LABEL);
-        parameters.put("P_REGLEMENTDEPOT_ESPECE", DateConverter.amountFormat(P_REGLEMENTDEPOT_ESPECE, ' '));
-        parameters.put("P_REGLEMENTDEPOT_CHEQUES", DateConverter.amountFormat(P_REGLEMENTDEPOT_CHEQUES, ' '));
-        parameters.put("P_REGLEMENTDEPOT_CB", DateConverter.amountFormat(P_REGLEMENTDEPOT_CB, ' '));
-        parameters.put("P_TOTAL_REGLEMENTDEPOT_CAISSE", DateConverter.amountFormat(P_TOTAL_REGLEMENTDEPOT_CAISSE, ' '));
-        parameters.put("P_REGLEMENTDEPOT_MOBILE", DateConverter.amountFormat(P_REGLEMENTDEPOT_MOBILE, ' '));
+        parameters.put("P_REGLEMENTDEPOT_ESPECE", "0");
+        parameters.put("P_REGLEMENTDEPOT_CHEQUES", "0");
+        parameters.put("P_REGLEMENTDEPOT_CB", "0");
+        parameters.put("P_TOTAL_REGLEMENTDEPOT_CAISSE", "0");
+        parameters.put("P_REGLEMENTDEPOT_MOBILE", "0");
+
+        /*
+         * remettre si un pharmacien demande parameters.put("P_VENTEDEPOT_LABEL", P_VENTEDEPOT_LABEL);
+         * parameters.put("P_VENTEDEPOT_ESPECE", DateConverter.amountFormat(P_VENTEDEPOT_ESPECE, ' '));
+         * parameters.put("P_VENTEDEPOT_CHEQUES", "0"); parameters.put("P_VENTEDEPOT_CB", "0");
+         * parameters.put("P_TOTAL_VENTEDEPOT_CAISSE", DateConverter.amountFormat(P_TOTAL_VENTEDEPOT_CAISSE, ' '));
+         *
+         * parameters.put("P_REGLEMENTDEPOT_LABEL", P_REGLEMENTDEPOT_LABEL); parameters.put("P_REGLEMENTDEPOT_ESPECE",
+         * DateConverter.amountFormat(P_REGLEMENTDEPOT_ESPECE, ' ')); parameters.put("P_REGLEMENTDEPOT_CHEQUES",
+         * DateConverter.amountFormat(P_REGLEMENTDEPOT_CHEQUES, ' ')); parameters.put("P_REGLEMENTDEPOT_CB",
+         * DateConverter.amountFormat(P_REGLEMENTDEPOT_CB, ' ')); parameters.put("P_TOTAL_REGLEMENTDEPOT_CAISSE",
+         * DateConverter.amountFormat(P_TOTAL_REGLEMENTDEPOT_CAISSE, ' ')); parameters.put("P_REGLEMENTDEPOT_MOBILE",
+         * DateConverter.amountFormat(P_REGLEMENTDEPOT_MOBILE, ' '));
+         *
+         */
+
         P_TOTAL_SORTIE_CAISSE = P_SORTIECAISSE_ESPECE + P_SORTIECAISSE_CHEQUES + P_SORTIECAISSE_CB
                 + P_SORTIECAISSE_MOBILE;
         P_TOTAL_ENTREE_CAISSE = P_ENTREECAISSE_ESPECE + P_ENTREECAISSE_CHEQUES + P_ENTREECAISSE_CB

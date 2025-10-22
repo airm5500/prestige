@@ -1,6 +1,6 @@
-
 package rest.service.impl;
 
+import dal.TOfficine;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -10,12 +10,12 @@ import java.util.List;
 import javax.ejb.Stateless;
 import rest.service.OfficineService;
 import rest.service.dto.OfficineDTO;
+import util.Constant;
 
 /**
  *
  * @author airman
  */
-
 @Stateless
 public class OfficineServiceImpl implements OfficineService {
 
@@ -42,5 +42,22 @@ public class OfficineServiceImpl implements OfficineService {
         }
 
         return result;
+
+    }
+
+    @Override
+    public OfficineDTO getOfficine() {
+        TOfficine officine = em.find(TOfficine.class, Constant.OFFICINE);
+        if (officine != null) {
+            OfficineDTO off = new OfficineDTO();
+            off.setId(officine.getLgOFFICINEID());
+            off.setAddress(officine.getStrADRESSSEPOSTALE());
+            off.setName(officine.getStrNOMABREGE());
+            off.setNomComplet(officine.getStrNOMCOMPLET());
+            off.setNote(officine.getStrENTETE());
+            off.setPhone(officine.getStrPHONE());
+            return off;
+        }
+        return null;
     }
 }

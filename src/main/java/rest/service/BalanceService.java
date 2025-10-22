@@ -43,4 +43,28 @@ public interface BalanceService {
     List<BalanceDTO> recapBalance(BalanceParamsDTO balanceParams);
 
     JSONObject etatLastThreeYears();
+
+    /**
+     * Calcule et retourne la balance agrégée pour tous les dépôts (sauf le principal).
+     *
+     * @param balanceParams
+     *            Les paramètres de date. L'emplacementId est ignoré.
+     *
+     * @return Un JSONObject contenant les données agrégées.
+     */
+    JSONObject getBalanceForAllDepots(BalanceParamsDTO balanceParams);
+
+    /**
+     * Génère un rapport PDF de la balance des ventes.
+     *
+     * @param balanceParams
+     *            Les paramètres de filtre (dépôt, dates).
+     *
+     * @return Un tableau de bytes représentant le fichier PDF.
+     *
+     * @throws Exception
+     *             En cas d'erreur de génération.
+     */
+    byte[] generateBalanceReport(BalanceParamsDTO balanceParams) throws Exception;
+
 }

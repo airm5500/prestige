@@ -295,6 +295,8 @@ public class TFamille implements Serializable {
     private boolean scheduled = false;
     @Column(name = "cmu_price")
     private Integer cmuPrice;
+    @Column(name = "code_ean_fabriquant")
+    private String codeEanFabriquant;
 
     public int getVersion() {
         return version;
@@ -862,6 +864,14 @@ public class TFamille implements Serializable {
 
     public void setDtLASTUPDATESEUILREAPPRO(Date dtLASTUPDATESEUILREAPPRO) {
         this.dtLASTUPDATESEUILREAPPRO = dtLASTUPDATESEUILREAPPRO;
+    }
+
+    public String getCodeEanFabriquant() {
+        return codeEanFabriquant;
+    }
+
+    public void setCodeEanFabriquant(String codeEanFabriquant) {
+        this.codeEanFabriquant = codeEanFabriquant;
     }
 
     @XmlTransient

@@ -29,6 +29,7 @@ public class CommandeDTO {
     private String dtCREATED;
     private String lgGROSSISTEID;
     private String details = " ";
+    private StatutTraitement statutTraitement;
 
     public String getLgGROSSISTEID() {
         return lgGROSSISTEID;
@@ -197,6 +198,14 @@ public class CommandeDTO {
     public CommandeDTO setDetails(String details) {
         this.details = details;
         return this;
+    }
+
+    public StatutTraitement getStatutTraitement() {
+        return statutTraitement;
+    }
+
+    public void setStatutTraitement(StatutTraitement statutTraitement) {
+        this.statutTraitement = statutTraitement;
     }
 
     public CommandeDTO() {

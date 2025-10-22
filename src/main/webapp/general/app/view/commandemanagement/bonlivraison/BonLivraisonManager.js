@@ -40,7 +40,11 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                     totalProperty: 'total'
                 },
                 timeout: 240000
-            }
+            },
+            sorters: [{
+        property: 'dt_DATE_LIVRAISON',
+        direction: 'ASC' // ou 'DESC' pour un ordre croissant
+    }]
 
         });
 
@@ -71,12 +75,18 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                 {
                     header: 'Ref.',
                     dataIndex: 'str_REF_LIVRAISON',
-                    flex: 1
+                    flex: 1,
+                                    renderer: function (value) {
+                                        return '<span style="color:blue; font-weight:bold; font-size:1em;">'+ value +'</span>';
+                                    }
                 },
                 {
                     header: 'Grossiste',
                     dataIndex: 'str_GROSSISTE_LIBELLE',
-                    flex: 1
+                    flex: 1,
+                                    renderer: function (value) {
+                                        return '<span style="color:blue; font-weight:bold; font-size:1em;">'+ value +'</span>';
+                                    }
                 },
                 {
                     header: 'Ref.CMDE',
@@ -88,14 +98,20 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                     header: 'Lignes',
                     dataIndex: 'int_NBRE_LIGNE_BL_DETAIL',
                     align: 'right',
-                    flex: 0.5
+                    flex: 0.5,
+                                    renderer: function (value) {
+                                        return '<span style="color:blue; font-weight:bold; font-size:1em;">'+ value +'</span>';
+                                    }
                 },
 
                 {
                     header: 'Date',
                     dataIndex: 'dt_DATE_LIVRAISON',
                     align: 'right',
-                    flex: 1
+                    flex: 1,
+                                    renderer: function (value) {
+                                        return '<span style="color:blue; font-weight:bold; font-size:1em;">'+ value +'</span>';
+                                    }
                 },
                 {
                     header: 'MONTANT.HT',
@@ -108,7 +124,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                         if (record.get('PRIX_ACHAT_TOTAL') != record.get('int_MHT')) {
                             return '<span style="color: red">' + value + '</span>';
                         } else {
-                            return value;
+                            return '<span style="color:green; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
                         }
                     }
                 },
@@ -117,6 +133,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                     dataIndex: 'int_MHT',
                     xtype: 'numbercolumn',
                     align: 'right',
+                                    renderer: function (value) {
+                                        return '<span style="color:green; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    },
                     format: '0,000.',
 
                     flex: 1
@@ -127,6 +146,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                     xtype: 'numbercolumn',
                     align: 'right',
                     format: '0,000.',
+                                    renderer: function (value) {
+                                        return '<span style="color:green; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    },
                     flex: 1
                 },
                 {
@@ -134,6 +156,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                     dataIndex: 'int_HTTC',
                     xtype: 'numbercolumn',
                     align: 'right',
+                                    renderer: function (value) {
+                                        return '<span style="color:green; font-weight:bold; font-size:1em;">' + amountformat(value) + '</span>';
+                                    },
                     format: '0,000.',
 
                     flex: 1

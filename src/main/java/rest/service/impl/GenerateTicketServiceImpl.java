@@ -188,8 +188,6 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class, id);
             String idVente = id;
             MvtTransaction mvtTransaction = findByPkey(idVente);
-            boolean isNotCash = !mvtTransaction.getReglement().getLgTYPEREGLEMENTID()
-                    .equals(Constant.TYPE_REGLEMENT_ESPECE);
 
             String fileBarecode = buildLineBarecode(oTPreenregistrement.getStrREFTICKET());
             TEmplacement te = oTPreenregistrement.getLgUSERID().getLgEMPLACEMENTID();
@@ -488,7 +486,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
         datas.add("Part du Client:: " + DateConverter.amountFormat(partClt) + "  CFA");
         for (int i = 0; i < lstT.size(); i++) {
-            if (Objects.isNull(p.getTypePriceOption())) {
+            if (Objects.isNull(p.getHasPriceOption()) || !p.getHasPriceOption()) {
                 datas.add(lstT.get(i).getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() + "   "
                         + lstT.get(i).getIntPERCENT() + "%" + " :: "
                         + DateConverter.amountFormat(lstT.get(i).getIntPRICE()) + "  CFA");

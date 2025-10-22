@@ -1,7 +1,6 @@
 
 /* global Ext */
 
-
 var Me;
 
 var int_montant_achat;
@@ -28,7 +27,6 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         'Ext.selection.CheckboxModel',
         'testextjs.model.articleSearchModel',
         'testextjs.model.perimesModel'
-
     ],
     config: {
         odatasource: '',
@@ -39,7 +37,6 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         maximizable: true,
         closable: false,
         nameintern: ''
-                //  headerPosition :'top'
     },
     xtype: 'addPerimer',
     id: 'addPerimerID',
@@ -47,6 +44,7 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
     title: 'Ajout de produit p&eacute;rim&eacute;s',
     bodyPadding: 5,
     layout: 'column',
+
     initComponent: function () {
         Me = this;
         var itemsPerPage = 20;
@@ -55,7 +53,6 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         ref = this.getNameintern();
         LaborexWorkFlow_facture = Ext.create('testextjs.controller.LaborexWorkFlow', {});
         myAppController = Ext.create('testextjs.controller.App', {});
-
 
         var articlestore = new Ext.data.Store({
             model: 'testextjs.model.articleSearchModel',
@@ -70,48 +67,20 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     totalProperty: 'total'
                 }
             }
-
         });
+
         var pendingStore = new Ext.data.Store({
             fields: [
-                {
-                    name: 'id',
-                    type: 'string'
-                },
-                {
-                    name: 'lot',
-                    type: 'string'
-                },
-                {
-                    name: 'produitId',
-                    type: 'string'
-                },
-                {
-                    name: 'datePeremption',
-                    type: 'string'
-                },
-                {
-                    name: 'dateEntree',
-                    type: 'string'
-                },
-                {
-                    name: 'produitCip',
-                    type: 'string'
-                },
-                {
-                    name: 'produitLibelle',
-                    type: 'string'
-                },
-                {
-                    name: 'quantity',
-                    type: 'number'
-                }, {
-                    name: 'stockInitial',
-                    type: 'number'
-                }, {
-                    name: 'stockFinal',
-                    type: 'number'
-                }
+                {name: 'id', type: 'string'},
+                {name: 'lot', type: 'string'},
+                {name: 'produitId', type: 'string'},
+                {name: 'datePeremption', type: 'string'},
+                {name: 'dateEntree', type: 'string'},
+                {name: 'produitCip', type: 'string'},
+                {name: 'produitLibelle', type: 'string'},
+                {name: 'quantity', type: 'number'},
+                {name: 'stockInitial', type: 'number'},
+                {name: 'stockFinal', type: 'number'}
             ],
             pageSize: 20,
             autoLoad: true,
@@ -124,20 +93,14 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     totalProperty: 'total'
                 }
             }
-
         });
-
-
 
         Ext.apply(this, {
             width: '98%',
-//            height: 540,
             cls: 'custompanel',
             fieldDefaults: {
                 labelAlign: 'left',
-
                 anchor: '100%'
-
             },
             layout: {
                 type: 'vbox',
@@ -154,7 +117,6 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     border: false,
                     items: [{
                             xtype: 'fieldset',
-
                             collapsible: false,
                             padding: '3 15 3 15',
                             defaultType: 'textfield',
@@ -165,13 +127,11 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                             items: [
                                 {
                                     xtype: 'container',
+                                    cls: 'ig-card ig-simple',
                                     layout: 'hbox',
-
                                     items: [
-
                                         {
                                             xtype: 'combobox',
-
                                             fieldLabel: 'Article',
                                             flex: 1.5,
                                             margin: '0 15 0 0',
@@ -192,29 +152,18 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                                 getInnerTpl: function () {
                                                     return '<span>{str_NAME}</span>';
                                                 }
-
                                             },
                                             listeners: {
-
                                                 keypress: function (field, e, options) {
-
                                                     if (e.getKey() === e.BACKSPACE || e.getKey() === 46) {
-
                                                         if (field.getValue().length <= 2) {
                                                             field.getStore().load();
                                                         }
-
                                                     } else if (e.getKey() === e.ENTER) {
                                                         Ext.getCmp('str_CODE_LOT').focus();
-
                                                     }
-
                                                 }
-
-
-
                                             }
-
                                         },
                                         {
                                             xtype: 'textfield',
@@ -226,14 +175,12 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                             flex: 1, enableKeyEvents: true,
                                             listeners: {
                                                 keypress: function (field, e, options) {
-
                                                     if (e.getKey() === e.ENTER) {
                                                         Ext.getCmp('perimeQTY').focus();
-
                                                     }
                                                 }
-                                            }},
-
+                                            }
+                                        },
                                         {
                                             xtype: 'numberfield',
                                             fieldLabel: 'Quantit&eacute;',
@@ -247,160 +194,47 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                             enableKeyEvents: true,
                                             listeners: {
                                                 keypress: function (field, e, options) {
-
                                                     if (e.getKey() === e.ENTER) {
                                                         Ext.getCmp('str_DATEPERMTION').focus();
-
                                                     }
                                                 }
                                             }
-                                            // limited to the current date or prior
-
-                                        }, {
+                                        },
+                                        {
                                             xtype: 'datefield',
                                             fieldLabel: 'Date P&eacute;remption',
                                             margin: '0 0 0 15',
                                             id: 'str_DATEPERMTION',
                                             emptyText: 'Date de peremption',
                                             labelWidth: 110,
-                                            flex: 1.5, enableKeyEvents: true,
+                                            flex: 1.5,
+                                            enableKeyEvents: true,
                                             listeners: {
                                                 keypress: function (field, e, options) {
-
                                                     if (e.getKey() === e.ENTER) {
-                                                        var dt_peremption = Ext.Date.format(Ext.getCmp('str_DATEPERMTION').getValue(), 'Y-m-d');
-                                                        var int_NUM_LOT = Ext.getCmp('str_CODE_LOT').getValue();
-                                                        var int_NUMBER = Ext.getCmp('perimeQTY').getValue();
-                                                        var lg_FAMILLE_ID = Ext.getCmp('cmb_Article').getValue();
-                                                        if (lg_FAMILLE_ID === "" || lg_FAMILLE_ID === null) {
-                                                            Ext.MessageBox.show({
-                                                                title: 'Infos',
-                                                                width: 320,
-                                                                msg: 'Veuillez s&eacute;lectionnez le produit',
-                                                                buttons: Ext.MessageBox.OK,
-                                                                icon: Ext.MessageBox.WARNING
-
-                                                            });
-                                                            return false;
-
-
-                                                        }
-                                                        if (dt_peremption === "" || dt_peremption === null) {
-                                                            Ext.MessageBox.show({
-                                                                title: 'Infos',
-                                                                width: 320,
-                                                                msg: 'Veuillez saissir la date p&eacute;remption',
-                                                                buttons: Ext.MessageBox.OK,
-                                                                icon: Ext.MessageBox.WARNING
-
-                                                            });
-                                                            return false;
-
-
-                                                        }
-
-
-                                                        if (int_NUM_LOT === "") {
-                                                            Ext.MessageBox.show({
-                                                                title: 'Infos',
-                                                                width: 320,
-                                                                msg: 'Veuillez saissir le num&eacute;ro de lot',
-                                                                buttons: Ext.MessageBox.OK,
-                                                                icon: Ext.MessageBox.WARNING
-
-                                                            });
-                                                            return false;
-
-                                                        }
-                                                        if (int_NUMBER === "" || int_NUMBER <= 0) {
-                                                            Ext.MessageBox.show({
-                                                                title: 'Infos',
-                                                                width: 320,
-                                                                msg: 'Veuillez saissir la quantit&eacute;',
-                                                                buttons: Ext.MessageBox.OK,
-                                                                icon: Ext.MessageBox.WARNING
-
-                                                            });
-                                                            return false;
-
-                                                        }
-
-                                                        Ext.Ajax.request({
-
-                                                            url: '../api/v1/gestionperime/add',
-                                                            method: 'POST',
-                                                            headers: {'Content-Type': 'application/json'},
-                                                            params: Ext.JSON.encode({
-                                                                refParent: dt_peremption,
-                                                                refTwo: int_NUM_LOT,
-                                                                value: int_NUMBER,
-                                                                ref: lg_FAMILLE_ID
-
-
-                                                            }),
-                                                            success: function (response, options) {
-
-                                                                var object = Ext.JSON.decode(response.responseText, false);
-                                                                if (object.success) {
-                                                                    Ext.getCmp('gridpanelArticlePerimes').getStore().load();
-                                                                    Ext.getCmp('str_DATEPERMTION').setValue('');
-                                                                    Ext.getCmp('str_CODE_LOT').setValue('');
-                                                                    Ext.getCmp('perimeQTY').setValue('');
-                                                                    Ext.getCmp('cmb_Article').setValue('');
-                                                                } else {
-                                                                    Ext.MessageBox.show({
-                                                                        title: 'Infos',
-                                                                        width: 320,
-                                                                        msg: object.message,
-                                                                        buttons: Ext.MessageBox.OK,
-                                                                        icon: Ext.MessageBox.ERROR
-
-                                                                    });
-                                                                }
-
-
-                                                            }, failure: function (response, options) {
-
-                                                                Ext.MessageBox.show({
-                                                                    title: 'Infos',
-                                                                    width: 320,
-                                                                    msg: "Erreur de serveur",
-                                                                    buttons: Ext.MessageBox.OK,
-                                                                    icon: Ext.MessageBox.ERROR
-
-                                                                });
-
-
-                                                            }
-                                                        });
-
-
-
+                                                        Me.onAddItem();
                                                     }
                                                 }
                                             }
-
-
-                                        }, {
+                                        },
+                                        {
                                             text: 'Enregistrer',
                                             id: 'btn_add',
+                                            cls: 'btn-primary',
                                             margins: '0 0 0 15',
                                             xtype: 'button',
-                                            handler: this.onbtnadd
-
+                                            handler: this.onAddItem
                                         }
-
                                     ]
-                                }]
-                        }
-                    ]
-
+                                }
+                            ]
+                        }]
                 },
-
                 {
                     xtype: 'fieldset',
                     padding: '3 15 3 15',
                     collapsible: false,
+                    cls: 'ig-card ig-simple',
                     defaultType: 'textfield',
                     layout: 'anchor',
                     defaults: {
@@ -411,86 +245,26 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                             columnWidth: 0.65,
                             xtype: 'gridpanel',
                             minHeight: 450,
-                            plugins: [
+                            /*plugins: [
                                 {
                                     ptype: "rowediting",
-                                    clicksToEdit: 2
+                                    clicksToEdit: 0
                                 }
-                            ],
+                            ],*/
                             id: 'gridpanelArticlePerimes',
+                            cls: 'my-grid-header',
                             store: pendingStore,
-
                             columns: [
+                                {header: 'ID', dataIndex: 'id', hidden: true, width: 40},
+                                {header: 'CODE CIP', dataIndex: 'produitCip', flex: 1},
+                                {header: 'ARTICLE', dataIndex: 'produitLibelle', flex: 1},
+                                {header: 'LOT', dataIndex: 'lot', editor: {xtype: "textfield", allowBlank: false}, flex: 1},
+                                {header: 'STOCK ACTUEL', dataIndex: 'stockInitial', renderer: amountformat, align: 'right', editor: {xtype: "numberfield", minValue: 1, allowBlank: false}, flex: 1},
+                                {header: 'QUANTITE', dataIndex: 'quantity', renderer: amountformat, align: 'right', editor: {xtype: "numberfield", minValue: 1, allowBlank: false}, flex: 1},
+                                {header: 'STOCK FINAL', dataIndex: 'stockFinal', renderer: amountformat, align: 'right', editor: {xtype: "numberfield", minValue: 1, allowBlank: false}, flex: 1},
+                                {header: 'DATE ENTREE', dataIndex: 'dateEntree', flex: 1},
+                                {header: 'DATE PEREMPTION', dataIndex: 'datePeremption', flex: 1},
                                 {
-                                    header: 'ID',
-                                    dataIndex: 'id',
-                                    hidden: true,
-                                    width: 40
-                                }
-                                , {
-                                    header: 'CODE CIP',
-                                    dataIndex: 'produitCip',
-                                    flex: 1
-                                }
-                                , {
-                                    header: 'ARTICLE',
-                                    dataIndex: 'produitLibelle',
-                                    flex: 1
-                                }, {
-                                    header: 'LOT',
-                                    dataIndex: 'lot',
-                                    editor: {
-                                        xtype: "textfield",
-                                        allowBlank: false
-
-                                    },
-                                    flex: 1
-                                }, {
-                                    header: 'STOCK ACTUEL',
-                                    dataIndex: 'stockInitial',
-                                    renderer: amountformat,
-                                    align: 'right',
-                                    editor: {
-                                        xtype: "numberfield",
-                                        minValue: 1,
-                                        allowBlank: false
-                                    },
-                                    flex: 1
-                                },
-                                {
-                                    header: 'QUANTITE',
-                                    dataIndex: 'quantity',
-                                    renderer: amountformat,
-                                    align: 'right',
-                                    editor: {
-                                        xtype: "numberfield",
-                                        minValue: 1,
-                                        allowBlank: false
-                                    },
-                                    flex: 1
-                                }, {
-                                    header: 'STOCK FINAL',
-                                    dataIndex: 'stockFinal',
-                                    renderer: amountformat,
-                                    align: 'right',
-                                    editor: {
-                                        xtype: "numberfield",
-                                        minValue: 1,
-                                        allowBlank: false
-                                    },
-                                    flex: 1
-                                },
-                                {
-                                    header: 'DATE ENTREE',
-                                    dataIndex: 'dateEntree',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'DATE PEREMPTION',
-                                    dataIndex: 'datePeremption',
-                                    flex: 1
-                                }
-                                , {
                                     xtype: 'actioncolumn',
                                     width: 30,
                                     sortable: false,
@@ -498,24 +272,16 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                     items: [
                                         {
                                             getClass: function (v, meta, rec) {
-
                                                 return 'unpaid';
                                             },
                                             getTip: function (v, meta, rec) {
-
                                                 return 'Supprimer ';
-
                                             },
                                             scope: this,
                                             handler: this.onRemoveClick
-
                                         }
-
                                     ]
                                 }
-
-
-
                             ],
                             listeners: {
                                 edit: function (src, e) {
@@ -529,42 +295,41 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                             refTwo: record.get("LOT"),
                                             value: record.get("QTY"),
                                             ref: record.get("ID")
-
                                         }),
-
                                         success: function (response)
                                         {
                                             var obj = Ext.decode(response.responseText);
-
                                             if (obj.success) {
-
                                                 e.record.commit();
                                             } else {
-
+                                                // Logique de focus conditionnel sur erreur serveur
                                                 Ext.MessageBox.show({
                                                     title: 'Infos',
                                                     width: 320,
                                                     msg: obj.message,
                                                     buttons: Ext.MessageBox.OK,
-                                                    icon: Ext.MessageBox.ERROR
-
-
+                                                    icon: Ext.MessageBox.ERROR,
+                                                    fn: function(buttonId) {
+                                                        if (buttonId === "ok") {
+                                                            var stockMatch = obj.message.match(/Quantité en stock\s+(\d+)/);
+                                                            if (stockMatch && parseInt(stockMatch[1], 10) > 0) {
+                                                                Ext.getCmp('perimeQTY').focus(true, 10);
+                                                            } else {
+                                                                Ext.getCmp('cmb_Article').focus(true, 10);
+                                                            }
+                                                        }
+                                                    }
                                                 });
                                                 Ext.getCmp('gridpanelArticlePerimes').getStore().load();
                                             }
-
-
                                         },
                                         failure: function (response)
                                         {
-
+                                            // Handle failure
                                         }
                                     });
-
                                 }
                             },
-
-                            //  selModel: selModel,
                             bbar: {
                                 xtype: 'pagingtoolbar',
                                 pageSize: 20,
@@ -572,8 +337,7 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                 displayInfo: true,
                                 plugins: new Ext.ux.ProgressBarPager()
                             }
-                        }
-                        ,
+                        },
                         {
                             xtype: 'toolbar',
                             ui: 'footer',
@@ -583,130 +347,80 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                 {
                                     text: 'Terminer',
                                     id: 'btn_create_perime',
+                                    cls: 'btn-primary',
                                     iconCls: 'icon-clear-group',
                                     scope: this,
-                                    hidden: false,
-                                    //disabled: true,
                                     handler: this.CreateFacture
                                 }, {
                                     text: 'RETOUR',
                                     id: 'btn_cancel',
+                                    cls: 'btn-secondary',
                                     iconCls: 'icon-clear-group',
                                     scope: this,
-                                    hidden: false,
-                                    //disabled: true,
                                     handler: this.onbtncancel
                                 }
                             ]
                         }
                     ]
-
-                },
-                // detail facture fournisseur
-
-
-                {
-                    xtype: 'fieldset',
-                    id: 'detailfactureFournisseur',
-                    title: 'Detail(s) de la Facture Fournisseur',
-                    hidden: true,
-                    collapsible: true,
-                    defaultType: 'textfield',
-                    layout: 'anchor',
-                    defaults: {
-                        anchor: '100%'
-                    }
-
-
                 }
-                //fin detail facture fournisseur
-
             ]
-
-
         });
 
         this.callParent();
-//        OCltgridpanelArticlePerimes = Ext.getCmp('gridpanelArticlePerimes');
+        
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
         });
-
     },
+
     loadStore: function () {
-
+        // Focus sur le champ article au chargement
+        Ext.getCmp('cmb_Article').focus(true, 200);
     },
-    onStoreLoad: function () {
 
-
-
-    },
     onbtncancel: function () {
-
         var xtype = "saisieperime";
         testextjs.app.getController('App').onLoadNewComponent(xtype, "", "");
     },
-    onbtnadd: function () {
+    
+    onAddItem: function () {
         var dt_peremption = Ext.Date.format(Ext.getCmp('str_DATEPERMTION').getValue(), 'Y-m-d');
         var int_NUM_LOT = Ext.getCmp('str_CODE_LOT').getValue();
         var int_NUMBER = Ext.getCmp('perimeQTY').getValue();
         var lg_FAMILLE_ID = Ext.getCmp('cmb_Article').getValue();
+
+        // Validation côté client avec focus sur erreur
         if (lg_FAMILLE_ID === "" || lg_FAMILLE_ID === null) {
             Ext.MessageBox.show({
-                title: 'Infos',
-                width: 320,
-                msg: 'Veuillez s&eacute;lectionnez le produit',
-                buttons: Ext.MessageBox.OK,
-                icon: Ext.MessageBox.WARNING
-
+                title: 'Infos', width: 320, msg: 'Veuillez s&eacute;lectionnez le produit', buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) { if (buttonId === "ok") { Ext.getCmp('cmb_Article').focus(); } }
             });
-            return false;
-
-
+            return;
         }
         if (dt_peremption === "" || dt_peremption === null) {
             Ext.MessageBox.show({
-                title: 'Infos',
-                width: 320,
-                msg: 'Veuillez saissir la date p&eacute;remption',
-                buttons: Ext.MessageBox.OK,
-                icon: Ext.MessageBox.WARNING
-
+                title: 'Infos', width: 320, msg: 'Veuillez saissir la date p&eacute;remption', buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) { if (buttonId === "ok") { Ext.getCmp('str_DATEPERMTION').focus(); } }
             });
-            return false;
-
-
+            return;
         }
-
-
         if (int_NUM_LOT === "") {
             Ext.MessageBox.show({
-                title: 'Infos',
-                width: 320,
-                msg: 'Veuillez saissir le num&eacute;ro de lot',
-                buttons: Ext.MessageBox.OK,
-                icon: Ext.MessageBox.WARNING
-
+                title: 'Infos', width: 320, msg: 'Veuillez saissir le num&eacute;ro de lot', buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) { if (buttonId === "ok") { Ext.getCmp('str_CODE_LOT').focus(); } }
             });
-            return false;
-
+            return;
         }
         if (int_NUMBER === "" || int_NUMBER <= 0) {
             Ext.MessageBox.show({
-                title: 'Infos',
-                width: 320,
-                msg: 'Veuillez saissir la quantit&eacute;',
-                buttons: Ext.MessageBox.OK,
-                icon: Ext.MessageBox.WARNING
-
+                title: 'Infos', width: 320, msg: 'Veuillez saissir la quantit&eacute;', buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) { if (buttonId === "ok") { Ext.getCmp('perimeQTY').focus(); } }
             });
-            return false;
-
+            return;
         }
 
         Ext.Ajax.request({
-
             url: '../api/v1/gestionperime/add',
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -715,10 +429,8 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                 refTwo: int_NUM_LOT,
                 value: int_NUMBER,
                 ref: lg_FAMILLE_ID
-
             }),
             success: function (response, options) {
-
                 var object = Ext.JSON.decode(response.responseText, false);
                 if (object.success) {
                     Ext.getCmp('gridpanelArticlePerimes').getStore().load();
@@ -726,71 +438,52 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     Ext.getCmp('str_CODE_LOT').setValue('');
                     Ext.getCmp('perimeQTY').setValue('');
                     Ext.getCmp('cmb_Article').setValue('');
-                } else {
-                    Ext.MessageBox.show({
-                        title: 'Infos',
-                        width: 320,
-                        msg: object.message,
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
+                    
+                    Ext.getCmp('cmb_Article').focus(true, 10);
 
+                } else {
+                    // Logique de focus conditionnel sur erreur serveur
+                    Ext.MessageBox.show({
+                        title: 'Infos', 
+                        width: 320, 
+                        msg: object.message, 
+                        buttons: Ext.MessageBox.OK, 
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function(buttonId) {
+                            if (buttonId === "ok") {
+                                // On cherche la chaîne "Quantité en stock" suivie d'un nombre
+                                var stockMatch = object.message.match(/Quantité en stock\s+(\d+)/);
+                                // Si on trouve et que le nombre est supérieur à 0
+                                if (stockMatch && parseInt(stockMatch[1], 10) > 0) {
+                                    Ext.getCmp('perimeQTY').focus(true, 10);
+                                } else {
+                                    Ext.getCmp('cmb_Article').focus(true, 10);
+                                }
+                            }
+                        }
                     });
                 }
-
-
-            }, failure: function (response, options) {
-
-                Ext.MessageBox.show({
-                    title: 'Infos',
-                    width: 320,
-                    msg: "Erreur de serveur",
-                    buttons: Ext.MessageBox.OK,
-                    icon: Ext.MessageBox.ERROR
-
-                });
-
-
+            },
+            failure: function (response, options) {
+                Ext.MessageBox.show({title: 'Infos', width: 320, msg: "Erreur de serveur", buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
             }
         });
-
-
-
     },
+
     onRemoveClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-
         Ext.Ajax.request({
             url: '../api/v1/gestionperime/' + rec.get('id'),
             method: 'DELETE',
             success: function (response, options) {
-
+                // Suppression silencieuse
                 Ext.getCmp('gridpanelArticlePerimes').getStore().load();
-                Ext.MessageBox.show({
-                    title: 'Infos',
-                    width: 320,
-                    msg: "Suppression effectuee avec success",
-                    buttons: Ext.MessageBox.OK,
-                    icon: Ext.MessageBox.INFO
-
-                });
-
-
-            }, failure: function (response, options) {
-
-                Ext.MessageBox.show({
-                    title: 'Infos',
-                    width: 320,
-                    msg: "Erreur de serveur",
-                    buttons: Ext.MessageBox.OK,
-                    icon: Ext.MessageBox.ERROR
-
-                });
-
-
+                Ext.getCmp('cmb_Article').focus(true, 10);
+            },
+            failure: function (response, options) {
+                Ext.MessageBox.show({title: 'Infos', width: 320, msg: "Erreur de serveur", buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
             }
         });
-
-
     },
 
     CreateFacture: function (val) {
@@ -808,34 +501,21 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     myAppController.StopWaitingProcess();
                     var object = Ext.JSON.decode(response.responseText, false);
                     if (object.success) {
-
                         Ext.MessageBox.show({
                             title: 'Infos',
                             width: 320,
                             msg: "Nombre de produit retiré:<span style='font-weight:900;'>" + object.NB + "</span> ",
                             buttons: Ext.MessageBox.OK,
                             icon: Ext.MessageBox.INFO
-
                         });
-
-
                     } else {
                         myAppController.StopWaitingProcess();
-
                     }
-
                     store.load();
                 }, failure: function (response, options) {
                     myAppController.StopWaitingProcess();
-
-//                    store.rejectChanges();
-
                 }
             });
         }
-
     }
-
 });
-
-

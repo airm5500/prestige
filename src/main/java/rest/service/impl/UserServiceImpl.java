@@ -230,4 +230,9 @@ public class UserServiceImpl implements UserService {
         return this.em.merge(usr);
 
     }
+
+    @Override
+    public TUser findById(String id) {
+        return em.find(TUser.class, id);
+    }
 }

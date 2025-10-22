@@ -36,4 +36,6 @@ public interface UserService {
     AccountInfoDTO getAccount(TUser oTUser);
 
     TUser updateProfilUser(AccountInfoDTO accountInfo);
+
+    TUser findById(String id);
 }

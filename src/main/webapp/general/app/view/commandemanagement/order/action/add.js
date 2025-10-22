@@ -163,6 +163,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         const me = this;
         Ext.apply(me, {
             width: '98%',
+            cls: 'screen-wrap',
             fieldDefaults: {
                 labelAlign: 'left',
                 labelWidth: 90,
@@ -183,6 +184,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     xtype: 'fieldset',
                     title: 'Infos Generales',
                     collapsible: true,
+                    cls: 'ig-card ig-simple',
                     defaultType: 'textfield',
                     layout: 'anchor',
                     defaults: {
@@ -241,6 +243,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     title: 'Ajout Produit',
                     collapsible: true,
                     defaultType: 'textfield',
+                    cls: 'dg-card',
                     layout: 'anchor',
                     defaults: {
                         anchor: '100%'
@@ -291,7 +294,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             let value = cmp.getValue();
                                             let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
                                             Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(record.get('lg_FAMILLE_ID'));
-                                            if (value === "0" || value === "Ajouter un nouvel article") {
+                                            if (value === "0" || value === "Cliquez ici pour créer un nouvel article") {
                                                 Me_Window.onbtnaddArticle();
                                             } else {
                                                 Ext.getCmp('int_QUANTITE').focus(true, 100, function () {
@@ -332,7 +335,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                             let value = cmp.getValue();
                                             let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
                                             Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(record.get('lg_FAMILLE_ID'));
-                                            if (value === "0" || value === "Ajouter un nouvel article") {
+                                            if (value === "0" || value === "Cliquez ici pour créer un nouvel article") {
                                                 Me_Window.onbtnaddArticle();
                                             } else {
                                                 Ext.getCmp('int_QUANTITE').focus(true, 100, function () {
@@ -401,8 +404,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     handler: this.onbtnaddArticle
                                 },
                                 {
-                                    text: 'Voir detail',
+                                    text: 'Voir infos produit',
                                     id: 'btn_detail',
+                                    cls: 'btn-primary',
                                     margins: '0 0 0 6',
                                     xtype: 'button',
                                     handler: this.onbtndetail,
@@ -416,6 +420,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     xtype: 'fieldset',
                     title: 'Detail(s) Commandes',
                     collapsible: true,
+                    cls: 'dg-card',
                     defaultType: 'textfield',
                     layout: 'anchor',
                     defaults: {
@@ -426,6 +431,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                             columnWidth: 0.65,
                             xtype: 'gridpanel',
                             id: 'gridpanelID',
+                            cls: 'my-grid-header',
                             plugins: [this.cellEditing],
                             store: store_details_order,
                             height: 370,
@@ -756,8 +762,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                     border: '0',
                     items: ['->',
                         {
-                            text: 'CREER BL',
+                            text: 'CREER BON DE LIVRAISON',
                             id: 'btn_creerbl',
+                            cls: 'btn-primary',
                             iconCls: 'icon-clear-group',
                             scope: this,
                             handler: this.onCreateBLClick
@@ -766,6 +773,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         {
                             text: 'Retour',
                             id: 'btn_cancel',
+                            cls: 'btn-secondary',
                             iconCls: 'icon-clear-group',
                             scope: this,
                             hidden: false,
@@ -1045,12 +1053,14 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
     },
     onbtnaddArticle: function () {
+        var grossisteIdValue = Ext.getCmp('lgGROSSISTEID').getValue();
         new testextjs.view.configmanagement.famille.action.add2({
             odatasource: "",
             parentview: this,
             mode: "create",
             titre: "Creer un nouveau produit",
-            type: "commande"
+            type: "commande",
+            grossisteId: grossisteIdValue
         });
     },
     onRemoveClick: function (grid, rowIndex) {

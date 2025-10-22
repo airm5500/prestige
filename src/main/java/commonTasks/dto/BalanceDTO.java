@@ -44,6 +44,15 @@ public class BalanceDTO implements Serializable {
     private long montantMtn;
     private long montantWave;
     private long totalModeReglement;
+    private String depotName;
+
+    public String getDepotName() {
+        return depotName;
+    }
+
+    public void setDepotName(String depotName) {
+        this.depotName = depotName;
+    }
 
     public long getMontantOrange() {
         return montantOrange;

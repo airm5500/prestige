@@ -283,6 +283,13 @@ public class CommonRessource {
     }
 
     @GET
+    @Path("emplacement")
+    public Response loadEmplacement(@QueryParam(value = "query") String query) throws JSONException {
+        List<ComboDTO> data = commonService.loadRayons(query);
+        return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
+    @GET
     @Path("famillearticles")
     public Response familleArticles(@QueryParam(value = "query") String query) throws JSONException {
         List<ComboDTO> data = commonService.familleArticles(query);
@@ -290,6 +297,13 @@ public class CommonRessource {
         CacheControl cc = new CacheControl();
         cc.setMaxAge(86400);
         return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
+    @GET
+    @Path("famillearticle")
+    public Response familleArticle(@QueryParam(value = "query") String query) throws JSONException {
+        List<ComboDTO> data = commonService.familleArticles(query);
+        return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
     @GET

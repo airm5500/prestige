@@ -6,16 +6,16 @@ import javax.validation.constraints.NotNull;
  *
  * @author koben
  */
-
 public class FneInvoiceItem {
 
-    private final String[] taxes = { "TVAB" };
+    private final int quantity = 1;
+    private final String[] taxes = { "TVAD" };
     private String reference;
     @NotNull
     private String description;
     @NotNull
     private Integer amount;
-    private final int quantity = 1;
+    private String measurementUnit;
 
     public String getReference() {
         return reference;
@@ -31,6 +31,14 @@ public class FneInvoiceItem {
 
     public void setReference(String reference) {
         this.reference = reference;
+    }
+
+    public String getMeasurementUnit() {
+        return measurementUnit;
+    }
+
+    public void setMeasurementUnit(String measurementUnit) {
+        this.measurementUnit = measurementUnit;
     }
 
     public String getDescription() {

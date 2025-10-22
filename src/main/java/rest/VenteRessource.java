@@ -143,8 +143,8 @@ public class VenteRessource {
     @POST
     @Path("net/assurance")
     public Response netPayerAssurance(SalesParams params) throws JSONException {
-        JSONObject json = salesService.computeVONet(params);
-        return Response.ok().entity(json.toString()).build();
+
+        return Response.ok().entity(salesService.computeVONet(params).toString()).build();
     }
 
     @POST
@@ -204,12 +204,8 @@ public class VenteRessource {
     @GET
     @Path("search/{id}")
     public Response searchProductById(@PathParam("id") String id) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
-        JSONObject jsono = salesService.produits(id, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+
+        JSONObject jsono = salesService.produits(id);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -217,17 +213,12 @@ public class VenteRessource {
     @Path("search")
     public Response searchProduct(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "query") String query) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
         QueryDTO body = new QueryDTO();
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
-        body.setEmplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+
         JSONObject jsono = salesService.produits(body, false);
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -239,10 +230,8 @@ public class VenteRessource {
             @QueryParam(value = "statut") String statut) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
         QueryDTO body = new QueryDTO();
         body.setLimit(limit);
         body.setStart(start);
@@ -257,13 +246,6 @@ public class VenteRessource {
     @POST
     @Path("add/item")
     public Response addItemVente(SalesParams params) {
-        HttpSession hs = servletRequest.getSession();
-
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
-        params.setUserId(tu);
         JSONObject json = salesService.addPreenregistrementItem(params);
         return Response.ok().entity(json.toString()).build();
     }

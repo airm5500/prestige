@@ -136,6 +136,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         if (StringUtils.isNotEmpty(search)) {
             search = search + "%";
             predicates.add(cb.or(cb.like(root.get(TFamille_.intCIP), search),
+                    cb.like(root.get(TFamille_.codeEanFabriquant), search),
                     cb.like(fg.get(TFamilleGrossiste_.strCODEARTICLE), search),
                     cb.like(root.get(TFamille_.intEAN13), search), cb.like(root.get(TFamille_.strNAME), search),
                     cb.like(root.get(TFamille_.lgFAMILLEID), search),
@@ -248,6 +249,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         json.put("int_PAF", t.getIntPAF());
         json.put("int_PAT", t.getIntPAT());
         json.put("lg_ZONE_GEO_ID", (t.getLgZONEGEOID() != null ? t.getLgZONEGEOID().getStrLIBELLEE() : ""));
+        json.put("codeEanFabriquant", t.getCodeEanFabriquant());
         return json;
     }
 
@@ -268,6 +270,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("lg_FAMILLE_ID", t.getLgFAMILLEID());
             json.put("scheduled", t.isScheduled());
             json.put("cmu_price", 0);
+            json.put("codeEanFabriquant", t.getCodeEanFabriquant());
 
             try {
                 json.put("gammeId", t.getGamme().getId());

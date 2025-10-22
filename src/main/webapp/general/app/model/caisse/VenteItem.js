@@ -53,6 +53,10 @@ Ext.define('testextjs.model.caisse.VenteItem', {
             type: 'number'
         },
         {
+            name: 'calculationBasePrice',
+            type: 'number'
+        },
+        {
             name: 'intAVOIR',
             type: 'number'
         },

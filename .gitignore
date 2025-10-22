@@ -14,3 +14,4 @@ nb-configuration.xml
 /src/main/resources/build.properties
 *.properties
 src/main/resources/build.properties
+*.md

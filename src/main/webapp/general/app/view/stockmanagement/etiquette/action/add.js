@@ -103,6 +103,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.add', {
             return;
         }
         
+       // '../Etiquete?lg_BON_LIVRAISON_ID=' + ref + "&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
         var url = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + ref + "&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
         window.open(url);
         this.up('window').close();

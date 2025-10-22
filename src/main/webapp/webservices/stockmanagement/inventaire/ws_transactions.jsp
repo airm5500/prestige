@@ -34,14 +34,16 @@
 
 
 <%    TInventaire OTInventaire = null;
+    String stockFilter = "ALL";
     String search_value = "", liste_article = "", str_BEGIN = "", str_END = "";
     String str_NAME = "%%", str_DESCRIPTION = "%%", lg_ZONE_GEO_ID = "%%", lg_FAMILLEARTICLE_ID = "%%", int_CIP = "%%", lg_FAMILLE_ID = "%%", lg_INVENTAIRE_ID = "%%", lg_GROSSISTE_ID = "%%", lg_INVENTAIRE_FAMILLE_ID = "%%", str_TYPE_TRANSACTION = "", lg_TYPE_STOCK_ID = "1";
     int int_PRICE = 0, int_NUMBER = 0, int_QTE_REAPPROVISIONNEMENT = 0;
     int bool_INVENTAIRE = 1;
     boolean iSChecked = true;
+    Integer stockProduit = null;
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     OdataManager.initEntityManager();
-TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
+    TUser user = OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     bllBase ObllBase = new bllBase();
     ObllBase.setOTUser(user);
     ObllBase.LoadDataManger(OdataManager);
@@ -54,7 +56,14 @@ TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
         str_NAME = request.getParameter("str_NAME");
         new logger().OCategory.info("str_NAME " + str_NAME);
     }
-
+    if (request.getParameter("stockFilter") != null) {
+        stockFilter = request.getParameter("stockFilter");
+        new logger().OCategory.info("stockFilter " + stockFilter);
+    }
+    if (request.getParameter("stockProduit") != null && !request.getParameter("stockProduit").isEmpty()) {
+        stockProduit = Integer.parseInt(request.getParameter("stockProduit"));
+        new logger().OCategory.info("stockProduit " + stockProduit);
+    }
     if (request.getParameter("int_PRICE") != null) {
         int_PRICE = Integer.parseInt(request.getParameter("int_PRICE"));
         new logger().OCategory.info("int_PRICE " + int_PRICE);
@@ -130,7 +139,7 @@ TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
 
     if (request.getParameter("lg_GROSSISTE_ID") != null && !request.getParameter("lg_GROSSISTE_ID").equalsIgnoreCase("") && !request.getParameter("lg_GROSSISTE_ID").equalsIgnoreCase("Sectionner un grossiste...")) {
         lg_GROSSISTE_ID = request.getParameter("lg_GROSSISTE_ID");
-        new logger().OCategory.info("lg_GROSSISTE_ID " + lg_GROSSISTE_ID);
+
     }
     if (request.getParameter("str_TYPE_TRANSACTION") != null) {
         str_TYPE_TRANSACTION = request.getParameter("str_TYPE_TRANSACTION");
@@ -151,7 +160,7 @@ TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     if (request.getParameter("mode") != null) {
 
         if (request.getParameter("mode").equals("create")) {
-            nligne = OInventaireManager.createInventaire(str_NAME, lg_FAMILLE_ID, str_DESCRIPTION, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, str_BEGIN, str_END, str_TYPE_TRANSACTION, bool_INVENTAIRE);
+            nligne = OInventaireManager.createInventaire(str_NAME, lg_FAMILLE_ID, str_NAME, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, str_BEGIN, str_END, str_TYPE_TRANSACTION, bool_INVENTAIRE, stockFilter, stockProduit);
             ObllBase.setMessage(OInventaireManager.getMessage());
 
         } else if (request.getParameter("mode").equals("createInventaireArticle")) {
@@ -195,8 +204,6 @@ TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
             }*/
         } else if (request.getParameter("mode").equals("createbis")) {
 
-            new logger().OCategory.info("final lg_FAMILLEARTICLE_ID " + lg_FAMILLEARTICLE_ID + " lg_ZONE_GEO_ID " + lg_ZONE_GEO_ID + " lg_GROSSISTE_ID " + lg_GROSSISTE_ID);
-
             try {
 
                 // OTInventaire = OInventaireManager.createInventaire(str_NAME, str_DESCRIPTION, str_TYPE_TRANSACTION);
@@ -213,7 +220,7 @@ TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
 
                 }
                 //result = "Echec de création de l'inventaitre";
-                nligne = OInventaireManager.createInventaire(str_NAME, lg_FAMILLE_ID, str_DESCRIPTION, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, str_BEGIN, str_END, str_TYPE_TRANSACTION, bool_INVENTAIRE);
+                nligne = OInventaireManager.createInventaire(str_NAME, lg_FAMILLE_ID, str_NAME, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, str_BEGIN, str_END, str_TYPE_TRANSACTION, bool_INVENTAIRE, stockFilter, stockProduit);
                 if (nligne > 0) {
                     success = 1;
                     result = nligne + " Articles Inventoriés";

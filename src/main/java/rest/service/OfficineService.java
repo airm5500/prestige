@@ -3,7 +3,6 @@ package rest.service;
 
 import java.util.List;
 import javax.ejb.Local;
-import org.json.JSONObject;
 import rest.service.dto.OfficineDTO;
 
 /**
@@ -15,5 +14,7 @@ import rest.service.dto.OfficineDTO;
 public interface OfficineService {
 
     List<OfficineDTO> getAllOfficines();
+
+    OfficineDTO getOfficine();
 
 }

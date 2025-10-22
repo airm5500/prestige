@@ -56,13 +56,13 @@
     int limit = Integer.valueOf(request.getParameter("limit"));
     
 
-    JSONArray arrayObj = groupeCtl.getGroupeInvoice(false, dt_start, dt_end,search_value, lg_GROUPE_ID,CODEGROUPE, start, limit);  
+   // JSONArray arrayObj = groupeCtl.getGroupeInvoice(false, dt_start, dt_end,search_value, lg_GROUPE_ID,CODEGROUPE, start, limit);  
     int count = groupeCtl.getGroupeInvoiceCount(dt_start, dt_end,  search_value,lg_GROUPE_ID,CODEGROUPE); 
     
 
     JSONObject data = new JSONObject();
 
-    data.put("data", arrayObj);
+   // data.put("data", arrayObj);
     data.put("total", count);
 %>
 

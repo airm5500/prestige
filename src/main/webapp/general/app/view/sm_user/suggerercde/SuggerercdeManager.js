@@ -151,6 +151,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
 
         Ext.apply(this, {
             width: '98%',
+            cls: 'screen-wrap',
             fieldDefaults: {labelAlign: 'left', labelWidth: 90, anchor: '100%', msgTarget: 'side'},
             layout: {type: 'vbox', align: 'stretch', padding: 10},
             defaults: {flex: 1},
@@ -158,6 +159,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             items: [{
                 xtype: 'fieldset',
                 title: 'Informations sur la suggestion',
+                cls: 'ig-card ig-simple',
                 collapsible: true, defaultType: 'textfield', margin: '5 0 5 0',
                 layout: 'anchor', defaults: {anchor: '100%'},
                 items: [
@@ -185,6 +187,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             {
                 xtype: 'fieldset',
                 title: 'Ajout Produit',
+                cls: 'dg-card',
                 collapsible: true, defaultType: 'textfield', width: 300,
                 layout: 'anchor', defaults: {anchor: '100%'},
                 items: [
@@ -197,7 +200,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 xtype: 'combobox', fieldLabel: 'Article', name: 'str_NAME',
                                 id: 'str_NAME', store: store, margins: '0 10 5 10',
                                 enableKeyEvents: true, valueField: 'CIP', displayField: 'str_DESCRIPTION',
-                                pageSize: 20, typeAhead: true, flex: 2,
+                                pageSize: 999, typeAhead: true, flex: 2,
                                 queryMode: 'remote', emptyText: 'Choisir un article par Nom ou Cip...',
                                 listConfig: {
                                     loadingText: 'Recherche...',
@@ -245,69 +248,110 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 }
                             },
                             {text: 'Ajouter', id: 'btn_add', margins: '0 0 0 6', hidden: true, xtype: 'button', handler: this.onbtnadd, disabled: true},
-                            {text: 'Voir detail', id: 'btn_detail', margins: '0 0 0 6', xtype: 'button', handler: this.onbtndetail, disabled: true}
+                            {text: 'Voir infos produit', id: 'btn_detail',cls: 'btn-primary', margins: '0 0 0 6', xtype: 'button', handler: this.onbtndetail, disabled: true}
                         ]
                     }
                 ]
             },
-            {
-                xtype: 'fieldset',
-                title: 'Liste des produits de la suggestion',
-                collapsible: true, defaultType: 'textfield', layout: 'anchor',
-                defaults: {anchor: '100%'},
-                items: [{
-                        columnWidth: 0.65,
-                        xtype: 'gridpanel',
-                        id: 'gridpanelSuggestionID',
-                        plugins: [this.cellEditing],
-                        store: store_details_sugg,
-                        height: 370,
-                        columns: [
-                            {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
-                            {text: 'LIBELLE', flex: 2.5, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
-                            {text: 'PRIX.VENTE', flex: 1, sortable: true, dataIndex: 'lg_FAMILLE_PRIX_VENTE', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
-                            {text: 'PRIX A. TARIF', flex: 1, sortable: true, hidden: true, align: 'right', renderer: Me_Window.numberColumnRenderer, dataIndex: 'lg_FAMILLE_PRIX_ACHAT', editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, selectOnFocus: true, regex: /[0-9.]/}},
-                            {text: 'PRIX A. FACT', flex: 1, sortable: true, dataIndex: 'int_PAF_SUGG', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, regex: /[0-9.]/}},
-                            {text: 'PRIX TIPS', flex: 1, sortable: true, hidden: true, align: 'right', renderer: Me_Window.numberColumnRenderer, dataIndex: 'int_PRIX_REFERENCE'},
-                            {text: 'STOCK', flex: 1, sortable: true, dataIndex: 'int_STOCK', align: 'right', renderer: Me_Window.numberColumnRenderer},
-                            {text: 'SEUIL', flex: 1, sortable: true, dataIndex: 'int_SEUIL', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
-                            
-                            {
-                                header: 'Q.CDE', dataIndex: 'int_NUMBER', align: 'right',
-                                renderer: Me_Window.numberColumnRenderer, flex: 1,
-                                editor: {
-                                    xtype: 'numberfield', minValue: 0,
-                                    selectOnFocus: true, allowBlank: false,
-                                    enableKeyEvents: true,
-                                    listeners: {
-                                        specialkey: function(field, e) {
-                                            if (e.getKey() === e.ENTER) {
-                                                e.stopEvent();
-                                                var grid = Ext.getCmp('gridpanelSuggestionID');
-                                                var sm = grid.getSelectionModel();
-                                                var record = sm.getSelection()[0];
-                                                var position = sm.getCurrentPosition();
-                                                if (!record) return;
-                                                var value = field.getValue();
-                                                if (value === 0) {
-                                                    Me_Window.onRemoveClick(grid, position.row);
-                                                    return;
+                {
+                    xtype: 'fieldset',
+                    title: 'Liste des produits de la suggestion',
+                    cls: 'dg-card',
+                    collapsible: true, defaultType: 'textfield', layout: 'anchor',
+                    defaults: {anchor: '100%'},
+                    items: [{
+                            columnWidth: 0.65,
+                            xtype: 'gridpanel',
+                            id: 'gridpanelSuggestionID',
+                            cls: 'my-grid-header',
+                            plugins: [this.cellEditing],
+                            store: store_details_sugg,
+                            height: 370,
+                            columns: [
+                                {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
+                                {text: 'LIBELLE', flex: 2.5, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
+                                {text: 'PRIX.VENTE', flex: 1, sortable: true, dataIndex: 'lg_FAMILLE_PRIX_VENTE', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
+                                {text: 'PRIX A. TARIF', flex: 1, sortable: true, hidden: true, align: 'right', renderer: Me_Window.numberColumnRenderer, dataIndex: 'lg_FAMILLE_PRIX_ACHAT', editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, selectOnFocus: true, regex: /[0-9.]/}},
+                                {text: 'PRIX A. FACT', flex: 1, sortable: true, dataIndex: 'int_PAF_SUGG', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, regex: /[0-9.]/}},
+                                {text: 'PRIX TIPS', flex: 1, sortable: true, hidden: true, align: 'right', renderer: Me_Window.numberColumnRenderer, dataIndex: 'int_PRIX_REFERENCE'},
+                                {text: 'STOCK', flex: 1, sortable: true, dataIndex: 'int_STOCK', align: 'right', renderer: function (value, metadata) {
+                                        // Applique le style CSS pour mettre le texte en vert et en gras
+                                        metadata.style = 'color: blue; font-weight: bold;font-size: 16px;';
+
+                                        // Retourne la valeur formatée (comme avant)
+                                        return amountformat(value);
+                                    }},
+                                {text: 'SEUIL', flex: 1, sortable: true, dataIndex: 'int_SEUIL', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
+
+                                {
+                                    header: 'QTE', dataIndex: 'int_NUMBER', align: 'right',
+                                    renderer: function (value, metadata) {
+                                        // Applique le style CSS pour mettre le texte en vert et en gras
+                                        metadata.style = 'color: green; font-weight: bold;font-size: 16px;';
+
+                                        // Retourne la valeur formatée (comme avant)
+                                        return amountformat(value);
+                                    }, flex: 1,
+                                    editor: {
+                                        xtype: 'numberfield', minValue: 0,
+                                        selectOnFocus: true, allowBlank: false,
+                                        enableKeyEvents: true,
+                                        listeners: {
+                                            specialkey: function (field, e) {
+                                                if (e.getKey() === e.ENTER) {
+                                                    e.stopEvent();
+                                                    var grid = Ext.getCmp('gridpanelSuggestionID');
+                                                    var sm = grid.getSelectionModel();
+                                                    var record = sm.getSelection()[0];
+                                                    var position = sm.getCurrentPosition();
+                                                    if (!record)
+                                                        return;
+                                                    var value = field.getValue();
+                                                    if (value === 0) {
+                                                        Me_Window.onRemoveClick(grid, position.row);
+                                                        return;
+                                                    }
+                                                    Me_Window.updateQty(record, value, position);
                                                 }
-                                                Me_Window.updateQty(record, value, position);
                                             }
                                         }
                                     }
-                                }
-                            },
+                                },
+                                {
+                                    header: 'MOY',
+                                    align: 'right',
+                                    flex: 1,
+                                    renderer: function (value, metadata, record) {
+                                        // 1. Récupérer les valeurs des 3 mois
+                                        var v1 = record.get('int_VALUE1');
+                                        var v2 = record.get('int_VALUE2');
+                                        var v3 = record.get('int_VALUE3');
 
-                            {header: AppController.getMonthToDisplay(0, currentMonth), dataIndex: 'int_VALUE0', flex: 1, align: 'right', renderer: Me_Window.numberColumnRenderer},
-                            {header: AppController.getMonthToDisplay(1, currentMonth), dataIndex: 'int_VALUE1', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
-                            {header: AppController.getMonthToDisplay(2, currentMonth), dataIndex: 'int_VALUE2', align: 'right', format: '0,000.', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
-                            {header: AppController.getMonthToDisplay(3, currentMonth), dataIndex: 'int_VALUE3', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
-                            {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/cog.png', tooltip: 'Qté détail', scope: this, handler: this.onQtyDetail, getClass: function (value, metadata, record) { if (record.get('bool_DECONDITIONNE_EXIST') === 1) { return 'x-display-hide'; } else { return 'x-hide-display';}}}]},
-                            {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/application_view_list.png', tooltip: 'Detail sur l\'article', scope: this, handler: this.onDetailClick}]},
-                            {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{/*icon: 'resources/images/icons/fam/delete.png',*/ tooltip: 'Supprimer', scope: this/*, handler: this.onRemoveClick*/}]}
-                        ],
+                                        // 2. Calculer la moyenne et l'arrondir
+                                        var moyenne = Math.round((v1 + v2 + v3) / 3);
+
+                                        // 3. Appliquer le style demandé
+                                        metadata.style = 'color: red; font-weight: bold; font-size: 16px;';
+
+                                        // 4. Retourner la valeur calculée
+                                        return moyenne;
+                                    }
+                                },
+
+                                {header: AppController.getMonthToDisplay(0, currentMonth), dataIndex: 'int_VALUE0', flex: 1, align: 'right', renderer: Me_Window.numberColumnRenderer},
+                                {header: AppController.getMonthToDisplay(1, currentMonth), dataIndex: 'int_VALUE1', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
+                                {header: AppController.getMonthToDisplay(2, currentMonth), dataIndex: 'int_VALUE2', align: 'right', format: '0,000.', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
+                                {header: AppController.getMonthToDisplay(3, currentMonth), dataIndex: 'int_VALUE3', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
+                                {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/cog.png', tooltip: 'Qté détail', scope: this, handler: this.onQtyDetail, getClass: function (value, metadata, record) {
+                                                if (record.get('bool_DECONDITIONNE_EXIST') === 1) {
+                                                    return 'x-display-hide';
+                                                } else {
+                                                    return 'x-hide-display';
+                                                }
+                                            }}]},
+                                {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/application_view_list.png', tooltip: 'Detail sur l\'article', scope: this, handler: this.onDetailClick}]},
+                                {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{/*icon: 'resources/images/icons/fam/delete.png',*/ tooltip: 'Supprimer', scope: this/*, handler: this.onRemoveClick*/}]}
+                            ],
                         tbar: [{xtype: 'textfield', id: 'rechercherDetail', name: 'rechercherDetail', emptyText: 'Recherche', width: 300, listeners: {'render': function (cmp) {cmp.getEl().on('keypress', function (e) {if (e.getKey() === e.ENTER) {Me_Window.onRechClick();}});}}}],
                         
                         bbar: {
@@ -329,10 +373,25 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     }]
             },
             {
-                xtype: 'toolbar', ui: 'footer', dock: 'bottom', border: '0',
-                items: ['->',
-                    {text: 'Retour', id: 'btn_cancel', iconCls: 'icon-clear-group', scope: this, hidden: false, handler: this.onbtncancel},
-                    {text: 'Imprimer', id: 'btn_print', iconCls: 'icon-clear-group', scope: this, hidden: true, handler: this.onbtnprint}
+                    xtype: 'toolbar', ui: 'footer', dock: 'bottom', border: '0',
+                    items: ['->',
+                        {text: 'Retour', id: 'btn_cancel',cls: 'btn-secondary', iconCls: 'icon-clear-group', scope: this, hidden: false, handler: this.onbtncancel},
+                        {text: 'Imprimer', id: 'btn_print',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: true, handler: this.onbtnprint},
+                        
+                        {
+                            text: 'Nettoyer la suggestion',
+                            id: 'btn_clean_sugg',
+                            iconCls: 'icon-delete', 
+                            scope: this,
+                            tooltip: 'supprimer les produits dont le STOCK > SEUIL',
+                            handler: this.onCleanSuggestion,
+                            style: {
+                                'background-image': 'none',
+                                'background-color': 'orange !important', 
+                                'border-color': '#A36A00 !important'            
+                            }
+                    },
+                    '->'
                 ]
             }]
         });
@@ -465,8 +524,6 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
 
     loadStore: function () {},
 
-    loadStore: function () {},
-
     onbtnprint: function () {
         Ext.MessageBox.confirm('Message', 'Confirmation de l\'impression de cette suggestion',
                 function (btn) {
@@ -520,7 +577,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     } else {
                         orderIdRef = object.ref;
                         Me_Window.setTitleFrame(object.ref);
-                        Me_Window.focusContext = { row: 0 };
+                        //Me_Window.focusContext = { row: 0 };
                         Ext.getCmp('gridpanelSuggestionID').getStore().reload();
                     }
                 },
@@ -531,11 +588,62 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             });
         }
     },
-
     
+  onCleanSuggestion: function() {
+    var me = this; 
+
+    if (!orderIdRef) {
+        Ext.MessageBox.alert('Information', 'Aucune suggestion active à nettoyer.');
+        return;
+    }
+
+    Ext.MessageBox.confirm('Confirmation',
+        'Voulez-vous supprimer les produits dont le stock est supérieur au seuil ?',
+        function(btn) {
+            if (btn === 'yes') {
+                testextjs.app.getController('App').ShowWaitingProcess();
+
+                Ext.Ajax.request({
+                    url: '../api/v1/suggestion/clean?suggestionId=' + orderIdRef,
+                    method: 'POST',
+                    scope: me,
+                    success: function(response) {
+                        testextjs.app.getController('App').StopWaitingProcess();
+                        var JsorResponse = Ext.JSON.decode(response.responseText, true);
+
+                        if (JsorResponse && JsorResponse.success) {
+                            
+                            //Ext.MessageBox.alert('Opération réussie', 'La suggestion a été nettoyée avec succès.');
+
+                            var grid = Ext.getCmp('gridpanelSuggestionID');
+                            grid.getStore().load({
+                                params: {
+                                    orderId: orderIdRef,
+                                    query: Ext.getCmp('rechercherDetail').getValue()
+                                }
+                            });
+                            
+                            this.getSuggestionAmount(orderIdRef);
+                        } else {
+                            Ext.MessageBox.alert('Erreur', (JsorResponse ? JsorResponse.message : "Réponse invalide du serveur."));
+                        }
+                    },
+                    failure: function(response) {
+                        testextjs.app.getController('App').StopWaitingProcess();
+                        this.getSuggestionAmount(orderIdRef);
+                        Ext.MessageBox.alert('Erreur Serveur', 'Impossible de contacter le serveur. ' + response.statusText);
+                    }
+                });
+            }
+        });
+},
+    
+ // MODIFIÉ : Assure que l'ID de la suggestion est passé lors du rechargement
     onEdit: function () {
         const me = this;
-        const suggestionId = me.getNameintern();
+        // On s'assure de prendre l'ID le plus à jour
+        const suggestionId = orderIdRef || me.getNameintern(); 
+
         if (Ext.getCmp('lg_GROSSISTE_ID').getValue() === null) {
             Ext.MessageBox.alert('Error Message', 'Renseignez le Grossiste ', function () {
                 Ext.getCmp('lg_GROSSISTE_ID').focus();
@@ -554,14 +662,27 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 params: Ext.JSON.encode(data),
                 success: function (response, options) {
                     testextjs.app.getController('App').StopWaitingProcess();
+                    var JsorResponse = Ext.JSON.decode(response.responseText, true);
+
+                    // Si c'est le premier ajout, on met à jour la variable globale orderIdRef
+                    if (!orderIdRef && JsorResponse.suggestionId) {
+                        orderIdRef = JsorResponse.suggestionId;
+                        me.setNameintern(orderIdRef);
+                        me.setTitleFrame(orderIdRef);
+                    }
                     
+                    var store = Ext.getCmp('gridpanelSuggestionID').getStore();
+                    
+                    // On s'assure que l'ID est bien dans les paramètres du proxy avant de recharger
+                    store.getProxy().setExtraParam('orderId', orderIdRef);
+
+                    store.loadPage(1);
+
+                    // La réinitialisation se fait après, pour une meilleure expérience
                     Ext.getCmp('str_NAME').setValue("");
                     Ext.getCmp('int_QUANTITE').setValue(1);
                     Ext.getCmp('btn_detail').disable();
                     Ext.getCmp('str_NAME').focus();
-
-                    var store = Ext.getCmp('gridpanelSuggestionID').getStore();
-                    store.loadPage(1000); 
                 },
                 failure: function (response) {
                     Ext.MessageBox.alert('Error Message', response.responseText);

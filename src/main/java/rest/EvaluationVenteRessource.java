@@ -56,6 +56,31 @@ public class EvaluationVenteRessource {
     }
 
     @GET
+    @Path("/produit")
+    public Response getDatas(@QueryParam(value = "familleId") String familleId,
+            @QueryParam(value = "emplacementId") String emplacementId, @QueryParam(value = "filtre") String filtre,
+            @QueryParam(value = "filtreValue") Float filtreValue, @QueryParam(value = "query") String query,
+            @QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit) {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        EvaluationVenteFiltre evaluationVenteFiltre = new EvaluationVenteFiltre();
+        evaluationVenteFiltre.setEmplacementId(emplacementId);
+        evaluationVenteFiltre.setFamilleId(familleId);
+        evaluationVenteFiltre.setQuery(query);
+        evaluationVenteFiltre.setFiltre(filtre);
+        evaluationVenteFiltre.setFiltreValue(filtreValue);
+        evaluationVenteFiltre.setStart(start);
+        evaluationVenteFiltre.setLimit(limit);
+        JSONObject json = evaluationVenteService.fetchEvaluationVentes(evaluationVenteFiltre);
+
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
     @Path("/suggerer")
     public Response suggerer(@QueryParam(value = "familleId") String familleId,
             @QueryParam(value = "emplacementId") String emplacementId, @QueryParam(value = "filtre") String filtre,

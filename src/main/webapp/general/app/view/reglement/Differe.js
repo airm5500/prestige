@@ -281,7 +281,11 @@ Ext.define('testextjs.view.reglement.Differe', {
                             format: '0,000.',
                             dataIndex: 'montantAttendu',
                             flex: 1,
-                            align: 'right'
+                            align: 'right',
+                            summaryType: "sum",
+                            summaryRenderer: function (value) {
+                                return " <span style='color:brown;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
+                            }
                         },
                         {
                             xtype: 'numbercolumn',
@@ -301,8 +305,13 @@ Ext.define('testextjs.view.reglement.Differe', {
                             header: 'Montant Restant',
                             format: '0,000.',
                             dataIndex: 'montantRestant',
+                            fieldStyle: "color:red;",
                             flex: 1,
-                            align: 'right'
+                            align: 'right',
+                            summaryType: "sum",
+                            summaryRenderer: function (value) {
+                                return " <span style='color:red;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
+                            }
                         },
                         {
                             header: 'Date',
@@ -450,7 +459,7 @@ Ext.define('testextjs.view.reglement.Differe', {
                             flex: 1,
                             summaryType: "count",
                             summaryRenderer: function (value) {
-                                return "<b>Nombre de dossier </b><span style='color:blue;font-weight:800;'>" + value + "</span>";
+                                return "<b>Nombre de ventes différées:  </b><span style='color:blue;font-weight:800;'>" + value + "</span>";
 
                             }},
 
@@ -462,16 +471,20 @@ Ext.define('testextjs.view.reglement.Differe', {
                         },
                         {
                             xtype: 'numbercolumn',
-                            header: 'Montant',
+                            header: 'Montant total vente',
                             format: '0,000.',
                             dataIndex: 'totalAmount',
                             flex: 1,
-                            align: 'right'
+                            align: 'right',
+                            summaryType: "sum",
+                            summaryRenderer: function (value) {
+                                return " <span style='color:red;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
+                            }
 
                         },
                         {
                             xtype: 'numbercolumn',
-                            header: 'Part.Client',
+                            header: 'Montant Attendu',
                             format: '0,000.',
                             dataIndex: 'montantAttendu',
                             flex: 1,
@@ -479,14 +492,15 @@ Ext.define('testextjs.view.reglement.Differe', {
                         },
                         {
                             xtype: 'numbercolumn',
-                            header: 'Reste',
+                            header: 'Reste à Payer',
                             format: '0,000.',
                             dataIndex: 'montantRegle',
+                            fieldStyle: "color:green;",
                             flex: 1,
                             align: 'right',
                             summaryType: "sum",
                             summaryRenderer: function (value) {
-                                return " <span style='color:blue;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
+                                return " Reste à Payer: <span style='color:green;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
                             }
                         },
                         {

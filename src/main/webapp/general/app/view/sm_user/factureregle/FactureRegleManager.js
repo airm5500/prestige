@@ -116,30 +116,7 @@ Ext.define('testextjs.view.sm_user.factureregle.FactureRegleManager', {
                     dataIndex: 'dt_CREATED',
                     flex: 1
 
-                }, /*{
-                 xtype: 'actioncolumn',
-                 width: 30,
-                 sortable: false,
-                 menuDisabled: true,
-                 items: [{
-                 icon: 'resources/images/icons/fam/page_white_edit.png',
-                 tooltip: 'Edit',
-                 scope: this,
-                 handler: this.onEditClick
-                 }]
-                 },
-                 {
-                 xtype: 'actioncolumn',
-                 width: 30,
-                 sortable: false,
-                 menuDisabled: true,
-                 items: [{
-                 icon: 'resources/images/icons/fam/page_white_edit.png',
-                 tooltip: 'Modifier Bordereau',
-                 scope: this,
-                 handler: this.onEditClick
-                 }]
-                 }*/ {
+                },{
                     xtype: 'actioncolumn',
                     width: 30,
                     sortable: false,
@@ -219,14 +196,7 @@ Ext.define('testextjs.view.sm_user.factureregle.FactureRegleManager', {
                         select: function (cmp) {
                             var value = cmp.getValue();
                             customer_id = value;
-                            /*   var OGrid = Ext.getCmp('Grid_Diffclt_ID');
-                             // var url_services_data_diffclient = '../webservices/sm_user/diffclient/ws_data.jsp';
-                             var url_services_data_diffclient = "../webservices/sm_user/diffclient/ws_data.jsp?str_BENEFICIAIRE=" + customer_id + "&lg_TYPE_ECART_MVT=1&str_task=" + str_task_diff;
-                             
-                             //  alert(url_services_data_diffclient);
-                             OGrid.getStore().getProxy().url = url_services_data_diffclient;
-                             
-                             OGrid.getStore().reload();*/
+                          
                         }
                     }
                 }, '-', {
@@ -239,7 +209,7 @@ Ext.define('testextjs.view.sm_user.factureregle.FactureRegleManager', {
                     format: 'd/m/Y',
                     listeners: {
                         'change': function (me) {
-                            // alert(me.getSubmitValue());
+                          
                             valdatedebut = me.getSubmitValue();
                         }
                     }
@@ -253,7 +223,7 @@ Ext.define('testextjs.view.sm_user.factureregle.FactureRegleManager', {
                     format: 'd/m/Y',
                     listeners: {
                         'change': function (me) {
-                            //alert(me.getSubmitValue());
+                          
                             valdatefin = me.getSubmitValue();
                         }
                     }

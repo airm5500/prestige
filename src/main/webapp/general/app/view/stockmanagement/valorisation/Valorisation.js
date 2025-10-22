@@ -1,466 +1,383 @@
 /* global Ext */
 
 Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
-    extend: 'Ext.form.Panel',
+    extend: 'Ext.panel.Panel',
     xtype: 'valorisationstock',
 
+    cls: 'pl-card',
     frame: true,
     title: 'Valorisation du stock',
     bodyPadding: 10,
-    // width: '60%',
-    width: 580,
-    closable: false,
-    fieldDefaults: {
-        labelAlign: 'right',
-        labelWidth: 115,
-        msgTarget: 'side'
-    },
-    config: {
-        nameintern: '',
-        titre: ''
-    },
-    initComponent: function () {
+    layout: { type: 'vbox', align: 'stretch' },
+    width: 860,
 
-        var itemsPerPage = 20;
-        var store_famillearticle = new Ext.data.Store({
+    initComponent: function () {
+        var me = this, itemsPerPage = 20;
+
+        // ===== STORES =====
+        var storeFamille = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.FamilleArticle',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: {
-                type: 'ajax',
-                url: '../webservices/configmanagement/famillearticle/ws_data_other.jsp',
-                reader: {
-                    type: 'json',
-                    root: 'results',
-                    totalProperty: 'total'
-                }
-            }
-
+            proxy: { type: 'ajax', url: '../webservices/configmanagement/famillearticle/ws_data_other.jsp',
+                reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
-
-        var str_NAME_USER = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    //allowBlank: false,
-                    fieldLabel: 'UTILISATEUR',
-                    name: 'str_NAME_USER',
-                    id: 'str_NAME_USER',
-                    fieldStyle: "color:blue;font-size:1.5em;font-weight: 700;",
-                    emptyText: 'str_NAME_USER'
-                });
-        var store_zonegeo = new Ext.data.Store({
+        var storeZone = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.ZoneGeographique',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: {
-                type: 'ajax',
-                url: '../webservices/configmanagement/zonegeographique/ws_data_other.jsp',
-                reader: {
-                    type: 'json',
-                    root: 'results',
-                    totalProperty: 'total'
-                }
-            }
-
+            proxy: { type: 'ajax', url: '../webservices/configmanagement/zonegeographique/ws_data_other.jsp',
+                reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
-        var storerepartiteur = new Ext.data.Store({
+        var storeGrossiste = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.Grossiste',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: {
-                type: 'ajax',
-                url: '../webservices/configmanagement/grossiste/ws_data_other.jsp',
-                reader: {
-                    type: 'json',
-                    root: 'results',
-                    totalProperty: 'total'
-                }
-            }
-
+            proxy: { type: 'ajax', url: '../webservices/configmanagement/grossiste/ws_data_other.jsp',
+                reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+        });
+        var storeType = Ext.create('Ext.data.Store', {
+            fields: ['value', 'label'],
+            data: [
+                { value: 0, label: 'Simple' },
+                { value: 1, label: 'Famille' },
+                { value: 2, label: 'Emplacement' },
+                { value: 3, label: 'Grossiste' }
+            ]
         });
 
+        // ===== HELPERS =====
+        var fmt = Ext.util.Format;
+        var fmtMoney = fmt.numberRenderer('0,000.');
+        function nn(v){ return (v === null || v === undefined) ? '' : v; }
 
-        var TOTAL_VENTE = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'VALEUR VENTE',
-                    name: 'TOTAL_VENTE',
-                    id: 'TOTAL_VENTE',
-                    emptyText: 'TOTAL_VENTE',
-                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                    fieldStyle: "color:blue;font-size:1.5em;font-weight: 900;",
-                    value: 0
-                });
-
-        var TOTAL_ACHAT = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'VALEUR ACHAT',
-                    name: 'TOTAL_ACHAT',
-                    id: 'TOTAL_ACHAT',
-                    emptyText: 'TOTAL_ACHAT',
-                    renderer: function (v) {
-                                        return Ext.util.Format.number(v, '0,000.');
-                                    },
-                    fieldStyle: "color:blue;font-size:1.5em;font-weight: 900;",
-                    value: 0
-                });
-
-        var dt_CREATED = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    //allowBlank: false,
-                    fieldLabel: 'Date.Système',
-                    name: 'dt_CREATED',
-                    id: 'dt_CREATED',
-                    fieldStyle: "color:green;font-size:1.5em;font-weight: 900;",
-                    emptyText: 'dt_CREATED'
-                });
-
-        var store_type = new Ext.data.Store({
-            fields: ['str_TYPE_TRANSACTION', 'str_STATUT_TRANSACTION'],
-            data: [{str_TYPE_TRANSACTION: 0, str_STATUT_TRANSACTION: 'Simple'}, {str_TYPE_TRANSACTION: 1, str_STATUT_TRANSACTION: 'Famille'}, {str_TYPE_TRANSACTION: 2, str_STATUT_TRANSACTION: 'Emplacement'}, {str_TYPE_TRANSACTION: 3, str_STATUT_TRANSACTION: 'Grossiste'}]
-        });
-
-        this.items = [{
-                xtype: 'fieldset',
-                title: 'Infos Utilisateur',
-                defaultType: 'textfield',
-                defaults: {
-                    anchor: '100%'
-                },
-                items: [
-                    str_NAME_USER
-                ]
-            },
-            {
-                xtype: 'fieldset',
-                title: 'Crit&egrave;res de recherche',
-                defaultType: 'textfield',
-                defaults: {
-                    anchor: '100%'
-                },
-                items: [
-                    {
-                        xtype: 'datefield',
-                        format: 'd/m/Y',
-                        emptyText: 'Date',
-                        submitFormat: 'Y-m-d',
-                        fieldLabel: 'Date',
-                        margin: '0 0 5 0',
-                        value: new Date(),
-                        maxValue: new Date(),
-                        flex: 1,
-                        id: 'dt_periode'
-
-                    },
-
-                    {
-                        xtype: 'combobox',
-                        fieldLabel: 'Filtrer par',
-//                        margins: '0 0 0 10',
-                        id: 'str_TYPE_TRANSACTION',
-                        store: store_type,
-                        valueField: 'str_TYPE_TRANSACTION',
-                        displayField: 'str_STATUT_TRANSACTION',
-//                            typeAhead: true,
-                        editable: false,
-                        queryMode: 'local',
-                        flex: 1,
-                        value: 0,
-                        emptyText: 'Filtrer par...',
-                        listeners: {
-                            select: function (cmp) {
-                                var value = cmp.getValue();
-
-                                var OGridFamille = Ext.getCmp('lg_FAMILLEARTICLE_ID');
-                                var OGridemplacement = Ext.getCmp('lg_ZONE_GEO_ID');
-                                var OGridGrossiste = Ext.getCmp('lg_GROSSISTE_ID');
-                                var OContainerInterval = Ext.getCmp('contenaire_intervalle');
-                                OContainerInterval.hide();
-                                Ext.getCmp('str_BEGIN').reset();
-                                Ext.getCmp('str_END').reset();
-                                if (value == 0) {
-                                    OGridFamille.hide();
-                                    OGridemplacement.hide();
-                                    OGridGrossiste.hide();
-                                }
-                                if (value == 1) {
-                                    OGridFamille.show();
-                                    OGridemplacement.hide();
-                                    OGridGrossiste.hide();
-
-                                    OGridemplacement.setValue("");
-                                    OGridGrossiste.setValue("");
-                                } else if (value == 2) {
-                                    OGridemplacement.show();
-                                    OGridFamille.hide();
-                                    OGridGrossiste.hide();
-
-                                    OGridFamille.setValue("");
-                                    OGridGrossiste.setValue("");
-                                } else if (value == 3) {
-                                    OGridGrossiste.show();
-                                    OGridFamille.hide();
-                                    OGridemplacement.hide();
-
-                                    OGridFamille.setValue("");
-                                    OGridemplacement.setValue("");
-                                }
-
-
-
-                            }
-                        }
-                    }, {
-                        xtype: 'combobox',
-                        fieldLabel: 'Famille article',
-                        name: 'lg_FAMILLEARTICLE_ID',
-                        id: 'lg_FAMILLEARTICLE_ID',
-                        store: store_famillearticle,
-                        hidden: true,
-                        valueField: 'lg_FAMILLEARTICLE_ID',
-                        pageSize: itemsPerPage,
-                        displayField: 'str_LIBELLE',
-                        typeAhead: true,
-                        queryMode: 'remote',
-                        emptyText: 'Sectionner une famille article...',
-                        listeners: {
-                            select: function (cmp) {
-                                var value = cmp.getValue();
-                                var OContainerInterval = Ext.getCmp('contenaire_intervalle');
-                                if (value == "0") {
-                                    OContainerInterval.show();
-                                } else {
-                                    OContainerInterval.hide();
-                                    Ext.getCmp('str_BEGIN').reset();
-                                    Ext.getCmp('str_END').reset();
-                                }
-
-
-                            }
-                        }
-                    }, {
-                        xtype: 'combobox',
-                        name: 'lg_ZONE_GEO_ID',
-                        fieldLabel: 'Emplacement',
-//                        margins: '0 0 0 10',
-                        id: 'lg_ZONE_GEO_ID',
-                        store: store_zonegeo,
-                        hidden: true,
-                        valueField: 'lg_ZONE_GEO_ID',
-                        displayField: 'str_LIBELLEE',
-                        pageSize: itemsPerPage,
-                        typeAhead: true,
-                        queryMode: 'remote',
-                        flex: 1,
-                        emptyText: 'Sectionner un emplacement...',
-                        listeners: {
-                            select: function (cmp) {
-                                var value = cmp.getValue();
-                                var OContainerInterval = Ext.getCmp('contenaire_intervalle');
-                                if (value === "0") {
-                                    OContainerInterval.show();
-                                } else {
-                                    OContainerInterval.hide();
-                                    Ext.getCmp('str_BEGIN').reset();
-                                    Ext.getCmp('str_END').reset();
-                                }
-
-
-                            }
-                        }
-                    }, {
-                        xtype: 'combobox',
-                        fieldLabel: 'Grossiste',
-                        name: 'lg_GROSSISTE_ID',
-//                        margin: '5 15 0 0',
-                        id: 'lg_GROSSISTE_ID',
-                        store: storerepartiteur,
-                        valueField: 'lg_GROSSISTE_ID',
-                        displayField: 'str_LIBELLE',
-                        pageSize: itemsPerPage, //ajout la barre de pagination
-                        hidden: true,
-                        typeAhead: true,
-                        queryMode: 'remote',
-                        flex: 1,
-                        emptyText: 'Sectionner un grossiste...',
-                        listeners: {
-                            select: function (cmp) {
-                                var value = cmp.getValue();
-                                var OContainerInterval = Ext.getCmp('contenaire_intervalle');
-                                if (value === "0") {
-                                    OContainerInterval.show();
-                                } else {
-                                    OContainerInterval.hide();
-                                    Ext.getCmp('str_BEGIN').reset();
-                                    Ext.getCmp('str_END').reset();
-                                }
-
-
-                            }
-                        }
-
-                    }, {
-                        xtype: 'fieldcontainer',
-                        fieldLabel: 'Intervalle',
-                        layout: 'hbox',
-                        id: 'contenaire_intervalle',
-                        hidden: true,
-                        combineErrors: true,
-                        defaultType: 'textfield',
-                        defaults: {
-                            hideLabel: 'true'
-                        },
-                        items: [
-                            {
-                                fieldLabel: 'De',
-                                width: 100,
-                                emptyText: '',
-                                name: 'str_BEGIN',
-                                id: 'str_BEGIN',
-                                margin: '0 10 0 0'
-
-                            },
-                            {
-                                fieldLabel: 'A',
-                                xtype: 'textfield',
-                                width: 100,
-//                                            hidden: true,
-                                emptyText: '',
-                                name: 'str_END',
-                                id: 'str_END'/*,
-                                 maxLength: 1,
-                                 minLength: 1*/
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                xtype: 'fieldset',
-                title: 'Detail Valorisation',
-                defaultType: 'textfield',
-                defaults: {
-                    anchor: '100%'
-                },
-                items: [
-                    TOTAL_VENTE,
-                    TOTAL_ACHAT,
-                    dt_CREATED
-                ]
-            }];
-
-        this.callParent();
-        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-        Ext.Ajax.request({
-            method: 'GET',
-            url: '../api/v1/produit/valorisation',
-             timeout: 6000000,
-            params: {
-                dtStart: Ext.getCmp('dt_periode').getSubmitValue(),
-                mode: 0,
-                lgGROSSISTEID: null,
-                lgFAMILLEARTICLEID: null,
-                lgZONEGEOID: null,
-                END: null,
-                BEGIN: null
-            },
-            success: function (response) {
-                progress.hide();
-                var result = Ext.JSON.decode(response.responseText, true);
-                var data = result.data;
-                Ext.getCmp('TOTAL_VENTE').setValue(data.valueTwo);
-                Ext.getCmp('TOTAL_ACHAT').setValue(data.value);
-                Ext.getCmp('str_NAME_USER').setValue(result.user);
-//                Ext.getCmp('ld_CREATED_BY').setValue(jsonResponse.CREATED_BY);
-                Ext.getCmp('dt_CREATED').setValue(result.dtCREATED);
-
-            },
-            failure: function (error) {
-                progress.hide();
-            }
-        });
-
-    },
-    buttons: [
-        {
-            text: 'Valoriser le stock',
-            id: 'btn_valoriser',
-            //disabled: true,
-            handler: function () {
-                var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-                Ext.Ajax.request({
-                    method: 'GET',
-                    url: '../api/v1/produit/valorisation',
-                    params: {
-                        dtStart: Ext.getCmp('dt_periode').getSubmitValue(),
-                        mode: Ext.getCmp('str_TYPE_TRANSACTION').getValue(),
-                        lgGROSSISTEID:  Ext.getCmp('lg_GROSSISTE_ID').getValue(),
-                        lgFAMILLEARTICLEID: Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue(),
-                        lgZONEGEOID:  Ext.getCmp('lg_ZONE_GEO_ID').getValue(),
-                        END:  Ext.getCmp('str_END').getValue(),
-                        BEGIN: Ext.getCmp('str_BEGIN').getValue()
-                    },
-                    success: function (response) {
-                        progress.hide();
-                        var result = Ext.JSON.decode(response.responseText, true);
-                        var data = result.data;
-                        Ext.getCmp('TOTAL_VENTE').setValue(data.valueTwo);
-                        Ext.getCmp('TOTAL_ACHAT').setValue(data.value);
-                        Ext.getCmp('str_NAME_USER').setValue(result.user);
-//                Ext.getCmp('ld_CREATED_BY').setValue(jsonResponse.CREATED_BY);
-                        Ext.getCmp('dt_CREATED').setValue(result.dtCREATED);
-
-                    },
-                    failure: function (error) {
-                        progress.hide();
-                    }
-                });
-
-            }
-        },
-        {
-            text: 'Imprimer',
-            id: 'btn_print',
-            disabled: true,
-            formBind: true,
-            handler: function () {
-                var str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
-                var lg_GROSSISTE_ID = Ext.getCmp('lg_GROSSISTE_ID').getValue(),
-                        lg_FAMILLEARTICLE_ID = Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue(),
-                        lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue(),
-                        str_END = Ext.getCmp('str_END').getValue(),
-                        str_BEGIN = Ext.getCmp('str_BEGIN').getValue();
-                if (str_END === null || str_END === undefined) {
-                    str_END = "";
-                }
-                if (str_BEGIN === null || str_BEGIN === undefined) {
-                    str_BEGIN = "";
-                }
-                if (lg_ZONE_GEO_ID === null || lg_ZONE_GEO_ID === undefined) {
-                    lg_ZONE_GEO_ID = "";
-                }
-                if (lg_FAMILLEARTICLE_ID === null || lg_FAMILLEARTICLE_ID === undefined) {
-                    lg_FAMILLEARTICLE_ID = "";
-                }
-                if (lg_GROSSISTE_ID === null || lg_GROSSISTE_ID === undefined) {
-                    lg_GROSSISTE_ID = "";
-                }
-
-                var date = Ext.getCmp('dt_periode').getSubmitValue();
-
-                var linkUrl = '../SockServlet?mode=VALORISATION&dtStart=' + date + '&action=' + str_TYPE_TRANSACTION + '&lgGROSSISTEID=' + lg_GROSSISTE_ID+ '&lgFAMILLEARTICLEID=' + lg_FAMILLEARTICLE_ID+ '&lgZONEGEOID=' + lg_ZONE_GEO_ID+ '&END=' + str_END+ '&BEGIN=' + str_BEGIN;
-             
-                window.open(linkUrl);
-
+        function toggleCriteria(val) {
+            var f = Ext.getCmp('lg_FAMILLEARTICLE_ID'),
+                z = Ext.getCmp('lg_ZONE_GEO_ID'),
+                g = Ext.getCmp('lg_GROSSISTE_ID'),
+                c = Ext.getCmp('contenaire_intervalle');
+            f.hide(); z.hide(); g.hide();
+            f.reset(); z.reset(); g.reset();
+            c.hide(); Ext.getCmp('str_BEGIN').reset(); Ext.getCmp('str_END').reset();
+            if (val === 1) f.show(); else if (val === 2) z.show(); else if (val === 3) g.show();
+        }
+        function maybeShowInterval(value) {
+            var c = Ext.getCmp('contenaire_intervalle');
+            if (value === '0') c.show(); else {
+                c.hide(); Ext.getCmp('str_BEGIN').reset(); Ext.getCmp('str_END').reset();
             }
         }
 
+        // ===== CHART STORE =====
+        var chartStore = Ext.create('Ext.data.Store', {
+            fields: ['label','value'],
+            data: [{label:'Vente', value:0},{label:'Achat', value:0}]
+        });
 
+        // ===== UI FIELDS =====
+        var userField = Ext.create('Ext.form.field.Display', {
+            id: 'str_NAME_USER', fieldLabel: 'Utilisateur',
+            fieldStyle: 'color:#1f4fde;font-weight:700;', value: ''
+        });
+        var dateSystem = Ext.create('Ext.form.field.Display', {
+            id: 'dt_CREATED', fieldLabel: 'Date système',
+            fieldStyle: 'color:green;font-weight:700;', value: ''
+        });
+        var dateJour = Ext.create('Ext.form.field.Date', {
+            id: 'dt_periode', fieldLabel: 'Date',
+            format: 'd/m/Y', submitFormat: 'Y-m-d', maxValue: new Date(), value: new Date()
+        });
 
-    ]
+        var kpiVente = Ext.create('Ext.form.field.Display', {
+            id: 'TOTAL_VENTE', fieldLabel: 'Valeur vente', value: fmtMoney(0),
+            fieldStyle: 'font-size:1.3em;font-weight:900;color:#0d6efd;'
+        });
+        var kpiAchat = Ext.create('Ext.form.field.Display', {
+            id: 'TOTAL_ACHAT', fieldLabel: 'Valeur achat', value: fmtMoney(0),
+            fieldStyle: 'font-size:1.3em;font-weight:900;color:#0d6efd;'
+        });
 
+        var dfEcart = Ext.create('Ext.form.field.Display', {
+            id: 'DF_ECART', fieldLabel: 'Écart', value: '0',
+            labelWidth: 80, cls: 'pl-green-strong'
+        });
+        var dfMarge = Ext.create('Ext.form.field.Display', {
+            id: 'DF_MARGE', fieldLabel: 'Marge', value: '0%',
+            labelWidth: 80, cls: 'pl-green-strong'
+        });
+
+        // Raw (non formatés) pour calculs
+        var hiddenRaw = { vente: 0, achat: 0 };
+
+        var cbType = Ext.create('Ext.form.field.ComboBox', {
+            id: 'str_TYPE_TRANSACTION', fieldLabel: 'Filtrer par',
+            store: storeType, valueField: 'value', displayField: 'label',
+            queryMode: 'local', editable: false, value: 0,
+            listeners: { select: function (cmp) { toggleCriteria(cmp.getValue()); updateMirrors(); } }
+        });
+        var cbFamille = Ext.create('Ext.form.field.ComboBox', {
+            id: 'lg_FAMILLEARTICLE_ID', fieldLabel: 'Famille article',
+            store: storeFamille, hidden: true, valueField: 'lg_FAMILLEARTICLE_ID', displayField: 'str_LIBELLE',
+            pageSize: itemsPerPage, typeAhead: true, minChars: 1, queryMode: 'remote', emptyText: 'Sélectionner…',
+            listeners: { select: function (cmp) { maybeShowInterval(cmp.getValue()); } }
+        });
+        var cbZone = Ext.create('Ext.form.field.ComboBox', {
+            id: 'lg_ZONE_GEO_ID', fieldLabel: 'Emplacement',
+            store: storeZone, hidden: true, valueField: 'lg_ZONE_GEO_ID', displayField: 'str_LIBELLEE',
+            pageSize: itemsPerPage, typeAhead: true, minChars: 1, queryMode: 'remote', emptyText: 'Sélectionner…',
+            listeners: { select: function (cmp) { maybeShowInterval(cmp.getValue()); } }
+        });
+        var cbGrossiste = Ext.create('Ext.form.field.ComboBox', {
+            id: 'lg_GROSSISTE_ID', fieldLabel: 'Grossiste',
+            store: storeGrossiste, hidden: true, valueField: 'lg_GROSSISTE_ID', displayField: 'str_LIBELLE',
+            pageSize: itemsPerPage, typeAhead: true, minChars: 1, queryMode: 'remote', emptyText: 'Sélectionner…',
+            listeners: { select: function (cmp) { maybeShowInterval(cmp.getValue()); } }
+        });
+
+        var fcIntervalle = {
+            xtype: 'fieldcontainer', id: 'contenaire_intervalle', fieldLabel: 'Intervalle', hidden: true,
+            layout: 'hbox',
+            items: [
+                { xtype:'textfield', id:'str_BEGIN', fieldLabel:'De', labelAlign:'top', width:120, margin:'0 10 0 0' },
+                { xtype:'textfield', id:'str_END', fieldLabel:'À', labelAlign:'top', width:120 }
+            ]
+        };
+
+        var chartPanel = Ext.create('Ext.chart.Chart', {
+            animate: true,
+            store: chartStore,
+            insetPadding: 10,
+            flex: 1,
+            series: [{
+                type: 'pie',
+                angleField: 'value',
+                label: { field: 'label', display: 'rotate' },
+                highlight: true,
+                donut: 20,
+                tips: {
+                    trackMouse: true,
+                    renderer: function (storeItem) {
+                        this.setTitle(storeItem.get('label') + ': ' + fmtMoney(storeItem.get('value')));
+                    }
+                }
+            }]
+        });
+
+        function buildParamsFromUI() {
+            return {
+                dtStart: Ext.getCmp('dt_periode').getSubmitValue(),
+                mode: Ext.getCmp('str_TYPE_TRANSACTION').getValue(),
+                lgGROSSISTEID: Ext.getCmp('lg_GROSSISTE_ID').getValue(),
+                lgFAMILLEARTICLEID: Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue(),
+                lgZONEGEOID: Ext.getCmp('lg_ZONE_GEO_ID').getValue(),
+                END: Ext.getCmp('str_END').getValue(),
+                BEGIN: Ext.getCmp('str_BEGIN').getValue()
+            };
+        }
+
+        function updateMirrors() {
+            var d = Ext.getCmp('dt_periode').getValue();
+            Ext.getCmp('date_selected_mirror').setValue(d ? Ext.Date.format(d, 'd/m/Y') : '');
+            var rec = storeType.findRecord('value', Ext.getCmp('str_TYPE_TRANSACTION').getValue());
+            Ext.getCmp('mode_selected_mirror').setValue(rec ? rec.get('label') : '');
+        }
+
+        function updateKPIs(data, meta) {
+            hiddenRaw.vente = Number(data.valueTwo || 0);
+            hiddenRaw.achat = Number(data.value || 0);
+
+            Ext.getCmp('TOTAL_VENTE').setValue(fmtMoney(hiddenRaw.vente));
+            Ext.getCmp('TOTAL_ACHAT').setValue(fmtMoney(hiddenRaw.achat));
+
+            // Écart + Marge (verts, gras, sous "Date système")
+            var ecart = hiddenRaw.vente - hiddenRaw.achat;
+            var margePct = hiddenRaw.vente ? ((ecart / hiddenRaw.vente) * 100) : 0;
+            Ext.getCmp('DF_ECART').setValue(fmt.number(ecart, '0,000.'));
+            Ext.getCmp('DF_MARGE').setValue(fmt.number(margePct, '0,0.00') + '%');
+
+            // Chart
+            chartStore.loadData([
+                { label: 'Vente', value: hiddenRaw.vente },
+                { label: 'Achat', value: hiddenRaw.achat }
+            ]);
+
+            // Header infos
+            Ext.getCmp('str_NAME_USER').setValue(meta.user || '');
+            Ext.getCmp('dt_CREATED').setValue(meta.dtCREATED || '');
+
+            // Print ON
+            Ext.getCmp('btn_print').setDisabled(false);
+        }
+
+        function callValorisation(params) {
+            var progress = Ext.MessageBox.wait('Veuillez patienter…', 'En cours de traitement');
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/produit/valorisation',
+                timeout: 6000000,
+                params: params,
+                success: function (resp) {
+                    progress.hide();
+                    var json = Ext.JSON.decode(resp.responseText, true) || {},
+                        data = json.data || {};
+                    updateKPIs(data, json);
+                },
+                failure: function () {
+                    progress.hide();
+                    Ext.Msg.alert('Erreur', 'Échec de la valorisation. Réessayez.');
+                }
+            });
+        }
+
+        function exportCSV() {
+            var p = buildParamsFromUI();
+            var rec = storeType.findRecord('value', p.mode);
+            var modeLabel = rec ? rec.get('label') : '';
+            var ecart = hiddenRaw.vente - hiddenRaw.achat;
+            var margePct = hiddenRaw.vente ? ((ecart / hiddenRaw.vente) * 100) : 0;
+
+            var rows = [];
+            rows.push(['Date', 'Mode', 'Famille', 'Emplacement', 'Grossiste', 'Intervalle De', 'Intervalle À',
+                       'Valeur Vente', 'Valeur Achat', 'Écart', 'Marge %']);
+            rows.push([
+                nn(p.dtStart), modeLabel,
+                nn(Ext.getCmp('lg_FAMILLEARTICLE_ID').getRawValue()),
+                nn(Ext.getCmp('lg_ZONE_GEO_ID').getRawValue()),
+                nn(Ext.getCmp('lg_GROSSISTE_ID').getRawValue()),
+                nn(p.BEGIN), nn(p.END),
+                hiddenRaw.vente, hiddenRaw.achat, ecart, Ext.util.Format.number(margePct, '0.00')
+            ]);
+
+            var csv = rows.map(function (r) {
+                return r.map(function (c) {
+                    var s = String(nn(c)).replace(/"/g, '""');
+                    return /[",;\n]/.test(s) ? '"' + s + '"' : s;
+                }).join(';');
+            }).join('\n');
+
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var url = (window.URL || window.webkitURL).createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = 'valorisation.csv';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () {
+                document.body.removeChild(a);
+                (window.URL || window.webkitURL).revokeObjectURL(url);
+            }, 100);
+        }
+
+        Ext.apply(me, {
+            dockedItems: [{
+                xtype: 'toolbar',
+                dock: 'top',
+                items: [
+                    { xtype: 'tbtext', text: '<span class="pl-title">Valorisation du stock</span>' },
+                    '->',
+                    dateJour,
+                    { xtype: 'tbspacer', width: 10 },
+                    {
+                        xtype: 'button', text: 'Actualiser', iconCls: 'refreshicon',
+                        handler: function () {
+                            Ext.getCmp('btn_print').setDisabled(true);
+                            callValorisation({ dtStart: Ext.getCmp('dt_periode').getSubmitValue(), mode: 0 });
+                        }
+                    },
+                    { xtype: 'button', text: 'Export CSV', iconCls: 'excelicon', handler: exportCSV }
+                ]
+            }],
+
+            items: [
+                // Header + KPIs + Graph + Infos
+                {
+                    xtype: 'container',
+                    layout: { type: 'hbox', align: 'stretch' },
+                    defaults: { xtype: 'container', padding: 10, style: 'margin-bottom:10px;' },
+                    items: [
+                        {
+                            xtype: 'container', cls: 'pl-card', flex: 1, layout: 'anchor',
+                            items: [
+                                userField,
+                                dateSystem
+                                
+                            ]
+                        },
+                        {
+                            xtype: 'container', cls: 'pl-card', flex: 1, layout: 'anchor',
+                            items: [ kpiVente,kpiAchat,
+                                { xtype: 'component', height: 6 },
+                                dfEcart,
+                                dfMarge ]
+                        }/*,
+                        {
+                            xtype: 'container', cls: 'pl-card', flex: 1, layout: 'anchor',
+                            items: [ kpiAchat ]
+                        }*/
+                    ]
+                },
+                {
+                    xtype: 'container',
+                    layout: { type: 'hbox', align: 'stretch' },
+                    height: 260,
+                    items: [
+                        {
+                            xtype: 'fieldset', title: 'Détails', flex: 1, style: 'margin-right:10px;border-radius: 10px;',
+                            defaults: { anchor: '100%' },
+                            items: [
+                                { xtype: 'displayfield', fieldLabel: 'Date sélectionnée', value: Ext.Date.format(new Date(), 'd/m/Y'), id: 'date_selected_mirror' },
+                                { xtype: 'displayfield', fieldLabel: 'Mode', value: 'Simple', id: 'mode_selected_mirror' }
+                            ]
+                        },
+                        {
+                            xtype: 'fieldset', title: 'Critères', flex: 1.1, style: 'margin-right:10px;border-radius: 10px;',
+                            defaults: { anchor: '100%' },
+                            items: [ cbType, cbFamille, cbZone, cbGrossiste, fcIntervalle ]
+                        },
+                        {
+                            xtype: 'fieldset', title: 'Graphique', flex: 1.2,style: 'margin-right:10px;border-radius: 10px;',
+                            layout: 'fit',
+                            items: [ chartPanel ]
+                        }
+                    ]
+                }
+            ],
+
+            buttons: [
+                {
+                    text: 'Valoriser le stock', id: 'btn_valoriser', minWidth: 160,
+                    handler: function () {
+                        Ext.getCmp('btn_print').setDisabled(true);
+                        callValorisation(buildParamsFromUI());
+                    }
+                },
+                {
+                    text: 'Imprimer', id: 'btn_print', disabled: true, minWidth: 120,
+                    handler: function () {
+                        var p = buildParamsFromUI();
+                        var linkUrl = '../SockServlet?mode=VALORISATION'
+                            + '&dtStart=' + nn(p.dtStart)
+                            + '&action=' + nn(p.mode)
+                            + '&lgGROSSISTEID=' + nn(p.lgGROSSISTEID)
+                            + '&lgFAMILLEARTICLEID=' + nn(p.lgFAMILLEARTICLEID)
+                            + '&lgZONEGEOID=' + nn(p.lgZONEGEOID)
+                            + '&END=' + nn(p.END)
+                            + '&BEGIN=' + nn(p.BEGIN);
+                        window.open(linkUrl);
+                    }
+                }
+            ]
+        });
+
+        // Miroirs simples
+        Ext.getCmp('dt_periode').on('change', updateMirrors);
+        Ext.getCmp('str_TYPE_TRANSACTION').on('change', updateMirrors);
+
+        me.callParent(arguments);
+
+        // Chargement initial
+        Ext.getCmp('btn_print').setDisabled(true);
+        callValorisation({ dtStart: Ext.getCmp('dt_periode').getSubmitValue(), mode: 0 });
+        updateMirrors();
+    }
 });

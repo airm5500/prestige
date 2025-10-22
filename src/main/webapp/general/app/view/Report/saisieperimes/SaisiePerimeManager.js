@@ -154,12 +154,14 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
         Ext.apply(this, {
             width: "98%",
             height: 580,
-            cls: 'custompanel',
+            /*cls: 'custompanel',*/
+            cls: 'dg-card',
             features: [
                 {
                     ftype: 'summary'
                 }],
             store: store,
+            cls: 'my-grid-header',
             id: 'saisiGrid',
             columns: [{
                     header: 'ID',
@@ -304,9 +306,10 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                     items: [
 
                         {
-                            text: 'Ajouter des produits',
+                            text: 'Saisir des produits',
                             scope: this,
                             iconCls: 'addicon',
+                            cls: 'btn-primary',
                             handler: this.onAddCreate
                         }, '-',
                         {
@@ -418,7 +421,7 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             iconCls: 'searchicon',
-
+                            cls: 'btn-primary',
                             scope: this,
                             handler: this.onRechClick
                         },

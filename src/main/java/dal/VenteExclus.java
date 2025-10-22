@@ -34,7 +34,7 @@ import javax.validation.constraints.NotNull;
         @Index(name = "VenteExclus_type_tiers_payant", columnList = "type_tiers_payant")
 
 })
-public class VenteExclus implements Serializable {
+public class VenteExclus implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
@@ -250,4 +250,8 @@ public class VenteExclus implements Serializable {
         this.mvtDate = mvtDate;
     }
 
+    @Override
+    public Object clone() throws CloneNotSupportedException {
+        return super.clone(); // Shallow copy
+    }
 }

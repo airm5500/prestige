@@ -1,8 +1,5 @@
 /* global Ext */
 
-
-
-
 var url_services_transaction_order = '../webservices/commandemanagement/order/ws_transaction.jsp?mode=';
 var url_services_pdf_bonlivraison = '../webservices/commandemanagement/bonlivraison/ws_generate_pdf.jsp';
 var url_services_pdf_fiche_etiquette = '../webservices/commandemanagement/bonlivraison/ws_generate_etiquette_pdf.jsp';
@@ -16,11 +13,8 @@ var int_total_formated;
 var str_TYPE_TRANSACTION;
 var DISPLAYFILTER;
 
-
 Ext.util.Format.decimalSeparator = ',';
 Ext.util.Format.thousandSeparator = '.';
-
-
 
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
@@ -29,35 +23,23 @@ function amountformat(val) {
 Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
     extend: 'Ext.form.Panel',
     requires: [
-        'Ext.selection.CellModel',
-        'Ext.grid.*',
-        'Ext.form.*',
-        'Ext.layout.container.Column',
-        'testextjs.model.Famille',
-        'testextjs.model.Grossiste',
-        'testextjs.model.BonLivraisonDetail',
+        'Ext.selection.CellModel', 'Ext.grid.*', 'Ext.form.*', 'Ext.layout.container.Column',
+        'testextjs.model.Famille', 'testextjs.model.Grossiste', 'testextjs.model.BonLivraisonDetail',
         'testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager'
     ],
     config: {
-        odatasource: '',
-        parentview: '',
-        mode: '',
-        titre: '',
-        plain: true,
-        maximizable: true,
-        closable: false,
-        nameintern: '',
-        checkLot: false
+        odatasource: '', parentview: '', mode: '', titre: '', plain: true,
+        maximizable: true, closable: false, nameintern: '', checkLot: false, gestionLot: false
     },
     xtype: 'bonlivraisondetail',
     id: 'bonlivraisondetailID',
     frame: true,
-    title: 'Details de la livraison',
+    title: 'Details du bon de livraison',
     bodyPadding: 5,
     layout: 'column',
+
     initComponent: function () {
         Me_Workflow = this;
-        var itemsPerPage = 20;
         var itemsPerPageGrid = 10;
         famille_id_search = "";
         in_total_vente = 0;
@@ -65,7 +47,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
         str_TYPE_TRANSACTION = "ALL";
         DISPLAYFILTER = this.getOdatasource().DISPLAYFILTER;
         str_REF_LIVRAISON = this.getOdatasource().str_REF_LIVRAISON;
-        titre = this.getTitre();
         ref = this.getNameintern();
         lg_BON_LIVRAISON_ID_2 = this.getNameintern();
 
@@ -83,276 +64,111 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
             data: [{name: true, value: 'Produits avec contrôl de date de péremption'}, {name: false, value: 'Tous'}]
         });
 
-        const    store_details_livraison = new Ext.data.Store({
+        const store_details_livraison = new Ext.data.Store({
             model: 'testextjs.model.BonLivraisonDetail',
             pageSize: itemsPerPageGrid,
             autoLoad: false,
+            remoteSort: true,
+            sorters: [{property: 'lg_FAMILLE_NAME', direction: 'ASC'}],
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/commande/bon/items/' + this.getNameintern(),
-                reader: {
-                    type: 'json',
-                    root: 'data',
-                    totalProperty: 'total'
-                },
-                timeout: 240000
+                reader: {type: 'json', root: 'data', totalProperty: 'total'},
+                timeout: 240000,
+                simpleSortMode: true
+                        // sortParam / directionParam si ton backend attend d'autres noms
+            },
+            listeners: {
+                beforeload: function (st, op) {
+                    op.params = op.params || {};
+                    op.params.sort = 'lg_FAMILLE_NAME';
+                    op.params.dir = 'ASC';
+                }
             }
-
         });
-        var str_GROSSISTE_LIBELLE = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Repartiteur ::',
-//                    labelWidth: 110, 
-                    name: 'str_GROSSISTE_LIBELLE',
-                    id: 'str_GROSSISTE_LIBELLE',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 0 10',
-                    value: "0"
-                });
-
-        var str_REF_ORDER = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Numero Commande ::',
-//                    labelWidth: 110, 
-                    name: 'str_REF_ORDER',
-                    id: 'str_REF_ORDER',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 0 10',
-                    value: "0"
-                });
-
-        var str_REF_LIVRAISON = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Numero BL ::',
-//                    labelWidth: 110, 
-                    name: 'str_REF_LIVRAISON',
-                    id: 'str_REF_LIVRAISON',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 0 0',
-                    value: "0"
-                });
-        var dt_DATE_LIVRAISON = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Date ::',
-//                    labelWidth: 150,
-                    name: 'dt_DATE_LIVRAISON',
-                    id: 'dt_DATE_LIVRAISON',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 0 10',
-                    value: "0"
-                });
-
-
-        var int_TVA = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'TVA ::',
-                    labelWidth: 110,
-                    name: 'int_TVA',
-                    id: 'int_TVA',
-                    fieldStyle: "color:blue;font-size:1.5em;font-weight: bold;",
-                    margin: '0 25 0 10',
-                    value: 0,
-                    renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.');
-                    }
-                });
-
-        var int_MHT = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Montant HT ::',
-                    labelWidth: 110,
-                    name: 'int_MHT',
-                    id: 'int_MHT',
-                    fieldStyle: "color:blue;font-size:1.5em;font-weight: bold;",
-                    margin: '0 15 0 20',
-                    value: 0,
-                    renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.');
-                    }
-                });
-
-        var int_TTC = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Montant TTC ::',
-                    labelWidth: 110,
-                    name: 'int_TTC',
-                    id: 'int_TTC',
-                    fieldStyle: "color:blue;font-size:1.5em;font-weight: bold;",
-                    margin: '0 15 0 10',
-                    value: 0,
-                    renderer: function (v) {
-                        return Ext.util.Format.number(v, '0,000.');
-                    }
-                });
 
         Ext.apply(this, {
             width: '98%',
-            fieldDefaults: {
-                labelAlign: 'left',
-                labelWidth: 150,
-                anchor: '100%',
-                msgTarget: 'side'
-            },
-            layout: {
-                type: 'vbox',
-                align: 'stretch',
-                padding: 10
-            },
-            defaults: {
-                flex: 1
-            },
+            cls: 'screen-wrap',
+            fieldDefaults: {labelAlign: 'left', labelWidth: 150, anchor: '100%', msgTarget: 'side'},
+            layout: {type: 'vbox', align: 'stretch', padding: 10},
+            defaults: {flex: 1},
             id: 'panelID',
             items: [
                 {
-                    items: [
-                        {
-                            xtype: 'fieldset',
-                            title: 'Infos Generales',
-                            collapsible: true,
-                            defaultType: 'textfield',
-                            layout: 'anchor',
-                            defaults: {
-                                anchor: '100%'
-                            },
-                            items: [
-                                {
-                                    xtype: 'fieldcontainer',
-                                    layout: 'hbox',
-                                    combineErrors: true,
-                                    defaultType: 'textfield',
-                                    defaults: {
-                                        hideLabel: 'true'
-                                    },
-                                    items: [
-                                        str_REF_LIVRAISON,
-                                        str_REF_ORDER,
-                                        str_GROSSISTE_LIBELLE,
-                                        dt_DATE_LIVRAISON
-                                    ]
-                                },
-                                {
-                                    xtype: 'fieldcontainer',
-                                    layout: 'hbox',
-                                    combineErrors: true,
-                                    defaultType: 'textfield',
-                                    defaults: {
-//                                        hideLabel: 'true'
-                                    },
-                                    items: [
-                                        int_TVA,
-                                        int_MHT,
-                                        int_TTC,
-                                        {
-                                            fieldLabel: 'Commencer l\'impression &agrave; partir de:',
-                                            name: 'int_NUMBER_ETIQUETTE',
-                                            id: 'int_NUMBER_ETIQUETTE',
-                                            xtype: 'numberfield',
-                                            fieldStyle: "color:blue;font-size:1.5em;font-weight: bold;",
-                                            margin: '0 15 0 10',
-                                            minValue: 1,
-                                            maxValue: 65,
-                                            width: 300,
-                                            value: 1,
-                                            allowBlank: false,
-                                            regex: /[0-9.]/
-                                        }
-                                    ]
-                                }]
-                        }
-                    ]
-
-                },
-                {
                     xtype: 'fieldset',
-                    title: 'Detail(s) Commandes',
+                    title: '<span class="ig-title">Infos Générales</span>',
                     collapsible: true,
-                    defaultType: 'textfield',
-                    layout: 'anchor',
+                    border: false,
+                    frame: false,
+                    cls: 'ig-card ig-simple',
+                    layout: 'column', // ← 3 colonnes ExtJS
                     defaults: {
-                        anchor: '100%'
+                        xtype: 'container',
+                        layout: {type: 'vbox', align: 'stretch'},
+                        defaults: {xtype: 'component', cls: 'ig-row'},
+                        padding: '0 16 0 0'
                     },
                     items: [
                         {
-                            columnWidth: 0.65,
+                            columnWidth: 1 / 3,
+                            items: [
+                                {html: '<span class="ig-label">Répartiteur</span> <span id="ig_repartiteur" class="ig-value"></span>'},
+                                {html: '<span class="ig-label">Numéro BL</span> <span id="ig_bl" class="ig-value"></span>'},
+                                {html: '<span class="ig-label">Date</span> <span id="ig_date" class="ig-value"></span>'}
+                            ]
+                        },
+                        {
+                            columnWidth: 1 / 3,
+                            items: [
+                                {html: '<span class="ig-label">Montant HT</span> <span id="ig_mht" class="ig-value"></span>'},
+                                {html: '<span class="ig-label">TVA</span> <span id="ig_tva" class="ig-value"></span>'},
+                                {html: '<span class="ig-label">Montant TTC</span> <span id="ig_ttc" class="ig-value"></span>'}
+                            ]
+                        },
+                        {
+                            columnWidth: 1 / 3,
+                            layout: {type: 'anchor'},
+                            items: [
+                                {html: '<span class="ig-label">Commencer l\'impression à partir de:</span>'},
+                                {
+                                    xtype: 'numberfield',
+                                    anchor: '100%',
+                                    cls: 'ig-number',
+                                    name: 'int_NUMBER_ETIQUETTE',
+                                    id: 'int_NUMBER_ETIQUETTE',
+                                    minValue: 1, maxValue: 65, value: 1
+                                }
+                            ]
+                        }
+                    ]
+                }
+                ,
+                {
+                    xtype: 'fieldset',
+                    title: '<span class="ig-title">Detail(s) de la Commande</span>',
+                    collapsible: true,
+                    cls: 'dg-card',
+                    layout: 'anchor',
+                    defaults: {anchor: '100%'},
+                    items: [
+                        {
                             xtype: 'gridpanel',
                             id: 'gridpanelID',
+                            cls: 'my-grid-header',
                             store: store_details_livraison,
                             height: 370,
-                            columns: [{
-                                    text: 'Details Suggestion Id',
-                                    flex: 1,
-                                    sortable: true,
-                                    hidden: true,
-                                    dataIndex: 'lg_BON_LIVRAISON_DETAIL',
-                                    id: 'lg_BON_LIVRAISON_DETAIL'
-                                }, {
-                                    text: 'Famille',
-                                    flex: 1,
-                                    sortable: true,
-                                    hidden: true,
-                                    dataIndex: 'lg_FAMILLE_ID'
-                                },
-                                {
-                                    xtype: 'rownumberer',
-                                    text: '#',
-                                    hidden: false,
-                                    width: 40,
-                                    sortable: true
-                                },
-                                {
-                                    text: 'CIP',
-                                    flex: 1,
-                                    sortable: true,
-                                    dataIndex: 'lg_FAMILLE_CIP'
-                                },
-                                {
-                                    text: 'LIBELLE',
-                                    flex: 2,
-                                    sortable: true,
-                                    dataIndex: 'lg_FAMILLE_NAME'
-                                },
-                                {
-                                    text: 'PMP',
-                                    flex: 1,
-                                    sortable: true,
-                                    renderer: amountformat,
-                                    align: 'right',
-                                    dataIndex: 'dbl_PRIX_MOYEN_PONDERE'
-                                },
-                                {
-                                    text: 'PRIX.ACHAT',
-                                    flex: 1,
-                                    sortable: true,
-                                    renderer: amountformat,
-                                    align: 'right',
-                                    dataIndex: 'int_PAF'
-                                },
-                                {
-                                    text: 'PRIX.VENTE',
-                                    flex: 1,
-                                    sortable: true,
-                                    renderer: amountformat,
-                                    align: 'right',
-                                    dataIndex: 'int_PRIX_VENTE'
-                                },
-                                {
-                                    header: 'Q.CDE',
-                                    dataIndex: 'int_QTE_CMDE',
-                                    align: 'center',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'Q.RECUE',
-                                    dataIndex: 'int_QTE_RECUE',
-                                    align: 'center',
-                                    flex: 1,
+                            columns: [
+                                {text: 'Details Suggestion Id', flex: 1, sortable: true, hidden: true, dataIndex: 'lg_BON_LIVRAISON_DETAIL', id: 'lg_BON_LIVRAISON_DETAIL'},
+                                {text: 'Famille', flex: 1, sortable: true, hidden: true, dataIndex: 'lg_FAMILLE_ID'},
+                                {xtype: 'rownumberer', text: '#', hidden: false, width: 40, sortable: true},
+                                {text: 'CIP', flex: 1, sortable: true, dataIndex: 'lg_FAMILLE_CIP'},
+                                {text: 'LIBELLE', flex: 2, sortable: true, dataIndex: 'lg_FAMILLE_NAME'},
+                                {text: 'PMP', flex: 1, sortable: true, renderer: amountformat, align: 'right', dataIndex: 'dbl_PRIX_MOYEN_PONDERE'},
+                                {text: 'PRIX.ACHAT', flex: 1, sortable: true, renderer: amountformat, align: 'right', dataIndex: 'int_PAF'},
+                                {text: 'PRIX.VENTE', flex: 1, sortable: true, renderer: amountformat, align: 'right', dataIndex: 'int_PRIX_VENTE'},
+                                {header: 'Q.CDE', dataIndex: 'int_QTE_CMDE', align: 'center', flex: 1},
+                                {header: 'Q.RECUE', dataIndex: 'int_QTE_RECUE', align: 'center', flex: 1,
                                     renderer: function (value, metadata, record) {
                                         if (record.get('int_QTE_CMDE') > record.get('int_QTE_RECUE')) {
                                             value = '<span style="color:red; font-weight: bold;">' + value + '</span>';
@@ -360,22 +176,26 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                         return value;
                                     }
                                 },
-                                {
-                                    header: 'UG',
-                                    dataIndex: 'lg_FAMILLE_PRIX_ACHAT',
-                                    align: 'right',
-                                    flex: 1
-                                },
-                                {
-                                    header: 'RELICAT',
-                                    dataIndex: 'int_QTE_MANQUANT',
-                                    flex: 1,
+                                {header: 'UG', dataIndex: 'lg_FAMILLE_PRIX_ACHAT', align: 'right', flex: 1},
+                                {header: 'RELICAT', dataIndex: 'int_QTE_MANQUANT', flex: 1,
                                     renderer: function (val) {
                                         if (val < 0) {
                                             val = '<span style="color:red; font-weight: bold;">' + val + '</span>';
                                         }
                                         return val;
                                     }
+                                },
+                                {
+                                    header: 'LOTS',
+                                    dataIndex: 'lots',
+                                    align: 'center',
+                                    flex: 1
+                                },
+                                {
+                                    header: 'DATE DE PEREMPTION',
+                                    dataIndex: 'datePeremption',
+                                    align: 'center',
+                                    flex: 1
                                 },
                                 {
                                     xtype: 'actioncolumn',
@@ -389,114 +209,57 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                             handler: this.managePrice
                                         }]
                                 },
-                                {
-                                    xtype: 'actioncolumn',
-                                    width: 30,
-                                    sortable: false,
-                                    menuDisabled: true,
+                                {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
                                     items: [{
                                             icon: 'resources/images/icons/fam/add.png',
                                             tooltip: 'Ajout de lot',
                                             scope: this,
-                                            handler: this.onAddProductClick,
-                                            getClass: function (value, metadata, record) {
-                                                if (record.get('int_QTE_CMDE') > 0 && (record.get('int_QTE_CMDE') > record.get('intQTERECUE'))) {  //read your condition from the record
-                                                    return 'x-display-hide'; //affiche l'icone
-                                                } else {
-                                                    return 'x-hide-display'; //cache l'icone
-                                                }
-                                            }
+                                            handler: this.onAddProductClick/*,
+                                             getClass: function (value, metadata, record) {
+                                             if (record.get('checkExpirationdate')) {  
+                                             return 'x-display-hide'; 
+                                             } else {
+                                             return 'x-hide-display'; 
+                                             }
+                                             }*/
                                         }]
                                 },
-
-                                {
-                                    xtype: 'actioncolumn',
-                                    width: 30,
-                                    sortable: false,
-                                    menuDisabled: true,
+                                {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
                                     items: [{
-                                            icon: 'resources/images/icons/fam/delete.png',
-                                            tooltip: 'Suppression de lot',
-                                            scope: this,
-                                            handler: this.onRemoveLotClick,
-                                            getClass: function (value, metadata, record) {
-
-                                                if (record.get('freeQty') > 0 || record.get('hasLots')) {  //read your condition from the record
-
-                                                    return 'x-display-hide';
-                                                } else {
-                                                    return 'x-hide-display'; //cache l'icone
-                                                }
+                                            icon: 'resources/images/icons/fam/delete.png', tooltip: 'Suppression de lot', scope: this, handler: this.onRemoveLotClick,
+                                            getClass: function (v, m, r) {
+                                                return (r.get('freeQty') > 0 || r.get('hasLots')) ? 'x-display-hide' : 'x-hide-display';
                                             }
                                         }]
                                 }
                             ],
                             tbar: [
-                                {
-                                    xtype: 'textfield',
-                                    id: 'rechercherDetail',
-                                    name: 'rechercherDetail',
-                                    emptyText: 'Recherche',
-                                    flex: 1,
-                                    listeners: {
-                                        'render': function (cmp) {
+                                {xtype: 'textfield', cls: 'glass-input', id: 'rechercherDetail', name: 'rechercherDetail', emptyText: 'Recherche', flex: 1,
+                                    listeners: {render: function (cmp) {
                                             cmp.getEl().on('keypress', function (e) {
                                                 if (e.getKey() === e.ENTER) {
                                                     Me_Workflow.onRechClick();
-
                                                 }
                                             });
-                                        }
-                                    }
-                                }, '-', {
-                                    xtype: 'combobox',
-                                    name: 'str_TYPE_TRANSACTION',
-                                    margins: '0 0 0 10',
-                                    id: 'str_TYPE_TRANSACTION',
-                                    store: store_type,
-                                    valueField: 'str_TYPE_TRANSACTION',
-                                    displayField: 'str_desc',
-                                    typeAhead: true,
-                                    queryMode: 'local',
-                                    emptyText: 'Filtre article...',
-                                    flex: 1,
-                                    listeners: {
-                                        select: function (cmp) {
-                                          
+                                        }}
+                                }, '-',
+                                {xtype: 'combobox', cls: 'glass-input', name: 'str_TYPE_TRANSACTION', margins: '0 0 0 10', id: 'str_TYPE_TRANSACTION',
+                                    store: store_type, valueField: 'str_TYPE_TRANSACTION', displayField: 'str_desc',
+                                    typeAhead: true, queryMode: 'local', emptyText: 'Filtre article...', width: 260, cls: 'no-border-field',
+                                    listeners: {select: function (cmp) {
                                             str_TYPE_TRANSACTION = cmp.getValue();
-
                                             Me_Workflow.onRechClick();
-                                        }
-                                    }
-                                },
-                                '-', {
-                                    xtype: 'combobox',
-                                    margins: '0 0 0 10',
-                                    store: store_datecontrol,
-                                    valueField: 'name',
-                                    displayField: 'value',
-                                    typeAhead: true,
-                                    queryMode: 'local',
-                                    hidden: DISPLAYFILTER,
-                                    flex: 1,
-                                    emptyText: 'Filtre par...',
-                                    listeners: {
-                                        select: function (cmp) {
+                                        }}
+                                }, '-',
+                                {xtype: 'combobox', cls: 'glass-input', margins: '0 0 0 10', store: store_datecontrol,
+                                    valueField: 'name', displayField: 'value', typeAhead: true, queryMode: 'local',
+                                    hidden: DISPLAYFILTER, width: 260, emptyText: 'Filtre par...',
+                                    listeners: {select: function (cmp) {
                                             const value = cmp.getValue();
-
                                             const store = Ext.getCmp('gridpanelID').getStore();
-
-                                            store.load({
-                                                params: {
-                                                    checkDatePeremption: value
-                                                }
-                                            });
-
-                                        }
-                                    }
+                                            store.load({params: {checkDatePeremption: value}});
+                                        }}
                                 }
-
-
                             ],
                             bbar: {
                                 xtype: 'pagingtoolbar',
@@ -504,77 +267,59 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                 store: store_details_livraison,
                                 displayInfo: true,
                                 plugins: new Ext.ux.ProgressBarPager()
-                            },
-                            listeners: {
-                                scope: this
                             }
                         }
-
                     ]
+                },
 
-                }
-                ,
+                /* ====== TOOLBAR BAS ====== */
                 {
                     xtype: 'toolbar',
                     ui: 'footer',
                     dock: 'bottom',
                     border: '0',
                     items: ['->',
-                        {
-                            text: 'Retour',
-                            id: 'btn_cancel',
-                            iconCls: 'icon-clear-group',
-                            scope: this,
-                            hidden: false,
-                            handler: this.onbtncancel
-                        }
-                        ,
-                        {
-                            text: 'ENTREE EN STOCK',
-                            id: 'btn_enterstock',
-                            iconCls: 'icon-clear-group',
-                            scope: this,
-                            hidden: false,
-                            handler: this.onbtnenterstock
-                        }
+                        {text: 'Retour', id: 'btn_cancel', cls: 'btn-secondary', iconCls: 'icon-clear-group', scope: this, handler: this.onbtncancel},
+                        {text: 'ENTREE EN STOCK', id: 'btn_enterstock', cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, handler: this.onbtnenterstock}
                     ]
                 }
             ]
         });
+
         this.callParent();
-        this.on('afterlayout', this.loadStore, this, {
-            delay: 1,
-            single: true
-        });
-        if (titre === "Details de la livraison") {
-            Ext.getCmp('str_GROSSISTE_LIBELLE').setValue(this.getOdatasource().str_GROSSISTE_LIBELLE);
-            Ext.getCmp('str_REF_LIVRAISON').setValue(this.getOdatasource().str_REF_LIVRAISON);
-            Ext.getCmp('dt_DATE_LIVRAISON').setValue(this.getOdatasource().dt_DATE_LIVRAISON);
-            Ext.getCmp('str_REF_ORDER').setValue(this.getOdatasource().str_REF_ORDER);
 
+        // Chargement grid
+        // this.on('afterlayout', this.loadStore, this, {delay: 1, single: true});
 
-            Ext.getCmp('int_TVA').setValue(this.getOdatasource().int_TVA);
-            Ext.getCmp('int_MHT').setValue(this.getOdatasource().int_MHT);
-            Ext.getCmp('int_TTC').setValue(this.getOdatasource().int_HTTC);
-
-
-        }
-
+        // Remplir les valeurs du header “Infos Générales” (labels/valeurs)
+        this.on('afterlayout', function () {
+            this.loadStore();
+            const ds = this.getOdatasource() || {};
+            const set = function (id, val) {
+                const el = Ext.fly(id);
+                if (el) {
+                    el.setHTML(Ext.htmlEncode(val == null ? '' : String(val)));
+                }
+            };
+            set('ig_repartiteur', ds.str_GROSSISTE_LIBELLE);
+            set('ig_bl', ds.str_REF_LIVRAISON);
+            set('ig_date', ds.dt_DATE_LIVRAISON);
+            set('ig_mht', Ext.util.Format.number(ds.int_MHT || 0, '0,000.'));
+            set('ig_tva', Ext.util.Format.number(ds.int_TVA || 0, '0,000.'));
+            set('ig_ttc', Ext.util.Format.number(ds.int_HTTC || 0, '0,000.'));
+            this.checkParamGestionLot();
+        }, this, {single: true, delay: 50});
     },
+
     loadStore: function () {
-        Ext.getCmp('gridpanelID').getStore().load({
-            callback: this.onStoreLoad
-        });
+        Ext.getCmp('gridpanelID').getStore().load({callback: this.onStoreLoad});
     },
-    onStoreLoad: function () {
+    onStoreLoad: function () {},
 
-    },
     managePrice: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
         new testextjs.view.commandemanagement.bonlivraison.action.editprice({
-            odatasource: rec.data,
-            parentview: this,
-            mode: "editprice",
+            odatasource: rec.data, parentview: this, mode: "editprice",
             titre: "Modification Article [" + rec.get('lg_FAMILLE_NAME') + "]"
         });
     },
@@ -583,96 +328,87 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
         const rec = grid.getStore().getAt(rowIndex);
         Ext.getCmp('btn_enterstock').enable();
         new testextjs.view.stockmanagement.etatstock.action.add({
-            odatasource: rec.data,
-            parentview: this,
-            mode: "create",
-            index: rowIndex,
+            odatasource: rec.data, parentview: this, mode: "create", index: rowIndex,
             titre: "Ajout d'article [" + rec.get('lg_FAMILLE_NAME') + "]",
             reference: rec.get('str_REF_LIVRAISON'),
-            directImport: Me_Workflow.getOdatasource().directImport
+            directImport: Me_Workflow.getOdatasource().directImport,
+            gestionLot: Me_Workflow.getGestionLot(),
+
         });
     },
+
     onRemoveLotClick: function (grid, rowIndex) {
+        const me = this;
         const rec = grid.getStore().getAt(rowIndex);
-        if (!rec.get('existLots')) {
-            Ext.MessageBox.confirm('Message',
-                    'Voullez-vous supprimer la quantité ajoutée ?',
-                    function (btn) {
-                        if (btn == 'yes') {
-                            Ext.Ajax.request({
-                                method: 'PUT',
-                                url: '../api/v1/commande/remove-lots',
-                                headers: {'Content-Type': 'application/json'},
-                                params: Ext.JSON.encode({
-                                    removeLot: false,
-                                    idProduit: rec.get('lg_FAMILLE_ID'),
-                                    refBon: rec.get('str_REF_LIVRAISON'),
-                                    idBonDetail: rec.get('lg_BON_LIVRAISON_DETAIL')
-                                }),
-                                success: function (response)
-                                {
 
-                                    grid.getStore().reload();
-                                },
-                                failure: function (response)
-                                {
-                                   
-                                    console.log("Bug " + response.responseText);
-                                    Ext.MessageBox.alert('Error Message', response.responseText);
-                                }
-                            });
-
+        if (!me.getGestionLot()) {
+            Ext.MessageBox.confirm('Message', 'Voullez-vous supprimer la quantité ajoutée ?', function (btn) {
+                if (btn == 'yes') {
+                    Ext.Ajax.request({
+                        method: 'PUT',
+                        url: '../api/v1/commande/remove-lots',
+                        headers: {'Content-Type': 'application/json'},
+                        params: Ext.JSON.encode({
+                            removeLot: false,
+                            idProduit: rec.get('lg_FAMILLE_ID'),
+                            refBon: rec.get('str_REF_LIVRAISON'),
+                            idBonDetail: rec.get('lg_BON_LIVRAISON_DETAIL')
+                        }),
+                        success: function () {
+                            grid.getStore().reload();
+                        },
+                        failure: function (response) {
+                            console.log("Bug " + response.responseText);
+                            Ext.MessageBox.alert('Error Message', response.responseText);
                         }
                     });
+                }
+            });
         } else {
             new testextjs.view.stockmanagement.etatstock.action.removeLot({
-                odatasource: rec.data,
-                parentview: this,
-                mode: "remove",
-                titre: "Suppresion de lot de l'article [" + rec.get('lg_FAMILLE_NAME') + "]",
-                reference: ''
+                odatasource: rec.data, parentview: this, mode: "remove",
+                titre: "Suppresion de lot de l'article [" + rec.get('lg_FAMILLE_NAME') + "]", reference: ''
             });
         }
-
-
-
-
-
     },
     onbtncancel: function () {
-
         testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
     },
 
     onbtnenterstock: function () {
         doEntreeStock(lg_BON_LIVRAISON_ID_2);
-        ///code d'entree en stock
     },
-    
 
     onRechClick: function () {
         const val = Ext.getCmp('rechercherDetail');
         Ext.getCmp('gridpanelID').getStore().load({
-            params: {
-                query: val.getValue(),
-                filtre: str_TYPE_TRANSACTION
+            params: {query: val.getValue(), filtre: str_TYPE_TRANSACTION}
+        });
+    },
+    checkParamGestionLot: function () {
+        const me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/app-params/check/KEY_ACTIVATE_PEREMPTION_DATE',
+            success: function (response, options) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result.success) {
+                    me.gestionLot = result.data;
+                }
             }
+
         });
     }
 });
-
 
 function onPdfBLClick(url) {
     window.open(url);
 }
 
-
-
 function doEntreeStock(lg_BON_LIVRAISON_ID) {
     if (parseInt(Ext.getCmp('int_NUMBER_ETIQUETTE').getValue()) > 65 || parseInt(Ext.getCmp('int_NUMBER_ETIQUETTE').getValue()) < 1) {
         Ext.MessageBox.show({
-            title: 'Avertissement',
-            width: 320,
+            title: 'Avertissement', width: 320,
             msg: 'Veuillez renseigner un nombre inférieur ou égal à 65 et supérieur à 0',
             buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
             fn: function (buttonId) {
@@ -683,88 +419,83 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                 }
             }
         });
-
         return;
     }
 
-    Ext.MessageBox.confirm('Message',
-            'Confirmer l\'entree en stock',
-            function (btn) {
-                if (btn === 'yes') {
-                    testextjs.app.getController('App').ShowWaitingProcess();
-                    Ext.Ajax.request({
-                        method: 'PUT',
-                        headers: {'Content-Type': 'application/json'},
-                        url: '../api/v1/commande/validerbl/' + lg_BON_LIVRAISON_ID,
-                        timeout: 1800000,
-
-                        success: function (response)
-                        {
-                            testextjs.app.getController('App').StopWaitingProcess();
-                            var object = Ext.JSON.decode(response.responseText, false);
-                            if (!object.success) {
-
-                                Ext.MessageBox.show({
-                                    title: 'Message d\'erreur',
-                                    width: 320,
-                                    msg: object.msg,
-                                    buttons: Ext.MessageBox.OK,
-                                    icon: Ext.MessageBox.WARNING
-                                });
-                             
-                            } else {
-
-                                Ext.MessageBox.confirm('Message',
-                                        'Confirmation de l\'impression des entrees reapprovisionnements',
-                                        function (btn) {
-                                            if (btn == 'yes') {
-
-                                                onPdfBLClick(url_services_pdf_bonlivraison + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID);
-                                                //demande d'impression des etiquettes
-                                                Ext.MessageBox.confirm('Message',
-                                                        'Voulez-vous proc&eacute;der aussi &agrave; l\'impression des &eacute;tiquettes',
-                                                        function (btn) {
-                                                            if (btn == 'yes') {
-                                                                const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue();
-                                                                onPdfBLClick(linkUrl);
-
-
-                                                                testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
-
-                                                            } else {
-
-                                                                testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
-
-                                                            }
-                                                        });
-                                                //fin demande d'impression des etiquettes
-
-
-                                                return;
-                                            } else {
-                                                Me_Workflow.onbtncancel();
-                                                var xtype = "";
-                                                xtype = "bonlivraisonmanager";
-
-                                                testextjs.app.getController('App').onLoadNewComponent(xtype, "Bon de livraison", "");
-
+    Ext.Msg.show({
+        title: 'Message',
+        msg: "Confirmer l'entrée en stock",
+        buttons: Ext.Msg.YESNO,
+        icon: Ext.Msg.QUESTION,
+        cls: 'custom-messagebox',
+        fn: function (btn) {
+            if (btn === 'yes') {
+                testextjs.app.getController('App').ShowWaitingProcess();
+                Ext.Ajax.request({
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    url: '../api/v1/commande/validerbl/' + lg_BON_LIVRAISON_ID,
+                    timeout: 1800000,
+                    success: function (response) {
+                        testextjs.app.getController('App').StopWaitingProcess();
+                        var object = Ext.JSON.decode(response.responseText, false);
+                        if (!object.success) {
+                            Ext.Msg.show({
+                                title: "Message d'erreur",
+                                msg: object.msg,
+                                buttons: Ext.Msg.OK,
+                                icon: Ext.Msg.WARNING,
+                                cls: 'custom-messagebox'
+                            });
+                        } else {
+                            Ext.Msg.show({
+                                title: 'Message',
+                                msg: "Confirmation de l'impression des entrées réapprovisionnements",
+                                buttons: Ext.Msg.YESNO,
+                                icon: Ext.Msg.QUESTION,
+                                cls: 'custom-messagebox',
+                                fn: function (btn) {
+                                    if (btn === 'yes') {
+                                        onPdfBLClick(url_services_pdf_bonlivraison + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID);
+                                        Ext.Msg.show({
+                                            title: 'Message',
+                                            msg: "Voulez-vous aussi imprimer les étiquettes ?",
+                                            buttons: Ext.Msg.YESNO,
+                                            icon: Ext.Msg.QUESTION,
+                                            cls: 'custom-messagebox',
+                                            fn: function (btn) {
+                                                if (btn === 'yes') {
+                                                    // onPdfBLClick('../Etiquete?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue());
+                                                    const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue();
+                                                    onPdfBLClick(linkUrl);
+                                                    testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                } else {
+                                                    testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                }
                                             }
                                         });
-                            }
-
-                        },
-                        failure: function (response)
-                        {
-                            testextjs.app.getController('App').StopWaitingProcess();
-                            var object = Ext.JSON.decode(response.responseText, false);
-                            console.log("Bug " + response.responseText);
-                            Ext.MessageBox.alert('Error Message', response.responseText);
+                                    } else {
+                                        testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
+                                    }
+                                }
+                            });
                         }
-                    });
-                } else {
-                    testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
-                }
+                    },
+                    failure: function (response) {
+                        testextjs.app.getController('App').StopWaitingProcess();
+                        Ext.Msg.show({
+                            title: 'Erreur',
+                            msg: response.responseText,
+                            buttons: Ext.Msg.OK,
+                            icon: Ext.Msg.ERROR,
+                            cls: 'custom-messagebox'
+                        });
+                    }
+                });
+            } else {
+                testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
             }
-    );
+        }
+    });
 
 }

@@ -651,7 +651,7 @@ Ext.application({
         'testextjs.view.stockmanagement.retourdepot.retourdepotManager',
         'testextjs.view.stockmanagement.retourdepot.action.add',
         'testextjs.view.sm_user.journalvente.action.detailProduct',
-        //Martial
+      
         'testextjs.model.SnapshotFamille',
         'testextjs.view.sm_user.journalvente.FactureSubrogatoireManager',
         'testextjs.view.sm_user.privilege.action.add',
@@ -672,7 +672,7 @@ Ext.application({
         'testextjs.view.commandemanagement.evaluation.action.add',
         'testextjs.view.configmanagement.famille.ArticleVenduBis',
         'testextjs.view.commandemanagement.retourfournisseur.action.reponseretourfournisseur',
-        //fin Martial
+       
 
         'testextjs.view.configmanagement.famille.action.importOrder',
         'testextjs.view.Report.statistiquevente.SalesStatistcManager',
@@ -728,7 +728,10 @@ Ext.application({
         'testextjs.view.chiffreAnnuel',
         'testextjs.view.sm_user.mvtcaisse.action.Detail',
         'testextjs.view.notification.RecapSms',
-        'testextjs.view.ticketzrecap'
+        'testextjs.view.ticketzrecap',
+        'testextjs.view.modereglement.ModeReglementGrid',
+        'testextjs.view.modereglement.ModeReglementView'
+        
     ],
     controllers: [
         'App',
@@ -799,7 +802,9 @@ Ext.application({
         'CategorieNotificationCtr',
         'RecapRecetteCaisseCtr',
         'StatVenteDepotCtr',
-        'CautionCtr'
+        'CautionCtr',
+        'BalanceSaleCashDepotController',
+        'PointCaisseController'
 
     ],
     stores: [

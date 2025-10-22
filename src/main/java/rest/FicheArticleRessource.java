@@ -5,6 +5,7 @@
  */
 package rest;
 
+import commonTasks.dto.AddLot;
 import commonTasks.dto.ArticleDTO;
 import commonTasks.dto.Params;
 import dal.TUser;
@@ -16,6 +17,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -26,6 +28,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.FicheArticleService;
 import rest.service.SuggestionService;
+import rest.service.dto.UpdateProduit;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -41,7 +44,7 @@ public class FicheArticleRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    FicheArticleService ficheArticleService;
+    private FicheArticleService ficheArticleService;
     @EJB
     private SuggestionService suggestionService;
 
@@ -62,14 +65,9 @@ public class FicheArticleRessource {
     @Path("dateperemption/{id}/{date}")
     public Response modifierDatePeremption(@PathParam("id") String id, @PathParam("date") String datePeremption)
             throws JSONException {
-        HttpSession hs = servletRequest.getSession();
 
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
-        JSONObject jsono = ficheArticleService.modifierArticleDatePeremption(id, datePeremption);
-        return Response.ok().entity(jsono.toString()).build();
+        return Response.ok().entity(ficheArticleService.modifierArticleDatePeremption(id, datePeremption).toString())
+                .build();
     }
 
     @GET
@@ -192,4 +190,18 @@ public class FicheArticleRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    @POST
+    @Path("add-lot")
+    public Response addLot(AddLot addLot) {
+
+        ficheArticleService.addLot(addLot);
+        return Response.accepted().build();
+    }
+
+    @POST
+    @Path("produit/update-lite-info")
+    public Response updateProduit(UpdateProduit updateProduit) {
+        ficheArticleService.updateProduitLiteInfo(updateProduit);
+        return Response.accepted().build();
+    }
 }

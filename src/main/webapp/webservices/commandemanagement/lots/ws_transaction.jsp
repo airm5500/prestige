@@ -13,8 +13,8 @@
 
 
 <%
-dataManager OdataManager = new dataManager();
-bonLivraisonManagement livraisonManagement=new bonLivraisonManagement(OdataManager);
+    dataManager OdataManager = new dataManager();
+    bonLivraisonManagement livraisonManagement = new bonLivraisonManagement(OdataManager);
     String lg_LOT_ID = "", int_NUMBER = "", int_SORTIE_USINE = "",
             str_PEREMPTION = "", lg_TYPEETIQUETTE_ID = "", int_NUM_LOT = "", int_QUANTITE_FREE = "";
     JSONObject json = new JSONObject();
@@ -41,11 +41,11 @@ bonLivraisonManagement livraisonManagement=new bonLivraisonManagement(OdataManag
     if (request.getParameter("lg_TYPEETIQUETTE_ID") != null && !"".equals(request.getParameter("lg_TYPEETIQUETTE_ID"))) {
         lg_TYPEETIQUETTE_ID = request.getParameter("lg_TYPEETIQUETTE_ID");
     }
-     if(livraisonManagement.updateLot(lg_LOT_ID, int_NUM_LOT,0 , int_SORTIE_USINE, str_PEREMPTION,0
-         , lg_TYPEETIQUETTE_ID)) {
-         success=1; 
-     
-     }
+    if (livraisonManagement.updateLot(lg_LOT_ID, int_NUM_LOT, 0, int_SORTIE_USINE, str_PEREMPTION, 0,
+             lg_TYPEETIQUETTE_ID)) {
+        success = 1;
+
+    }
     json.put("success", success);
 %>
 

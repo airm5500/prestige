@@ -5,6 +5,7 @@
  */
 package rest.service.impl;
 
+import commonTasks.dto.AddLot;
 import commonTasks.dto.ArticleDTO;
 import commonTasks.dto.FamilleDTO;
 import commonTasks.dto.VenteDetailsDTO;
@@ -20,6 +21,7 @@ import dal.TGrossiste_;
 import dal.TInventaire;
 import dal.TInventaireFamille;
 import dal.TInventaire_;
+import dal.TLot;
 import dal.TPreenregistrementDetail;
 import dal.TPreenregistrementDetail_;
 import dal.TPreenregistrement_;
@@ -27,6 +29,7 @@ import dal.TUser;
 import dal.TUser_;
 import dal.TWarehouse;
 import dal.TWarehouse_;
+import dal.TZoneGeographique;
 import dal.TZoneGeographique_;
 import enumeration.MargeEnum;
 import java.time.LocalDate;
@@ -36,6 +39,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -60,7 +64,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.FicheArticleService;
 import rest.service.SessionHelperService;
+import rest.service.dto.UpdateProduit;
 import util.Constant;
+import util.DateCommonUtils;
 import util.DateConverter;
 
 /**
@@ -232,7 +238,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     public JSONObject modifierArticleDatePeremption(String lgFAMILLEID, String dtperemption) throws JSONException {
         try {
             TFamille famille = getEntityManager().find(TFamille.class, lgFAMILLEID);
-            famille.setDtPEREMPTION(DateConverter.convertLocalDateToDate(LocalDate.parse(dtperemption)));
+            famille.setDtPEREMPTION(DateCommonUtils.convertLocalDateToDate(LocalDate.parse(dtperemption)));
             getEntityManager().merge(famille);
             return new JSONObject().put("success", true);
         } catch (Exception e) {
@@ -569,9 +575,9 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     Date ent = bonLivraisonDetail != null ? bonLivraisonDetail.getLgBONLIVRAISONID().getDtUPDATED()
                             : null;
                     int qtyEntree = bonLivraisonDetail != null ? bonLivraisonDetail.getIntQTERECUE() : 0;
-                    return x.dateBon(dateBonLivraison(x.getId())).dateEntree(ent).qtyEntree(qtyEntree)
-                            .dateInventaire(dateInventaire(x.getId(), emId))
-                            .lastDateVente(dateDerniereVente(x.getId(), emId))
+                    return x.dateBon(getDateBonLivraison(x.getId())).dateEntree(ent).qtyEntree(qtyEntree)
+                            .dateInventaire(getDateInventaire(x.getId(), emId))
+                            .lastDateVente(getDateDerniereVente(x.getId(), emId))
                             .consommationUn(conso
                                     .getOrDefault(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM")), 0))
                             .consommationsOne(conso.getOrDefault(
@@ -589,9 +595,9 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 }).collect(Collectors.toList());
             }
             return resultList.stream()
-                    .map(x -> x.dateBon(dateBonLivraison(x.getId())).dateEntree(dateEntreeStock(x.getId()))
-                            .dateInventaire(dateInventaire(x.getId(), emId))
-                            .lastDateVente(dateDerniereVente(x.getId(), emId)).grossisteId(x.getGrossisteId()))
+                    .map(x -> x.dateBon(getDateBonLivraison(x.getId())).dateEntree(getDateEntreeStock(x.getId()))
+                            .dateInventaire(getDateInventaire(x.getId(), emId))
+                            .lastDateVente(getDateDerniereVente(x.getId(), emId)).grossisteId(x.getGrossisteId()))
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
@@ -706,7 +712,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
-    public Date dateDerniereVente(String idProduit, String empl) {
+    public Date getDateDerniereVente(String idProduit, String empl) {
         try {
             Query q = getEntityManager().createQuery(
                     "SELECT o.lgPREENREGISTREMENTID.dtUPDATED FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.strSTATUT= 'is_Closed' AND o.lgPREENREGISTREMENTID.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 ORDER BY o.lgPREENREGISTREMENTID.dtUPDATED DESC");
@@ -721,7 +727,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
-    public Date dateEntreeStock(String idProduit) {
+    public Date getDateEntreeStock(String idProduit) {
         try {
             return bonLivraisonByArticleId(idProduit).getDtUPDATED();
 
@@ -733,7 +739,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
-    public Date dateBonLivraison(String idProduit) {
+    public Date getDateBonLivraison(String idProduit) {
         try {
 
             return bonLivraisonByArticleId(idProduit).getLgBONLIVRAISONID().getDtDATELIVRAISON();
@@ -760,7 +766,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
-    public Date dateInventaire(String idProduit, String empl) {
+    public Date getDateInventaire(String idProduit, String empl) {
         try {
 
             CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -876,7 +882,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         List<Predicate> predicates = new ArrayList<>();
         LocalDate toDay = LocalDate.now();
         LocalDate dayEnd = toDay;
-        predicates.add(cb.equal(root.get(TWarehouse_.strSTATUT), DateConverter.STATUT_DELETE));
+        predicates.add(cb.equal(root.get(TWarehouse_.strSTATUT), Constant.STATUT_DELETE));
         if (!StringUtils.isEmpty(query)) {
             predicates.add(cb.or(cb.like(fa.get(TFamille_.intCIP), query + "%"),
                     cb.like(fa.get(TFamille_.strNAME), query + "%"),
@@ -891,8 +897,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         }
         if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equals("ALL")) {
             predicates.add(cb.equal(fa.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
-            // predicates.add(cb.equal(root.get(TWarehouse_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
-            // codeGrossiste));
+
         }
         try {
             toDay = LocalDate.parse(dtStart);
@@ -926,7 +931,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     codeRayon, codeGrossiste);
             cq.select(root).orderBy(cb.desc(root.get(TWarehouse_.dtCREATED)));
 
-            cq.where(cb.and(predicates.toArray(new Predicate[0])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TWarehouse> q = getEntityManager().createQuery(cq);
             if (!all) {
                 q.setFirstResult(start);
@@ -951,7 +956,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             List<Predicate> predicates = saisiePerimesPredicat(cb, root, fa, query, dtStart, dtEnd, codeFamile,
                     codeRayon, codeGrossiste);
             cq.select(cb.count(root));
-            cq.where(cb.and(predicates.toArray(new Predicate[0])));
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             return (Long) q.getSingleResult();
 
@@ -959,6 +964,39 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             LOG.log(Level.SEVERE, "saisiePerimes", e);
             return 0;
         }
+    }
+
+    @Override
+    public void addLot(AddLot addLot) {
+        TFamille famille = em.find(TFamille.class, addLot.getProduitId());
+        TLot lot = new TLot(UUID.randomUUID().toString());
+        lot.setDtCREATED(new Date());
+        lot.setIntNUMBER(addLot.getQuantity());
+        lot.setIntNUMBERGRATUIT(0);
+        lot.setIntQTYVENDUE(0);
+        lot.setIntNUMLOT(addLot.getNumLot());
+        lot.setDtUPDATED(lot.getDtCREATED());
+        lot.setLgFAMILLEID(famille);
+        lot.setLgGROSSISTEID(famille.getLgGROSSISTEID());
+        lot.setDtPEREMPTION(DateCommonUtils.convertLocalDateToDate(LocalDate.parse(addLot.getDatePeremption())));
+        lot.setLgUSERID(this.sessionHelperService.getCurrentUser());
+        lot.setStrSTATUT(Constant.STATUT_ENABLE);
+        lot.setDtSORTIEUSINE(lot.getDtCREATED());
+        em.persist(lot);
+    }
+
+    @Override
+    public void updateProduitLiteInfo(UpdateProduit updateProduit) {
+        TFamille famille = em.find(TFamille.class, updateProduit.getId());
+        if (StringUtils.isNotEmpty(updateProduit.getCodeEanFabriquant())) {
+            famille.setCodeEanFabriquant(updateProduit.getCodeEanFabriquant());
+        }
+        if (StringUtils.isNotEmpty(updateProduit.getRayonId())) {
+            TZoneGeographique geographique = em.find(TZoneGeographique.class, updateProduit.getRayonId());
+            famille.setLgZONEGEOID(geographique);
+            famille.setLgZONEGEOID(geographique);
+        }
+        em.merge(famille);
     }
 
 }

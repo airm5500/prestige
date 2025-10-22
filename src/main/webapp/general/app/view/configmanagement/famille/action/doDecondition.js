@@ -61,7 +61,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
         int_QUANTITY = new Ext.form.field.Display(
                 {
                     xtype: 'displayfield',
-                    fieldLabel: 'Quantite final:',
+                    fieldLabel: 'Quantité détail total',
                     name: 'intQUANTITY',
                     id: 'intQUANTITY',
                     fieldStyle: "color:blue;",
@@ -80,7 +80,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
         int_NUMBER = new Ext.form.field.Display(
                 {
                     xtype: 'displayfield',
-                    fieldLabel: 'Stock detail:',
+                    fieldLabel: 'Stock detail actuel:',
                     name: 'int_NUMBER',
                     id: 'int_NUMBER',
                     fieldStyle: "color:blue;",
@@ -103,7 +103,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
             },
             items: [{
                     xtype: 'fieldset',
-                    title: 'Information sur l\'article a deconditionner',
+                    title: 'Information sur l\'article à détailler',
                     defaultType: 'textfield',
                     defaults: {
                         anchor: '100%'
@@ -112,8 +112,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
                         int_CIP,
                         str_DESCRIPTION,
                         {
-                            fieldLabel: 'Quantité à deconditionner',
-                            emptyText: 'Quantite a deconditionner',
+                            fieldLabel: 'Nombre de boites à detailler',
+                            emptyText: 'Nombre de boites à detailler',
                             name: 'int_NUMBER_AVAILABLE',
                             id: 'int_NUMBER_AVAILABLE',
                             enableKeyEvents: true,
@@ -234,7 +234,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
             success: function (response, options) {
                 testextjs.app.getController('App').StopWaitingProcess();
                  win.close();
-                Ext.MessageBox.alert('Message', 'Le produit a été déconditionné');
+                Ext.MessageBox.alert('Message', 'Le produit a été détaillé');
                 if (type === "famillemanager") {
                     Me_Workflow = Oview;
                     Me_Workflow.onRechClick();

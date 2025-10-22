@@ -576,7 +576,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         }
                                         return value;
                                     }
-                                }, {
+                                }, 
+                                {
                                     text: 'P.U',
                                     xtype: 'numbercolumn',
                                     flex: 1,
@@ -593,7 +594,20 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         hideTrigger: true
                                     }
 
-                                }, {
+                                },
+                                {
+                                    text: 'P.REF',
+                                    xtype: 'numbercolumn',
+                                    flex: 1,
+                                    hidden:true,
+                                    sortable: true,
+                                    dataIndex: 'calculationBasePrice',
+                                    format: '0,000.',
+                                    align: 'right'
+                                  
+                                },
+                                
+                                {
                                     text: 'MONTANT',
                                     flex: 1,
                                     xtype: 'numbercolumn',

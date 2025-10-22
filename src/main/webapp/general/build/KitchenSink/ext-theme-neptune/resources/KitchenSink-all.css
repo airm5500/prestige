@@ -15554,7 +15554,7 @@ body.x-nbr .x-tip-form-invalid-frameInfo {
     opacity: .5
 }
 .x-window-default {
-    border-color: #3892d3;
+    border-color: #0d9488;
     -webkit-border-radius: 4px;
     -moz-border-radius: 4px;
     -ms-border-radius: 4px;
@@ -22177,4 +22177,266 @@ body.x-nbr .x-panel-header-light-framed-collapsed-left-frameInfo {
     background: #00B74A;
     border-color: #00B74A;
 }
+
+.infos-generales {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;       /* gris clair */
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  padding: 12px 16px 8px 16px;
+}
+
+.infos-generales .x-field {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.section-title {
+  font-weight: 700;
+  color: #111827;                  /* gris très foncé */
+  font-size: 15px;
+}
+
+/* ====== THEME FUTURISTE (verre + halos) ====== */
+.screen-wrap{
+  background: linear-gradient(180deg,#0b3a3a 0%,#0f5a5a 100%);
+  padding: 10px;
+  border-radius: 12px;
+}
+
+.ig-card{
+  position: relative;
+  padding: 14px 18px 12px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(120,180,255,.22), rgba(30,60,120,.18));
+  box-shadow: 0 10px 25px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.20);
+  border: 1px solid rgba(255,255,255,.22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.ig-title{
+  font-weight: 800; letter-spacing:.3px; color:#0b1220; font-size:15px;
+  text-shadow: 0 1px 0 rgba(255,255,255,.4);
+}
+.ig-row{
+  width:100%; display:flex; align-items:center; gap:16px; margin-bottom:10px; flex-wrap:wrap;
+}
+.ig-item{
+  display:flex; align-items:center; padding:6px 10px; margin:0;
+  border-radius:10px;
+  background: radial-gradient(120% 120% at 0% 0%, rgba(255,255,255,.35), rgba(255,255,255,.08));
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 4px 10px rgba(0,0,0,.08);
+}
+.ig-label{
+  color:#0655d3; font-weight:800; font-size:16px; margin-right:8px; white-space:nowrap;
+  text-shadow: 0 0 6px rgba(6,85,211,.25);
+}
+.ig-value{
+  color:#0f766e; font-weight:800; font-size:18px;
+}
+.ig-number{
+  background: rgba(255,255,255,.2) !important;
+  border: 1px solid rgba(255,255,255,.45) !important;
+  border-radius: 10px !important;
+  padding: 4px 8px !important;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.12), 0 6px 14px rgba(0,0,0,.12);
+}
+.ig-number .x-form-field{
+  background: transparent !important; border: none !important;
+  color:#0f766e !important; font-weight:800 !important; font-size:18px !important;
+}
+.x-fieldset{ border-radius: 14px;}
+
+/* ====== Détails + Grille ====== */
+.dg-card{
+  padding: 10px 12px; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.12));
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 8px 20px rgba(0,0,0,.12);
+}
+.x-grid-header-ct{
+  background: linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.25)) !important;
+  border: 1px solid rgba(255,255,255,.35) !important;
+  border-radius: 10px 10px 0 0;
+}
+.x-grid-view{
+  background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.15)) !important;
+}
+.glass-input .x-form-field{
+  background: rgba(255,255,255,.6) !important;
+  border: 1px solid rgba(0,0,0,.15) !important;
+  border-radius: 8px !important;
+  padding: 6px 8px !important;
+}
+
+/* ====== Boutons ====== */
+.x-toolbar-footer{ background: transparent !important; border: none !important; }
+.btn-secondary .x-btn-inner{ font-weight:700; }
+.btn-secondary{
+  background: linear-gradient(145deg, #e8eef7, #cfd9ea) !important;
+  border: 1px solid rgba(0,0,0,.12) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,.15);
+}
+.btn-primary{
+  background: linear-gradient(145deg, #14b8a6, #0d9488) !important;
+  border: 1px solid rgba(0,0,0,.15) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 18px rgba(20,184,166,.35);
+}
+.btn-primary .x-btn-inner{ color:#fff !important; font-weight:800; }
+
+/* --- layout 3 colonnes pour Infos Générales --- */
+.ig-columns{
+  width:100%;
+  display:flex;
+  gap:16px;
+}
+.ig-col{
+  flex:1;                 /* 3 colonnes égales */
+  min-width:260px;        /* évite l’écrasement */
+  display:flex;
+  flex-direction:column;  /* empile verticalement */
+  gap:10px;
+}
+.ig-col .ig-item{ width:100%; }  /* pilules à la largeur de la colonne */
+
+/* --- layout 3 colonnes type tableau --- */
+.ig-card.ig-simple { padding: 12px 16px; }
+.ig-grid3 {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; /* 3 colonnes égales */
+  gap: 16px 24px;                     /* lignes / colonnes */
+}
+.ig-col {
+  display: grid;
+  grid-auto-rows: min-content;
+  gap: 10px;
+}
+
+/* rangée label + valeur, sans fond */
+.ig-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 2px 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* titres de colonnes (ligne 1 de chaque col) */
+.ig-coltitle {
+  font-weight: 800;
+  color: #0655d3;              /* bleu */
+  text-transform: uppercase;
+  letter-spacing: .2px;
+  margin-bottom: 2px;
+}
+
+/* labels/valeurs */
+.ig-label { color:#0655d3; font-weight:800; }
+.ig-value { color:#0f766e; font-weight:800; }
+
+/* 3e colonne : numberfield plein largeur */
+.ig-number { width: 100% !important; }
+.ig-number .x-form-field {
+  font-weight: 800 !important;
+  color:#0f766e !important;
+}
+
+.my-grid-header .x-column-header {
+    background-color: #00897B !important; /* couleur bouton Retour */
+    color: white !important;              /* texte blanc pour contraste */
+    font-weight: bold;
+}
+
+.my-grid-header .x-column-header-over {
+    background-color: #00695C !important; /* couleur au survol */
+}
+
+.no-border-field .x-form-text {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 15px !important; /* Arrondi des bords */
+    padding-left: 8px; /* Un peu d’espace à gauche */
+}
+
+.custom-messagebox .x-window {
+    border-radius: 10px !important;
+    border: none !important;
+    background: linear-gradient(135deg, #e6ebf5, #f3f6fb) !important;
+}
+
+.custom-messagebox .x-window-header {
+    background: linear-gradient(145deg, #14b8a6, #0d9488) !important;
+    border: none !important;
+    border-radius: 10px 10px 0 0 !important;
+    color: #004aad !important;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.custom-messagebox .x-window-body {
+    background: linear-gradient(135deg, #e6ebf5, #f3f6fb) !important;
+    font-size: 14px;
+    font-weight: bold;
+    color: #004aad;
+    text-align: center;
+    padding: 10px !important;
+}
+
+.custom-messagebox .x-message-box .x-window-icon {
+    background-color: #ffffff !important;
+    border-radius: 50% !important;
+    border: 2px solid #004aad !important;
+}
+
+.custom-messagebox .x-btn {
+    border-radius: 6px !important;
+    background: #4CAF50 !important; /* Vert harmonisé */
+    color: white !important;
+    font-weight: bold;
+    border: none !important;
+    padding: 5px 15px !important;
+}
+
+.custom-messagebox .x-btn-over {
+    background: #45a049 !important; /* Vert foncé au survol */
+}
+
 /*focusCls,labelCls */
+
+.pl-card {
+  background: #fff;
+  border: 1px solid #e6e8ef;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(10,10,10,0.04);
+}
+
+.pl-title { font-weight: 700; font-size: 14px; }
+
+.pl-badge {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  border: 1px dashed #d8dee9;
+}
+.pl-badge-value { font-size: 18px; font-weight: 800; }
+.pl-badge-sub { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+
+.pl-badge-positive { background: rgba(16,185,129,0.08); color: #065f46; border-color: rgba(16,185,129,0.25); }
+.pl-badge-negative { background: rgba(239,68,68,0.08); color: #7f1d1d; border-color: rgba(239,68,68,0.25); }
+.pl-badge-neutral  { background: rgba(107,114,128,0.08); color: #1f2937; border-color: rgba(107,114,128,0.25); }
+
+.pl-green-strong .x-form-display-field {
+  color: #0a7b22;
+  font-weight: 900;
+}

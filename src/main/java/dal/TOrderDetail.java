@@ -6,9 +6,9 @@
 package dal;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -84,16 +84,37 @@ public class TOrderDetail implements Serializable {
     private int ug = 0;
     @Type(type = "json")
     @Column(columnDefinition = "json", name = "lots")
-    private Set<OrderDetailLot> lots = new HashSet<>();
+    private List<OrderDetailLot> lots = new ArrayList<>();
+
+    @Column(name = "checked")
+    private boolean checked;
+    @Column(name = "quantite_controle")
+    private Integer checkedQuantity;
 
     public TOrderDetail() {
     }
 
-    public Set<OrderDetailLot> getLots() {
+    public boolean isChecked() {
+        return checked;
+    }
+
+    public void setChecked(boolean checked) {
+        this.checked = checked;
+    }
+
+    public Integer getCheckedQuantity() {
+        return checkedQuantity;
+    }
+
+    public void setCheckedQuantity(Integer checkedQuantity) {
+        this.checkedQuantity = checkedQuantity;
+    }
+
+    public List<OrderDetailLot> getLots() {
         return lots;
     }
 
-    public void setLots(Set<OrderDetailLot> lots) {
+    public void setLots(List<OrderDetailLot> lots) {
         this.lots = lots;
     }
 

@@ -35,24 +35,9 @@ Ext.define('testextjs.view.configmanagement.clientaccounttierspayant.ClientAccou
     frame: true,
     closable: true,
     initComponent: function() {
-
-
-
         ref = this.getOdatasource().lg_CLIENT_ID;
-        //alert("ref  "+ref);
+  
         url_services_data_clientaccount = '../webservices/configmanagement/compteclient/ws_data.jsp?lg_CLIENT_ID=' + ref;
-
-//alert(url_services_data_clientaccount);
-
-        /* var store = new Ext.data.Store({
-         model: 'testextjs.model.CompteClient',
-         proxy: {
-         type: 'ajax',
-         url: url_services_data_clientaccount
-         }
-         
-         });*/
-
 
         var itemsPerPage = 20;
         var store = new Ext.data.Store({
@@ -207,9 +192,6 @@ Ext.define('testextjs.view.configmanagement.clientaccounttierspayant.ClientAccou
                             tooltip: '<b>This request is OPEN</b>. Please click the lock to close this request.',
                             handler: function(grid, rowIndex, colIndex) {
                                 var rec = grid.getStore().getAt(rowIndex);
-
-
-
                                 grid.getStore().getAt(rowIndex).set('str_STATUT', "disable");
                                 grid.addRowCls(grid.getNode(rowIndex), 'line-through');
 

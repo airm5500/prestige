@@ -18,6 +18,7 @@ public class PrixReferenceDTO {
     private String tiersPayantId;
     private String tiersPayantName;
     private String typeLibelle;
+    private Float taux;
 
     public String getTiersPayantName() {
         return tiersPayantName;
@@ -86,6 +87,14 @@ public class PrixReferenceDTO {
         this.typeLibelle = typeLibelle;
     }
 
+    public Float getTaux() {
+        return taux;
+    }
+
+    public void setTaux(Float taux) {
+        this.taux = taux;
+    }
+
     public PrixReferenceDTO(PrixReference prixReference) {
         this.id = prixReference.getId();
         this.valeur = prixReference.getValeur();
@@ -96,6 +105,7 @@ public class PrixReferenceDTO {
         this.tiersPayantId = payant.getLgTIERSPAYANTID();
         this.typeLibelle = prixReference.getType().getLibelle();
         this.tiersPayantName = payant.getStrFULLNAME();
+        this.taux = prixReference.getValeurTaux();
     }
 
 }

@@ -613,7 +613,7 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     onReady: function () {
-        let me = this;
+        const me = this;
         me.goToVenteView();
         me.cheickCaisse();
         me.checkModificationPrixU();

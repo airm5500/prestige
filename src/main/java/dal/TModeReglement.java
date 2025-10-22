@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package dal;
 
 import java.io.Serializable;
@@ -14,6 +13,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
@@ -40,6 +40,7 @@ import javax.xml.bind.annotation.XmlTransient;
         @NamedQuery(name = "TModeReglement.findByDtUPDATED", query = "SELECT t FROM TModeReglement t WHERE t.dtUPDATED = :dtUPDATED"),
         @NamedQuery(name = "TModeReglement.findByStrSTATUT", query = "SELECT t FROM TModeReglement t WHERE t.strSTATUT = :strSTATUT") })
 public class TModeReglement implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -66,8 +67,19 @@ public class TModeReglement implements Serializable {
     private Collection<TMvtCaisse> tMvtCaisseCollection;
     @OneToMany(mappedBy = "lgMODEREGLEMENTID")
     private Collection<TReglement> tReglementCollection;
+    @Lob
+    @Column(name = "qr_code", columnDefinition = "MEDIUMBLOB")
+    private byte[] qrCode;
 
     public TModeReglement() {
+    }
+
+    public byte[] getQrCode() {
+        return qrCode;
+    }
+
+    public void setQrCode(byte[] qrCode) {
+        this.qrCode = qrCode;
     }
 
     public TModeReglement(String lgMODEREGLEMENTID) {

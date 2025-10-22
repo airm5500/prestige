@@ -1,8 +1,4 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+
 package rest.service;
 
 import commonTasks.dto.ArticleDTO;
@@ -70,6 +66,8 @@ public interface SuggestionService {
     void makeSuggestionAuto(List<TPreenregistrementDetail> list, TEmplacement emplacementId);
 
     JSONObject fetchItems(String orderId, String search, TUser tUser, int start, int limit);
+
+    void cleanSuggestion(String suggestionId, TUser tUser);
 
     void deleteSuggestion(String suggestionId);
 

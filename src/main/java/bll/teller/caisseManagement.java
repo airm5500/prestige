@@ -6,7 +6,6 @@ package bll.teller;
 
 import bll.common.Parameter;
 import bll.entity.EntityData;
-import bll.gateway.outService.ServicesNotifCustomer;
 import bll.report.JournalVente;
 import bll.userManagement.authentification;
 import bll.userManagement.privilege;
@@ -1431,8 +1430,7 @@ public class caisseManagement extends bll.bllBase {
         List<TAlertEventUserFone> lstTAlertEventUserFone = new ArrayList<>();
         String message = "Récapitulatif de caisse " + date.DateToString(dt_Date_Debut, date.formatterShort) + "\n";
         Double totalAmount = 0.0;
-        ServicesNotifCustomer OServicesNotifCustomer = new ServicesNotifCustomer(this.getOdataManager(),
-                this.getOTUser());
+
         privilege Oprivilege = new privilege(this.getOdataManager(), this.getOTUser());
         String lg_EMPLACEMENT_ID = "";
         try {
@@ -1459,11 +1457,7 @@ public class caisseManagement extends bll.bllBase {
                         .createQuery("SELECT t FROM TAlertEventUserFone t WHERE t.strEvent.strEvent LIKE ?1")
                         .setParameter(1, "N_GET_SOLDE_CAISSE").getResultList();
                 for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
-                    // OServicesNotifCustomer.doservice(message, OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(),
-                    // this.getKey().getShortId(10)+OTAlertEventUserFone.getLgUSERFONEID().getLgUSERID().getLgUSERID());
-                    OServicesNotifCustomer.saveNotification(message,
-                            OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(), this.getKey().getShortId(10)
-                                    + OTAlertEventUserFone.getLgUSERFONEID().getLgUSERID().getLgUSERID());
+
                 }
             }
         } catch (Exception e) {
@@ -1476,8 +1470,7 @@ public class caisseManagement extends bll.bllBase {
             String lg_USER_ID, String lg_TYPE_REGLEMENT_ID) {
         JournalVente OJournalVente = new JournalVente(this.getOdataManager(), this.getOTUser());
         TparameterManager OTparameterManager = new TparameterManager(this.getOdataManager());
-        ServicesNotifCustomer OServicesNotifCustomer = new ServicesNotifCustomer(this.getOdataManager(),
-                this.getOTUser());
+
         List<EntityData> listTMvtCaissesFalse = new ArrayList<>();
         List<Object[]> listPreenregistrement;
         TParameters OTParameters;
@@ -1506,20 +1499,6 @@ public class caisseManagement extends bll.bllBase {
                 lstTAlertEventUserFone = this.getOdataManager().getEm()
                         .createQuery("SELECT t FROM TAlertEventUserFone t WHERE t.strEvent.strEvent LIKE ?1")
                         .setParameter(1, "N_GET_SOLDE_CAISSE").getResultList();
-                for (TAlertEventUserFone OTAlertEventUserFone : lstTAlertEventUserFone) {
-                    // if(OServicesNotifCustomer.doservice(message,
-                    // OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(),
-                    // dt_date_debut+OTAlertEventUserFone.getLgUSERFONEID().getLgUSERID().getLgUSERID()) > 0) { //a
-                    // decommenter en cas de probleme 09/08/2016
-                    if (OServicesNotifCustomer.saveNotification(message,
-                            OTAlertEventUserFone.getLgUSERFONEID().getStrPHONE(), dt_date_debut
-                                    + OTAlertEventUserFone.getLgUSERFONEID().getLgUSERID().getLgUSERID()) != null) {
-                        this.buildSuccesTraceMessage("Opération effectuée avec succès");
-                    } else {
-                        this.buildErrorTraceMessage("SMS non envoyé");
-                    }
-
-                }
 
             } else {
                 this.buildErrorTraceMessage("Aucun SMS envoyé");

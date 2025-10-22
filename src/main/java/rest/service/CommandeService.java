@@ -23,11 +23,11 @@ import org.json.JSONObject;
 @Local
 public interface CommandeService {
 
-    JSONObject cloturerBonLivraison(String id, TUser user) throws JSONException;
+    JSONObject cloturerBonLivraison(String id) throws JSONException;
 
     void closureOrder(TOrder order);
 
-    JSONObject cloturerInvetaire(String inventaireId, TUser user) throws JSONException;
+    JSONObject cloturerInvetaire(String inventaireId) throws JSONException;
 
     String generateCIP(String cip);
 

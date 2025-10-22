@@ -20,7 +20,6 @@ import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -99,6 +98,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public JSONObject creerBonLivraison(Params params) throws JSONException {
         JSONObject json = new JSONObject();
+        params.setOperateur(this.sessionHelperService.getCurrentUser());
         List<String> erro = new ArrayList<>();
 
         TOrder order = getEmg().find(TOrder.class, params.getRefParent());
@@ -111,14 +111,15 @@ public class OrderServiceImpl implements OrderService {
         }
         TEmplacement emplacement = params.getOperateur().getLgEMPLACEMENTID();
         String emp = emplacement.getLgEMPLACEMENTID();
-        TBonLivraison oBonLivraison = createBL(order, params.getOperateur(), params.getRef(),
-                DateConverter.convertLocalDateToDate(LocalDate.parse(params.getDtStart())), params.getValue(),
-                params.getValueTwo());
         List<TOrderDetail> listTOrderDetail = new ArrayList<>(order.getTOrderDetailCollection());
-        LongAdder montant = new LongAdder();
-        LongAdder count = new LongAdder();
-        LongAdder count2 = new LongAdder();
-        listTOrderDetail.forEach(d -> {
+        TBonLivraison oBonLivraison = createBL(order, params.getOperateur(), params.getRef(),
+                DateCommonUtils.convertLocalDateToDate(LocalDate.parse(params.getDtStart())), params.getValue(),
+                params.getValueTwo());
+
+        int montant = 0;
+        int count = 0;
+        int count2 = 0;
+        for (TOrderDetail d : listTOrderDetail) {
             TFamille famille = d.getLgFAMILLEID();
             TFamilleStock stock = getTProductItemStock(famille.getLgFAMILLEID(), emp);
             if (stock != null) {
@@ -128,20 +129,20 @@ public class OrderServiceImpl implements OrderService {
                 d.setDtUPDATED(new Date());
                 d.setIntORERSTATUS((short) 4);
                 getEmg().merge(d);
-                count.increment();
-                montant.add(d.getIntPRICE());
+                count++;
+                montant += d.getIntPRICE();
             } else {
-                count2.increment();
+                count2++;
                 erro.add(famille.getIntCIP());
             }
-        });
+
+        }
         order.setStrSTATUT(Constant.STATUT_IS_CLOSED);
-        order.setIntPRICE(montant.intValue());
+        order.setIntPRICE(montant);
         order.setDtUPDATED(new Date());
         getEmg().merge(order);
-        return json.put("success", true).put("count", count.intValue()).put("nb", count2.intValue())
-                .put("data", new JSONArray(erro)).put("msg", "Opération effectuée avec success");
-
+        return json.put("success", true).put("count", count).put("nb", count2).put("data", new JSONArray(erro))
+                .put("msg", "Opération effectuée avec success");
     }
 
     private TBonLivraisonDetail createBLDetail(TBonLivraison oTBonLivraison, TGrossiste oTGrossiste, TFamille oTFamille,
@@ -178,7 +179,7 @@ public class OrderServiceImpl implements OrderService {
         oTBonLivraisonDetail.setLots(d.getLots());
         TTypeetiquette tTypeetiquette = oTFamille.getLgTYPEETIQUETTEID() == null
                 ? em.find(TTypeetiquette.class, Constant.DEFAUL_TYPEETIQUETTE) : oTFamille.getLgTYPEETIQUETTEID();
-        Set<OrderDetailLot> lots = oTBonLivraisonDetail.getLots();
+        List<OrderDetailLot> lots = oTBonLivraisonDetail.getLots();
         if (!CollectionUtils.isEmpty(lots)) {
             lots.forEach(lotDTO -> {
                 LocalDate dtpremption = DateUtil.fromString(lotDTO.getDatePeremption());
@@ -235,7 +236,7 @@ public class OrderServiceImpl implements OrderService {
 
     private int getNombreMois() {
         try {
-            return Integer.parseInt(getEmg().find(TParameters.class, "KEY_MONTH_PERIME").getStrVALUE().trim());
+            return Integer.parseInt(getEmg().find(TParameters.class, Constant.KEY_MONTH_PERIME).getStrVALUE().trim());
         } catch (Exception e) {
             return 1000;
         }
@@ -1372,6 +1373,8 @@ public class OrderServiceImpl implements OrderService {
         commande.setTotalQty(t.get("productCount", BigDecimal.class).intValue());
         commande.setMontantAchat(t.get("montantAchat", BigDecimal.class).intValue());
         commande.setMontantVente(t.get("montantVente", BigDecimal.class).intValue());
+        commande.setStatutTraitement(getCommandStatut(commande.getLgORDERID()));
+
         return commande;
     }
 
@@ -1464,32 +1467,38 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public JSONObject getListBons(String statut, String search) {
+    public JSONObject getListBons(String statut, String search, int start, int limit, String dtStart, String dtEnd) {
         JSONObject json = new JSONObject();
-        int count = getListBonsCount(statut, search);
+        int count = getListBonsCount(statut, search, dtStart, dtEnd);
 
         json.put("total", count);
-        return json.put("data", buildListBons(statut, search));
+        return json.put("data", buildListBons(statut, search, start, limit, dtStart, dtEnd));
 
     }
 
     private List<Predicate> getListBonsPredicats(CriteriaBuilder cb, Root<TBonLivraison> root, String statut,
-            String search) {
+            String search, String dtStart, String dtEnd) {
         List<Predicate> predicates = new ArrayList<>();
-
         predicates.add(cb.equal(root.get(TBonLivraison_.strSTATUT), statut));
+        if (StringUtils.isNotEmpty(search)) {
+            predicates.add(cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON), search + "%")));
+        }
+        if (StringUtils.isNotEmpty(dtStart) && StringUtils.isNotEmpty(dtEnd)) {
+            predicates.add(cb.between(cb.function("DATE", Date.class, root.get(TBonLivraison_.dtUPDATED)),
+                    java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd)));
+        }
 
         return predicates;
     }
 
-    private int getListBonsCount(String statut, String search) {
+    private int getListBonsCount(String statut, String search, String dtStart, String dtEnd) {
         try {
 
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
             CriteriaQuery<Long> cq = cb.createQuery(Long.class);
             Root<TBonLivraison> root = cq.from(TBonLivraison.class);
             cq.select(cb.count(root));
-            List<Predicate> predicates = getListBonsPredicats(cb, root, statut, search);
+            List<Predicate> predicates = getListBonsPredicats(cb, root, statut, search, dtStart, dtEnd);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<Long> q = getEmg().createQuery(cq);
 
@@ -1500,16 +1509,23 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private List<TBonLivraison> fetchListBons(String statut, String search) {
+    private List<TBonLivraison> fetchListBons(String statut, int start, int limit, String search, String dtStart,
+            String dtEnd) {
         try {
 
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
             CriteriaQuery<TBonLivraison> cq = cb.createQuery(TBonLivraison.class);
             Root<TBonLivraison> root = cq.from(TBonLivraison.class);
-            cq.select(root);
-            List<Predicate> predicates = getListBonsPredicats(cb, root, statut, search);
+
+            cq.select(root).orderBy(cb.desc(root.get(TBonLivraison_.dtUPDATED)));
+            List<Predicate> predicates = getListBonsPredicats(cb, root, statut, search, dtStart, dtEnd);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TBonLivraison> q = getEmg().createQuery(cq);
+            if (limit != 0) {
+
+                q.setFirstResult(start);
+                q.setMaxResults(limit);
+            }
 
             return q.getResultList();
         } catch (Exception e) {
@@ -1518,20 +1534,20 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private boolean displayFilter() {
+    private boolean checkDatePeremption() {
         try {
-            TParameters p = getEmg().find(TParameters.class, "KEY_ACTIVATE_PEREMPTION_DATE");
-            return !p.getStrVALUE().trim().equals("1");
+            TParameters p = getEmg().find(TParameters.class, Constant.KEY_ACTIVATE_PEREMPTION_DATE);
+            return p.getStrVALUE().trim().equals("1");
         } catch (Exception e) {
-            return true;
+            return false;
         }
 
     }
 
-    private JSONArray buildListBons(String statut, String search) {
+    private JSONArray buildListBons(String statut, String search, int start, int limit, String dtStart, String dtEnd) {
         try {
             JSONArray array = new JSONArray();
-            List<TBonLivraison> datats = fetchListBons(statut, search);
+            List<TBonLivraison> datats = fetchListBons(statut, start, limit, search, dtStart, dtEnd);
 
             for (TBonLivraison bonLivraison : datats) {
                 JSONObject json = new JSONObject();
@@ -1560,13 +1576,13 @@ public class OrderServiceImpl implements OrderService {
                 json.put("int_NBRE_PRODUIT", totalQte);
 
                 json.put("PRIX_ACHAT_TOTAL", prixAchat);
-                json.put("DISPLAYFILTER", displayFilter());
+                json.put("DISPLAYFILTER", !checkDatePeremption());
 
                 json.put("str_STATUT", bonLivraison.getStrSTATUT());
                 json.put("dt_DATE_LIVRAISON", DateUtil.convertDateToDD_MM_YYYY(bonLivraison.getDtDATELIVRAISON()));
                 json.put("dt_CREATED", DateUtil.convertDateToDD_MM_YYYY(bonLivraison.getDtCREATED()));
                 json.put("dt_CREATED", DateUtil.convertDateToDD_MM_YYYY(bonLivraison.getDtUPDATED()));
-
+                json.put("statutTraitement", getBonStatut(bonLivraison.getLgBONLIVRAISONID()));
                 array.put(json);
             }
             return array;
@@ -1607,17 +1623,17 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public JSONObject getListBonsDetails(String bonId, String search, int start, int limit,
-            EntreeStockDetailFiltre filtre, Boolean checkDatePeremption) {
+            EntreeStockDetailFiltre filtre, Boolean checkDatePeremption, String sort, String dir) {
         JSONObject json = new JSONObject();
-        int count = getListBonsDetailsCount(bonId, search, filtre, checkDatePeremption);
+        int count = getListBonsDetailsCount(bonId, search, filtre, checkDatePeremption, sort, dir);
 
         json.put("total", count);
-        return json.put("data",
-                buildListBonsDetails(fetchListBonsDetails(bonId, search, start, limit, filtre, checkDatePeremption)));
+        return json.put("data", buildListBonsDetails(
+                fetchListBonsDetails(bonId, search, start, limit, filtre, checkDatePeremption, sort, dir)));
     }
 
     private int getListBonsDetailsCount(String bonId, String search, EntreeStockDetailFiltre filtre,
-            Boolean checkDatePeremption) {
+            Boolean checkDatePeremption, String sort, String dir) {
         boolean checkDate = Objects.requireNonNullElse(checkDatePeremption, false);
         String searchQuery = " AND (t.lgFAMILLEID.intCIP LIKE '%s' OR t.lgFAMILLEID.intEAN13 LIKE '%s' OR t.lgFAMILLEID.strDESCRIPTION LIKE '%s') ";
         String searchQueryFinal = StringUtils.isNotEmpty(search)
@@ -1642,30 +1658,82 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private List<TBonLivraisonDetail> fetchListBonsDetails(String bonId, String search, int start, int limit,
-            EntreeStockDetailFiltre filtre, Boolean checkDatePeremption) {
-        boolean checkDate = Objects.requireNonNullElse(checkDatePeremption, false);
-        String searchQuery = " AND (t.lgFAMILLEID.intCIP LIKE '%s' OR t.lgFAMILLEID.intEAN13 LIKE '%s' OR t.lgFAMILLEID.strDESCRIPTION LIKE '%s') ";
-        String searchQueryFinal = StringUtils.isNotEmpty(search)
-                ? String.format(searchQuery, search + "%", search + "%", search + "%") : "";
-
+            EntreeStockDetailFiltre filtre, Boolean checkDatePeremption, String sort, String dir) {
         try {
-            String query = "SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.lgBONLIVRAISONID = ?1 %s  ORDER BY t.dtUPDATED DESC";
-            if (filtre == EntreeStockDetailFiltre.PRIX) {
-                String prix = checkDate
-                        ? "  AND t.lgFAMILLEID.boolCHECKEXPIRATIONDATE=TRUE   ORDER BY t.dtUPDATED DESC "
-                        : "  ORDER BY t.dtUPDATED DESC ";
-                query = "SELECT t FROM TBonLivraisonDetail t WHERE  t.lgBONLIVRAISONID.lgBONLIVRAISONID = ?1 %s AND t.intQTERECUE = 0 AND t.intPRIXVENTE <> t.lgFAMILLEID.intPRICE "
-                        + prix;
+            boolean checkDate = Objects.requireNonNullElse(checkDatePeremption, false);
 
+            String searchQuery = " AND (t.lgFAMILLEID.intCIP LIKE '%s' OR t.lgFAMILLEID.intEAN13 LIKE '%s' OR t.lgFAMILLEID.strDESCRIPTION LIKE '%s') ";
+            String searchQueryFinal = StringUtils.isNotEmpty(search)
+                    ? String.format(searchQuery, search + "%", search + "%", search + "%") : "";
+
+            // Base SANS ORDER BY en dur
+            String base = "SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.lgBONLIVRAISONID = ?1 %s";
+
+            // Filtre PRIX (toujours sans ORDER BY en dur)
+            if (filtre == EntreeStockDetailFiltre.PRIX) {
+                String prix = checkDate ? " AND t.lgFAMILLEID.boolCHECKEXPIRATIONDATE=TRUE " : " ";
+                base = "SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.lgBONLIVRAISONID = ?1 %s"
+                        + " AND t.intQTERECUE = 0 AND t.intPRIXVENTE <> t.lgFAMILLEID.intPRICE" + prix;
             }
 
-            return getEmg().createQuery(String.format(query, searchQueryFinal)).setParameter(1, bonId)
-                    .setFirstResult(start).setMaxResults(limit).getResultList();
+            // champs triables
+            String sortField;
+            if ("lg_FAMILLE_NAME".equalsIgnoreCase(sort)) {
+                sortField = "t.lgFAMILLEID.strNAME";
+            } else if ("lg_FAMILLE_CIP".equalsIgnoreCase(sort)) {
+                sortField = "t.lgFAMILLEID.intCIP";
+            } else if ("int_PAF".equalsIgnoreCase(sort)) {
+                sortField = "t.intPAF";
+            } else if ("int_PRIX_VENTE".equalsIgnoreCase(sort)) {
+                sortField = "t.intPRIXVENTE";
+            } else if ("dbl_PRIX_MOYEN_PONDERE".equalsIgnoreCase(sort)) {
+                sortField = "t.lgFAMILLEID.dblPRIXMOYENPONDERE";
+            } else if ("int_QTE_CMDE".equalsIgnoreCase(sort)) {
+                sortField = "t.intQTECMDE";
+            } else {
+                sortField = "t.dtUPDATED"; // fallback si sort inconnu/absent
+            }
+
+            String direction = "DESC".equalsIgnoreCase(dir) ? "DESC" : "ASC";
+            String orderBy = " ORDER BY " + sortField + " " + direction;
+
+            String jpql = String.format(base, searchQueryFinal) + orderBy;
+
+            return getEmg().createQuery(jpql, TBonLivraisonDetail.class).setParameter(1, bonId).setFirstResult(start)
+                    .setMaxResults(limit).getResultList();
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return List.of();
         }
+
+    }
+
+    private List<TLot> getLot(String idProduit, String bonRef) {
+        try {
+            TypedQuery<TLot> query = em.createNamedQuery("TLot.findByProduitAndBonRef", TLot.class);
+            query.setParameter("lgFAMILLEID", idProduit);
+            query.setParameter("strREFLIVRAISON", bonRef);
+            return query.getResultList();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private String getPeremption(List<TLot> lots) {
+        return String.join(" | ", lots.stream().filter(lot -> Objects.nonNull(lot.getDtPEREMPTION())).map(l -> {
+            return DateCommonUtils.format(l.getDtPEREMPTION());
+        }).distinct().collect(Collectors.toList()));
+    }
+
+    private String getLot(List<TLot> lots) {
+        return String.join(" | ", lots.stream().filter(lot -> StringUtils.isNoneEmpty(lot.getIntNUMLOT())).map(l -> {
+            return l.getIntNUMLOT();
+        }).distinct().collect(Collectors.toList()));
+    }
+
+    private int getLotQty(List<TLot> lots) {
+        return lots.stream().mapToInt(TLot::getIntNUMBER).sum();
     }
 
     private JSONArray buildListBonsDetails(List<TBonLivraisonDetail> bonLivraisonDetails) {
@@ -1673,14 +1741,20 @@ public class OrderServiceImpl implements OrderService {
             JSONArray array = new JSONArray();
             TBonLivraison bonLivraison = bonLivraisonDetails.get(0).getLgBONLIVRAISONID();
             String grossiste = bonLivraison.getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID();
+            boolean checkDatePeremption = checkDatePeremption();
             for (TBonLivraisonDetail bonLivraisonDetail : bonLivraisonDetails) {
-                JSONObject json = new JSONObject();
                 TFamille famille = bonLivraisonDetail.getLgFAMILLEID();
+                List<TLot> lots = getLot(famille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON());
+                JSONObject json = new JSONObject();
+
                 TFamilleGrossiste oTFamilleGrossiste = findFamilleGrossiste(famille.getLgFAMILLEID(), grossiste);
-
+                String datePeremption = getPeremption(lots);
                 json.put("lg_BON_LIVRAISON_DETAIL", bonLivraisonDetail.getLgBONLIVRAISONDETAIL());
-
                 json.put("int_QTE_CMDE", bonLivraisonDetail.getIntQTECMDE());
+                json.put("datePeremption", datePeremption);
+                json.put("lots", getLot(lots));
+                json.put("quantiteSaisie", getLotQty(lots));
+
                 json.put("int_QTE_RECUE_REEL", (bonLivraisonDetail.getIntQTERECUE() > 0
                         ? bonLivraisonDetail.getIntQTERECUE() - bonLivraisonDetail.getIntQTEUG() : "-"));
                 json.put("int_QTE_RECUE_BIS", (bonLivraisonDetail.getIntQTERECUE() > 0
@@ -1751,31 +1825,18 @@ public class OrderServiceImpl implements OrderService {
                 json.put("bool_DECONDITIONNE", bonLivraisonDetail.getLgFAMILLEID().getBoolDECONDITIONNE());
                 json.put("bool_DECONDITIONNE_EXIST", bonLivraisonDetail.getLgFAMILLEID().getBoolDECONDITIONNEEXIST());
 
-                if (!displayFilter()) {
-                    json.put("int_QTE_MANQUANT", 0);
-                    json.put("checkExpirationdate", famille.getBoolCHECKEXPIRATIONDATE() == true ? false : true);
-                    json.put("DISPLAYFILTER", famille.getBoolCHECKEXPIRATIONDATE() == true ? false : true);
-                    json.put("int_QTE_RECUE", bonLivraisonDetail.getIntQTECMDE());
-                    if (bonLivraisonDetail.getLgFAMILLEID().getBoolCHECKEXPIRATIONDATE()) {
-                        json.put("int_QTE_RECUE", (bonLivraisonDetail.getIntQTERECUE() > 0
-                                ? bonLivraisonDetail.getIntQTERECUE() - bonLivraisonDetail.getIntQTEUG() : "-"));
-                        json.put("intQTERECUE", (bonLivraisonDetail.getIntQTERECUE() > 0
-                                ? bonLivraisonDetail.getIntQTERECUE() - bonLivraisonDetail.getIntQTEUG() : 0));
-                        if (bonLivraisonDetail.getIntQTEMANQUANT() > bonLivraisonDetail.getIntQTECMDE()) {
-                            json.put("int_QTE_MANQUANT", bonLivraisonDetail.getIntQTECMDE());
-                        } else {
-                            json.put("int_QTE_MANQUANT", (bonLivraisonDetail.getIntQTEMANQUANT() >= 0
-                                    ? bonLivraisonDetail.getIntQTEMANQUANT() : 0));
-                        }
+                boolean checkExpirationdate = Objects.requireNonNullElse(famille.getBoolCHECKEXPIRATIONDATE(), false)
+                        && checkDatePeremption;
 
-                    }
-                } else {
-                    json.put("checkExpirationdate", true);
-                    json.put("DISPLAYFILTER", true);
+                json.put("checkExpirationdate", checkExpirationdate);
+                json.put("DISPLAYFILTER", checkExpirationdate);
+                json.put("int_QTE_RECUE", getQteRecu(checkExpirationdate, bonLivraisonDetail));
+                if (checkExpirationdate) {
                     json.put("int_QTE_RECUE", bonLivraisonDetail.getIntQTECMDE());
-                    json.put("int_QTE_MANQUANT", 0);
                 }
-
+                json.put("int_QTE_MANQUANT", Math.max(getQteManquante(bonLivraisonDetail), 0));
+                json.put("checked", bonLivraisonDetail.isChecked());
+                json.put("checkedQuantity", bonLivraisonDetail.getCheckedQuantity());
                 array.put(json);
             }
             return array;
@@ -1783,6 +1844,21 @@ public class OrderServiceImpl implements OrderService {
             LOG.log(Level.SEVERE, null, e);
             return new JSONArray();
         }
+    }
+
+    private int getQteManquante(TBonLivraisonDetail bonLivraisonDetail) {
+
+        return Objects.requireNonNullElse(bonLivraisonDetail.getIntQTECMDE(), 0)
+                - Objects.requireNonNullElse(bonLivraisonDetail.getIntQTERECUE(), 0);
+
+    }
+
+    private int getQteRecu(boolean checkExpirationdate, TBonLivraisonDetail bonLivraisonDetail) {
+        if (checkExpirationdate) {
+            return Objects.requireNonNullElse(bonLivraisonDetail.getIntQTERECUE(), 0)
+                    - Objects.requireNonNullElse(bonLivraisonDetail.getIntQTEUG(), 0);
+        }
+        return Objects.requireNonNullElse(bonLivraisonDetail.getIntQTECMDE(), 0);
     }
 
     private boolean hasExistLot(String bonNum, String produitId) {
@@ -1837,7 +1913,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public void removeLot(DeleteLot deleteLot) {
         TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, deleteLot.getIdBonDetail());
-        // int qty = 0;
+
         int freeQty = 0;
         List<TLot> lots;
         if (deleteLot.isRemoveLot()) {
@@ -1847,13 +1923,13 @@ public class OrderServiceImpl implements OrderService {
         }
 
         for (TLot lot : lots) {
-            // qty += lot.getIntNUMBER();
+
             freeQty += lot.getIntNUMBERGRATUIT();
             getEmg().remove(lot);
         }
         getWSByIdProduitAndRefBon(deleteLot).forEach(this.getEmg()::remove);
         bonLivraisonDetail.setIntQTERECUE(bonLivraisonDetail.getIntQTERECUE() - freeQty);
-        // bonLivraisonDetail.setIntQTEMANQUANT(bonLivraisonDetail.getIntQTEMANQUANT() - (qty + freeQty));
+
         bonLivraisonDetail.setIntQTEUG(bonLivraisonDetail.getIntQTEUG() - freeQty);
         bonLivraisonDetail.setDtUPDATED(new Date());
         getEmg().merge(bonLivraisonDetail);
@@ -1884,9 +1960,9 @@ public class OrderServiceImpl implements OrderService {
         return typedQuery.getResultList();
     }
 
-    private TParameters getParamettre() {
+    private TParameters getParamettre(String key) {
         try {
-            return getEmg().find(TParameters.class, "KEY_MONTH_PERIME");
+            return getEmg().find(TParameters.class, key);
         } catch (Exception e) {
             return null;
         }
@@ -1897,16 +1973,16 @@ public class OrderServiceImpl implements OrderService {
         TUser tUser = this.sessionHelperService.getCurrentUser();
         TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, lot.getIdBonDetail());
         TBonLivraison bonLivraison = bonLivraisonDetail.getLgBONLIVRAISONID();
-        if (!lot.isDirectImport()) {
-            return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison);
-        } else {
 
+        if (!lot.isDirectImport()) {
+            return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison, false);
+        } else {
             Optional<TLot> enOptionl = getLotByProduitIdAndBon(bonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
                     bonLivraison.getStrREFLIVRAISON());
             if (enOptionl.isPresent()) {
                 addFreeQty(enOptionl.get(), lot, bonLivraisonDetail, bonLivraison.getStrREFLIVRAISON());
             } else {
-                return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison);
+                return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison, false);
             }
 
         }
@@ -1915,34 +1991,31 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private JSONObject addNewLot(AddLot lot, TBonLivraisonDetail bonLivraisonDetai, TUser tUser,
-            TBonLivraison bonLivraison) {
+            TBonLivraison bonLivraison, boolean isFreeQty) {
 
         TFamille famille = bonLivraisonDetai.getLgFAMILLEID();
         TOrder order = bonLivraison.getLgORDERID();
         TGrossiste grossiste = order.getLgGROSSISTEID();
         int qty = getQtyLot(famille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON(), grossiste.getLgGROSSISTEID())
                 + lot.getQty();
-        if (bonLivraisonDetai.getIntQTECMDE() < qty) {
+        if (bonLivraisonDetai.getIntQTECMDE() < qty && !isFreeQty) {
             return new JSONObject().put("msg", "La quantité réçue est supérieure à la quantité commantée.")
                     .put("success", false);
 
         }
-        TTypeetiquette tTypeetiquette = null;
-        if (StringUtils.isNotEmpty(lot.getIdEtiquette())) {
-            tTypeetiquette = getEmg().find(TTypeetiquette.class, lot.getIdEtiquette());
-        }
+        TTypeetiquette tTypeetiquette = getEmg().find(TTypeetiquette.class, Constant.DEFAUL_TYPEETIQUETTE);
+
         TLot oTLot = new TLot();
-        if (tTypeetiquette != null) {
-            oTLot.setLgTYPEETIQUETTEID(tTypeetiquette);
-        } else {
-            oTLot.setLgTYPEETIQUETTEID(getEmg().find(TTypeetiquette.class, Constant.DEFAUL_TYPEETIQUETTE));
-        }
+        oTLot.setLgTYPEETIQUETTEID(tTypeetiquette);
 
         oTLot.setLgLOTID(new KeyUtilGen().getComplexId());
         oTLot.setLgUSERID(tUser);
         oTLot.setStrSTATUT(Constant.STATUT_ENABLE);
         oTLot.setLgFAMILLEID(famille);
         oTLot.setIntNUMBER(lot.getQty() + lot.getFreeQty());
+        if (isFreeQty) {
+            oTLot.setIntNUMBER(bonLivraisonDetai.getIntQTERECUE() + lot.getFreeQty());
+        }
         if (StringUtils.isNotEmpty(lot.getDatePeremption())) {
             Date dtPEREMPTION = java.sql.Date.valueOf(lot.getDatePeremption());
             oTLot.setDtPEREMPTION(dtPEREMPTION);
@@ -1951,7 +2024,7 @@ public class OrderServiceImpl implements OrderService {
             if (dtpremption.isBefore(tonow) || dtpremption.isEqual(tonow)) {
                 oTLot.setStrSTATUT(Constant.STATUT_PERIME);
             } else {
-                TParameters parameters = getParamettre();
+                TParameters parameters = getParamettre(Constant.KEY_MONTH_PERIME);
                 int nbr = 0;
                 if (parameters != null) {
                     nbr = Integer.parseInt(parameters.getStrVALUE());
@@ -1977,20 +2050,27 @@ public class OrderServiceImpl implements OrderService {
         oTLot.setIntNUMBERGRATUIT(lot.getFreeQty());
         oTLot.setIntQTYVENDUE(0);
         getEmg().persist(oTLot);
-        addWarehouse(bonLivraisonDetai, oTLot, lot);
         updateTBonLivraisonDetailFromBonLivraison(bonLivraisonDetai, lot.getFreeQty(), lot.getFreeQty());
+        addWarehouse(bonLivraisonDetai, oTLot, lot);
         return new JSONObject().put("success", true);
     }
 
     private void addFreeQty(TLot entityLot, AddLot lot, TBonLivraisonDetail bonLivraisonDetail, String bonNum) {
-        if (lot.getFreeQty() <= 0) {
-            return;
-        }
+
         String famille = bonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID();
 
+        if (StringUtils.isNotEmpty(lot.getNumLot())) {
+            entityLot.setIntNUMLOT(lot.getNumLot());
+        }
+        entityLot.setIntNUMBER((Objects.requireNonNullElse(entityLot.getIntNUMBER(), 0)
+                - Objects.requireNonNullElse(entityLot.getIntNUMBERGRATUIT(), 0)) + lot.getFreeQty());
         entityLot.setIntNUMBERGRATUIT(lot.getFreeQty());
-        entityLot.setIntNUMBER(entityLot.getIntNUMBER() + entityLot.getIntNUMBERGRATUIT());
         entityLot.setDtUPDATED(new Date());
+        if (StringUtils.isNoneBlank(lot.getDatePeremption())) {
+            Date dtPEREMPTION = java.sql.Date.valueOf(lot.getDatePeremption());
+            entityLot.setDtPEREMPTION(dtPEREMPTION);
+        }
+
         bonLivraisonDetail.setIntQTERECUE(
                 (bonLivraisonDetail.getIntQTERECUE() - bonLivraisonDetail.getIntQTEUG()) + lot.getFreeQty());
         bonLivraisonDetail.setIntQTEUG(lot.getFreeQty());
@@ -1999,6 +2079,7 @@ public class OrderServiceImpl implements OrderService {
         getEmg().merge(entityLot);
         TWarehouse tWarehouse = getOneByProduitIdAndBon(famille, bonNum);
         tWarehouse.setIntNUMBERGRATUIT(lot.getFreeQty());
+        tWarehouse.setIntNUMBER(bonLivraisonDetail.getIntQTERECUE());
         tWarehouse.setDtUPDATED(new Date());
         getEmg().merge(tWarehouse);
 
@@ -2068,7 +2149,7 @@ public class OrderServiceImpl implements OrderService {
         oTWarehouse.setLgWAREHOUSEID(new KeyUtilGen().getComplexId());
         oTWarehouse.setLgUSERID(lot.getLgUSERID());
         oTWarehouse.setLgFAMILLEID(lot.getLgFAMILLEID());
-        oTWarehouse.setIntNUMBER(lotDto.getQty());
+        oTWarehouse.setIntNUMBER(bonLivraisonDetail.getIntQTERECUE());
         oTWarehouse.setDtPEREMPTION(lot.getDtPEREMPTION());
         oTWarehouse.setDtSORTIEUSINE(lot.getDtSORTIEUSINE());
         oTWarehouse.setStrREFLIVRAISON(lot.getStrREFLIVRAISON());
@@ -2107,7 +2188,7 @@ public class OrderServiceImpl implements OrderService {
 
     public TEtiquette createEtiquetteBis(TBonLivraisonDetail bonLivraisonDetail, TWarehouse warehouse, String qty) {
 
-        String result = "";
+        String result;
         TFamille famille = warehouse.getLgFAMILLEID();
 
         String typeEtiquetteName = warehouse.getLgTYPEETIQUETTEID().getStrNAME();
@@ -2230,5 +2311,82 @@ public class OrderServiceImpl implements OrderService {
         long total = getListBonsDetailsByProduitsCount(produitId, search, dtStart, dtEnd, grossisteId);
         return new JSONObject().put("total", total).put("data", buildBonsDetailsByProduits(
                 getListBonsDetailsByProduits(produitId, search, dtStart, dtEnd, grossisteId)));
+    }
+
+    @Override
+    public JSONObject addFreeQty(AddLot lot) {
+        if (lot.getFreeQty() < 0) {
+            return new JSONObject().put("success", false);
+        }
+        TUser tUser = this.sessionHelperService.getCurrentUser();
+        TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, lot.getIdBonDetail());
+        TBonLivraison bonLivraison = bonLivraisonDetail.getLgBONLIVRAISONID();
+        Optional<TLot> enOptionl = getLotByProduitIdAndBon(bonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
+                bonLivraison.getStrREFLIVRAISON());
+        if (enOptionl.isPresent()) {
+            addFreeQty(enOptionl.get(), lot, bonLivraisonDetail, bonLivraison.getStrREFLIVRAISON());
+        } else {
+            return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison, true);
+        }
+        return new JSONObject().put("success", true);
+    }
+
+    @Override
+    public List<TBonLivraisonDetail> getBonItems(String bonId) {
+        TypedQuery<TBonLivraisonDetail> q = em.createQuery(
+                "SELECT o FROM  TBonLivraisonDetail o where o.lgBONLIVRAISONID.lgBONLIVRAISONID=?1",
+                TBonLivraisonDetail.class);
+        q.setParameter(1, bonId);
+        return q.getResultList();
+    }
+
+    @Override
+    public void addCheckedQuantity(AddCheckedQuantity addCheckedQuantity) {
+        TOrderDetail orderDetail = getEmg().find(TOrderDetail.class, addCheckedQuantity.getId());
+        orderDetail.setChecked(true);
+        orderDetail.setCheckedQuantity(addCheckedQuantity.getCheckedQuantity());
+        getEmg().merge(orderDetail);
+
+    }
+
+    @Override
+    public void addBonItemCheckedQuantity(AddCheckedQuantity addCheckedQuantity) {
+        TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, addCheckedQuantity.getId());
+        bonLivraisonDetail.setChecked(true);
+        bonLivraisonDetail.setCheckedQuantity(addCheckedQuantity.getCheckedQuantity());
+        getEmg().merge(bonLivraisonDetail);
+
+    }
+
+    private StatutTraitement getCommandStatut(String id) {
+        Query q = getEmg().createNativeQuery(
+                "SELECT SUM(CASE WHEN d.checked THEN 1 ELSE 0 END) AS checkedCount,SUM(CASE WHEN d.checked IS FALSE THEN 1 ELSE 0 END) AS uncheckedCount FROM t_order_detail d WHERE  d.lg_ORDER_ID=?1");
+        q.setParameter(1, id);
+
+        Object[] result = (Object[]) q.getSingleResult();
+
+        return getStatutTraitement(result);
+    }
+
+    private StatutTraitement getBonStatut(String id) {
+
+        Query q = getEmg().createNativeQuery(
+                "SELECT SUM(CASE WHEN d.checked THEN 1 ELSE 0 END) AS checkedCount,SUM(CASE WHEN d.checked IS FALSE THEN 1 ELSE 0 END) AS uncheckedCount FROM t_bon_livraison_detail d WHERE d.lg_BON_LIVRAISON_ID=?1");
+        q.setParameter(1, id);
+        Object[] result = (Object[]) q.getSingleResult();
+
+        return getStatutTraitement(result);
+    }
+
+    private StatutTraitement getStatutTraitement(Object[] result) {
+        int checkedCount = ((Number) result[0]).intValue();
+        int uncheckedCount = ((Number) result[1]).intValue();
+        if (uncheckedCount == 0) {
+            return StatutTraitement.TERMINE;
+        }
+        if (checkedCount == 0) {
+            return StatutTraitement.A_FAIRE;
+        }
+        return StatutTraitement.EN_COURS;
     }
 }

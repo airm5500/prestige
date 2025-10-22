@@ -18,8 +18,14 @@ import java.util.Objects;
 public class Params implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String ref, description, refParent, refTwo;
-    private Integer value, valueTwo, valueThree, valueFour;
+    private String ref;
+    private String description;
+    private String refParent;
+    private String refTwo;
+    private Integer value;
+    private Integer valueTwo;
+    private Integer valueThree;
+    private Integer valueFour;
     private String dtStart = LocalDate.now().toString();
     private String dtEnd = dtStart;
     private String hrEnd;

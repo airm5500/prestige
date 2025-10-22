@@ -25,7 +25,6 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
-import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 
@@ -155,7 +154,7 @@ public class TPreenregistrement implements Serializable {
     @OneToMany(mappedBy = "lgPREENREGISTREMENTID")
     private Collection<TPreenregistrementCompteClient> tPreenregistrementCompteClientCollection = new ArrayList<>();
     @OneToMany(mappedBy = "lgPREENREGISTREMENTID")
-    private Collection<TPreenregistrementCompteClientTiersPayent> tPreenregistrementCompteClientTiersPayentCollection;
+    private Collection<TPreenregistrementCompteClientTiersPayent> tPreenregistrementCompteClientTiersPayentCollection = new ArrayList<>();
     @OneToMany(mappedBy = "lgPREENREGISTREMENTID")
     private Collection<TPreenregistrementDetail> tPreenregistrementDetailCollection = new ArrayList<>();
     @Column(name = "int_ACCOUNT")
@@ -202,9 +201,8 @@ public class TPreenregistrement implements Serializable {
     private List<VenteReglement> venteReglements = new ArrayList<>();
     @ManyToOne
     private Caution caution;
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type_prix", length = 20)
-    private PrixReferenceType typePriceOption;
+    @Column(name = "has_price_option")
+    private Boolean hasPriceOption = false;
 
     public boolean isImported() {
         return imported;
@@ -214,20 +212,20 @@ public class TPreenregistrement implements Serializable {
         this.imported = imported;
     }
 
-    public PrixReferenceType getTypePriceOption() {
-        return typePriceOption;
-    }
-
-    public void setTypePriceOption(PrixReferenceType typePriceOption) {
-        this.typePriceOption = typePriceOption;
-    }
-
     public Medecin getMedecin() {
         return medecin;
     }
 
     public void setMedecin(Medecin medecin) {
         this.medecin = medecin;
+    }
+
+    public Boolean getHasPriceOption() {
+        return hasPriceOption;
+    }
+
+    public void setHasPriceOption(Boolean hasPriceOption) {
+        this.hasPriceOption = hasPriceOption;
     }
 
     public Boolean getChecked() {

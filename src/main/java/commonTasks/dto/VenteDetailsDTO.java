@@ -87,9 +87,18 @@ public class VenteDetailsDTO implements Serializable {
     private String grossisteId;
     private String libelleGrossiste;
     private boolean deconditionne;
+    private Integer calculationBasePrice;
 
     public Integer getStockInitial() {
         return stockInitial;
+    }
+
+    public Integer getCalculationBasePrice() {
+        return calculationBasePrice;
+    }
+
+    public void setCalculationBasePrice(Integer calculationBasePrice) {
+        this.calculationBasePrice = calculationBasePrice;
     }
 
     public void setStockInitial(Integer stockInitial) {
@@ -424,6 +433,7 @@ public class VenteDetailsDTO implements Serializable {
         this.montantHt = htAmont;
         htAmont = (int) Math.ceil((d.getIntPRICE() - d.getIntPRICEREMISE()) / valeurTva1);
         this.montantNetHt = htAmont;
+        this.calculationBasePrice = d.getCalculationBasePrice();
     }
 
     public VenteDetailsDTO(TPreenregistrementDetail d, boolean b) {
@@ -454,6 +464,7 @@ public class VenteDetailsDTO implements Serializable {
         this.ticketName = f.getStrNAME();
         this.valeurTva = d.getValeurTva();
         this.montantTva = d.getMontantTva();
+        this.calculationBasePrice = d.getCalculationBasePrice();
     }
 
     public String getLgPREENREGISTREMENTDETAILID() {

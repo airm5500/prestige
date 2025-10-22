@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package dal;
 
 import java.io.Serializable;
@@ -34,17 +33,18 @@ import javax.xml.bind.annotation.XmlRootElement;
         @NamedQuery(name = "TLot.findByIntNUMBER", query = "SELECT t FROM TLot t WHERE t.intNUMBER = :intNUMBER"),
         @NamedQuery(name = "TLot.findByDtCREATED", query = "SELECT t FROM TLot t WHERE t.dtCREATED = :dtCREATED"),
         @NamedQuery(name = "TLot.findByDtUPDATED", query = "SELECT t FROM TLot t WHERE t.dtUPDATED = :dtUPDATED"),
-        @NamedQuery(name = "TLot.findByStrREFLIVRAISON", query = "SELECT t FROM TLot t WHERE t.strREFLIVRAISON = :strREFLIVRAISON"),
         @NamedQuery(name = "TLot.findByDtSORTIEUSINE", query = "SELECT t FROM TLot t WHERE t.dtSORTIEUSINE = :dtSORTIEUSINE"),
         @NamedQuery(name = "TLot.findByDtPEREMPTION", query = "SELECT t FROM TLot t WHERE t.dtPEREMPTION = :dtPEREMPTION"),
         @NamedQuery(name = "TLot.findByIntNUMBERGRATUIT", query = "SELECT t FROM TLot t WHERE t.intNUMBERGRATUIT = :intNUMBERGRATUIT"),
         @NamedQuery(name = "TLot.findByStrSTATUT", query = "SELECT t FROM TLot t WHERE t.strSTATUT = :strSTATUT"),
-        @NamedQuery(name = "TLot.findByStrREFORDER", query = "SELECT t FROM TLot t WHERE t.strREFORDER = :strREFORDER") })
+        @NamedQuery(name = "TLot.findByStrREFORDER", query = "SELECT t FROM TLot t WHERE t.strREFORDER = :strREFORDER"),
+        @NamedQuery(name = "TLot.findByProduitAndBonRef", query = "SELECT t FROM TLot t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID AND   t.strREFLIVRAISON = :strREFLIVRAISON") })
 public class TLot implements Serializable {
 
+    private static final long serialVersionUID = 1L;
     @Column(name = "int_QTY_VENDUE")
     private Integer intQTYVENDUE;
-    private static final long serialVersionUID = 1L;
+
     @Id
     @Basic(optional = false)
     @Column(name = "lg_LOT_ID", nullable = false, length = 40)

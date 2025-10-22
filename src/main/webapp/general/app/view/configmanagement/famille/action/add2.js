@@ -38,7 +38,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
         parentview: '',
         mode: '',
         titre: '',
-        type: ''
+        type: '',
+        grossisteId: null
     },
     initComponent: function () {
         Oview = this.getParentview();
@@ -46,17 +47,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
         Omode = this.getMode();
         type = this.getType();
         Me = this;
-        var itemsPerPage = 20;
+        var itemsPerPage = 100;
         var store_zonegeo_famille = new Ext.data.Store({
             model: 'testextjs.model.ZoneGeographique',
-            pageSize: itemsPerPage,
+           pageSize: itemsPerPage,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_zonegeo_famille,
+                url: '../api/v1/common/emplacement',
+                //url: '../api/v1/common/rayons',
+                //url: url_services_data_zonegeo_famille,
                 reader: {
                     type: 'json',
-                    root: 'results',
+                    root: 'data',
                     totalProperty: 'total'
                 }
             }
@@ -99,10 +102,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_famaillearticle_famille,
+                //url: url_services_data_famaillearticle_famille,
+                url: '../api/v1/common/famillearticle',
                 reader: {
                     type: 'json',
-                    root: 'results',
+                    root: 'data',
                     totalProperty: 'total'
                 }
             }
@@ -157,14 +161,22 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                     },
                     items: [
                         {
-                            fieldLabel: 'Cip',
+                            fieldLabel: 'Code CIP',
                             xtype: 'textfield',
                             maskRe: /[0-9.]/, width: 400,
+                            // AJOUT : Écouteur pour la touche "Entrée"
+                            listeners: {
+                                specialkey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        Ext.getCmp('str_DESCRIPTION').focus(true, 10);
+                                    }
+                                }
+                            },
                             /*autoCreate: {
                              tag: 'input',
                              maxlength: '7'
                              },*/
-                            emptyText: 'CIP',
+                            emptyText: 'Code CIP',
                             name: 'int_CIP',
                             id: 'int_CIP',
                             allowBlank: false
@@ -186,9 +198,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                             width: 400,
                             id: 'lg_ZONE_GEO_ID',
                             store: store_zonegeo_famille,
-                            pageSize: 20, //ajout la barre de pagination
-                            valueField: 'lg_ZONE_GEO_ID',
-                            displayField: 'str_LIBELLEE',
+                            pageSize: 100, //ajout la barre de pagination
+                            valueField: 'id',
+                            displayField: 'libelle',
                             typeAhead: true,
                             allowBlank: false,
                             queryMode: 'remote', emptyText: 'Choisir un emplacement...'
@@ -200,8 +212,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                             width: 400,
                             id: 'lg_FAMILLEARTICLE_ID',
                             store: store_famillearticle_famille,
-                            valueField: 'lg_FAMILLEARTICLE_ID',
-                            displayField: 'str_LIBELLE',
+                            valueField: 'id',
+                            displayField: 'libelle',
                             typeAhead: true,
                             queryMode: 'remote',
                             pageSize: 20, //ajout la barre de pagination
@@ -226,11 +238,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                         },
                         
                         {
-                            fieldLabel: 'Prix Achat Facture',
+                            fieldLabel: 'Prix Achat',
                             xtype: 'textfield',
                             maskRe: /[0-9.]/,
                             width: 350,
-                            emptyText: 'PRIX ACHAT FACTURE',
+                            emptyText: 'PRIX ACHAT',
                             name: 'int_PAF',
                             id: 'int_PAF',
                             allowBlank: false
@@ -273,14 +285,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                             emptyText: 'Choisir un grossiste...'
                         },
                          {
-                            fieldLabel: 'EAN',
+                            fieldLabel: 'Code EAN 13',
                             xtype: 'textfield',
                             maskRe: /[0-9.]/, width: 400,
                             /*autoCreate: {
                              tag: 'input',
                              maxlength: '7'
                              },*/
-                            emptyText: 'EAN',
+                            emptyText: 'Code EAN 13',
                             name: 'EAN',
                             id: 'EAN'
                             
@@ -302,7 +314,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                     ]
                 }]
         });
-
+ 
         //Initialisation des valeur
 
         if (Omode === "update" || Omode === "decondition") {
@@ -325,7 +337,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
             Ext.getCmp('lg_CODE_TVA_ID').hide();
            
         }
-
+        
         var win = new Ext.window.Window({
             autoShow: true,
             title: this.getTitre(),
@@ -344,109 +356,162 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                     handler: function () {
                         win.close();
                     }
-                }]
+                }],
+            listeners: {
+                afterrender: function () {
+                    
+                    var comboEmplacement = Ext.getCmp('lg_ZONE_GEO_ID');
+                    var comboFamille = Ext.getCmp('lg_FAMILLEARTICLE_ID');
+                    var comboGrossiste = Ext.getCmp('lg_GROSSISTE_QUICK_ID');
+
+                    //Recup emplacement par defaut
+                    comboEmplacement.getStore().on('load', function (store) {
+                        var defaultRecord = store.findRecord('libelle', 'Default');
+
+                        if (defaultRecord && !defaultRecord.get('str_LIBELLEE')) {
+                            defaultRecord.set('lg_ZONE_GEO_ID', defaultRecord.get('id'));
+                            defaultRecord.set('str_LIBELLEE', defaultRecord.get('libelle'));
+                        }
+                        comboEmplacement.setValue('1');
+
+                    }, this, {single: true});
+                    comboEmplacement.getStore().load();
+
+                    // Recup Famille par defaut
+                    comboFamille.getStore().on('load', function (store) {
+                        var defaultRecord = store.findRecord('libelle', 'SPECIALITES PUBLIQUES');
+
+                        if (defaultRecord && !defaultRecord.get('str_LIBELLE')) {
+                            defaultRecord.set('lg_FAMILLEARTICLE_ID', defaultRecord.get('id'));
+                            defaultRecord.set('str_LIBELLE', defaultRecord.get('libelle'));
+                        }
+                        if (defaultRecord) { 
+                            comboFamille.setValue(defaultRecord.get('lg_FAMILLEARTICLE_ID'));
+                        }
+
+                    }, this, {single: true});
+                    comboFamille.getStore().load();
+
+                    // Recup grossiste initiale de la commande
+                    var grossisteIdFromParent = Me.getGrossisteId(); // On utilise 'Me' qui est une référence à notre fenêtre 'add2'
+                    if (grossisteIdFromParent) {
+                        comboGrossiste.getStore().load({
+                            callback: function () {
+                                comboGrossiste.setValue(grossisteIdFromParent);
+                            }
+                        });
+                    }
+                    
+                },
+                // NOUVEAUTÉ : On utilise l'événement 'show' pour gérer le focus
+                show: function (window) {
+                    Ext.defer(function () {
+                        var cipField = window.down('#int_CIP');
+                        if (cipField) {
+                            cipField.focus(true, 100);
+                        }
+                    }, 100);
+                }
+            }
+
         });
     },
     onbtnsave: function (button) {
-        
-        var win = button.up('window'), form = win.down('form');
-        var int_PAT = 0;
-        if (form.isValid()) {
-           button.setDisabled(true);
-            var internal_url = "";
-            var int_DECONDITIONNE = 0;
+    var win = button.up('window'),
+        form = win.down('form');
 
-            if (Omode === "create") {
-                internal_url = url_services_transaction_famille + 'create';
-                int_PAT = Ext.getCmp('int_PAF').getValue();
-            } else if (Omode === "update") {
-                internal_url = url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + ref;
-                int_PAT = Ext.getCmp('int_PAT').getValue();
-            } else if (Omode === "decondition") {
-                internal_url = url_services_transaction_famille + 'decondition&lg_FAMILLE_ID=' + ref;
-                int_DECONDITIONNE = 1;
-                int_PAT = Ext.getCmp('int_PAT').getValue();
-            }
+    if (form.isValid()) {
+        var pafField = Ext.getCmp('int_PAF');
+        var priceField = Ext.getCmp('int_PRICE');
+        var pafValue = parseInt(pafField.getValue(), 10);
+        var priceValue = parseInt(priceField.getValue(), 10);
 
-            if (parseInt(Ext.getCmp('int_PAF').getValue()) > parseInt(Ext.getCmp('int_PAF').getValue())) {
-                Ext.MessageBox.alert('Impossible', 'Le prix d\'achat doit etre inferieur au prix de vente');
-                return;
-            }
-            
-           
-            
-            var str_DESCRIPTION = Ext.getCmp('str_DESCRIPTION').getValue();
-
-            Ext.Ajax.request({
-                url: internal_url,
-                params: {
-                    lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTE_QUICK_ID').getValue(),
-//               
-                    int_PAT: int_PAT,
-                    int_PAF: Ext.getCmp('int_PAF').getValue(),
-                    int_PRICE: Ext.getCmp('int_PRICE').getValue(),
-                    lg_FAMILLEARTICLE_ID: Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue(),
-                    lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue(),
-                    str_DESCRIPTION: Ext.getCmp('str_DESCRIPTION').getValue(),
-                    int_CIP: Ext.getCmp('int_CIP').getValue(),
-                    lg_CODE_TVA_ID: Ext.getCmp('lg_CODE_TVA_ID').getValue(),
-                    //lg_WORKFLOW_REMISE_ARTICLE_ID: Ext.getCmp('lg_WORKFLOW_REMISE_ARTICLE_ID').getValue(),
-                    int_T: Ext.getCmp('int_T').getValue(),
-                    int_EAN13: Ext.getCmp('EAN').getValue()
-                },
-                success: function (response)
-                {
-                    button.enable();
-                    var object = Ext.JSON.decode(response.responseText, false);
-                    if (object.success == "0") {
-                        Ext.MessageBox.alert('Error Message', object.errors);
-                        return;
-                    } else {
-                        win.close();
-
-                        if (Omode === "create" || Omode === "update") {
-                            if (type == "famillemanager") {
-                                Ext.MessageBox.alert('Confirmation', object.errors);
-                                testextjs.app.getController('App').onLoadNewComponent("famillemanager", "Fiche Article", "");
-                            } else if (type == "commande") {
-                                Ext.getCmp('str_NAME').setValue(str_DESCRIPTION);
-                                Ext.getCmp('str_NAME').getStore().reload();
-                                Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(object.ref);
-                                Ext.MessageBox.alert('Confirmation', object.errors,
-                                        function () {
-                                            Ext.getCmp('int_QUANTITE').focus();
-                                            Ext.getCmp('int_QUANTITE').selectText(0, 1);
-                                        });
-                                Me_Window = Oview;
-                            }
-                        }
-
-                    }
-
-
-
-                },
-                failure: function (response)
-                {
-                     button.enable();
-
-                    var object = Ext.JSON.decode(response.responseText, false);
-                    console.log("Bug " + response.responseText);
-                    Ext.MessageBox.alert('Error Message', response.responseText);
+        // 1. Contrôle : si le prix d'achat est supérieur au prix de vente
+        if (pafValue > priceValue) {
+            Ext.MessageBox.show({
+                title: 'Erreur de saisie',
+                msg: "Le prix d'achat ne peut pas être supérieur au prix de vente.",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function () {
+                    pafField.focus(true, 100); // focus sur le champ du prix d'achat
                 }
             });
-        } else {
-
-            Ext.MessageBox.show({
-                title: 'Echec',
-                msg: 'Veuillez renseignez les champs obligatoires',
-                // width: 300,
-                height: 150,
-                buttons: Ext.MessageBox.OK,
-                icon: Ext.MessageBox.WARNING
-            });
+            return;
         }
 
+        // Si le contrôle des prix est validé, on continue l'enregistrement
+        button.setDisabled(true);
+        var internal_url = "";
+        var int_PAT = 0;
 
+        if (Omode === "create") {
+            internal_url = url_services_transaction_famille + 'create';
+            int_PAT = pafValue; // En mode création, le PAT est égal au PAF
+        } else if (Omode === "update") {
+            internal_url = url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + ref;
+            int_PAT = Ext.getCmp('int_PAT').getValue();
+        }
+        
+        var str_DESCRIPTION = Ext.getCmp('str_DESCRIPTION').getValue();
+
+        Ext.Ajax.request({
+            url: internal_url,
+            params: {
+                lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTE_QUICK_ID').getValue(),
+                int_PAT: int_PAT,
+                int_PAF: pafValue,
+                int_PRICE: priceValue,
+                lg_FAMILLEARTICLE_ID: Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue(),
+                lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue(),
+                str_DESCRIPTION: str_DESCRIPTION,
+                int_CIP: Ext.getCmp('int_CIP').getValue(),
+                lg_CODE_TVA_ID: Ext.getCmp('lg_CODE_TVA_ID').getValue(),
+                int_T: Ext.getCmp('int_T').getValue(),
+                int_EAN13: Ext.getCmp('EAN').getValue()
+            },
+            success: function (response) {
+                button.enable();
+                var object = Ext.JSON.decode(response.responseText, false);
+                if (object.success == "0") {
+                    Ext.MessageBox.alert('Error Message', object.errors);
+                    return;
+                } else {
+                    win.close();
+
+                    if (Omode === "create" || Omode === "update") {
+                        if (type == "famillemanager") {
+                            Ext.MessageBox.alert('Confirmation', object.errors);
+                            testextjs.app.getController('App').onLoadNewComponent("famillemanager", "Fiche Article", "");
+                        } else if (type == "commande") {
+                            Ext.getCmp('str_NAME').setValue(str_DESCRIPTION);
+                            Ext.getCmp('str_NAME').getStore().reload();
+                            Ext.getCmp('lg_FAMILLE_ID_VENTE').setValue(object.ref);
+                            Ext.MessageBox.alert('Confirmation', object.errors,
+                                function () {
+                                    Ext.getCmp('int_QUANTITE').focus();
+                                    Ext.getCmp('int_QUANTITE').selectText(0, 1);
+                                });
+                            Me_Window = Oview;
+                        }
+                    }
+                }
+            },
+            failure: function (response) {
+                button.enable();
+                var object = Ext.JSON.decode(response.responseText, false);
+                console.log("Bug " + response.responseText);
+                Ext.MessageBox.alert('Error Message', response.responseText);
+            }
+        });
+    } else {
+        Ext.MessageBox.show({
+            title: 'Echec',
+            msg: 'Veuillez renseignez les champs obligatoires',
+            height: 150,
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.WARNING
+        });
     }
+}
 });

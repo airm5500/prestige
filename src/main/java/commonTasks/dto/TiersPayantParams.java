@@ -16,14 +16,18 @@ import java.io.Serializable;
  */
 public class TiersPayantParams implements Serializable {
 
-    private String compteTp, message;
+    private String compteTp;
+    private String message;
     private int taux;
     private String numBon;
     private String tpFullName;
     private String lgTIERSPAYANTID;
     private String lgCOMPTECLIENTID;
-    private Integer tpnet = 0, discount = 0;
-    private boolean principal, enabled, activeTiersPayant;
+    private Integer tpnet = 0;
+    private Integer discount = 0;
+    private boolean principal;
+    private boolean enabled;
+    private boolean activeTiersPayant;
     private String numSecurity = "";
     private int order;
     private Integer dbPLAFONDENCOURS = 0;

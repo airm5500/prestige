@@ -10,18 +10,13 @@ import commonTasks.dto.VenteReglementReportDTO;
 import dal.TParameters;
 import dal.enumeration.TypeTransaction;
 
-import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -37,9 +32,6 @@ import javax.persistence.Tuple;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import rest.service.BalanceService;
 import rest.service.dto.BalanceParamsDTO;
 import rest.service.dto.BalanceVenteItemDTO;
@@ -47,6 +39,25 @@ import rest.service.dto.EtatAnnuelDTO;
 import rest.service.dto.EtatAnnuelWrapperDTO;
 import util.Constant;
 import util.DateConverter;
+import dal.TEmplacement;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.inject.Inject;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperExportManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import rest.service.MagasinService;
 import util.FunctionUtils;
 
 /**
@@ -83,7 +94,7 @@ public class BalanceServiceImpl implements BalanceService {
     private static final String OTHER_MVT_SQL_QUERY = "SELECT m.`typeMvtCaisseId` AS typeMvtCaisse, SUM(m.montant) AS montantTTC FROM  mvttransaction m WHERE DATE(m.mvtdate) BETWEEN ?1 AND ?2 AND m.`typeTransaction` >2  AND m.`lg_EMPLACEMENT_ID` =?3  GROUP BY m.`typeMvtCaisseId` ";
 
     private static final String BONS_SQL_QUERY = "SELECT  SUM(m.montant) AS montant FROM  mvttransaction m WHERE DATE(m.mvtdate) BETWEEN ?1 AND ?2 AND m.`typeTransaction` =2  AND m.`lg_EMPLACEMENT_ID` =?3 ";
-    private static final String EXCLUDE_STATEMENT = " AND  p.`lg_PREENREGISTREMENT_ID` NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v) ";
+    private static final String EXCLUDE_STATEMENT = " AND  p.`lg_PREENREGISTREMENT_ID`  NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v) ";
 
     private static final String TVAS_SQL = "SELECT {byDay} SUM(d.int_PRICE) AS montantTTC,SUM(d.int_UG*d.int_PRICE_UNITAIR) AS montantUg,d.valeurTva AS valeurTva FROM t_preenregistrement_detail d,t_preenregistrement p,t_user u ,mvttransaction m WHERE p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID AND p.`lg_PREENREGISTREMENT_ID`=m.pkey  AND  d.`bool_ACCOUNT` "
             + " AND p.lg_TYPE_VENTE_ID <> ?1 AND p.str_STATUT='is_Closed'  AND p.imported=0 AND DATE(p.dt_UPDATED)  BETWEEN ?2 AND ?3 AND p.lg_USER_ID=u.lg_USER_ID AND u.lg_EMPLACEMENT_ID=?4 {excludeStatement} {tvaVnoOnly} GROUP BY d.`valeurTva` {groupByDay}";
@@ -114,6 +125,9 @@ public class BalanceServiceImpl implements BalanceService {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+
+    @Inject
+    private MagasinService magasinService; // Injection du service
 
     @Override
     public List<BalanceDTO> buildBalanceFromPreenregistrement(BalanceParamsDTO balanceParams) {
@@ -922,13 +936,7 @@ public class BalanceServiceImpl implements BalanceService {
 
                 int totalVente = t.get("totalVente", BigDecimal.class).intValue();
                 int montantUg = checkUg ? t.get("montantUg", BigDecimal.class).intValue() : 0;
-                /*
-                 * int flagedAmount = t.get("flagedAmount", BigDecimal.class).intValue(); o.setMontantTTC((montantTTC -
-                 * montantUg) - flagedAmount); o.setMontantNet((montantNet - montantUg) - flagedAmount);
-                 */
-
                 o.setMontantRemise(montantRemise);
-
                 o.setMontantCredit(montantCredit + montantDiffere);
                 o.setNbreVente(totalVente);
                 balanceParams.setDtStart(o.getMvtDate().toString());
@@ -1227,12 +1235,12 @@ public class BalanceServiceImpl implements BalanceService {
         long montantMoov = 0;
         long montantMtn = 0;
         long montantWave = 0;
-        // long montantPaye = 0;
+
         long totalModeReglement = 0;
 
         for (BalanceVenteItemDTO balanceVenteItem : values) {
             long montantRegle1 = balanceVenteItem.getMontantRegle().longValue();
-            // long montantPaye1 = balanceVenteItem.getMontantPaye().longValue();
+
             montantTTC += showAllAmount ? balanceVenteItem.getMontantTTCDetatilReal().longValue()
                     : balanceVenteItem.getMontantTTCDetatil().longValue();
             montantTTCReel += balanceVenteItem.getMontantTTCDetatil().longValue();
@@ -1329,4 +1337,171 @@ public class BalanceServiceImpl implements BalanceService {
         return balance;
     }
 
+    /* depot */
+    @Override
+    public JSONObject getBalanceForAllDepots(BalanceParamsDTO balanceParams) {
+        SummaryDTO finalSummary = new SummaryDTO();
+        Map<String, BalanceDTO> aggregatedBalancesMap = new HashMap<>();
+
+        try {
+            JSONObject depotsJson = magasinService.findAllDepots("", Constant.FINDALLDEPOT);
+            JSONArray depotsArray = depotsJson.getJSONArray("data");
+
+            for (int i = 0; i < depotsArray.length(); i++) {
+                JSONObject depotObj = depotsArray.getJSONObject(i);
+                String depotId = depotObj.getString("lgEMPLACEMENTID");
+
+                BalanceParamsDTO depotParams = BalanceParamsDTO.builder().dtStart(balanceParams.getDtStart())
+                        .dtEnd(balanceParams.getDtEnd()).emplacementId(depotId).build();
+
+                GenericDTO depotData = this.getBalanceVenteCaisseData(depotParams);
+
+                aggregateSummary(finalSummary, depotData.getSummary());
+
+                for (BalanceDTO balance : depotData.getBalances()) {
+                    BalanceDTO aggregatedBalance = aggregatedBalancesMap.computeIfAbsent(balance.getBalanceId(), k -> {
+                        BalanceDTO newDto = new BalanceDTO();
+                        newDto.setBalanceId(k);
+                        newDto.setTypeVente(balance.getTypeVente());
+                        return newDto;
+                    });
+                    aggregateBalance(aggregatedBalance, balance);
+                }
+            }
+        } catch (JSONException e) {
+            LOG.log(java.util.logging.Level.SEVERE, "Erreur lors de la récupération ou du parsing des dépôts", e);
+            return FunctionUtils.returnData(new ArrayList<>(), 0, new SummaryDTO());
+        }
+
+        List<BalanceDTO> finalBalances = new ArrayList<>(aggregatedBalancesMap.values());
+        updatePourcent(finalBalances);
+
+        return FunctionUtils.returnData(finalBalances, finalBalances.size(), finalSummary);
+    }
+
+    private void aggregateSummary(SummaryDTO total, SummaryDTO current) {
+        total.setMontantTTC(total.getMontantTTC() + current.getMontantTTC());
+        total.setMontantNet(total.getMontantNet() + current.getMontantNet());
+        total.setMarge(total.getMarge() + current.getMarge());
+        total.setNbreVente(total.getNbreVente() + current.getNbreVente());
+        total.setMontantAchat(total.getMontantAchat() + current.getMontantAchat());
+        total.setMontantEsp(total.getMontantEsp() + current.getMontantEsp());
+        total.setMontantCheque(total.getMontantCheque() + current.getMontantCheque());
+        total.setMontantCB(total.getMontantCB() + current.getMontantCB());
+        total.setMontantMobilePayment(total.getMontantMobilePayment() + current.getMontantMobilePayment());
+        total.setMontantTp(total.getMontantTp() + current.getMontantTp());
+        // ... ajoutez d'autres champs du résumé si nécessaire
+    }
+
+    private void aggregateBalance(BalanceDTO total, BalanceDTO current) {
+        total.setMontantTTC(total.getMontantTTC() + current.getMontantTTC());
+        total.setMontantNet(total.getMontantNet() + current.getMontantNet());
+        total.setMarge(total.getMarge() + current.getMarge());
+        total.setNbreVente(total.getNbreVente() + current.getNbreVente());
+        total.setMontantPaye(total.getMontantPaye() + current.getMontantPaye());
+        // CORRECTION: Ajout des champs manquants à l'agrégation
+        total.setMontantEsp(total.getMontantEsp() + current.getMontantEsp());
+        total.setMontantTp(total.getMontantTp() + current.getMontantTp());
+    }
+
+    @Override
+    public byte[] generateBalanceReport(BalanceParamsDTO balanceParams) throws Exception {
+        // ... Le reste de la méthode generateBalanceReport ...
+        // Le code existant pour la génération de rapport est correct.
+        // Je le remets ici pour que le fichier soit complet.
+        String emplacementId = balanceParams.getEmplacementId();
+        String reportFileName;
+        Map<String, Object> parameters = new HashMap<>();
+        List<BalanceDTO> reportData = new ArrayList<>();
+        String reportDirectory = Constant.REPORTDEPOT;
+
+        try {
+            SummaryDTO summary;
+            if ("ALL".equalsIgnoreCase(emplacementId)) {
+                reportFileName = "balance_all_depots.jrxml";
+                JSONObject depotsJson = magasinService.findAllDepots("", Constant.FINDALLDEPOT);
+                JSONArray depotsArray = depotsJson.getJSONArray("data");
+
+                for (int i = 0; i < depotsArray.length(); i++) {
+                    JSONObject depotObj = depotsArray.getJSONObject(i);
+                    BalanceParamsDTO depotParams = BalanceParamsDTO.builder().dtStart(balanceParams.getDtStart())
+                            .dtEnd(balanceParams.getDtEnd()).emplacementId(depotObj.getString("lgEMPLACEMENTID"))
+                            .build();
+
+                    GenericDTO depotGenericData = this.getBalanceVenteCaisseData(depotParams);
+                    for (BalanceDTO balance : depotGenericData.getBalances()) {
+                        balance.setDepotName(depotObj.getString("strNAME"));
+                        reportData.add(balance);
+                    }
+                }
+                JSONObject allDataJson = this.getBalanceForAllDepots(balanceParams);
+                summary = this.convertJsonToSummaryDto(allDataJson.optJSONObject("metaData"));
+
+            } else {
+                reportFileName = "balance_single_depot.jrxml";
+                GenericDTO genericData = this.getBalanceVenteCaisseData(balanceParams);
+                reportData = genericData.getBalances();
+                summary = genericData.getSummary();
+                try {
+                    TEmplacement depot = em.find(TEmplacement.class, emplacementId);
+                    parameters.put("P_DEPOT_NAME", depot != null ? depot.getStrNAME() : "Inconnu");
+                } catch (Exception e) {
+                    parameters.put("P_DEPOT_NAME", "Inconnu");
+                }
+            }
+
+            parameters.put("P_START_DATE", balanceParams.getDtStart());
+            parameters.put("P_END_DATE", balanceParams.getDtEnd());
+            parameters.put("P_MONTANT_TTC", summary.getMontantTTC());
+            parameters.put("P_MONTANT_HT", summary.getMontantHT());
+            parameters.put("P_MONTANT_TVA", summary.getMontantTva());
+            parameters.put("P_MONTANT_NET", summary.getMontantNet());
+            parameters.put("P_MARGE", summary.getMarge());
+            parameters.put("P_MONTANT_REMISE", summary.getMontantRemise());
+            parameters.put("P_NBRE_VENTE", (long) summary.getNbreVente());
+            parameters.put("P_PANIER_MOYEN", summary.getPanierMoyen());
+            parameters.put("P_MONTANT_ACHAT", summary.getMontantAchat());
+            parameters.put("P_MONTANT_TP", summary.getMontantTp());
+            parameters.put("P_MONTANT_ESP", summary.getMontantEsp());
+            parameters.put("P_MONTANT_CHEQUE", summary.getMontantCheque());
+            parameters.put("P_MONTANT_CB", summary.getMontantCB());
+            parameters.put("P_MONTANT_VIREMENT", summary.getMontantVirement());
+            parameters.put("P_MOBILE_PAYMENT", summary.getMontantMobilePayment());
+
+            String reportPath = reportDirectory + reportFileName;
+            InputStream reportStream = new FileInputStream(reportPath);
+            JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
+                    new JRBeanCollectionDataSource(reportData));
+            return JasperExportManager.exportReportToPdf(jasperPrint);
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Erreur majeure lors de la generation du rapport PDF.", e);
+            throw e;
+        }
+    }
+
+    private SummaryDTO convertJsonToSummaryDto(JSONObject metaDataJson) {
+        SummaryDTO summary = new SummaryDTO();
+        if (metaDataJson != null) {
+            summary.setMontantTTC(metaDataJson.optLong("montantTTC"));
+            summary.setMontantNet(metaDataJson.optLong("montantNet"));
+            summary.setMarge(metaDataJson.optLong("marge"));
+            summary.setNbreVente(metaDataJson.optInt("nbreVente"));
+            summary.setPanierMoyen(metaDataJson.optLong("panierMoyen"));
+            summary.setMontantAchat(metaDataJson.optLong("montantAchat"));
+            summary.setRatioVA(metaDataJson.optDouble("ratioVA"));
+            summary.setRationAV(metaDataJson.optDouble("rationAV"));
+            summary.setMontantEsp(metaDataJson.optLong("montantEsp"));
+            summary.setMontantCheque(metaDataJson.optLong("montantCheque"));
+            summary.setMontantCB(metaDataJson.optLong("montantCB"));
+            summary.setMontantMobilePayment(metaDataJson.optLong("montantMobilePayment"));
+            summary.setMontantHT(metaDataJson.optLong("montantHT"));
+            summary.setMontantTva(metaDataJson.optLong("montantTva"));
+            summary.setMontantRemise(metaDataJson.optLong("montantRemise"));
+            summary.setMontantTp(metaDataJson.optLong("montantTp"));
+            summary.setMontantVirement(metaDataJson.optLong("montantVirement"));
+        }
+        return summary;
+    }
 }

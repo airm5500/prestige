@@ -83,7 +83,6 @@ public class StockReapproServiceImpl implements StockReapproService {
                 short hasChild = t.get("hasChild", Byte.class).shortValue();
                 short isChild = t.get("isChild", Byte.class).shortValue();
                 Integer itemQuantity = t.get("itemQuantity", Integer.class);
-
                 if (StringUtils.isEmpty(parentId) && (hasChild == 0)) {
                     Reappro reappro = compute(consommation, dayStock, delayReappro);
                     updateTFamille(id, reappro, now);

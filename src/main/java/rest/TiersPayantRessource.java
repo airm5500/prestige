@@ -61,4 +61,15 @@ public class TiersPayantRessource {
                 tiersPayantService.fetchList(start, limit, search, typeTierspayant, btnDesactive, delete).toString())
                 .build();
     }
+
+    @GET
+    @Path("encours")
+    @Produces("application/json")
+    public Response encours(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "search_value") String search, @QueryParam(value = "tp") String lg_TIERS_PAYANT_ID) {
+        HttpSession hs = servletRequest.getSession();
+
+        return Response.ok().entity(tiersPayantService.getAccount(lg_TIERS_PAYANT_ID)).build();
+    }
+
 }

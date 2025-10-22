@@ -53,8 +53,8 @@ public class FneResponse {
         return balanceSticker;
     }
 
-    public void setBalanceSticker(Integer BalanceSticker) {
-        this.balanceSticker = BalanceSticker;
+    public void setBalanceSticker(Integer balanceSticker) {
+        this.balanceSticker = balanceSticker;
     }
 
     public FneResponseInvoice getInvoice() {

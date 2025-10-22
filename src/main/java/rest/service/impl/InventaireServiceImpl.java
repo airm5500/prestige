@@ -142,4 +142,10 @@ public class InventaireServiceImpl implements InventaireService {
         em.persist(inventaire);
         return inventaire;
     }
+
+    @Override
+    public void refreshStockLigneInventaire(String inventaireId) {
+        String query = "UPDATE t_inventaire_famille f SET f.int_NUMBER_INIT=(SELECT s.int_NUMBER_AVAILABLE FROM t_famille_stock s WHERE s.lg_FAMILLE_STOCK_ID= f.lg_FAMILLE_STOCK_ID ) WHERE f.lg_INVENTAIRE_ID=?1";
+        em.createNativeQuery(query).setParameter(1, inventaireId).executeUpdate();
+    }
 }

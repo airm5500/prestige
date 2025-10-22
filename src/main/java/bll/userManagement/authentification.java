@@ -33,7 +33,8 @@ public class authentification extends bllBase {
     @SuppressWarnings("static-access")
     public boolean loginUser(String Str_Password, String Str_login) {
 
-        String Str_Password_MD5 = Md5.encode(Str_Password);
+        // String Str_Password_MD5 = Md5.encode(Str_Password);
+        String Str_Password_MD5 = null;
         boolean result = false;
         try {
 
@@ -41,8 +42,8 @@ public class authentification extends bllBase {
                     .createQuery(
                             "SELECT t FROM TUser t WHERE t.strLOGIN = ?1 AND t.strPASSWORD = ?2 AND t.strSTATUT =?3 ",
                             TUser.class)
-                    .setParameter(1, Str_login).setParameter(2, Str_Password_MD5)
-                    .setParameter(3, commonparameter.statut_enable).setMaxResults(1);
+                    // .setParameter(1, Str_login).setParameter(2, Str_Password_MD5)
+                    .setParameter(3, null).setMaxResults(1);
             TUser OTUser = q.getSingleResult();
 
             if (OTUser == null) {

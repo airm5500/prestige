@@ -9,6 +9,7 @@ import dal.TOrder;
 import dal.TOrderDetail;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -74,6 +75,9 @@ public class CommandeEncourDetailDTO {
     private Set<OrderDetailLot> lots = new HashSet<>();
     private String datePeremption;
     private String lotNums;
+    private boolean checked;
+
+    private Integer checkedQuantity;
 
     public int[] getProduitStates() {
         return produitStates;
@@ -315,6 +319,24 @@ public class CommandeEncourDetailDTO {
         this.lots = fetchLots(detail.getLots());
         this.datePeremption = buildDatePeremption(this.lots);
         this.lotNums = buildLotNums(this.lots);
+        this.checked = detail.isChecked();
+        this.checkedQuantity = detail.getCheckedQuantity();
+    }
+
+    public boolean isChecked() {
+        return checked;
+    }
+
+    public void setChecked(boolean checked) {
+        this.checked = checked;
+    }
+
+    public Integer getCheckedQuantity() {
+        return checkedQuantity;
+    }
+
+    public void setCheckedQuantity(Integer checkedQuantity) {
+        this.checkedQuantity = checkedQuantity;
     }
 
     public void setProduitCip(String produitCip) {
@@ -396,6 +418,8 @@ public class CommandeEncourDetailDTO {
         this.lots = fetchLots(detail.getLots());
         this.datePeremption = buildDatePeremption(this.lots);
         this.lotNums = buildLotNums(this.lots);
+        this.checked = detail.isChecked();
+        this.checkedQuantity = detail.getCheckedQuantity();
 
     }
 
@@ -413,11 +437,11 @@ public class CommandeEncourDetailDTO {
         return null;
     }
 
-    private Set<OrderDetailLot> fetchLots(Set<OrderDetailLot> lots) {
+    private Set<OrderDetailLot> fetchLots(List<OrderDetailLot> lots) {
         if (lots != null) {
             return lots.stream()
                     .filter(e -> Objects.nonNull(e.getDatePeremption()) && StringUtils.isNoneEmpty(e.getNumeroLot()))
-                    .collect(Collectors.toSet());
+                    .distinct().collect(Collectors.toSet());
         }
         return Set.of();
     }

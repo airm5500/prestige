@@ -12,7 +12,7 @@ import bll.configManagement.familleManagement;
 import bll.differe.DiffereManagement;
 import bll.entity.EntityData;
 import bll.entity.Journalvente;
-import bll.gateway.outService.ServicesNotifCustomer;
+
 import bll.printer.DriverPrinter;
 import bll.stockManagement.StockManager;
 import bll.teller.SnapshotManager;
@@ -5914,8 +5914,6 @@ public class Preenregistrement extends bll.bllBase {
         List<TPreenregistrement> lstPreenregistrements = new ArrayList<TPreenregistrement>();
         List<TPreenregistrementDetail> lstPreenregistrementDetail = new ArrayList<TPreenregistrementDetail>();
         tellerManagement OtellerManagement = new tellerManagement(this.getOdataManager(), this.getOTUser());
-        ServicesNotifCustomer OServicesNotifCustomer = new ServicesNotifCustomer(this.getOdataManager(),
-                this.getOTUser());
 
         String texte = "", libPharmacie = "";
         TFamilleStock OTFamilleStock = null;
@@ -5956,13 +5954,7 @@ public class Preenregistrement extends bll.bllBase {
                 texte += "Ref: " + OTPreenregistrement.getStrREFTICKET() + ". Montant vente "
                         + (OTPreenregistrement.getIntPRICE() - OTPreenregistrement.getIntPRICEREMISE()) + "\n";
                 texte += "Merci de nous faire toujours confiance.";
-                new logger().OCategory.info("texte:" + texte);
-                if (i > 0 && !OTPreenregistrement.getStrPHONECUSTOME().equalsIgnoreCase("")) {
-                    if (OServicesNotifCustomer.doservice(texte, OTPreenregistrement.getStrPHONECUSTOME(),
-                            OTPreenregistrement.getLgPREENREGISTREMENTID()) == 1) {
-                        j++;
-                    }
-                }
+
                 i = 0;
                 texte = "";
             }

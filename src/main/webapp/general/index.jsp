@@ -78,12 +78,7 @@
 
             //code ajouté pr la gestion des langues
             $(function () {
-                /*   setInterval('updateSmsMiDay()', 2880000); 
-                 setInterval('updateALLData()', 9000000); 
-                 setInterval('GenerateALLDataForAvoir()', 1800000); */
-                // setInterval('GenerateALLDataForAvoir()', 100000);
-
-
+              
 
             });
 

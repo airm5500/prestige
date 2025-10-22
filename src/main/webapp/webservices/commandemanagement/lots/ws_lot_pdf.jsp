@@ -60,7 +60,7 @@
         }
         if (request.getParameter("search_value") != null && !"".equals(request.getParameter("search_value"))) {
             search_value = request.getParameter("search_value");
-           
+
         }
 
         if (request.getParameter("dt_end_vente") != null && !"".equals(request.getParameter("dt_end_vente"))) {
@@ -122,16 +122,16 @@
         parameters.put("P_H_INSTITUTION", P_H_INSTITUTION);
         parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
         parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
-        parameters.put("P_AUTRE_DESC",  oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+        parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
         String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
-            if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
-                String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                for (String va : phone) {
-                    finalphonestring += " / " + conversion.PhoneNumberFormat(va);
-                }
+        if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
+            String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
+            for (String va  : phone) {
+                finalphonestring += " / " + conversion.PhoneNumberFormat(va);
             }
-            parameters.put("P_H_PHONE", finalphonestring);
-           
+        }
+        parameters.put("P_H_PHONE", finalphonestring);
+
         if (!"".equals(P_H_CI_P_H_RI)) {
             parameters.put("P_H_CI", "CI:" + P_H_CI_P_H_RI);
         } else {

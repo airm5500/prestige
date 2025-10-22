@@ -10,10 +10,10 @@ import javax.validation.constraints.NotNull;
  */
 public class FneInvoice {
 
-    private final String invoiceType = "vente";
-    private final String paymentMethod = "Chèque";
+    private final String invoiceType = "sale";
+    private final String paymentMethod = "check";
     private final String template = "B2B";
-    private boolean isRne;
+
     @NotNull
     private String clientNcc;
     @NotNull
@@ -23,8 +23,6 @@ public class FneInvoice {
 
     @NotNull
     private String clientEmail;
-
-    private String clientSellerName;
 
     @NotNull
     private String pointOfSale;
@@ -37,14 +35,6 @@ public class FneInvoice {
     private String footer;
 
     private List<FneInvoiceItem> items = new ArrayList<>();
-
-    public boolean isIsRne() {
-        return isRne;
-    }
-
-    public void setIsRne(boolean isRne) {
-        this.isRne = isRne;
-    }
 
     public String getClientNcc() {
         return clientNcc;
@@ -76,14 +66,6 @@ public class FneInvoice {
 
     public void setClientEmail(String clientEmail) {
         this.clientEmail = clientEmail;
-    }
-
-    public String getClientSellerName() {
-        return clientSellerName;
-    }
-
-    public void setClientSellerName(String clientSellerName) {
-        this.clientSellerName = clientSellerName;
     }
 
     public String getPointOfSale() {
@@ -124,6 +106,18 @@ public class FneInvoice {
 
     public void setItems(List<FneInvoiceItem> items) {
         this.items = items;
+    }
+
+    public String getInvoiceType() {
+        return invoiceType;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public String getTemplate() {
+        return template;
     }
 
 }

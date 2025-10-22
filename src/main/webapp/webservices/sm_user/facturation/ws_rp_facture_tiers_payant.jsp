@@ -89,7 +89,7 @@
     TModelFacture modelFacture = OTiersPayant.getLgMODELFACTUREID();
     String codeModelFacture = modelFacture.getLgMODELFACTUREID();
     TParameters recapParam = null;
-    
+
     try {
         recapParam = obllBase.getOdataManager().getEm().find(dal.TParameters.class, "KEY_IMPRESSION_RECAP_FACTURE");
     } catch (Exception e) {
@@ -100,8 +100,8 @@
     }
     facManagement = new factureManagement(OdataManager, OTUser);
     // int codeFACT = 7;
-   Double montantRecap=facManagement.getAmount(OFacture.getLgFACTUREID());
-    int codeFACT =  Integer.parseInt(codeModelFacture);
+    Double montantRecap = facManagement.getAmount(OFacture.getLgFACTUREID());
+    int codeFACT = Integer.parseInt(codeModelFacture);
     String scr_report_file = "rp_facturerecap";
     Map<String, Object> parameters = new HashMap();
     if (7 == codeFACT) {
@@ -259,10 +259,10 @@
                     if (!OtEntityData.getStr_value4().equals("null")) {
                         P_TOTAL_AMOUNT += Long.valueOf(OtEntityData.getStr_value4());
                     }
-                     if (!OtEntityData.getStr_value1().equals("null")) {
+                    if (!OtEntityData.getStr_value1().equals("null")) {
 
-                    P_REMISE_AMOUNT = Double.valueOf(OtEntityData.getStr_value1()).intValue();
-                }
+                        P_REMISE_AMOUNT = Double.valueOf(OtEntityData.getStr_value1()).intValue();
+                    }
 
                 }
 
@@ -305,6 +305,7 @@
 
                 report_generate_file = report_generate_file + ".pdf";
                 parameters.put("LGCMP", idCMP.get("idcmp"));
+                parameters.put("DATE_MVT", idCMP.get("dateMvt"));
                 parameters.put("DATEFACT", dateFact);
                 parameters.put("NBONS", idCMP.get("NBONS"));
                 parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
@@ -378,21 +379,19 @@
             parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
             OreportManager.BuildReport(parameters, Ojconnexion);
             inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
-            
+
             //generer selon le code 14 qui sera la facture ou des bons peuvent avoir ete reglé montant restant
-			//autre que 14 la generation sera normal montant total sans tenir compte des reglés
-			 if (codeFACT==14) 
-			 {
-			//parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-            parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
-			 }else 
-			 {
-				 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
-            
-			 }
-			OreportManager.BuildReport(parameters, Ojconnexion);
+            //autre que 14 la generation sera normal montant total sans tenir compte des reglés
+            if (codeFACT == 14) {
+                //parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
+                parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");
+            } else {
+                parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
+
+            }
+            OreportManager.BuildReport(parameters, Ojconnexion);
             inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
-            
+
             break;
 
     }

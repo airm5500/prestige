@@ -8,6 +8,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
@@ -43,5 +44,13 @@ public class InventaireRessource {
         JSONObject json = this.inventaireService.createInventaireFromCanceledList(dtStart, dtEnd, userId, tu);
 
         return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("refreshStockLigneInventaire/{id}")
+    public Response refreshStockLigneInventaire(@PathParam("id") String id) {
+
+        inventaireService.refreshStockLigneInventaire(id);
+        return Response.ok().build();
     }
 }

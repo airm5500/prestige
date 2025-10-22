@@ -1812,11 +1812,7 @@ public class factureManagement extends bll.bllBase {
                 if (this.getOdataManager().getEm().getTransaction().isActive()) {
                     this.getOdataManager().getEm().getTransaction().commit();
                     this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-                    // this.do_event_log(this.getOdataManager(), "", "Création de factures : du " +
-                    // this.getKey().formatterShort.format(dt_debut) +" au " +
-                    // this.getKey().formatterShort.format(dt_fin) , this.getOTUser().getStrFIRSTNAME(),
-                    // commonparameter.statut_enable, "t_facture", "t_facture", "Facturation",
-                    // this.getOTUser().getLgUSERID());
+
                 }
             }
         } catch (Exception e) {
@@ -1950,11 +1946,6 @@ public class factureManagement extends bll.bllBase {
                 return q.getResultList();
             }
 
-            /*
-             * for (TFacture OFacture : lstTFacture) { this.refresh(OFacture);
-             *
-             * }
-             */
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1996,39 +1987,30 @@ public class factureManagement extends bll.bllBase {
 
     public JSONArray getCmpt(String facture) {
         JSONArray array = new JSONArray();
+        String sql = "SELECT \n" + "    SUM(fd.dbl_MONTANT_RESTANT) AS total_montant_restant,"
+                + "    c.str_NUMERO_SECURITE_SOCIAL," + "    c.str_FIRST_NAME," + "    c.str_LAST_NAME,"
+                + "    cc_tp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID AS idcmp,"
+                + "    COUNT(fd.lg_FACTURE_DETAIL_ID) AS nb_facture_details,DATE(preenreg.dt_UPDATED) AS dateMvt  FROM t_compte_client_tiers_payant cc_tp"
+                + " INNER JOIN t_preenregistrement_compte_client_tiers_payent preenreg "
+                + " ON cc_tp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = preenreg.lg_COMPTE_CLIENT_TIERS_PAYANT_ID "
+                + " INNER JOIN t_compte_client cc " + "    ON cc_tp.lg_COMPTE_CLIENT_ID = cc.lg_COMPTE_CLIENT_ID"
+                + " INNER JOIN t_client c " + "    ON cc.lg_CLIENT_ID = c.lg_CLIENT_ID "
+                + "INNER JOIN t_facture_detail fd"
+                + " ON preenreg.lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID = fd.str_REF "
+                + "INNER JOIN t_preenregistrement pr ON pr.lg_PREENREGISTREMENT_ID=preenreg.lg_PREENREGISTREMENT_ID "
+                + "WHERE fd.lg_FACTURE_ID = ?1 " + "GROUP BY "
+                + " cc_tp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID,DATE(preenreg.dt_UPDATED) " + "ORDER BY "
+                + "c.str_FIRST_NAME," + " c.str_LAST_NAME ";
         try {
-            // List<Object[]> details = this.getOdataManager().getEm().createQuery("SELECT SUM(o.dblMONTANTRESTANT),
-            // p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID,p.lgCOMPTECLIENTTIERSPAYANTID.strNUMEROSECURITESOCIAL
-            // ,
-            // p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME,p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strLASTNAME
-            // FROM TFactureDetail o,TPreenregistrementCompteClientTiersPayent p WHERE o.lgFACTUREID.lgFACTUREID=?1 AND
-            // p.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=o.strREF GROUP BY
-            // p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID,p.lgCOMPTECLIENTTIERSPAYANTID.strNUMEROSECURITESOCIAL
-            // ,
-            // p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME,p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strLASTNAME
-            // ").setParameter(1, facture).getResultList();
 
-            // List<Object[]> details = this.getOdataManager().getEm().createQuery("SELECT SUM(o.dblMONTANTRESTANT),
-            // p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID,p.lgCOMPTECLIENTTIERSPAYANTID.strNUMEROSECURITESOCIAL
-            // ,
-            // p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME,p.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strLASTNAME
-            // FROM TFactureDetail o,TPreenregistrementCompteClientTiersPayent p WHERE o.lgFACTUREID.lgFACTUREID=?1 AND
-            // p.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=o.strREF GROUP BY
-            // p.lgCOMPTECLIENTTIERSPAYANTID.strNUMEROSECURITESOCIAL ORDER BY
-            // o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME,
-            // o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTID.lgCLIENTID.strLASTNAME ").setParameter(1,
-            // facture).getResultList();
-            List<Object[]> details = this.getOdataManager().getEm().createNativeQuery(
-                    "SELECT SUM(`t_facture_detail`.`dbl_MONTANT_RESTANT`),`t_client`.`str_NUMERO_SECURITE_SOCIAL`, `t_client`.`str_FIRST_NAME`,`t_client`.`str_LAST_NAME`,`t_compte_client_tiers_payant`.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID`,COUNT(`t_facture_detail`.`lg_FACTURE_DETAIL_ID`) FROM `t_compte_client_tiers_payant` INNER JOIN `t_preenregistrement_compte_client_tiers_payent` ON (`t_compte_client_tiers_payant`.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID` = `t_preenregistrement_compte_client_tiers_payent`.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID`) INNER JOIN `t_compte_client` ON (`t_compte_client_tiers_payant`.`lg_COMPTE_CLIENT_ID` = `t_compte_client`.`lg_COMPTE_CLIENT_ID`)"
-                            + " INNER JOIN `t_client` ON (`t_compte_client`.`lg_CLIENT_ID` = `t_client`.`lg_CLIENT_ID`) INNER JOIN `t_facture_detail` ON (`t_preenregistrement_compte_client_tiers_payent`.`lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID` = `t_facture_detail`.`str_REF`) "
-                            + " WHERE `t_facture_detail` .`lg_FACTURE_ID`=?1  GROUP BY  `t_compte_client_tiers_payant`.`lg_COMPTE_CLIENT_TIERS_PAYANT_ID` ORDER BY t_client.`str_FIRST_NAME` ,  t_client.`str_LAST_NAME`")
-                    .setParameter(1, facture).getResultList();
+            List<Object[]> details = this.getOdataManager().getEm().createNativeQuery(sql).setParameter(1, facture)
+                    .getResultList();
 
             for (Object[] detail : details) {
                 JSONObject json = new JSONObject();
                 json.put("Montant", detail[0]).put("strNUMEROSECURITESOCIAL", detail[1])
                         .put("strFIRSTNAME", detail[2] + " " + detail[3]).put("idcmp", detail[4])
-                        .put("NBONS", Integer.valueOf(detail[5] + ""));
+                        .put("NBONS", Integer.valueOf(detail[5] + "")).put("dateMvt", detail[6] + "");
                 array.put(json);
 
             }

@@ -69,6 +69,7 @@ import dal.TWarehouse;
 import dal.TZoneGeographique;
 import dal.dataManager;
 import dal.jconnexion;
+import javax.persistence.CacheRetrieveMode;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.logger;
 import util.Constant;
@@ -1038,13 +1039,15 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
 
     }
 
-    public List<TLot> getAllLots(String search_value, String lg_LOT_ID, Date dt_start, Date dt_end) {
+    public List<TLot> getAllLots(String searchValue, String lgLOTID, Date dtStart, Date dtEnd) {
         List<TLot> list = new ArrayList<>();
         try {
-            list = this.getOdataManager().getEm().createQuery(
-                    "SELECT o FROM TLot o WHERE o.lgLOTID LIKE ?1 AND (o.lgFAMILLEID.strNAME LIKE ?2 OR o.lgFAMILLEID.intCIP LIKE ?2 OR  o.strREFLIVRAISON LIKE ?2 OR o.strREFORDER LIKE ?2 )  AND  FUNCTION('DATE',o.dtUPDATED ) >=?3 AND FUNCTION('DATE',o.dtUPDATED)<=?4   ")
-                    .setParameter(1, "%" + lg_LOT_ID + "%").setParameter(2, search_value + "%")
-                    .setParameter(3, dt_start).setParameter(4, dt_end).getResultList();
+            TypedQuery<TLot> q = this.getOdataManager().getEm().createQuery(
+                    "SELECT o FROM TLot o WHERE o.lgLOTID LIKE ?1 AND (o.lgFAMILLEID.strNAME LIKE ?2 OR o.lgFAMILLEID.intCIP LIKE ?2 OR  o.strREFLIVRAISON LIKE ?2 OR o.strREFORDER LIKE ?2 )  AND  FUNCTION('DATE',o.dtUPDATED ) >=?3 AND FUNCTION('DATE',o.dtUPDATED)<=?4   ",
+                    TLot.class);
+            return q.setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)
+                    .setParameter(1, "%" + lgLOTID + "%").setParameter(2, searchValue + "%").setParameter(3, dtStart)
+                    .setParameter(4, dtEnd).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }

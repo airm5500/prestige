@@ -752,8 +752,8 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             filtreImpayes = '';
         }
         var search_value = Ext.getCmp('rechecherFacture').getValue();
-        var linkUrl = "../webservices/sm_user/facturation/ws_data_relever_facture.jsp" + "?lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes;
-        window.open(linkUrl);
+        
+        window.open("../webservices/sm_user/facturation/ws_data_relever_facture.jsp" + "?lg_customer_id=" + lg_customer_id + "&dt_debut=" + dt_debut + "&dt_fin=" + dt_fin + "&search_value=" + search_value + "&impayes=" + filtreImpayes);
     },
     exportToExcel: function () {
         var lg_customer_id = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),

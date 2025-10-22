@@ -47,15 +47,16 @@
     String dt_fin = date.formatterMysqlShort.format(new Date());
     String scr_report_file = "rp_relever_facture_all";
     double impayes = -1.0;
-    if (StringUtils.isNotEmpty(request.getParameter("impayes"))) {
-        if (request.getParameter("impayes").equals("payes")) {
-            impayes = 0.0;
-            scr_report_file = "rp_relever_facture_payes";
-        } else {
-            impayes = 0.0;
-        }
+    boolean all = StringUtils.isEmpty(request.getParameter("impayes"));
+    boolean paid = !all && request.getParameter("impayes").equals("payes");
 
+    if (paid) {
+        impayes = 0.0;
+        scr_report_file = "rp_relever_facture_payes";
+    } else {
+        impayes = 0.0;
     }
+
     String codeFacture = "%%", lg_GROUPE_ID = "";
     if (request.getParameter("lg_GROUPE_ID") != null && !"".equals(request.getParameter("lg_GROUPE_ID"))) {
         lg_GROUPE_ID = request.getParameter("lg_GROUPE_ID");
@@ -102,22 +103,20 @@
     GroupeTierspayantController cn = new GroupeTierspayantController(obllBase.getOdataManager().getEmf());
     TOfficine oTOfficine = obllBase.getOdataManager().getEm().find(dal.TOfficine.class, "1");
     TTiersPayant OTiersPayant = obllBase.getOdataManager().getEm().find(TTiersPayant.class, lg_customer_id);
-    JSONObject mtn = cn.getReleveFacture(dt_debut, dt_fin, search, lgTP);
+    JSONObject mtn = cn.getReleveFacture(dt_debut, dt_fin, search, lgTP, paid, all);
 
     String P_TOTAL_GENERAL = "";
 
     if (OTiersPayant != null) {
         P_TOTAL_GENERAL = "SAUF ERREUR DE NOTRE PART LE REGLEMENT DE VOS FACTURES CI-DESSUS RELEVES NE NOUS EST PAS ENCORE PARVENU.\n NOUS VOUS PRIONS DE BIEN VOULOIR NOUS LES REGLER A VOTRE CONVENANCE DANS LES DELAIS";
         scr_report_file = "rp_relever_facture";
-         if (StringUtils.isNotEmpty(request.getParameter("impayes"))) {
-        if (request.getParameter("impayes").equals("payes")) {
+
+        if (paid) {
             impayes = 0.0;
             scr_report_file = "rp_relever_facture_tp_payes";
         } else {
             impayes = 0.0;
         }
-
-    }
 
     }
 

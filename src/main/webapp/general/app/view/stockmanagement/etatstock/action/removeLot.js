@@ -1,4 +1,4 @@
-var url_services_transaction_entreestock = '../webservices/sm_user/entreestock/ws_transaction.jsp?mode=';
+
 
 var Oview;
 var Omode;
@@ -81,7 +81,6 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
     },
     onbtnsave: function (button) {
         const me = Me;
-        console.log('.getOdatasource()', me.getOdatasource());
         const fenetre = button.up('window'),
                 formulaire = fenetre.down('form');
 
@@ -97,23 +96,23 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
                                 url: '../api/v1/commande/remove-lots',
                                 headers: {'Content-Type': 'application/json'},
                                 params: Ext.JSON.encode({
-                                    idBonDetail: me.lg_BON_LIVRAISON_DETAIL,
-                                    idProduit: me.lg_FAMILLE_ID,
-                                    refBon: me.str_REF_LIVRAISON,
+                                    idBonDetail: me.getOdatasource().lg_BON_LIVRAISON_DETAIL,
+                                    idProduit: me.getOdatasource().lg_FAMILLE_ID,
+                                    refBon: me.getOdatasource().str_REF_LIVRAISON,
                                     numLot: Ext.getCmp('int_NUM_LOT').getValue()
                                 }),
                                 success: function (response)
                                 {
                                     testextjs.app.getController('App').StopWaitingProcess();
                                     Ext.getCmp('gridpanelID').getStore().reload();
-                                   button.up('window').close();
-                                   
+                                    button.up('window').close();
+
 
                                 },
                                 failure: function (response)
                                 {
                                     testextjs.app.getController('App').StopWaitingProcess();
-                                   
+
                                     console.log("Bug " + response.responseText);
                                     Ext.MessageBox.alert('Error Message', response.responseText);
 

@@ -27,6 +27,8 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
+import javax.ejb.TransactionAttribute;
+import javax.ejb.TransactionAttributeType;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
@@ -1074,8 +1076,12 @@ public class SuggestionImpl implements SuggestionService {
         }
         List<TSuggestionOrderDetails> detailses = fetchSuggestionOrderDetails(searchValue, suggestionId, start, limit);
 
-        TGrossiste grossiste = detailses.get(0).getLgSUGGESTIONORDERID().getLgGROSSISTEID();
+        if (detailses.isEmpty()) {
+            return data.put("total", count).put("data", Collections.emptyList());
+        }
+
         try {
+            TGrossiste grossiste = detailses.get(0).getLgSUGGESTIONORDERID().getLgGROSSISTEID();
 
             JSONArray arrayObj = new JSONArray();
             Integer intACHAT = 0;
@@ -1343,6 +1349,48 @@ public class SuggestionImpl implements SuggestionService {
                 }
             }
             return OptionSuggestion.LESS_EQUALS;
+        }
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public void cleanSuggestion(String suggestionId, TUser tUser) {
+        // On récupère l'ID de l'emplacement de l'utilisateur
+        String emplacementId = tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+
+        LOG.log(Level.INFO, "Debut du nettoyage pour la suggestion {0} pour l''emplacement {1}",
+                new Object[] { suggestionId, emplacementId });
+
+        List<String> idsToDelete = supprimerLigneSuggestion(suggestionId, emplacementId); // On passe l'ID de
+                                                                                          // l'emplacement
+
+        if (CollectionUtils.isNotEmpty(idsToDelete)) {
+            LOG.log(Level.INFO, "{0} lignes a supprimer pour la suggestion {1}",
+                    new Object[] { idsToDelete.size(), suggestionId });
+            removeInBulk(idsToDelete);
+            LOG.log(Level.INFO, "Nettoyage termine pour la suggestion {0}", suggestionId);
+        } else {
+            LOG.log(Level.INFO, "Aucune ligne a nettoyer pour la suggestion {0}", suggestionId);
+        }
+    }
+
+    /*
+     * Ajout de l'emplacement
+     */
+    private List<String> supprimerLigneSuggestion(String suggestionId, String emplacementId) {
+        try {
+            // Requête native MISE À JOUR avec la clause sur l'emplacement
+            Query q = em.createNativeQuery("SELECT sd.lg_SUGGESTION_ORDER_DETAILS_ID AS id "
+                    + "FROM t_suggestion_order_details sd " + "JOIN t_famille f ON f.lg_FAMILLE_ID = sd.lg_FAMILLE_ID "
+                    + "JOIN t_famille_stock stoc ON f.lg_FAMILLE_ID = stoc.lg_FAMILLE_ID "
+                    + "WHERE f.int_SEUIL_MIN < stoc.int_NUMBER_AVAILABLE " + "AND sd.lg_SUGGESTION_ORDER_ID = ?1 "
+                    + "AND stoc.lg_EMPLACEMENT_ID = ?2"); // <-- emplacement
+            q.setParameter(1, suggestionId);
+            q.setParameter(2, emplacementId); // On passe le paramètre
+            return q.getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Erreur dans supprimerLigneSuggestion: {0}", e.getLocalizedMessage());
+            return Collections.emptyList();
         }
     }
 

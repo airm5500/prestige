@@ -315,10 +315,10 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
                                     tooltip: 'imprimer',
                                     scope: this,
                                     handler: function () {
-                                        var dtStart = me.getDtStart().getSubmitValue();
-                                        var dtEnd = me.getDtEnd().getSubmitValue();
-                                        var produitId = rec.get('produitId');
-                                        var linkUrl = '../BalancePdfServlet?mode=SUIVIMVT&dtStart=' + dtStart + '&dtEnd=' + dtEnd + "&produitId=" + produitId;
+                                        const dtStart = me.getDtStart().getSubmitValue();
+                                        const dtEnd = me.getDtEnd().getSubmitValue();
+                                        const produitId = rec.get('produitId');
+                                        const linkUrl = '../BalancePdfServlet?mode=SUIVIMVT&dtStart=' + dtStart + '&dtEnd=' + dtEnd + "&produitId=" + produitId;
                                         window.open(linkUrl);
                                     }
                                 }

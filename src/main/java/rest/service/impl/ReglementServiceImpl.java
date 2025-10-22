@@ -222,7 +222,7 @@ public class ReglementServiceImpl implements ReglementService {
                     cb.function("DATE", Date.class, root.get(TPreenregistrementCompteClient_.dtUPDATED)),
                     java.sql.Date.valueOf(params.getDtStart()), java.sql.Date.valueOf(params.getDtEnd()));
             predicates.add(cb.and(btw));
-            predicates.add(cb.and(cb.greaterThan(root.get(TPreenregistrementCompteClient_.intPRICERESTE), 0)));
+            // predicates.add(cb.and(cb.greaterThan(root.get(TPreenregistrementCompteClient_.intPRICERESTE), 0)));
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TPreenregistrementCompteClient> q = emg.createQuery(cq);
             return q.getResultList().stream().map(DelayedDTO::new).sorted(comparator).collect(Collectors.toList());

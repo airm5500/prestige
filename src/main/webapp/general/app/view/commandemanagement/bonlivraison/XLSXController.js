@@ -13,23 +13,19 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.XLSXController', {
         this.getView().close();
     },
     onButtonClickSubmit: function (button, e, options) {
-        var me = this;
-
+        const me = this;
         if (me.lookupReference('formImport').isValid()) {
-            var exp = /^.*\.(xlsx|XLSX|xls|XLS)$/;
-
-
             me.doImport();
         }
     },
     doImport: function () {
-        var me = this,
-                form = me.lookupReference('formImport');
+        const me = this;
+        const  form = me.lookupReference('formImport');
         form.submit({
             clientValidation: true,
             url: '../commande?action=import',
             waitMsg: 'Patientez...',
-             timeout: 1800000,
+            timeout: 1800000,
             scope: me,
             success: 'onImportSuccess',
             failure: 'onImportFailure'
@@ -37,7 +33,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.XLSXController', {
         });
     },
     onImportFailure: function (form, action) {
-        var result = Ext.util.JSON.decode(action.response.responseText);
+      //  const result = Ext.util.JSON.decode(action.response.responseText);
         Ext.Msg.show({
             title: 'Error!',
             msg: "Erreur d'importation ",
@@ -47,8 +43,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.XLSXController', {
     }
     ,
     onImportSuccess: function (form, action) {
-        var result = Ext.util.JSON.decode(action.response.responseText);
-  Ext.getCmp('i_order_managerID').getStore().load();
+        const result = Ext.util.JSON.decode(action.response.responseText);
+        Ext.getCmp('i_order_managerID').getStore().load();
         this.getView().close();
         Ext.Msg.show({
             title: 'Info',
