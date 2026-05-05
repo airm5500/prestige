@@ -7,7 +7,7 @@ package rest.service.fne;
  */
 public class FneResponseTaxe {
     private String invoiceItemId;
-    private Integer amount;
+    private Double amount;
     private String name;
     private String shortName;
 
@@ -19,11 +19,11 @@ public class FneResponseTaxe {
         this.invoiceItemId = invoiceItemId;
     }
 
-    public Integer getAmount() {
+    public Double getAmount() {
         return amount;
     }
 
-    public void setAmount(Integer amount) {
+    public void setAmount(Double amount) {
         this.amount = amount;
     }
 
@@ -41,6 +41,12 @@ public class FneResponseTaxe {
 
     public void setShortName(String shortName) {
         this.shortName = shortName;
+    }
+
+    @Override
+    public String toString() {
+        return "FneResponseTaxe{" + "invoiceItemId=" + invoiceItemId + ", amount=" + amount + ", name=" + name
+                + ", shortName=" + shortName + '}';
     }
 
 }

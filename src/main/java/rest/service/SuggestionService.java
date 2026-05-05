@@ -1,4 +1,3 @@
-
 package rest.service;
 
 import commonTasks.dto.ArticleDTO;
@@ -65,7 +64,7 @@ public interface SuggestionService {
 
     void makeSuggestionAuto(List<TPreenregistrementDetail> list, TEmplacement emplacementId);
 
-    JSONObject fetchItems(String orderId, String search, TUser tUser, int start, int limit);
+    JSONObject fetchItems(String orderId, String search, int start, int limit);
 
     void cleanSuggestion(String suggestionId, TUser tUser);
 

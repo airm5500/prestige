@@ -24,9 +24,8 @@ Ext.define('testextjs.controller.DevisListCtr', {
         {
             ref: 'pagingtoolbar',
             selector: 'devismanager gridpanel pagingtoolbar'
-        }
-
-        , {
+        },
+        {
             ref: 'printPdf',
             selector: 'devismanager #printPdf'
         }, {
@@ -35,14 +34,11 @@ Ext.define('testextjs.controller.DevisListCtr', {
         }, {
             ref: 'dtEnd',
             selector: 'devismanager #dtEnd'
-        }
-
-        , {
+        },
+        {
             ref: 'queryField',
             selector: 'devismanager #query'
         }
-
-
     ],
     init: function (application) {
         this.control({
@@ -68,7 +64,8 @@ Ext.define('testextjs.controller.DevisListCtr', {
                 toTransform: this.transformIntoVente,
                 toPdf: this.onExportPdf,
                 toClone: this.toClone,
-                toBonPdf:this.onbonPdf
+                toBonPdf: this.onbonPdf,
+                toInventaireFromOneDevis: this.onCreateInventaireFromOneDevis
             },
             'devismanager #query': {
                 specialkey: this.onSpecialKey
@@ -81,46 +78,57 @@ Ext.define('testextjs.controller.DevisListCtr', {
             }
         });
     },
+
     printLit: function () {
         var me = this,
-                query = me.getQueryField().getValue(),
-                dtStart = me.getDtStart().getSubmitValue(),
-                dtEnd = me.getDtEnd().getSubmitValue();
-        var linkUrl = '../webservices/sm_user/preenregistrement/ws_generate_pdf.jsp?dt_Date_Debut=' + dtStart + "&dt_Date_Fin=" + dtEnd + "&search_value=" + query + "&str_STATUT=devis&title=LISTE DES DEVIS";
+            query = me.getQueryField().getValue(),
+            dtStart = me.getDtStart().getSubmitValue(),
+            dtEnd = me.getDtEnd().getSubmitValue();
+        var linkUrl = '../webservices/sm_user/preenregistrement/ws_generate_pdf.jsp?dt_Date_Debut='
+            + dtStart + "&dt_Date_Fin=" + dtEnd + "&search_value=" + query
+            + "&str_STATUT=devis&title=LISTE DES DEVIS";
         window.open(linkUrl);
     },
+
     onbtnexportCsv: function (view, rowIndex, colIndex, item, e, rec, row) {
-        window.location = '../api/v1/ventestats/devis/csv?id=' + rec.get('lgPREENREGISTREMENTID') + '&ref=' + rec.get('strREF');
-
+        window.location = '../api/v1/ventestats/devis/csv?id='
+            + rec.get('lgPREENREGISTREMENTID') + '&ref=' + rec.get('strREF');
     },
+
     onPrintTicket: function (view, rowIndex, colIndex, item, e, rec, row) {
-        var linkUrl = "../FacturePdfServlet?mode=DEVIS&venteId=" + rec.get('lgPREENREGISTREMENTID');
+        const linkUrl = "../FacturePdfServlet?mode=DEVIS&venteId="
+            + rec.get('lgPREENREGISTREMENTID');
         window.open(linkUrl);
-
     },
+
     onExportWord: function (view, rowIndex, colIndex, item, e, rec, row) {
-        var linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId=" + rec.get('lgPREENREGISTREMENTID') + "&format=WORD";
+        const linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId="
+            + rec.get('lgPREENREGISTREMENTID') + "&format=WORD";
         window.open(linkUrl);
-
     },
+
     onExportExcel: function (view, rowIndex, colIndex, item, e, rec, row) {
-        var linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId=" + rec.get('lgPREENREGISTREMENTID') + "&format=EXCEL";
+        const linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId="
+            + rec.get('lgPREENREGISTREMENTID') + "&format=EXCEL";
         window.open(linkUrl);
     },
+
     onExportPdf: function (view, rowIndex, colIndex, item, e, rec, row) {
-        var linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId=" + rec.get('lgPREENREGISTREMENTID') + "&format=PDF";
+        const linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId="
+            + rec.get('lgPREENREGISTREMENTID') + "&format=PDF";
         window.open(linkUrl);
-
     },
-     onbonPdf: function (view, rowIndex, colIndex, item, e, rec, row) {
-          var linkUrl = '../webservices/sm_user/detailsvente/ws_generate_devis__pdf.jsp?lg_PREENREGISTREMENT_ID=' + rec.get('lgPREENREGISTREMENTID');
+
+    onbonPdf: function (view, rowIndex, colIndex, item, e, rec, row) {
+        const linkUrl = '../webservices/sm_user/detailsvente/ws_generate_devis__pdf.jsp?lg_PREENREGISTREMENT_ID='
+            + rec.get('lgPREENREGISTREMENTID');
         window.open(linkUrl);
-
     },
+
     handleActionColumn: function (view, rowIndex, colIndex, item, e) {
-        var me = this;
-        var store = me.getDevisGrid().getStore(),
-                rec = store.getAt(colIndex);
+        const me = this;
+        const store = me.getDevisGrid().getStore();
+        const rec = store.getAt(colIndex);
         if (parseInt(item) === 8) {
             me.onDelete(rec.get('lgPREENREGISTREMENTID'));
         } else if (parseInt(item) === 7) {
@@ -128,15 +136,18 @@ Ext.define('testextjs.controller.DevisListCtr', {
         } else if (parseInt(item) === 6) {
             me.transformIntoVente(rec);
         } else if (parseInt(item) === 9) {
-            var linkUrl = "../FacturePdfServlet?mode=DEVIS&venteId=" + rec.get('lgPREENREGISTREMENTID');
+            var linkUrl = "../FacturePdfServlet?mode=DEVIS&venteId="
+                + rec.get('lgPREENREGISTREMENTID');
             window.open(linkUrl);
         }
     },
+
     onAddClick: function () {
         var xtype = "doDevis";
         var data = {'isEdit': false, 'record': {}};
         testextjs.app.getController('App').onRedirectTo(xtype, data);
     },
+
     onDelete: function (view, rowIndex, colIndex, item, e, rec, row) {
         var me = this;
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
@@ -155,7 +166,6 @@ Ext.define('testextjs.controller.DevisListCtr', {
                         msg: "L'opération a échouée",
                         buttons: Ext.MessageBox.OK,
                         icon: Ext.MessageBox.ERROR
-
                     });
                 }
             },
@@ -163,9 +173,9 @@ Ext.define('testextjs.controller.DevisListCtr', {
                 progress.hide();
                 Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
             }
-
         });
     },
+
     toClone: function (view, rowIndex, colIndex, item, e, rec, row) {
         var me = this;
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
@@ -184,7 +194,6 @@ Ext.define('testextjs.controller.DevisListCtr', {
                         msg: "L'opération a échouée",
                         buttons: Ext.MessageBox.OK,
                         icon: Ext.MessageBox.ERROR
-
                     });
                 }
             },
@@ -192,21 +201,21 @@ Ext.define('testextjs.controller.DevisListCtr', {
                 progress.hide();
                 Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
             }
-
         });
-
     },
+
     transformIntoVente: function (view, rowIndex, colIndex, item, e, rec, row) {
         var data = {'isEdit': true, 'record': rec.data, 'isDevis': true, 'categorie': 'VENTE'};
         var xtype = "doventemanager";
         testextjs.app.getController('App').onRedirectTo(xtype, data);
-    
     },
+
     onEdite: function (view, rowIndex, colIndex, item, e, rec, row) {
         var data = {'isEdit': true, 'record': rec.data};
         var xtype = "doDevis";
         testextjs.app.getController('App').onRedirectTo(xtype, data);
     },
+
     doBeforechange: function (page, currentPage) {
         var me = this;
         var myProxy = me.getDevisGrid().getStore().getProxy();
@@ -216,17 +225,18 @@ Ext.define('testextjs.controller.DevisListCtr', {
             statut: 'devis',
             dtStart: null,
             dtEnd: null
-
         };
         myProxy.setExtraParam('statut', 'devis');
         myProxy.setExtraParam('query', me.getQueryField().getValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
     },
+
     doInitStore: function () {
         var me = this;
         me.doSearch();
     },
+
     onSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
             if (field.getValue() && field.getValue().trim() !== "") {
@@ -235,6 +245,7 @@ Ext.define('testextjs.controller.DevisListCtr', {
             }
         }
     },
+
     doSearch: function () {
         var me = this;
         me.getDevisGrid().getStore().load({
@@ -245,5 +256,48 @@ Ext.define('testextjs.controller.DevisListCtr', {
                 "dtEnd": me.getDtEnd().getSubmitValue()
             }
         });
+    },
+
+    /**
+     * Crée un inventaire à partir d’une seule proforma (ligne).
+     */
+    onCreateInventaireFromOneDevis: function (view, rowIndex, colIndex, item, e, rec, row) {
+        var me = this;
+
+        Ext.Msg.confirm('Confirmation',
+            'Créer un inventaire à partir de cette proforma ?',
+            function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+                var progress = Ext.MessageBox.wait(
+                    'Veuillez patienter . . .',
+                    'Création de l\'inventaire'
+                );
+
+                Ext.Ajax.request({
+                    method: 'POST',
+                    url: '../api/v1/ventestats/devis/inventaire/' + rec.get('lgPREENREGISTREMENTID'),
+                    success: function (response) {
+                        progress.hide();
+                        var result = Ext.JSON.decode(response.responseText, true) || {};
+                        var count = result.count || 0;
+
+                        if (count > 0) {
+                            Ext.Msg.alert('Information',
+                                'Inventaire créé avec <b>' + count + '</b> ligne(s).');
+                        } else {
+                            Ext.Msg.alert('Information',
+                                'Aucune ligne trouvée pour cet inventaire.');
+                        }
+                    },
+                    failure: function (response) {
+                        progress.hide();
+                        Ext.Msg.alert('Erreur',
+                            'Erreur serveur (code ' + response.status + ').');
+                    }
+                });
+            }
+        );
     }
 });

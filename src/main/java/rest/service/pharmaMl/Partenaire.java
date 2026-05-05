@@ -56,4 +56,9 @@ public class Partenaire {
         this.adresse = adresse;
     }
 
+    @Override
+    public String toString() {
+        return "Partenaire{" + "nature=" + nature + ", code=" + code + ", id=" + id + ", adresse=" + adresse + '}';
+    }
+
 }

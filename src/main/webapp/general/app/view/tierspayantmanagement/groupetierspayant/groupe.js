@@ -264,7 +264,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
 //                   
                                                     listeners: {
                                                         click: function () {
-                                                            win.hide();
+                                                            win.destroy();
                                                         }
 
                                                     }
@@ -637,7 +637,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
 //                   
                             listeners: {
                                 click: function () {
-                                    win.hide();
+                                    win.destroy();
                                 }
 
                             }
@@ -851,7 +851,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                     if (object.status === 1) {
                         grid.getStore().load();
                         Ext.MessageBox.alert('INFO', 'Groupe ajouté');
-                        win.hide();
+                        win.destroy();
                     } else {
                         Ext.MessageBox.alert('ERROR', 'Erreur d \'ajout');
 
@@ -866,7 +866,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                 failure: function (response)
                 {
 
-                    win.hide();
+                    win.destroy();
                 }
             });
 

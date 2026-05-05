@@ -34,19 +34,13 @@ import util.Constant;
 @Consumes("application/json")
 public class PharmaMlResource {
 
-    @Inject
-    private HttpServletRequest servletRequest;
     @EJB
     PharmaMlService pharmaMlService;
 
     @PUT
     @Path("{id}")
     public Response envoiPharmaCommande(@PathParam("id") String commandeId) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
+
         JSONObject json = pharmaMlService.envoiCommande(commandeId, LocalDate.now().plusDays(1), 0, null, null);
         return Response.ok().entity(json.toString()).build();
     }
@@ -70,23 +64,15 @@ public class PharmaMlResource {
     @Path("rupture/{id}/{grossiste}")
     public Response renvoiPharmaCommande(@PathParam("id") String ruptureId, @PathParam("grossiste") String grossiste)
             throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
-        /*
-         * JSONObject json = pharmaMlService.renvoiPharmaCommande(ruptureId, grossiste, LocalDate.now().plusDays(1), 0,
-         * null, null);
-         */
-        return Response.ok().build();
+        return Response
+                .ok(pharmaMlService.renvoiPharmaCommande(ruptureId, grossiste, LocalDate.now().plusDays(1)).toString())
+                .build();
     }
 
     @GET
     @Path("rupture/responseorder")
     public Response reponseRupture(@QueryParam("ruptureId") String orderId) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
         /* JSONObject json = pharmaMlService.reponseRupture(orderId, tu); */
         return Response.ok().build();
     }

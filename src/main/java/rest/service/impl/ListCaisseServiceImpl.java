@@ -22,7 +22,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.logging.Level;
@@ -45,7 +44,6 @@ import org.json.JSONObject;
 import rest.service.ListCaisseService;
 import rest.service.v2.dto.VisualisationCaisseDTO;
 import util.Constant;
-import util.DateConverter;
 
 /**
  *
@@ -276,6 +274,7 @@ public class ListCaisseServiceImpl implements ListCaisseService {
                 case Constant.TYPE_REGLEMENT_ORANGE:
                 case Constant.MODE_MTN:
                 case Constant.MODE_WAVE:
+                case Constant.MODE_DJAMO:
                     o.setMobile(o.getMobile() + montant);
                     break;
 

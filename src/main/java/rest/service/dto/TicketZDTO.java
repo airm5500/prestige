@@ -53,20 +53,24 @@ public class TicketZDTO {
     private long montantOrange;
     private long montantMoov;
     private long montantWave;
+    private long montantDjamo;
 
     private long montantReglementMtn;
     private long montantReglementOrange;
     private long montantReglementMoov;
     private long montantReglementWave;
+    private long montantReglementDjamo;
 
     private long montantSortieMtn;
     private long montantSortieOrange;
     private long montantSortieMoov;
     private long montantSortieWave;
+    private long montantSortieDjamo;
 
     private long montantEntreeMtn;
     private long montantEntreeOrange;
     private long montantEntreeMoov;
     private long montantEntreeWave;
+    private long montantEntreeDjamo;
 
 }

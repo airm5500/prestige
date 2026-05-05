@@ -109,6 +109,14 @@ Ext.define('testextjs.view.reglement.Differe', {
                     name: 'montantRestant',
                     type: 'number'
                 },
+                {
+                    name: 'solde',
+                    type: 'number'
+                },
+                {
+                    name: 'soldeFormated',
+                    type: 'string'
+                },
 
                 {
                     name: 'userFullName',
@@ -244,7 +252,8 @@ Ext.define('testextjs.view.reglement.Differe', {
                         {
                             ftype: 'groupingsummary',
                             collapsible: true,
-                            groupHeaderTpl: "{[values.rows[0].data.clientFullName]}",
+                            groupHeaderTpl: "{[values.rows[0].data.clientFullName]}  <span style='color:blue;font-weight:800;padding-left:5rem;'>SOLDE:  <span style='color:blue;font-weight:800;padding-left:10px;'>{[values.rows[0].data.soldeFormated]}</span></span> ",
+                            
                             hideGroupedHeader: true,
                             showSummaryRow: true
                         }],
@@ -281,11 +290,9 @@ Ext.define('testextjs.view.reglement.Differe', {
                             format: '0,000.',
                             dataIndex: 'montantAttendu',
                             flex: 1,
-                            align: 'right',
-                            summaryType: "sum",
-                            summaryRenderer: function (value) {
-                                return " <span style='color:brown;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
-                            }
+                            align: 'right'
+                        
+                          
                         },
                         {
                             xtype: 'numbercolumn',
@@ -307,11 +314,8 @@ Ext.define('testextjs.view.reglement.Differe', {
                             dataIndex: 'montantRestant',
                             fieldStyle: "color:red;",
                             flex: 1,
-                            align: 'right',
-                            summaryType: "sum",
-                            summaryRenderer: function (value) {
-                                return " <span style='color:red;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
-                            }
+                            align: 'right'
+                         
                         },
                         {
                             header: 'Date',

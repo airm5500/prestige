@@ -3,6 +3,7 @@ package util;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -53,7 +54,7 @@ public final class DateCommonUtils {
     }
 
     public static Date convertLocalDateToDate(LocalDate dateToConvert) {
-        return java.util.Date.from(dateToConvert.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant());
+        return Date.from(dateToConvert.atStartOfDay().atZone(ZoneId.systemDefault()).toInstant());
     }
 
     public static LocalDateTime convertDateToLocalDateTime(Date dateToConvert) {
@@ -64,7 +65,7 @@ public final class DateCommonUtils {
     }
 
     public static Date convertLocalDateTimeToDate(LocalDateTime dateToConvert) {
-        return java.util.Date.from(dateToConvert.atZone(ZoneId.systemDefault()).toInstant());
+        return Date.from(dateToConvert.atZone(ZoneId.systemDefault()).toInstant());
     }
 
     public static LocalDateTime convertLocalDateToLocalDateTime(LocalDate dateToConvert) {
@@ -87,6 +88,35 @@ public final class DateCommonUtils {
         }
         return dateToFormat.format(dtf);
 
+    }
+
+    /**
+     *
+     * @param date
+     *            yyyy-MM-dd
+     *
+     * @return
+     */
+    public static Date from(String date) {
+
+        if (org.apache.commons.lang3.StringUtils.isNotEmpty(date)) {
+            return convertLocalDateToDate(LocalDate.parse(date));
+        } else {
+            return new Date();
+        }
+    }
+
+    public static Date toDateAtEndOfDay(String date) {
+
+        if (org.apache.commons.lang3.StringUtils.isNotEmpty(date)) {
+            return toDateAtEndOfDay(LocalDate.parse(date));
+        } else {
+            return new Date();
+        }
+    }
+
+    public static Date toDateAtEndOfDay(LocalDate dateToConvert) {
+        return Date.from(dateToConvert.atTime(LocalTime.MAX).atZone(ZoneId.systemDefault()).toInstant());
     }
 
 }

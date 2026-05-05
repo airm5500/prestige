@@ -54,31 +54,30 @@ Ext.define('testextjs.controller.PreVentesCtr', {
             'preenregistrementmanager gridpanel': {
                 viewready: this.doInitStore
             },
-            "preenregistrementmanager gridpanel actioncolumn": {
-                click: this.handleActionColumn
-            },
+
             'preenregistrementmanager #query': {
                 specialkey: this.onSpecialKey
             },
             'preenregistrementmanager #addBtn': {
                 click: this.onAddClick
+            },
+            "preenregistrementmanager gridpanel actioncolumn": {
+                toEdit: this.edit,
+                toRemove: this.remove
+
             }
         });
     },
-
-    handleActionColumn: function (view, rowIndex, colIndex, item, e) {
-        var me = this;
-        var store = me.getPendingGrid().getStore(),
-                rec = store.getAt(colIndex);
-
-        if (parseInt(item) === 7) {
-        me.onDelete(rec.get('lgPREENREGISTREMENTID'));
-        } else if (parseInt(item) === 6) {
-        if (rec.get('strSTATUT') === 'pending') {
+    edit: function (view, rowIndex, colIndex, item, e, rec, row) {
+        const me = this;
         me.onEdite(rec);
-    }
-        }
-        }, onAddClick: function () {
+    },
+    remove: function (view, rowIndex, colIndex, item, e, rec, row) {
+        const me = this;
+        me.onDelete(rec.get('lgPREENREGISTREMENTID'));
+    },
+
+    onAddClick: function () {
         var xtype = "doventemanager";
         var data = {'isEdit': false, 'categorie': 'PREVENTE', 'record': {}};
         testextjs.app.getController('App').onRedirectTo(xtype, data);

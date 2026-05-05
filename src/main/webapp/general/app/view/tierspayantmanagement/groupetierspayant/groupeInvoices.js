@@ -139,7 +139,19 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                             flex: 1
 
                         },
-
+                        {
+                            xtype: 'actioncolumn',
+                            hidden: false,
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/certication.png',
+                                    tooltip: 'Certification',
+                                    scope: this,
+                                    handler: this.shwoChoiceModal
+                                }]
+                        },
                         {
                             xtype: 'actioncolumn',
                             width: 30,
@@ -465,7 +477,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
                             combox = '';
                         }
 
-                        var search_value = Ext.getCmp('groupeSearch').getValue();
+                        const search_value = Ext.getCmp('groupeSearch').getValue();
                         myProxy.setExtraParam('dt_start', Ext.getCmp('dt_start').getSubmitValue());
                         myProxy.setExtraParam('dt_end', Ext.getCmp('dt_end').getSubmitValue());
                         myProxy.setExtraParam('search_value', search_value);
@@ -510,5 +522,134 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
             testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Faire un r&eacute;glement", rec.get('lg_GROUPE_ID'), rec.data);
 
         }
+    },
+    shwoChoiceModal: function (grid, rowIndex) {
+        const me = this;
+        const rec = grid.getStore().getAt(rowIndex);
+        const choice = new Ext.data.Store({
+            fields: ['code', 'libelle'],
+            data: [{code: 'GROUPE_TAUX_TVA', libelle: 'Facture'},
+                {code: 'PRODUIT_DETAIL', libelle: 'Produit'}]
+
+        });
+
+        const win = Ext.create('Ext.window.Window',
+                {
+                    extend: 'Ext.window.Window',
+                    autoShow: true,
+                    height: 200,
+                    width: '40%',
+                    modal: true,
+                    title: 'Choix du type fe facturation',
+                    closeAction: 'hide',
+                    closable: true,
+                    layout: {
+                        type: 'vbox',
+                        align: 'stretch'
+                    },
+                    items: [
+                        {
+                            xtype: 'form',
+                            bodyPadding: 5,
+                            modelValidation: true,
+                            layout: {
+                                type: 'vbox',
+                                align: 'stretch'
+                            },
+                            items: [
+                                {
+                                    xtype: 'fieldset',
+                                    layout: {
+                                        type: 'hbox',
+                                        align: 'stretch'
+                                    },
+                                    title: 'Type de facturation',
+                                    items: [
+                                        {
+                                            xtype: 'combo',
+                                            fieldLabel: 'Type de facturation',
+                                            allowBlank: false,
+                                            name: 'typeInvoice',
+                                            flex: 1,
+                                            valueField: 'code',
+                                            displayField: 'libelle',
+                                            typeAhead: true,
+                                            queryMode: 'local',
+                                            pageSize: 2,
+                                            emptyText: 'Choisir un type...',
+                                            store: choice
+                                        }
+
+                                    ]
+
+                                }
+
+                            ],
+                            dockedItems: [
+                                {
+                                    xtype: 'toolbar',
+                                    dock: 'bottom',
+                                    ui: 'footer',
+                                    layout: {
+                                        pack: 'end',
+                                        type: 'hbox'
+                                    },
+                                    items: [
+                                        {
+                                            xtype: 'button',
+                                            text: 'Valider',
+                                            handler: function (btn) {
+                                                const formulaire = btn.up('form');
+                                                if (formulaire.isValid()) {
+
+                                                    const formValues = formulaire.getValues();
+                                                    me.certify(rec.get('ids'), formValues.typeInvoice, win);
+                                                }
+                                            }
+                                        },
+                                        {
+                                            xtype: 'button',
+                                            text: 'Annuler',
+                                            handler: function (btn) {
+                                                win.destroy();
+                                            }
+
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+
+                }
+
+
+        );
+
+    },
+    certify: function (ids, typeInvoice, win) {
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            url: '../api/v1/fne/invoices/sign-group',
+            method: 'GET',
+            params: {
+                ids,
+                typeInvoice
+
+            },
+            success: function (response)
+            {
+                progress.hide();
+                win.destroy();
+                Ext.MessageBox.alert('Info', 'Opération effectuée ');
+
+            },
+            failure: function (response)
+            {
+                progress.hide();
+                Ext.MessageBox.alert('Error Message', response.responseText);
+            }
+        });
+
     }
 });

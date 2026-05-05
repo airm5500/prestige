@@ -15,4 +15,10 @@ public class CorpsResponse {
     public void setMessageRepartiteur(MessageRepartiteur messageRepartiteur) {
         this.messageRepartiteur = messageRepartiteur;
     }
+
+    @Override
+    public String toString() {
+        return "CorpsResponse{" + "messageRepartiteur=" + messageRepartiteur + '}';
+    }
+
 }

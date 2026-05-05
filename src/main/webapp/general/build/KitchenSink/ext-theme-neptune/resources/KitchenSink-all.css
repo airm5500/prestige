@@ -21637,6 +21637,76 @@ body.x-nbr .x-panel-header-light-framed-collapsed-left-frameInfo {
 .afficheur_caisse {
     background-image: url(images/icons/fam/cash.png)
 }
+
+.retour {
+    background-image: url(/prestige/general/resources/images/icons/fam/retour.png)
+}
+
+.attente {
+    background-image: url(/prestige/general/resources/images/icons/fam/coches.png)
+}
+.pdf {
+    background-image: url(images/icons/fam/pdf.png)
+}
+
+.excel {
+    background-image: url(images/icons/fam/exceller.png)
+}
+
+.csv {
+    background-image: url(images/icons/fam/csv.png)
+}
+
+.word {
+    background-image: url(images/icons/fam/word.png)
+}
+
+.recherche {
+    background-image: url(images/icons/fam/recherche.png)
+}
+
+/* iconCls: 'valider-vente' */
+.valider-vente{
+  background-image: url(/prestige/general/resources/images/icons/fam/terminer.png)
+}
+
+.btn-prevente{
+  background-image: url(/prestige/general/resources/images/icons/fam/enable.png)
+}
+
+
+
+.recu {
+    background-image: url(images/icons/fam/recu.png)
+}
+
+/* RÈGLEMENT plus haut, sans toucher aux autres fieldsets */
+.pc-modern .pc-reglement .x-fieldset-body{
+  min-height: 70px !important;   /* ← augmente ici */
+  padding: 12px 14px 16px !important;
+}
+
+
+.pc-label-cash{
+    background: none !important;
+  padding-left: 0 !important;
+}
+
+.pc-label-cash::before{
+  content: "";
+  display: inline-block;
+  width: 28px;                 /* ← taille icône : mets 24/28/32… */
+  height: 28px;
+  margin-right: 8px;           /* espace icône/texte */
+  background-image: url(/prestige/general/resources/images/icons/fam/cash.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 28px 28px;  /* adapte à la taille choisie */
+  vertical-align: middle;
+}
+
+
+
 #basic-toolbar .paste {
     background-image: url(images/icons/fam/paste_plain.png)
 }
@@ -22286,7 +22356,26 @@ body.x-nbr .x-panel-header-light-framed-collapsed-left-frameInfo {
   border-radius: 10px !important;
   box-shadow: 0 8px 18px rgba(20,184,166,.35);
 }
+
+.btn-primarya{
+  background: linear-gradient(145deg, #090979, #00D4FF) !important;
+  border: 1px solid rgba(0,0,0,.15) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 18px rgba(20,184,166,.35);
+}
+
+.btn-primaryb{
+  background: linear-gradient(145deg, #090979, #00D4FF) !important;
+  color: #fff; /* texte blanc recommandé */
+  border: 1px solid rgba(0,0,0,.15) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 18px rgba(20,184,166,.35);
+}
+.btn-primaryb:hover { color: #fff; }
+
 .btn-primary .x-btn-inner{ color:#fff !important; font-weight:800; }
+
+.btn-primaryb .x-btn-inner{ color:#fff !important; font-weight:800; }
 
 /* --- layout 3 colonnes pour Infos Générales --- */
 .ig-columns{
@@ -22440,3 +22529,363 @@ body.x-nbr .x-panel-header-light-framed-collapsed-left-frameInfo {
   color: #0a7b22;
   font-weight: 900;
 }
+/* =========================================================
+   pc-modern — Modern UI pour ExtJS 4.x Neptune (scopé)
+   Place ce bloc APRÈS le CSS du thème Neptune.
+   Active-le en ajoutant la classe "pc-modern" sur <body>.
+   Modulateurs: .pc-compact (densité), .pc-underline (inputs soulignés),
+                .pc-dark (sombre).
+   ========================================================= */
+
+/* --------------------
+   Variables / typographie
+   -------------------- */
+.pc-modern {
+  --pc-bg: #f6f7fb;
+  --pc-surface: #ffffff;
+  --pc-surface-2: #f3f6fb;
+  --pc-text: #0f172a;
+  --pc-text-2: #475569;
+  --pc-muted: #64748b;
+  --pc-border: #e6e9ef;
+  --pc-brand: #2563eb;
+  --pc-brand-2: #3b82f6;
+  --pc-accent: #6a7ff6;
+  --pc-danger: #ef4444;
+  --pc-success: #16a34a;
+  --pc-warning: #f59e0b;
+
+  --pc-radius: 12px;
+  --pc-shadow-1: 0 6px 18px rgba(15,23,42,.06);
+  --pc-shadow-2: 0 2px 6px rgba(15,23,42,.05);
+}
+
+.pc-modern .x-body, .pc-modern .x-form,
+.pc-modern .x-panel, .pc-modern .x-grid {
+  font-family: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  color: var(--pc-text) !important;
+}
+
+/* --------------------
+   Conteneurs principaux / fenêtres
+   -------------------- */
+.pc-modern .x-window,
+.pc-modern .x-panel.x-panel-default {
+  background: var(--pc-surface) !important;
+  border: 1px solid var(--pc-border) !important;
+  border-radius: var(--pc-radius) !important;
+  box-shadow: var(--pc-shadow-1) !important;
+}
+.pc-modern .x-window-body,
+.pc-modern .x-panel-body {
+  background: var(--pc-surface) !important;
+  padding: 12px !important;
+}
+.pc-modern .x-window-header,
+.pc-modern .x-panel-header {
+  background: var(--pc-surface-2) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--pc-border) !important;
+  border-top-left-radius: var(--pc-radius) !important;
+  border-top-right-radius: var(--pc-radius) !important;
+  padding: 10px 14px !important;
+}
+.pc-modern .x-window-header-text-default,
+.pc-modern .x-panel-header-text-default {
+  color: var(--pc-text) !important;
+  font-weight: 800 !important;
+  letter-spacing: .2px;
+}
+
+/* --------------------
+   Fieldsets (titres plats, pas de pastilles)
+   -------------------- */
+.pc-modern .x-fieldset {
+  background: var(--pc-surface) !important;
+  border: 1px solid var(--pc-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--pc-shadow-2) !important;
+  overflow: hidden;
+}
+.pc-modern .x-fieldset .x-fieldset-header-default {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 8px 10px !important;
+  margin: 0 !important;
+}
+.pc-modern .x-fieldset .x-fieldset-header-text,
+.pc-modern .x-fieldset .x-fieldset-header-text span {
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: var(--pc-text) !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: .2px;
+}
+.pc-modern .x-fieldset .x-fieldset-header-text:before,
+.pc-modern .x-fieldset .x-fieldset-header-text:after { display: none !important; }
+.pc-modern .x-fieldset .x-fieldset-body { padding: 10px 12px 12px !important; }
+
+/* --------------------
+   Toolbars / Paging
+   -------------------- */
+.pc-modern .x-toolbar {
+  background: var(--pc-surface-2) !important;
+  border: 0 !important;
+  border-top: 1px solid var(--pc-border) !important;
+  border-bottom: 1px solid var(--pc-border) !important;
+  padding: 6px 10px !important;
+}
+.pc-modern .x-paging-toolbar {
+  background: var(--pc-surface-2) !important;
+  border-top: 1px solid var(--pc-border) !important;
+  padding: 6px 8px !important;
+  border-bottom-left-radius: 10px !important;
+  border-bottom-right-radius: 10px !important;
+}
+
+/* --------------------
+   Boutons (clean Neptune + centrés)
+   -------------------- */
+.pc-modern .x-btn { 
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; gap: 6px !important;
+  height: 32px !important; padding: 0 12px !important; border-radius: 10px !important;
+}
+.pc-modern .x-btn-default-small,
+.pc-modern .x-btn-default-medium,
+.pc-modern .x-btn-default-large {
+  background-image: none !important;
+  background: #fff !important;
+  border: 1px solid var(--pc-border) !important;
+  box-shadow: 0 1px 0 rgba(0,0,0,.03) !important;
+}
+.pc-modern .x-btn .x-btn-inner { position: static !important; line-height: 1 !important; font-weight: 700 !important; }
+.pc-modern .x-btn .x-btn-icon-el { position: static !important; margin: 0 !important; }
+.pc-modern .x-btn-over    { background: #eef1f6 !important; }
+.pc-modern .x-btn-pressed { background: #e8eefc !important; border-color: #c7d2fe !important; }
+
+/* Variante primaire (ajoute .pc-btn-primary sur un bouton si besoin) */
+.pc-modern .x-btn.pc-btn-primary {
+  background: var(--pc-brand) !important; border-color: var(--pc-brand) !important; color: #fff !important; font-weight: 800 !important;
+}
+.pc-modern .x-btn.pc-btn-primary.x-btn-over { filter: brightness(1.05); }
+
+/* --------------------
+   Champs de formulaire
+   Deux styles:
+   - par défaut (bord fin + arrondi)
+   - .pc-underline sur <body> => style "souligné"
+   -------------------- */
+.pc-modern .x-form-item-label { color: var(--pc-text-2) !important; font-weight: 700 !important; }
+
+/* Style par défaut (bord fin arrondi) */
+.pc-modern:not(.pc-underline) .x-form-text,
+.pc-modern:not(.pc-underline) .x-form-field,
+.pc-modern:not(.pc-underline) .x-form-trigger-wrap {
+  height: 34px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--pc-border) !important;
+  background: #fff !important;
+  color: var(--pc-text) !important;
+  padding: 6px 10px !important;
+}
+.pc-modern:not(.pc-underline) .x-form-trigger { background-image: none !important; background: transparent !important; border-left: 0 !important; }
+
+/* Style "souligné" (activer via .pc-underline sur <body>) */
+.pc-modern.pc-underline .x-form-text,
+.pc-modern.pc-underline .x-form-field,
+.pc-modern.pc-underline .x-form-trigger-wrap {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid #d7dbe5 !important;
+  border-radius: 0 !important;
+  padding: 6px 0 !important;
+}
+.pc-modern.pc-underline .x-form-trigger { background: transparent !important; background-image: none !important; border: 0 !important; width: 16px !important; height: 16px !important; margin: 0 0 -2px 6px !important; }
+
+/* États focus / invalide */
+.pc-modern .x-form-focus,
+.pc-modern .x-form-trigger-wrap-focus { 
+  box-shadow: none !important; 
+  border-color: #c7d2fe !important; 
+  border-bottom-color: #6a7ff6 !important; 
+}
+.pc-modern .x-form-invalid-field { border-color: #fca5a5 !important; background: #fff7f7 !important; }
+
+/* Checkboxes / radios */
+.pc-modern .x-form-cb-wrap input,
+.pc-modern .x-form-cb-wrap .x-form-checkbox,
+.pc-modern .x-form-radio { transform: scale(1.05); }
+
+/* --------------------
+   Grilles
+   -------------------- */
+.pc-modern .x-grid { background: #fbfcfe !important; border: 1px solid var(--pc-border) !important; border-radius: 10px !important; }
+.pc-modern .x-grid-header-ct { background: var(--pc-surface-2) !important; border-bottom: 1px solid var(--pc-border) !important; }
+.pc-modern .x-column-header {
+  background: transparent !important; border-right: 0 !important; color: var(--pc-text-2) !important;
+  font-weight: 800 !important; text-transform: uppercase; font-size: 12px !important; padding: 8px 8px !important;
+}
+.pc-modern .x-grid-row .x-grid-cell { border-color: #eff2f6 !important; }
+.pc-modern .x-grid-row:nth-child(odd)  { background: #fbfcff !important; }
+.pc-modern .x-grid-row:nth-child(even) { background: #ffffff !important; }
+.pc-modern .x-grid-cell-inner { padding: 6px 8px !important; line-height: 20px !important; }
+.pc-modern .x-grid-row-over .x-grid-cell,
+.pc-modern .x-grid-row-selected .x-grid-cell { background: #eef2ff !important; }
+.pc-modern .x-grid-cell-inner[style*="text-align: right"],
+.pc-modern .x-grid-cell-inner[style*="align: right"] { font-variant-numeric: tabular-nums; }
+
+/* Sélecteurs / listes de combobox */
+.pc-modern .x-boundlist { background: #fff !important; border: 1px solid var(--pc-border) !important; border-radius: 10px !important; box-shadow: var(--pc-shadow-2) !important; }
+.pc-modern .x-boundlist-item { padding: 8px 10px !important; }
+.pc-modern .x-boundlist-item-over { background: #eef2ff !important; }
+
+/* --------------------
+   Tabs / Menus / Tree
+   -------------------- */
+.pc-modern .x-tab-bar { background: var(--pc-surface-2) !important; border: 0 !important; padding: 6px 8px !important; }
+.pc-modern .x-tab { background: transparent !important; border: 0 !important; }
+.pc-modern .x-tab-active { background: #fff !important; border: 1px solid var(--pc-border) !important; border-bottom-color: #fff !important; border-top-left-radius: 10px !important; border-top-right-radius: 10px !important; }
+.pc-modern .x-tab-inner { font-weight: 700 !important; color: var(--pc-text) !important; }
+
+.pc-modern .x-menu { background: #fff !important; border: 1px solid var(--pc-border) !important; border-radius: 10px !important; box-shadow: var(--pc-shadow-2) !important; }
+.pc-modern .x-menu-item-link { padding: 8px 12px !important; }
+.pc-modern .x-menu-item-active { background: #eef2ff !important; }
+
+.pc-modern .x-tree-panel .x-grid-row-selected .x-grid-cell { background: #eef2ff !important; }
+
+/* --------------------
+   MessageBox / Notifications
+   -------------------- */
+.pc-modern .x-message-box { border-radius: 12px !important; }
+.pc-modern .x-message-box .x-window-header { background: var(--pc-surface-2) !important; }
+.pc-modern .x-message-box .x-window-body { padding: 16px !important; }
+
+/* --------------------
+   Couleurs de statut utiles
+   -------------------- */
+.pc-modern .pc-text-danger { color: var(--pc-danger) !important; }
+.pc-modern .pc-text-success { color: var(--pc-success) !important; }
+.pc-modern .pc-text-warning { color: var(--pc-warning) !important; }
+
+/* --------------------
+   Neutralisation anciens bleus inline hérités
+   -------------------- */
+.pc-modern .x-container[style*="background:#F0F8FF"],
+.pc-modern .x-panel-body[style*="background:#F0F8FF"],
+.pc-modern .background_gray { background: var(--pc-surface) !important; }
+
+/* --------------------
+   Densité : .pc-compact (option)
+   -------------------- */
+.pc-modern.pc-compact .x-form-item       { margin-bottom: 6px !important; }
+.pc-modern.pc-compact .x-form-text,
+.pc-modern.pc-compact .x-form-field,
+.pc-modern.pc-compact .x-form-trigger-wrap { height: 32px !important; padding: 5px 8px !important; }
+.pc-modern.pc-compact .x-btn             { height: 30px !important; padding: 0 10px !important; }
+.pc-modern.pc-compact .x-grid-cell-inner { padding: 5px 6px !important; }
+.pc-modern.pc-compact .x-panel-body,
+.pc-modern.pc-compact .x-fieldset .x-fieldset-body { padding: 8px 10px !important; }
+
+/* --------------------
+   Mode sombre : .pc-dark (option)
+   -------------------- */
+.pc-modern.pc-dark {
+  --pc-bg: #0b1020;
+  --pc-surface: #0f1426;
+  --pc-surface-2: #111a2e;
+  --pc-text: #e5e7eb;
+  --pc-text-2: #cbd5e1;
+  --pc-border: #1f2a44;
+}
+.pc-modern.pc-dark .x-window,
+.pc-modern.pc-dark .x-panel.x-panel-default,
+.pc-modern.pc-dark .x-grid,
+.pc-modern.pc-dark .x-fieldset { box-shadow: none !important; }
+.pc-modern.pc-dark .x-btn-default-small,
+.pc-modern.pc-dark .x-btn-default-medium,
+.pc-modern.pc-dark .x-btn-default-large { background: #0f1426 !important; border-color: #1f2a44 !important; color: var(--pc-text) !important; }
+.pc-modern.pc-dark .x-btn-over { background: #17203a !important; }
+.pc-modern.pc-dark .x-grid-row:nth-child(odd)  { background: #0e1428 !important; }
+.pc-modern.pc-dark .x-grid-row:nth-child(even) { background: #0f152b !important; }
+.pc-modern.pc-dark .x-boundlist { background:#0f1426 !important; border-color:#1f2a44 !important; }
+
+.pc-modern .pc-actionsbar .x-btn{ height:44px !important; padding:0 18px !important; border-radius:14px !important; margin-left:8px !important; }
+.pc-modern .pc-actionsbar .x-btn .x-btn-inner{ font-size:15px !important; font-weight:800 !important; }
+.pc-modern .pc-actionsbar .x-btn .x-btn-icon-el{ width:20px !important; height:20px !important; background-size:20px 20px !important; margin-right:8px !important; }
+.pc-modern .pc-actionsbar{ padding:10px 12px !important; }
+.prevente-detail-panel .x-panel-body {
+    background-color: #f9f9f9;
+}
+
+.prevente-list-panel .x-grid-row-selected .x-grid-cell {
+    background-color: #e6f3ff !important;
+}
+
+.prevente-detail-field .x-form-display-field {
+    font-weight: bold;
+    color: #333;
+}
+.icon-accept {
+    background-image: url('resources/images/icons/accept.png') !important;
+}
+
+.icon-cross {
+    background-image: url('resources/images/icons/cross.png') !important;
+}
+/* Centrer les titres */
+.centered-fieldset-title .x-fieldset-header .x-fieldset-header-text {
+    text-align: center;
+    width: 100%;
+    display: block;
+}
+
+/* Correction complète des bordures */
+.custom-fieldset {
+    border: 1px solid #B5B8C8 !important;
+    border-radius: 3px !important;
+}
+
+.custom-fieldset .x-fieldset-body {
+    border: none !important;
+}
+
+/* Forcer la fermeture de toutes les bordures */
+.x-fieldset {
+    border: 1px solid #B5B8C8 !important;
+    border-top: 1px solid #B5B8C8 !important;
+    border-right: 1px solid #B5B8C8 !important;
+    border-bottom: 1px solid #B5B8C8 !important;
+    border-left: 1px solid #B5B8C8 !important;
+}
+
+/* S'assurer que le body n'a pas de bordures internes */
+.x-fieldset .x-fieldset-body {
+    border: none !important;
+    border-top: none !important;
+}
+
+.x-grid-row-editing {
+    background-color: #E6F3FF !important; /* Bleu ciel */
+    border: 1px solid #B3D9FF !important;
+}
+
+.row-editing-active {
+    background-color: #E6F3FF !important;
+    border: 1px solid #B3D9FF !important;
+}
+
+/* Style pour la ligne en cours d'édition */
+.x-grid-row.row-editing-active .x-grid-cell {
+    background-color: #E6F3FF !important;
+    border-color: #B3D9FF !important;
+}
+
+/* Conserver le style au survol */
+.x-grid-row-over .x-grid-cell {
+    background-color: #F0F8FF !important; /* Bleu très clair au survol */
+}
+

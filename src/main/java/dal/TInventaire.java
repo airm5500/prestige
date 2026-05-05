@@ -3,7 +3,6 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-
 package dal;
 
 import java.io.Serializable;
@@ -14,7 +13,6 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
@@ -49,13 +47,13 @@ public class TInventaire implements Serializable {
     @Basic(optional = false)
     @Column(name = "lg_INVENTAIRE_ID", nullable = false, length = 40)
     private String lgINVENTAIREID;
-    @Column(name = "str_NAME", length = 50)
+    @Column(name = "str_NAME")
     private String strNAME;
-    @Lob
-    @Column(name = "str_DESCRIPTION", length = 65535)
+
+    @Column(name = "str_DESCRIPTION")
     private String strDESCRIPTION;
-    @Lob
-    @Column(name = "str_TYPE", length = 65535)
+
+    @Column(name = "str_TYPE")
     private String strTYPE;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;

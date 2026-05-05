@@ -9,8 +9,8 @@ Ext.define('testextjs.view.produits.PrixReference', {
     modal: true,
     title: 'GESTION DES PRIX DE REFERENCE',
     closeAction: 'destroy',
-    maximizable: true,
-    closable: true,
+    maximizable: false,
+    closable: false,
     config: {
         produit: null
     },
@@ -51,13 +51,21 @@ Ext.define('testextjs.view.produits.PrixReference', {
                     items: [
 
                         {
-                            xtype: 'button',
-                            iconCls: 'cancelicon',
-                            itemId: 'btnCancel',
-                            text: 'Annuler',
-                            handler: me.closeWindow
-
-                        }
+    xtype: 'button',
+    iconCls: 'cancelicon',
+    itemId: 'btnCancel',
+    text: 'Annuler',
+    handler: function() {
+        // Fermer directement
+        const win = this.up('window');
+        if (win) {
+            win.close();
+        }
+        
+        // Focus sur recherche
+        Ext.getCmp('rechecher').focus(true, 100);
+    }
+}
                     ]
                 }
             ],
@@ -490,7 +498,7 @@ Ext.define('testextjs.view.produits.PrixReference', {
                                             flex: 1,
                                             itemId: 'valeur',
                                             xtype: 'numberfield',
-                                            fieldLabel: 'Prix de réréfence',
+                                            fieldLabel: 'Prix de référence',
                                             margin: '10 5 10 5',
                                             minValue: 5,
                                             value: me.buildDefaultValue(record, produit.int_PRICE),
@@ -541,6 +549,7 @@ Ext.define('testextjs.view.produits.PrixReference', {
                                     itemId: 'btnsave',
                                     text: 'Enregistrer', handler: function (btn) {
                                         me.onSave(btn, me);
+                                       
                                     }
                                 },
                                 {
@@ -548,7 +557,6 @@ Ext.define('testextjs.view.produits.PrixReference', {
                                     itemId: 'btnCancel',
                                     text: 'Annuler',
                                     handler: function () {
-                                        form.destroy();
                                     }
 
                                 }

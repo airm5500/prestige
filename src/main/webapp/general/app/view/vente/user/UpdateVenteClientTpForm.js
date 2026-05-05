@@ -1,8 +1,3 @@
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 
 /* global Ext */
 
@@ -364,10 +359,10 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     },
 
     buildtierspayant: function () {
-        var me = this, tpContainerForm = me.down('form').down('#tpContainer').down('#tpContainerform');
-        var tierspayants = me.getTiersparent();
+        const me = this, tpContainerForm = me.down('form').down('#tpContainer').down('#tpContainerform');
+        const tierspayants = me.getTiersparent();
         Ext.each(tierspayants, function (item) {
-            var cmp = me.buildCmp(item);
+            const cmp = me.buildCmp(item);
             me.taux = item.taux;
             me.message = item.numBon;
             tpContainerForm.add(cmp);
@@ -377,8 +372,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     },
 
     buildCmp: function (record, taux, numBon) {
-        var percent = '40%';
-        var me = this, typeVente = me.getTypeVente();
+        let percent = '40%';
+        const me = this;
+        let typeVente = me.getTypeVente();
         if (typeVente === '3') {
             percent = '50%';
         }
@@ -391,7 +387,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
         if (taux) {
             _taux = taux;
         }
-        var cmp = {
+        const cmp = {
             xtype: 'container',
             width: percent,
             margin: '0 10 0 0',
@@ -401,7 +397,8 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                 {
                     xtype: 'fieldcontainer',
                     layout: {type: 'hbox', align: 'stretch'},
-                    items: [{
+                    items: [
+                        {
                             xtype: 'displayfield',
                             fieldLabel: 'TP <span style="color:red;font-weight:bold;">' + _taux + '</span>',
                             flex: 1,
@@ -409,6 +406,14 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                             fieldStyle: "color:blue;",
                             value: record.tpFullName,
                             margin: '0 10 0 0'
+                        },
+                        {
+                            flex: 1,
+                            xtype: 'checkboxfield',
+                            boxLabel: 'Nouveau TP principal',
+                            name: 'nouveauTpPrincipal',
+                            checked: record.principal === true,
+                            margin: '0 0 0 10'
                         }
 
                     ]
@@ -426,7 +431,6 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                             name: 'refBon',
                             itemId: 'refBon',
                             flex: 1,
-//                            readOnly: true,
                             height: 30,
                             margin: '0 10 0 0',
                             value: _numBon,
@@ -457,11 +461,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                             fieldLabel: 'Taux:',
                             flex: 1,
                             labelWidth: 50,
-//                            height: 30,
                             hideTrigger: true,
                             name: 'taux',
                             itemId: 'taux',
-//                            fieldStyle: "color:blue;",
                             value: _taux,
                             readOnly: true,
                             margin: '0 10 0 0'
@@ -504,7 +506,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
         return cmp;
     },
     changeInfosAyantDroit: function (btn) {
-        let me = btn.up('window');
+        const me = btn.up('window');
         let ayantDroit = me.getAyantDroit();
         let client = me.getClient();
         if (client.strNUMEROSECURITESOCIAL === ayantDroit.strNUMEROSECURITESOCIAL) {
@@ -517,7 +519,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
 
             });
         } else {
-            var form = Ext.create('Ext.window.Window',
+            const form = Ext.create('Ext.window.Window',
                     {
                         autoShow: true,
                         height: 240,
@@ -770,9 +772,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                     xtype: 'button',
                                     text: 'Enregistrer',
                                     handler: function (b) {
-                                        var _this = b.up('window'), _form = _this.down('form');
+                                        const _this = b.up('window'), _form = _this.down('form');
                                         if (_form.isValid()) {
-                                            var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                                            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                                             Ext.Ajax.request({
                                                 method: 'POST',
                                                 headers: {'Content-Type': 'application/json'},
@@ -991,7 +993,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
             }
 
         });
-        var form = Ext.create('Ext.window.Window',
+        const form = Ext.create('Ext.window.Window',
                 {
 
                     autoShow: true,
@@ -1112,7 +1114,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     changeTiespayant: function (btn) {
         let container = btn.up("fieldcontainer").up('container');
         let hiddenfield = container.down('#compteTp');
-        
+
         let rebonCt = btn.up("fieldcontainer").down("textfield");
         let displayfieldCmp = container.down("fieldcontainer:first").down("displayfield");
 
@@ -1149,7 +1151,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
             }
 
         });
-        var form = Ext.create('Ext.window.Window',
+        const form = Ext.create('Ext.window.Window',
                 {
 
                     autoShow: true,
@@ -1315,16 +1317,18 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
         const tierspayants = [];
         Ext.each(items.items, function (item) {
             if (item.items) {
-                let numBonCmp = item.down('textfield:first');
-                let tauxCmp = item.down('textfield:last');
-                let compteTpCmp = item.down('hiddenfield:first');
-                let itemId = item.down('hiddenfield:last');
+                const principal = item.down('checkboxfield:first');
+                const numBonCmp = item.down('textfield:first');
+                const tauxCmp = item.down('textfield:last');
+                const compteTpCmp = item.down('hiddenfield:first');
+                const itemId = item.down('hiddenfield:last');
                 tierspayants.push(
                         {
                             "compteTp": compteTpCmp.getValue(),
                             "numBon": numBonCmp.getValue(),
                             "taux": parseInt(tauxCmp.getValue()),
-                            "itemId": itemId.getValue()
+                            "itemId": itemId.getValue(),
+                            "principal": principal.getValue()
                         }
                 );
             }
@@ -1333,56 +1337,68 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     },
     onSave: function (btn) {
         let wind = btn.up('window');
-        let tierspayantArray = wind.buildTpData(wind);
-        let data = {
-            'clientId': wind.getClientId(),
-            'ayantDroitId': wind.getAyantDroitId(),
-            'venteId': wind.getData().lgPREENREGISTREMENTID,
-            'tierspayants': tierspayantArray
-        };
-        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-        Ext.Ajax.request({
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/vente/updateclientortierpayant',
-            params: Ext.JSON.encode(data),
-            success: function (response, options) {
-                progress.hide();
-                var result = Ext.JSON.decode(response.responseText, true);
-                if (result.success) {
-                    Ext.MessageBox.show({
-                        title: 'Impression du ticket',
-                        msg: 'Voulez-vous imprimer le ticket ?',
-                        buttons: Ext.MessageBox.YESNO,
-                        fn: function (button) {
-                            if ('yes' == button) {
-                                wind.onPrintTicket(result.refId);
-                            }
+        const tierspayantArray = wind.buildTpData(wind);
+      
+        const nbPrincipaux = tierspayantArray.filter(tp => tp.principal === true).length;
+        if (nbPrincipaux > 1) {
+            Ext.MessageBox.show({
+                title: 'Tiers payant principal',
+                msg: 'Un seul tiers payant principal est autorisé pour un même client.',
+                width: 320,
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
 
-                        },
-                        icon: Ext.MessageBox.QUESTION
-                    });
-                    wind.destroy();
-                    var xtype = "ventemanager";
-                    testextjs.app.getController('App').onRedirectTo(xtype, {});
-                } else {
-                    Ext.MessageBox.show({
-                        title: 'Message d\'erreur',
-                        width: 320,
-                        msg: result.msg,
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
+        } else {
+            const data = {
+                'clientId': wind.getClientId(),
+                'ayantDroitId': wind.getAyantDroitId(),
+                'venteId': wind.getData().lgPREENREGISTREMENTID,
+                'tierspayants': tierspayantArray
+            };
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+            Ext.Ajax.request({
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                url: '../api/v1/vente/updateclientortierpayant',
+                params: Ext.JSON.encode(data),
+                success: function (response, options) {
+                    progress.hide();
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    if (result.success) {
+                        Ext.MessageBox.show({
+                            title: 'Impression du ticket',
+                            msg: 'Voulez-vous imprimer le ticket ?',
+                            buttons: Ext.MessageBox.YESNO,
+                            fn: function (button) {
+                                if ('yes' == button) {
+                                    wind.onPrintTicket(result.refId);
+                                }
+                            },
+                            icon: Ext.MessageBox.QUESTION
+                        });
+                        wind.destroy();
+                        const xtype = "ventemanager";
+                        testextjs.app.getController('App').onRedirectTo(xtype, {});
+                    } else {
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 320,
+                            msg: result.msg,
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
 
-                    });
+                        });
+                    }
+
+                },
+                failure: function (response, options) {
+                    progress.hide();
+                    Ext.Msg.alert("Message", 'Un problème avec le serveur');
                 }
-
-            },
-            failure: function (response, options) {
-                progress.hide();
-                Ext.Msg.alert("Message", 'Un problème avec le serveur');
-            }
-        });
-//       
+            });
+        }
+     
     },
     onPrintTicket: function (id) {
         var url = '../api/v1/vente/ticket/vo/' + id;
@@ -1610,10 +1626,10 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     upadeTiersPayantData: function (fullName, lgTiersPayantId, rebonCmp, displayfieldCmp, hiddenfield, numBon) {
         displayfieldCmp.setValue(fullName);
         hiddenfield.setValue(lgTiersPayantId);
-         console.log(hiddenfield);
+        console.log(hiddenfield);
         console.log(hiddenfield.getValue());
         rebonCmp.setValue(numBon);
-        
+
 
     },
 
@@ -1662,9 +1678,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                     xtype: 'button',
                                     text: 'Enregistrer',
                                     handler: function (btn) {
-                                        var _this = btn.up('window'), _form = _this.down('form');
+                                        const _this = btn.up('window'), _form = _this.down('form');
                                         if (_form.isValid()) {
-                                            var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                                            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                                             Ext.Ajax.request({
                                                 method: 'POST',
                                                 headers: {'Content-Type': 'application/json'},

@@ -1,0 +1,1 @@
+ alter table licence add column type_licence INT(4) NOT NULL DEFAULT '0';

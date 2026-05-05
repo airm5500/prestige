@@ -25,7 +25,6 @@ import dal.HMvtProduit;
 import dal.Medecin;
 import dal.MvtTransaction;
 import dal.Notification;
-import dal.PrixReferenceVente;
 import dal.Reference;
 import dal.TAyantDroit;
 import dal.TClient;
@@ -166,7 +165,7 @@ public class SalesServiceImpl implements SalesService {
     @EJB
     private CautionTiersPayantService cautionTiersPayantService;
     @EJB
-    private PrixReferenceService prixReferenceService;
+    private LotService lotService;
 
     private final java.util.function.Predicate<Optional<TParameters>> test = e -> {
         if (e.isPresent()) {
@@ -908,6 +907,7 @@ public class SalesServiceImpl implements SalesService {
         familleStock.setIntNUMBER(familleStock.getIntNUMBERAVAILABLE());
         familleStock.setDtUPDATED(new Date());
         getEm().merge(familleStock);
+        lotService.pickLot(familleStock.getLgFAMILLEID().getLgFAMILLEID(), qty);
 
     }
 
@@ -1754,7 +1754,13 @@ public class SalesServiceImpl implements SalesService {
             tp.setChecked(Boolean.TRUE);
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
             Optional<TTypeMvtCaisse> typeMvtCaisse = getOne(KEY_PARAM_MVT_VENTE_ORDONNANCE);
-            List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);
+            List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);// TODO: utiliser directement la
+            if (CollectionUtils.isEmpty(lstTPreenregistrementDetail)) {
+                json.put("success", false);
+                json.put("msg", "Vous devez ajouter des lignes à la vente avant de la finaliser");
+                json.put("codeError", 0);
+                return json;
+            }
             int montant = tp.getIntPRICE();
             if (diffAmount(montant, lstTPreenregistrementDetail)) {
                 json.put("success", false);
@@ -1981,6 +1987,13 @@ public class SalesServiceImpl implements SalesService {
                 return json;
             }
             List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);
+            if (CollectionUtils.isEmpty(lstTPreenregistrementDetail)) {
+                json.put("success", false);
+                json.put("msg", "Vous devez ajouter des lignes à la vente avant de la finaliser");
+                json.put("codeError", 0);
+                return json;
+            }
+
             boolean ordonnancier = gererOrdoncier();
             if (ordonnancier) {
                 boolean isOrdonnancier = checkOrdonnancier(lstTPreenregistrementDetail);
@@ -2405,15 +2418,22 @@ public class SalesServiceImpl implements SalesService {
             if (!params.isCheckUg()) {
                 MontantAPaye montantAPaye;
                 TPreenregistrement p = emg.find(TPreenregistrement.class, params.getVenteId());
+                List<TPreenregistrementDetail> items = getItems(p);
+                if (CollectionUtils.isEmpty(items)) {
+                    json.put("success", true).put("msg", "Opération effectuée avec success");
+                    json.put("data", new JSONObject(new MontantAPaye()));
+
+                    return json;
+                }
                 if (params.getRemiseId() == null || "".equals(params.getRemiseId())) {
-                    montantAPaye = sumVenteSansRemise(getItems(p));
+                    montantAPaye = sumVenteSansRemise(items);
                     p.setIntPRICE(montantAPaye.getMontant());
                     p.setIntACCOUNT(montantAPaye.getMontantAccount());
                     p.setIntPRICEOTHER(montantAPaye.getMontant());
 
                 } else {
                     TRemise remise = p.getRemise();
-                    montantAPaye = getRemiseVno(p, remise, getItems(p));
+                    montantAPaye = getRemiseVno(p, remise, items);
 
                 }
                 json.put("success", true).put("msg", "Opération effectuée avec success");
@@ -2562,27 +2582,15 @@ public class SalesServiceImpl implements SalesService {
             Root<TFamille> root = cq.from(TFamille.class);
             Join<TFamille, TFamilleGrossiste> st = root.join("tFamilleGrossisteCollection", JoinType.INNER);
             Join<TFamille, TFamilleStock> fa = root.join("tFamilleStockCollection", JoinType.INNER);
-            Predicate predicate = cb.conjunction();
-            if (StringUtils.isNotEmpty(params.getQuery())) {
-                String search = params.getQuery() + "%";
-                predicate = cb.and(predicate,
-                        cb.or(cb.like(root.get(TFamille_.strNAME), search), cb.like(root.get(TFamille_.intCIP), search),
-                                cb.like(root.get(TFamille_.codeEanFabriquant), search),
-                                cb.like(root.get(TFamille_.intEAN13), search),
-                                cb.like(st.get("strCODEARTICLE"), search),
-                                cb.like(root.get(TFamille_.lgFAMILLEID), search),
-                                cb.like(root.get(TFamille_.strDESCRIPTION), search)));
-            }
-            predicate = cb.and(predicate, cb.equal(root.get(TFamille_.strSTATUT), "enable"));
-            predicate = cb.and(predicate,
-                    cb.equal(fa.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), params.getEmplacementId()));
+
             cq.select(cb.construct(SearchDTO.class, root.get(TFamille_.lgFAMILLEID), root.get(TFamille_.intCIP),
                     root.get(TFamille_.strNAME), root.get("lgZONEGEOID").get("strLIBELLEE"),
                     root.get(TFamille_.intPRICE), fa.get(TFamilleStock_.intNUMBERAVAILABLE), root.get(TFamille_.intPAF),
                     fa.get(TFamilleStock_.intNUMBER), root.get(TFamille_.boolDECONDITIONNE),
                     root.get(TFamille_.lgFAMILLEPARENTID), root.get(TFamille_.codeEanFabriquant)))
                     .orderBy(cb.asc(root.get(TFamille_.strNAME))).distinct(true);
-            cq.where(predicate);
+            List<Predicate> predicates = buildSearchProduitPredicats(cb, root, st, fa, params);
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = emg.createQuery(cq);
             q.setHint(QueryHints.HINT_CACHEABLE, false);
             if (!all) {
@@ -2599,6 +2607,25 @@ public class SalesServiceImpl implements SalesService {
         return json;
     }
 
+    private List<Predicate> buildSearchProduitPredicats(CriteriaBuilder cb, Root<TFamille> root,
+            Join<TFamille, TFamilleGrossiste> st, Join<TFamille, TFamilleStock> fa, QueryDTO params) {
+        List<Predicate> predicates = new ArrayList<>();
+        predicates.add(cb.equal(root.get(TFamille_.strSTATUT), Constant.STATUT_ENABLE));
+        predicates.add(cb.equal(fa.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), params.getEmplacementId()));
+
+        if (StringUtils.isNotEmpty(params.getQuery())) {
+            String search = params.getQuery() + "%";
+
+            predicates.add(cb.or(cb.like(root.get(TFamille_.intCIP), search), cb.like(st.get("strCODEARTICLE"), search),
+                    cb.like(root.get(TFamille_.strNAME), search),
+                    cb.like(root.get(TFamille_.codeEanFabriquant), search),
+                    cb.like(root.get(TFamille_.intEAN13), search), cb.like(root.get(TFamille_.lgFAMILLEID), search)));
+
+        }
+
+        return predicates;
+    }
+
     private long produitsCount(QueryDTO params) {
 
         try {
@@ -2607,21 +2634,10 @@ public class SalesServiceImpl implements SalesService {
             Root<TFamille> root = cq.from(TFamille.class);
             Join<TFamille, TFamilleGrossiste> st = root.join("tFamilleGrossisteCollection", JoinType.INNER);
             Join<TFamille, TFamilleStock> fa = root.join("tFamilleStockCollection", JoinType.INNER);
-            Predicate predicate = cb.conjunction();
-            if (StringUtils.isNotEmpty(params.getQuery())) {
-                String search = params.getQuery() + "%";
-                predicate = cb.and(predicate, cb.or(cb.like(root.get(TFamille_.strNAME), search),
-                        cb.like(root.get(TFamille_.intCIP), search), cb.like(root.get(TFamille_.intEAN13), search),
-                        cb.like(st.get("strCODEARTICLE"), search), cb.like(root.get(TFamille_.lgFAMILLEID), search),
-                        cb.like(root.get(TFamille_.strDESCRIPTION), search)));
-            }
-            predicate = cb.and(predicate, cb.equal(root.get(TFamille_.strSTATUT), "enable"));
-            predicate = cb.and(predicate,
-                    cb.equal(fa.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), params.getEmplacementId()));
 
             cq.select(cb.countDistinct(root));
-
-            cq.where(predicate);
+            List<Predicate> predicates = buildSearchProduitPredicats(cb, root, st, fa, params);
+            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
 
             Query q = this.getEm().createQuery(cq);
             return (Long) q.getSingleResult();
@@ -3508,7 +3524,7 @@ public class SalesServiceImpl implements SalesService {
             updateVente(venteModification, salesParams, tp);
             venteModification.setFinalClient(NumberUtils.formatIntToString(tp.getIntCUSTPART()));
         }
-
+        clientService.updateTiersPayantPriority(tp.getClient(), salesParams.getTierspayants());
         Map<String, Object> donneesMap = new HashMap<>();
         if (!venteModification.isEmpty()) {
             donneesMap.put(NotificationUtils.ITEMS.getId(), new JSONArray().put(new JSONObject(venteModification)));
@@ -3809,7 +3825,7 @@ public class SalesServiceImpl implements SalesService {
         newItem.setStrREFBON(numBon);
         newItem.setDblQUOTACONSOVENTE(0.0);
         newItem.setIntPERCENT(json.getInt("taux"));
-        newItem.setIntPRICERESTE(newItem.getIntPERCENT());
+        newItem.setIntPRICERESTE(newItem.getIntPRICERESTE());
         newItem.setStrSTATUTFACTURE("unpaid");
         getEm().persist(newItem);
         TCompteClient oCompteClient = payant.getLgCOMPTECLIENTID();
@@ -4481,21 +4497,9 @@ public class SalesServiceImpl implements SalesService {
         updateCompteClientTiersPayantEncourAndPlafond(payent);
     }
 
-    private boolean checkPlafondVente() {
-        if (Objects.isNull(Utils.plafondVenteIsActive)) {
-            try {
-                TParameters tp = getEm().find(TParameters.class, "KEY_ACTIVATION_PLAFOND_VENTE");
-                Utils.plafondVenteIsActive = (tp != null && tp.getStrVALUE().trim().equals("1"));
-            } catch (Exception e) {
-                LOG.log(Level.SEVERE, null, e);
-            }
-        }
-        return Utils.plafondVenteIsActive;
-    }
-
     @Override
     public JSONObject computeVONet(SalesParams params) {
-        MontantAPaye montant = computingService.computeVONet(params, checkPlafondVente());
+        MontantAPaye montant = computingService.computeVONet(params);
         JSONObject json = new JSONObject();
         json.put("hasRestructuring", montant.isRestructuring());
         json.put("success", true).put("msg", montant.getMessage());

@@ -50,4 +50,11 @@ public class LigneNReponse {
     public void setIndisponibilite(IndisponibiliteN indisponibilite) {
         this.indisponibilite = indisponibilite;
     }
+
+    @Override
+    public String toString() {
+        return "LigneNReponse{" + "codeProduit=" + codeProduit + ", quantiteLivree=" + quantiteLivree + ", prix=" + prix
+                + ", indisponibilite=" + indisponibilite + '}';
+    }
+
 }

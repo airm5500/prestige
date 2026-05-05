@@ -42,6 +42,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.ProductStateService;
+import rest.service.SessionHelperService;
 import rest.service.SuggestionService;
 import rest.service.dto.ArticleCsvDTO;
 import rest.service.dto.SuggestionDTO;
@@ -67,6 +68,8 @@ public class SuggestionImpl implements SuggestionService {
     private EntityManager em;
     @EJB
     private ProductStateService productStateService;
+    @EJB
+    private SessionHelperService sessionHelperService;
 
     public EntityManager getEmg() {
         return em;
@@ -1067,10 +1070,12 @@ public class SuggestionImpl implements SuggestionService {
     }
 
     @Override
-    public JSONObject fetchItems(String suggestionId, String searchValue, TUser tUser, int start, int limit) {
+    public JSONObject fetchItems(String suggestionId, String searchValue, int start, int limit) {
         // removeInBulk(supprimerLigneSuggestion(suggestionId));
+        TUser tUser = sessionHelperService.getCurrentUser();
         JSONObject data = new JSONObject();
         int count = fetchItemsCount(searchValue, suggestionId);
+
         if (count == 0) {
             return data.put("total", count).put("data", Collections.emptyList());
         }
@@ -1362,7 +1367,7 @@ public class SuggestionImpl implements SuggestionService {
                 new Object[] { suggestionId, emplacementId });
 
         List<String> idsToDelete = supprimerLigneSuggestion(suggestionId, emplacementId); // On passe l'ID de
-                                                                                          // l'emplacement
+        // l'emplacement
 
         if (CollectionUtils.isNotEmpty(idsToDelete)) {
             LOG.log(Level.INFO, "{0} lignes a supprimer pour la suggestion {1}",

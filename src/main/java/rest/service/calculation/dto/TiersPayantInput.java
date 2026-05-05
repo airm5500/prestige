@@ -11,6 +11,7 @@ public class TiersPayantInput {
     private String tiersPayantFullName;
     private float taux;
     private BigDecimal plafondConso;
+    private BigDecimal plafondCreditTiersPayant;
     private BigDecimal consoMensuelle = BigDecimal.ZERO;
     private BigDecimal plafondJournalierClient;
     private int priorite;
@@ -29,6 +30,14 @@ public class TiersPayantInput {
 
     public void setTiersPayantFullName(String tiersPayantFullName) {
         this.tiersPayantFullName = tiersPayantFullName;
+    }
+
+    public BigDecimal getPlafondCreditTiersPayant() {
+        return plafondCreditTiersPayant;
+    }
+
+    public void setPlafondCreditTiersPayant(BigDecimal plafondCreditTiersPayant) {
+        this.plafondCreditTiersPayant = plafondCreditTiersPayant;
     }
 
     public float getTaux() {

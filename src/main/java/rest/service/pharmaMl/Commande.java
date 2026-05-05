@@ -57,4 +57,10 @@ public class Commande {
         this.normale = normale;
     }
 
+    @Override
+    public String toString() {
+        return "Commande{" + "refCdeClient=" + refCdeClient + ", commentaireGeneral=" + commentaireGeneral
+                + ", dateLivraison=" + dateLivraison + ", normale=" + normale + '}';
+    }
+
 }

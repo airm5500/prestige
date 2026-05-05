@@ -8,6 +8,9 @@ package rest;
 import commonTasks.dto.ArticleDTO;
 import dal.TUser;
 import enumeration.MargeEnum;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import javax.ejb.EJB;
 import javax.inject.Inject;
@@ -154,6 +157,76 @@ public class DataReporingRessource {
         List<ArticleDTO> datas = dataReporingService.statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, tu,
                 codeRayon, codeGrossiste, stock, filtre, 0, 0, true);
         JSONObject jsono = suggestionService.makeSuggestionFromArticleInvendus(datas, tu);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    @GET
+    @Path("articleInvendus/csv")
+    @Produces("text/csv")
+    public Response exportArticlesInvendusCsv(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
+            @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre) throws IOException, JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        byte[] data = dataReporingService.exportArticlesInvendusCsv(dtStart, dtEnd, codeFamile, query, tu, codeRayon,
+                codeGrossiste, stock, stockFiltre);
+
+        String filename = "articles-invendus_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".csv";
+
+        return Response.ok(data, "text/csv; charset=UTF-8").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename=" + filename).build();
+    }
+
+    @GET
+    @Path("articleInvendus/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportArticlesInvendusExcel(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
+            @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre) throws IOException, JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        byte[] data = dataReporingService.exportArticlesInvendusExcel(dtStart, dtEnd, codeFamile, query, tu, codeRayon,
+                codeGrossiste, stock, stockFiltre);
+
+        String filename = "articles-invendus_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".xls";
+
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename=" + filename).build();
+    }
+
+    @GET
+    @Path("articleInvendus/create-inventaire")
+    public Response createInventaireArticlesInvendus(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
+            @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre) throws JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        JSONObject jsono = dataReporingService.createInventaireArticlesInvendus(dtStart, dtEnd, codeFamile, query, tu,
+                codeRayon, codeGrossiste, stock, stockFiltre);
+
         return Response.ok().entity(jsono.toString()).build();
     }
 }

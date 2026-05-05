@@ -60,6 +60,7 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.persistence.CacheRetrieveMode;
 import javax.persistence.TypedQuery;
 import org.apache.commons.lang3.StringUtils;
 import toolkits.parameters.commonparameter;
@@ -1933,12 +1934,14 @@ public class factureManagement extends bll.bllBase {
             if (StringUtils.isNotEmpty(code)) {
                 return this.getOdataManager().getEm().createQuery(String.format(
                         "SELECT t FROM TFacture t WHERE t.strCODEFACTURE LIKE ?1 AND ( t.template <> TRUE OR t.template IS NULL) %s",
-                        impayerClause)).setParameter(1, code + "%").getResultList();
+                        impayerClause)).setParameter(1, code + "%")
+                        .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
             } else {
                 TypedQuery<TFacture> q = this.getOdataManager().getEm()
-                        .createQuery(String.format(query, impayerClause), TFacture.class).setParameter(1, idFacture)
-                        .setParameter(2, searchValue + "%").setParameter(6, dtDebut).setParameter(7, dtFin)
-                        .setParameter(8, strCUSTOMER);
+                        .createQuery(String.format(query, impayerClause), TFacture.class)
+                        .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)
+                        .setParameter(1, idFacture).setParameter(2, searchValue + "%").setParameter(6, dtDebut)
+                        .setParameter(7, dtFin).setParameter(8, strCUSTOMER);
                 if (limit > 0) {
                     q.setFirstResult(start).setMaxResults(limit);
                 }

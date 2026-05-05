@@ -183,14 +183,14 @@ Ext.define('testextjs.view.vente.depot.StatVenteDepot', {
                 {
                     xtype: 'gridpanel',
 
-                    plugins: [{
+                    /*plugins: [{
                             ptype: 'rowexpander',
                             rowBodyTpl: new Ext.XTemplate(
                                     '<p>{details}</p>'
 
                                     )
                         }
-                    ],
+                    ],*/
                     store: vente,
 
                     viewConfig: {
@@ -270,6 +270,7 @@ Ext.define('testextjs.view.vente.depot.StatVenteDepot', {
                             dataIndex: 'userCaissierName',
                             flex: 1
                         },
+                        // 1) Ticket
                         {
                             xtype: 'actioncolumn',
                             width: 30,
@@ -277,15 +278,31 @@ Ext.define('testextjs.view.vente.depot.StatVenteDepot', {
                             menuDisabled: true,
                             items: [{
                                     icon: 'resources/images/icons/fam/printer.png',
-                                    tooltip: 'Re -imprimer le ticket',
-                                    menuDisabled: true,
+                                    tooltip: 'Re-imprimer le ticket',
                                     scope: me,
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
-                                        this.fireEvent('printTicket', view, rowIndex, colIndex, item, e, record, row);
+                                        view.up('ventehistoriquedepotmanager').fireEvent('printTicket', view, rowIndex, colIndex, item, e, record, row);
                                     }
-
                                 }]
                         },
+
+                        // 2) Détails produits
+                        {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/application_view_list.png', // ou une icône existante chez toi
+                                    tooltip: 'Voir les produits',
+                                    scope: me,
+                                    handler: function (view, rowIndex, colIndex, item, e, record) {
+                                        view.up('ventehistoriquedepotmanager').fireEvent('showProduits', record);
+                                    }
+                                }]
+                        },
+
+                        // 3) Facture
                         {
                             xtype: 'actioncolumn',
                             width: 30,
@@ -294,21 +311,16 @@ Ext.define('testextjs.view.vente.depot.StatVenteDepot', {
                             items: [{
                                     icon: 'resources/images/icons/fam/page_copy.png',
                                     tooltip: 'Re-imprimer la facture',
-                                    scope: me, handler: function (view, rowIndex, colIndex, item, e, record, row) {
-                                        this.fireEvent('facture', view, rowIndex, colIndex, item, e, record, row);
+                                    scope: me,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        view.up('ventehistoriquedepotmanager').fireEvent('facture', view, rowIndex, colIndex, item, e, record, row);
                                     },
                                     getClass: function (value, metadata, record) {
-                                        if (record.get('cancel')) {
+                                        if (record.get('cancel') || record.get('intPRICE') <= 0) {
                                             return 'x-hide-display';
-                                        } else {
-                                            if (record.get('intPRICE') <= 0) {
-                                                return 'x-hide-display';
-                                            } else {
-                                                return 'x-display-hide';
-                                            }
                                         }
+                                        return ''; // ⚠️ pas x-display-hide
                                     }
-
                                 }]
                         }
 

@@ -125,11 +125,21 @@ public class TFacture implements Serializable {
     private Integer typeFacture = 0;
     @Column(name = "type_facture_id", length = 50)
     private String typeFactureId;
+    @Column(name = "fne_url", length = 500)
+    private String fneUrl;
     @JoinColumn(name = "groupeTp_id", referencedColumnName = "lg_GROUPE_ID")
     @ManyToOne
     private TGroupeTierspayant groupeTierspayant;
 
     public TFacture() {
+    }
+
+    public String getFneUrl() {
+        return fneUrl;
+    }
+
+    public void setFneUrl(String fneUrl) {
+        this.fneUrl = fneUrl;
     }
 
     public TGroupeTierspayant getGroupeTierspayant() {

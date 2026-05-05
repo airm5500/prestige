@@ -730,7 +730,12 @@ Ext.application({
         'testextjs.view.notification.RecapSms',
         'testextjs.view.ticketzrecap',
         'testextjs.view.modereglement.ModeReglementGrid',
-        'testextjs.view.modereglement.ModeReglementView'
+        'testextjs.view.modereglement.ModeReglementView',
+        'testextjs.view.stat.ArticleMvtGrid',
+        'testextjs.store.ArticleMvtStore',
+        'testextjs.model.ArticleMvt'
+
+
         
     ],
     controllers: [
@@ -804,7 +809,9 @@ Ext.application({
         'StatVenteDepotCtr',
         'CautionCtr',
         'BalanceSaleCashDepotController',
-        'PointCaisseController'
+        'PointCaisseController',
+        'ArticleMvtController'
+
 
     ],
     stores: [

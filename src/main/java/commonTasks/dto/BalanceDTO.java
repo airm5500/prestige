@@ -43,6 +43,7 @@ public class BalanceDTO implements Serializable {
     private long montantMoov;
     private long montantMtn;
     private long montantWave;
+    private long montantDjamo;
     private long totalModeReglement;
     private String depotName;
 
@@ -87,6 +88,15 @@ public class BalanceDTO implements Serializable {
 
     public BalanceDTO setMontantWave(long montantWave) {
         this.montantWave = montantWave;
+        return this;
+    }
+
+    public long getMontantDjamo() {
+        return montantDjamo;
+    }
+
+    public BalanceDTO setMontantDjamo(long montantDjamo) {
+        this.montantDjamo = montantDjamo;
         return this;
     }
 

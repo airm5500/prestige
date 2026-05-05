@@ -52,21 +52,26 @@ public class InfoArticleServiceImpl implements InfoArticleService {
     }
 
     private String getQuery() {
-        return "SELECT g.str_LIBELLE AS grossiste, z.str_LIBELLEE AS emplacement, p.lg_FAMILLE_ID AS produitId, p.int_CIP AS codeCip, p.str_NAME AS libelle, "
-                + "p.int_PRICE AS prixVente, p.int_PAF AS prixAchat, f.int_NUMBER AS stock, "
-                + "SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END) AS quantiteVendue, "
-                + "ROUND(SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END)/3, 2) AS moyenne, "
-                + "GROUP_CONCAT(venteDetail.quantiteVendue, ':', venteDetail.dateVente) AS quantite_mois "
-                + "FROM t_famille p " + "JOIN t_zone_geographique z ON p.lg_ZONE_GEO_ID = z.lg_ZONE_GEO_ID "
-                + "JOIN t_grossiste g ON p.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID "
-                + "JOIN t_famille_stock f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID " + "JOIN ( "
-                + "  SELECT d.lg_FAMILLE_ID AS produitId, SUM(d.int_QUANTITY) AS quantiteVendue, MONTH(v.dt_UPDATED) AS dateVente "
-                + "  FROM t_preenregistrement_detail d "
-                + "  JOIN t_preenregistrement v ON d.lg_PREENREGISTREMENT_ID = v.lg_PREENREGISTREMENT_ID "
-                + "  WHERE v.b_IS_CANCEL = 0 AND v.str_STATUT = 'is_Closed' AND v.int_PRICE > 0 AND DATE(v.dt_UPDATED) BETWEEN ?1 AND CURDATE() "
-                + "  GROUP BY d.lg_FAMILLE_ID, MONTH(v.dt_UPDATED) "
-                + ") AS venteDetail ON p.lg_FAMILLE_ID = venteDetail.produitId "
-                + "WHERE p.str_STATUT = 'enable' AND (p.int_CIP LIKE ?2 OR p.str_NAME LIKE ?3) "
-                + "GROUP BY p.lg_FAMILLE_ID " + "ORDER BY p.str_NAME;";
+        return "SELECT \n" + "  g.str_LIBELLE AS grossiste,\n" + "  z.str_LIBELLEE AS emplacement,\n"
+                + "  p.lg_FAMILLE_ID AS produitId,\n" + "  p.int_CIP AS codeCip,\n" + "  p.str_NAME AS libelle,\n"
+                + "  p.int_PRICE AS prixVente,\n" + "  p.int_PAF AS prixAchat,\n" + "  f.int_NUMBER AS stock,\n"
+                + "  vAgg.quantiteVendue,\n" + "  vAgg.moyenne,\n" + "  vAgg.quantite_mois\n" + "FROM t_famille p\n"
+                + "JOIN t_zone_geographique z ON p.lg_ZONE_GEO_ID = z.lg_ZONE_GEO_ID\n"
+                + "JOIN t_grossiste g ON p.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID\n"
+                + "JOIN t_famille_stock f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID\n" + "LEFT JOIN (\n" + "   SELECT \n"
+                + "     produitId,\n"
+                + "     SUM(CASE WHEN mois <> MONTH(CURDATE()) THEN qte ELSE 0 END) AS quantiteVendue,\n"
+                + "     ROUND(SUM(CASE WHEN mois <> MONTH(CURDATE()) THEN qte ELSE 0 END)/3, 2) AS moyenne,\n"
+                + "     GROUP_CONCAT(CONCAT(qte, ':', mois) ORDER BY mois DESC) AS quantite_mois\n" + "   FROM (\n"
+                + "      SELECT \n" + "        d.lg_FAMILLE_ID AS produitId,\n"
+                + "        SUM(d.int_QUANTITY) AS qte,\n" + "        MONTH(v.dt_UPDATED) AS mois\n"
+                + "      FROM t_preenregistrement_detail d\n"
+                + "      JOIN t_preenregistrement v ON d.lg_PREENREGISTREMENT_ID = v.lg_PREENREGISTREMENT_ID\n"
+                + "      WHERE v.b_IS_CANCEL = 0\n" + "        AND v.str_STATUT = 'is_Closed'\n"
+                + "        AND v.int_PRICE > 0\n" + "        AND DATE(v.dt_UPDATED) BETWEEN ?1 AND CURDATE()\n"
+                + "      GROUP BY d.lg_FAMILLE_ID, MONTH(v.dt_UPDATED)\n" + "   ) x\n" + "   GROUP BY produitId\n"
+                + ") vAgg ON vAgg.produitId = p.lg_FAMILLE_ID\n" + "WHERE p.str_STATUT = 'enable'\n"
+                + "  AND (p.int_CIP LIKE ?2 OR p.str_NAME LIKE ?3)\n" + "GROUP BY p.lg_FAMILLE_ID\n"
+                + "ORDER BY p.str_NAME;";
     }
 }

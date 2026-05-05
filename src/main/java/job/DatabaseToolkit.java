@@ -17,43 +17,25 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.ejb.EJB;
-import javax.ejb.EJBException;
 import javax.ejb.ScheduleExpression;
-import javax.ejb.Singleton;
-import javax.ejb.Startup;
 import javax.ejb.Timeout;
 import javax.ejb.Timer;
 import javax.ejb.TimerConfig;
 import javax.ejb.TimerService;
-import javax.ejb.TransactionManagement;
-import javax.ejb.TransactionManagementType;
-import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.inject.Inject;
-import javax.mail.Address;
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
-import javax.sql.DataSource;
 import javax.transaction.HeuristicMixedException;
 import javax.transaction.HeuristicRollbackException;
 import javax.transaction.NotSupportedException;
@@ -69,8 +51,6 @@ import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
-import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.FlywayException;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.NotificationService;
@@ -81,16 +61,13 @@ import util.AppParameters;
  *
  * @author Kobena
  */
-@Singleton
-@Startup
-@TransactionManagement(value = TransactionManagementType.BEAN)
+// @Singleton
+// @Startup
+// @TransactionManagement(value = TransactionManagementType.BEAN)
 public class DatabaseToolkit {
 
     private static final Logger LOG = Logger.getLogger(DatabaseToolkit.class.getName());
-    @Resource(mappedName = "jdbc/__laborex_pool")
-    private DataSource dataSource;
-    @Resource(name = "concurrent/__defaultManagedExecutorService")
-    ManagedExecutorService mes;
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @Resource
@@ -100,23 +77,11 @@ public class DatabaseToolkit {
     @EJB
     private NotificationService notificationService;
 
-    @PostConstruct
+    // @PostConstruct
     public void init() {
-        if (dataSource == null) {
-            LOG.info("no datasource found to execute the db migrations!");
-            throw new EJBException("no datasource found to execute the db migrations!");
-        }
-        try {
-            Flyway flyway = Flyway.configure().dataSource(dataSource).baselineOnMigrate(true)
-                    .ignoreMissingMigrations(true).outOfOrder(true).cleanOnValidationError(true)
-                    .validateOnMigrate(false).ignoreFutureMigrations(true).load();
-            flyway.migrate();
-        } catch (FlywayException e) {
-            LOG.log(Level.SEVERE, "ini migration", e);
-        }
 
         createTimer();
-        mes.submit(this::updateStockDailyValue);
+        // mes.submit(this::updateStockDailyValue);
 
     }
 
@@ -148,26 +113,6 @@ public class DatabaseToolkit {
         final TimerConfig sms = new TimerConfig("sms", false);
         timerService.createCalendarTimer(new ScheduleExpression().minute("*/2").hour("*").dayOfMonth("*").year("*"),
                 sms);
-    }
-
-    private void manageEmail() {
-        List<Notification> data = findByStatut(Statut.NOT_SEND).stream()
-                .filter(e -> e.getNotificationClients().isEmpty()).collect(Collectors.toList());
-        boolean result = sendMail(buildEmailContent(data), null, "Resumé activité prestige 2");
-        if (result) {
-            try {
-                userTransaction.begin();
-                data.stream().forEach(e -> {
-                    e.setStatut(Statut.SENT);
-                    e.setModfiedAt(LocalDateTime.now());
-                    em.merge(e);
-                });
-                userTransaction.commit();
-            } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
-                    | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
-                LOG.log(Level.SEVERE, null, ex);
-            }
-        }
     }
 
     private void sendSMS(Notification notification) {
@@ -217,31 +162,6 @@ public class DatabaseToolkit {
 
     }
 
-    private List<Notification> findByCreatedAtAndStatut() {
-        try {
-            TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByCreatedAtAndStatus",
-                    Notification.class);
-            q.setParameter("createdAt", LocalDateTime.parse(LocalDate.now().toString() + " " + "00:00",
-                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-            q.setParameter("statut", Statut.NOT_SEND);
-            return q.getResultList();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
-        }
-    }
-
-    private List<Notification> findByStatut(Statut statut) {
-        try {
-            TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByStatus", Notification.class);
-            q.setParameter("statut", statut);
-            return q.getResultList();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
-        }
-    }
-
     private List<Notification> findAllByCanal() {
         try {
             TypedQuery<Notification> q = em.createNamedQuery("Notification.findAllByCreatedAtAndStatusAndCanal",
@@ -285,7 +205,6 @@ public class DatabaseToolkit {
         } else if ("email".equals(timer.getInfo())) {
 
             notificationService.sendMail();
-            // manageEmail();
 
         }
     }
@@ -299,44 +218,6 @@ public class DatabaseToolkit {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
-        }
-    }
-
-    private boolean sendMail(String content, String email, String subject) {
-        if (StringUtils.isEmpty(content)) {
-            return false;
-        }
-        AppParameters sp = AppParameters.getInstance();
-        Properties props = new Properties();
-        props.put("mail.smtp.host", sp.smtpHost);
-        props.put("mail.transport.protocol", sp.protocol);
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.port", "25");
-        props.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
-        Session session = Session.getInstance(props);
-        MimeMessage msg = new MimeMessage(session);
-        try {
-            List<Address> listadd = new ArrayList<>();
-            if (StringUtils.isEmpty(email)) {
-                email = sp.mailOfficine;
-                String[] emails = email.split(";");
-                for (String email1 : emails) {
-                    listadd.add(new InternetAddress(email1));
-                }
-            }
-            Address[] recipient = new InternetAddress[listadd.size()];
-            recipient = listadd.toArray(recipient);
-            Address sender = new InternetAddress(sp.email);
-            msg.setContent(content, "text/html; charset=utf-8");
-            msg.setFrom(sender);
-            msg.setRecipients(Message.RecipientType.TO, recipient);
-            msg.setSubject(subject);
-            Transport.send(msg, sp.email, sp.password);
-            return true;
-        } catch (MessagingException ex) {
-            LOG.log(Level.SEVERE, null, ex);
-            return false;
         }
     }
 

@@ -16,6 +16,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -31,6 +32,10 @@ import rest.service.SuggestionService;
 import rest.service.dto.UpdateProduit;
 import toolkits.parameters.commonparameter;
 import util.Constant;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import org.json.JSONException;
 
 /**
  *
@@ -54,10 +59,11 @@ public class FicheArticleRessource {
             @QueryParam(value = "codeFamile") String codeFamile, @QueryParam(value = "query") String query,
             @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
 
         JSONObject jsono = ficheArticleService.produitPerimes(query, nbreMois, dtStart, dtEnd, codeFamile, codeRayon,
-                codeGrossiste, 0, 0);
+                codeGrossiste, start, limit);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -190,6 +196,73 @@ public class FicheArticleRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    @GET
+    @Path("saisieperimes/csv")
+    @Produces("text/csv")
+    public Response exportSaisiePerimesCsv(@QueryParam(value = "codeFamile") String codeFamile,
+            @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws IOException, JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        byte[] data = ficheArticleService.exportSaisiePerimesCsv(query, dtStart, dtEnd, codeFamile, codeRayon,
+                codeGrossiste);
+
+        String filename = "saisie-perimes_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".csv";
+
+        return Response.ok(data, "text/csv; charset=UTF-8").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename=" + filename).build();
+    }
+
+    @GET
+    @Path("saisieperimes/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportSaisiePerimesExcel(@QueryParam(value = "codeFamile") String codeFamile,
+            @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws IOException, JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        byte[] data = ficheArticleService.exportSaisiePerimesExcel(query, dtStart, dtEnd, codeFamile, codeRayon,
+                codeGrossiste);
+
+        String filename = "saisie-perimes_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".xls";
+
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename=" + filename).build();
+    }
+
+    @GET
+    @Path("saisieperimes/create-inventaire")
+    public Response createInventaireSaisiePerimes(@QueryParam(value = "codeFamile") String codeFamile,
+            @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        JSONObject json = ficheArticleService.createInventaireSaisiePerimes(query, dtStart, dtEnd, codeFamile,
+                codeRayon, codeGrossiste);
+
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @POST
     @Path("add-lot")
     public Response addLot(AddLot addLot) {
@@ -204,4 +277,68 @@ public class FicheArticleRessource {
         ficheArticleService.updateProduitLiteInfo(updateProduit);
         return Response.accepted().build();
     }
+
+    @GET
+    @Path("comparaison/csv")
+    @Produces("text/csv")
+    public Response exportComparaisonCsv(@QueryParam("seuil") int seuil, @QueryParam("codeFamile") String codeFamile,
+            @QueryParam("query") String query, @QueryParam("codeRayon") String codeRayon,
+            @QueryParam("codeGrossiste") String codeGrossiste, @QueryParam("filtreSeuil") MargeEnum filtreSeuil,
+            @QueryParam("filtreStock") MargeEnum filtreStock, @QueryParam("stock") int stock) throws JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        byte[] data = ficheArticleService.buildComparaisonCsv(tu, query, filtreStock, filtreSeuil, codeFamile,
+                codeRayon, codeGrossiste, stock, seuil);
+
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"comparaison_stock.csv\"")
+                .build();
+    }
+
+    @GET
+    @Path("comparaison/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportComparaisonExcel(@QueryParam("seuil") int seuil, @QueryParam("codeFamile") String codeFamile,
+            @QueryParam("query") String query, @QueryParam("codeRayon") String codeRayon,
+            @QueryParam("codeGrossiste") String codeGrossiste, @QueryParam("filtreSeuil") MargeEnum filtreSeuil,
+            @QueryParam("filtreStock") MargeEnum filtreStock, @QueryParam("stock") int stock) throws JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        byte[] data = ficheArticleService.buildComparaisonExcel(tu, query, filtreStock, filtreSeuil, codeFamile,
+                codeRayon, codeGrossiste, stock, seuil);
+
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"comparaison_stock.xls\"")
+                .build();
+    }
+
+    @GET
+    @Path("comparaison/inventaire")
+    @Produces("application/json")
+    public Response createInventaireComparaison(@QueryParam("seuil") int seuil,
+            @QueryParam("codeFamile") String codeFamile, @QueryParam("query") String query,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("filtreSeuil") MargeEnum filtreSeuil, @QueryParam("filtreStock") MargeEnum filtreStock,
+            @QueryParam("stock") int stock) throws JSONException {
+
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        JSONObject json = ficheArticleService.createInventaireComparaison(tu, query, filtreStock, filtreSeuil,
+                codeFamile, codeRayon, codeGrossiste, stock, seuil);
+
+        return Response.ok(json.toString()).build();
+    }
+
 }

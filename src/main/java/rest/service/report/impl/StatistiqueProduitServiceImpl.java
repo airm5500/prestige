@@ -152,6 +152,7 @@ public class StatistiqueProduitServiceImpl implements StatistiqueProduitService 
                 .fevrier(t.get("fevrier", BigDecimal.class).intValue()).mars(t.get("mars", BigDecimal.class).intValue())
                 .avril(t.get("avril", BigDecimal.class).intValue()).mai(t.get("mai", BigDecimal.class).intValue())
                 .juin(t.get("juin", BigDecimal.class).intValue()).juillet(t.get("juillet", BigDecimal.class).intValue())
+                .aout(t.get("aout", BigDecimal.class).intValue())
                 .septembre(t.get("septembre", BigDecimal.class).intValue())
                 .octobre(t.get("octobre", BigDecimal.class).intValue())
                 .novembre(t.get("novembre", BigDecimal.class).intValue())

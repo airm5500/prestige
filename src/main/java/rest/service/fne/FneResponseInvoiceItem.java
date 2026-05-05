@@ -12,7 +12,7 @@ public class FneResponseInvoiceItem {
     private int quantity;
     private String reference;
     private String description;
-    private Integer amount;
+    private Double amount;
     private List<FneResponseTaxe> taxes;
 
     public String getId() {
@@ -47,11 +47,11 @@ public class FneResponseInvoiceItem {
         this.description = description;
     }
 
-    public Integer getAmount() {
+    public Double getAmount() {
         return amount;
     }
 
-    public void setAmount(Integer amount) {
+    public void setAmount(Double amount) {
         this.amount = amount;
     }
 

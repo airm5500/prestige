@@ -251,6 +251,7 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
                     caisseRecette.setMontantEspece(montant);
                     break;
                 case Constant.MODE_WAVE:
+                case Constant.MODE_DJAMO:
                 case Constant.MODE_MTN:
                 case Constant.MODE_MOOV:
                 case Constant.TYPE_REGLEMENT_ORANGE:

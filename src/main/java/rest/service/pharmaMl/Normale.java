@@ -24,4 +24,9 @@ public class Normale {
         this.lignes = lignes;
     }
 
+    @Override
+    public String toString() {
+        return "Normale{" + "lignes=" + lignes + '}';
+    }
+
 }

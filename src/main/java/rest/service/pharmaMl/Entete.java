@@ -56,4 +56,10 @@ public class Entete {
         this.date = date;
     }
 
+    @Override
+    public String toString() {
+        return "Entete{" + "emetteur=" + emetteur + ", recepteur=" + recepteur + ", refMessage=" + refMessage
+                + ", date=" + date + '}';
+    }
+
 }

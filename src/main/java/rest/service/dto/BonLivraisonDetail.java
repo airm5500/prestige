@@ -1,6 +1,7 @@
 package rest.service.dto;
 
 import commonTasks.dto.FamilleDTO;
+import dal.TZoneGeographique;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -59,5 +60,14 @@ public class BonLivraisonDetail {
     private Integer prixTarif;
 
     private Integer prixUni;
+
     private int montantAvoir;
+
+    private Integer quantiteControle;
+
+    private Boolean checked;
+
+    private TZoneGeographique lgZONEGEOID;
+
+    private String lgZONEGEONom;
 }

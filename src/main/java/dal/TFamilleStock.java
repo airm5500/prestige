@@ -23,7 +23,7 @@ import javax.persistence.TemporalType;
 import javax.persistence.Version;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
-import toolkits.parameters.commonparameter;
+import util.Constant;
 
 /**
  *
@@ -61,7 +61,7 @@ public class TFamilleStock implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATED = new Date();
     @Column(name = "str_STATUT", length = 20)
-    private String strSTATUT = commonparameter.statut_enable;
+    private String strSTATUT = Constant.STATUT_ENABLE;
     @JoinColumn(name = "lg_FAMILLE_ID", referencedColumnName = "lg_FAMILLE_ID", nullable = false)
     @ManyToOne(optional = false)
     private TFamille lgFAMILLEID;

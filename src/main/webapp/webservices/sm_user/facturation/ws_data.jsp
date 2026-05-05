@@ -96,8 +96,11 @@
     boolean ACTION_REGLER_FACTURE = DateConverter.hasAuthorityById(LstTPrivilege, Util.ACTION_REGLER_FACTURE);
 
     for (TFacture of : lstTFacture) {
+        
         TTiersPayant OTTiersPayant = (TTiersPayant) OfactureManagement.getgetOrganisme(of.getLgTYPEFACTUREID().getLgTYPEFACTUREID(), of.getStrCUSTOMER());
         JSONObject json = new JSONObject();
+
+        json.put("fneUrl", of.getFneUrl());
         json.put("lg_FACTURE_ID", of.getLgFACTUREID());
         json.put("str_CODE_FACTURE", of.getStrCODEFACTURE());
         json.put("int_NB_DOSSIER", of.getIntNBDOSSIER());

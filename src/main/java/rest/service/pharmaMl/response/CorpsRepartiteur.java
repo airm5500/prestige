@@ -15,4 +15,10 @@ public class CorpsRepartiteur {
     public void setRepCommande(RepCommande repCommande) {
         this.repCommande = repCommande;
     }
+
+    @Override
+    public String toString() {
+        return "CorpsRepartiteur{" + "repCommande=" + repCommande + '}';
+    }
+
 }

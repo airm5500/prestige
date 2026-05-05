@@ -40,4 +40,10 @@ public class TiersPayantLineOutput {
         this.numBon = numBon;
     }
 
+    @Override
+    public String toString() {
+        return "TiersPayantLineOutput{" + "clientTiersPayantId=" + clientTiersPayantId + ", numBon=" + numBon
+                + ", montant=" + montant + ", finalTaux=" + finalTaux + '}';
+    }
+
 }

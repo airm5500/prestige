@@ -164,10 +164,12 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.ajustementManage
                     text: 'Faire un ajustement',
                     iconCls: 'addicon',
                     scope: this,
+                    cls: 'btn-primary',
                     handler: this.onAddClick
                 }, '-', {
                     xtype: 'textfield',
                     id: 'rechecher',
+                    cls: 'btn-primaryb',
                     enableKeyEvents: true,
                     emptyText: 'Rech',
                     listeners: {

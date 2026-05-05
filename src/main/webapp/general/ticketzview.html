@@ -101,13 +101,29 @@
             </div>
 
             <div class="card-body">
-              <div class="btn-group" role="group">
-                <button id="afficher" type="button" class="btn btn-outline-primary btn-sm">Afficher</button>
-                <button id="send-sms" type="button" class="btn btn-outline-warning btn-sm">Envoyer SMS</button>
-                <button id="imprimer" type="button" class="btn btn-outline-success btn-sm">Imprimer</button>
-                <button id="preview" type="button" class="btn btn-outline-secondary btn-sm">Aperçu</button>
-              </div>
+                <!-- Colonne : groupe (3) puis Aperçu centré dessous -->
+                <div class="d-flex flex-column">
+                    <!-- Les 3 boutons sur la même ligne -->
+                    <div class="btn-group" role="group">
+                        <button id="afficher" type="button" class="btn btn-outline-primary btn-sm">Afficher</button>
+                        <button id="send-sms" type="button" class="btn btn-outline-warning btn-sm">Envoyer SMS</button>
+                        <button id="imprimer" type="button" class="btn btn-outline-success btn-sm">Imprimer</button>
+                    </div>
+
+                    <!-- Bouton Aperçu centré avec icône œil -->
+                    <div class="d-flex justify-content-center mt-2">
+                        <button id="preview" type="button" class="btn btn-outline-secondary btn-sm">
+                            <svg class="bi me-1" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                            <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8z"/>
+                            <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+                            </svg>
+                            Aperçu
+                        </button>
+                    </div>
+                </div>
             </div>
+
+
 
           </div>
         </div>
@@ -211,17 +227,6 @@
           </div>
         `;
       }
-
-      document.getElementById('imprimer').addEventListener('click', function () {
-        const printable = document.getElementById('printable');
-        const header = buildPrintHeaderHTML();
-        let body = document.getElementById('ticket-container').innerHTML || '<p style="padding:1rem">Aucune donnée</p>';
-        body = protectNumbers(body); // fige les nombres sur une ligne
-        printable.innerHTML = `<div class="print-page">${header}${body}</div>`;
-        printable.classList.remove('d-none');
-        window.print();
-        setTimeout(() => printable.classList.add('d-none'), 300);
-      });
 
       document.getElementById('preview').addEventListener('click', function () {
         const header = buildPrintHeaderHTML();

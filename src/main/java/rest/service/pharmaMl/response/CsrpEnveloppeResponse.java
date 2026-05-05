@@ -17,4 +17,10 @@ public class CsrpEnveloppeResponse {
     public void setCorps(CorpsResponse corps) {
         this.corps = corps;
     }
+
+    @Override
+    public String toString() {
+        return "CsrpEnveloppeResponse{" + "corps=" + corps + '}';
+    }
+
 }

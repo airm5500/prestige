@@ -1,17 +1,24 @@
 package rest.service.impl;
 
+import com.google.common.collect.HashBiMap;
+import commonTasks.dto.MontantAPaye;
+import commonTasks.dto.TiersPayantParams;
 import dal.TFamille;
 import dal.TFamilleGrossiste;
 import dal.TGrossiste;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import dal.TPreenregistrement;
+import dal.TPreenregistrementCompteClientTiersPayent;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -19,6 +26,7 @@ import javax.persistence.Tuple;
 import org.apache.commons.collections4.CollectionUtils;
 import org.json.JSONObject;
 import rest.service.MainteanceService;
+import rest.service.SalesNetComputingService;
 import rest.service.dto.DoublonsDTO;
 import util.DateUtil;
 import util.FunctionUtils;
@@ -37,6 +45,8 @@ public class MainteanceServiceImpl implements MainteanceService {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @EJB
+    private SalesNetComputingService computingService;
 
     private List<DoublonsDTO> familleProduit(Tuple tuple) {
 
@@ -111,348 +121,60 @@ public class MainteanceServiceImpl implements MainteanceService {
         addNexConstraint();
     }
 
-    private class MvtTransactionDTO {
+    @Override
+    public int updateVoAmount() {
+        AtomicInteger count = new AtomicInteger(0);
+        try {
 
-        private final String uuid;
-        private final Integer montant;
-        private final Integer montantRestant;
-        private final Integer montantRegle;
-        private final Integer montantCredit;
+            ((List<Tuple>) em.createNativeQuery(
+                    "SELECT  distinct pr.lg_PREENREGISTREMENT_ID FROM t_preenregistrement_compte_client_tiers_payent p JOIN t_preenregistrement pr ON pr.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID WHERE RIGHT(CAST(p.int_PERCENT AS CHAR), 1) IN ('1','2', '3','4','6', '7', '9') AND    pr.str_STATUT='is_Closed' AND pr.dt_CREATED > '2025-09-01'  AND p.str_STATUT_FACTURE='unpaid'  AND pr.b_IS_CANCEL =FALSE AND pr.int_PRICE >0",
+                    Tuple.class).getResultList()).forEach(t -> {
+                        count.incrementAndGet();
+                        String idVente = t.get(0, String.class);
+                        TPreenregistrement preenregistrement = em.find(TPreenregistrement.class, idVente);
 
-        private final Integer montantNet;
+                        List<TPreenregistrementCompteClientTiersPayent> compteClientTiersPayents = new ArrayList<>(
+                                preenregistrement.getTPreenregistrementCompteClientTiersPayentCollection());
 
-        private final Integer montantRemise;
+                        Map<String, List<TiersPayantParams>> tpsBons = new HashMap<>();
+                        for (TPreenregistrementCompteClientTiersPayent compteClientTiersPayent : compteClientTiersPayents) {
 
-        private final Integer montantPaye;
+                            int lastDigit = compteClientTiersPayent.getIntPERCENT() % 10;
+                            int finalTaux = compteClientTiersPayent.getIntPERCENT();
 
-        private final Integer avoidAmount;
+                            if (lastDigit == 4) {
+                                finalTaux += 1;
+                            } else if (lastDigit < 4) {
+                                finalTaux -= lastDigit;
+                            } else if (lastDigit == 6) {
+                                finalTaux -= 1;
+                            } else if (lastDigit == 7) {
+                                finalTaux -= 2;
+                            } else if (lastDigit == 8) {
+                                finalTaux += 2;
+                            } else if (lastDigit == 9) {
+                                finalTaux += 1;
+                            }
 
-        private final Integer montantAcc;
+                            TiersPayantParams params = new TiersPayantParams();
+                            params.setLgCOMPTECLIENTID(compteClientTiersPayent.getLgCOMPTECLIENTTIERSPAYANTID()
+                                    .getLgCOMPTECLIENTTIERSPAYANTID());
+                            params.setNumBon(compteClientTiersPayent.getStrREFBON());
+                            params.setTaux(finalTaux);
+                            params.setCompteTp(params.getLgCOMPTECLIENTID());
+                            compteClientTiersPayent.setIntPERCENT(finalTaux);
+                            tpsBons.put(params.getCompteTp(), List.of(params));
+                        }
 
-        private final Boolean checked;
+                        computingService.calculeRepair(preenregistrement, compteClientTiersPayents, tpsBons);
 
-        private final LocalDate mvtDate;
+                    });
 
-        private final LocalDateTime createdAt;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
 
-        private final String user;
-
-        private final String magasin;
-
-        private final String reglement;
-
-        private final String tTypeMvtCaisse;
-
-        private final Integer typeTransaction;
-
-        private final Integer categoryTransaction;
-
-        private final String pkey;
-
-        private final String reference;
-
-        private final String caisse;
-
-        private final Integer montantTva = 0;
-
-        private final Integer marge = 0;
-
-        private final String organisme;
-
-        private final Integer margeug = 0;
-
-        private final Integer montantttcug = 0;
-
-        private final Integer montantnetug = 0;
-
-        private final Integer montantTvaUg = 0;
-
-        private final String preenregistrement;
-
-        private final Boolean flaged;
-
-        private final Integer cmuAmount = 0;
-
-        public String getUuid() {
-            return uuid;
         }
-
-        public Integer getMontant() {
-            return montant;
-        }
-
-        public Integer getMontantRestant() {
-            return montantRestant;
-        }
-
-        public Integer getMontantRegle() {
-            return montantRegle;
-        }
-
-        public Integer getMontantCredit() {
-            return montantCredit;
-        }
-
-        public Integer getMontantNet() {
-            return montantNet;
-        }
-
-        public Integer getMontantRemise() {
-            return montantRemise;
-        }
-
-        public Integer getMontantPaye() {
-            return montantPaye;
-        }
-
-        public Integer getAvoidAmount() {
-            return avoidAmount;
-        }
-
-        public Integer getMontantAcc() {
-            return montantAcc;
-        }
-
-        public Boolean getChecked() {
-            return checked;
-        }
-
-        public LocalDate getMvtDate() {
-            return mvtDate;
-        }
-
-        public LocalDateTime getCreatedAt() {
-            return createdAt;
-        }
-
-        public String getUser() {
-            return user;
-        }
-
-        public String getMagasin() {
-            return magasin;
-        }
-
-        public String getReglement() {
-            return reglement;
-        }
-
-        public String gettTypeMvtCaisse() {
-            return tTypeMvtCaisse;
-        }
-
-        public Integer getTypeTransaction() {
-            return typeTransaction;
-        }
-
-        public Integer getCategoryTransaction() {
-            return categoryTransaction;
-        }
-
-        public String getPkey() {
-            return pkey;
-        }
-
-        public String getReference() {
-            return reference;
-        }
-
-        public String getCaisse() {
-            return caisse;
-        }
-
-        public Integer getMontantTva() {
-            return montantTva;
-        }
-
-        public Integer getMarge() {
-            return marge;
-        }
-
-        public String getOrganisme() {
-            return organisme;
-        }
-
-        public Integer getMargeug() {
-            return margeug;
-        }
-
-        public Integer getMontantttcug() {
-            return montantttcug;
-        }
-
-        public Integer getMontantnetug() {
-            return montantnetug;
-        }
-
-        public Integer getMontantTvaUg() {
-            return montantTvaUg;
-        }
-
-        public String getPreenregistrement() {
-            return preenregistrement;
-        }
-
-        public Boolean getFlaged() {
-            return flaged;
-        }
-
-        public Integer getCmuAmount() {
-            return cmuAmount;
-        }
-
-        public MvtTransactionDTO(String uuid, Integer montant, Integer montantRestant, Integer montantRegle,
-                Integer montantCredit, Integer montantNet, Integer montantRemise, Integer montantPaye,
-                Integer avoidAmount, Integer montantAcc, Boolean checked, LocalDate mvtDate, LocalDateTime createdAt,
-                String user, String magasin, String reglement, String tTypeMvtCaisse, Integer typeTransaction,
-                Integer categoryTransaction, String pkey, String reference, String caisse, String organisme,
-                String preenregistrement, Boolean flaged) {
-            this.uuid = uuid;
-            this.montant = montant;
-            this.montantRestant = montantRestant;
-            this.montantRegle = montantRegle;
-            this.montantCredit = montantCredit;
-            this.montantNet = montantNet;
-            this.montantRemise = montantRemise;
-            this.montantPaye = montantPaye;
-            this.avoidAmount = avoidAmount;
-            this.montantAcc = montantAcc;
-            this.checked = checked;
-            this.mvtDate = mvtDate;
-            this.createdAt = createdAt;
-            this.user = user;
-            this.magasin = magasin;
-            this.reglement = reglement;
-            this.tTypeMvtCaisse = tTypeMvtCaisse;
-            this.typeTransaction = typeTransaction;
-            this.categoryTransaction = categoryTransaction;
-            this.pkey = pkey;
-            this.reference = reference;
-            this.caisse = caisse;
-            this.organisme = organisme;
-            this.preenregistrement = preenregistrement;
-            this.flaged = flaged;
-        }
-
-    }
-
-    private class HMvtProduitDTO {
-
-        private final String uuid;
-
-        private final LocalDate mvtDate;
-
-        private final LocalDateTime createdAt;
-
-        private final Integer qteDebut;
-
-        private final Integer qteFinale;
-
-        private final Integer qteMvt;
-
-        private final String pkey;
-
-        private final String famille;
-
-        private final String typemvtproduit;
-
-        private final Integer prixUn;
-        private final Integer prixAchat;
-        private final Integer valeurTva;
-
-        private final Boolean checked;
-
-        private final Integer ug;
-
-        private final Integer cmuPrice;
-
-        private final String preenregistrementDetail;
-
-        public String getUuid() {
-            return uuid;
-        }
-
-        public LocalDate getMvtDate() {
-            return mvtDate;
-        }
-
-        public LocalDateTime getCreatedAt() {
-            return createdAt;
-        }
-
-        public Integer getQteDebut() {
-            return qteDebut;
-        }
-
-        public Integer getQteFinale() {
-            return qteFinale;
-        }
-
-        public Integer getQteMvt() {
-            return qteMvt;
-        }
-
-        public String getPkey() {
-            return pkey;
-        }
-
-        public String getFamille() {
-            return famille;
-        }
-
-        public String getTypemvtproduit() {
-            return typemvtproduit;
-        }
-
-        public Integer getPrixUn() {
-            return prixUn;
-        }
-
-        public Integer getPrixAchat() {
-            return prixAchat;
-        }
-
-        public Integer getValeurTva() {
-            return valeurTva;
-        }
-
-        public Boolean getChecked() {
-            return checked;
-        }
-
-        public Integer getUg() {
-            return ug;
-        }
-
-        public Integer getCmuPrice() {
-            return cmuPrice;
-        }
-
-        public String getPreenregistrementDetail() {
-            return preenregistrementDetail;
-        }
-
-        public HMvtProduitDTO(String uuid, LocalDate mvtDate, LocalDateTime createdAt, Integer qteDebut,
-                Integer qteFinale, Integer qteMvt, String pkey, String famille, String typemvtproduit, Integer prixUn,
-                Integer prixAchat, Integer valeurTva, Boolean checked, Integer ug, Integer cmuPrice,
-                String preenregistrementDetail) {
-            this.uuid = uuid;
-            this.mvtDate = mvtDate;
-            this.createdAt = createdAt;
-            this.qteDebut = qteDebut;
-            this.qteFinale = qteFinale;
-            this.qteMvt = qteMvt;
-            this.pkey = pkey;
-            this.famille = famille;
-            this.typemvtproduit = typemvtproduit;
-            this.prixUn = prixUn;
-            this.prixAchat = prixAchat;
-            this.valeurTva = valeurTva;
-            this.checked = checked;
-            this.ug = ug;
-            this.cmuPrice = cmuPrice;
-            this.preenregistrementDetail = preenregistrementDetail;
-        }
+        return count.get();
     }
 
 }

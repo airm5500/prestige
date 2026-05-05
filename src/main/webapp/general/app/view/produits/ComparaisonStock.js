@@ -177,7 +177,7 @@ Ext.define('testextjs.view.produits.ComparaisonStock', {
 
             }
 
-        });
+        });        
         var me = this;
         Ext.applyIf(me, {
             dockedItems: [
@@ -335,7 +335,28 @@ Ext.define('testextjs.view.produits.ComparaisonStock', {
                             hideTrigger: true,
                             emptyText: 'Seuil'
 
-                        }
+                        },
+                    {
+                        text: 'Excel',
+                        tooltip: 'Exporter en Excel',
+                        iconCls: 'export_excel',
+                        handler: me.onExportExcelClick,  // handler que tu as déjà ajouté côté JS
+                        scope: me
+                    },
+                    {
+                        text: 'CSV',
+                        tooltip: 'Exporter en CSV',
+                        iconCls: 'export_csv',
+                        handler: me.onExportCsvClick,    // handler que tu as déjà ajouté
+                        scope: me
+                    },
+                    {
+                        text: 'Créer inventaire',
+                        tooltip: 'Créer un inventaire à partir de la liste',
+                        iconCls: 'inventaireicon',
+                        handler: me.onCreateInventaireClick,
+                        scope: me
+                    }
 
 
                     ]
@@ -449,7 +470,88 @@ Ext.define('testextjs.view.produits.ComparaisonStock', {
         });
 
         me.callParent(arguments);
+        
+        
+
+    },
+    buildBaseParams: function () {
+    var me = this,
+        grid  = me.down('gridpanel'), // ou me.down('grid') selon ta config
+        store = grid.getStore(),
+        params = {};
+
+    // 1. On essaie d'abord les derniers params utilisés par le store
+    if (store.lastOptions && store.lastOptions.params) {
+        params = Ext.apply({}, store.lastOptions.params);
+    } else if (store.getProxy && store.getProxy().extraParams) {
+        // fallback : extraParams du proxy
+        params = Ext.apply({}, store.getProxy().extraParams);
     }
+
+    // 2. On nettoie un peu
+    params.stock = params.stock || 0;
+    params.seuil = params.seuil || 0;
+
+    // On ne touche pas aux autres (filtreStock, filtreSeuil, codeFamile, etc.)
+    return params;
+}
+,
+
+onExportExcelClick: function () {
+    var me = this,
+        params = me.buildBaseParams(),
+        url = '../api/v1/fichearticle/comparaison/excel?' +
+              Ext.Object.toQueryString(params);
+
+    window.open(url);
+},
+
+onExportCsvClick: function () {
+    var me = this,
+        params = me.buildBaseParams(),
+        url = '../api/v1/fichearticle/comparaison/csv?' +
+              Ext.Object.toQueryString(params);
+
+    window.open(url);
+},
+
+onCreateInventaireClick: function () {
+    var me = this,
+        params = me.buildBaseParams();
+
+    Ext.Msg.confirm('Confirmation',
+        'Créer un inventaire à partir de ce comparatif ?',
+        function (btn) {
+            if (btn === 'yes') {
+                Ext.getBody().mask('Création de l\'inventaire...');
+                Ext.Ajax.request({
+                    url: '../api/v1/fichearticle/comparaison/inventaire',
+                    method: 'GET',
+                    params: params,
+                    success: function (response) {
+                        Ext.getBody().unmask();
+                        var o = Ext.decode(response.responseText, true) || {};
+                        if (o.count && o.count > 0) {
+                            Ext.Msg.alert('Succès',
+                                'Inventaire créé avec succès (' + o.count + ' article(s)).');
+                        } else {
+                            Ext.Msg.alert('Information',
+                                'Aucun article à inventorier pour ces filtres.');
+                        }
+                    },
+                    failure: function (response) {
+                        Ext.getBody().unmask();
+                        Ext.Msg.alert('Erreur',
+                            'Erreur lors de la création de l\'inventaire (code ' +
+                            response.status + ').');
+                    }
+                });
+            }
+        }
+    );
+}
+
+
 
 });
 

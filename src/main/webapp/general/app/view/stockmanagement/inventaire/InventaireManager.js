@@ -120,6 +120,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
+                    hidden:true,
                     items: [{
                         icon: 'resources/images/icons/fam/chart_bar.png', // Nouvelle icône
                         tooltip: 'Effectuer une analyse avancée',
@@ -132,6 +133,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
+                    hidden:true,
                     items: [{
                         icon: 'resources/images/icons/fam/application_view_list.png',
                         tooltip: 'Effectuer une analyse simple',
@@ -209,11 +211,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     text: 'Cr&eacute;er inventaire',
                     scope: this,
                     iconCls: 'addicon',
+                    cls: 'btn-primary',
                     handler: this.onAddClick
                 }, '-', {
                     text: 'Cr&eacute;er inventaire unitaire',
                     scope: this,
                     iconCls: 'addicon',
+                    cls: 'btn-primaryb',
                     handler: this.onAddUnitaireClick
                 }, '-', {
                     xtype: 'combobox',
@@ -284,7 +288,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
 
     },
     onStoreLoad: function() {
-    },
+    },    
     onAddClick: function() {
 
         new testextjs.view.stockmanagement.inventaire.action.addBis({

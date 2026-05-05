@@ -9,6 +9,7 @@ import commonTasks.dto.FactureDTO;
 import commonTasks.dto.FactureDetailDTO;
 import commonTasks.dto.Mode;
 import commonTasks.dto.ModelFactureDTO;
+import commonTasks.dto.ReportTypeTiersPayantFactureDTO;
 import commonTasks.dto.VenteDetailsDTO;
 import dal.TFacture;
 import dal.TModelFacture;
@@ -52,4 +53,7 @@ public interface FacturationService {
     List<VenteDetailsDTO> findArticleByFacturId(String id);
 
     TModelFacture modelFactureById(String lgMODELFACTUREID);
+
+    ReportTypeTiersPayantFactureDTO exportReleveFacture(String invoiceFilter, String tiersPayantId, String codeFacture,
+            String searchTerm, String dtStart, String dtEnd);
 }

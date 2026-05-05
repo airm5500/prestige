@@ -9,6 +9,7 @@ import commonTasks.dto.ArticleDTO;
 import commonTasks.dto.FamilleArticleStatDTO;
 import dal.TUser;
 import enumeration.MargeEnum;
+import java.io.IOException;
 import java.util.List;
 import javax.ejb.Local;
 import org.apache.commons.lang3.tuple.Pair;
@@ -58,4 +59,12 @@ public interface DataReporingService {
             String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit)
             throws JSONException;
 
+    byte[] exportArticlesInvendusCsv(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException, JSONException;
+
+    byte[] exportArticlesInvendusExcel(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException, JSONException;
+
+    JSONObject createInventaireArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws JSONException;
 }

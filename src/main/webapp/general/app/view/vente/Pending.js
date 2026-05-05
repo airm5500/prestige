@@ -52,9 +52,11 @@ Ext.define('testextjs.view.vente.Pending', {
                             text: 'Nouvelle Vente',
                             scope: this,
                             itemId: 'addBtn',
-                            iconCls: 'addicon'
+                            iconCls: 'addicon',
+                            cls: 'btn-primary'
 
-                        }, '-',
+                        }
+                        , '-',
                         {
                             xtype: 'combobox',
                             fieldLabel: 'Type.vente',

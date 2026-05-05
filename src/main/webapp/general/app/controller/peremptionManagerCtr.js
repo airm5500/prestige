@@ -200,8 +200,8 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
     },
     buildSummary: function (rec) {
         const me = this;
-        me.getStock().setValue(rec.intQUANTITY);
-        me.getAchat().setValue(rec.intPRICEREMISE);
-        me.getVente().setValue(rec.intPRICE);
+        me.getStock().setValue(rec.totalQuantiteLot);
+        me.getAchat().setValue(rec.totalValeurAchat);
+        me.getVente().setValue(rec.totalValeurVente);
     }
 });

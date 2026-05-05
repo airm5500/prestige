@@ -56,6 +56,15 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
     ],
     init: function (application) {
         this.control({
+            'stockmort #btnExportExcel': {
+                click: this.onExportExcel
+            },
+            'stockmort #btnExportCsv': {
+                click: this.onExportCsv
+            },
+            'stockmort #btnCreateInventaire': {
+                click: this.onCreateInventaire
+            },
             'stockmort gridpanel pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
@@ -232,6 +241,66 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
 
             }
         });
-    }
+    },
+    buildFiltersParams: function () {
+    var me = this;
+    return {
+        dtStart: me.getDtStart().getSubmitValue(),
+        dtEnd: me.getDtEnd().getSubmitValue(),
+        query: me.getQuery().getValue(),
+        codeRayon: me.getRayons().getValue(),
+        codeGrossiste: me.getGrossiste().getValue(),
+        stockFiltre: me.getStockFiltre().getValue(),
+        stock: me.getStock().getValue(),
+        codeFamile: me.getCodeFamile().getValue()
+    };
+},
+
+onExportExcel: function () {
+    var params = this.buildFiltersParams();
+    var qs = Ext.Object.toQueryString(params);
+    window.location = '../api/v1/datareporting/articleInvendus/excel?' + qs;
+},
+
+onExportCsv: function () {
+    var params = this.buildFiltersParams();
+    var qs = Ext.Object.toQueryString(params);
+    window.location = '../api/v1/datareporting/articleInvendus/csv?' + qs;
+},
+
+onCreateInventaire: function () {
+    var me = this,
+        params = me.buildFiltersParams(),
+        progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+
+    Ext.Ajax.request({
+        url: '../api/v1/datareporting/articleInvendus/create-inventaire',
+        method: 'GET',
+        params: params,
+        timeout: 2400000,
+        success: function (response) {
+            progress.hide();
+            var result = Ext.JSON.decode(response.responseText, true);
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 320,
+                msg: 'Nombre de produits en compte : ' + result.count,
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.INFO
+            });
+        },
+        failure: function () {
+            progress.hide();
+            Ext.MessageBox.show({
+                title: 'Message d\'erreur',
+                width: 320,
+                msg: "L'opération n'a pas abouti",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+        }
+    });
+}
+
 
 });

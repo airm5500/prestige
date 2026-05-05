@@ -17,6 +17,7 @@ import dal.TTypeVente;
 import dal.TWorkflowRemiseArticle;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -74,7 +75,6 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         List<MontantTp> montantTps = new ArrayList<>();
         MontantAPaye aPaye = new MontantAPaye();
         for (TPreenregistrementDetail x : lstTPreenregistrementDetail) {
-            // updateMontantTps(x, montantTps, aPaye);
             totalAmount += x.getIntPRICE();
             TFamille famille = x.getLgFAMILLEID();
             int remise = 0;
@@ -175,7 +175,7 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
     }
 
     @Override
-    public MontantAPaye computeVONet(SalesParams params, boolean asPlafondActivated) {
+    public MontantAPaye computeVONet(SalesParams params) {
         return calcule(params);
 
     }
@@ -230,7 +230,12 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
 
         TRemise remise = op.getRemise();
         remise = remise != null ? remise : op.getClient().getRemise();
-        List<TPreenregistrementDetail> items = new ArrayList<>(op.getTPreenregistrementDetailCollection());
+        Collection<TPreenregistrementDetail> tPreenregistrementDetailCollection = op
+                .getTPreenregistrementDetailCollection();
+        if (CollectionUtils.isEmpty(tPreenregistrementDetailCollection)) {
+            return new MontantAPaye();
+        }
+        List<TPreenregistrementDetail> items = new ArrayList<>(tPreenregistrementDetailCollection);
         MontantAPaye montantAPaye = computeRemise(op, remise, items);
         List<TPreenregistrementCompteClientTiersPayent> compteClientTiersPayents = new ArrayList<>(
                 op.getTPreenregistrementCompteClientTiersPayentCollection());
@@ -256,23 +261,24 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         op.setIntCUSTPART(totalPatientShare);
 
         for (TiersPayantLineOutput lineResult : output.getTiersPayantLines()) {
-            TPreenregistrementCompteClientTiersPayent saleLine = maps.get(lineResult.getClientTiersPayantId()).get(0);
+            TPreenregistrementCompteClientTiersPayent venteTiersPayantItem = maps
+                    .get(lineResult.getClientTiersPayantId()).get(0);
 
             if (output.isHasPriceOption()) {
-                TCompteClientTiersPayant tcctp = saleLine.getLgCOMPTECLIENTTIERSPAYANTID();
-                saleLine.setIntPERCENT(tcctp.getIntPOURCENTAGE());
+                TCompteClientTiersPayant tcctp = venteTiersPayantItem.getLgCOMPTECLIENTTIERSPAYANTID();
+                venteTiersPayantItem.setIntPERCENT(tcctp.getIntPOURCENTAGE());
             } else {
-                saleLine.setIntPERCENT(lineResult.getFinalTaux());
+                venteTiersPayantItem.setIntPERCENT(lineResult.getFinalTaux());
             }
-            saleLine.setIntPRICE(lineResult.getMontant().intValue());
-            saleLine.setStrREFBON(lineResult.getNumBon());
+            venteTiersPayantItem.setIntPRICE(lineResult.getMontant().intValue());
+            venteTiersPayantItem.setStrREFBON(lineResult.getNumBon());
 
-            em.merge(saleLine);
+            em.merge(venteTiersPayantItem);
             TiersPayantParams tp = new TiersPayantParams();
-            tp.setTaux(saleLine.getIntPERCENT());
+            tp.setTaux(venteTiersPayantItem.getIntPERCENT());
             tp.setCompteTp(lineResult.getClientTiersPayantId());
-            tp.setNumBon(saleLine.getStrREFBON());
-            tp.setTpnet(saleLine.getIntPRICE());
+            tp.setNumBon(venteTiersPayantItem.getStrREFBON());
+            tp.setTpnet(venteTiersPayantItem.getIntPRICE());
             montantAPaye.getTierspayants().add(tp);
 
         }
@@ -380,8 +386,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             }
             ti.setNumBon(tiersPayantParams.getNumBon());
             ti.setPriorite(ctp.getIntPRIORITY());
-            // Optional.ofNullable(tiersPayant.getDblPLAFONDCREDIT()).ifPresent(v ->
-            // ti.setPlafondConso(BigDecimal.valueOf(v))); // A voir sil faut ajouter les plafond sur la fiche du TP
+            Optional.ofNullable(tiersPayant.getDblPLAFONDCREDIT())
+                    .ifPresent(v -> ti.setPlafondCreditTiersPayant(BigDecimal.valueOf(v))); // plafond sur la fiche du
+            // TP
             Optional.ofNullable(ctp.getDbPLAFONDENCOURS()).ifPresent(v -> ti.setPlafondConso(BigDecimal.valueOf(v)));
             Optional.ofNullable(ctp.getDbCONSOMMATIONMENSUELLE())
                     .ifPresent(v -> ti.setConsoMensuelle(BigDecimal.valueOf(v)));
@@ -392,4 +399,66 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
 
     }
 
+    @Override
+    public MontantAPaye calculeRepair(TPreenregistrement op,
+            List<TPreenregistrementCompteClientTiersPayent> compteClientTiersPayents,
+            Map<String, List<TiersPayantParams>> tpsBons) {
+
+        TRemise remise = null;
+
+        List<TPreenregistrementDetail> items = new ArrayList<>(op.getTPreenregistrementDetailCollection());
+        MontantAPaye montantAPaye = computeRemise(op, remise, items);
+
+        CalculationInput input = buildCalculationInput(op, items, compteClientTiersPayents, tpsBons);
+        input.setDiscountAmount(BigDecimal.valueOf(Objects.requireNonNullElse(montantAPaye.getMontantAccount(), 0)));
+        CalculationResult output = tiersPayantCalculationService.calculate(input);
+
+        Map<String, List<TPreenregistrementCompteClientTiersPayent>> maps = compteClientTiersPayents.stream().collect(
+                Collectors.groupingBy(e -> e.getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID()));
+
+        int totalPatientShare = output.getTotalPatientShare().intValue();
+        op.setIntCUSTPART(totalPatientShare);
+
+        for (TiersPayantLineOutput lineResult : output.getTiersPayantLines()) {
+            TPreenregistrementCompteClientTiersPayent saleLine = maps.get(lineResult.getClientTiersPayantId()).get(0);
+
+            if (output.isHasPriceOption()) {
+                TCompteClientTiersPayant tcctp = saleLine.getLgCOMPTECLIENTTIERSPAYANTID();
+                saleLine.setIntPERCENT(tcctp.getIntPOURCENTAGE());
+            } else {
+                saleLine.setIntPERCENT(lineResult.getFinalTaux());
+            }
+            saleLine.setIntPRICE(lineResult.getMontant().intValue());
+            saleLine.setStrREFBON(lineResult.getNumBon());
+
+            em.merge(saleLine);
+            TiersPayantParams tp = new TiersPayantParams();
+            tp.setTaux(saleLine.getIntPERCENT());
+            tp.setCompteTp(lineResult.getClientTiersPayantId());
+            tp.setNumBon(saleLine.getStrREFBON());
+            tp.setTpnet(saleLine.getIntPRICE());
+            montantAPaye.getTierspayants().add(tp);
+
+        }
+        for (TPreenregistrementDetail saleLine : items) {
+
+            output.getItemShares().stream()
+                    .filter(s -> s.getSaleLineId().equals(saleLine.getLgPREENREGISTREMENTDETAILID())).findFirst()
+                    .ifPresent(itemShare -> {
+                        saleLine.setCalculationBasePrice(itemShare.getCalculationBasePrice());
+                        em.merge(saleLine);
+                        itemShare.getRates().forEach(em::persist);
+                    });
+        }
+        op.setHasPriceOption(output.isHasPriceOption());
+        em.merge(op);
+        montantAPaye.setMontantTp(output.getTotalTiersPayant().intValue());
+
+        montantAPaye.setMontantNet(NumberUtils.arrondiModuloOfNumber(op.getIntCUSTPART(), 5));
+        montantAPaye.setRestructuring(StringUtils.isNoneEmpty(output.getWarningMessage()));
+        montantAPaye.setMessage(output.getWarningMessage());
+
+        return montantAPaye;
+
+    }
 }

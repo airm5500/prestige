@@ -1,7 +1,5 @@
 package rest.service.fne;
 
-import org.json.JSONPropertyName;
-
 /**
  *
  * @author koben
@@ -12,9 +10,6 @@ public class FneResponse {
     private String reference;
     private String token;
     private Boolean warning;
-
-    private Integer balanceSticker;
-    private FneResponseInvoice invoice;
 
     public String getNcc() {
         return ncc;
@@ -48,27 +43,10 @@ public class FneResponse {
         this.warning = warning;
     }
 
-    @JSONPropertyName("balance_sticker")
-    public Integer getBalanceSticker() {
-        return balanceSticker;
-    }
-
-    public void setBalanceSticker(Integer balanceSticker) {
-        this.balanceSticker = balanceSticker;
-    }
-
-    public FneResponseInvoice getInvoice() {
-        return invoice;
-    }
-
-    public void setInvoice(FneResponseInvoice invoice) {
-        this.invoice = invoice;
-    }
-
     @Override
     public String toString() {
         return "FneResponse{" + "ncc=" + ncc + ", reference=" + reference + ", token=" + token + ", warning=" + warning
-                + ", balanceSticker=" + balanceSticker + ", invoice=" + invoice + '}';
+                + '}';
     }
 
 }

@@ -9,6 +9,7 @@ import dal.TFacture;
 import dal.TTiersPayant;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.Objects;
 
 /**
  *
@@ -16,12 +17,41 @@ import java.text.SimpleDateFormat;
  */
 public class FactureDTO implements Serializable {
 
-    private static final long serialVersionUID = 1L;
-    private String lgFACTUREID, strLIBELLETYPETIERSPAYANT, strCODECOMPTABLE, dtDATEFACTURE, dtDEBUTFACTURE,
-            dtFINFACTURE, strCUSTOMER, strFULLNAME, periode;
-    private Integer nbDossier, dblMONTANTBrut, dblMONTANTFOFETAIRE, dblMONTANTREMISE, dblMONTANTCMDE;
-    private String strCODEFACTURE;
     private final SimpleDateFormat df = new SimpleDateFormat("dd/MM/yyyy");
+    private final SimpleDateFormat dfFull = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+    private static final long serialVersionUID = 1L;
+    private String lgFACTUREID;
+    private String strLIBELLETYPETIERSPAYANT;
+    private String strCODECOMPTABLE;
+    private String dtDATEFACTURE;
+    private String dtDEBUTFACTURE;
+    private String dtFINFACTURE;
+    private String strCUSTOMER;
+    private String strFULLNAME;
+    private String periode;
+    private Integer nbDossier;
+    private Integer dblMONTANTBrut;
+    private Integer dblMONTANTFOFETAIRE;
+    private Integer dblMONTANTPAYE;
+    private Integer dblMONTANTRESTANT;
+    private Integer dblMONTANTREMISE;
+    private Integer dblMONTANTCMDE;
+    private String strCODEFACTURE;
+    private String tiersPayantId;
+
+    private String strTELEPHONE;
+    private String strADRESSE;
+    private String strMOBILE;
+    private String strCODEOFFICINE;
+    private String strREGISTRECOMMERCE;
+    private String strCOMPTECONTRIBUABLE;
+    private Integer montantVente = 0;
+    private Integer montantTvaVente = 0;
+    private Integer montantRemiseVente = 0;
+    private String strCODEORGANISME;
+    private String dtCREATED;
+    private String dtUPDATED;
+    private String heure;
 
     public String getLgFACTUREID() {
         return lgFACTUREID;
@@ -41,6 +71,22 @@ public class FactureDTO implements Serializable {
 
     public String getPeriode() {
         return periode;
+    }
+
+    public String getTiersPayantId() {
+        return tiersPayantId;
+    }
+
+    public Integer getDblMONTANTRESTANT() {
+        return dblMONTANTRESTANT;
+    }
+
+    public void setDblMONTANTRESTANT(Integer dblMONTANTRESTANT) {
+        this.dblMONTANTRESTANT = dblMONTANTRESTANT;
+    }
+
+    public void setTiersPayantId(String tiersPayantId) {
+        this.tiersPayantId = tiersPayantId;
     }
 
     public void setPeriode(String periode) {
@@ -143,11 +189,6 @@ public class FactureDTO implements Serializable {
         this.dblMONTANTCMDE = dblMONTANTCMDE;
     }
 
-    private Integer montantVente = 0;
-    private Integer montantTvaVente = 0;
-    private Integer montantRemiseVente = 0;
-    private String strCODEORGANISME;
-
     public void setMontantRemiseVente(Integer montantRemiseVente) {
         this.montantRemiseVente = montantRemiseVente;
     }
@@ -188,7 +229,7 @@ public class FactureDTO implements Serializable {
         this.dtDATEFACTURE = df.format(facture.getDtDATEFACTURE());
         this.dtDEBUTFACTURE = df.format(facture.getDtDEBUTFACTURE());
         this.dtFINFACTURE = df.format(facture.getDtFINFACTURE());
-        this.strCUSTOMER = facture.getStrCUSTOMER();
+        this.strCUSTOMER = payant.getLgTIERSPAYANTID();
         this.strFULLNAME = payant.getStrFULLNAME();
         this.strCODEORGANISME = payant.getStrCODEORGANISME();
         this.nbDossier = facture.getIntNBDOSSIER();
@@ -196,6 +237,9 @@ public class FactureDTO implements Serializable {
         this.dblMONTANTFOFETAIRE = facture.getDblMONTANTFOFETAIRE().intValue();
         this.dblMONTANTREMISE = facture.getDblMONTANTREMISE().intValue();
         this.dblMONTANTCMDE = facture.getDblMONTANTCMDE().intValue();
+        this.dblMONTANTPAYE = Objects.requireNonNullElse(facture.getDblMONTANTPAYE(), 0.0).intValue();
+        this.dblMONTANTRESTANT = Objects.nonNull(facture.getDblMONTANTRESTANT())
+                ? facture.getDblMONTANTRESTANT().intValue() : null;
         this.periode = "DU " + df.format(facture.getDtDEBUTFACTURE()) + " AU " + df.format(facture.getDtFINFACTURE());
         this.montantTvaVente = facture.getMontantTvaVente();
         this.montantVente = facture.getMontantVente();
@@ -207,14 +251,20 @@ public class FactureDTO implements Serializable {
         this.strCODEOFFICINE = payant.getStrCODEOFFICINE();
         this.strREGISTRECOMMERCE = payant.getStrREGISTRECOMMERCE();
         this.strCOMPTECONTRIBUABLE = payant.getStrCOMPTECONTRIBUABLE();
+        this.tiersPayantId = payant.getLgTIERSPAYANTID();
+        this.dtCREATED = dfFull.format(facture.getDtCREATED());
     }
-
-    private String strTELEPHONE;
-    private String strADRESSE;
-    private String strMOBILE, strCODEOFFICINE, strREGISTRECOMMERCE, strCOMPTECONTRIBUABLE;
 
     public String getStrTELEPHONE() {
         return strTELEPHONE;
+    }
+
+    public Integer getDblMONTANTPAYE() {
+        return dblMONTANTPAYE;
+    }
+
+    public void setDblMONTANTPAYE(Integer dblMONTANTPAYE) {
+        this.dblMONTANTPAYE = dblMONTANTPAYE;
     }
 
     public void setStrTELEPHONE(String strTELEPHONE) {
@@ -255,6 +305,30 @@ public class FactureDTO implements Serializable {
 
     public String getStrCOMPTECONTRIBUABLE() {
         return strCOMPTECONTRIBUABLE;
+    }
+
+    public String getDtCREATED() {
+        return dtCREATED;
+    }
+
+    public void setDtCREATED(String dtCREATED) {
+        this.dtCREATED = dtCREATED;
+    }
+
+    public String getDtUPDATED() {
+        return dtUPDATED;
+    }
+
+    public void setDtUPDATED(String dtUPDATED) {
+        this.dtUPDATED = dtUPDATED;
+    }
+
+    public String getHeure() {
+        return heure;
+    }
+
+    public void setHeure(String heure) {
+        this.heure = heure;
     }
 
     public void setStrCOMPTECONTRIBUABLE(String strCOMPTECONTRIBUABLE) {

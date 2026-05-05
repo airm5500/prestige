@@ -14,6 +14,7 @@ import rest.service.calculation.dto.CalculationInput;
 import rest.service.calculation.dto.CalculationResult;
 import rest.service.calculation.dto.NatureVente;
 import dal.Rate;
+import java.util.Objects;
 import javax.ejb.Stateless;
 import rest.service.calculation.dto.SaleItemInput;
 import rest.service.calculation.dto.TiersPayantInput;
@@ -39,7 +40,7 @@ public class TiersPayantCalculationService {
 
             totalAmountAssurance = totalAmountAssurance.add(itemShare.getTotalReimbursedAmount());
             discountAmount = discountAmount.add(saleItemInput.getDiscountAmount());
-            // itemPartAssure = itemPartAssure.add(itemShare.getPatientShare());
+
             itemShare.getTiersPayants().forEach((clientTiersPayantId, montant) -> tiersPayants
                     .merge(clientTiersPayantId, montant, BigDecimal::add));
             calculationResult.getItemShares().add(itemShare);
@@ -49,6 +50,7 @@ public class TiersPayantCalculationService {
         List<TiersPayantLineOutput> lineOutputs = new ArrayList<>();
         StringBuilder warnings = new StringBuilder();
         for (TiersPayantInput tpInput : input.getTiersPayants()) {
+
             BigDecimal remainingAmountForTps = tiersPayants.getOrDefault(tpInput.getClientTiersPayantId(),
                     BigDecimal.ZERO);
             remainingAmountForTps = remainingAmountForTps.setScale(0, RoundingMode.HALF_UP);
@@ -65,9 +67,10 @@ public class TiersPayantCalculationService {
             lineOutputs.add(lineOutput);
         }
         calculationResult.setTotalTiersPayant(totalAmountAssurance);
+        calculationResult.setTiersPayantLines(lineOutputs);
         BigDecimal partAssure = calculatePatientShare(calculationResult, input.getNatureVente());
         calculationResult.setTotalPatientShare(partAssure);
-        calculationResult.setTiersPayantLines(lineOutputs);
+
         calculationResult.setWarningMessage(warnings.toString());
         return calculationResult;
     }
@@ -85,25 +88,40 @@ public class TiersPayantCalculationService {
     }
 
     private BigDecimal computeThirdPartyPart(TiersPayantInput tp, BigDecimal partTiersPayantNet) {
-        BigDecimal totalNetAmount = computePlafond(tp.getPlafondConso(), tp.getConsoMensuelle(), partTiersPayantNet);// plafon
+        BigDecimal totalNetAmount = computePlafond(tp, partTiersPayantNet);// plafon
 
         return computePlafondClient(tp, totalNetAmount);
     }
 
     private BigDecimal computePlafondClient(TiersPayantInput tp, BigDecimal partTiersPayantNet) {
-        BigDecimal totalNetAmount = computePlafond(tp.getPlafondConso(), tp.getConsoMensuelle(), partTiersPayantNet);// plafon
+        BigDecimal totalNetAmount = computePlafond(tp, partTiersPayantNet);// plafon
 
         return computePlafondVente(tp.getPlafondJournalierClient(), totalNetAmount);
     }
 
     private BigDecimal computePlafondVente(BigDecimal plafondVente, BigDecimal totalNetAmount) {
+        if (totalNetAmount == null) {
+            return BigDecimal.ZERO;
+        }
         if (plafondVente == null || plafondVente.compareTo(BigDecimal.ZERO) == 0) {
             return totalNetAmount;
         }
         return totalNetAmount.min(plafondVente);
     }
 
-    private BigDecimal computePlafond(BigDecimal plafond, BigDecimal conso, BigDecimal partTiersPayantNet) {
+    private BigDecimal computePlafond(TiersPayantInput tp, BigDecimal partTiersPayantNet) {
+        if (partTiersPayantNet == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal plafond = tp.getPlafondConso();
+        BigDecimal plafondCreditTiersPayant = tp.getPlafondCreditTiersPayant();// plafond sur la fiche tp
+        BigDecimal conso = tp.getConsoMensuelle();
+
+        if (Objects.nonNull(plafondCreditTiersPayant) && plafondCreditTiersPayant.compareTo(BigDecimal.ZERO) > 0) {
+            partTiersPayantNet = partTiersPayantNet.min(plafondCreditTiersPayant);
+
+        }
+
         if (plafond == null || plafond.compareTo(BigDecimal.ZERO) == 0) {
             return partTiersPayantNet; // Pas de plafond → on rembourse tout
         }
@@ -159,10 +177,16 @@ public class TiersPayantCalculationService {
             }
 
             BigDecimal actualShare = calculationBase.multiply(BigDecimal.valueOf(rate));
+            /*
+             * if (rate == 1.0f && natureVente == NatureVente.ASSURANCE) { // formulle confort remainingAmountForTps =
+             * saleItem.getTotalSalesAmount().subtract(totalPartTiersPayant); actualShare =
+             * BigDecimal.ZERO.max(remainingAmountForTps); } else { actualShare =
+             * actualShare.min(remainingAmountForTps); }
+             */
 
-            if (rate == 1.0f && natureVente == NatureVente.ASSURANCE) { // formulle confort
+            if (rate == 1.0f && natureVente == NatureVente.ASSURANCE && !hasPrixReference) {
                 remainingAmountForTps = saleItem.getTotalSalesAmount().subtract(totalPartTiersPayant);
-                actualShare = BigDecimal.ZERO.max(remainingAmountForTps);
+                actualShare = remainingAmountForTps.max(BigDecimal.ZERO);
             } else {
                 actualShare = actualShare.min(remainingAmountForTps);
             }
@@ -192,7 +216,7 @@ public class TiersPayantCalculationService {
                     .subtract(calculationResult.getDiscountAmount()).max(BigDecimal.ZERO)
                     .setScale(0, RoundingMode.HALF_UP);
             calculationResult.setTotalTiersPayant(partTiersPayant);
-
+            calculationResult.getTiersPayantLines().get(0).setMontant(partTiersPayant);
             return netAmount.max(BigDecimal.ZERO);
         }
 
@@ -203,6 +227,7 @@ public class TiersPayantCalculationService {
         if (totalAmount.compareTo(BigDecimal.ZERO) == 0) {
             return 0;
         }
-        return actualShare.multiply(BigDecimal.valueOf(100)).divide(totalAmount, 0, RoundingMode.CEILING).intValue();
+
+        return actualShare.multiply(BigDecimal.valueOf(100)).divide(totalAmount, 0, RoundingMode.HALF_DOWN).intValue();
     }
 }

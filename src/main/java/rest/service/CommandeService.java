@@ -50,4 +50,6 @@ public interface CommandeService {
 
     JSONObject verificationCommande(Part part, String orderId, TUser user);
 
+    public byte[] buildCommandeDetailsExcel(TUser tu, String orderId);
+
 }

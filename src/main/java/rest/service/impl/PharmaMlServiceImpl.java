@@ -6,6 +6,7 @@
 package rest.service.impl;
 
 import dal.Rupture;
+import dal.RuptureDetail;
 import dal.TFamille;
 import dal.TFamilleGrossiste;
 import dal.TGrossiste;
@@ -55,6 +56,7 @@ import org.json.JSONObject;
 import rest.service.OrderService;
 import rest.service.PharmaMlService;
 import rest.service.ProduitService;
+import rest.service.SessionHelperService;
 import rest.service.dto.CreationProduitDTO;
 import rest.service.pharmaMl.Commande;
 import rest.service.pharmaMl.Corps;
@@ -103,31 +105,11 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     private OrderService orderService;
     @EJB
     private ProduitService produitService;
+    @EJB
+    private SessionHelperService sessionHelperService;
 
     public EntityManager getEntityManager() {
         return em;
-    }
-
-    private List<TOrderDetail> findByOrder(TOrder order) {
-        TypedQuery<TOrderDetail> q = getEntityManager().createNamedQuery("TOrderDetail.findByLgORDERID",
-                TOrderDetail.class);
-        q.setParameter("lgORDERID", order);
-        return q.getResultList();
-    }
-
-    private TFamilleGrossiste findByGrossisteAndFamille(String idProduit, String grossisteId) {
-        try {
-            TypedQuery<TFamilleGrossiste> q = getEntityManager().createQuery(
-                    "SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2 AND o.strSTATUT='enable' ",
-                    TFamilleGrossiste.class);
-            q.setParameter(1, idProduit);
-            q.setParameter(2, grossisteId);
-            q.setMaxResults(1);
-            return q.getSingleResult();
-        } catch (Exception e) {
-            // LOG.log(Level.SEVERE, null, e);
-            return null;
-        }
     }
 
     @Override
@@ -144,15 +126,76 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     public JSONObject envoiCommande(String commandeId, LocalDate dateLivraisonSouhaitee, int typeCommande,
             String typeCommandeExecptionel, String commentaire) {
         try {
+            TOrder order = em.find(TOrder.class, commandeId);
+            TGrossiste grossiste = order.getLgGROSSISTEID();
+            if (StringUtils.isEmpty(grossiste.getStrURLPHARMAML())) {
+                return new JSONObject().put("success", false).put("msg", "Le grossise n'a url pharmaML");
+            }
 
-            return processommandeXml(em.find(TOrder.class, commandeId));
-            // return processommandeTestFromFileXml(em.find(TOrder.class, commandeId)); // pour tester un fichier de
-            // reponse
-
-        } catch (JAXBException | IOException | InterruptedException ex) {
+            TOfficine officine = getOfficine();
+            CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildNormale(order, grossiste.getLgGROSSISTEID()),
+                    StringUtils.isEmpty(commentaire) ? order.getStrREFORDER() : commentaire,
+                    order.getStrREFORDER() + LocalDateTime.now().format(DateTimeFormatter.ofPattern("mmss")));
+            System.err.println("envoiCommande payLoad " + payLoad);
+            CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, order.getStrREFORDER(), grossiste);
+            System.err.println(" envoiCommande enveloppeResponse " + enveloppeResponse);
+            if (Objects.isNull(enveloppeResponse)) {
+                return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
+            }
+            return traiterCommandeRepondue(order, enveloppeResponse);
+        } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
-            return new JSONObject().put("success", true).put("msg", ex.getLocalizedMessage());
+            return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
         }
+    }
+
+    @Override
+    public JSONObject renvoiPharmaCommande(String ruptureId, String grossisteId, LocalDate dateLivraisonSouhaitee) {
+        try {
+            Rupture rupture = em.find(Rupture.class, ruptureId);
+            TGrossiste grossiste = em.find(TGrossiste.class, grossisteId);
+            if (StringUtils.isEmpty(grossiste.getStrURLPHARMAML())) {
+                return new JSONObject().put("success", false).put("msg", "Le grossise n'a url pharmaML");
+            }
+            List<RuptureDetail> ruptureDetails = orderService.ruptureDetaisDtoByRupture(rupture.getId());
+            TOfficine officine = getOfficine();
+            CsrpEnveloppe payLoad = buildPayload(grossiste, officine, buildFromRupture(ruptureDetails, grossisteId),
+                    rupture.getReference(), rupture.getReference() + "_"
+                            + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyMMddHHmmss")));
+            System.err.println(" renvoiPharmaCommande payLoad " + payLoad);
+            CsrpEnveloppeResponse enveloppeResponse = processommandeXml(payLoad, rupture.getReference(), grossiste);
+            System.err.println(" renvoiPharmaCommande enveloppeResponse " + enveloppeResponse);
+            if (Objects.isNull(enveloppeResponse)) {
+                return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
+            }
+            return traiterCommandeRepondue(rupture, ruptureDetails, grossiste, enveloppeResponse);
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            return new JSONObject().put("success", false).put("msg", "Une erreur c'est produite");
+        }
+
+    }
+
+    private CsrpEnveloppeResponse processommandeXml(CsrpEnveloppe payLoad, String reference, TGrossiste grossiste)
+            throws JAXBException, IOException, InterruptedException {
+
+        JAXBContext requestContext = JAXBContext.newInstance(CsrpEnveloppe.class);
+        Marshaller marshaller = requestContext.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+        StringWriter sw = new StringWriter();
+        marshaller.marshal(payLoad, sw); // save file // a supprimer a l'avenir
+        String fileName = reference + "_"
+                + StringUtils.replace(grossiste.getStrLIBELLE(), StringUtils.SPACE, StringUtils.EMPTY);
+        createSaveXmlFile(marshaller, payLoad, "C", fileName);
+
+        HttpClient client = getHttpClient();
+        HttpRequest httpRequest = HttpRequest.newBuilder().uri(URI.create(grossiste.getStrURLPHARMAML()))
+                .header("Content-Type", "text/xml; charset=UTF-8")
+                .POST(HttpRequest.BodyPublishers.ofString(sw.toString())).build();
+
+        HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        return processResponse(httpResponse, fileName);
+
     }
 
     private JSONObject processommandeXml(TOrder order) throws JAXBException, IOException, InterruptedException {
@@ -161,8 +204,8 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         if (StringUtils.isEmpty(grossiste.getStrURLPHARMAML())) {
             return new JSONObject().put("success", false).put("msg", "Le grossise n'a url pharmaML");
         }
-        TOfficine of = em.find(TOfficine.class, Constant.OFFICINE);
-        CsrpEnveloppe payLoad = buildPayload(order, grossiste, of, null);
+        TOfficine of = getOfficine();
+        CsrpEnveloppe payLoad = buildPayload(grossiste, of, null, null, null);
 
         JAXBContext requestContext = JAXBContext.newInstance(CsrpEnveloppe.class);
         Marshaller marshaller = requestContext.createMarshaller();
@@ -180,7 +223,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
         HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
 
-        return processResponse(httpResponse, fileName, order);
+        return null;
 
     }
 
@@ -195,7 +238,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return traiterCommandeRepondue(order, loadFromFileForTestingPurpose());
     }
 
-    private JSONObject processResponse(HttpResponse<String> httpResponse, String fileName, TOrder order) {
+    private CsrpEnveloppeResponse processResponse(HttpResponse<String> httpResponse, String fileName) {
         int httpCode = httpResponse.statusCode();
 
         if (httpCode == 200) {
@@ -208,17 +251,16 @@ public class PharmaMlServiceImpl implements PharmaMlService {
                         .unmarshal(new StringReader(httpResponse.body()));
                 // a supprimer a l'avenir
                 createSaveXmlFile(jaxbContext.createMarshaller(), response, "R", fileName);
+                return response;
 
-                return traiterCommandeRepondue(order, response);
-
-            } catch (JAXBException | IOException ex) {
-                LOG.log(Level.SEVERE, "processResponse", ex);
+            } catch (JAXBException ex) {
+                LOG.log(Level.SEVERE, null, ex);
             }
 
         } else {
             saveResponse(httpResponse.body(), "LOG_" + fileName);
         }
-        return new JSONObject().put("success", false);
+        return null;
     }
 
     private List<LigneNReponse> getLigneNReponses(CsrpEnveloppeResponse response) {
@@ -300,7 +342,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
     }
 
     // ajout du produit de rempalcement a la commande
-    private void addRemplacement(LigneNReponse ligneNReponse, TOrderDetail origin, TFamille famille, TOrder order) {
+    private void addRemplacement__(LigneNReponse ligneNReponse, TOrderDetail origin, TFamille famille, TOrder order) {
         Pair<Integer, Integer> prixs = getPrixAchatPrixUni(ligneNReponse.getPrix());
 
         TOrderDetail item = new TOrderDetail(KeyUtilGen.getId());
@@ -316,6 +358,27 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         item.setIntPAFDETAIL(prixs.getLeft());
         item.setIntPRICEDETAIL(prixs.getRight());
         item.setIntPRICE(item.getIntPAFDETAIL() * origin.getIntNUMBER());
+        em.persist(item);
+        order.getTOrderDetailCollection().add(item);
+
+    }
+
+    private void addRemplacement(LigneNReponse ligneNReponse, int qtyOrigin, TFamille famille, TOrder order) {
+        Pair<Integer, Integer> prixs = getPrixAchatPrixUni(ligneNReponse.getPrix());
+
+        TOrderDetail item = new TOrderDetail(KeyUtilGen.getId());
+        item.setLgORDERID(order);
+        item.setIntNUMBER(qtyOrigin);
+        item.setIntQTEREPGROSSISTE(item.getIntNUMBER());
+        item.setIntQTEMANQUANT(item.getIntNUMBER());
+        item.setLgFAMILLEID(famille);
+        item.setLgGROSSISTEID(order.getLgGROSSISTEID());
+        item.setStrSTATUT(Constant.STATUT_PASSED);
+        item.setDtCREATED(new Date());
+        item.setDtUPDATED(item.getDtCREATED());
+        item.setIntPAFDETAIL(prixs.getLeft());
+        item.setIntPRICEDETAIL(prixs.getRight());
+        item.setIntPRICE(item.getIntPAFDETAIL() * qtyOrigin);
         em.persist(item);
         order.getTOrderDetailCollection().add(item);
 
@@ -357,6 +420,31 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return creationProduit;
     }
 
+    private Pair<TFamille, RuptureDetail> searchCoupleFamilleRuptureDetailByLigneNReponse(List<RuptureDetail> items,
+            LigneNReponse ligneNReponse, String idGrossiste) {
+        for (RuptureDetail item : items) {
+
+            TFamille famille = item.getProduit();
+            if (famille.getIntCIP().equals(ligneNReponse.getCodeProduit())
+                    || famille.getIntEAN13().equals(ligneNReponse.getCodeProduit())) {
+
+                return Pair.of(famille, item);
+            }
+
+            TFamilleGrossiste familleGrossiste = findTFamilleGrossisteByCodeCipOrEanOrProduitCode(
+                    ligneNReponse.getCodeProduit(), idGrossiste, famille.getLgFAMILLEID());
+
+            if (Objects.nonNull(familleGrossiste)) {
+                if (familleGrossiste.getStrCODEARTICLE().equals(ligneNReponse.getCodeProduit())) {
+
+                    return Pair.of(famille, item);
+                }
+            }
+
+        }
+        return null;// n'est pas sence arriver
+    }
+
     private Pair<TFamille, TOrderDetail> searchCoupleFamilleOrderDetailByLigneNReponse(List<TOrderDetail> items,
             LigneNReponse ligneNReponse, String idGrossiste) {
         for (TOrderDetail item : items) {
@@ -389,7 +477,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         lignesRupture.forEach((orderDetail, coupleProduitResponse) -> {
             LigneNReponse ligneNReponse = coupleProduitResponse.getRight();
             orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(), orderDetail.getIntNUMBER());
-            processRemplacement(ligneNReponse, grossiste, orderDetail, order);
+            processRemplacement(ligneNReponse, grossiste, orderDetail.getIntNUMBER(), order);
             if (ligneNReponse.getQuantiteLivree() == 0) {
                 em.remove(orderDetail);
             }
@@ -397,8 +485,29 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
     }
 
-    private void processRemplacement(LigneNReponse ligneNReponse, TGrossiste grossiste, TOrderDetail origin,
+    private Rupture creerRupture(Rupture ruptureOrigin, TGrossiste grossiste) {
+        Rupture rupture = new Rupture();
+        rupture.setGrossiste(grossiste);
+        rupture.setReference(ruptureOrigin.getReference());
+        em.persist(rupture);
+        return rupture;
+
+    }
+
+    private void createRupture(Map<RuptureDetail, Pair<TFamille, LigneNReponse>> lignesRupture, Rupture ruptureOrigin,
             TOrder order) {
+        TGrossiste grossiste = order.getLgGROSSISTEID();
+        Rupture rupture = creerRupture(ruptureOrigin, grossiste);
+        lignesRupture.forEach((ruptureDetail, coupleProduitResponse) -> {
+            LigneNReponse ligneNReponse = coupleProduitResponse.getRight();
+            orderService.creerRuptureItem(rupture, coupleProduitResponse.getLeft(), ruptureDetail.getQty());
+            processRemplacement(ligneNReponse, grossiste, ruptureDetail.getQty(), order);
+
+        });
+
+    }
+
+    private void processRemplacement(LigneNReponse ligneNReponse, TGrossiste grossiste, int qty, TOrder order) {
         IndisponibiliteN indisponibilite = ligneNReponse.getIndisponibilite();
         if (Objects.nonNull(indisponibilite)) {
             ProduitRemplacant produitRemplacant = indisponibilite.getProduitRemplacant();
@@ -417,7 +526,7 @@ public class PharmaMlServiceImpl implements PharmaMlService {
 
                     famille = createTFamille(buildFromLigneNReponse(ligneNReponse), grossiste);
                 }
-                addRemplacement(ligneNReponse, origin, famille, order);
+                addRemplacement(ligneNReponse, qty, famille, order);
                 // on ajoute la ligne a la commande
             }
 
@@ -443,6 +552,99 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         o.setIntPRICEDETAIL(o.getPrixUnitaire());
         o.setDtUPDATED(new Date());
         em.merge(o);
+
+    }
+
+    private void createOnderDetailFromResponce(RuptureDetail ruptureDetail, LigneNReponse ligneNReponse, TOrder order) {
+        Pair<Integer, Integer> prix = getPrixAchatPrixUni(ligneNReponse.getPrix());
+
+        TFamille famille = ruptureDetail.getProduit();
+
+        TOrderDetail orderDetail = new TOrderDetail();
+        orderDetail.setLgORDERDETAILID(new KeyUtilGen().getComplexId());
+
+        orderDetail.setIntNUMBER(ligneNReponse.getQuantiteLivree());
+        orderDetail.setIntQTEREPGROSSISTE(orderDetail.getIntNUMBER());
+        orderDetail.setIntQTEMANQUANT(orderDetail.getIntNUMBER());
+        orderDetail.setLgFAMILLEID(famille);
+        orderDetail.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
+        if (prix.getLeft() > 0) {
+            orderDetail.setPrixAchat(prix.getLeft());
+            orderDetail.setIntPAFDETAIL(prix.getLeft());
+        } else {
+            orderDetail.setPrixAchat(orderDetail.getIntPAFDETAIL());
+        }
+        orderDetail.setPrixUnitaire(prix.getRight());
+        orderDetail.setIntPRICE(orderDetail.getIntNUMBER() * orderDetail.getPrixAchat());
+        orderDetail.setIntPRICEDETAIL(orderDetail.getPrixUnitaire());
+        orderDetail.setDtUPDATED(new Date());
+        orderDetail.setDtCREATED(orderDetail.getDtCREATED());
+        orderDetail.setLgORDERID(order);
+        orderDetail.setLgGROSSISTEID(order.getLgGROSSISTEID());
+        em.persist(orderDetail);
+
+    }
+
+    private JSONObject traiterCommandeRepondue(Rupture rupture, List<RuptureDetail> items, TGrossiste grossiste,
+            CsrpEnveloppeResponse response) {
+
+        String idGrossiste = grossiste.getLgGROSSISTEID();
+        AtomicInteger countRupture = new AtomicInteger(0);
+        AtomicInteger ruptureComplet = new AtomicInteger(0);
+        AtomicInteger prisEncompte = new AtomicInteger(0);
+        Map<RuptureDetail, Pair<TFamille, LigneNReponse>> lignesRupture = new HashedMap<>();
+        List<LigneNReponse> lignes = getLigneNReponses(response);
+
+        int itemSize = items.size();
+        int montantCommande = 0;
+        TOrder order = null;
+        if (CollectionUtils.isNotEmpty(lignes)) {
+            order = orderService.createOrder(grossiste, sessionHelperService.getCurrentUser());
+            em.persist(order);
+        }
+        for (LigneNReponse ligneNReponse : lignes) {
+            Pair<TFamille, RuptureDetail> produitCommandeItem = searchCoupleFamilleRuptureDetailByLigneNReponse(items,
+                    ligneNReponse, idGrossiste);
+            int qteLivre = ligneNReponse.getQuantiteLivree();
+            RuptureDetail ruptureDetail = produitCommandeItem.getRight();
+
+            if (qteLivre >= ruptureDetail.getQty()) {
+                prisEncompte.incrementAndGet();
+                createOnderDetailFromResponce(ruptureDetail, ligneNReponse, order);
+
+                montantCommande += computeOrderAmount(ligneNReponse);
+            } else {
+                if (qteLivre > 0 && qteLivre < ruptureDetail.getQty()) {
+
+                    prisEncompte.incrementAndGet();
+                    createOnderDetailFromResponce(ruptureDetail, ligneNReponse, order);
+                    montantCommande += computeOrderAmount(ligneNReponse);
+                } else {
+                    ruptureComplet.incrementAndGet();
+                }
+                countRupture.incrementAndGet();
+
+                lignesRupture.put(ruptureDetail, Pair.of(produitCommandeItem.getLeft(), ligneNReponse));
+
+            }
+            items.remove(ruptureDetail);
+        }
+        // la commande est en rupture totale
+
+        if (Objects.nonNull(order) && countRupture.get() > 0) {
+
+            createRupture(lignesRupture, rupture, order);
+        }
+        if (Objects.nonNull(order) && prisEncompte.get() > 0) {
+            order.setIntPRICE(montantCommande);
+            em.merge(order);
+        }
+        if (itemSize == ruptureComplet.get()) {
+            em.remove(rupture);
+        }
+        // update commande montant
+        return new JSONObject().put("success", true).put("totalProduit", itemSize)
+                .put("nbreproduit", prisEncompte.get()).put("nbrerupture", countRupture.get());
 
     }
 
@@ -513,15 +715,20 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return HttpClient.newHttpClient();
     }
 
-    private CsrpEnveloppe buildPayload(TOrder order, TGrossiste grossiste, TOfficine of, String commentiare) {
-
+    private CsrpEnveloppe buildPayload(TGrossiste grossiste, TOfficine of, Normale normale, String commentaire,
+            String refCdeClient) {
+        // Normale n = buildNormale(order, idGrossiste);
+        Commande c = buildCommande(normale, refCdeClient, commentaire);
+        MessageCorps messageCorps = buildMessageCorps(c);
+        MessageOfficine messageOfficine = buildMessageOfficine(grossiste, messageCorps);
+        Corps corps = buildCorps(messageOfficine);
         CsrpEnveloppe ce = new CsrpEnveloppe();
         ce.setUsage(PharmaMlUtils.USAGE_VALUE);
         ce.setVersionProtocole(PharmaMlUtils.VERSION_PROTOCLE_VALUE);
         ce.setVersionLogiciel(PharmaMlUtils.VERSION_LOGICIEL_VALUE);
         ce.setIdLogiciel(PharmaMlUtils.ID_LOGICIEL_VALUE);
         ce.setEntete(buildEntete(grossiste, of));
-        ce.setCorps(buildCorps(order, commentiare));
+        ce.setCorps(corps);
         ce.setNatureAction(PharmaMlUtils.NATURE_ACTION_REQ_EMISSION);
         return ce;
 
@@ -587,48 +794,61 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return op;
     }
 
-    private MessageCorps buildMessageCorps(TOrder order, String commentaire, String idGrossiste) {
+    private MessageCorps buildMessageCorps(Commande c/* , String commentaire, String idGrossiste */) {
         MessageCorps mc = new MessageCorps();
-        mc.setCommande(buildCommande(order, commentaire, idGrossiste));
+        // mc.setCommande(buildCommande(order, commentaire, idGrossiste));
+        mc.setCommande(c);
         return mc;
     }
+    // refCdeClient
+    // n buildNormale(order, idGrossiste)
 
-    private Commande buildCommande(TOrder order, String commentaire, String idGrossiste) {
+    private Commande buildCommande(Normale n, String refCdeClient, String commentaire) {
         Commande c = new Commande();
         c.setDateLivraison(LocalDate.now().plusDays(1).toString());
-        if (StringUtils.isNotEmpty(commentaire)) {
-            c.setCommentaireGeneral(commentaire);
-        } else {
-            c.setCommentaireGeneral(order.getStrREFORDER());
-        }
-
-        c.setRefCdeClient(order.getStrREFORDER());
-        c.setNormale(buildNormale(order, idGrossiste));
+        c.setCommentaireGeneral(commentaire);
+        c.setRefCdeClient(refCdeClient);
+        c.setNormale(n);
         return c;
     }
 
     private List<LigneN> buildCommandeLigne(TOrder order, String grossisteId) {
         AtomicInteger count = new AtomicInteger(1);
         return new ArrayList<>(order.getTOrderDetailCollection()).stream().map(item -> {
-            LigneN ligne = new LigneN();
             TFamille famille = item.getLgFAMILLEID();
             TFamilleGrossiste familleGrossiste = orderService
                     .finFamilleGrossisteByFamilleCipAndIdGrossiste(famille.getIntCIP(), grossisteId);
+            return buildLigne(famille, familleGrossiste, item.getIntNUMBER(), count.getAndIncrement());
 
-            String numLigne = StringUtils.leftPad(count.getAndIncrement() + "", 4, '0');
-            String quantite = StringUtils.leftPad(item.getIntNUMBER() + "", 4, '0');
-            String cip = null;
-            if (familleGrossiste != null && StringUtils.isEmpty(familleGrossiste.getStrCODEARTICLE())) {
-                cip = familleGrossiste.getStrCODEARTICLE();
-            }
-            if (StringUtils.isEmpty(cip)) {
-                cip = item.getLgFAMILLEID().getIntCIP();
-            }
-            ligne.setCodeProduit(cip);
-            ligne.setQuantite(quantite);
-            ligne.setNumLigne(numLigne);
-            ligne.setTypeCodification(typeCodification(cip));
-            return ligne;
+        }).collect(Collectors.toList());
+    }
+
+    private LigneN buildLigne(TFamille famille, TFamilleGrossiste familleGrossiste, int qty, int count) {
+        LigneN ligne = new LigneN();
+
+        String numLigne = StringUtils.leftPad(count + "", 4, '0');
+        String quantite = StringUtils.leftPad(qty + "", 4, '0');
+        String cip = null;
+        if (familleGrossiste != null && StringUtils.isEmpty(familleGrossiste.getStrCODEARTICLE())) {
+            cip = familleGrossiste.getStrCODEARTICLE();
+        }
+        if (StringUtils.isEmpty(cip)) {
+            cip = famille.getIntCIP();
+        }
+        ligne.setCodeProduit(cip);
+        ligne.setQuantite(quantite);
+        ligne.setNumLigne(numLigne);
+        ligne.setTypeCodification(typeCodification(cip));
+        return ligne;
+    }
+
+    private List<LigneN> buildCommandeLigne(List<RuptureDetail> ruptureDetails, String grossisteId) {
+        AtomicInteger count = new AtomicInteger(1);
+        return ruptureDetails.stream().map(item -> {
+            TFamille famille = item.getProduit();
+            TFamilleGrossiste familleGrossiste = orderService
+                    .finFamilleGrossisteByFamilleCipAndIdGrossiste(famille.getIntCIP(), grossisteId);
+            return buildLigne(famille, familleGrossiste, item.getQty(), count.getAndIncrement());
 
         }).collect(Collectors.toList());
     }
@@ -646,27 +866,38 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         return n;
     }
 
-    private Corps buildCorps(TOrder order, String commentaire) {
+    private Normale buildFromRupture(List<RuptureDetail> ruptureDetails, String grossisteId) {
+        Normale n = new Normale();
+        n.setLignes(buildCommandeLigne(ruptureDetails, grossisteId));
+        return n;
+    }
+    // messageOfficine buildMessageOfficine( TGrossiste grossiste, MessageCorps messageCorps)
+
+    private Corps buildCorps(MessageOfficine messageOfficine) {
 
         Corps c = new Corps();
-        c.setMessageOfficine(buildMessageOfficine(order, commentaire));
+        c.setMessageOfficine(messageOfficine);
 
         return c;
     }
+    // messageCorps buildMessageCorps(c)
 
-    private MessageOfficine buildMessageOfficine(TOrder order, String commentaire) {
-        TGrossiste grossiste = order.getLgGROSSISTEID();
+    private MessageOfficine buildMessageOfficine(TGrossiste grossiste, MessageCorps messageCorps) {
+        // Commande c = buildCommande( Normale n,String refCdeClient, String commentaire);
         MessageOfficine messageOfficine = new MessageOfficine();
         messageOfficine.setEntete(buildMessageEntete(grossiste));
-        messageOfficine.setCorps(buildMessageCorps(order, commentaire, grossiste.getLgGROSSISTEID()));
+        messageOfficine.setCorps(messageCorps);
         return messageOfficine;
     }
 
-    private void createSaveXmlFile(Marshaller marshaller, Object objectToSave, String prefix, String fileName)
-            throws IOException, JAXBException {
-        Path path = Paths.get(ap.pharmaMlDir + File.separator + prefix.toUpperCase() + "_" + fileName + ".xml");
-        try (OutputStream os = Files.newOutputStream(path)) {
-            marshaller.marshal(objectToSave, os);
+    private void createSaveXmlFile(Marshaller marshaller, Object objectToSave, String prefix, String fileName) {
+        try {
+            Path path = Paths.get(ap.pharmaMlDir + File.separator + prefix.toUpperCase() + "_" + fileName + ".xml");
+            try (OutputStream os = Files.newOutputStream(path)) {
+                marshaller.marshal(objectToSave, os);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
         }
 
     }
@@ -691,5 +922,9 @@ public class PharmaMlServiceImpl implements PharmaMlService {
         }
         return null;
 
+    }
+
+    private TOfficine getOfficine() {
+        return em.find(TOfficine.class, Constant.OFFICINE);
     }
 }

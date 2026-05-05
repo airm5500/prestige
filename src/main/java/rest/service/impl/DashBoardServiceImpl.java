@@ -268,6 +268,7 @@ public class DashBoardServiceImpl implements DashBoardService {
         long montantMoov = 0;
         long montantMtn = 0;
         long montantWave = 0;
+        long montantDjamo = 0;
         List<RecapActiviteReglementDTO> reglements = new ArrayList<>();
         for (BalanceDTO b : balanceVente) {
             recapActivite.setMontantNet(b.getMontantNet() + recapActivite.getMontantNet());
@@ -286,6 +287,7 @@ public class DashBoardServiceImpl implements DashBoardService {
             montantMoov += b.getMontantMoov();
             montantMtn += b.getMontantMtn();
             montantWave += b.getMontantWave();
+            montantDjamo += b.getMontantDjamo();
 
         }
         if (montantEsp != 0) {
@@ -303,6 +305,9 @@ public class DashBoardServiceImpl implements DashBoardService {
         }
         if (montantWave != 0) {
             reglements.add(new RecapActiviteReglementDTO("WAVE", montantWave));
+        }
+        if (montantDjamo != 0) {
+            reglements.add(new RecapActiviteReglementDTO("DJAMO", montantDjamo));
         }
         if (montantCb != 0) {
             reglements.add(new RecapActiviteReglementDTO("Carte bancaire", montantCb));

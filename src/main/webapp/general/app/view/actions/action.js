@@ -1,5 +1,5 @@
 /* global Ext */
-var boxProcess, datasFlag, me;
+var  datasFlag;
 Ext.define('testextjs.view.actions.action', {
     extend: 'Ext.panel.Panel',
     xtype: 'kobysky',
@@ -17,7 +17,7 @@ Ext.define('testextjs.view.actions.action', {
         pack: 'start'
     },
     initComponent: function () {
-        me = this;
+      
         datasFlag = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
@@ -56,26 +56,25 @@ Ext.define('testextjs.view.actions.action', {
             }
 
         });
-            me.items = me.buildItems();
-        me.callParent(arguments);
-        me.getCa();
+        this.items = this.buildItems();
+        this.callParent(arguments);
+        this.getCa();
 
     },
     getCa: function () {
         Ext.Ajax.request({
-            url: '../custom',
+            url: '../api/v1/custom/get-ca',
             method: 'GET',
+            headers: {'Content-Type': 'application/json'},
             params: {
-                action: 'getca',
-                dt_start: Ext.getCmp('dt_action_start').getSubmitValue(),
-                dt_end: Ext.getCmp('dt_end_action').getSubmitValue()
-
-
+                dtStart: Ext.getCmp('dt_action_start').getSubmitValue(),
+                dtEnd: Ext.getCmp('dt_end_action').getSubmitValue()
             },
             success: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
-                Ext.getCmp('action_ca').setValue(object.CA);
+                const object = Ext.JSON.decode(response.responseText, false);
+             
+                Ext.getCmp('action_ca').setValue(object.montantCa);
                 if (!object.success) {
                     Ext.MessageBox.show({
                         title: 'Message d\'erreur',
@@ -95,30 +94,57 @@ Ext.define('testextjs.view.actions.action', {
     },
 
     appliquer: function () {
+        const progressBar = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
-            url: '../custom',
+            url: '../api/v1/custom/ponctionner',
             method: 'GET',
+            headers: {'Content-Type': 'application/json'},
+            timeout: 2400000,
             params: {
-                action: 'getca',
-                dt_start: Ext.getCmp('dt_action_start').getSubmitValue(),
-                dt_end: Ext.getCmp('dt_end_action').getSubmitValue()
-
+                dtStart: Ext.getCmp('dt_action_start').getSubmitValue(),
+                dtEnd: Ext.getCmp('dt_end_action').getSubmitValue(),
+                amount: Ext.getCmp('fixedamount').getValue()
 
             },
-            success: function (response)
-            {
-                var object = Ext.JSON.decode(response.responseText, false);
-                Ext.getCmp('action_ca').setValue(object.CA);
+            success: function (action) {
+                progressBar.hide();
+                const object = Ext.JSON.decode(action.responseText, false);
+                if (object.success) {
+                    Ext.getCmp('nb').setValue(object.nb);
+                    Ext.getCmp('nb').show();
+                    Ext.getCmp('actionGrid').getStore().load();
+                } else {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 320,
+                        msg: object.msg,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
+                    });
+                }
             },
-            failure: function (response)
-            {
-
+            failure: function (action) {
+                progressBar.hide();
+                const object = Ext.JSON.decode(action.responseText, false);
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 320,
+                    msg: object.msg,
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR
+                });
             }
-
         });
+
+
+
+
+
     },
 
     buildItems: function () {
+        const context = this;
+
         return [
             {
                 xtype: 'panel',
@@ -190,7 +216,7 @@ Ext.define('testextjs.view.actions.action', {
                                 width: 100,
                                 listeners: {
                                     click: function () {
-                                        me.getCa();
+                                        context.getCa();
                                     }
                                 }
 
@@ -251,9 +277,9 @@ Ext.define('testextjs.view.actions.action', {
                                 margins: '0 5 0 0',
                                 listeners: {
                                     change: function (e) {
-                                        var ca = Ext.getCmp('action_ca').getValue();
-                                        var _thisVal = e.getValue();
-                                        var percent = (Number(_thisVal) * 100) / Number(ca);
+                                        const ca = Ext.getCmp('action_ca').getValue();
+                                        const _thisVal = e.getValue();
+                                        const percent = (Number(_thisVal) * 100) / Number(ca);
                                         Ext.getCmp('fixedpercent').setValue(Ext.Number.toFixed(percent, 2));
                                         Ext.getCmp('peramount').setValue(_thisVal);
                                     }
@@ -275,46 +301,7 @@ Ext.define('testextjs.view.actions.action', {
                                 text: "Appliquer",
                                 listeners: {
                                     "click": function (src) {
-                                        boxProcess = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-                                        Ext.Ajax.request({
-                                            url: '../custom',
-                                            timeout: 2400000,
-                                            params: {
-                                                'action': 'finish',
-                                                dt_start: Ext.getCmp('dt_action_start').getSubmitValue(),
-                                                dt_end: Ext.getCmp('dt_end_action').getSubmitValue(),
-                                                amount: Ext.getCmp('fixedamount').getValue(),
-                                                ca: Ext.getCmp('action_ca').getValue()
-                                            },
-                                            success: function (action) {
-                                                boxProcess.hide();
-                                                let object = Ext.JSON.decode(action.responseText, false);
-                                                if (object.success === 1) {
-                                                    Ext.getCmp('nb').setValue(object.nb);
-                                                    Ext.getCmp('nb').show();
-                                                    datasFlag.load();
-                                                } else {
-                                                    Ext.MessageBox.show({
-                                                        title: 'Message d\'erreur',
-                                                        width: 320,
-                                                        msg: object.msg,
-                                                        buttons: Ext.MessageBox.OK,
-                                                        icon: Ext.MessageBox.ERROR
-                                                    });
-                                                }
-                                            },
-                                            failure: function (action) {
-                                                boxProcess.hide();
-                                                let object = Ext.JSON.decode(action.responseText, false);
-                                                Ext.MessageBox.show({
-                                                    title: 'Message d\'erreur',
-                                                    width: 320,
-                                                    msg: object.msg,
-                                                    buttons: Ext.MessageBox.OK,
-                                                    icon: Ext.MessageBox.ERROR
-                                                });
-                                            }
-                                        });
+                                        context.appliquer();
 //                                }
                                     }
                                 }
@@ -349,9 +336,9 @@ Ext.define('testextjs.view.actions.action', {
                                 margins: '0 5 0 0',
                                 listeners: {
                                     change: function (e) {
-                                        var ca = Ext.getCmp('action_ca').getValue();
-                                        var _thisVal = e.getValue();
-                                        var montant = (Number(_thisVal) * Number(ca)) / 100;
+                                        const ca = Ext.getCmp('action_ca').getValue();
+                                        const _thisVal = e.getValue();
+                                        const montant = (Number(_thisVal) * Number(ca)) / 100;
                                         Ext.getCmp('percentamount').setValue(Ext.Number.toFixed(montant, 0));
                                         Ext.getCmp('peramount').setValue(montant);
 
@@ -385,46 +372,8 @@ Ext.define('testextjs.view.actions.action', {
                                 text: "Appliquer",
                                 listeners: {
                                     "click": function (src) {
-                                        boxProcess = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-                                        Ext.Ajax.request({
-                                            url: '../custom',
-                                            timeout: 2400000,
-                                            params: {
-                                                'action': 'finish',
-                                                amount: Ext.getCmp('percentamount').getValue(),
-                                                ca: Ext.getCmp('action_ca').getValue(),
-                                                dt_start: Ext.getCmp('dt_action_start').getSubmitValue(),
-                                                dt_end: Ext.getCmp('dt_end_action').getSubmitValue()
-                                            },
-                                            success: function (action) {
-                                                boxProcess.hide();
-                                                let object = Ext.JSON.decode(action.responseText, false);
-                                                if (object.success === 1) {
-                                                    Ext.getCmp('nb').setValue(object.nb);
-                                                    Ext.getCmp('nb').show();
-                                                    datasFlag.load();
-                                                } else {
-                                                    Ext.MessageBox.show({
-                                                        title: 'Message d\'erreur',
-                                                        width: 320,
-                                                        msg: object.msg,
-                                                        buttons: Ext.MessageBox.OK,
-                                                        icon: Ext.MessageBox.ERROR
-                                                    });
-                                                }
-                                            },
-                                            failure: function (action) {
-                                                boxProcess.hide();
-                                                let object = Ext.JSON.decode(action.responseText, false);
-                                                Ext.MessageBox.show({
-                                                    title: 'Message d\'erreur',
-                                                    width: 320,
-                                                    msg: object.msg,
-                                                    buttons: Ext.MessageBox.OK,
-                                                    icon: Ext.MessageBox.ERROR
-                                                });
-                                            }
-                                        });
+                                        context.appliquer();
+
 //                                }
                                     }
                                 }
@@ -460,6 +409,7 @@ Ext.define('testextjs.view.actions.action', {
                 items: {
                     xtype: 'gridpanel',
                     title: 'Montants',
+                    id: 'actionGrid',
                     border: false,
                     autoScroll: true,
                     store: datasFlag,
@@ -509,14 +459,14 @@ Ext.define('testextjs.view.actions.action', {
                                     tooltip: 'Annuler',
 
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
-                                        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                                        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                                         Ext.Ajax.request({
                                             method: 'DELETE',
                                             headers: {'Content-Type': 'application/json'},
                                             url: '../api/v1/flag/' + record.get('id'),
                                             success: function (response, options) {
                                                 progress.hide();
-                                                datasFlag.load();
+                                                Ext.getCmp('actionGrid').getStore().load();
                                             },
                                             failure: function (response, options) {
                                                 progress.hide();

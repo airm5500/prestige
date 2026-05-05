@@ -7,7 +7,7 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             ref: 'vingtquatrevingt',
             selector: 'vingtquatrevingt'
         },
-       
+
         {
             ref: 'myGrid',
             selector: 'vingtquatrevingt gridpanel'
@@ -57,7 +57,7 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             'vingtquatrevingt #rechercher': {
                 click: this.doSearch
             },
-            
+
             'vingtquatrevingt #rayons': {
                 select: this.doSearch
             },
@@ -82,84 +82,35 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             },
             'vingtquatrevingt #exporter #exporterexcel': {
                 click: this.onExportExcel
-            } 
+            }
 
         });
     },
 
     onPdfClick: function () {
-        var me = this;
-        var dtStart = me.getDtStart().getSubmitValue();
-        var dtEnd = me.getDtEnd().getSubmitValue();
-        var codeRayon = me.getRayons().getValue();
-        var codeGrossiste = me.getGrossiste().getValue();
-        var comboVingt = me.getComboVingt().getValue();
-        var codeFamile = me.getCodeFamile().getValue();
-        if (codeFamile == null) {
-            codeFamile = '';
-        }
-        if (codeRayon == null) {
-            codeRayon = '';
-        }
-        if (codeGrossiste == null) {
-            codeGrossiste = '';
-        }
-        var qtyOrCa = (comboVingt === 'Quantite');
-        var linkUrl = '../Vinght20x80?mode=pdf&dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&codeFamile=' + codeFamile
-                + '&qtyOrCa=' + qtyOrCa;
-        window.open(linkUrl);
+        const me = this;
+
+        window.open('../Vinght20x80?mode=pdf' + me.buildExportUrl());
     },
     onExportExcel: function () {
 
         const me = this;
-        const dtStart = me.getDtStart().getSubmitValue();
-        const dtEnd = me.getDtEnd().getSubmitValue();
-        let codeRayon = me.getRayons().getValue();
-        let codeGrossiste = me.getGrossiste().getValue();
-        let comboVingt = me.getComboVingt().getValue();
-        let codeFamile = me.getCodeFamile().getValue();
-        if (codeFamile == null) {
-            codeFamile = '';
-        }
-        if (codeRayon == null) {
-            codeRayon = '';
-        }
-        if (codeGrossiste == null) {
-            codeGrossiste = '';
-        }
-        const qtyOrCa = (comboVingt === 'Quantite');
 
-        window.location = '../Vinght20x80?mode=excel&dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&codeFamile=' + codeFamile
-                + '&qtyOrCa=' + qtyOrCa;
+        window.location = '../Vinght20x80?mode=excel' + me.buildExportUrl();
     },
 
     onSuggere: function () {
-        var me = this;
-        var dtStart = me.getDtStart().getSubmitValue();
-        var dtEnd = me.getDtEnd().getSubmitValue();
-        var codeRayon = me.getRayons().getValue();
-        var codeGrossiste = me.getGrossiste().getValue();
-        var comboVingt = me.getComboVingt().getValue();
-        var codeFamile = me.getCodeFamile().getValue();
-        var qtyOrCa = (comboVingt === 'Quantite');
-        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        const me = this;
+
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/statfamillearticle/suggestionvingtQuatreVingt',
-            params: {
-                dtStart: dtStart,
-                dtEnd: dtEnd,
-                codeRayon: codeRayon,
-                codeGrossiste: codeGrossiste,
-                codeFamile: codeFamile,
-                qtyOrCa: qtyOrCa
-            },
+            params: me.buildParams(),
             timeout: 2400000,
             success: function (response, options) {
                 progress.hide();
-                var result = Ext.JSON.decode(response.responseText, true);
+                const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
                     Ext.Msg.alert("Message", 'Produits pris en compte ' + result.count);
                 }
@@ -174,8 +125,8 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
 
     },
     doBeforechange: function (page, currentPage) {
-        var me = this;
-        var myProxy = me.getMyGrid().getStore().getProxy();
+        const me = this;
+        const myProxy = me.getMyGrid().getStore().getProxy();
         myProxy.params = {
             dtEnd: null,
             dtStart: null,
@@ -185,38 +136,67 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             codeFamile: null
 
         };
-        var codeRayon = me.getRayons().getValue();
-        var codeGrossiste = me.getGrossiste().getValue();
-        var comboVingt = me.getComboVingt().getValue();
-        var codeFamile = me.getCodeFamile().getValue();
+        const codeRayon = me.getRayons().getValue();
+        const codeGrossiste = me.getGrossiste().getValue();
+        const comboVingt = me.getComboVingt().getValue();
+        const codeFamile = me.getCodeFamile().getValue();
         myProxy.setExtraParam('codeRayon', codeRayon);
         myProxy.setExtraParam('codeFamile', codeFamile);
         myProxy.setExtraParam('codeGrossiste', codeGrossiste);
-        myProxy.setExtraParam('qtyOrCa', (comboVingt === 'Quantite'));
+        myProxy.setExtraParam('vingtType', comboVingt);
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
     },
     doInitStore: function () {
-        var me = this;
+        const me = this;
         me.doSearch();
     },
     doSearch: function () {
-        var me = this;
-        var codeRayon = me.getRayons().getValue();
-        var codeGrossiste = me.getGrossiste().getValue();
-        var comboVingt = me.getComboVingt().getValue();
-        var codeFamile = me.getCodeFamile().getValue();
-        me.getMyGrid().getStore().load({
-            params: {
-                dtStart: me.getDtStart().getSubmitValue(),
-                dtEnd: me.getDtEnd().getSubmitValue(),
-                codeFamile: codeFamile,
-                codeRayon: codeRayon,
-                codeGrossiste: codeGrossiste,
-                qtyOrCa: (comboVingt === 'Quantite')
+        const me = this;
 
-            }
+        me.getMyGrid().getStore().load({
+            params: me.buildParams()
         });
+    },
+
+    buildParams: function () {
+        const me = this;
+        const codeRayon = me.getRayons().getValue();
+        const codeGrossiste = me.getGrossiste().getValue();
+        const comboVingt = me.getComboVingt().getValue();
+        const codeFamile = me.getCodeFamile().getValue();
+        return    {
+            dtStart: me.getDtStart().getSubmitValue(),
+            dtEnd: me.getDtEnd().getSubmitValue(),
+            codeFamile: codeFamile,
+            codeRayon: codeRayon,
+            codeGrossiste: codeGrossiste,
+            vingtType: comboVingt
+
+        };
+    },
+
+    buildExportUrl: function () {
+        const me = this;
+
+
+        let codeRayon = me.getRayons().getValue();
+        let codeGrossiste = me.getGrossiste().getValue();
+        const comboVingt = me.getComboVingt().getValue();
+        let codeFamile = me.getCodeFamile().getValue();
+        if (codeFamile == null) {
+            codeFamile = '';
+        }
+        if (codeRayon == null) {
+            codeRayon = '';
+        }
+        if (codeGrossiste == null) {
+            codeGrossiste = '';
+        }
+        return  '&dtStart=' + me.getDtStart().getSubmitValue() + '&dtEnd=' + me.getDtEnd().getSubmitValue()
+                + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&codeFamile=' + codeFamile
+                + '&vingtType=' + comboVingt;
+
     }
 
 });

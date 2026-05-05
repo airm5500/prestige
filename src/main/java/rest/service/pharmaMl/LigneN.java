@@ -89,4 +89,11 @@ public class LigneN {
         this.reliquat = reliquat;
     }
 
+    @Override
+    public String toString() {
+        return "LigneN{" + "numLigne=" + numLigne + ", typeCodification=" + typeCodification + ", codeProduit="
+                + codeProduit + ", quantite=" + quantite + ", equivalent=" + equivalent + ", partielle=" + partielle
+                + ", reliquat=" + reliquat + '}';
+    }
+
 }

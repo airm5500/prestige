@@ -10,5 +10,7 @@ import rest.service.exception.FneExeception;
 @Local
 public interface FneService {
 
-    void createInvoice(String idFacture) throws FneExeception;
+    void createInvoice(String idFacture, TypeInvoice typeInvoice) throws FneExeception;
+
+    void createGroupeInvoice(String idFactures, TypeInvoice typeInvoice);
 }

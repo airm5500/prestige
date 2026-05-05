@@ -17,4 +17,10 @@ public class NormaleReponse {
     public void setLignes(List<LigneNReponse> lignes) {
         this.lignes = lignes;
     }
+
+    @Override
+    public String toString() {
+        return "NormaleReponse{" + "lignes=" + lignes + '}';
+    }
+
 }

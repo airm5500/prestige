@@ -101,6 +101,7 @@ import org.json.JSONObject;
 import rest.service.CaisseService;
 import rest.service.LogService;
 import rest.service.NotificationService;
+import rest.service.SessionHelperService;
 import rest.service.TransactionService;
 import rest.service.dto.CoffreCaisseDTO;
 import rest.service.dto.MvtCaisseModeDTO;
@@ -136,6 +137,8 @@ public class CaisseServiceImpl implements CaisseService {
     private LogService logService;
     @EJB
     private NotificationService notificationService;
+    @EJB
+    private SessionHelperService sessionHelperService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
@@ -298,6 +301,7 @@ public class CaisseServiceImpl implements CaisseService {
                 case DateConverter.MODE_MOOV:
                 case DateConverter.TYPE_REGLEMENT_ORANGE:
                 case DateConverter.MODE_WAVE:
+                case DateConverter.MODE_DJAMO:
                     v.forEach(b -> {
                         montantMobileMoney.add(b.getMontant());
                         if (b.getTypeMvt().equals(DateConverter.MVT_REGLE_VO)
@@ -883,7 +887,7 @@ public class CaisseServiceImpl implements CaisseService {
             return q.getSingleResult();
 
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
+            LOG.info(e.getLocalizedMessage());
             return null;
 
         }
@@ -1511,22 +1515,40 @@ public class CaisseServiceImpl implements CaisseService {
     }
 
     @Override
-    public long montantCa(LocalDate dtStart, LocalDate dtEnd, boolean checked, String emplacementId,
-            TypeTransaction transaction, String typrReglement) {
+    public long getMontantCa(LocalDate dtStart, LocalDate dtEnd) {
         try {
-            TypedQuery<Long> query = getEntityManager().createQuery(
-                    "SELECT COALESCE(SUM(o.montantPaye),0) FROM MvtTransaction o WHERE o.mvtDate BETWEEN ?1 AND ?2 AND o.magasin.lgEMPLACEMENTID=?3 AND o.checked=?4 AND o.typeTransaction =?5 AND o.reglement.lgTYPEREGLEMENTID=?6",
-                    Long.class);
+            TUser tUser = sessionHelperService.getCurrentUser();
+            Query query = getEntityManager().createNativeQuery(
+                    "SELECT COALESCE( SUM(vr.montant),0) AS montantEspece FROM  vente_reglement vr JOIN mvttransaction mv ON vr.vente_id=mv.vente_id "
+                            + "  WHERE DATE(vr.mvtDate) BETWEEN ?1 AND ?2 AND vr.type_regelement=1 AND mv.typeTransaction=0  AND mv.checked  AND mv.lg_EMPLACEMENT_ID=?3");
             query.setParameter(1, dtStart);
             query.setParameter(2, dtEnd);
-            query.setParameter(3, emplacementId);
-            query.setParameter(4, checked);
-            query.setParameter(5, transaction);
-            query.setParameter(6, typrReglement);
-            return query.getSingleResult().longValue();
+            query.setParameter(3, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+
+            return ((Number) query.getSingleResult()).longValue();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return 0;
+            return 0L;
+        }
+    }
+
+    @Override
+    public List<Object[]> getVenteReglements(LocalDate dtStart, LocalDate dtEnd, int start, int max) {
+        try {
+            String lgEmp = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            Query query = getEntityManager().createNativeQuery(
+                    "SELECT vr.montant AS montantEspece,vr.id AS id, vr.vente_id AS vente_id,mv.`uuid` AS mvTransactId FROM  vente_reglement vr JOIN mvttransaction mv ON vr.vente_id=mv.vente_id JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=vr.vente_id "
+                            + " WHERE DATE(vr.mvtDate) BETWEEN ?1 AND ?2 AND vr.type_regelement=1 AND mv.typeTransaction=0 AND mv.lg_EMPLACEMENT_ID=?3 AND mv.checked AND p.int_PRICE_REMISE=0 AND p.int_PRICE >0 AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=false  AND p.lg_TYPE_VENTE_ID <> '5' ORDER BY vr.montant DESC");
+            query.setParameter(1, dtStart);
+            query.setParameter(2, dtEnd);
+            query.setParameter(3, lgEmp);
+            query.setFirstResult(start);
+            query.setMaxResults(max);
+            return query.getResultList();
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
         }
     }
 
@@ -1778,6 +1800,7 @@ public class CaisseServiceImpl implements CaisseService {
                 case DateConverter.TYPE_REGLEMENT_ORANGE:
                 case DateConverter.MODE_MTN:
                 case DateConverter.MODE_WAVE:
+                case DateConverter.MODE_DJAMO:
                     montantMobilePayment += montantPara;
                     break;
                 }

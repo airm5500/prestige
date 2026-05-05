@@ -257,7 +257,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                 {
                     text: 'NOUVEAU RETOUR',
                     scope: this,
-                    handler: this.onAddClick
+                    handler: this.onAddClick,
+                    cls: 'btn-primaryb'
                 }, '-', {
                     xtype: 'combobox',
                     name: 'lg_GROSSISTE_ID',

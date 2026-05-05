@@ -463,7 +463,6 @@ public class SalesRessource {
     @PUT
     @Path("add/medecin/{id}")
     public Response addMedecin(@PathParam("id") String id, MedecinDTO params) {
-
         JSONObject json = salesService.updateMedecin(id, params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -473,8 +472,7 @@ public class SalesRessource {
     public Response updateClientOrTierpayant(@PathParam("id") String id, SalesParams salesParams) {
 
         salesParams.setVenteId(id);
-        JSONObject json = salesService.updateClientOrTierpayant(salesParams);
-        return Response.ok().entity(json.toString()).build();
+        return Response.ok().entity(salesService.updateClientOrTierpayant(salesParams).toString()).build();
     }
 
     @GET

@@ -22,4 +22,9 @@ public class Corps {
         this.messageOfficine = messageOfficine;
     }
 
+    @Override
+    public String toString() {
+        return "Corps{" + "messageOfficine=" + messageOfficine + '}';
+    }
+
 }

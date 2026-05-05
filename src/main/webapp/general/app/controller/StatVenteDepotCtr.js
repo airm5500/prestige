@@ -76,10 +76,10 @@ Ext.define('testextjs.controller.StatVenteDepotCtr', {
             'ventehistoriquedepotmanager gridpanel': {
                 viewready: this.doInitStore
             },
-            "ventehistoriquedepotmanager gridpanel actioncolumn": {
+            'ventehistoriquedepotmanager': {
                 printTicket: this.printTicket,
-                facture: this.onFacture
-
+                facture: this.onFacture,
+                showProduits: this.onShowProduits
             },
             'ventemanager #query': {
                 specialkey: this.onSpecialKey
@@ -190,6 +190,90 @@ Ext.define('testextjs.controller.StatVenteDepotCtr', {
         me.fetchAmount();
     },
 
+    onShowProduits: function (record) {
+        const venteId = record.get('lgPREENREGISTREMENTID');
+        if (!venteId) {
+            Ext.Msg.alert('Erreur', 'ID vente introuvable');
+            return;
+        }
+
+        const win = Ext.create('Ext.window.Window', {
+            title: 'Produits - ' + (record.get('strREF') || ''),
+            modal: true,
+            width: 900,
+            height: 500,
+            layout: 'fit',
+            items: [{
+                    xtype: 'gridpanel',
+                    itemId: 'gridProduits',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: [
+                            {name: 'lg', type: 'int'},
+                            {name: 'nom', type: 'string'},
+                            {name: 'cip', type: 'string'},
+                            {name: 'qte', type: 'int'},
+                            {name: 'pu', type: 'int'},
+                            {name: 'montant', type: 'int'}
+                        ]
+                    }),
+                    columns: [
+                        {text: 'LG', dataIndex: 'lg', width: 50},
+                        {text: 'Nom', dataIndex: 'nom', flex: 1},
+                        {text: 'Cip', dataIndex: 'cip', width: 100},
+                        {text: 'Quantité', dataIndex: 'qte', width: 90, align: 'right'},
+                        {text: 'Prix.Vente', dataIndex: 'pu', width: 110, align: 'right',
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            }},
+                        {text: 'Montant', dataIndex: 'montant', width: 110, align: 'right',
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            }}
+                    ]
+                }],
+            bbar: ['->', {text: 'Fermer', handler: function () {
+                        win.close();
+                    }}]
+        });
+
+        win.show();
+
+        const grid = win.down('#gridProduits');
+        const store = grid.getStore();
+
+        const progress = Ext.MessageBox.wait('Chargement des produits...', 'Veuillez patienter');
+        Ext.Ajax.request({
+            url: '../api/v1/ventestats/find-one/' + venteId,
+            method: 'GET',
+            success: function (resp) {
+                progress.hide();
+                const json = Ext.decode(resp.responseText, true) || {};
+                const data = json.data || {};
+                const items = data.items || [];
+
+                const rows = [];
+                Ext.Array.forEach(items, function (it, idx) {
+                    const p = it.produit || {};
+                    rows.push({
+                        lg: idx + 1,
+                        nom: p.strNAME || p.strDESCRIPTION || '',
+                        cip: p.intCIP || '',
+                        qte: it.intQUANTITY || 0,
+                        pu: it.intPRICEUNITAIR || 0,
+                        montant: it.intPRICE || 0
+                    });
+                });
+
+                store.loadData(rows, false);
+            },
+            failure: function () {
+                progress.hide();
+                Ext.Msg.alert('Erreur', 'Impossible de charger les détails de la vente');
+            }
+        });
+    },
+
+
     fetchAmount: function () {
         const me = this;
         Ext.Ajax.request({
@@ -204,5 +288,7 @@ Ext.define('testextjs.controller.StatVenteDepotCtr', {
 
         });
     }
+    
+    
 
 });

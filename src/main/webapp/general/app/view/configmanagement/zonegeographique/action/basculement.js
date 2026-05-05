@@ -77,7 +77,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
             }
 
         });
-       
+
         store.load({
             params: {
                 zoneID: lg_ZONE_GEO_ID,
@@ -346,8 +346,6 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                                             zoneID: '',
                                             search_value: ''
                                         };
-
-
                                         myProxy.setExtraParam('search_value', Ext.getCmp('rechercher').getValue());
                                         myProxy.setExtraParam('zoneID', lg_ZONE_GEO_ID);
                                     }
@@ -365,20 +363,17 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
         });
 
 
-        /*if(lg_ZONE_GEO_ID!==''){
-         Ext.getCmp('zoneID').setValue(lg_ZONE_GEO_ID);
-         }*/
-        var grid = Ext.getCmp('basculID');
-        var all = Ext.getCmp('selectALL');
-
+        const grid = Ext.getCmp('basculID');
+        const all = Ext.getCmp('selectALL');
+        const val = Ext.getCmp('rechercher');
         grid.getStore().on(
                 "load",
                 function () {
 
                     pageItems = [];
-                    var CODEstore = grid.getStore();
+                    const CODEstore = grid.getStore();
                     if (listProductSelected.length > 0) {
-                        var record;
+                        let record;
                         Ext.each(listProductSelected, function (lg, index) {
                             CODEstore.each(function (r, id) {
                                 record = CODEstore.findRecord('lg_FAMILLE_ID', lg);
@@ -424,7 +419,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
 
 
 
-        var win = new Ext.window.Window({
+        const win = new Ext.window.Window({
             autoShow: true, title: this.getTitre(),
             maximizable: true,
             width: '90%',
@@ -438,16 +433,40 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                 {
                     text: 'Basculer',
                     handler: function () {
-                        var zoneDESID = Ext.getCmp('zoneDESID').getValue();
+                        let zoneDESID = Ext.getCmp('zoneDESID').getValue();
                         if (zoneDESID === null || zoneDESID === '') {
-                            Ext.MessageBox.alert('Error Message', "Veuillez choisir l'emplacement de destination");
+                            Ext.MessageBox.show({
+                                title: 'Avertissement',
+                                width: 320,
+                                msg: "Veuillez choisir l'emplacement de destination",
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.WARNING
+                            });
+
                             return;
                         } else if (zoneDESID !== null && (uncheckedList.length === 0 && listProductSelected.length === 0)) {
-                            Ext.MessageBox.alert('Error Message', "Veuillez Selectionner au moins un produit");
+                            Ext.MessageBox.show({
+                                title: 'Avertissement',
+                                width: 320,
+                                msg: "Veuillez Selectionner au moins un produit",
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.WARNING
+                            });
+                            return;
+                        }
+                        if (all.getValue() && (lg_ZONE_GEO_ID === null || lg_ZONE_GEO_ID === undefined || lg_ZONE_GEO_ID === '') && (val.getValue()===null || val.getValue()===undefined || val.getValue()==='')) {
+                            Ext.MessageBox.show({
+                                title: 'Avertissement',
+                                width: 320,
+                                msg: "Veuillez choisir l'emplacement d'origine",
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.WARNING
+                            });
+
                             return;
                         }
 
-                        var val = Ext.getCmp('rechercher');
+
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
                             url: '../webservices/stockmanagement/stock/ws_update.jsp',
@@ -465,16 +484,19 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                             },
                             success: function (response, options) {
                                 testextjs.app.getController('App').StopWaitingProcess();
-                                var object = Ext.JSON.decode(response.responseText, false);
+                                const object = Ext.JSON.decode(response.responseText, false);
                                 if (object.status === 1) {
+
+
+
                                     Ext.MessageBox.alert('INFOS', object.message);
 
-                                    var myStore = Ext.getCmp('basculID').getStore();
-                                    var totalCnt = myStore.getTotalCount();
-                                    var myCnt = myStore.getCount();
-                                    var nbPage = Math.ceil((totalCnt / 15));
-                                    var pageToLoad = (listProductSelected.length % 15);
-                                   
+                                    let myStore = Ext.getCmp('basculID').getStore();
+                                    let totalCnt = myStore.getTotalCount();
+                                    let myCnt = myStore.getCount();
+                                    let nbPage = Math.ceil((totalCnt / 15));
+                                    let pageToLoad = (listProductSelected.length % 15);
+
                                     if (nbPage === myStore.currentPage) {
                                         if (listProductSelected.length > 0 && (listProductSelected.length < 15)) {
                                             if (listProductSelected.length < myCnt) {
@@ -499,15 +521,16 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
                                         }
 
                                     }
-                                    /* if (pageItems.length > 0 && pageItems.length < Ext.getCmp('basculID').getStore().getCount()) {
-                                     
-                                     } else {
-                                     Ext.getCmp('basculID').getStore().loadPage(1);
-                                     }*/
+
                                     listProductSelected = [];
                                     checkedList = [];
                                     pageItems = [];
-
+                                    lg_ZONE_GEO_ID = null;//reset
+                                    // Ext.getCmp('zoneDESID').setValue(null);
+                                    Ext.getCmp('zoneID').setValue(null);
+                                    if (all.getValue()) {
+                                        Ext.getCmp('basculID').getStore().load();
+                                    }
                                     all.setValue(false);
                                 } else {
                                     testextjs.app.getController('App').StopWaitingProcess();

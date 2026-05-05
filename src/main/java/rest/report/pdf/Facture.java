@@ -45,7 +45,6 @@ import javax.ejb.Stateless;
 import javax.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
 import rest.report.ReportUtil;
-import rest.service.CommonService;
 import rest.service.FacturationService;
 import rest.service.LogService;
 import rest.service.ReglementService;
@@ -65,8 +64,7 @@ public class Facture {
 
     @EJB
     ReportUtil reportUtil;
-    @EJB
-    CommonService commonService;
+
     @EJB
     SalesStatsService salesStatsService;
     @EJB

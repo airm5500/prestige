@@ -88,6 +88,15 @@ public class VenteDetailsDTO implements Serializable {
     private String libelleGrossiste;
     private boolean deconditionne;
     private Integer calculationBasePrice;
+    private int marge;
+
+    public int getMarge() {
+        return marge;
+    }
+
+    public void setMarge(int marge) {
+        this.marge = marge;
+    }
 
     public Integer getStockInitial() {
         return stockInitial;

@@ -2,6 +2,7 @@ package rest.service.impl;
 
 import commonTasks.dto.VenteDetailsDTO;
 import dal.TFamilleStock;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
@@ -27,6 +28,9 @@ import rest.service.SuggestionService;
 import rest.service.dto.EvaluationVenteDto;
 import rest.service.dto.EvaluationVenteFiltre;
 import util.Constant;
+import rest.service.InventaireService;
+import rest.service.utils.CsvExportService;
+import rest.service.utils.ReportExcelExportService;
 
 /**
  *
@@ -55,6 +59,15 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
         return em;
     }
 
+    @EJB
+    private CsvExportService csvExportService;
+
+    @EJB
+    private ReportExcelExportService reportExcelExportService;
+
+    @EJB
+    private InventaireService inventaireService;
+
     @Override
     public JSONObject makeSuggestion(EvaluationVenteFiltre evaluationVenteFiltre) {
         return suggestionService.makeSuggestion(
@@ -71,6 +84,11 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
     public List<EvaluationVenteDto> getEvaluationVentes(EvaluationVenteFiltre evaluationVenteFiltre) {
 
         return fetchData(evaluationVenteFiltre).stream().map(this::buildFromTuple).collect(Collectors.toList());
+    }
+
+    private List<EvaluationVenteDto> getEvaluationVentesAll(EvaluationVenteFiltre evaluationVenteFiltre) {
+        evaluationVenteFiltre.setAll(true);
+        return getEvaluationVentes(evaluationVenteFiltre);
     }
 
     @Override
@@ -259,6 +277,83 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    @Override
+    public byte[] exportEvaluationVentesCsv(EvaluationVenteFiltre evaluationVenteFiltre) throws IOException {
+        List<EvaluationVenteDto> data = getEvaluationVentesAll(evaluationVenteFiltre);
+
+        LocalDate start = getDateParams(); // déjà dans ta classe
+        LocalDate end = LocalDate.now();
+
+        String title = "Évaluation des ventes du "
+                + start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au "
+                + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        String[] headers = { "CIP", "Libellé", "Stock", "Moyenne", "Qté totale vendue", "Coût total",
+                "Qté mois courant", "Qté M-1", "Qté M-2", "Qté M-3" };
+
+        byte[] csvData = csvExportService.createCsvReport(title, headers, data,
+                dto -> new String[] { dto.getCodeCip(), dto.getLibelle(), String.valueOf(dto.getStock()),
+                        String.valueOf(dto.getMoyenne()), String.valueOf(dto.getQuantiteVendue()),
+                        String.valueOf(dto.getTotalvente()), String.valueOf(dto.getQuantiteVendueCurrentMonth()),
+                        String.valueOf(dto.getQuantiteVendueMonthMinusOne()),
+                        String.valueOf(dto.getQuantiteVendueMonthMinusTwo()),
+                        String.valueOf(dto.getQuantiteVendueMonthMinusThree()) });
+
+        return csvExportService.addUtf8Bom(csvData);
+    }
+
+    @Override
+    public byte[] exportEvaluationVentesExcel(EvaluationVenteFiltre evaluationVenteFiltre) throws IOException {
+        List<EvaluationVenteDto> data = getEvaluationVentesAll(evaluationVenteFiltre);
+
+        LocalDate start = getDateParams();
+        LocalDate end = LocalDate.now();
+
+        String title = "Évaluation des ventes du "
+                + start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au "
+                + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        String[] headers = { "CIP", "Libellé", "Stock", "Moyenne", "Qté totale vendue", "Coût total",
+                "Qté mois courant", "Qté M-1", "Qté M-2", "Qté M-3" };
+
+        return reportExcelExportService.createExcelReport(title, headers, data, (row, dto) -> {
+            int col = 0;
+            row.createCell(col++).setCellValue(dto.getCodeCip());
+            row.createCell(col++).setCellValue(dto.getLibelle());
+            row.createCell(col++).setCellValue(dto.getStock());
+            row.createCell(col++).setCellValue(dto.getMoyenne());
+            row.createCell(col++).setCellValue(dto.getQuantiteVendue());
+            row.createCell(col++).setCellValue(dto.getTotalvente());
+            row.createCell(col++).setCellValue(dto.getQuantiteVendueCurrentMonth());
+            row.createCell(col++).setCellValue(dto.getQuantiteVendueMonthMinusOne());
+            row.createCell(col++).setCellValue(dto.getQuantiteVendueMonthMinusTwo());
+            row.createCell(col++).setCellValue(dto.getQuantiteVendueMonthMinusThree());
+        });
+    }
+
+    @Override
+    public JSONObject createInventaire(EvaluationVenteFiltre evaluationVenteFiltre) {
+        List<EvaluationVenteDto> data = getEvaluationVentesAll(evaluationVenteFiltre);
+
+        if (data.isEmpty()) {
+            return new JSONObject().put("count", 0);
+        }
+
+        java.util.Set<String> ids = data.stream().map(EvaluationVenteDto::getId).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        LocalDate start = getDateParams();
+        LocalDate end = LocalDate.now();
+
+        String title = "Inventaire évaluation des ventes du "
+                + start.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au "
+                + end.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        int count = inventaireService.create(ids, title);
+
+        return new JSONObject().put("count", count);
     }
 
 }

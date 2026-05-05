@@ -91,4 +91,11 @@ public class CsrpEnveloppe {
         this.corps = corps;
     }
 
+    @Override
+    public String toString() {
+        return "CsrpEnveloppe{" + "natureAction=" + natureAction + ", versionProtocole=" + versionProtocole
+                + ", idLogiciel=" + idLogiciel + ", versionLogiciel=" + versionLogiciel + ", usage=" + usage
+                + ", entete=" + entete + ", corps=" + corps + '}';
+    }
+
 }

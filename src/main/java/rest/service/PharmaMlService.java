@@ -5,7 +5,6 @@
  */
 package rest.service;
 
-import dal.TUser;
 import java.time.LocalDate;
 import javax.ejb.Local;
 import org.json.JSONObject;
@@ -21,5 +20,7 @@ public interface PharmaMlService {
 
     JSONObject envoiCommande(String commandeId, LocalDate dateLivraisonSouhaitee, int typeCommande,
             String typeCommandeExecptionel, String commentaire);
+
+    JSONObject renvoiPharmaCommande(String ruptureId, String grossiste, LocalDate dateLivraisonSouhaitee);
 
 }

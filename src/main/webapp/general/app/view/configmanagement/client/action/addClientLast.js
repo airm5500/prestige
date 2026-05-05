@@ -93,6 +93,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
             }
 
         });
+        /*
         var store_tierspays = new Ext.data.Store({
             model: 'testextjs.model.TiersPayant',
             pageSize: itemsPerPage,
@@ -108,6 +109,41 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
             }
 
         });
+        */
+       
+       var searchstore = Ext.create('Ext.data.Store', {
+            idProperty: 'lgTIERSPAYANTID',
+            fields:
+                    [
+                        {name: 'lgTIERSPAYANTID',
+                            type: 'string'
+
+                        },
+
+                        {name: 'strFULLNAME',
+                            type: 'string'
+
+                        }
+
+                    ],
+            autoLoad: false,
+            pageSize: 999,
+
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/client/tiers-payants',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+
+            }
+            
+
+        });
+        
+       
         var store_type_tierspays = new Ext.data.Store({
             model: 'testextjs.model.TypeTiersPayant',
             pageSize: itemsPerPage,
@@ -314,7 +350,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                                             }
                                             var CmboTierspayant = Ext.getCmp('lg_TIERS_PAYANT_ID');
                                             CmboTierspayant.enable();
-                                            CmboTierspayant.getStore().getProxy().url = url_services_data_tierspayant + "?lg_TYPE_TIERS_PAYANT_ID=" + value;
+                                            CmboTierspayant.getStore().getProxy().url = "../api/v1/client/tiers-payants?lg_TYPE_TIERS_PAYANT_ID=" + value;
                                             CmboTierspayant.getStore().reload();
                                         }
 
@@ -390,6 +426,31 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                                     },
                                     items: [
                                         {
+                            xtype: 'combobox',
+                            name: 'lg_TIERS_PAYANT_ID',
+                            id: 'lg_TIERS_PAYANT_ID',
+                            itemId: 'tiersPayantId',
+                            disabled: true,
+                            flex: 1,
+                            store: searchstore,
+                            pageSize: 9999,
+                            valueField: 'lgTIERSPAYANTID',
+                            displayField: 'strFULLNAME',
+//                    minChars: 2,
+                            queryMode: 'remote',
+                            enableKeyEvents: true,
+                            emptyText: 'Selectionner tiers payant...',
+                            listConfig: {
+                                loadingText: 'Recherche...',
+                                emptyText: 'Pas de donn&eacute;es trouv&eacute;es.',
+                                getInnerTpl: function () {
+                                    return '<span>{strFULLNAME}</span>';
+                                }
+
+                            }
+                        },
+                                        /*
+                                        {
                                             xtype: 'combobox',
                                             fieldLabel: 'Tiers payant',
                                             name: 'lg_TIERS_PAYANT_ID',
@@ -416,7 +477,8 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
 
                                                 }
                                             }
-                                        },
+                                        }
+                                        */,
                                         {
                                             fieldLabel: 'Pourcentage',
                                             emptyText: 'Pourcentage',
@@ -581,7 +643,8 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                  Ext.getCmp('remiseId').show();
                 Ext.getCmp('InfosCltTierspayantID').show();
                 Ext.getCmp('int_POURCENTAGE').disable();
-                Ext.getCmp('lg_TIERS_PAYANT_ID').getStore().getProxy().url = url_services_data_tierspayant + "?lg_TYPE_TIERS_PAYANT_ID=" + this.getOdatasource().lg_TYPE_TIERS_PAYANT_ID;
+                Ext.getCmp('lg_TIERS_PAYANT_ID').getStore().getProxy().url = "../api/v1/client/tiers-payants?lg_TYPE_TIERS_PAYANT_ID=" + this.getOdatasource().lg_TYPE_TIERS_PAYANT_ID;
+                Ext.getCmp('lg_TIERS_PAYANT_ID').getStore().reload();
             } else {
                 Ext.getCmp('InfosCltTierspayantID').hide();
             }

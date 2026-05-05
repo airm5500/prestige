@@ -42,17 +42,24 @@ public class ImportationInventaireImpl implements ImportationInventaire {
         JSONObject json = new JSONObject();
         List<String[]> ignoredLines = new ArrayList<>();
 
-        CSVParser parser = new CSVParser(new InputStreamReader(part.getInputStream()), CSVFormat.EXCEL);
+        // CSVParser parser = new CSVParser(new InputStreamReader(part.getInputStream()), CSVFormat.EXCEL);
+
+        CSVParser parser = new CSVParser(new InputStreamReader(part.getInputStream(), StandardCharsets.UTF_8),
+                CSVFormat.EXCEL.withDelimiter(';'));
 
         for (CSVRecord cSVRecord : parser) {
             try {
                 TInventaireFamille inventaireFamille = findByArticleAndInventaire(cSVRecord.get(0), idInventaire);
-                inventaireFamille.setIntNUMBER(Integer.valueOf(cSVRecord.get(1)));
+
+                int importedQty = Integer.valueOf(cSVRecord.get(1));
+                Integer existingQty = inventaireFamille.getIntNUMBER();
+                int newQty = (existingQty != null ? existingQty : 0) + importedQty; // ✅ addition
+
+                inventaireFamille.setIntNUMBER(newQty);
                 inventaireFamille.setDtUPDATED(new Date());
                 em.merge(inventaireFamille);
                 i++;
             } catch (NoResultException e) {
-                // Ajouter la ligne ignorée à la liste
                 ignoredLines.add(new String[] { cSVRecord.get(0), cSVRecord.get(1), "Code CIP non trouvé" });
             } catch (Exception e) {
                 ignoredLines.add(new String[] { cSVRecord.get(0), cSVRecord.get(1), "Erreur: " + e.getMessage() });
@@ -60,7 +67,6 @@ public class ImportationInventaireImpl implements ImportationInventaire {
             count++;
         }
 
-        // Générer le CSV des lignes ignorées si nécessaire
         if (!ignoredLines.isEmpty()) {
             String ignoredCsv = generateIgnoredLinesCsv(ignoredLines);
             json.put("ignoredCsv", ignoredCsv);
@@ -81,43 +87,54 @@ public class ImportationInventaireImpl implements ImportationInventaire {
         List<String[]> ignoredLines = new ArrayList<>();
 
         Workbook workbook = new HSSFWorkbook(part.getInputStream());
-
         int num = workbook.getNumberOfSheets();
 
         for (int j = 0; j < num; j++) {
             Sheet sheet = workbook.getSheetAt(j);
             Iterator<Row> rows = sheet.rowIterator();
             while (rows.hasNext()) {
-                if (count > 0) {
-                    Row nextrow = rows.next();
-                    try {
-                        Cell id = nextrow.getCell(1);
-                        Cell qty = nextrow.getCell(4);
 
-                        if (id != null && qty != null) {
-                            String cipValue = id.getStringCellValue();
-                            TInventaireFamille inventaireFamille = findByArticleAndInventaire(cipValue, idInventaire);
-                            inventaireFamille.setIntNUMBER(Double.valueOf(qty.getNumericCellValue()).intValue());
-                            inventaireFamille.setDtUPDATED(new Date());
-                            em.merge(inventaireFamille);
-                            i++;
-                        }
-                    } catch (NoResultException e) {
-                        // Ajouter la ligne ignorée à la liste
-                        String cipValue = nextrow.getCell(1) != null ? nextrow.getCell(1).toString() : "";
-                        String qtyValue = nextrow.getCell(4) != null ? nextrow.getCell(4).toString() : "";
-                        ignoredLines.add(new String[] { cipValue, qtyValue, "Code CIP non trouvé" });
-                    } catch (Exception e) {
-                        String cipValue = nextrow.getCell(1) != null ? nextrow.getCell(1).toString() : "";
-                        String qtyValue = nextrow.getCell(4) != null ? nextrow.getCell(4).toString() : "";
-                        ignoredLines.add(new String[] { cipValue, qtyValue, "Erreur: " + e.getMessage() });
-                    }
+                // on lit la ligne une seule fois
+                Row nextrow = rows.next();
+
+                // ignorer l'entête (première ligne)
+                if (count == 0) {
+                    count++;
+                    continue;
                 }
+
+                try {
+                    Cell id = nextrow.getCell(1);
+                    Cell qty = nextrow.getCell(4);
+
+                    if (id != null && qty != null) {
+                        String cipValue = id.toString().trim();
+
+                        TInventaireFamille inventaireFamille = findByArticleAndInventaire(cipValue, idInventaire);
+
+                        int importedQty = Double.valueOf(qty.getNumericCellValue()).intValue();
+                        Integer existingQty = inventaireFamille.getIntNUMBER();
+                        int newQty = (existingQty != null ? existingQty : 0) + importedQty; // ✅ addition
+
+                        inventaireFamille.setIntNUMBER(newQty);
+                        inventaireFamille.setDtUPDATED(new Date());
+                        em.merge(inventaireFamille);
+                        i++;
+                    }
+                } catch (NoResultException e) {
+                    String cipValue = nextrow.getCell(1) != null ? nextrow.getCell(1).toString() : "";
+                    String qtyValue = nextrow.getCell(4) != null ? nextrow.getCell(4).toString() : "";
+                    ignoredLines.add(new String[] { cipValue, qtyValue, "Code CIP non trouvé" });
+                } catch (Exception e) {
+                    String cipValue = nextrow.getCell(1) != null ? nextrow.getCell(1).toString() : "";
+                    String qtyValue = nextrow.getCell(4) != null ? nextrow.getCell(4).toString() : "";
+                    ignoredLines.add(new String[] { cipValue, qtyValue, "Erreur: " + e.getMessage() });
+                }
+
                 count++;
             }
         }
 
-        // Générer le CSV des lignes ignorées si nécessaire
         if (!ignoredLines.isEmpty()) {
             String ignoredCsv = generateIgnoredLinesCsv(ignoredLines);
             json.put("ignoredCsv", ignoredCsv);

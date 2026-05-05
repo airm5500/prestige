@@ -17,6 +17,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import org.apache.commons.lang3.StringUtils;
 import util.Constant;
 
 /**
@@ -51,6 +52,7 @@ public class SockServlet extends HttpServlet {
         String begin = request.getParameter("BEGIN");
         String rayonId = request.getParameter("rayonId");
         String search = request.getParameter("search");
+        String grossisteId = request.getParameter("grossisteId");
         switch (SockServlet.Action.valueOf(action)) {
         case VALORISATION:
             int mode = Integer.parseInt(request.getParameter("action"));
@@ -64,7 +66,7 @@ public class SockServlet extends HttpServlet {
 
         case RUPTURE_PHARMAML:
             query = request.getParameter("query");
-            String grossisteId = request.getParameter("grossisteId");
+
             file = stockService.rupturePharmaMl(tUser, LocalDate.parse(dtStart), LocalDate.parse(dtEnd), query,
                     grossisteId, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
             break;
@@ -119,6 +121,7 @@ public class SockServlet extends HttpServlet {
             body.setPrixachatFiltre(prixachatFiltre);
             body.setNbre(nbre);
             body.setQteVendu(qteVendu);
+            body.setGrossisteId(StringUtils.isNotEmpty(grossisteId) ? grossisteId : null);
             try {
                 body.setDtEnd(LocalDate.parse(dtEnd));
             } catch (Exception e) {
@@ -148,6 +151,7 @@ public class SockServlet extends HttpServlet {
             articleParams.setSearch(search);
             articleParams.setFabricantId(fabricantId);
             articleParams.setCategorieId(categorieId);
+            articleParams.setRayonId(rayonId);
             articleParams.setMagasinId(tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
             file = stockService.suivitMvtArcticle(articleParams, tUser);
             break;

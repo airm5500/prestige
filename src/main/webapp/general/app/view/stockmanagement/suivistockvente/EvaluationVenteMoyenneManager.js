@@ -221,112 +221,143 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [
-                {
-                    xtype: 'combobox',
-                    flex: 1,
-                    fieldLabel: 'Emplacements',
-                    labelWidth: 90,
-                    itemId: 'emplacementId',
-                    id: 'emplacementId',
-                    store: rayons,
-                    pageSize: 99999,
-                    valueField: 'id',
-                    displayField: 'libelle',
-                    typeAhead: false,
-                    queryMode: 'remote',
-                    minChars: 2,
-                    emptyText: 'Sélectionnez un emplacement',
-                    listeners: {
-                        select: function (cmp) {
+            dockedItems: [{
+    xtype: 'toolbar',
+    dock: 'top',
+    items: [
+        {
+            xtype: 'combobox',
+            flex: 1,
+            fieldLabel: 'Emplacements',
+            labelWidth: 90,
+            itemId: 'emplacementId',
+            id: 'emplacementId',
+            store: rayons,
+            pageSize: 99999,
+            valueField: 'id',
+            displayField: 'libelle',
+            typeAhead: false,
+            queryMode: 'remote',
+            minChars: 2,
+            emptyText: 'Sélectionnez un emplacement',
+            listeners: {
+                select: function (cmp) {
+                    Me.onRechClick();
+                }
+            }
+        },
+        {
+            xtype: 'combobox',
+            flex: 1,
+            fieldLabel: 'Familles',
+            labelWidth: 50,
+            itemId: 'familleId',
+            id: 'familleId',
+            store: famillearticles,
+            pageSize: 99999,
+            valueField: 'id',
+            displayField: 'libelle',
+            typeAhead: false,
+            queryMode: 'remote',
+            minChars: 2,
+            emptyText: 'Sélectionnez une famille',
+            listeners: {
+                select: function (cmp) {
+                    Me.onRechClick();
+                }
+            }
+        },
+        {
+            xtype: 'combobox',
+            fieldLabel: 'Filtre',
+            name: 'str_TYPE_TRANSACTION',
+            id: 'filtre',
+            labelWidth: 35,
+            store: store_type,
+            valueField: 'str_TYPE_TRANSACTION',
+            displayField: 'str_desc',
+            typeAhead: true,
+            flex: 0.8,
+            queryMode: 'local',
+            emptyText: 'Filtre ...'
+        },
+        '-',
+        {
+            xtype: 'textfield',
+            fieldLabel: 'Moyenne',
+            labelWidth: 55,
+            id: 'filtreValue',
+            flex: 0.8,
+            emptyText: 'Moyenne'
+        },
+        '-',
+        {
+            xtype: 'textfield',
+            id: 'rechecher',
+            flex: 0.8,
+            emptyText: 'Rech',
+            listeners: {
+                render: function (cmp) {
+                    cmp.getEl().on('keypress', function (e) {
+                        if (e.getKey() === e.ENTER) {
                             Me.onRechClick();
                         }
-                    }
-                },
-
-                {
-                    xtype: 'combobox',
-                    flex: 1,
-                    fieldLabel: 'Familles',
-                    labelWidth: 50,
-                    itemId: 'familleId',
-                    id: 'familleId',
-                    store: famillearticles,
-                    pageSize: 99999,
-                    valueField: 'id',
-                    displayField: 'libelle',
-                    typeAhead: false,
-                    queryMode: 'remote',
-                    minChars: 2,
-                    emptyText: 'Sélectionnez une famille',
-                    listeners: {
-                        select: function (cmp) {
-                            Me.onRechClick();
-                        }
-                    }
-                },
-
-                {
-                    xtype: 'combobox',
-                    fieldLabel: 'Filtre',
-                    name: 'str_TYPE_TRANSACTION',
-                    id: 'filtre',
-                    labelWidth: 35,
-                    store: store_type,
-                    valueField: 'str_TYPE_TRANSACTION',
-                    displayField: 'str_desc',
-                    typeAhead: true,
-                    flex: 0.8,
-                    queryMode: 'local',
-                    emptyText: 'Filtre ...'
-
-                }, '-',
-
-                {
-                    xtype: 'textfield',
-                    fieldLabel: 'Moyenne',
-                    labelWidth: 55,
-                    id: 'filtreValue',
-                    flex: 0.8,
-                    emptyText: 'Moyenne'},
-
-                '-', {
-                    xtype: 'textfield',
-                    id: 'rechecher',
-                    flex: 0.8,
-                    emptyText: 'Rech',
-                    listeners: {
-                        'render': function (cmp) {
-                            cmp.getEl().on('keypress', function (e) {
-                                if (e.getKey() === e.ENTER) {
-                                    Me.onRechClick();
-
-                                }
-                            });
-                        }
-                    }
-                }, {
-                    text: 'rechercher',
-                    iconCls: 'searchicon',
-                    tooltip: 'rechercher', scope: this,
-                    handler: this.onRechClick
+                    });
                 }
-                , {
-                    text: 'Imprimer',
-                    tooltip: 'imprimer',
-                    iconCls: 'printable',
-                    scope: this,
-                    handler: this.onPdfClick
-                }, '-',
-                {
-                    text: 'Suggerer',
-                    tooltip: 'Suggerer',
-                    iconCls: 'suggestionreapro',
-                    scope: this,
-                    handler: this.onSuggereClick
-                }
+            }
+        },
+        {
+            text: 'rechercher',
+            iconCls: 'searchicon',
+            tooltip: 'rechercher',
+            scope: this,
+            handler: this.onRechClick
+        },
+        {
+            text: 'Imprimer',
+            tooltip: 'imprimer',
+            iconCls: 'printable',
+            scope: this,
+            handler: this.onPdfClick
+        },
+        '-',
+        {
+            text: 'Suggerer',
+            tooltip: 'Suggerer',
+            iconCls: 'suggestionreapro',
+            scope: this,
+            handler: this.onSuggereClick
+        }
+    ]
+}, {
+    xtype: 'toolbar',
+    dock: 'top',
+    items: [
+        '->', // enlève-le si tu veux les boutons à gauche
+        {
+            text: 'Exporter en Excel',
+            tooltip: 'Exporter en Excel',
+            iconCls: 'export_excel',
+            scope: this,
+            handler: this.onExportExcelClick
+        },
+        {
+            text: 'Exporter en CSV',
+            tooltip: 'Exporter en CSV',
+            iconCls: 'export_csv',
+            scope: this,
+            handler: this.onExportCsvClick
+        },
+        {
+            text: 'Créer inventaire',
+            tooltip: 'Créer un inventaire',
+            iconCls: 'inventaireicon',
+            scope: this,
+            handler: this.onCreateInventaireClick
+        }
+    ]
+}],
 
-            ],
             bbar: {
                 xtype: 'pagingtoolbar',
                 store: store, // same store GridPanel is using
@@ -368,6 +399,18 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
     },
     onStoreLoad: function () {
     },
+    
+    buildFiltersParams: function () {
+    return {
+        query: Ext.getCmp('rechecher').getValue() || "",
+        familleId: Ext.getCmp('familleId').getValue() || "",
+        emplacementId: Ext.getCmp('emplacementId').getValue() || "",
+        filtre: Ext.getCmp('filtre').getValue() || "",
+        filtreValue: Ext.getCmp('filtreValue').getValue() || ""
+    };
+},
+
+    
     onRechClick: function () {
         const val = Ext.getCmp('rechecher');
 
@@ -446,5 +489,51 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenn
         }
 
 
-    }
+    },
+    onExportExcelClick: function () {
+    var params = this.buildFiltersParams();
+    var qs = Ext.Object.toQueryString(params);
+    window.location = '../api/v1/evaluation-vente/excel?' + qs;
+},
+
+onExportCsvClick: function () {
+    var params = this.buildFiltersParams();
+    var qs = Ext.Object.toQueryString(params);
+    window.location = '../api/v1/evaluation-vente/csv?' + qs;
+},
+
+onCreateInventaireClick: function () {
+    var me = this,
+        params = this.buildFiltersParams(),
+        progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+
+    Ext.Ajax.request({
+        url: '../api/v1/evaluation-vente/create-inventaire',
+        method: 'GET',
+        params: params,
+        timeout: 2400000,
+        success: function (response) {
+            progress.hide();
+            var result = Ext.JSON.decode(response.responseText, true);
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 320,
+                msg: 'Nombre de produits en compte : ' + result.count,
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.INFO
+            });
+        },
+        failure: function () {
+            progress.hide();
+            Ext.MessageBox.show({
+                title: 'Message d\'erreur',
+                width: 320,
+                msg: "L'opération n'a pas abouti",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+        }
+    });
+}
+
 });

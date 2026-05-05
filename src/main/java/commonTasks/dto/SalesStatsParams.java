@@ -50,6 +50,7 @@ public class SalesStatsParams implements Serializable {
     private boolean modificationVenteDate;
     private String depotId;
     private String typeDepotId;
+    private String grossisteId;
 
     public String getDepotId() {
         return depotId;
@@ -73,6 +74,14 @@ public class SalesStatsParams implements Serializable {
 
     public void setNature(String nature) {
         this.nature = nature;
+    }
+
+    public String getGrossisteId() {
+        return grossisteId;
+    }
+
+    public void setGrossisteId(String grossisteId) {
+        this.grossisteId = grossisteId;
     }
 
     public boolean isDiscountStat() {

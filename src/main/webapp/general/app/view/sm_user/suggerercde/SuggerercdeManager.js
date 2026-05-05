@@ -48,7 +48,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     id: 'suggerercdemanagerID',
     frame: true,
     title: 'Traitement de suggestion',
-    bodyStyle: 'background-color:  #E5E9EC;',
+    bodyStyle: 'background-color:#E5E9EC;',
     bodyPadding: 5,
     layout: 'column',
 
@@ -92,6 +92,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/suggestion/list/items',
+                timeout: 240000,
                 reader: {
                     type: 'json',
                     root: 'data',

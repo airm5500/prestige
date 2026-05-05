@@ -1,8 +1,6 @@
-
 package rest.report;
 
 import commonTasks.dto.VenteDetailsDTO;
-import dal.TOfficine;
 import dal.TUser;
 import java.io.File;
 import java.io.FileInputStream;
@@ -11,7 +9,6 @@ import java.io.OutputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -23,9 +20,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import org.apache.commons.lang3.StringUtils;
 import rest.report.pdf.excel.ExcelExporter;
-import rest.service.CaisseService;
 import rest.service.FamilleArticleService;
+import rest.service.dto.VingtQuatreVingtType;
 import toolkits.utils.jdom;
 import util.Constant;
 
@@ -37,13 +35,9 @@ import util.Constant;
 public class Vinght20x80 extends HttpServlet {
 
     @EJB
-    CaisseService caisseService;
-    @EJB
     private ReportUtil reportUtil;
     @EJB
     private FamilleArticleService familleArticleService;
-    private final Comparator<VenteDetailsDTO> comparatorQty = Comparator.comparingInt(VenteDetailsDTO::getIntQUANTITY);
-    private final Comparator<VenteDetailsDTO> comparatorPrice = Comparator.comparingInt(VenteDetailsDTO::getIntPRICE);
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
@@ -56,10 +50,15 @@ public class Vinght20x80 extends HttpServlet {
         String codeFamile = request.getParameter("codeFamile");
         String codeRayon = request.getParameter("codeRayon");
         String codeGrossiste = request.getParameter("codeGrossiste");
-        boolean qtyOrCa = Boolean.parseBoolean(request.getParameter("qtyOrCa"));
+        VingtQuatreVingtType quatreVingtType = VingtQuatreVingtType.CA;
+
+        if (StringUtils.isNotBlank(request.getParameter("vingtType"))) {
+            quatreVingtType = VingtQuatreVingtType.valueOf(request.getParameter("vingtType"));
+        }
+
         // String mode = "pdf";
-        geVingtQuatreVingt(request, response, dtStart, dtEnd, oUser, codeFamile, codeRayon, codeGrossiste, qtyOrCa,
-                action);
+        geVingtQuatreVingt(request, response, dtStart, dtEnd, oUser, codeFamile, codeRayon, codeGrossiste,
+                quatreVingtType, action);
 
     }
 
@@ -114,8 +113,8 @@ public class Vinght20x80 extends HttpServlet {
     }// </editor-fold>
 
     public void geVingtQuatreVingt(HttpServletRequest request, HttpServletResponse response, String dtStart,
-            String dtEnd, TUser tu, String codeFamile, String codeRayon, String codeGrossiste, boolean qtyOrCa,
-            String mode) throws IOException {
+            String dtEnd, TUser tu, String codeFamile, String codeRayon, String codeGrossiste,
+            VingtQuatreVingtType quatreVingtType, String mode) throws IOException {
 
         LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
         try {
@@ -130,8 +129,22 @@ public class Vinght20x80 extends HttpServlet {
         if (!dtEn.isEqual(dtSt)) {
             periode += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        String tile = qtyOrCa ? " PAR QUANTITE VENDUE " : "PAR CHIFFRE D'AFFAIRE ";
-        parameters.put("P_H_CLT_INFOS", "EDITION DES 20/80" + tile + periode);
+        String title;
+        switch (quatreVingtType) {
+        case CA:
+            title = "PAR CHIFFRE D'AFFAIRE ";
+            break;
+        case QTY:
+            title = "PAR QUANTITE VENDUE ";
+            break;
+        case MARGE:
+            title = "PAR MARGE ";
+            break;
+        default:
+            title = "PAR CHIFFRE D'AFFAIRE ";
+            break;
+        }
+        parameters.put("P_H_CLT_INFOS", "EDITION DES 20/80" + title + periode);
         String reportGenerateFile = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         if ("pdf".equals(mode)) {
             reportGenerateFile = reportGenerateFile + ".pdf";
@@ -139,13 +152,9 @@ public class Vinght20x80 extends HttpServlet {
         } else {
             reportGenerateFile = reportGenerateFile + ".xlsx";
         }
-        List<VenteDetailsDTO> datas = familleArticleService.geVingtQuatreVingt(dtStart, dtEnd, tu, codeFamile,
-                codeRayon, codeGrossiste, 0, 0, true, qtyOrCa);
-        if (qtyOrCa) {
-            datas.sort(comparatorQty.reversed());
-        } else {
-            datas.sort(comparatorPrice.reversed());
-        }
+        List<VenteDetailsDTO> datas = familleArticleService.geVingtQuatreVingt(dtStart, dtEnd, codeFamile, codeRayon,
+                codeGrossiste, 0, 0, true, quatreVingtType);
+
         if ("pdf".equals(mode)) {
             reportUtil.buildReport(parameters, scrReportFile, jdom.scr_report_file,
                     jdom.scr_report_pdf + "rp_vingtquatre" + reportGenerateFile, datas);

@@ -49,7 +49,7 @@
       <p id="pl-desc" class="sr-only">Connexion à votre espace</p>
 
       <!-- Message d’accueil alimenté par l’API -->
-      <h2 class="pl-welcome">Bienvenue à la pharmacie <span id="pl-pharma-name"></span></h2>
+      <h2 class="pl-welcome">Bienvenue à la *<span id="pl-pharma-name"></span>*</h2>
 
       <div class="pl-grid">
         <!-- Colonne contenu (formulaire) -->

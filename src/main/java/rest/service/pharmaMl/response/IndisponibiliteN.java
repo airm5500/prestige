@@ -38,4 +38,11 @@ public class IndisponibiliteN {
     public void setProduitRemplacant(ProduitRemplacant produitRemplacant) {
         this.produitRemplacant = produitRemplacant;
     }
+
+    @Override
+    public String toString() {
+        return "IndisponibiliteN{" + "codeReponse=" + codeReponse + ", additif=" + additif + ", produitRemplacant="
+                + produitRemplacant + '}';
+    }
+
 }

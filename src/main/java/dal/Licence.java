@@ -5,12 +5,17 @@
  */
 package dal;
 
+import dal.enumeration.TypeLience;
 import java.io.Serializable;
 import java.time.LocalDate;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.Id;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -22,7 +27,10 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "licence")
 @XmlRootElement
+@NamedQueries({
+        @NamedQuery(name = "Licence.findByTypeLience", query = "SELECT t FROM Licence t WHERE t.typeLicence=:typeLicence") })
 public class Licence implements Serializable {
+
     private static final long serialVersionUID = 1L;
     @Id
     @Basic(optional = false)
@@ -30,13 +38,24 @@ public class Licence implements Serializable {
     private String id;
     @NotNull
     @Column(name = "date_start", nullable = false)
-    private LocalDate dateStart;
+    private LocalDate dateStart = LocalDate.now();
     @NotNull
     @Column(name = "date_end", nullable = false)
-    private LocalDate dateEnd;
+    private LocalDate dateEnd = LocalDate.now().plusMonths(6);
+    @Enumerated(EnumType.ORDINAL)
+    @Column(name = "type_licence", nullable = false)
+    private TypeLience typeLicence = TypeLience.CALLEBASE;
 
     public String getId() {
         return id;
+    }
+
+    public TypeLience getTypeLicence() {
+        return typeLicence;
+    }
+
+    public void setTypeLicence(TypeLience typeLicence) {
+        this.typeLicence = typeLicence;
     }
 
     public void setId(String id) {

@@ -127,7 +127,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ImportXLS', {
                                     success: function (form, action) {
 
                                         var result = Ext.JSON.decode(action.response.responseText, false);
-                                      
+
                                         Ext.getCmp('OderGrid').getStore().load();
                                         Ext.getCmp('xlsxdialog').destroy();
                                         if (!result.toBe) {

@@ -13,6 +13,7 @@ import javax.ejb.Local;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.dto.VingtQuatreVingtType;
 
 /**
  *
@@ -27,11 +28,11 @@ public interface FamilleArticleService {
     JSONObject statistiqueParFamilleArticleView(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
             String codeRayon, String codeGrossiste) throws JSONException;
 
-    List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, TUser u, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, boolean all, boolean qtyOrCa);
+    List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
+            String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType);
 
-    JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, TUser u, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, boolean qtyOrCa);
+    JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
+            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType);
 
     Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParRayons(String dtStart, String dtEnd,
             String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
@@ -50,4 +51,14 @@ public interface FamilleArticleService {
 
     Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParFamilleArticleVeto(String dtStart,
             String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
+
+    byte[] buildVingtQuatreVingtExcel(String dtStart, String dtEnd, String codeFamille, String codeRayon,
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException;
+
+    byte[] buildVingtQuatreVingtCsv(String dtStart, String dtEnd, String codeFamille, String codeRayon,
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException;
+
+    JSONObject createInventaireVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException;
+
 }

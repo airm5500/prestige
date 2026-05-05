@@ -49,4 +49,11 @@ public class CalculationInput {
     public void setTotalSalesAmount(BigDecimal totalSalesAmount) {
         this.totalSalesAmount = totalSalesAmount;
     }
+
+    @Override
+    public String toString() {
+        return "CalculationInput{" + "saleItems=" + saleItems + ", tiersPayants=" + tiersPayants + ", natureVente="
+                + natureVente + ", discountAmount=" + discountAmount + ", totalSalesAmount=" + totalSalesAmount + '}';
+    }
+
 }

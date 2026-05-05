@@ -10,6 +10,7 @@ import commonTasks.dto.AchatDTO;
 import commonTasks.dto.BalanceDTO;
 import commonTasks.dto.FamilleArticleStatDTO;
 import commonTasks.dto.GenericDTO;
+import commonTasks.dto.LotDTO;
 import commonTasks.dto.MvtProduitDTO;
 import commonTasks.dto.Params;
 import commonTasks.dto.RapportDTO;
@@ -246,6 +247,9 @@ public class Balance {
                 list = typeRe.get(DateConverter.MODE_WAVE);
                 P_SORTIECAISSE_MOBILE += (list == null) ? 0
                         : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
+                list = typeRe.get(DateConverter.MODE_DJAMO);
+                P_SORTIECAISSE_MOBILE += (list == null) ? 0
+                        : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
                 break;
 
             case DateConverter.MVT_ENTREE_CAISSE:
@@ -275,6 +279,9 @@ public class Balance {
                 list = typeRe.get(DateConverter.MODE_WAVE);
                 P_ENTREECAISSE_MOBILE += (list == null) ? 0
                         : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
+                list = typeRe.get(DateConverter.MODE_DJAMO);
+                P_ENTREECAISSE_MOBILE += (list == null) ? 0
+                        : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
                 break;
             case DateConverter.MVT_REGLE_TP:
                 P_REGLEMENT_LABEL = val.get(0).getTypeMouvement();
@@ -301,6 +308,9 @@ public class Balance {
                 P_REGLEMENT_MOBILE += (list == null) ? 0
                         : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
                 list = typeRe.get(DateConverter.MODE_WAVE);
+                P_REGLEMENT_MOBILE += (list == null) ? 0
+                        : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
+                list = typeRe.get(DateConverter.MODE_DJAMO);
                 P_REGLEMENT_MOBILE += (list == null) ? 0
                         : list.stream().mapToLong(VisualisationCaisseDTO::getMontantNet).sum();
                 break;
@@ -828,31 +838,25 @@ public class Balance {
         } catch (Exception e) {
         }
 
-        String scr_report_file = "rp_perimerquery";
+        String scReportFile = "rp_perimerquery";
         Map<String, Object> parameters = reportUtil.officineData(tu);
-        String P_PERIODE = "PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String periodeParam = "PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         if (!dtEn.isEqual(dtSt)) {
-            P_PERIODE += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            periodeParam += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        parameters.put("P_H_CLT_INFOS", "PRODUITS PERIMES " + P_PERIODE);
-        String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
-        Pair<VenteDetailsDTO, List<VenteDetailsDTO>> p = ficheArticleService.produitPerimes(query, nbreMois, dtStart,
-                dtEnd, codeFamile, codeRayon, codeGrossiste, 0, 0, true);
-        VenteDetailsDTO summary = p.getLeft();
-        List<VenteDetailsDTO> data = p.getRight();
-        if (!StringUtils.isEmpty(codeFamile)) {
-            data.sort(Comparator.comparing(VenteDetailsDTO::getTicketName));
-        } else if (!StringUtils.isEmpty(codeGrossiste)) {
-            data.sort(Comparator.comparing(VenteDetailsDTO::getTypeVente));
-        } else {
-            data.sort(Comparator.comparing(VenteDetailsDTO::getOperateur));
-        }
-        parameters.put("stock", summary.getIntQUANTITY());
-        parameters.put("achat", summary.getIntPRICEREMISE());
-        parameters.put("vente", summary.getIntPRICE());
-        reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
-                jdom.scr_report_pdf + "rp_perimes_" + report_generate_file, data);
-        return "/data/reports/pdf/rp_perimes_" + report_generate_file;
+        parameters.put("P_H_CLT_INFOS", "PRODUITS PERIMES " + periodeParam);
+        String reportGenerateFile = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
+        Pair<LotDTO, List<LotDTO>> p = ficheArticleService.produitPerimes(query, nbreMois, dtStart, dtEnd, codeFamile,
+                codeRayon, codeGrossiste, 0, 0, true);
+        LotDTO summary = p.getLeft();
+        List<LotDTO> data = p.getRight();
+
+        parameters.put("stock", summary.getQuantiteLot());
+        parameters.put("achat", summary.getValeurAchat());
+        parameters.put("vente", summary.getValeurVente());
+        reportUtil.buildReport(parameters, scReportFile, jdom.scr_report_file,
+                jdom.scr_report_pdf + "rp_perimes_" + reportGenerateFile, data);
+        return "/data/reports/pdf/rp_perimes_" + reportGenerateFile;
     }
 
     public String statistiqueParRayons(String dtStart, String dtEnd, String codeFamile, String query, TUser tu,

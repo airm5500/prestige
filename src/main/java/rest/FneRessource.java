@@ -11,9 +11,11 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import rest.service.exception.FneExeception;
 import rest.service.fne.FneService;
+import rest.service.fne.TypeInvoice;
 
 /**
  *
@@ -28,9 +30,18 @@ public class FneRessource {
     private FneService fneService;
 
     @GET
-    @Path("invoices/sign/{id}")
-    public Response getSign(@PathParam("id") String id) throws FneExeception {
-        fneService.createInvoice(id);
+    @Path("invoices/sign/{id}/{typeInvoice}")
+    public Response getSign(@PathParam("id") String id, @PathParam("typeInvoice") TypeInvoice typeInvoice)
+            throws FneExeception {
+        fneService.createInvoice(id, typeInvoice);
+        return Response.ok().build();
+    }
+
+    @GET
+    @Path("invoices/sign-group")
+    public Response getSignGroupInvoice(@QueryParam(value = "ids") String ids,
+            @QueryParam(value = "typeInvoice") TypeInvoice typeInvoice) throws FneExeception {
+        fneService.createGroupeInvoice(ids, typeInvoice);
         return Response.ok().build();
     }
 

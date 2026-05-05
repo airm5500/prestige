@@ -1,0 +1,1 @@
+ALTER TABLE t_stock_snapshot ADD COLUMN IF NOT EXISTS prix_moyent_pondere INT(11) DEFAULT 0;

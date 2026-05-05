@@ -118,7 +118,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 {name: 'lg_GROSSISTE_ID', type: 'string'},
                 {name: 'int_NUMBER', type: 'int'},
                 {name: 'int_STOCK_REAPROVISONEMENT', type: 'int'},
-                {name: 'int_VALUE2', type: 'int'}
+                {name: 'int_VALUE2', type: 'string'}
             ],
             pageSize: itemsPerPage,
             autoLoad: true,

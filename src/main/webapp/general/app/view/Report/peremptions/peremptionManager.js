@@ -12,24 +12,25 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
     cls: 'custompanel',
     layout: 'fit',
     initComponent: function () {
-        var data = new Ext.data.Store({
-            idProperty: 'intCIP',
+        const data = new Ext.data.Store({
+            idProperty: 'codeCip',
             fields: [
-                {name: 'intCIP', type: 'string'},
-                {name: 'typeVente', type: 'string'},
-                {name: 'operateur', type: 'string'},
-                {name: 'strSTATUT', type: 'string'},
-                {name: 'intQUANTITY', type: 'number'},
+                {name: 'codeCip', type: 'string'},
+                {name: 'libelleGrossiste', type: 'string'},
+                {name: 'libelleRayon', type: 'string'},
+                {name: 'statut', type: 'string'},
+                {name: 'quantiteLot', type: 'number'},
                 {name: 'intAVOIR', type: 'number'},
-                {name: 'dtCREATED', type: 'string'},
-                {name: 'ticketName', type: 'string'},
-                {name: 'strNAME', type: 'string'},
-                {name: 'intPRICEREMISE', type: 'number'},
-                {name: 'intPRICE', type: 'number'}
+                {name: 'datePerement', type: 'string'},
+                {name: 'libelleFamille', type: 'string'},
+                {name: 'libelle', type: 'string'},
+                {name: 'numLot', type: 'string'},
+                {name: 'valeurAchat', type: 'number'},
+                {name: 'valeurVente', type: 'number'}
 
 
             ],
-            pageSize: 99999,
+            pageSize: 20,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
@@ -44,7 +45,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                 timeout: 2400000
             }
         });
-        var grossiste = Ext.create('Ext.data.Store', {
+        const grossiste = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
                     [
@@ -74,7 +75,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
             }
 
         });
-        var rayons = Ext.create('Ext.data.Store', {
+        const rayons = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
                     [
@@ -104,7 +105,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
             }
 
         });
-        var familles = Ext.create('Ext.data.Store', {
+        const familles = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
                     [
@@ -134,7 +135,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
             }
 
         });
-        var me = this;
+        const me = this;
         Ext.applyIf(me, {
             dockedItems: [
                 {
@@ -327,37 +328,42 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
 
                     },
                     columns: [
+                         {
+                            header: 'Numéro lot',
+                            dataIndex: 'numLot',
+                            flex: 0.5
+                        },
                         {
                             header: 'Code CIP',
-                            dataIndex: 'intCIP',
+                            dataIndex: 'codeCip',
                             flex: 0.5
                         },
                         {
                             header: 'Libellé',
-                            dataIndex: 'strNAME',
+                            dataIndex: 'libelle',
                             flex: 1
 
                         },
                         {
                             header: 'Famille',
-                            dataIndex: 'ticketName',
+                            dataIndex: 'libelleFamille',
                             flex: 1
 
                         }, {
                             header: 'Emplacement',
-                            dataIndex: 'operateur',
+                            dataIndex: 'libelleRayon',
                             flex: 1
 
                         },
                         {
                             header: 'Grossiste',
-                            dataIndex: 'typeVente',
+                            dataIndex: 'libelleGrossiste',
                             flex: 1
 
                         },
                         {
-                            header: 'Stock',
-                            dataIndex: 'intQUANTITY',
+                            header: 'Qunatité',
+                            dataIndex: 'quantiteLot',
                             flex: 0.4,
                             align: 'right',
                             renderer: function (v) {
@@ -368,7 +374,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                         }
                         , {
                             header: 'Valeur.Achat',
-                            dataIndex: 'intPRICEREMISE',
+                            dataIndex: 'valeurAchat',
                             flex: 0.6,
                             align: 'right',
                             renderer: function (v) {
@@ -380,7 +386,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                         },
                         {
                             header: 'Valeur.Vente',
-                            dataIndex: 'intPRICE',
+                            dataIndex: 'valeurVente',
                             align: 'right',
                             renderer: function (v) {
                                 return Ext.util.Format.number(v, '0,000.');
@@ -389,17 +395,17 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                         },
                         {
                             header: 'Date.Péremption',
-                            dataIndex: 'dtCREATED',
+                            dataIndex: 'datePerement',
                             flex: 0.7,
                             align: 'center'
                         },
                         {
                             header: 'Statut',
-                            dataIndex: 'strSTATUT',
+                            dataIndex: 'statut',
                             flex: 1.4,
                             align: 'center',
                             renderer: function (v, m, r) {
-                                const STATUS = r.data.intAVOIR;
+                                const STATUS = r.data.periode;
                                 switch (STATUS) {
                                     case - 1:
                                         m.style = 'background-color:#ff0000;color:#FFF;font-weight:700;';
@@ -425,7 +431,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                     bbar: {
                         xtype: 'pagingtoolbar',
                         store: data,
-                        pageSize: 99999,
+                        pageSize: 20,
                         dock: 'bottom',
                         displayInfo: true
 

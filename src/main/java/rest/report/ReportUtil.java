@@ -73,7 +73,7 @@ public class ReportUtil {
         try (InputStream resource = new FileInputStream(reportPath + reportName + ".jasper")) {
             return (JasperReport) JRLoader.loadObject(resource);
         } catch (FileNotFoundException e) {
-            LOG.log(Level.SEVERE, "Le fichier n'est pas accessible {0}", reportName);
+            LOG.log(Level.SEVERE, String.format("Le fichier n'est pas accessible %s", reportName), reportName);
             return compileReport(reportName, reportPath);
         }
 

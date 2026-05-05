@@ -4,22 +4,35 @@
  */
 package rest.service.impl;
 
+import commonTasks.dto.AddLot;
+import dal.TFamille;
+import dal.TLot;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
+import javax.persistence.TemporalType;
 import javax.persistence.Tuple;
+import javax.persistence.TypedQuery;
 import org.json.JSONObject;
 import rest.service.LotService;
+import rest.service.SessionHelperService;
 import rest.service.dto.LotDTO;
+import util.Constant;
+import util.DateCommonUtils;
 import util.FunctionUtils;
 
 /**
@@ -29,6 +42,8 @@ import util.FunctionUtils;
 @Stateless
 public class LotServiceImpl implements LotService {
 
+    @EJB
+    private SessionHelperService sessionHelperService;
     private static final Logger LOG = Logger.getLogger(LotServiceImpl.class.getName());
     private static final String MVT_QUERY = "SELECT f.int_CIP, f.str_NAME, f.int_PAF, f.int_PRICE,g.str_LIBELLE, l.int_NUM_LOT, l.str_REF_LIVRAISON,l.int_NUMBER, l.int_NUMBER_GRATUIT,\n"
             + "l.dt_SORTIE_USINE, l.dt_PEREMPTION\n" + "FROM t_lot l, t_famille f, t_grossiste g\n"
@@ -137,5 +152,67 @@ public class LotServiceImpl implements LotService {
     public JSONObject getAllLots() {
 
         return FunctionUtils.returnData(this.fetchLots().stream().map(this::build).collect(Collectors.toList()));
+    }
+
+    @Override
+    public void pickLot(String produitId, int quantiteVendue) {
+        if (quantiteVendue == 0) {
+            return;
+        }
+        List<TLot> lots = findOnlyAvaillableStockByProduitId(produitId, quantiteVendue < 0);
+        int remaining = quantiteVendue;
+
+        for (var lot : lots) {
+
+            if (quantiteVendue == 0) {
+                break;
+            }
+
+            int take = Math.min(remaining, lot.getCurrentStock());
+
+            lot.setCurrentStock(lot.getCurrentStock() - take);
+
+            lot.setDtUPDATED(new Date());
+            lot.setLgUSERID(sessionHelperService.getCurrentUser());
+            em.merge(lot);
+            quantiteVendue -= take;
+
+        }
+
+        // TODO 1 mettre le stock
+    }
+
+    private List<TLot> findOnlyAvaillableStockByProduitId(String produitId, boolean checkedLotSansStock) {
+
+        try {
+            TypedQuery<TLot> tq = checkedLotSansStock ? em.createNamedQuery("TLot.findByProduitId", TLot.class)
+                    : em.createNamedQuery("TLot.findOnlyAvaillableStockByProduitId", TLot.class);
+            tq.setParameter("lgFAMILLEID", produitId);
+            tq.setParameter("datePeremtion", java.sql.Timestamp.valueOf(LocalDateTime.now()), TemporalType.TIMESTAMP);
+            return tq.getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.INFO, null, e);
+            return new ArrayList<>();
+        }
+    }
+
+    @Override
+    public void addLot(AddLot addLot) {
+        TFamille famille = em.find(TFamille.class, addLot.getProduitId());
+        TLot lot = new TLot(UUID.randomUUID().toString());
+        lot.setDtCREATED(new Date());
+        lot.setIntNUMBER(addLot.getQuantity());
+        lot.setIntNUMBERGRATUIT(0);
+        lot.setIntQTYVENDUE(0);
+        lot.setIntNUMLOT(addLot.getNumLot());
+        lot.setDtUPDATED(lot.getDtCREATED());
+        lot.setLgFAMILLEID(famille);
+        lot.setLgGROSSISTEID(famille.getLgGROSSISTEID());
+        lot.setDtPEREMPTION(DateCommonUtils.convertLocalDateToDate(LocalDate.parse(addLot.getDatePeremption())));
+        lot.setLgUSERID(sessionHelperService.getCurrentUser());
+        lot.setStrSTATUT(Constant.STATUT_ENABLE);
+        lot.setDtSORTIEUSINE(lot.getDtCREATED());
+        lot.setCurrentStock(addLot.getQuantity());
+        em.persist(lot);
     }
 }

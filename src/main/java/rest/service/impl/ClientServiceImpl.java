@@ -49,6 +49,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -1245,7 +1246,7 @@ public class ClientServiceImpl implements ClientService {
 
     }
 
-    public TCompteClientTiersPayant findCompteClientTiersPayantByClientId(String clientId) {
+    private TCompteClientTiersPayant findCompteClientTiersPayantByClientId(String clientId) {
 
         try {
             TypedQuery<TCompteClientTiersPayant> query = getEmg().createQuery(
@@ -1352,33 +1353,49 @@ public class ClientServiceImpl implements ClientService {
 
     }
 
+    // MODIFICATION ICI POUR CONTOURNER LE BUG D'HIBERNATE
     @Override
     public List<VenteTiersPayantsDTO> ventesTiersPayants(String query, String dtStart, String dtEnd,
             String tiersPayantId, String groupeId, String typeTp, int start, int limit, boolean all) {
         List<VenteTiersPayantsDTO> data = new ArrayList<>();
         try {
             CriteriaBuilder cb = this.getEmg().getCriteriaBuilder();
-            CriteriaQuery<VenteTiersPayantsDTO> cq = cb.createQuery(VenteTiersPayantsDTO.class);
+            CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
             Root<TPreenregistrementCompteClientTiersPayent> root = cq
                     .from(TPreenregistrementCompteClientTiersPayent.class);
-            cq.select(cb.construct(VenteTiersPayantsDTO.class,
+
+            cq.multiselect(
                     root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
                             .get(TCompteClientTiersPayant_.lgTIERSPAYANTID),
                     cb.count(root), cb.sum(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICE)),
-                    cb.sum(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICERESTE))))
+                    cb.sum(root.get(TPreenregistrementCompteClientTiersPayent_.intPRICERESTE)))
                     .orderBy(cb.asc(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
                             .get(TCompteClientTiersPayant_.lgTIERSPAYANTID).get(TTiersPayant_.strFULLNAME)))
                     .groupBy(root.get(TPreenregistrementCompteClientTiersPayent_.lgCOMPTECLIENTTIERSPAYANTID)
                             .get(TCompteClientTiersPayant_.lgTIERSPAYANTID));
+
             List<Predicate> predicates = predicateventesTiersPayants(cb, root, query, dtStart, dtEnd, tiersPayantId,
                     groupeId, typeTp);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            TypedQuery<VenteTiersPayantsDTO> q = this.getEmg().createQuery(cq);
+
+            TypedQuery<Object[]> q = this.getEmg().createQuery(cq);
             if (!all) {
                 q.setFirstResult(start);
                 q.setMaxResults(limit);
             }
-            return q.getResultList();
+
+            // Mapping manuel robuste
+            List<Object[]> results = q.getResultList();
+            for (Object[] row : results) {
+                TTiersPayant payant = (TTiersPayant) row[0];
+                Number count = (Number) row[1];
+                Number sumPrice = (Number) row[2];
+                Number sumReste = (Number) row[3];
+
+                data.add(new VenteTiersPayantsDTO(payant, count, sumPrice, sumReste));
+            }
+
+            return data;
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -1552,5 +1569,59 @@ public class ClientServiceImpl implements ClientService {
 
         return this.excelGeneratorService.generate(
                 buildExeclData(isGroupe, query, dtStart, dtEnd, tiersPayantId, groupeId, typeTp), "bordereau");
+    }
+
+    @Override
+    public void updateTiersPayantPriority(TClient tc, List<TiersPayantParams> tierspayants) {
+        boolean hasPrincipal = tierspayants.stream().anyMatch(e -> e.isPrincipal());
+        if (!hasPrincipal) {
+            return;
+        }
+        List<TCompteClientTiersPayant> compteClientTiersPayants = getClientTiersPayants(tc.getLgCLIENTID());
+
+        int priority = 1;
+        TCompteClientTiersPayant ro = null;
+        for (TCompteClientTiersPayant compteClientTiersPayant : compteClientTiersPayants) {
+            String idCmp = compteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID();
+            TTiersPayant payant = compteClientTiersPayant.getLgTIERSPAYANTID();
+            String tiersPayntId = payant.getLgTIERSPAYANTID();
+            for (TiersPayantParams payantParams : tierspayants) {
+                if ((idCmp.equals(payantParams.getCompteTp()) || tiersPayntId.equals(payantParams.getCompteTp()))
+                        && payantParams.isPrincipal()) {
+                    compteClientTiersPayant.setIntPRIORITY(priority);
+                    compteClientTiersPayant.setBISRO(Boolean.TRUE);
+                    em.merge(compteClientTiersPayant);
+                    priority++;
+                    ro = compteClientTiersPayant;
+                    break;
+
+                }
+            }
+            if (Objects.nonNull(ro)) {
+                break;
+            }
+        }
+
+        for (TCompteClientTiersPayant compteClientTiersPayant : compteClientTiersPayants) {
+            if (Objects.nonNull(ro) && compteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID()
+                    .equals(ro.getLgCOMPTECLIENTTIERSPAYANTID())) {
+                continue;
+            }
+            compteClientTiersPayant.setBISRO(Boolean.FALSE);
+            compteClientTiersPayant.setIntPRIORITY(priority);
+            priority++;
+            em.merge(compteClientTiersPayant);
+        }
+    }
+
+    private List<TCompteClientTiersPayant> getClientTiersPayants(String clientId) {
+        try {
+            TypedQuery<TCompteClientTiersPayant> tq = em.createQuery(
+                    "SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 ORDER BY o.intPRIORITY ASC    ",
+                    TCompteClientTiersPayant.class).setParameter(1, clientId);
+            return tq.getResultList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 }

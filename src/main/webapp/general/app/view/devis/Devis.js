@@ -102,6 +102,7 @@ Ext.define('testextjs.view.devis.Devis', {
                             scope: this,
                             iconCls: 'printable'
                         }
+
                     ]
                 }
 
@@ -331,6 +332,19 @@ Ext.define('testextjs.view.devis.Devis', {
                                         this.fireEvent('toExportExcel', view, rowIndex, colIndex, item, e, record, row);
                                     }
 
+                                }]
+                        },
+                        {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/folder_wrench.png', 
+                                    tooltip: 'Créer un inventaire à partir de cette proforma',
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('toInventaireFromOneDevis', view, rowIndex, colIndex, item, e, record, row);
+                                    }
                                 }]
                         }
 

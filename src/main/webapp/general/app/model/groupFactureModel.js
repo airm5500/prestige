@@ -30,6 +30,10 @@ Ext.define('testextjs.model.groupFactureModel', {
         ,{
             name: 'STATUT',
             type: 'string'
+        }
+        ,{
+            name: 'ids',
+            type: 'string'
         },
         {
             name: 'MONTANTRESTANT',

@@ -5,24 +5,14 @@
  */
 package rest;
 
-import bll.Util;
-import dal.TPrivilege;
-import java.util.List;
 import javax.ejb.EJB;
-import javax.inject.Inject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
-import org.apache.commons.lang3.StringUtils;
-import rest.service.TiersPayantService;
 import rest.service.TypeMvtCaisseService;
-import util.Constant;
-import util.DateConverter;
 
 /**
  *

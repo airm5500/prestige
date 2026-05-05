@@ -211,6 +211,9 @@ public class TTiersPayant implements Serializable {
     @Column(name = "grouping_by_taux", nullable = false)
     private Boolean groupingByTaux = Boolean.FALSE;
 
+    @Column(name = "regime_imposition")
+    private String regimeImposition;
+
     @OneToMany(mappedBy = "tiersPayant")
     private List<Caution> cautions = new ArrayList<>();
     @Transient
@@ -230,6 +233,14 @@ public class TTiersPayant implements Serializable {
 
     public void setGroupingByTaux(Boolean groupingByTaux) {
         this.groupingByTaux = groupingByTaux;
+    }
+
+    public String getRegimeImposition() {
+        return regimeImposition;
+    }
+
+    public void setRegimeImposition(String regimeImposition) {
+        this.regimeImposition = regimeImposition;
     }
 
     public TTiersPayant() {

@@ -21,6 +21,7 @@ import dal.TTypeVente;
 import dal.TVille;
 import dal.MotifAjustement;
 import dal.MotifRetourCarnet;
+import dal.TUser;
 import java.util.List;
 import javax.ejb.Local;
 import javax.print.PrintService;
@@ -111,4 +112,5 @@ public interface CommonService {
     List<ComboDTO> findAllTypeReglement();
 
     boolean isNormalUse();
+
 }

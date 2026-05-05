@@ -3,7 +3,7 @@
 Ext.define('testextjs.view.vente.PreSaleManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'preenregistrementmanager',
-   
+
     frame: true,
     title: 'Liste Pre Ventes',
     iconCls: 'icon-grid',
@@ -40,10 +40,11 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
                     dock: 'top',
                     items: [
                         {
-                            text: 'Nouvelle Vente',
+                            text: 'Nouvelle Pré Vente',
                             scope: this,
                             itemId: 'addBtn',
-                            iconCls: 'addicon'
+                            iconCls: 'addicon',
+                            cls: 'btn-primary'
 
                         }, '-',
 
@@ -150,7 +151,7 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
                                     icon: 'resources/images/icons/fam/page_white_edit.png',
                                     tooltip: 'Modifier',
                                     menuDisabled: true,
-                                    scope: me, getClass: function (value, metadata, record) {
+                                     getClass: function (value, metadata, record) {
                                         if (record.get('strSTATUT') === 'pending') {
 
                                             return 'x-display-hide';
@@ -158,8 +159,11 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
                                             return 'x-hide-display';
                                         }
 
-
-                                    },
+                                    }
+                                    ,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('toEdit', view, rowIndex, colIndex, item, e, record, row);
+                                    }
 
                                 }]
                         },
@@ -172,7 +176,11 @@ Ext.define('testextjs.view.vente.PreSaleManager', {
                             items: [{
                                     icon: 'resources/images/icons/fam/delete.png',
                                     tooltip: 'Supprimer',
-                                    scope: me
+                                   
+
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('toRemove', view, rowIndex, colIndex, item, e, record, row);
+                                    }
 
                                 }]
                         }

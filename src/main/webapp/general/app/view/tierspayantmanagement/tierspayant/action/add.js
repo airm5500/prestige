@@ -382,18 +382,18 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                 },
                                 {
 
-                                    xtype: 'checkbox',
-                                    fieldLabel: 'Utilise la cmu',
-                                    name: 'cmu',
-                                    id: 'cmu'
-                                }
-                                ,
+                                    fieldLabel: 'Compte Contribuable',
+                                    emptyText: 'Compte Contribuable',
+                                    name: 'str_COMPTE_CONTRIBUABLE',
+                                    id: 'str_COMPTE_CONTRIBUABLE'
+                                },
+
                                 {
 
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Caution',
-                                    name: 'caution',
-                                    id: 'caution'
+                                    fieldLabel: 'Registre de Commerce',
+                                    emptyText: 'Registre de Commerce',
+                                    name: 'str_REGISTRE_COMMERCE',
+                                    id: 'str_REGISTRE_COMMERCE'
                                 }
 
                             ]
@@ -770,18 +770,18 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                 },
                                 {
 
-                                    fieldLabel: 'Compte Contribuable',
-                                    emptyText: 'Compte Contribuable',
-                                    name: 'str_COMPTE_CONTRIBUABLE',
-                                    id: 'str_COMPTE_CONTRIBUABLE'
-                                },
-
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Utilise la cmu',
+                                    name: 'cmu',
+                                    id: 'cmu'
+                                }
+                                ,
                                 {
 
-                                    fieldLabel: 'Registre de Commerce',
-                                    emptyText: 'Registre de Commerce',
-                                    name: 'str_REGISTRE_COMMERCE',
-                                    id: 'str_REGISTRE_COMMERCE'
+                                    maskRe: /[0-9.]/,
+                                    fieldLabel: 'Caution',
+                                    name: 'caution',
+                                    id: 'caution'
                                 }
                             ]
                         }

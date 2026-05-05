@@ -33,4 +33,9 @@ public class MessageOfficine {
         this.corps = corps;
     }
 
+    @Override
+    public String toString() {
+        return "MessageOfficine{" + "entete=" + entete + ", corps=" + corps + '}';
+    }
+
 }

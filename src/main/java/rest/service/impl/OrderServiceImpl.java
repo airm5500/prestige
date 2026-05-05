@@ -1781,6 +1781,7 @@ public class OrderServiceImpl implements OrderService {
                 json.put("hasLots", isExistLot(bonLivraison.getStrREFLIVRAISON(), famille.getLgFAMILLEID()));
                 json.put("existLots", hasExistLot(bonLivraison.getStrREFLIVRAISON(), famille.getLgFAMILLEID()));
                 json.put("freeQty", bonLivraisonDetail.getIntQTEUG());
+                json.put("Stock_Init", bonLivraisonDetail.getIntINITSTOCK());
                 // dbl_PRIX_MOYEN_PONDERE
                 json.put("dbl_PRIX_MOYEN_PONDERE", (bonLivraisonDetail.getLgFAMILLEID().getDblPRIXMOYENPONDERE() != null
                         ? bonLivraisonDetail.getLgFAMILLEID().getDblPRIXMOYENPONDERE() : 0));

@@ -26,7 +26,9 @@ import dal.TUser;
 import dal.TUser_;
 import dal.TZoneGeographique_;
 import enumeration.MargeEnum;
+import java.io.IOException;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -34,9 +36,11 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -56,6 +60,12 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.DataReporingService;
 import util.DateConverter;
+import rest.service.InventaireService;
+import rest.service.utils.CsvExportService;
+import rest.service.utils.ReportExcelExportService;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  *
@@ -72,6 +82,14 @@ public class DataReporingServiceImpl implements DataReporingService {
     public EntityManager getEntityManager() {
         return em;
     }
+
+    @EJB
+    private CsvExportService csvExportService;
+
+    @EJB
+    private ReportExcelExportService reportExcelExportService;
+    @EJB
+    private InventaireService inventaireService;
 
     private List<Predicate> margesPredicats(CriteriaBuilder cb, Root<TPreenregistrementDetail> root,
             Join<TPreenregistrementDetail, TPreenregistrement> join, LocalDate dtStart, LocalDate dtEnd, String query,
@@ -784,6 +802,100 @@ public class DataReporingServiceImpl implements DataReporingService {
             LOG.log(Level.SEVERE, "statsArticlesInvendus ---->> ", e);
             return 0l;
         }
+    }
+
+    private List<ArticleDTO> findAllArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
+            TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) {
+
+        // all = true pour ignorer start/limit
+        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock, stockFiltre,
+                0, 0, true);
+    }
+
+    private List<String> getArticlesInvendusIds(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) {
+
+        return findAllArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
+                stockFiltre).stream().map(ArticleDTO::getId) // ArticleDTO a déjà getId() (tu l’utilises dans
+                                                             // dateDerniereVente/stockProduit)
+                        .collect(Collectors.toList());
+    }
+
+    @Override
+    public byte[] exportArticlesInvendusCsv(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException {
+
+        List<ArticleDTO> data = findAllArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste,
+                stock, stockFiltre);
+
+        LocalDate d1 = LocalDate.parse(dtStart); // "yyyy-MM-dd"
+        LocalDate d2 = LocalDate.parse(dtEnd);
+
+        String title = "Articles invendus du " + d1.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au "
+                + d2.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        String[] headers = { "Code CIP", "Libellé", "Prix vente", "Prix achat", "Stock", "Date dernière vente",
+                "Heure dernière vente" };
+
+        byte[] csvData = csvExportService.createCsvReport(title, headers, data, dto -> new String[] { dto.getCode(), // CIP
+                dto.getLibelle(), // Libellé
+                String.valueOf(dto.getPrixVente()), // Prix vente
+                String.valueOf(dto.getPrixAchat()), // Prix achat
+                String.valueOf(dto.getStock()), // Stock
+                dto.getLastDate() != null ? dto.getLastDate() : "",
+                dto.getLastHour() != null ? dto.getLastHour() : "" });
+
+        return csvExportService.addUtf8Bom(csvData);
+    }
+
+    @Override
+    public byte[] exportArticlesInvendusExcel(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException {
+
+        List<ArticleDTO> data = findAllArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste,
+                stock, stockFiltre);
+
+        LocalDate d1 = LocalDate.parse(dtStart);
+        LocalDate d2 = LocalDate.parse(dtEnd);
+
+        String title = "Articles invendus du " + d1.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au "
+                + d2.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        String[] headers = { "Code CIP", "Libellé", "Prix vente", "Prix achat", "Stock", "Date dernière vente",
+                "Heure dernière vente" };
+
+        return reportExcelExportService.createExcelReport(title, headers, data, (row, dto) -> {
+            int col = 0;
+            row.createCell(col++).setCellValue(dto.getCode());
+            row.createCell(col++).setCellValue(dto.getLibelle());
+            row.createCell(col++).setCellValue(dto.getPrixVente());
+            row.createCell(col++).setCellValue(dto.getPrixAchat());
+            row.createCell(col++).setCellValue(dto.getStock());
+            row.createCell(col++).setCellValue(dto.getLastDate() != null ? dto.getLastDate() : "");
+            row.createCell(col++).setCellValue(dto.getLastHour() != null ? dto.getLastHour() : "");
+        });
+    }
+
+    @Override
+    public JSONObject createInventaireArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
+            TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws JSONException {
+
+        List<String> ids = getArticlesInvendusIds(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
+                stockFiltre);
+
+        if (ids.isEmpty()) {
+            return new JSONObject().put("count", 0);
+        }
+
+        LocalDate d1 = LocalDate.parse(dtStart);
+        LocalDate d2 = LocalDate.parse(dtEnd);
+
+        String title = "Inventaire articles invendus du " + d1.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + " au " + d2.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+        int count = inventaireService.create(Set.copyOf(ids), title);
+
+        return new JSONObject().put("count", count);
     }
 
 }

@@ -17,6 +17,7 @@ import commonTasks.dto.VisualisationCaisseDTO;
 import dal.MvtTransaction;
 import dal.TOfficine;
 import dal.TUser;
+import dal.VenteReglement;
 import dal.enumeration.TypeTransaction;
 
 import java.time.LocalDate;
@@ -90,8 +91,9 @@ public interface CaisseService {
 
     JSONObject mouvementCaisses(CaisseParamsDTO caisseParams) throws JSONException;
 
-    long montantCa(LocalDate dtStart, LocalDate dtEnd, boolean checked, String emplacementId,
-            TypeTransaction transaction, String typrReglement);
+    long getMontantCa(LocalDate dtStart, LocalDate dtEnd);
+
+    List<Object[]> getVenteReglements(LocalDate dtStart, LocalDate dtEnd, int start, int max);
 
     MvtTransaction findByVenteId(String venteId);
 

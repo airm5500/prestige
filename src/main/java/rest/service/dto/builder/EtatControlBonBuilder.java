@@ -38,7 +38,40 @@ public final class EtatControlBonBuilder extends CommonBuilder {
                 .items(buildItems(bonLivraisonDetails)).montantAvoir(computeAvoirAmount(bonLivraisonDetails))
                 .user(user(oUser)).fournisseurLibelle(grossiste.getStrLIBELLE())
                 .userName(oUser.getStrFIRSTNAME().charAt(0) + ".".concat(oUser.getStrLASTNAME()))
-                .dateLivraison(DateUtil.convertDateToISO(bonLivraison.getDtDATELIVRAISON())).build();
+                .dateLivraison(DateUtil.convertDateToISO(bonLivraison.getDtDATELIVRAISON()))
+                .checked(computeBlControlStatus(bonLivraisonDetails)).build();
+    }
+
+    private static String computeBlControlStatus(List<BonLivraisonDetail> details) {
+        if (details == null || details.isEmpty()) {
+            return "NON_TRAITE";
+        }
+
+        // Au moins un contrôle commencé ?
+        boolean anyStarted = details.stream().anyMatch(d -> Boolean.TRUE.equals(d.getChecked())
+                || (d.getQuantiteControle() != null && d.getQuantiteControle() > 0));
+
+        if (!anyStarted) {
+            return "NON_TRAITE";
+        }
+
+        // Tous contrôlés ?
+        boolean allDone = details.stream().allMatch(EtatControlBonBuilder::isItemControlled);
+
+        return allDone ? "TERMINE" : "EN_COURS";
+    }
+
+    /**
+     * Règle "produit contrôlé". Par défaut: checked==true OU quantiteControle >= intQTERECUE ⚠️ Si chez toi la quantité
+     * à contrôler doit être (intQTERECUE - intQTEUG), remplace expectedQty.
+     */
+    private static boolean isItemControlled(BonLivraisonDetail d) {
+        if (Boolean.TRUE.equals(d.getChecked())) {
+            return true;
+        }
+        Integer qc = d.getQuantiteControle();
+        Integer expectedQty = d.getIntQTERECUE(); // ou (d.getIntQTERECUE() - d.getIntQTEUG())
+        return qc != null && expectedQty != null && qc >= expectedQty;
     }
 
     public static BonLivraisonDetail buildItem(TBonLivraisonDetail item) {
@@ -48,7 +81,8 @@ public final class EtatControlBonBuilder extends CommonBuilder {
                 .intQTEMANQUANT(item.getIntQTEMANQUANT()).intQTERECUE(item.getIntQTERECUE())
                 .intQTERETURN(item.getIntQTERETURN()).intQTEUG(item.getIntQTEUG()).prixTarif(item.getPrixTarif())
                 .prixUni(item.getPrixUni()).produit(produit(item.getLgFAMILLEID()))
-                .lgBONLIVRAISONDETAIL(item.getLgBONLIVRAISONDETAIL()).build();
+                .lgBONLIVRAISONDETAIL(item.getLgBONLIVRAISONDETAIL()).quantiteControle(item.getCheckedQuantity())
+                .lgZONEGEONom(item.getLgZONEGEOID().getStrLIBELLEE()).checked(item.isChecked()).build();
     }
 
     public static String buildItems(List<BonLivraisonDetail> bonLivraisonDetails) {

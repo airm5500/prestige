@@ -26,6 +26,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.json.JSONObject;
+import util.Constant;
 
 /**
  *
@@ -150,7 +151,7 @@ public class LicenceFilter implements Filter {
     }
 
     private TOfficine getOfficine() {
-        return em.find(TOfficine.class, "1");
+        return em.find(TOfficine.class, Constant.OFFICINE);
     }
 
     private void proceedWithAuth2(HttpServletRequest httpReq, HttpServletResponse response, FilterChain chain)

@@ -63,7 +63,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         firstTime = 0;
         rowindex = 0;
         selectedrowindex = 0;
-
+        this.addKeyMap();
 
         var lg_ZONE_GEO_ID = "";
         var lg_FAMILLEARTICLE_ID = "";
@@ -242,6 +242,69 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                 }], //appliquer le groupement
                             store: store_inventaire_famille,
                             height: Ext.getBody().getViewSize().height * 0.8,
+                            
+                             // AJOUT: Configuration de la vue
+                            viewConfig: {
+                                stripeRows: false,
+                                getRowClass: function(record, rowIndex, rowParams, store) {
+                                    // Cette méthode sera gérée via les événements
+                                    return '';
+                                }
+                            },
+
+                            // AJOUT: Listeners pour gérer le style d'édition
+                            listeners: {
+                                // Au début de l'édition
+                                beforeedit: function(editor, context) {
+                                    var grid = Ext.getCmp('gridpanelInventaireID');
+                                    // Retirer la classe de toutes les lignes
+                                    var rows = grid.getView().getEl().query('.x-grid-row');
+                                    rows.forEach(function(row) {
+                                        Ext.fly(row).removeCls('row-editing-active');
+                                    });
+
+                                    // Ajouter la classe à la ligne en cours d'édition
+                                    var row = context.row;
+                                    Ext.fly(row).addCls('row-editing-active');
+                                },
+
+                                // Quand l'édition est annulée
+                                canceledit: function(editor, context) {
+                                    var row = context.row;
+                                    Ext.fly(row).removeCls('row-editing-active');
+                                },
+
+                                // Quand l'édition est validée
+                                edit: function(editor, context) {
+                                    var row = context.row;
+                                    Ext.fly(row).removeCls('row-editing-active');
+
+                                    // Si vous voulez garder le style pendant la navigation, retirez la ligne ci-dessus
+                                    // et utilisez plutôt cette approche :
+                                    // Le style sera retiré automatiquement au début de la prochaine édition
+                                },
+
+                                // Nettoyer quand on quitte la grille
+                                destroy: function () {
+                                    var grid = Ext.getCmp('gridpanelInventaireID');
+                                    // PROTECTION : Vérifier que grid existe et a un getView valide
+                                    if (grid && grid.getView && grid.getView().getEl) {
+                                        try {
+                                            var view = grid.getView();
+                                            var el = view.getEl();
+                                            if (el && !el.destroyed && el.query) {
+                                                var rows = el.query('.row-editing-active');
+                                                rows.forEach(function (row) {
+                                                    Ext.fly(row).removeCls('row-editing-active');
+                                                });
+                                            }
+                                        } catch (e) {
+                                            console.warn('Safe cleanup during destruction:', e.message);
+                                        }
+                                    }
+                                }
+                            },
+                            
                             columns: [{
                                     text: 'lg_INVENTAIRE_FAMILLE_ID',
                                     flex: 1,
@@ -321,33 +384,29 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     align: 'right',
                                     renderer: amountformat,
                                     flex: 1
-                                }, {
+                                },
+                                {
                                     text: 'Stock Rayon',
                                     flex: 1,
                                     sortable: true,
                                     dataIndex: 'int_NUMBER_AVAILABLE',
                                     //renderer: amountformat,
                                     align: 'right',
+                                    // Modifier la partie navigation dans l'éditeur de "Stock Rayon"
                                     editor: {
-//                                        xtype: 'numberfield',
                                         xtype: 'textfield',
-//                                        minValue: 0,
                                         allowBlank: false,
-//                                        regex: /[0-9.]/,
                                         maskRe: /[0-9.]/,
                                         selectOnFocus: true,
-//                                        hideTrigger: true,
                                         enableKeyEvents: true,
                                         listeners: {
                                             specialKey: function (field, e, options) {
                                                 var grid = Ext.getCmp('gridpanelInventaireID');
                                                 var position = grid.getSelectionModel().getCurrentPosition();
 
-                                                // Ne rien faire si aucune cellule n'est sélectionnée
-                                                if (!position)
-                                                    return;
+                                                if (!position) return;
 
-                                                // Gérer la navigation avec les flèches HAUT et BAS
+                                                // Navigation standard avec les flèches
                                                 if (e.getKey() === e.UP) {
                                                     grid.getPlugin('inventaireEditor').startEdit(Number(position.row) - 1, Number(position.column));
                                                     return;
@@ -357,22 +416,20 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                     return;
                                                 }
 
-                                                // Gérer la validation et la navigation avec la touche ENTREE
+                                                // Gérer la validation avec ENTREE
                                                 if (e.getKey() === e.ENTER) {
-
                                                     // --- VALIDATION DE LA SAISIE ---
                                                     var int_NUMBER = field.getValue();
                                                     if (isNaN(int_NUMBER) || String(int_NUMBER).trim() === '' || Number(int_NUMBER) < 0) {
-                                                        Ext.Msg.alert('Erreur', 'La quantité saisie est invalide.');
+                                                        //Ext.Msg.alert('Erreur', 'La quantité saisie est invalide.');
                                                         grid.getPlugin('inventaireEditor').startEdit(position.row, position.column);
                                                         return;
                                                     }
 
-                                                    // --- FONCTION DE MISE A JOUR ET NAVIGATION ---
                                                     var ajaxUpdateAndNavigate = function () {
                                                         var record = grid.getStore().getAt(position.row);
                                                         var lg_INVENTAIRE_FAMILLE_ID = record.get("lg_INVENTAIRE_FAMILLE_ID");
-                                                        var int_NUMBER_INIT = record.get("int_TAUX_MARQUE"); // Stock machine
+                                                        var int_NUMBER_INIT = record.get("int_TAUX_MARQUE");
 
                                                         Ext.Ajax.request({
                                                             url: url_services_transaction_inventaire + 'updateinventairefamille',
@@ -391,27 +448,76 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                                 record.set("int_QTE_SORTIE", Number(int_NUMBER) - int_NUMBER_INIT);
                                                                 grid.getStore().commitChanges();
 
-                                                                //Ma Pagination
                                                                 var totalOnPage = grid.getStore().getCount();
                                                                 var currentRowIndex = position.row;
 
-                                                                // On vérifie si c'est bien la dernière ligne de la page actuelle
-                                                                if (currentRowIndex === totalOnPage - 1) {
+                                                                // DÉTECTION SI RECHERCHE ACTIVE
+                                                                var searchValue = Ext.getCmp('rechecher').getValue();
+                                                                var isSearchActive = searchValue && searchValue.trim() !== '';
+
+                                                                // CAS SPÉCIAL : Si recherche active et dernier produit de la page
+                                                                // Modifier la partie navigation dans l'éditeur de "Stock Rayon" - section DERNIÈRE PAGE de la recherche
+                                                                if (isSearchActive && currentRowIndex === totalOnPage - 1) {
                                                                     var pagingToolbar = grid.getDockedItems('toolbar[dock="bottom"]')[0];
 
-                                                                    // On vérifie que la barre de pagination et le bouton "suivant" existent et sont actifs
+                                                                    // Vérifier s'il y a une page suivante
                                                                     if (pagingToolbar && pagingToolbar.down('#next') && !pagingToolbar.down('#next').isDisabled()) {
-                                                                        // Si oui, on passe à la page suivante
+                                                                        // Il y a une page suivante → on y va
+                                                                        pagingToolbar.moveNext();
+                                                                        // Après le chargement, on se positionne sur le premier élément
+                                                                        grid.getStore().on('load', function() {
+                                                                            setTimeout(function() {
+                                                                                grid.getPlugin('inventaireEditor').startEdit(0, position.column);
+                                                                            }, 100);
+                                                                        }, this, {single: true});
+                                                                    } else {
+                                                                        // DERNIÈRE PAGE de la recherche → 
+                                                                        // 1. Retour à la première page des résultats
+                                                                        // 2. Focus sur la zone de recherche
+                                                                        if (pagingToolbar && pagingToolbar.down('#first')) {
+                                                                            pagingToolbar.moveFirst();
+
+                                                                            // Après le retour à la première page, focus sur la recherche
+                                                                            grid.getStore().on('load', function() {
+                                                                                setTimeout(function() {
+                                                                                    var searchField = Ext.getCmp('rechecher');
+                                                                                    if (searchField) {
+                                                                                        searchField.focus(false, 500); // Augmenter le délai et désactiver le scroll
+                                                                                        searchField.selectText();
+
+                                                                                        // Forcer le focus une seconde fois pour s'assurer qu'il reste
+                                                                                        setTimeout(function() {
+                                                                                            searchField.focus(true, 10);
+                                                                                            searchField.selectText();
+                                                                                        }, 50);
+                                                                                    }
+                                                                                }, 150); // Délai augmenté
+                                                                            }, this, {single: true});
+                                                                        } else {
+                                                                            // Fallback si pas de pagination
+                                                                            setTimeout(function() {
+                                                                                var searchField = Ext.getCmp('rechecher');
+                                                                                if (searchField) {
+                                                                                    searchField.focus(true, 100);
+                                                                                    searchField.selectText();
+                                                                                }
+                                                                            }, 100);
+                                                                        }
+                                                                    }
+                                                                    return;
+                                                                }
+
+                                                                // Navigation normale (pagination sans recherche)
+                                                                if (currentRowIndex === totalOnPage - 1) {
+                                                                    var pagingToolbar = grid.getDockedItems('toolbar[dock="bottom"]')[0];
+                                                                    if (pagingToolbar && pagingToolbar.down('#next') && !pagingToolbar.down('#next').isDisabled()) {
                                                                         pagingToolbar.moveNext();
                                                                     } else {
-                                                                        // Sinon (dernière page), on retourne à la première page
                                                                         pagingToolbar.moveFirst();
                                                                     }
                                                                 } else {
-                                                                    // Si ce n'est pas la dernière ligne, on passe simplement à la ligne du dessous
                                                                     grid.getPlugin('inventaireEditor').startEdit(currentRowIndex + 1, position.column);
                                                                 }
-                                                                //fin ma pagination
                                                             },
                                                             failure: function (response) {
                                                                 Ext.MessageBox.alert('Erreur', 'Erreur serveur: ' + response.status);
@@ -420,7 +526,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                         });
                                                     };
 
-                                                    // --- GESTION DE L'ALERTE DE QUANTITE ---
+                                                    // Gestion alerte quantité
                                                     if (Number(int_NUMBER) > KEY_MAX_VALUE_INVENTAIRE) {
                                                         Ext.MessageBox.show({
                                                             title: 'Alerte Quantité',
@@ -439,10 +545,53 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                         ajaxUpdateAndNavigate();
                                                     }
                                                 }
+
+                                                // Navigation vers la recherche avec FLÈCHE HAUT sur le premier élément
+                                                if (e.getKey() === e.UP && position.row === 0) {
+                                                    var searchValue = Ext.getCmp('rechecher').getValue();
+                                                    var isSearchActive = searchValue && searchValue.trim() !== '';
+
+                                                    if (isSearchActive) {
+                                                        // Vérifier si on est sur la première page
+                                                        var pagingToolbar = grid.getDockedItems('toolbar[dock="bottom"]')[0];
+                                                        var currentPage = pagingToolbar ? pagingToolbar.getPageData().current : 1;
+
+                                                        if (currentPage === 1) {
+                                                            e.stopEvent();
+                                                            var searchField = Ext.getCmp('rechecher');
+                                                            if (searchField) {
+                                                                searchField.focus(true, 100);
+                                                                searchField.selectText();
+                                                            }
+                                                            return;
+                                                        } else {
+                                                            // Si on n'est pas sur la première page, on y retourne
+                                                            e.stopEvent();
+                                                            if (pagingToolbar && pagingToolbar.down('#first')) {
+                                                                pagingToolbar.moveFirst();
+                                                                // Après le retour à la première page, focus sur la recherche
+                                                                grid.getStore().on('load', function() {
+                                                                    setTimeout(function() {
+                                                                        var searchField = Ext.getCmp('rechecher');
+                                                                        if (searchField) {
+                                                                            searchField.focus(false, 500);
+                                                                            searchField.selectText();
+
+                                                                            // Double focus pour assurer la prise
+                                                                            setTimeout(function() {
+                                                                                searchField.focus(true, 10);
+                                                                                searchField.selectText();
+                                                                            }, 50);
+                                                                        }
+                                                                    }, 150);
+                                                                }, this, {single: true});
+                                                            }
+                                                            return;
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
-
-
                                     }
                                 }, {
                                     text: 'Stock.Machine',
@@ -673,7 +822,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             OGridStore.loadPage(1);
                                         }
                                     }
-                                }, '-', {
+                                }, '-', 
+                                {
                                     xtype: 'textfield',
                                     id: 'rechecher',
                                     name: 'rechecher',
@@ -682,11 +832,21 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     listeners: {
                                         render: function (cmp) {
                                             cmp.getEl().on('keypress', function (e) {
-
                                                 if (e.getKey() === e.ENTER) {
-                                                    Me.onfiltercheck(cmp.getValue());
+                                                    var searchValue = cmp.getValue();
+                                                    Me.onfiltercheck(searchValue);
                                                 }
                                             });
+                                        },
+                                        // Navigation avec FLÈCHE BAS depuis la recherche
+                                        specialkey: function (field, e) {
+                                            if (e.getKey() === e.DOWN) {
+                                                e.stopEvent();
+                                                var grid = Ext.getCmp('gridpanelInventaireID');
+                                                if (grid.getStore().getCount() > 0) {
+                                                    grid.getPlugin('inventaireEditor').startEdit(0, 7);
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -925,9 +1085,46 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         }
 
         var OGrid = Ext.getCmp('gridpanelInventaireID');
-        OGrid.getStore().getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + str_TYPE + "&search_value=" + valeur + "&lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID;
-        OGrid.getStore().reload();
+        var searchField = Ext.getCmp('rechecher');
 
+        OGrid.getStore().getProxy().url = url_services_data_inventaire_famille + "&str_TYPE=" + str_TYPE + "&search_value=" + valeur + "&lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID;
+
+        OGrid.getStore().load({
+            callback: function (records, operation, success) {
+                // COURT DÉLAI pour laisser le temps au store de se mettre à jour
+                setTimeout(function () {
+                    if (records.length === 0) {
+                        // FORCER le focus et la sélection avec plusieurs tentatives
+                        if (searchField) {
+                            // 1ère tentative
+                            searchField.focus(false, 10);
+                            searchField.selectText();
+
+                            // 2ème tentative après un court délai
+                            setTimeout(function () {
+                                searchField.focus(true, 10);
+                                searchField.selectText();
+
+                                // 3ème tentative pour s'assurer
+                                setTimeout(function () {
+                                    searchField.focus(true, 10);
+                                    searchField.selectText();
+                                }, 50);
+                            }, 100);
+                        }
+
+                        // Message d'information
+                        Ext.toast('Aucun produit trouvé pour: ' + valeur, 3000);
+
+                    } else {
+                        // Résultats trouvés - navigation normale
+                        setTimeout(function () {
+                            OGrid.getPlugin('inventaireEditor').startEdit(0, 7);
+                        }, 100);
+                    }
+                }, 150); // Délai initial
+            }
+        });
     },
     onbtnprint: function () {
         str_NAME_FILE = "";
@@ -1181,6 +1378,26 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
         return  grid.headerCt.getHeaderAtIndex(columnIndex);
     },
+    
+    // Ajouter cette méthode à la classe
+        addKeyMap: function() {
+            // Créer un keyMap pour F3
+            this.keyMap = new Ext.util.KeyMap({
+                target: Ext.getBody(),
+                binding: [{
+                    key: Ext.EventObject.F3,
+                    fn: function() {
+                        var searchField = Ext.getCmp('rechecher');
+                        if (searchField) {
+                            searchField.focus(true, 100);
+                            searchField.selectText();
+                        }
+                        return false; // Empêcher le comportement par défaut de F3
+                    },
+                    scope: this
+                }]
+            });
+        },
 
     onbtnActualiserStock: function (button) {
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');

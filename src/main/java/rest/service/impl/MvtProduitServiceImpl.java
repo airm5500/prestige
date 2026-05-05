@@ -53,6 +53,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.LogService;
+import rest.service.LotService;
 import rest.service.MouvementProduitService;
 import rest.service.MvtProduitService;
 import rest.service.NotificationService;
@@ -72,19 +73,21 @@ import util.NumberUtils;
 public class MvtProduitServiceImpl implements MvtProduitService {
 
     private static final Logger LOG = Logger.getLogger(MvtProduitServiceImpl.class.getName());
-    Comparator<AjustementDetailDTO> comparator = Comparator.comparing(AjustementDetailDTO::getDateOperation);
+    private Comparator<AjustementDetailDTO> comparator = Comparator.comparing(AjustementDetailDTO::getDateOperation);
     @EJB
-    SuggestionService suggestionService;
+    private SuggestionService suggestionService;
     @EJB
-    LogService logService;
+    private LogService logService;
     @EJB
-    MouvementProduitService mouvementProduitService;
+    private MouvementProduitService mouvementProduitService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
-    NotificationService notificationService;
+    private NotificationService notificationService;
     @Resource(name = "concurrent/__defaultManagedExecutorService")
-    ManagedExecutorService managedExecutorService;
+    private ManagedExecutorService managedExecutorService;
+    @EJB
+    private LotService lotService;
 
     public EntityManager getEmg() {
         return em;
@@ -315,7 +318,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             updateStock(familleStock, tp, it);
             emg.merge(familleStock);
             emg.merge(it);
-
+            lotService.pickLot(tFamille.getLgFAMILLEID(), it.getIntQUANTITY());
             if (isDetail && stockParent != null) {
                 this.suggestionService.makeSuggestionAuto(stockParent, otFamilleParent);
             } else {

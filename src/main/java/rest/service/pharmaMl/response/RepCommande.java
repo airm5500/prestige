@@ -15,4 +15,10 @@ public class RepCommande {
     public void setNormale(NormaleReponse normale) {
         this.normale = normale;
     }
+
+    @Override
+    public String toString() {
+        return "RepCommande{" + "normale=" + normale + '}';
+    }
+
 }

@@ -8,6 +8,7 @@ package rest.service.impl;
 import commonTasks.dto.ErpAvoir;
 import commonTasks.dto.RetourDetailsDTO;
 import commonTasks.dto.RetourFournisseurDTO;
+import dal.MvtTransaction;
 import dal.TBonLivraison;
 import dal.TBonLivraisonDetail;
 import dal.TFamille;
@@ -36,6 +37,7 @@ import rest.service.RetourFournisseurService;
 import rest.service.SessionHelperService;
 import rest.service.dto.UpdateRetourDTO;
 import rest.service.dto.UpdateRetourItemDTO;
+import util.Constant;
 import util.DateConverter;
 
 /**
@@ -237,14 +239,14 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         TBonLivraison bonLivraison = this.getEntityManager().find(TBonLivraison.class, bonId);
         TRetourFournisseur retourFournisseur = createRetourFournisseur(this.sessionHelperService.getCurrentUser(), "",
                 null, bonLivraison);
-        retourFournisseur.setStrSTATUT(DateConverter.STATUT_ENABLE);
+        retourFournisseur.setStrSTATUT(Constant.STATUT_ENABLE);
         TMotifRetour motifRetour = getFromId(motifId);
         ArrayList<TBonLivraisonDetail> bonLivraisonDetails = new ArrayList<>(
                 bonLivraison.getTBonLivraisonDetailCollection());
         cloneBl(bonLivraison, this.sessionHelperService.getCurrentUser(), bonLivraisonDetails);
         retourFournisseur.setLgBONLIVRAISONID(bonLivraison);
         mvtProduitService.validerFullBlRetourFournisseur(retourFournisseur, motifRetour, bonLivraisonDetails);
-
+        deleteMvtTransactionByPkey(bonId);
         this.getEntityManager().merge(bonLivraison);
 
     }
@@ -340,4 +342,11 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         this.getEntityManager().merge(retourFournisseur);
     }
 
+    private void deleteMvtTransactionByPkey(String bonId) {
+        TypedQuery<MvtTransaction> typedQuery = em.createQuery("SELECT o FROM MvtTransaction o WHERE o.pkey=?1",
+                MvtTransaction.class);
+        typedQuery.setParameter(1, bonId);
+        MvtTransaction mt = typedQuery.getSingleResult();
+        em.remove(mt);
+    }
 }

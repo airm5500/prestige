@@ -163,8 +163,7 @@ public class SuggestionRessource {
     @Path("add")
     public Response create(SuggestionDTO suggestion) {
 
-        SuggestionDTO result = this.suggestionService.create(suggestion);
-        return Response.ok().entity(new JSONObject(result).toString()).build();
+        return Response.ok().entity(new JSONObject(this.suggestionService.create(suggestion)).toString()).build();
     }
 
     @GET
@@ -187,10 +186,8 @@ public class SuggestionRessource {
     @Path("list/items")
     public Response fetchItems(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "query") String search, @QueryParam(value = "orderId") String orderId) {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
-        return Response.ok().entity(this.suggestionService.fetchItems(orderId, search, tu, start, limit).toString())
+        return Response.ok().entity(this.suggestionService.fetchItems(orderId, search, start, limit).toString())
                 .build();
     }
 

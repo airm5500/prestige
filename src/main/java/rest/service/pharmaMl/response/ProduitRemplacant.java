@@ -48,4 +48,11 @@ public class ProduitRemplacant {
     public void setDesignation(String designation) {
         this.designation = designation;
     }
+
+    @Override
+    public String toString() {
+        return "ProduitRemplacant{" + "typeRemplacement=" + typeRemplacement + ", typeCodification=" + typeCodification
+                + ", codeProduit=" + codeProduit + ", designation=" + designation + '}';
+    }
+
 }

@@ -68,13 +68,8 @@ public class ReglementRessource {
     @POST
     @Path("reglementdiffere")
     public Response faireReglementDiffere(ClotureVenteParams clotureVenteParams) throws JSONException {
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
-        clotureVenteParams.setUserId(tu);
-        JSONObject json = reglementService.reglerDiffere(clotureVenteParams);
+
+        JSONObject json = reglementService.reglerDiffereV2(clotureVenteParams);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -82,13 +77,7 @@ public class ReglementRessource {
     @Path("reglementdiffere-all")
     public Response faireReglementDiffereAll(ClotureVenteParams clotureVenteParams) throws JSONException {
 
-        HttpSession hs = servletRequest.getSession();
-        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
-        clotureVenteParams.setUserId(tu);
-        JSONObject json = reglementService.reglerDiffereAll(clotureVenteParams);
+        JSONObject json = reglementService.reglerDiffereAllV2(clotureVenteParams);
         return Response.ok().entity(json.toString()).build();
     }
 

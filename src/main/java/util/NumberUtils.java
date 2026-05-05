@@ -119,9 +119,13 @@ public final class NumberUtils {
             return Integer.valueOf(intStringValue);
 
         } catch (Exception e) {
-            e.printStackTrace();
+
             return doubleFromString(intStringValue);
         }
 
+    }
+
+    public static int arrondirAuMultipleDe5(int valeur) {
+        return Math.round(valeur / 5f) * 5;
     }
 }

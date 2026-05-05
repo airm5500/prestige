@@ -1,6 +1,8 @@
 
 package rest.service.inventaire.dto;
 
+import java.util.Date;
+
 /**
  *
  * @author koben
@@ -16,8 +18,12 @@ public class DetailInventaireDTO {
     private final int quantiteInitiale;
     private final int quantiteSaisie;
 
+    private final Date dtUpdated;
+
+    private final boolean boolInventaire;
+
     public DetailInventaireDTO(Long id, String produitName, String produitCip, int produitPrixAchat, int produitPrixUni,
-            int quantiteInitiale, int quantiteSaisie) {
+            int quantiteInitiale, int quantiteSaisie, Date dtUpdated, boolean boolInventaire) {
         this.id = id;
         this.produitName = produitName;
         this.produitCip = produitCip;
@@ -26,6 +32,40 @@ public class DetailInventaireDTO {
         this.produitPrixUni = produitPrixUni;
         this.quantiteInitiale = quantiteInitiale;
         this.quantiteSaisie = quantiteSaisie;
+        this.dtUpdated = dtUpdated;
+        this.boolInventaire = boolInventaire;
+    }
+
+    public DetailInventaireDTO(Long id, String produitName, String produitCip, int produitPrixAchat, int produitPrixUni,
+            int quantiteInitiale, int quantiteSaisie, boolean boolInventaire) {
+        this.id = id;
+        this.produitName = produitName;
+        this.produitCip = produitCip;
+
+        this.produitPrixAchat = produitPrixAchat;
+        this.produitPrixUni = produitPrixUni;
+        this.quantiteInitiale = quantiteInitiale;
+        this.quantiteSaisie = quantiteSaisie;
+        this.dtUpdated = null;
+        this.boolInventaire = boolInventaire;
+    }
+
+    public DetailInventaireDTO(Long id, String produitName, String produitCip, int produitPrixAchat, int produitPrixUni,
+            int quantiteInitiale, int quantiteSaisie, boolean boolInventaire, Date dtUpdated) {
+
+        this.id = id;
+        this.produitName = produitName;
+        this.produitCip = produitCip;
+        this.produitPrixAchat = produitPrixAchat;
+        this.produitPrixUni = produitPrixUni;
+        this.quantiteInitiale = quantiteInitiale;
+        this.quantiteSaisie = quantiteSaisie;
+        this.boolInventaire = boolInventaire;
+        this.dtUpdated = dtUpdated;
+    }
+
+    public boolean isBoolInventaire() {
+        return boolInventaire;
     }
 
     public Long getId() {
@@ -56,4 +96,7 @@ public class DetailInventaireDTO {
         return quantiteSaisie;
     }
 
+    public Date getdtUpdated() {
+        return dtUpdated;
+    }
 }

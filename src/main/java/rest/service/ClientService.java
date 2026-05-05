@@ -25,7 +25,6 @@ import org.json.JSONObject;
  * @author Kobena
  */
 @Local
-// @Remote
 public interface ClientService {
 
     TClient createClient(ClientLambdaDTO clientLambda);
@@ -81,4 +80,7 @@ public interface ClientService {
 
     byte[] generate(boolean isGroupe, String query, String dtStart, String dtEnd, String tiersPayantId, String groupeId,
             String typeTp) throws IOException;
+
+    void updateTiersPayantPriority(TClient tc, List<TiersPayantParams> tierspayants);
+
 }

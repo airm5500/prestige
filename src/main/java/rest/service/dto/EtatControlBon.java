@@ -65,4 +65,6 @@ public class EtatControlBon {
     private int montantAvoir;
     private String dateLivraison;
 
+    private String checked;
+
 }

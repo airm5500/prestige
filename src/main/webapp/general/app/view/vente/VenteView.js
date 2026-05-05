@@ -14,11 +14,93 @@ Ext.define('testextjs.view.vente.VenteView', {
     height: 'auto',
     minHeight: 570,
     cls: 'custompanel',
+    
+    title: 'VENTE AU COMPTANT',
+    
+    header: {
+        titlePosition: 0,
+        items: [{
+            xtype: 'textfield',
+            itemId: 'preventeSearchField',
+            emptyText: 'N° ticket / scan',
+            width: 220,
+            enableKeyEvents: true,
+            margin: '0 5 0 0'
+        }, /*{
+            xtype: 'button',
+            itemId: 'preventeSearchBtn',
+            text: 'VENTES EN ATTENTE',
+            cls: 'btn-primarya',
+            scope: this,
+            iconCls: 'btn-prevente',
+            margin: '0 0 0 5'
+        },*/
+        {
+         xtype: 'button',
+         text: 'VENTES EN ATTENTE',
+         scope: this,
+         itemId: 'preventeSearchBtn',
+         cls: 'btn-primarya',
+         iconCls: 'searchicon'
+        }
+    ]
+    },
+
     layout: {
         type: 'vbox',
         align: 'stretch',
         padding: 10
     },
+    
+    listeners: {
+        afterrender: function() {
+            this.initKeyboardShortcut();
+        },
+        destroy: function() {
+            this.cleanupKeyboardShortcut();
+        }
+    },
+    
+    initKeyboardShortcut: function() {
+        var me = this;
+        
+        // Fonction pour gérer le raccourci clavier
+        me.keyHandler = function(e) {
+            // Ctrl+F ou Cmd+F (Mac)
+            if ((e.ctrlKey || e.metaKey) && e.keyCode === 70) {
+                e.preventDefault();
+                e.stopPropagation();
+                me.focusSearchField();
+                return false;
+            }
+            // F3
+            if (e.keyCode === 114) {
+                e.preventDefault();
+                e.stopPropagation();
+                me.focusSearchField();
+                return false;
+            }
+        };
+        
+        // Ajouter l'écouteur d'événements au document
+        Ext.getDoc().on('keydown', me.keyHandler);
+    },
+    
+    cleanupKeyboardShortcut: function() {
+        var me = this;
+        if (me.keyHandler) {
+            Ext.getDoc().un('keydown', me.keyHandler);
+            me.keyHandler = null;
+        }
+    },
+    
+    focusSearchField: function() {
+        var searchField = this.down('#preventeSearchField');
+        if (searchField) {
+            searchField.focus(true, true); // focus et sélection du texte
+        }
+    },
+    
     initComponent: function () {
         var natureventeStore = new Ext.data.Store({
             model: 'testextjs.model.caisse.Nature',
@@ -157,5 +239,3 @@ Ext.define('testextjs.view.vente.VenteView', {
         me.callParent(arguments);
     }
 });
-
-

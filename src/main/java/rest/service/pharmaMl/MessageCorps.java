@@ -23,4 +23,9 @@ public class MessageCorps {
         this.commande = commande;
     }
 
+    @Override
+    public String toString() {
+        return "MessageCorps{" + "commande=" + commande + '}';
+    }
+
 }

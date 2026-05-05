@@ -43,6 +43,7 @@ import rest.service.dto.CommandeFiltre;
 import rest.service.dto.CommandeIdsDTO;
 import rest.service.dto.DeleteLot;
 import rest.service.dto.OrderDetailDTO;
+import toolkits.parameters.commonparameter;
 import util.Constant;
 
 /**
@@ -352,4 +353,22 @@ public class CommandeRessource {
         this.orderService.addBonItemCheckedQuantity(addCheckedQuantity);
         return Response.accepted().build();
     }
+
+    @GET
+    @Path("export-excel-details")
+    @Produces("application/vnd.ms-excel")
+    public Response exportCommandeDetailsExcel(@QueryParam("id") String orderId) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+
+        byte[] data = commandeService.buildCommandeDetailsExcel(tu, orderId);
+
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"commande_" + orderId + "_details.xls\"").build();
+    }
+
 }

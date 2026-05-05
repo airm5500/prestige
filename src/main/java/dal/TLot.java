@@ -27,7 +27,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 @Entity
 @Table(name = "t_lot")
 @XmlRootElement
-@NamedQueries({ @NamedQuery(name = "TLot.findAll", query = "SELECT t FROM TLot t"),
+@NamedQueries({
+        @NamedQuery(name = "TLot.findOnlyAvaillableStockByProduitId", query = "SELECT t FROM TLot t WHERE t.currentStock >0 AND t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID AND t.dtPEREMPTION IS NOT NULL AND t.intNUMLOT IS NOT NULL AND t.dtPEREMPTION >:datePeremtion  ORDER BY t.dtPEREMPTION ASC"),
+        @NamedQuery(name = "TLot.findByProduitId", query = "SELECT t FROM TLot t WHERE t.lgFAMILLEID.lgFAMILLEID = :lgFAMILLEID AND t.dtPEREMPTION IS NOT NULL AND t.intNUMLOT IS NOT NULL AND t.dtPEREMPTION >:datePeremtion  ORDER BY t.dtPEREMPTION ASC"),
         @NamedQuery(name = "TLot.findByLgLOTID", query = "SELECT t FROM TLot t WHERE t.lgLOTID = :lgLOTID"),
         @NamedQuery(name = "TLot.findByIntNUMLOT", query = "SELECT t FROM TLot t WHERE t.intNUMLOT = :intNUMLOT"),
         @NamedQuery(name = "TLot.findByIntNUMBER", query = "SELECT t FROM TLot t WHERE t.intNUMBER = :intNUMBER"),
@@ -85,6 +87,8 @@ public class TLot implements Serializable {
     @JoinColumn(name = "lg_USER_ID", referencedColumnName = "lg_USER_ID", nullable = false)
     @ManyToOne(optional = false)
     private TUser lgUSERID;
+    @Column(name = "current_stock")
+    private Integer currentStock;
 
     public TLot() {
     }
@@ -95,6 +99,14 @@ public class TLot implements Serializable {
 
     public String getLgLOTID() {
         return lgLOTID;
+    }
+
+    public Integer getCurrentStock() {
+        return currentStock;
+    }
+
+    public void setCurrentStock(Integer currentStock) {
+        this.currentStock = currentStock;
     }
 
     public void setLgLOTID(String lgLOTID) {

@@ -87,4 +87,12 @@ public class MaintenanceRessource {
                 .entity(new JSONObject().put("version", new JSONObject(rest.service.impl.Utils.version)).toString())
                 .build();
     }
+
+    @GET
+    @Path("update-vo-amount")
+    public Response updateVoAmount() throws Exception {
+
+        return Response.ok(mainteanceService.updateVoAmount()).build();
+    }
+
 }

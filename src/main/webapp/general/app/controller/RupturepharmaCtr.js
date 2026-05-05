@@ -240,7 +240,9 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
     }
     ,
     envoiPharmaML: function (view, rowIndex, colIndex, item, e, record, row) {
-        var me = this;
+        const me = this;
+      
+        const grid = me.getRuptureGrid();
         var grossisteId = record.get('grossisteId');
         var store = Ext.create('Ext.data.Store', {
             idProperty: 'id',
@@ -303,7 +305,7 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
                                             if (values.modelId != null) {
                                                 grossisteId = values.modelId;
                                             }
-                                            me.onEnvoiPharma(record, grossisteId);
+                                            me.onEnvoiPharma(record, grossisteId,grid);
 
 
                                         }
@@ -361,7 +363,7 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
                 });
     },
 
-    onEnvoiPharma: function (record, grossisteId) {
+    onEnvoiPharma: function (record, grossisteId,grid) {
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'PUT',
@@ -369,74 +371,22 @@ Ext.define('testextjs.controller.RupturepharmaCtr', {
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/pharma/rupture/' + record.get('id') + '/' + grossisteId,
             success: function (response, options) {
-                var runnerPharmaMl = new Ext.util.TaskRunner();
-                var result = Ext.JSON.decode(response.responseText, true);
+               
+                   const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
-                    var count = 0;
-                    var task = runnerPharmaMl.newTask({
-                        run: function () {
-                            Ext.Ajax.request({
-                                method: 'GET',
-                                url: '../api/v1/pharma/rupture/responseorder',
-                                params: {
-                                    "ruptureId": record.get('id')
-                                },
-                                success: function (response, options) {
+                  let message = result.nbreproduit + '/' + result.totalProduit + ' produit pris en compte ';
+                    if (result.nbrerupture > 0) {
+                        message += ' ' + result.nbrerupture + ' produit(s) en rupture';
+                    }
+                    Ext.MessageBox.show({
+                        title: 'Message',
+                        width: 320,
+                        msg: message,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR
 
-                                    const _result = Ext.JSON.decode(response.responseText, true);
-                                    if (_result.success) {
-                                        task.stop();
-                                        progress.hide();
-                                        grid.getStore().reload();
-                                        Ext.MessageBox.show({
-                                            title: 'Info',
-                                            width: 320,
-                                            msg: "<span style='color: green;'> " + _result.nbreproduit + "</span> produit(s) pris en compte ; <span style='color:red;'>" + _result.nbrerupture + "</span> produit(s) en rupture",
-                                            buttons: Ext.MessageBox.OK,
-                                            icon: Ext.MessageBox.INFO,
-                                            fn: function (buttonId) {
-                                                if (buttonId === "ok") {
-                                                }
-                                            }
-                                        });
-                                    } else {
-                                        if (_result.status === 'responseNotFound') {
-                                            if (count < 6) {
-                                                task.start();
-                                                count++;
-                                            } else {
-                                                progress.hide();
-                                                task.stop();
-                                                Ext.MessageBox.show({
-                                                    title: 'Info',
-                                                    width: 320,
-                                                    msg: "Aucune réponse de la part du client PharmaMl après une minute d'attente",
-                                                    buttons: Ext.MessageBox.OK,
-                                                    icon: Ext.MessageBox.WARNING,
-                                                    fn: function (buttonId) {
-                                                        if (buttonId === "ok") {
-
-                                                        }
-                                                    }
-                                                });
-                                            }
-
-                                        } else {
-                                            progress.hide();
-                                            task.stop();
-                                        }
-                                    }
-
-                                },
-                                failure: function (response, options) {
-                                    progress.hide();
-                                }
-                            });
-                        },
-                        interval: 10000
                     });
-                    task.start();
-                    count++;
+                    grid.getStore().reload();
                 } else {
                     progress.hide();
                     Ext.MessageBox.show({

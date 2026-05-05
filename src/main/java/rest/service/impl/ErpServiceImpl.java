@@ -182,6 +182,7 @@ public class ErpServiceImpl implements ErpService {
                     case DateConverter.TYPE_REGLEMENT_ORANGE:
                     case DateConverter.MODE_MTN:
                     case DateConverter.MODE_WAVE:
+                    case DateConverter.MODE_DJAMO:
                         caComptant.setTotMobile(caComptant.getTotMobile() + e.getTotEsp());
                         break;
                     default:
@@ -252,6 +253,7 @@ public class ErpServiceImpl implements ErpService {
                     case DateConverter.TYPE_REGLEMENT_ORANGE:
                     case DateConverter.MODE_MTN:
                     case DateConverter.MODE_WAVE:
+                    case DateConverter.MODE_DJAMO:
                         caComptant.setTotMobile(caComptant.getTotMobile() + e.getTotEsp());
                         break;
                     default:

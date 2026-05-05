@@ -296,7 +296,25 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
                             iconCls: 'suggestionreapro',
                             tooltip: 'suggestion',
                             scope: this
+                        }, {
+                            xtype: 'tbseparator'
+                        },
+                        {
+                            text: 'Export Excel',
+                            itemId: 'btnExportExcel',
+                            iconCls: 'export_excel'
+                        },
+                        {
+                            text: 'Export CSV',
+                            itemId: 'btnExportCsv',
+                            iconCls: 'export_csv'
+                        },
+                        {
+                            text: 'Créer inventaire',
+                            itemId: 'btnCreateInventaire',
+                            iconCls: 'inventaireicon'
                         }
+
 
                     ]
                 }

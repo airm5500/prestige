@@ -5,7 +5,6 @@
  */
 package rest.service.impl;
 
-import bll.common.Parameter;
 import commonTasks.dto.FlagDTO;
 import dal.Flag;
 import dal.MvtTransaction;
@@ -14,7 +13,7 @@ import dal.TPreenregistrement_;
 import dal.TReglement;
 import dal.TUser;
 import dal.VenteReglement;
-import java.math.BigDecimal;
+import dal.enumeration.TypeTransaction;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -25,6 +24,7 @@ import java.util.StringJoiner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -39,8 +39,10 @@ import javax.persistence.criteria.Root;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONObject;
+import rest.service.CaisseService;
 import util.Constant;
 import util.DateConverter;
+import util.NumberUtils;
 
 /**
  *
@@ -52,6 +54,9 @@ public class FlagService {
     private static final Logger LOG = Logger.getLogger(FlagService.class.getName());
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+
+    @EJB
+    private CaisseService caisseService;
 
     public EntityManager getEntityManager() {
         return em;
@@ -66,22 +71,19 @@ public class FlagService {
         }
     }
 
-    public long montantCa(LocalDate dtStart, LocalDate dtEnd) {
-        try {
-            Object query = getEntityManager().createNativeQuery(
-                    "SELECT COALESCE(SUM(v.montant),0) AS montant FROM vente_reglement v,t_preenregistrement p where DATE(v.mvtdate) BETWEEN ?1 AND ?2 AND v.type_regelement='1' AND p.lg_PREENREGISTREMENT_ID=v.vente_id AND p.b_IS_CANCEL=0 AND p.int_PRICE >0 AND p.lg_TYPE_VENTE_ID='1")
-                    .setParameter(1, dtStart).setParameter(2, dtEnd);
+    /**
+     * On verifie que sur la periode on n' a pas dejà ponctionné sur certaines dates Sinon on sauvegarde le montant à
+     * retirer
+     *
+     * @param finalPrice
+     * @param dtstart
+     * @param datetEnd
+     *
+     * @return
+     */
+    private Pair<Boolean, Flag> updateFlag(LocalDate dtSt, LocalDate dtEnd) {
+        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-            return ((BigDecimal) query).longValue();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return 0;
-        }
-    }
-
-    private Pair<Boolean, Flag> updateFlag(int finalPrice, String dtstart, String datetEnd) {
-        LocalDate dtSt = LocalDate.parse(dtstart);
-        LocalDate dtEnd = LocalDate.parse(datetEnd);
         List<String> errors = new ArrayList<>();
         StringJoiner joiner = new StringJoiner(", ");
         dtSt.datesUntil(dtEnd).forEach(d -> {
@@ -99,11 +101,10 @@ public class FlagService {
         }
         Flag flag = new Flag();
         flag.setInterval(joiner.toString());
-        flag.setMontant(finalPrice);
-        flag.setId(dtSt.format(DateTimeFormatter.ofPattern("yyyyMMdd"))
-                .concat(dtEnd.format(DateTimeFormatter.ofPattern("yyyyMMdd"))));
-        flag.setDateStart(Integer.valueOf(dtSt.format(DateTimeFormatter.ofPattern("yyyyMMdd"))));
-        flag.setDateEnd(Integer.valueOf(dtEnd.format(DateTimeFormatter.ofPattern("yyyyMMdd"))));
+
+        flag.setId(dtSt.format(dateTimeFormatter).concat(dtEnd.format(dateTimeFormatter)));
+        flag.setDateStart(Integer.valueOf(dtSt.format(dateTimeFormatter)));
+        flag.setDateEnd(Integer.valueOf(dtEnd.format(dateTimeFormatter)));
         return Pair.of(false, flag);
     }
 
@@ -114,116 +115,114 @@ public class FlagService {
 
     }
 
-    private List<TPreenregistrement> getTtVente(String dtStart, String dtEnd, String lgEmp, int start, int max) {
-        try {
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
-            Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
-            Join<TPreenregistrement, TUser> pu = root.join("lgUSERID", JoinType.INNER);
-            Join<TPreenregistrement, TReglement> pr = root.join("lgREGLEMENTID", JoinType.INNER);
-            Predicate predicate = cb.conjunction();
-            predicate = cb.and(predicate, cb.equal(pu.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmp));
-            predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.bISCANCEL), Boolean.FALSE));
-            predicate = cb.and(predicate,
-                    cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Constant.VENTE_DEPOT_EXTENSION));
-            predicate = cb.and(predicate,
-                    cb.equal(root.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
-            predicate = cb.and(predicate,
-                    cb.equal(root.get(TPreenregistrement_.strTYPEVENTE), DateConverter.VENTE_COMPTANT));
-            predicate = cb.and(predicate, cb.equal(root.get(TPreenregistrement_.intPRICEREMISE), 0));
-            predicate = cb.and(predicate,
-                    cb.equal(pr.get("lgMODEREGLEMENTID").get("lgMODEREGLEMENTID"), Constant.MODE_ESP));
-            Predicate ge = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
-                    java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-            cq.select(root).orderBy(cb.desc(root.get(TPreenregistrement_.intPRICE)));
-            cq.where(predicate, btw, ge);
-            Query q = em.createQuery(cq);
-            q.setFirstResult(start);
-            q.setMaxResults(max);
-            return q.getResultList();
+    /**
+     *
+     * @param dtStart
+     * @param dtEnd
+     *
+     * @param virtualAmount
+     *            montant saisi directeement depuis UI
+     *
+     * @return
+     */
+    public JSONObject ponctionnerMontant(String dtStart, String dtEnd, int virtualAmount) {
 
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
-        }
-    }
-
-    public JSONObject saveFlag(String dtStart, String dtEnd, String lgEmp, int virtualAmount) {
         JSONObject json = new JSONObject();
-        Pair<Boolean, Flag> pair = updateFlag(virtualAmount, dtStart, dtEnd);
-        if (pair.getLeft()) {
-            json.put("success", 0);
-            json.put("msg", " Certaines dates sont incluses dans traitements déjà effectués ");
-            json.put("nb", 0 + " ventes impactées ");
-            return json;
-        }
-        Flag flag = pair.getRight();
-        getEntityManager().persist(flag);
-        int i = 0;
-        int start = 0;
-        int max = 1000;
-        while (virtualAmount > 0) {
-            List<TPreenregistrement> list = getTtVente(dtStart, dtEnd, lgEmp, start, max);
-            if (list.isEmpty()) {
-                break;
+        try {
+
+            LocalDate dtSt = LocalDate.parse(dtStart);
+            LocalDate dtEn = LocalDate.parse(dtEnd);
+
+            // Vérification des dates déjà traitées
+            Pair<Boolean, Flag> pair = updateFlag(dtSt, dtEn);
+            if (pair.getLeft()) {
+                return buildError(json, "Certaines dates sont incluses dans des traitements déjà effectués");
             }
-            try {
-                for (TPreenregistrement tPreenregistrement : list) {
-                    List<VenteReglement> venteReglements = tPreenregistrement.getVenteReglements();
-                    int finalPrice;
-                    int net = tPreenregistrement.getIntPRICE();
-                    Integer newPrice;
-                    int netPercent = (virtualAmount * 100) / net;
-                    if (netPercent >= 100) {
-                        newPrice = (net * 35) / 100;
-                    } else if (netPercent > 6) {
-                        newPrice = (net * 30) / 100;
-                    } else {
+            Flag flag = pair.getRight();
+            flag.setMontant(0);
+            em.persist(flag);
+
+            int ventesImpactees = 0;
+            int start = 0;
+            final int max = 1000;
+            int totalMontantPreleve = 0;
+
+            while (virtualAmount > 0) {
+
+                List<Object[]> list = caisseService.getVenteReglements(dtSt, dtEn, start, max);
+
+                if (list.isEmpty()) {
+                    break;
+                }
+
+                for (Object[] row : list) {
+
+                    int montantEspece = ((Number) row[0]).intValue();// Meilleure perf que row[0]+""
+                    String idReglement = (String) row[1];
+                    String idVente = (String) row[2];
+                    String idMvTransaction = (String) row[3];
+
+                    if (montantEspece <= 0) {
                         continue;
                     }
-                    if (virtualAmount > newPrice) {
-                        virtualAmount -= newPrice;
-                        finalPrice = newPrice;
-                    } else {
-                        finalPrice = virtualAmount;
-                        virtualAmount = 0;
+
+                    int netPercent = (virtualAmount * 100) / montantEspece;
+
+                    int tauxPonction = netPercent >= 100 ? 35 : netPercent > 6 ? 30 : 0;
+
+                    if (tauxPonction == 0) {
+                        continue;
                     }
 
-                    tPreenregistrement.setIntACCOUNT(finalPrice);
-                    tPreenregistrement.setIntPRICEOTHER(finalPrice);
-                    MvtTransaction mt = findByVenteId(tPreenregistrement.getLgPREENREGISTREMENTID());
-                    mt.setMontantAcc(finalPrice);
-                    mt.setFlaged(Boolean.TRUE);
+                    int montantPonctionMax = NumberUtils.arrondirAuMultipleDe5((montantEspece * tauxPonction) / 100);
+
+                    int montantPreleve = Math.min(virtualAmount, montantPonctionMax);
+                    // Chargement des entités
+                    TPreenregistrement vente = em.find(TPreenregistrement.class, idVente);
+                    MvtTransaction mt = em.find(MvtTransaction.class, idMvTransaction);
+                    VenteReglement vr = em.find(VenteReglement.class, idReglement);
+                    vente.setIntACCOUNT(montantPreleve);
+                    vente.setIntPRICEOTHER(montantPreleve);
+
+                    mt.setMontantAcc(montantPreleve);
+                    mt.setFlaged(true);
                     mt.setFlag(flag);
-                    getEntityManager().merge(mt);
-                    if (CollectionUtils.isNotEmpty(venteReglements)) {
-                        VenteReglement reglement = venteReglements.get(0);
-                        reglement.setFlagId(flag.getId());
-                        reglement.setFlagedAmount(finalPrice);
-                        getEntityManager().merge(reglement);
-                    }
-                    getEntityManager().merge(tPreenregistrement);
-                    i++;
-                    if (virtualAmount == 0) {
+
+                    vr.setFlagId(flag.getId());
+                    vr.setFlagedAmount(montantPreleve);
+                    em.merge(vente);
+                    em.merge(mt);
+                    em.merge(vr);
+                    totalMontantPreleve += montantPreleve;
+
+                    ventesImpactees++;
+                    virtualAmount -= montantPreleve;
+
+                    if (virtualAmount <= 0) {
                         break;
                     }
                 }
-                start += max;
-                json.put("success", 1);
-                json.put("nb", i + " ventes  impactées ");
-                if (virtualAmount == 0) {
-                    break;
-                }
-            } catch (Exception e) {
-                LOG.log(Level.SEVERE, null, e);
-                json.put("success", 0);
-                json.put("nb", 0 + " ventes impactées ");
-                json.put("msg", " Le traitement a échoué ");
-                getEntityManager().remove(flag);
-            }
 
+                start += max;
+            }
+            flag.setMontant(totalMontantPreleve);
+            em.merge(flag);
+
+            json.put("success", true);
+            json.put("nb", ventesImpactees + " ventes impactées");
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            json.put("success", false);
+            json.put("nb", 0 + " ventes impactées");
         }
+        return json;
+    }
+
+    private JSONObject buildError(JSONObject json, String message) {
+        json.put("success", false);
+        json.put("nb", "0 ventes impactées");
+        json.put("msg", message);
         return json;
     }
 
@@ -252,13 +251,40 @@ public class FlagService {
         }
     }
 
-    public void upadte(String id) {
-        findByFlagId(id).forEach(e -> {
+    public void upadte(String flagId) {
+        findByFlagId(flagId).forEach(e -> {
             e.setFlaged(Boolean.FALSE);
             e.setMontantAcc(0);
             e.setFlag(null);
             getEntityManager().merge(e);
+            TPreenregistrement preenregistrement = e.getPreenregistrement();
+            preenregistrement.setIntPRICEOTHER(preenregistrement.getIntPRICE());
+            preenregistrement.setIntACCOUNT(preenregistrement.getIntPRICE());
+            em.merge(preenregistrement);
+            getVenteReglementsByFlagId(flagId).forEach(vr -> {
+                vr.setFlagId(null);
+                vr.setFlagedAmount(0);
+                em.merge(vr);
+            });
         });
-        getEntityManager().remove(getEntityManager().find(Flag.class, id));
+        getEntityManager().remove(getEntityManager().find(Flag.class, flagId));
+    }
+
+    public boolean getKeyParams() {
+        return caisseService.getKeyParams();
+    }
+
+    public JSONObject getMontantCa(String dtStart, String dtEnd) {
+        if (!getKeyParams()) {
+            return new JSONObject().put("montantCa", 0).put("success", false);
+        }
+        return new JSONObject()
+                .put("montantCa", caisseService.getMontantCa(LocalDate.parse(dtStart), LocalDate.parse(dtEnd)))
+                .put("success", true);
+    }
+
+    private List<VenteReglement> getVenteReglementsByFlagId(String flagId) {
+        return em.createQuery("SELECT o FROM  VenteReglement o WHERE o.flagId=?1", VenteReglement.class)
+                .setParameter(1, flagId).getResultList();
     }
 }

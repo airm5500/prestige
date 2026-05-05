@@ -1235,6 +1235,7 @@ public class BalanceServiceImpl implements BalanceService {
         long montantMoov = 0;
         long montantMtn = 0;
         long montantWave = 0;
+        long montantDjamo = 0;
 
         long totalModeReglement = 0;
 
@@ -1296,6 +1297,11 @@ public class BalanceServiceImpl implements BalanceService {
                 montantWave += amount;
 
                 break;
+
+            case Constant.MODE_DJAMO:
+                montantDjamo += amount;
+
+                break;
             default:
                 break;
 
@@ -1329,10 +1335,11 @@ public class BalanceServiceImpl implements BalanceService {
         balance.setMontantRegle(montantRegle);
         balance.setMontantMoov(montantMoov);
         balance.setMontantWave(montantWave);
+        balance.setMontantDjamo(montantDjamo);
         balance.setMontantOrange(montantOrange);
         balance.setMontantMtn(montantMtn);
         balance.setMontantMobilePayment(balance.getMontantOrange() + balance.getMontantMoov() + balance.getMontantMtn()
-                + balance.getMontantWave());
+                + balance.getMontantWave() + balance.getMontantDjamo());
         balance.setTotalModeReglement(totalModeReglement);
         return balance;
     }

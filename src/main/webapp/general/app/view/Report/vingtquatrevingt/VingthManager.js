@@ -12,7 +12,7 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
     cls: 'custompanel',
     layout: 'fit',
     initComponent: function () {
-        var data = new Ext.data.Store({
+        const data = new Ext.data.Store({
             idProperty: 'intCIP',
             fields: [
                 {name: 'intCIP', type: 'string'},
@@ -20,6 +20,7 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                 {name: 'intQUANTITY', type: 'number'},
                 {name: 'strNAME', type: 'string'},
                 {name: 'intQUANTITYSERVED', type: 'number'},
+                {name: 'marge', type: 'number'},
                 {name: 'intPRICE', type: 'number'}
 
 
@@ -38,7 +39,7 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                 timeout: 2400000
             }
         });
-        var grossiste = Ext.create('Ext.data.Store', {
+        const grossiste = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
                     [
@@ -68,7 +69,7 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
             }
 
         });
-        var rayons = Ext.create('Ext.data.Store', {
+        const rayons = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
                     [
@@ -98,7 +99,7 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
             }
 
         });
-        var familles = Ext.create('Ext.data.Store', {
+        const familles = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
                     [
@@ -128,9 +129,19 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
             }
 
         });
-        var me = this;
+
+        const filtreType = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            data: [
+                {id: 'CA', libelle: "Chiffre d'Affaires"},
+                {id: 'QTY', libelle: "Quantité"},
+                {id: 'MARGE', libelle: "Marge"}
+            ]
+        });
+        const me = this;
         Ext.applyIf(me, {
             dockedItems: [
+                // 1ère ligne : filtres + recherche + suggestion
                 {
                     xtype: 'toolbar',
                     dock: 'top',
@@ -146,8 +157,8 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                             maxValue: new Date(),
                             value: new Date(),
                             format: 'd/m/Y'
-
-                        }, {
+                        },
+                        {
                             xtype: 'datefield',
                             fieldLabel: 'Au',
                             itemId: 'dtEnd',
@@ -159,7 +170,6 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                             submitFormat: 'Y-m-d',
                             format: 'd/m/Y'
                         },
-
                         {
                             xtype: 'combobox',
                             flex: 1,
@@ -211,41 +221,23 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                         {
                             xtype: 'tbseparator'
                         },
-
                         {
                             xtype: 'combo',
-                            value: 'Chiffre d\'Affaires',
+                            value: 'CA',
                             flex: 1,
                             itemId: 'comboVingt',
                             labelWidth: 1,
-                            store: ['Chiffre d\'Affaires', 'Quantite']
-
-
+                            store: filtreType,
+                            valueField: 'id',
+                            displayField: 'libelle'
                         },
-
                         {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             itemId: 'rechercher',
-                            scope: this,
-                            iconCls: 'searchicon'
+                            iconCls: 'searchicon',
+                            scope: this
                         },
-                        {
-                            xtype: 'splitbutton',
-                            text: 'Exporter',
-                            iconCls: 'printable',
-                            itemId: 'exporter',
-                            menu: 
-                               [
-                                    {text: 'PDF', 
-                                       itemId: 'exporterpdf'
-
-                                    },
-                                    {text: 'EXCEL', itemId: 'exporterexcel'}
-                                ]
-
-                        },
-
                         {
                             text: 'suggestion',
                             itemId: 'suggestion',
@@ -254,9 +246,58 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                             scope: this
                         }
                     ]
-                }
+                },
 
+                // 2ème ligne : Exporter / Excel / CSV / Inventaire
+                {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
+                        '->', // pour pousser les boutons à droite, optionnel
+                        {
+                            xtype: 'splitbutton',
+                            text: 'Exporter',
+                            iconCls: 'printable',
+                            itemId: 'exporter',
+                            menu: [
+                                {
+                                    text: 'PDF',
+                                    itemId: 'exporterpdf'
+                                },
+                                {
+                                    text: 'EXCEL',
+                                    itemId: 'exporterexcel'
+                                }
+                            ]
+                        },
+                        {
+                            text: 'Exporter Excel',
+                            itemId: 'btn_export_excel_2080',
+                            iconCls: 'export_excel_icon',
+                            tooltip: 'Exporter les articles 20/80 en Excel',
+                            handler: this.onExportExcelClick,
+                            scope: this
+                        },
+                        {
+                            text: 'Exporter CSV',
+                            itemId: 'btn_export_csv_2080',
+                            iconCls: 'export_csv_icon',
+                            tooltip: 'Exporter les articles 20/80 en CSV',
+                            handler: this.onExportCsvClick,
+                            scope: this
+                        },
+                        {
+                            text: 'Créer inventaire',
+                            itemId: 'btn_create_inventaire_2080',
+                            iconCls: 'inventaire_icon',
+                            tooltip: 'Créer un inventaire à partir du 20/80',
+                            handler: this.onCreateInventaire2080Click,
+                            scope: this
+                        }
+                    ]
+                }
             ],
+
             items: [
                 {
                     xtype: 'gridpanel',
@@ -294,6 +335,18 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                         {
                             header: 'Chiffre d\'Affaires',
                             dataIndex: 'intPRICE',
+                            flex: 1,
+                            align: 'right',
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            }
+
+
+                        },
+
+                        {
+                            header: 'Marge',
+                            dataIndex: 'marge',
                             flex: 1,
                             align: 'right',
                             renderer: function (v) {
@@ -343,6 +396,97 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
         });
 
         me.callParent(arguments);
+    },
+
+   
+    onExportExcelClick: function () {
+        const me = this,
+                params = me.buildBaseParams(),
+                url = '../api/v1/statfamillearticle/vingtQuatreVingt/excel?' +
+                Ext.Object.toQueryString(params);
+        window.open(url);
+    },
+
+    onExportCsvClick: function () {
+        const me = this,
+                params = me.buildBaseParams(),
+                url = '../api/v1/statfamillearticle/vingtQuatreVingt/csv?' +
+                Ext.Object.toQueryString(params);
+        window.open(url);
+    }
+    ,
+    buildBaseParams: function () {
+        const me = this,
+                dtStartCmp = me.down('#dtStart'),
+                dtEndCmp = me.down('#dtEnd'),
+                rayonsCmp = me.down('#rayons'),
+                grossisteCmp = me.down('#grossiste'),
+                familleCmp = me.down('#codeFamile'),
+                comboVingtCmp = me.down('#comboVingt');
+
+        return {
+            dtStart: dtStartCmp ? dtStartCmp.getSubmitValue() : null,
+            dtEnd: dtEndCmp ? dtEndCmp.getSubmitValue() : null,
+            codeFamillle: (familleCmp && familleCmp.getValue()) ? familleCmp.getValue() : '',
+            codeRayon: (rayonsCmp && rayonsCmp.getValue()) ? rayonsCmp.getValue() : '',
+            codeGrossiste: (grossisteCmp && grossisteCmp.getValue()) ? grossisteCmp.getValue() : '',
+            // true si "Quantite", false si "Chiffre d'Affaires"
+            vingtType: comboVingtCmp.getValue()
+        };
+    },
+
+    onCreateInventaire2080Click: function () {
+        var me = this,
+                params = me.buildBaseParams();
+
+        Ext.MessageBox.confirm(
+                'Confirmation',
+                'Créer un inventaire à partir des articles 20/80 filtrés ?',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+
+                    Ext.Ajax.request({
+                        url: '../api/v1/statfamillearticle/vingtQuatreVingt/inventaire',
+                        method: 'GET',
+                        params: params,
+                        success: function (response) {
+                            var result = Ext.JSON.decode(response.responseText, true) || {};
+
+                            if (Ext.isDefined(result.count)) {
+                                Ext.Msg.show({
+                                    title: 'Inventaire 20/80',
+                                    width: 450, // 🔎 plus large pour bien voir le texte
+                                    icon: Ext.Msg.INFO,
+                                    buttons: Ext.Msg.OK,
+                                    msg:
+                                            'Inventaire créé avec succès.<br/><br/>' +
+                                            'Produits pris en compte : ' +
+                                            '<span style="font-size:18px;font-weight:bold;color:#0a2e3e;">'
+                                            + result.count +
+                                            '</span>'
+                                });
+                            } else {
+                                Ext.Msg.show({
+                                    title: 'Inventaire 20/80',
+                                    width: 450,
+                                    icon: Ext.Msg.WARNING,
+                                    buttons: Ext.Msg.OK,
+                                    msg: 'Réponse inattendue du serveur lors de la création de l\'inventaire.'
+                                });
+                            }
+                        }
+                        ,
+                        failure: function (response) {
+                            Ext.Msg.alert(
+                                    'Erreur',
+                                    'Erreur lors de la création de l\'inventaire. Code HTTP : ' + response.status
+                                    );
+                        }
+                    });
+                }
+        );
     }
 
 });

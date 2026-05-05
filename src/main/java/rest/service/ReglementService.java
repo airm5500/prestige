@@ -28,9 +28,9 @@ public interface ReglementService {
 
     List<DelayedDTO> listeDifferes(Params params, boolean pairclient);
 
-    JSONObject reglerDiffereAll(ClotureVenteParams clotureVenteParams) throws JSONException;
+    JSONObject reglerDiffereAllV2(ClotureVenteParams clotureVenteParams) throws JSONException;
 
-    JSONObject reglerDiffere(ClotureVenteParams clotureVenteParams) throws JSONException;
+    JSONObject reglerDiffereV2(ClotureVenteParams clotureVenteParams) throws JSONException;
 
     JSONObject reglementsDifferes(LocalDate dtStart, LocalDate dtEnd, boolean checked, String clientId)
             throws JSONException;

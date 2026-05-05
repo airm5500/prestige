@@ -10,6 +10,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
@@ -42,9 +43,7 @@ public class SearchProduitServcieRessource {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
+
         List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         JSONObject jsono = this.searchProduitServcie.fetchProduits(attribute, tu, produitId, search, diciId, type,
                 limit, start);
@@ -65,6 +64,16 @@ public class SearchProduitServcieRessource {
 
         JSONObject jsono = this.searchProduitServcie.fetchOrderProduits(tu, produitId,
                 StringUtils.isNotEmpty(query) ? query : searchValue, limit, start);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    @GET
+    @Path("/produits/{id}")
+    public Response getOne(@PathParam("id") String produitId) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        JSONObject jsono = this.searchProduitServcie.fetchOne(attribute, tu, produitId);
         return Response.ok().entity(jsono.toString()).build();
     }
 }

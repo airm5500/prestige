@@ -411,7 +411,7 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                             xtype: 'textfield',
                             id: 'rechecher',
                             flex: 1,
-                            emptyText: 'Taper pur rechercher'
+                            emptyText: 'Taper pour rechercher'
 
                         },
                         {
@@ -470,8 +470,37 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
                                     ]
 
 
-                        }
-
+                        },
+        {
+            xtype: 'tbseparator'
+        },
+        {
+            text: 'Excel',
+            tooltip: 'Exporter en Excel',
+            iconCls: 'export_excel',
+            scope: this,
+            handler: this.onExportExcelClick
+        },
+        {
+            xtype: 'tbseparator'
+        },
+        {
+            text: 'CSV',
+            tooltip: 'Exporter en CSV',
+            iconCls: 'export_csv',
+            scope: this,
+            handler: this.onExportCsvClick
+        },
+        {
+            xtype: 'tbseparator'
+        },
+        {
+            text: 'Créer inventaire',
+            tooltip: 'Créer un inventaire',
+            iconCls: 'inventaireicon',
+            scope: this,
+            handler: this.onCreateInventaireClick
+        }
 
                     ]}
             ],
@@ -524,6 +553,64 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
     },
     onStoreLoad: function () {
     },
+    
+    buildFiltersParams: function () {
+    return {
+        dtStart: Ext.getCmp('dt_debut').getSubmitValue(),
+        dtEnd: Ext.getCmp('dt_fin').getSubmitValue(),
+        query: Ext.getCmp('rechecher') ? Ext.getCmp('rechecher').getValue() : '',
+        codeFamile: Ext.getCmp('codeFamile') ? Ext.getCmp('codeFamile').getValue() : '',
+        codeRayon: Ext.getCmp('rayons') ? Ext.getCmp('rayons').getValue() : '',
+        codeGrossiste: Ext.getCmp('grossiste') ? Ext.getCmp('grossiste').getValue() : ''
+    };
+},
+onExportExcelClick: function () {
+    var params = this.buildFiltersParams();
+    var qs = Ext.Object.toQueryString(params);
+    window.location = '../api/v1/fichearticle/saisieperimes/excel?' + qs;
+},
+
+onExportCsvClick: function () {
+    var params = this.buildFiltersParams();
+    var qs = Ext.Object.toQueryString(params);
+    window.location = '../api/v1/fichearticle/saisieperimes/csv?' + qs;
+},
+
+onCreateInventaireClick: function () {
+    var me = this,
+        params = this.buildFiltersParams(),
+        progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+
+    Ext.Ajax.request({
+        url: '../api/v1/fichearticle/saisieperimes/create-inventaire',
+        method: 'GET',
+        params: params,
+        timeout: 2400000,
+        success: function (response) {
+            progress.hide();
+            var result = Ext.JSON.decode(response.responseText, true);
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 320,
+                msg: 'Nombre de produits en compte : ' + result.count,
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.INFO
+            });
+        },
+        failure: function () {
+            progress.hide();
+            Ext.MessageBox.show({
+                title: 'Message d\'erreur',
+                width: 320,
+                msg: "L'opération n'a pas abouti",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+        }
+    });
+}
+,
+
     onAddCreate: function () {
         var xtype = "addPerimer";
         var alias = 'widget.' + xtype;
@@ -580,6 +667,89 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeManager', {
         window.open(linkUrl);
 
 
+    },
+    
+        /**
+     * Paramètres communs pour export / inventaire
+     */
+    buildExportParams: function () {
+        var query = Ext.getCmp('rechecher') ? Ext.getCmp('rechecher').getValue() : '';
+        var dtStart = Ext.getCmp('dt_start').getSubmitValue();
+        var dtEnd = Ext.getCmp('dt_end').getSubmitValue();
+        var codeFamile = Ext.getCmp('codeFamile').getValue();
+        var codeGrossiste = Ext.getCmp('codeGrossiste').getValue();
+        var codeRayon = Ext.getCmp('codeRayon').getValue();
+
+        if (codeFamile == null) {
+            codeFamile = '';
+        }
+        if (codeRayon == null) {
+            codeRayon = '';
+        }
+        if (codeGrossiste == null) {
+            codeGrossiste = '';
+        }
+        if (!query) {
+            query = '';
+        }
+
+        return {
+            codeFamile: codeFamile,
+            codeRayon: codeRayon,
+            codeGrossiste: codeGrossiste,
+            query: query,
+            dtEnd: dtEnd,
+            dtStart: dtStart
+        };
+    },
+
+    onExportExcelClick: function () {
+        var params = this.buildExportParams();
+        var qs = Ext.Object.toQueryString(params);
+        // => ../api/v1/fichearticle/saisieperimes/excel?codeFamile=...&...
+        window.location = '../api/v1/fichearticle/saisieperimes/excel?' + qs;
+    },
+
+    onExportCsvClick: function () {
+        var params = this.buildExportParams();
+        var qs = Ext.Object.toQueryString(params);
+        // => ../api/v1/fichearticle/saisieperimes/csv?codeFamile=...&...
+        window.location = '../api/v1/fichearticle/saisieperimes/csv?' + qs;
+    },
+
+    onCreateInventaireClick: function () {
+        var me = this;
+        var params = this.buildExportParams();
+
+        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            url: '../api/v1/fichearticle/saisieperimes/create-inventaire',
+            method: 'GET',
+            params: params,
+            timeout: 2400000,
+            success: function (response) {
+                progress.hide();
+                var result = Ext.JSON.decode(response.responseText, true);
+                Ext.MessageBox.show({
+                    title: 'Message',
+                    width: 320,
+                    msg: 'Nombre de produits en compte : ' + result.count,
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.INFO
+                });
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 320,
+                    msg: "L'opération n'a pas abouti",
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR
+                });
+            }
+        });
     }
+
 
 });

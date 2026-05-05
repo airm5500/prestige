@@ -29,13 +29,31 @@ public class DelayedDTO implements Serializable {
     private LocalDate dateOperation;
     private String id, bon;
     private LocalDateTime date;
+    private int solde;
+    private String soldeFormated;
 
     public String getId() {
         return id;
     }
 
+    public String getSoldeFormated() {
+        return soldeFormated;
+    }
+
+    public void setSoldeFormated(String soldeFormated) {
+        this.soldeFormated = soldeFormated;
+    }
+
     public void setId(String id) {
         this.id = id;
+    }
+
+    public int getSolde() {
+        return solde;
+    }
+
+    public void setSolde(int solde) {
+        this.solde = solde;
     }
 
     public String getBon() {

@@ -1769,6 +1769,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             case DateConverter.MODE_WAVE:
                 ticket.setMontantWave(montant + ticket.getMontantWave());
                 break;
+            case DateConverter.MODE_DJAMO:
+                ticket.setMontantDjamo(montant + ticket.getMontantDjamo());
+                break;
             case DateConverter.MODE_REGL_DIFFERE:
                 ticket.setDiffere(montant + ticket.getDiffere());
                 break;
@@ -1827,6 +1830,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 break;
             case DateConverter.MODE_WAVE:
                 ticket.setMontantWave(b.getMontantRegle() + ticket.getMontantWave());
+                break;
+            case DateConverter.MODE_DJAMO:
+                ticket.setMontantDjamo(b.getMontantRegle() + ticket.getMontantDjamo());
                 break;
             case DateConverter.MODE_REGL_DIFFERE:
                 ticket.setDiffere(b.getMontantRestant() + ticket.getDiffere());
@@ -1916,6 +1922,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     ticket.setMontantEntreeWave(b.getMontant() + ticket.getMontantEntreeWave());
                 }
                 break;
+            case DateConverter.MODE_DJAMO:
+                if (mvtIsReglement(mvtCaisse)) {
+                    ticket.setMontantReglementDjamo(b.getMontant() + ticket.getMontantReglementDjamo());
+                } else {
+                    ticket.setMontantEntreeDjamo(b.getMontant() + ticket.getMontantEntreeDjamo());
+                }
+                break;
             default:
                 break;
 
@@ -1956,6 +1969,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 break;
             case DateConverter.MODE_WAVE:
                 ticket.setMontantSortieWave(b.getMontant() + ticket.getMontantSortieWave());
+                break;
+
+            case DateConverter.MODE_DJAMO:
+                ticket.setMontantSortieDjamo(b.getMontant() + ticket.getMontantSortieDjamo());
                 break;
             default:
                 break;
@@ -2071,6 +2088,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (v.getMontantWave() != 0) {
                 lstData.add("WAVE (vno/vo):;" + NumberUtils.formatLongToString(v.getMontantWave()) + BREAK_LINE);
             }
+            if (v.getMontantDjamo() != 0) {
+                lstData.add("DJAMO (vno/vo):;" + NumberUtils.formatLongToString(v.getMontantDjamo()) + BREAK_LINE);
+            }
             if (v.getMontantMtn() != 0) {
                 lstData.add("MTN (vno/vo):;" + NumberUtils.formatLongToString(v.getMontantMtn()) + BREAK_LINE);
             }
@@ -2105,6 +2125,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 lstData.add("Total Entrée WAVE : ;" + NumberUtils.formatLongToString(v.getMontantEntreeWave())
                         + BREAK_LINE2);
             }
+            if (v.getMontantEntreeDjamo() != 0) {
+                lstData.add("Total Entrée DJAMO : ;" + NumberUtils.formatLongToString(v.getMontantEntreeDjamo())
+                        + BREAK_LINE2);
+            }
             if (v.getMontantEntreeMtn() != 0) {
                 lstData.add(
                         "Total Entrée MTN : ;" + NumberUtils.formatLongToString(v.getMontantEntreeMtn()) + BREAK_LINE2);
@@ -2130,6 +2154,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             if (v.getMontantReglementWave() != 0) {
                 lstData.add("Total.Regl.WAVE: ;" + NumberUtils.formatLongToString(v.getMontantReglementWave())
+                        + BREAK_LINE2);
+            }
+            if (v.getMontantReglementDjamo() != 0) {
+                lstData.add("Total.Regl.DJAMO: ;" + NumberUtils.formatLongToString(v.getMontantReglementDjamo())
                         + BREAK_LINE2);
             }
             if (v.getMontantReglementMtn() != 0) {
@@ -2161,6 +2189,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             if (v.getMontantSortieWave() != 0) {
                 lstData.add("Total.Sortie.WAVE: ;" + NumberUtils.formatLongToString(v.getMontantSortieWave())
+                        + BREAK_LINE2);
+            }
+            if (v.getMontantSortieDjamo() != 0) {
+                lstData.add("Total.Sortie.DJAMO: ;" + NumberUtils.formatLongToString(v.getMontantSortieDjamo())
                         + BREAK_LINE2);
             }
             if (v.getMontantSortieMtn() != 0) {
@@ -2195,6 +2227,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         long montantOrange = 0;
         long montantMoov = 0;
         long montantWave = 0;
+        long montantDjamo = 0;
         for (TicketZDTO v : tickets) {
             totalEsp += (v.getTotalEsp() + v.getTotalEntreeEsp() + v.getTotalReglementEsp() + v.getTotalSortieEsp());
 
@@ -2207,6 +2240,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             totalCB += (v.getTotalCB() + v.getTotalEntreeCB() + v.getTotalReglementCB() + v.getTotalSortieCB());
             differe += v.getDiffere();
             montantWave += (v.getMontantWave() + v.getMontantSortieWave() + v.getMontantEntreeWave());
+            montantDjamo += (v.getMontantDjamo() + v.getMontantSortieDjamo() + v.getMontantEntreeDjamo());
             montantMtn += (v.getMontantMtn() + v.getMontantSortieMtn() + v.getMontantEntreeMtn());
             montantMoov += (v.getMontantMoov() + v.getMontantSortieMoov() + v.getMontantEntreeMoov());
             montantOrange += (v.getMontantOrange() + v.getMontantSortieOrange() + v.getMontantEntreeOrange());
@@ -2225,6 +2259,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         if (montantWave != 0) {
 
             lstData.add("TOTAL WAVE: ; " + NumberUtils.formatLongToString(montantWave) + BREAK_LINE_FOOTER);
+        }
+        if (montantDjamo != 0) {
+
+            lstData.add("TOTAL DJAMO: ; " + NumberUtils.formatLongToString(montantDjamo) + BREAK_LINE_FOOTER);
         }
         if (montantMtn != 0) {
 
@@ -2403,6 +2441,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         long montantOrange = 0;
         long montantMoov = 0;
         long montantWave = 0;
+        long montantDjamo = 0;
         List<ModePaymentAmount> totauxGl = new ArrayList<>();
         for (TicketZDTO v : tickets) {
             TicketRecap ticketRecap = new TicketRecap();
@@ -2420,6 +2459,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             totalCB += (v.getTotalCB() + v.getTotalEntreeCB() + v.getTotalReglementCB() + v.getTotalSortieCB());
             differe += v.getDiffere();
             montantWave += (v.getMontantWave() + v.getMontantSortieWave() + v.getMontantEntreeWave());
+            montantDjamo += (v.getMontantDjamo() + v.getMontantSortieDjamo() + v.getMontantEntreeDjamo());
             montantMtn += (v.getMontantMtn() + v.getMontantSortieMtn() + v.getMontantEntreeMtn());
             montantMoov += (v.getMontantMoov() + v.getMontantSortieMoov() + v.getMontantEntreeMoov());
             montantOrange += (v.getMontantOrange() + v.getMontantSortieOrange() + v.getMontantEntreeOrange());
@@ -2463,6 +2503,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (v.getMontantWave() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("WAVE (vno/vo)",
                         NumberUtils.formatLongToString(v.getMontantWave()));
+                modePaymentAmounts.add(modePaymentAmount);
+            }
+            if (v.getMontantDjamo() != 0) {
+                ModePaymentAmount modePaymentAmount = new ModePaymentAmount("DJAMO (vno/vo)",
+                        NumberUtils.formatLongToString(v.getMontantDjamo()));
                 modePaymentAmounts.add(modePaymentAmount);
             }
             if (v.getMontantMtn() != 0) {
@@ -2518,6 +2563,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         NumberUtils.formatLongToString(v.getMontantEntreeWave()));
                 totaux.add(modePaymentAmount);
             }
+            if (v.getMontantEntreeDjamo() != 0) {
+                ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total Entrée DJAMO",
+                        NumberUtils.formatLongToString(v.getMontantEntreeDjamo()));
+                totaux.add(modePaymentAmount);
+            }
             if (v.getMontantEntreeMtn() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total Entrée MTN",
                         NumberUtils.formatLongToString(v.getMontantEntreeMtn()));
@@ -2551,6 +2601,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (v.getMontantReglementWave() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total.Regl.WAVE",
                         NumberUtils.formatLongToString(v.getMontantReglementWave()));
+                totaux.add(modePaymentAmount);
+            }
+            if (v.getMontantReglementDjamo() != 0) {
+                ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total.Regl.DJAMO",
+                        NumberUtils.formatLongToString(v.getMontantReglementDjamo()));
                 totaux.add(modePaymentAmount);
             }
             if (v.getMontantReglementMtn() != 0) {
@@ -2594,6 +2649,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         NumberUtils.formatLongToString(v.getMontantSortieWave()));
                 totaux.add(modePaymentAmount);
             }
+            if (v.getMontantSortieDjamo() != 0) {
+                ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total.Sortie.DJAMO",
+                        NumberUtils.formatLongToString(v.getMontantSortieDjamo()));
+                totaux.add(modePaymentAmount);
+            }
             if (v.getMontantSortieMtn() != 0) {
                 ModePaymentAmount modePaymentAmount = new ModePaymentAmount("Total.Sortie.MTN",
                         NumberUtils.formatLongToString(v.getMontantSortieMtn()));
@@ -2629,6 +2689,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         if (montantWave != 0) {
             ModePaymentAmount modePaymentAmount = new ModePaymentAmount("TOTAL WAVE",
                     NumberUtils.formatLongToString(montantWave));
+            totauxGl.add(modePaymentAmount);
+
+        }
+        if (montantDjamo != 0) {
+            ModePaymentAmount modePaymentAmount = new ModePaymentAmount("TOTAL DJAMO",
+                    NumberUtils.formatLongToString(montantDjamo));
             totauxGl.add(modePaymentAmount);
 
         }

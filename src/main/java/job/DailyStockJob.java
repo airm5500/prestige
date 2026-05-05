@@ -6,19 +6,13 @@
 package job;
 
 import java.time.LocalDate;
-import javax.annotation.Resource;
+import javax.ejb.Lock;
+import javax.ejb.LockType;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
-import javax.ejb.TransactionManagement;
-import javax.ejb.TransactionManagementType;
-import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.inject.Inject;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.sql.DataSource;
-import javax.transaction.UserTransaction;
-import shedule.DailyStockTask;
+import rest.service.impl.DailyStockService;
 
 /**
  *
@@ -26,25 +20,15 @@ import shedule.DailyStockTask;
  */
 @Singleton
 @Startup
-@TransactionManagement(value = TransactionManagementType.BEAN)
 public class DailyStockJob {
 
-    @Resource(mappedName = "jdbc/__laborex_pool")
-    private DataSource dataSource;
-    @Resource(name = "concurrent/__defaultManagedExecutorService")
-    ManagedExecutorService mes;
-    @PersistenceContext(unitName = "JTA_UNIT")
-    private EntityManager em;
     @Inject
-    private UserTransaction userTransaction;
+    private DailyStockService service;
 
-    @Schedule(hour = "12,18")
+    @Lock(LockType.WRITE)
+    @Schedule(hour = "12,18", minute = "0", second = "0", persistent = false)
+    // @Schedule(hour = "*", minute = "*/5", persistent = false)
     public void execute() throws InterruptedException {
-        DailyStockTask dailyStockTask = new DailyStockTask();
-        dailyStockTask.setDateStock(LocalDate.now());
-        dailyStockTask.setEntityManager(em);
-        dailyStockTask.setUserTransaction(userTransaction);
-        dailyStockTask.setDataSource(dataSource);
-        mes.submit(dailyStockTask);
+        service.processAsync(LocalDate.now());
     }
 }

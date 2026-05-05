@@ -101,6 +101,7 @@ import util.DateConverter;
 import util.FunctionUtils;
 import util.NotificationUtils;
 import util.NumberUtils;
+import rest.service.utils.ReportExcelExportService;
 
 /**
  *
@@ -128,6 +129,8 @@ public class CommandeServiceImpl implements CommandeService {
     private NotificationService notificationService;
     @EJB
     private SessionHelperService sessionHelperService;
+    @EJB
+    private ReportExcelExportService reportExcelExportService;
 
     public EntityManager getEm() {
         return em;
@@ -213,6 +216,8 @@ public class CommandeServiceImpl implements CommandeService {
                     for (TLot item : lots) {
                         cmde += Objects.requireNonNullElse(item.getIntNUMBER(), 0);
                         qu += Objects.requireNonNullElse(item.getIntNUMBERGRATUIT(), 0);
+                        item.setCurrentStock(cmde);
+                        em.merge(item);
                     }
 
                     if (cmde < bn.getIntQTECMDE()) {
@@ -507,6 +512,7 @@ public class CommandeServiceImpl implements CommandeService {
             lot.setIntNUMBERGRATUIT(intUG);
             lot.setStrSTATUT(Constant.STATUT_ENABLE);
             lot.setIntQTYVENDUE(0);
+            lot.setCurrentStock(intNUMBER);
             this.getEm().persist(lot);
             addWarehouse(bn, u, oFamille, intNUMBER, grossiste, strRELIVRAISON, new Date(), null, 0, null, strREFORDER,
                     null);
@@ -1091,6 +1097,69 @@ public class CommandeServiceImpl implements CommandeService {
             return Collections.emptyList();
         }
 
+    }
+
+    @Override
+    public byte[] buildCommandeDetailsExcel(TUser u, String orderId) {
+        try {
+            // 1. Récupération de la commande
+            TOrder order = em.find(TOrder.class, orderId);
+            if (order == null) {
+                return new byte[0];
+            }
+
+            // 2. Lignes de la commande
+            List<TOrderDetail> details = orderService.findByOrderId(order.getLgORDERID());
+            if (details == null || details.isEmpty()) {
+                return new byte[0];
+            }
+
+            // 3. Titre + en-têtes
+            String dateCommande = order.getDtCREATED() != null ? DateCommonUtils.formatDate(order.getDtCREATED()) : "";
+            String title = "Détail de la commande " + order.getStrREFORDER()
+                    + (dateCommande.isEmpty() ? "" : " du " + dateCommande);
+
+            String[] headers = new String[] { "CIP", "Libellé", "Quantité commandée", "Quantité reçue", "PAF unitaire",
+                    "Montant PAF", "Prix vente unitaire", "Montant vente estimé" };
+
+            // 4. Génération du fichier Excel
+            return reportExcelExportService.createExcelReport(title, headers, details, (row, item) -> {
+                TFamille famille = item.getLgFAMILLEID();
+
+                int qteCmd = item.getIntNUMBER() != null ? item.getIntNUMBER() : 0;
+                int qteRecu = item.getIntQTEREPGROSSISTE() != null ? item.getIntQTEREPGROSSISTE() : 0;
+                int pafUnit = item.getIntPAFDETAIL() != null ? item.getIntPAFDETAIL() : 0;
+                int montantPaf = item.getIntPRICE() != null ? item.getIntPRICE() : 0;
+
+                int prixVenteUnit = (famille != null && famille.getIntPRICE() != null) ? famille.getIntPRICE() : 0;
+                int montantVente = prixVenteUnit * qteCmd;
+
+                int col = 0;
+
+                // CIP
+                row.createCell(col++)
+                        .setCellValue(famille != null && famille.getIntCIP() != null ? famille.getIntCIP() : "");
+                // Libellé
+                row.createCell(col++)
+                        .setCellValue(famille != null && famille.getStrNAME() != null ? famille.getStrNAME() : "");
+                // Quantité commandée
+                row.createCell(col++).setCellValue(qteCmd);
+                // Quantité reçue
+                row.createCell(col++).setCellValue(qteRecu);
+                // PAF unitaire
+                row.createCell(col++).setCellValue(pafUnit);
+                // Montant PAF
+                row.createCell(col++).setCellValue(montantPaf);
+                // Prix vente unitaire
+                row.createCell(col++).setCellValue(prixVenteUnit);
+                // Montant vente estimé
+                row.createCell(col++).setCellValue(montantVente);
+            });
+
+        } catch (IOException e) {
+            LOG.log(Level.SEVERE, "Erreur lors de la génération Excel des détails de commande", e);
+            return new byte[0];
+        }
     }
 
 }

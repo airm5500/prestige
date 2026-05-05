@@ -54,14 +54,14 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
             data: [
                 {str_TYPE_TRANSACTION: 'PRIX', str_desc: 'PRIX DE VENTE BL DIFFERENT DU PRIX EN MACHINE'},
-                {str_TYPE_TRANSACTION: 'QTEZERO', str_desc: 'QUANTITE RECU EGAL A ZERO'},
+                {str_TYPE_TRANSACTION: 'QTEZERO', str_desc: 'QUANTITE RECUE EGAL A ZERO'},
                 {str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}
             ]
         });
 
         var store_datecontrol = new Ext.data.Store({
             fields: ['name', 'value'],
-            data: [{name: true, value: 'Produits avec contrôl de date de péremption'}, {name: false, value: 'Tous'}]
+            data: [{name: true, value: 'Produits avec contrôle de date de péremption'}, {name: false, value: 'Tous'}]
         });
 
         const store_details_livraison = new Ext.data.Store({
@@ -76,7 +76,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                 reader: {type: 'json', root: 'data', totalProperty: 'total'},
                 timeout: 240000,
                 simpleSortMode: true
-                        // sortParam / directionParam si ton backend attend d'autres noms
             },
             listeners: {
                 beforeload: function (st, op) {
@@ -102,7 +101,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                     border: false,
                     frame: false,
                     cls: 'ig-card ig-simple',
-                    layout: 'column', // ← 3 colonnes ExtJS
+                    layout: 'column',
                     defaults: {
                         xtype: 'container',
                         layout: {type: 'vbox', align: 'stretch'},
@@ -142,8 +141,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                             ]
                         }
                     ]
-                }
-                ,
+                },
                 {
                     xtype: 'fieldset',
                     title: '<span class="ig-title">Detail(s) de la Commande</span>',
@@ -214,14 +212,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                             icon: 'resources/images/icons/fam/add.png',
                                             tooltip: 'Ajout de lot',
                                             scope: this,
-                                            handler: this.onAddProductClick/*,
-                                             getClass: function (value, metadata, record) {
-                                             if (record.get('checkExpirationdate')) {  
-                                             return 'x-display-hide'; 
-                                             } else {
-                                             return 'x-hide-display'; 
-                                             }
-                                             }*/
+                                            handler: this.onAddProductClick
                                         }]
                                 },
                                 {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
@@ -251,6 +242,18 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                             Me_Workflow.onRechClick();
                                         }}
                                 }, '-',
+                                // NOUVEAU BOUTON POUR PRODUITS AVEC QUANTITE UG
+                                {
+                                    xtype: 'button',
+                                    text: 'Verifier les UG saisies',
+                                    cls: 'btn-primaryb',
+                                    iconCls: 'btn-primary',
+                                    margins: '0 0 0 10',
+                                    handler: function() {
+                                        Me_Workflow.showFreeQtyProducts();
+                                    }
+                                },
+                                '-',
                                 {xtype: 'combobox', cls: 'glass-input', margins: '0 0 0 10', store: store_datecontrol,
                                     valueField: 'name', displayField: 'value', typeAhead: true, queryMode: 'local',
                                     hidden: DISPLAYFILTER, width: 260, emptyText: 'Filtre par...',
@@ -271,8 +274,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                         }
                     ]
                 },
-
-                /* ====== TOOLBAR BAS ====== */
                 {
                     xtype: 'toolbar',
                     ui: 'footer',
@@ -288,10 +289,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
 
         this.callParent();
 
-        // Chargement grid
-        // this.on('afterlayout', this.loadStore, this, {delay: 1, single: true});
-
-        // Remplir les valeurs du header “Infos Générales” (labels/valeurs)
         this.on('afterlayout', function () {
             this.loadStore();
             const ds = this.getOdatasource() || {};
@@ -333,7 +330,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
             reference: rec.get('str_REF_LIVRAISON'),
             directImport: Me_Workflow.getOdatasource().directImport,
             gestionLot: Me_Workflow.getGestionLot(),
-
         });
     },
 
@@ -396,8 +392,157 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                     me.gestionLot = result.data;
                 }
             }
-
         });
+    },
+
+    // NOUVELLE METHODE POUR AFFICHER LES PRODUITS AVEC UG
+    showFreeQtyProducts: function() {
+        var me = this;
+        var store = Ext.getCmp('gridpanelID').getStore();
+        var allFreeQtyProducts = [];
+        
+        // Fonction récursive pour charger toutes les pages
+        function loadAllPages(currentPage) {
+            store.loadPage(currentPage, {
+                callback: function(records, operation, success) {
+                    if (success) {
+                        // Filtrer les produits avec freeQty > 0
+                        var freeQtyRecords = store.queryBy(function(record) {
+                            return record.get('freeQty') > 0;
+                        });
+                        
+                        // Ajouter les produits de cette page
+                        freeQtyRecords.each(function(record) {
+                            allFreeQtyProducts.push(record.data);
+                        });
+                        
+                        // Vérifier s'il y a encore des pages à charger
+                        var totalPages = store.getTotalCount() ? Math.ceil(store.getTotalCount() / store.pageSize) : 0;
+                        
+                        if (currentPage < totalPages) {
+                            // Charger la page suivante
+                            loadAllPages(currentPage + 1);
+                        } else {
+                            // Toutes les pages sont chargées, afficher le popup
+                            me.displayFreeQtyPopup(allFreeQtyProducts);
+                        }
+                    } else {
+                        Ext.Msg.alert('Erreur', 'Impossible de charger les données');
+                    }
+                }
+            });
+        }
+        
+        // Commencer le chargement depuis la page 1
+        loadAllPages(1);
+    },
+
+    // NOUVELLE METHODE POUR AFFICHER LE POPUP
+    displayFreeQtyPopup: function(products) {
+        if (products.length === 0) {
+            Ext.Msg.alert('Information', 'Aucun produit avec quantité ug trouvée.');
+            return;
+        }
+        
+        // Créer un store pour le grid
+        var store = Ext.create('Ext.data.Store', {
+            fields: [
+                'lg_FAMILLE_CIP', 
+                'lg_FAMILLE_NAME', 
+                'int_PAF', 
+                'int_PRIX_VENTE', 
+                'int_QTE_CMDE',
+                'lg_FAMILLE_PRIX_ACHAT',
+                'freeQty'
+            ],
+            data: products
+        });
+        
+        // Créer la fenêtre popup
+        var window = Ext.create('Ext.window.Window', {
+            title: 'Produits avec UG (' + products.length + ' produit(s))',
+            width: 900,
+            height: 500,
+            layout: 'fit',
+            modal: true,
+            closeAction: 'hide',
+            items: [{
+                xtype: 'gridpanel',
+                store: store,
+                columnLines: true,
+                columns: [
+                    { 
+                        text: 'CIP', 
+                        dataIndex: 'lg_FAMILLE_CIP', 
+                        flex: 1,
+                        sortable: true
+                    },
+                    { 
+                        text: 'DESIGNATION', 
+                        dataIndex: 'lg_FAMILLE_NAME', 
+                        flex: 2,
+                        sortable: true
+                    },
+                    { 
+                        text: 'PRIX ACHAT', 
+                        dataIndex: 'int_PAF', 
+                        flex: 1,
+                        align: 'right',
+                        renderer: amountformat,
+                        sortable: true
+                    },
+                    { 
+                        text: 'PRIX VENTE', 
+                        dataIndex: 'int_PRIX_VENTE', 
+                        flex: 1,
+                        align: 'right',
+                        renderer: amountformat,
+                        sortable: true
+                    },
+                    { 
+                        text: 'QTE COMMANDEE', 
+                        dataIndex: 'int_QTE_CMDE', 
+                        flex: 1,
+                        align: 'center',
+                        sortable: true
+                    },
+                    { 
+                        text: 'UG', 
+                        //dataIndex: 'lg_FAMILLE_PRIX_ACHAT', 
+                        dataIndex: 'freeQty', 
+                        flex: 1,
+                        align: 'right',
+                        sortable: true,
+                            renderer: function (value) {
+                                return '<span style="font-weight: bold; color: blue;">' + value + '</span>';
+                            }
+                    }/*,
+                    { 
+                        text: 'QUANTITE LIBRE', 
+                        dataIndex: 'freeQty', 
+                        flex: 1,
+                        align: 'center',
+                        sortable: true,
+                        renderer: function(value) {
+                            return '<span style="color: green; font-weight: bold;">' + value + '</span>';
+                        }
+                    }*/
+                ],
+                bbar: {
+                    xtype: 'pagingtoolbar',
+                    store: store,
+                    displayInfo: true
+                }
+            }],
+            buttons: [{
+                text: 'Fermer',
+                handler: function() {
+                    this.up('window').close();
+                }
+            }]
+        });
+        
+        window.show();
     }
 });
 
@@ -465,7 +610,6 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                             cls: 'custom-messagebox',
                                             fn: function (btn) {
                                                 if (btn === 'yes') {
-                                                    // onPdfBLClick('../Etiquete?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue());
                                                     const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue();
                                                     onPdfBLClick(linkUrl);
                                                     testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
@@ -497,5 +641,4 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
             }
         }
     });
-
 }

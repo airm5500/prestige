@@ -2709,14 +2709,7 @@ public class StockManager extends bllBase {
                     count++;
                 }
             }
-            /*
-             * if (this.getOdataManager().getEm().getTransaction().isActive()) {
-             * this.getOdataManager().getEm().getTransaction().commit(); message =
-             * "Le nombre de produits pris en compte : <span style=\"color:blue;font-weight:800; \" >" + count +
-             * "</span>"; success = 1;
-             *
-             * }
-             */
+
             message = "Le nombre de produits pris en compte : <span style=\"color:blue;font-weight:800; \" >" + count
                     + "</span>";
             success = 1;

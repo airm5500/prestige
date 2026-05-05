@@ -207,31 +207,6 @@ public class VenteTiersPayantsDTO implements Serializable {
         this.montantRemise = montantRemise;
     }
 
-    public VenteTiersPayantsDTO(TTiersPayant payant, long nbreDossier, long montant, long montantRemise) {
-
-        this.tiersPayantId = payant.getLgTIERSPAYANTID();
-        this.codeTiersPayant = payant.getStrCODEORGANISME();
-        this.libelleTiersPayant = payant.getStrFULLNAME();
-        TTypeTiersPayant typeTierPayant = payant.getLgTYPETIERSPAYANTID();
-        if (typeTierPayant != null) {
-            this.typeTiersPayant = typeTierPayant.getStrLIBELLETYPETIERSPAYANT();
-            this.typeTiersPayantId = typeTierPayant.getLgTYPETIERSPAYANTID();
-        }
-        TGroupeTierspayant groupe = payant.getLgGROUPEID();
-        if (groupe != null) {
-            this.groupeId = groupe.getLgGROUPEID();
-            this.libelleGroupe = groupe.getStrLIBELLE();
-            this.groupBy = groupe.getStrLIBELLE();
-        } else {
-            this.groupBy = "";
-        }
-
-        this.nbreDossier = (int) nbreDossier;
-        this.montant = montant;
-        this.montantRemise = montantRemise;
-
-    }
-
     public VenteTiersPayantsDTO(TPreenregistrementCompteClientTiersPayent p) {
         this.montant = p.getIntPRICE();
         TPreenregistrement pr = p.getLgPREENREGISTREMENTID();
@@ -274,6 +249,33 @@ public class VenteTiersPayantsDTO implements Serializable {
 
         this.libelleTiersPayant = venteExclus.getTiersPayantName();
         this.createdAt = venteExclus.getModifiedAt();
+    }
 
+    // Constructeur final et sécurisé avec l'objet Number pour contrer les bugs d'Hibernate
+    public VenteTiersPayantsDTO(TTiersPayant payant, Number nbreDossier, Number montant, Number montantRemise) {
+
+        this.tiersPayantId = payant.getLgTIERSPAYANTID();
+        this.codeTiersPayant = payant.getStrCODEORGANISME();
+        this.libelleTiersPayant = payant.getStrFULLNAME();
+        TTypeTiersPayant typeTierPayant = payant.getLgTYPETIERSPAYANTID();
+
+        if (typeTierPayant != null) {
+            this.typeTiersPayant = typeTierPayant.getStrLIBELLETYPETIERSPAYANT();
+            this.typeTiersPayantId = typeTierPayant.getLgTYPETIERSPAYANTID();
+        }
+        TGroupeTierspayant groupe = payant.getLgGROUPEID();
+
+        if (groupe != null) {
+            this.groupeId = groupe.getLgGROUPEID();
+            this.libelleGroupe = groupe.getStrLIBELLE();
+            this.groupBy = groupe.getStrLIBELLE();
+        } else {
+            this.groupBy = "";
+        }
+
+        // Sécurise l'affectation en gérant les potentiels null retournés par SQL et caste correctement
+        this.nbreDossier = (nbreDossier != null) ? nbreDossier.intValue() : 0;
+        this.montant = (montant != null) ? montant.longValue() : 0L;
+        this.montantRemise = (montantRemise != null) ? montantRemise.longValue() : 0L;
     }
 }
