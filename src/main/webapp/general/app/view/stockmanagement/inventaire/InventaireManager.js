@@ -216,6 +216,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     iconCls: 'addicon',
                     handler: this.onAddUnitaireClick
                 }, '-', {
+                    text: 'Importer CSV (CIP;QTE)',
+                    scope: this,
+                    iconCls: 'addicon',
+                    cls: 'btn-primaryb',
+                    handler: this.onImportCsvClick
+                }, '-', {
                     xtype: 'combobox',
                     name: 'str_TYPE',
                     margins: '0 0 0 10',
@@ -302,6 +308,85 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
             titre: "Cr&eacute;er inventaire"
         });
     },
+
+    onImportCsvClick: function() {
+        var me = this;
+        var uploadFieldId = Ext.id();
+        var win = Ext.create('Ext.window.Window', {
+            title: 'Importer un fichier CSV (cip;qte)',
+            modal: true,
+            width: 520,
+            layout: 'fit',
+            items: [{
+                xtype: 'form',
+                bodyPadding: 10,
+                items: [{
+                    xtype: 'textfield',
+                    fieldLabel: 'Libellé',
+                    name: 'str_NAME',
+                    value: 'INVENTAIRE IMPORT CSV',
+                    allowBlank: false,
+                    anchor: '100%'
+                }, {
+                    xtype: 'filefield',
+                    id: uploadFieldId,
+                    name: 'csv_file',
+                    fieldLabel: 'Fichier CSV',
+                    buttonText: 'Choisir...',
+                    allowBlank: false,
+                    anchor: '100%'
+                }]
+            }],
+            buttons: [{
+                text: 'Importer',
+                cls: 'btn-primary',
+                handler: function() {
+                    var form = win.down('form').getForm();
+                    if (!form.isValid()) {
+                        return;
+                    }
+                    var fileInput = Ext.getCmp(uploadFieldId).fileInputEl.dom;
+                    var file = fileInput && fileInput.files ? fileInput.files[0] : null;
+                    if (!file) {
+                        Ext.Msg.alert('Information', 'Veuillez sélectionner un fichier CSV.');
+                        return;
+                    }
+                    var reader = new FileReader();
+                    reader.onload = function(evt) {
+                        testextjs.app.getController('App').ShowWaitingProcess();
+                        Ext.Ajax.request({
+                            url: url_services_transaction_inventaire + 'createFromCsv',
+                            timeout: 1800000,
+                            params: {
+                                str_NAME: form.findField('str_NAME').getValue(),
+                                csv_data: evt.target.result
+                            },
+                            success: function(response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                var object = Ext.JSON.decode(response.responseText, false);
+                                Ext.MessageBox.alert('Confirmation', object.desc_satut || 'Traitement terminé');
+                                me.getStore().reload();
+                                win.close();
+                            },
+                            failure: function(response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                Ext.MessageBox.alert('Error Message', response.responseText);
+                            }
+                        });
+                    };
+                    reader.onerror = function() {
+                        Ext.Msg.alert('Erreur', 'Impossible de lire le fichier sélectionné.');
+                    };
+                    reader.readAsText(file);
+                }
+            }, {
+                text: 'Annuler',
+                handler: function() { win.close(); }
+            }]
+        });
+        win.show();
+    },
+
     onAddArticleClick: function(grid, rowIndex) {
 
         var rec = grid.getStore().getAt(rowIndex);

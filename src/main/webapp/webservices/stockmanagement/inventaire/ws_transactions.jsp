@@ -35,7 +35,7 @@
 
 <%    TInventaire OTInventaire = null;
     String stockFilter = "ALL";
-    String search_value = "", liste_article = "", str_BEGIN = "", str_END = "";
+    String search_value = "", liste_article = "", str_BEGIN = "", str_END = "", csv_data = "";
     String str_NAME = "%%", str_DESCRIPTION = "%%", lg_ZONE_GEO_ID = "%%", lg_FAMILLEARTICLE_ID = "%%", int_CIP = "%%", lg_FAMILLE_ID = "%%", lg_INVENTAIRE_ID = "%%", lg_GROSSISTE_ID = "%%", lg_INVENTAIRE_FAMILLE_ID = "%%", str_TYPE_TRANSACTION = "", lg_TYPE_STOCK_ID = "1";
     int int_PRICE = 0, int_NUMBER = 0, int_QTE_REAPPROVISIONNEMENT = 0;
     int bool_INVENTAIRE = 1;
@@ -141,6 +141,10 @@
         lg_GROSSISTE_ID = request.getParameter("lg_GROSSISTE_ID");
 
     }
+    if (request.getParameter("csv_data") != null) {
+        csv_data = request.getParameter("csv_data");
+    }
+
     if (request.getParameter("str_TYPE_TRANSACTION") != null) {
         str_TYPE_TRANSACTION = request.getParameter("str_TYPE_TRANSACTION");
         new logger().OCategory.info("str_TYPE_TRANSACTION " + str_TYPE_TRANSACTION);
@@ -197,10 +201,65 @@
             result = "Echec de cloture de l'inventaitre";
             nligne = OInventaireManager.clotureInventaire(lg_INVENTAIRE_ID);
             success = 1;
-            result = "Cloture effectuée avec succès; " + nligne + " Articles mis à jour";
+        } else if (request.getParameter("mode").equals("createFromCsv")) {
+            try {
+                String inventaireName = (str_NAME != null && !str_NAME.trim().isEmpty()) ? str_NAME : "INVENTAIRE IMPORT CSV";
+                TInventaire inventaire = OInventaireManager.createInventaire(inventaireName, inventaireName, "unitaire");
+                int imported = 0;
+                int ignored = 0;
+                if (inventaire != null && csv_data != null && !csv_data.trim().isEmpty()) {
+                    String[] lines = csv_data.split("\r?\n");
+                    for (String line : lines) {
+                        if (line == null || line.trim().isEmpty()) {
+                            continue;
+                        }
+                        String[] cols = line.split(";");
+                        String cip = cols.length > 0 && cols[0] != null ? cols[0].trim() : "";
+                        if (cip.isEmpty() || !cip.matches("\\d+")) {
+                            ignored++;
+                            continue;
+                        }
+                        int qte = 0;
+                        if (cols.length > 1 && cols[1] != null && !cols[1].trim().isEmpty()) {
+                            try {
+                                qte = Integer.parseInt(cols[1].trim());
+                            } catch (Exception ex) {
+                                qte = 0;
+                            }
+                        }
+
+                        List<TFamille> familles = OdataManager.getEm()
+                                .createQuery("SELECT f FROM TFamille f WHERE f.intCIP = ?1 AND f.strSTATUT = ?2", TFamille.class)
+                                .setParameter(1, cip).setParameter(2, commonparameter.statut_enable).setMaxResults(1)
+                                .getResultList();
+                        if (familles.isEmpty()) {
+                            ignored++;
+                            continue;
+                        }
+                        TFamille famille = familles.get(0);
+                        if (OInventaireManager.createInventaireFamille(inventaire.getLgINVENTAIREID(), famille.getLgFAMILLEID(), true)) {
+                            OdataManager.getEm().createNativeQuery(
+                                    "UPDATE t_inventaire_famille SET int_NUMBER = ?1 WHERE lg_INVENTAIRE_ID = ?2 AND lg_FAMILLE_ID = ?3")
+                                    .setParameter(1, qte).setParameter(2, inventaire.getLgINVENTAIREID())
+                                    .setParameter(3, famille.getLgFAMILLEID()).executeUpdate();
+                            imported++;
+                        }
+                    }
+                }
+                if (imported > 0) {
+                    success = 1;
+                }
+                ObllBase.setMessage(success == 1 ? commonparameter.PROCESS_SUCCESS : commonparameter.PROCESS_FAILED);
+                ObllBase.setDetailmessage(imported + " article(s) importÃ©(s), " + ignored + " ligne(s) ignorÃ©e(s).");
+            } catch (Exception e) {
+                e.printStackTrace();
+                ObllBase.buildErrorTraceMessage("Echec de l'import CSV");
+            }
+
+            result = "Cloture effectuÃ©e avec succÃ¨s; " + nligne + " Articles mis Ã  jour";
             /*if (nligne > 0) {
                 success = 1;
-                result =  "Cloture effectuée avec succès; " + nligne + " Articles mis à jour";
+                result =  "Cloture effectuÃ©e avec succÃ¨s; " + nligne + " Articles mis Ã  jour";
             }*/
         } else if (request.getParameter("mode").equals("createbis")) {
 
@@ -219,16 +278,16 @@
                     }
 
                 }
-                //result = "Echec de création de l'inventaitre";
+                //result = "Echec de crÃ©ation de l'inventaitre";
                 nligne = OInventaireManager.createInventaire(str_NAME, lg_FAMILLE_ID, str_NAME, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, str_BEGIN, str_END, str_TYPE_TRANSACTION, bool_INVENTAIRE, stockFilter, stockProduit);
                 if (nligne > 0) {
                     success = 1;
-                    result = nligne + " Articles Inventoriés";
+                    result = nligne + " Articles InventoriÃ©s";
                 }
                 // ObllBase.setMessage(OInventaireManager.getMessage());
             } catch (Exception e) {
                 e.printStackTrace();
-                ObllBase.buildErrorTraceMessage("Echec de création de l'inventaitre");
+                ObllBase.buildErrorTraceMessage("Echec de crÃ©ation de l'inventaitre");
             }
 
         }
