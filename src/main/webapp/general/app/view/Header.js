@@ -269,8 +269,9 @@ var PrestigeNotif = (function () {
                     if (success) {
                         try {
                             var obj = Ext.JSON.decode(response.responseText, true);
-                            results = (obj && obj.results) ? obj.results : [];
-                            total = (obj && obj.total) ? parseInt(obj.total, 10) : results.length;
+                            // Tolere les reponses {results:[]} ou {data:[]}
+                            results = (obj && (obj.results || obj.data)) ? (obj.results || obj.data) : [];
+                            total = (obj && obj.total != null) ? parseInt(obj.total, 10) : results.length;
                         } catch (e) {
                         }
                     }
@@ -445,6 +446,31 @@ PrestigeNotif.register({
     onItemClick: function () {
         try {
             testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
+        } catch (e) {
+        }
+    }
+});
+
+// Categorie PERIMES : produits dont la peremption est proche (6 mois)
+PrestigeNotif.register({
+    key: 'perimes',
+    label: 'Peremptions proches (6 mois)',
+    icon: 'fa-flask',
+    color: '#c0392b',
+    url: '../api/v1/fichearticle/perimes?nbreMois=6&codeFamile=&codeRayon=&codeGrossiste=&query=&dtStart=&dtEnd=',
+    limit: 50,
+    renderItem: function (p) {
+        return '<div style="font-weight:bold; color:#333;">'
+                + '<i class="fa fa-clock-o" style="color:#c0392b; margin-right:6px;"></i>'
+                + (p.libelle || '') + '</div>'
+                + '<div style="font-size:12px; color:#666; margin-top:3px;">'
+                + (p.statut || '') + ' &nbsp;|&nbsp; Lot : ' + (p.numLot || '-')
+                + ' &nbsp;|&nbsp; Qte : ' + (p.quantiteLot || 0)
+                + ' &nbsp;|&nbsp; ' + (p.datePerement || '') + '</div>';
+    },
+    onItemClick: function () {
+        try {
+            testextjs.app.getController('App').onLoadNewComponent("peremptionquery", "Gestion des peremptions", "");
         } catch (e) {
         }
     }
