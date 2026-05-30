@@ -124,6 +124,38 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
     },
     onbtnsave: function () {
 
+        var win = this.up('window');
+        var qteField = Ext.getCmp('int_NUMBER_REASSORT');
+        var rawValue = qteField.getValue();
+        var qte = parseInt(rawValue, 10);
+
+        // Repositionne le curseur dans le champ pour poursuivre la saisie
+        var focusQte = function () {
+            qteField.focus(true, 50);
+        };
+
+        // ---- Validation cote client : on ne ferme PAS la fenetre en cas d'erreur
+        if (rawValue === null || rawValue === '' || isNaN(qte)) {
+            qteField.markInvalid('Veuillez saisir une quantite valide.');
+            Ext.MessageBox.alert('Quantite invalide', 'Veuillez saisir une quantite valide.', focusQte);
+            return;
+        }
+        if (qte <= 0) {
+            qteField.markInvalid('La quantite doit etre superieure a 0.');
+            Ext.MessageBox.alert('Quantite invalide', 'La quantite doit etre superieure a 0.', focusQte);
+            return;
+        }
+
+        // Plafond : stock disponible selon le sens de l'operation
+        var stockDispo = parseInt(Ext.getCmp('int_NUMBER').getValue(), 10);
+        if (!isNaN(stockDispo) && qte > stockDispo) {
+            var libelle = (Omode === 'assort') ? 'le stock rayon disponible' : 'le stock reserve disponible';
+            var msg = 'La quantite (' + qte + ') ne peut pas depasser ' + libelle + ' (' + stockDispo + ').';
+            qteField.markInvalid(msg);
+            Ext.MessageBox.alert('Quantite invalide', msg, focusQte);
+            return;
+        }
+
         var internal_url = "";
 
         if (Omode === "assort") {
@@ -137,7 +169,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
             url: internal_url,
             jsonData: {
                 lg_FAMILLE_ID: ref,
-                int_NUMBER: Ext.getCmp('int_NUMBER_REASSORT').getValue()
+                int_NUMBER: qte
             },
             success: function (response)
             {
@@ -145,17 +177,19 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                 if (object && object.success) {
                     Ext.MessageBox.alert('Confirmation', object.message);
                     Oview.getStore().reload();
+                    win.close();
                 } else {
-                    Ext.MessageBox.alert('Error Message', object ? object.message : "Echec de l'operation");
+                    // Erreur metier : on garde la fenetre ouverte pour corriger
+                    var emsg = object ? object.message : "Echec de l'operation";
+                    qteField.markInvalid(emsg);
+                    Ext.MessageBox.alert('Error Message', emsg, focusQte);
                 }
             },
             failure: function (response)
             {
                 console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', "Echec de la communication avec le serveur");
+                Ext.MessageBox.alert('Error Message', "Echec de la communication avec le serveur", focusQte);
             }
         });
-
-        this.up('window').close();
     }
 });

@@ -38,10 +38,55 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historique', {
             }
         });
 
+        // Filtrage cote client par type de mouvement
+        var applyFilter = function (type) {
+            store.clearFilter(true);
+            if (type === 'ASSORT' || type === 'REASSORT') {
+                store.filter('str_TYPE', type);
+            }
+        };
+
         var grid = {
             xtype: 'grid',
             store: store,
             border: false,
+            tbar: [
+                'Filtrer :', ' ',
+                {
+                    text: 'Tout',
+                    enableToggle: true,
+                    pressed: true,
+                    toggleGroup: 'histofiltre',
+                    allowDepress: false,
+                    toggleHandler: function (btn, pressed) {
+                        if (pressed) {
+                            applyFilter('TOUT');
+                        }
+                    }
+                },
+                {
+                    text: 'Assort',
+                    enableToggle: true,
+                    toggleGroup: 'histofiltre',
+                    allowDepress: false,
+                    toggleHandler: function (btn, pressed) {
+                        if (pressed) {
+                            applyFilter('ASSORT');
+                        }
+                    }
+                },
+                {
+                    text: 'Reassort',
+                    enableToggle: true,
+                    toggleGroup: 'histofiltre',
+                    allowDepress: false,
+                    toggleHandler: function (btn, pressed) {
+                        if (pressed) {
+                            applyFilter('REASSORT');
+                        }
+                    }
+                }
+            ],
             columns: [
                 {
                     header: 'Date',

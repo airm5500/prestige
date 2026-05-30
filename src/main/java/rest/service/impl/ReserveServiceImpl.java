@@ -249,7 +249,7 @@ public class ReserveServiceImpl implements ReserveService {
                     .put("int_STOCK_RESERVE_AVANT", nz(m.getIntSTOCKRESERVEAVANT()))
                     .put("int_STOCK_RAYON_APRES", nz(m.getIntSTOCKRAYONAPRES()))
                     .put("int_STOCK_RESERVE_APRES", nz(m.getIntSTOCKRESERVEAPRES()))
-                    .put("str_USER", m.getLgUSERID() != null ? m.getLgUSERID().getLgUSERID() : "")
+                    .put("str_USER", userLabel(m.getLgUSERID()))
                     .put("dt_CREATED", m.getDtCREATED() != null ? m.getDtCREATED().toString() : ""));
         }
         return new JSONObject().put("total", results.length()).put("results", results);
@@ -402,6 +402,35 @@ public class ReserveServiceImpl implements ReserveService {
 
     private static int nz(Integer value) {
         return value != null ? value : 0;
+    }
+
+    /**
+     * Libelle lisible de l'utilisateur : "Prenom Nom", a defaut le login,
+     * a defaut l'identifiant technique.
+     */
+    private static String userLabel(TUser user) {
+        if (user == null) {
+            return "";
+        }
+        String first = user.getStrFIRSTNAME();
+        String last = user.getStrLASTNAME();
+        StringBuilder sb = new StringBuilder();
+        if (first != null && !first.trim().isEmpty()) {
+            sb.append(first.trim());
+        }
+        if (last != null && !last.trim().isEmpty()) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(last.trim());
+        }
+        if (sb.length() > 0) {
+            return sb.toString();
+        }
+        if (user.getStrLOGIN() != null && !user.getStrLOGIN().trim().isEmpty()) {
+            return user.getStrLOGIN();
+        }
+        return user.getLgUSERID();
     }
 
     private static JSONObject fail(String message) {
