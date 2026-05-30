@@ -89,13 +89,30 @@
                         var total = obj && obj.total ? parseInt(obj.total, 10) : 0;
                         if (total > 0) {
                             $("#freeow").freeow("Gestion des reserves",
-                                total + " article(s) a reassortir selon les suggestions.",
-                                { classes: ["gray", "pushpin"], autoHide: true, autoHideDelay: 8000 });
+                                total + " article(s) a reassortir selon les suggestions.<br/><small>Cliquez pour ouvrir la gestion des reserves.</small>",
+                                { classes: ["gray", "pushpin", "reserve-toast"], autoHide: true, autoHideDelay: 8000 });
                         }
                     } catch (e) {
                     }
                 });
             }
+
+            // Ouvre directement la vue reservemanager au clic sur le toast d'alerte reserve
+            function openReserveManagerView() {
+                try {
+                    testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
+                } catch (e) {
+                }
+            }
+            $(document).on("click", ".reserve-toast", function () {
+                openReserveManagerView();
+                $(this).fadeOut(200, function () {
+                    $(this).remove();
+                });
+            });
+            $(document).on("mouseenter", ".reserve-toast", function () {
+                $(this).css("cursor", "pointer");
+            });
 
             function updateALLData() {
                 UpdateNotification();
