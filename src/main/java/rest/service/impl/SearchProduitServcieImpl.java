@@ -839,7 +839,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         try {
             String sql = "SELECT tsf.int_NUMBER " + "FROM t_type_stock_famille tsf "
                     + "WHERE tsf.lg_TYPE_STOCK_ID = '2' " + "AND tsf.lg_FAMILLE_ID = ?1 "
-                    + "AND tsf.lg_EMPLACEMENT_ID LIKE ?2 " + "LIMIT 1";
+                    + "AND tsf.lg_EMPLACEMENT_ID LIKE ?2";
 
             Query q = em.createNativeQuery(sql);
             q.setParameter(1, produitId);
