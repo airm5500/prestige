@@ -4,6 +4,7 @@
  * provided to support globbing requires, custom xtypes, and other 
  * metadata-driven class system features 
  */
+Ext.Loader.setConfig({ disableCaching: true });
 Ext.Loader.addClassPathMappings({
   "testextjs": "app",
   " Ext.Msg": "ext/src/window/MessageBox.js",
