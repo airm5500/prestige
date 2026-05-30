@@ -213,48 +213,130 @@ function changePicture() {
     //testextjs.app.getController('App').onLoadNewComponent("updatepicture", "Mise a jour de la photo de profil", "");
 }
 
-// ----------------------------------------------------- Centre de notifications
+// ===================================================================
+//  CENTRE DE NOTIFICATIONS - architecture extensible par categories
+// ===================================================================
+//
+// Pour ajouter une categorie (perimes, commandes, etc.), il suffit
+// d'appeler PrestigeNotif.register({...}) avec :
+//   key      : identifiant unique
+//   label    : titre de la section
+//   icon     : classe FontAwesome (ex: 'fa-flask')
+//   color    : couleur d'accent (ex: '#e74c3c')
+//   url      : endpoint REST renvoyant {total, results:[...]}
+//   limit    : nb max d'elements charges (defaut 50)
+//   renderItem(item) -> HTML d'une ligne
+//   onItemClick(item) -> action au clic (ouvre la vue concernee)
+//
+var PrestigeNotif = (function () {
 
-// Cache des notifications recuperees (articles a reassortir)
-var PRESTIGE_NOTIFS = [];
+    var providers = [];
+    // Cache des resultats par categorie : { key: {total, results} }
+    var cache = {};
 
-function refreshNotificationBadge() {
-    Ext.Ajax.request({
-        url: '../api/v1/reserve/suggestions?start=0&limit=50',
-        method: 'GET',
-        success: function (response) {
-            try {
-                var obj = Ext.JSON.decode(response.responseText, true);
-                PRESTIGE_NOTIFS = (obj && obj.results) ? obj.results : [];
-                var total = (obj && obj.total) ? parseInt(obj.total, 10) : 0;
-                var badge = Ext.get('notif-badge');
-                if (badge) {
-                    if (total > 0) {
-                        badge.dom.innerHTML = total > 99 ? '99+' : total;
-                        badge.setStyle('display', 'inline-block');
-                    } else {
-                        badge.setStyle('display', 'none');
-                    }
-                }
-            } catch (e) {
+    function register(provider) {
+        if (!provider || !provider.key) {
+            return;
+        }
+        // Evite les doublons si Header recree
+        for (var i = 0; i < providers.length; i++) {
+            if (providers[i].key === provider.key) {
+                providers[i] = provider;
+                return;
             }
         }
-    });
+        providers.push(provider);
+    }
+
+    // Charge tous les providers ; appelle done(totalGlobal) a la fin
+    function loadAll(done) {
+        var pending = providers.length;
+        if (pending === 0) {
+            cache = {};
+            if (done) {
+                done(0);
+            }
+            return;
+        }
+        var newCache = {};
+        Ext.each(providers, function (p) {
+            var limit = p.limit || 50;
+            Ext.Ajax.request({
+                url: p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'start=0&limit=' + limit,
+                method: 'GET',
+                callback: function (opts, success, response) {
+                    var results = [], total = 0;
+                    if (success) {
+                        try {
+                            var obj = Ext.JSON.decode(response.responseText, true);
+                            results = (obj && obj.results) ? obj.results : [];
+                            total = (obj && obj.total) ? parseInt(obj.total, 10) : results.length;
+                        } catch (e) {
+                        }
+                    }
+                    newCache[p.key] = {total: total, results: results};
+                    pending--;
+                    if (pending === 0) {
+                        cache = newCache;
+                        var grand = 0;
+                        Ext.Object.each(cache, function (k, v) {
+                            grand += (v.total || 0);
+                        });
+                        if (done) {
+                            done(grand);
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    function updateBadge(total) {
+        var badge = Ext.get('notif-badge');
+        if (!badge) {
+            return;
+        }
+        if (total > 0) {
+            badge.dom.innerHTML = total > 99 ? '99+' : total;
+            badge.setStyle('display', 'inline-block');
+        } else {
+            badge.setStyle('display', 'none');
+        }
+    }
+
+    function refreshBadge() {
+        loadAll(function (total) {
+            updateBadge(total);
+        });
+    }
+
+    function getCache() {
+        return cache;
+    }
+
+    function getProviders() {
+        return providers;
+    }
+
+    return {
+        register: register,
+        loadAll: loadAll,
+        refreshBadge: refreshBadge,
+        updateBadge: updateBadge,
+        getCache: getCache,
+        getProviders: getProviders
+    };
+})();
+
+// Alias retro-compatible (appele depuis add.js / ReserveManager.js)
+function refreshNotificationBadge() {
+    PrestigeNotif.refreshBadge();
 }
 
 function showNotificationCenter() {
-    // Recharge avant affichage pour avoir l'etat a jour
-    Ext.Ajax.request({
-        url: '../api/v1/reserve/suggestions?start=0&limit=50',
-        method: 'GET',
-        success: function (response) {
-            var obj = Ext.JSON.decode(response.responseText, true);
-            PRESTIGE_NOTIFS = (obj && obj.results) ? obj.results : [];
-            buildNotificationWindow();
-        },
-        failure: function () {
-            buildNotificationWindow();
-        }
+    PrestigeNotif.loadAll(function (total) {
+        PrestigeNotif.updateBadge(total);
+        buildNotificationWindow();
     });
 }
 
@@ -264,60 +346,106 @@ function buildNotificationWindow() {
         existing.close();
     }
 
-    var rows = '';
-    if (!PRESTIGE_NOTIFS || PRESTIGE_NOTIFS.length === 0) {
-        rows = '<div style="padding:20px; text-align:center; color:#888;">Aucune notification.</div>';
-    } else {
-        for (var i = 0; i < PRESTIGE_NOTIFS.length; i++) {
-            var n = PRESTIGE_NOTIFS[i];
-            rows += '<div class="notif-item" style="padding:10px 12px; border-bottom:1px solid #eee; cursor:pointer;" '
-                    + 'onmouseover="this.style.background=\'#f5f5f5\'" onmouseout="this.style.background=\'#fff\'" '
-                    + 'onclick="openReserveFromNotif()">'
-                    + '<div style="font-weight:bold; color:#333;">'
-                    + '<i class="fa fa-exclamation-circle" style="color:#e74c3c; margin-right:6px;"></i>'
-                    + (n.str_NAME || n.str_DESCRIPTION || '') + '</div>'
-                    + '<div style="font-size:12px; color:#666; margin-top:3px;">A reassortir : <b>' + (n.int_QTE_SUGGEREE || 0) + '</b> '
-                    + ' &nbsp;|&nbsp; Rayon : ' + (n.int_STOCK_RAYON || 0)
-                    + ' &nbsp;|&nbsp; Reserve : ' + (n.int_STOCK_RESERVE || 0) + '</div>'
-                    + '</div>';
+    var cache = PrestigeNotif.getCache();
+    var providers = PrestigeNotif.getProviders();
+    var sections = '';
+    var grandTotal = 0;
+
+    Ext.each(providers, function (p) {
+        var data = cache[p.key] || {total: 0, results: []};
+        var items = data.results || [];
+        grandTotal += (data.total || 0);
+
+        if (items.length === 0) {
+            return; // section masquee si vide
         }
+
+        var rows = '';
+        for (var i = 0; i < items.length; i++) {
+            var line = p.renderItem ? p.renderItem(items[i]) : (items[i].str_NAME || '');
+            rows += '<div class="notif-item" data-cat="' + p.key + '" data-idx="' + i + '" '
+                    + 'style="padding:10px 12px; border-bottom:1px solid #eee; cursor:pointer;" '
+                    + 'onmouseover="this.style.background=\'#f5f5f5\'" onmouseout="this.style.background=\'#fff\'" '
+                    + 'onclick="prestigeNotifItemClick(\'' + p.key + '\',' + i + ')">'
+                    + line + '</div>';
+        }
+
+        sections += '<div style="padding:7px 12px; background:' + (p.color || '#2c7873') + '; color:#fff; font-weight:bold;">'
+                + '<i class="fa ' + (p.icon || 'fa-bell') + '" style="margin-right:6px;"></i>'
+                + p.label + ' (' + (data.total || items.length) + ')</div>'
+                + rows;
+    });
+
+    if (sections === '') {
+        sections = '<div style="padding:24px; text-align:center; color:#888;">Aucune notification.</div>';
     }
 
-    var html = '<div style="max-height:340px; overflow-y:auto;">'
-            + '<div style="padding:8px 12px; background:#2c7873; color:#fff; font-weight:bold;">'
-            + '<i class="fa fa-bell" style="margin-right:6px;"></i>Articles a reassortir (' + (PRESTIGE_NOTIFS ? PRESTIGE_NOTIFS.length : 0) + ')</div>'
-            + rows + '</div>';
+    var html = '<div style="max-height:380px; overflow-y:auto;">' + sections + '</div>';
 
     Ext.create('Ext.window.Window', {
         id: 'notif-center-win',
-        title: 'Notifications',
-        width: 380,
+        title: 'Notifications (' + grandTotal + ')',
+        width: 400,
         autoHeight: true,
-        maxHeight: 420,
+        maxHeight: 460,
         modal: false,
         constrain: true,
         bodyPadding: 0,
         html: html,
         listeners: {
             show: function (win) {
-                // Positionne sous la cloche
                 var bell = Ext.get('notif-bell');
                 if (bell) {
                     var xy = bell.getXY();
-                    win.setPosition(Math.max(0, xy[0] - 320), xy[1] + 45);
+                    win.setPosition(Math.max(0, xy[0] - 340), xy[1] + 45);
                 }
             }
         }
     }).show();
 }
 
-function openReserveFromNotif() {
+// Dispatch du clic d'un element vers le onItemClick de sa categorie
+function prestigeNotifItemClick(key, idx) {
     var win = Ext.getCmp('notif-center-win');
+    var cache = PrestigeNotif.getCache();
+    var providers = PrestigeNotif.getProviders();
+    var provider = null;
+    Ext.each(providers, function (p) {
+        if (p.key === key) {
+            provider = p;
+        }
+    });
     if (win) {
         win.close();
     }
-    try {
-        testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
-    } catch (e) {
+    if (provider && provider.onItemClick) {
+        var data = cache[key] || {results: []};
+        provider.onItemClick(data.results[idx]);
     }
 }
+
+// ------------------------------------------- Enregistrement des categories
+
+// Categorie RESERVE : articles a reassortir
+PrestigeNotif.register({
+    key: 'reserve',
+    label: 'Articles a reassortir',
+    icon: 'fa-exchange',
+    color: '#2c7873',
+    url: '../api/v1/reserve/suggestions',
+    limit: 50,
+    renderItem: function (n) {
+        return '<div style="font-weight:bold; color:#333;">'
+                + '<i class="fa fa-exclamation-circle" style="color:#e74c3c; margin-right:6px;"></i>'
+                + (n.str_NAME || n.str_DESCRIPTION || '') + '</div>'
+                + '<div style="font-size:12px; color:#666; margin-top:3px;">A reassortir : <b>' + (n.int_QTE_SUGGEREE || 0) + '</b>'
+                + ' &nbsp;|&nbsp; Rayon : ' + (n.int_STOCK_RAYON || 0)
+                + ' &nbsp;|&nbsp; Reserve : ' + (n.int_STOCK_RESERVE || 0) + '</div>';
+    },
+    onItemClick: function () {
+        try {
+            testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
+        } catch (e) {
+        }
+    }
+});
