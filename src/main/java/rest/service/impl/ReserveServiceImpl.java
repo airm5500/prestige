@@ -77,7 +77,7 @@ public class ReserveServiceImpl implements ReserveService {
             if (f == null) {
                 continue;
             }
-            results.put(buildArticleJson(f, empl, false));
+            results.put(buildArticleJson(f, empl, true));
         }
         return new JSONObject().put("total", total).put("results", results);
     }
