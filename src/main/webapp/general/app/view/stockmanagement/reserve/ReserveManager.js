@@ -1,6 +1,6 @@
-var url_services_data_reserve = '../webservices/stockmanagement/reserve/ws_data.jsp';
-var url_services_transaction_reserve = '../webservices/stockmanagement/reserve/ws_transaction.jsp?mode=';
-var url_services_pdf_liste_reassort = '../webservices/stockmanagement/reserve/ws_generate_pdf.jsp';
+var url_services_data_reserve = '../api/v1/reserve/articles';
+var url_services_transaction_reserve = '../api/v1/reserve/';
+var url_services_reassort_batch = '../api/v1/reserve/reassort-batch';
 
 var Me;
 Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
@@ -82,21 +82,42 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                     flex: 1
                 },
                 {
-                    header: 'Quantite.Rayon',
-                    dataIndex: 'int_NUMBER',
-                    flex: 1
-
+                    header: 'Stock Rayon',
+                    dataIndex: 'int_STOCK_RAYON',
+                    align: 'center',
+                    flex: 1,
+                    renderer: function (v, m, r) {
+                        var seuil = r.get('int_SEUIL_RESERVE');
+                        if (seuil > 0 && v < seuil) {
+                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;';
+                        }
+                        return v;
+                    }
                 },
                 {
-                    header: 'Quantite.Reserve',
-                    dataIndex: 'int_STOCK_REAPROVISONEMENT',
+                    header: 'Stock Reserve',
+                    dataIndex: 'int_STOCK_RESERVE',
+                    align: 'center',
                     flex: 1
-
                 },
                 {
-                    header: 'Quantite.Reassort',
-                    dataIndex: 'int_NUMBER_ENTREE',
+                    header: 'Seuil',
+                    dataIndex: 'int_SEUIL_RESERVE',
+                    align: 'center',
                     flex: 1
+                },
+                {
+                    header: 'Suggere',
+                    dataIndex: 'int_QTE_SUGGEREE',
+                    align: 'center',
+                    flex: 1,
+                    renderer: function (v, m) {
+                        if (v > 0) {
+                            m.style = 'color:#6600cc; font-weight:bold;';
+                            return v;
+                        }
+                        return '';
+                    }
                 },
                 {
                     xtype: 'actioncolumn',
@@ -109,7 +130,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                             scope: this,
                             handler: this.onAssortClick,
                             getClass: function(value, metadata, record) {
-                                if (record.get('int_NUMBER') > 0) {  //read your condition from the record
+                                if (record.get('int_STOCK_RAYON') > 0) {  //read your condition from the record
                                     return 'x-display-hide'; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
@@ -128,7 +149,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                             scope: this,
                             handler: this.onRemoveClick,
                             getClass: function(value, metadata, record) {
-                                if (record.get('int_STOCK_REAPROVISONEMENT') > 0) {  //read your condition from the record
+                                if (record.get('int_STOCK_RESERVE') > 0) {  //read your condition from the record
                                     return 'x-display-hide'; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
@@ -176,11 +197,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                     scope: this,
                     handler: this.onRechClick
                 }, '-', {
-                    text: 'Imprimer liste reassort',
-                    id: 'btn_devis',
-//                    iconCls: 'icon-clear-group',
+                    text: 'Tout reassortir selon suggestions',
+                    id: 'btn_reassort_batch',
                     scope: this,
-                    handler: this.onbtnprint
+                    handler: this.onReassortBatch
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -206,16 +226,44 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
     },
     onStoreLoad: function() {
     },
-    onbtnprint: function() {
+    onReassortBatch: function() {
+        var grid = Ext.getCmp('GridReserveID');
+        var items = [];
+        grid.getStore().each(function(rec) {
+            var qte = rec.get('int_QTE_SUGGEREE');
+            if (qte > 0) {
+                items.push({lg_FAMILLE_ID: rec.get('lg_FAMILLE_ID'), int_QTE: qte});
+            }
+        });
+
+        if (items.length === 0) {
+            Ext.MessageBox.alert('Message', 'Aucun article a reassortir selon les suggestions.');
+            return;
+        }
+
         Ext.MessageBox.confirm('Message',
-                'Confirmation de l\'impression de la liste',
+                'Reassortir ' + items.length + ' article(s) selon les quantites suggerees ?',
                 function(btn) {
-                    if (btn == 'yes') {
-                        onPdfClickReserve();
-                        return;
+                    if (btn === 'yes') {
+                        var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Traitement en cours');
+                        Ext.Ajax.request({
+                            method: 'POST',
+                            url: url_services_reassort_batch,
+                            jsonData: {items: items},
+                            success: function(response) {
+                                progress.hide();
+                                var res = Ext.JSON.decode(response.responseText, true);
+                                Ext.MessageBox.alert('Resultat',
+                                        (res.traites || 0) + ' / ' + (res.total || 0) + ' reassort(s) effectue(s).');
+                                grid.getStore().reload();
+                            },
+                            failure: function(response) {
+                                progress.hide();
+                                Ext.MessageBox.alert('Erreur', 'Echec du traitement par lot.');
+                            }
+                        });
                     }
                 });
-
     },
     onAssortClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
@@ -264,12 +312,3 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
     }
 
 });
-
-function onPdfClickReserve() {
-    var chaine = location.pathname;
-    var reg = new RegExp("[/]+", "g");
-    var tableau = chaine.split(reg);
-    var sitename = tableau[1];
-    var linkUrl = url_services_pdf_liste_reassort;
-    window.open(linkUrl);
-}

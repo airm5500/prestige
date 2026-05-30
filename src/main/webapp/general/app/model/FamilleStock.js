@@ -209,9 +209,33 @@ Ext.define('testextjs.model.FamilleStock', {
         {
             name: 'afficherStock',
             type: 'boolean'
+        },
+        {
+            name: 'int_STOCK_RAYON',
+            type: 'int'
+        },
+        {
+            name: 'int_STOCK_RESERVE',
+            type: 'int'
+        },
+        {
+            name: 'int_SEUIL_RESERVE',
+            type: 'int'
+        },
+        {
+            name: 'int_SEUIL_DYNAMIQUE',
+            type: 'int'
+        },
+        {
+            name: 'int_QTE_SUGGEREE',
+            type: 'int'
+        },
+        {
+            name: 'bool_RESERVE',
+            type: 'boolean'
         }
-        
+
     ]
-    
+
 });
 

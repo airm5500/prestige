@@ -1,5 +1,4 @@
-var url_services_data_reserve = '../webservices/stockmanagement/reserve/ws_data.jsp';
-var url_services_transaction_reserve = '../webservices/stockmanagement/reserve/ws_transaction.jsp?mode=';
+var url_services_transaction_reserve = '../api/v1/reserve/';
 
 
 var Oview;
@@ -90,12 +89,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         if (Omode === "reassort") {
             ref = this.getOdatasource().lg_FAMILLE_ID;
             Ext.getCmp('str_DESCRIPTION').setValue(this.getOdatasource().str_NAME);
-            Ext.getCmp('int_NUMBER').setValue(this.getOdatasource().int_STOCK_REAPROVISONEMENT);
-            Ext.getCmp('int_NUMBER_REASSORT').setValue(this.getOdatasource().int_NUMBER_ENTREE);
+            Ext.getCmp('int_NUMBER').setValue(this.getOdatasource().int_STOCK_RESERVE);
+            Ext.getCmp('int_NUMBER_REASSORT').setValue(this.getOdatasource().int_QTE_SUGGEREE || 0);
         } else if (Omode === "assort") {
             ref = this.getOdatasource().lg_FAMILLE_ID;
             Ext.getCmp('str_DESCRIPTION').setValue(this.getOdatasource().str_NAME);
-            Ext.getCmp('int_NUMBER').setValue(this.getOdatasource().int_NUMBER);
+            Ext.getCmp('int_NUMBER').setValue(this.getOdatasource().int_STOCK_RAYON);
             Ext.getCmp('int_NUMBER_REASSORT').setValue(0);
         }
 
@@ -134,32 +133,26 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         }
 
         Ext.Ajax.request({
+            method: 'POST',
             url: internal_url,
-            params: {
+            jsonData: {
                 lg_FAMILLE_ID: ref,
                 int_NUMBER: Ext.getCmp('int_NUMBER_REASSORT').getValue()
             },
             success: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
-                // alert(object.success);
-                if (object.success == 0) {
-                    Ext.MessageBox.alert('Error Message', object.errors);
-                    return;
-                } else {
-                    Ext.MessageBox.alert('Confirmation', object.errors);
+                var object = Ext.JSON.decode(response.responseText, true);
+                if (object && object.success) {
+                    Ext.MessageBox.alert('Confirmation', object.message);
                     Oview.getStore().reload();
+                } else {
+                    Ext.MessageBox.alert('Error Message', object ? object.message : "Echec de l'operation");
                 }
-
-
             },
             failure: function (response)
             {
-
-                var object = Ext.JSON.decode(response.responseText, false);
                 console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
-
+                Ext.MessageBox.alert('Error Message', "Echec de la communication avec le serveur");
             }
         });
 
