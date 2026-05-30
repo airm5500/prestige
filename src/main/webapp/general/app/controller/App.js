@@ -87,12 +87,8 @@ Ext.define('testextjs.controller.App', {
                 click: 'onSetRegion'
             },
             afterrender: function () {
-                setTimeout(function () {
-
-                    testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos", "");
-
-                }
-                , 0);
+                // Ne rien charger automatiquement au démarrage.
+                // L'utilisateur ouvrira lui-même le menu souhaité.
             }
 
         });
@@ -580,22 +576,14 @@ Ext.define('testextjs.controller.App', {
         prettyPrint();
     },
     updateCodePreviewAsync: function (clsProto, xtype) {
-        var me = this,
-                className = Ext.ClassManager.getNameByAlias('widget.' + xtype),
-                path = className.replace(/\./g, '/').replace('KitchenSink', 'app') + '.js';
-
-        if (!Ext.repoDevMode) {
-            path = '../../../kitchensink/' + path;
-        }
-
-        Ext.Ajax.request({
-            url: path,
-            success: function (response) {
-                me.processCodePreview(clsProto, response.responseText);
-                me.updateCodePreview(clsProto.exampleCode);
-            }
-        });
-    },
+    // Désactivé en production : évite de recharger inutilement le fichier JS de la vue.
+    // Ce chargement bloquait les appels API comme /produit-search/fiche.
+    try {
+        this.updateCodePreview('');
+    } catch (e) {
+        // Aucun traitement nécessaire si le panneau codePreview n'existe pas.
+    }
+},
     updateDescription: function (clsProto) {
         let description = clsProto.exampleDescription,
                 descriptionPanel = this.getDescriptionPanel();

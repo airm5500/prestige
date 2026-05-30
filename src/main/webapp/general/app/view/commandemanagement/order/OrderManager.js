@@ -203,6 +203,12 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             handler: this.onManageDetailsClick
                         }, '-',
                         {
+                            icon: 'resources/images/icons/fam/page_copy.png',
+                            tooltip: 'Cloner la commande',
+                            scope: this,
+                            handler: this.onCloneCommandeClick
+                        }, '-',
+                        {
                             icon: 'resources/images/icons/fam/delete.gif',
                             tooltip: 'Supprimer',
                             scope: this,
@@ -569,6 +575,68 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     '../api/v1/commande/export-excel-details?id=' + rec.get('lg_ORDER_ID');
             }
         }
+    );
+},
+
+onCloneCommandeClick: function (grid, rowIndex) {
+    const me = this;
+    const rec = grid.getStore().getAt(rowIndex);
+
+    if (!rec) {
+        Ext.Msg.alert('Erreur', 'Impossible de retrouver la commande sélectionnée.');
+        return;
+    }
+
+    const commandeId = rec.get('lg_ORDER_ID') || rec.get('lgORDERID');
+
+    if (!commandeId) {
+        Ext.Msg.alert('Erreur', 'Identifiant de la commande introuvable.');
+        return;
+    }
+
+    Ext.MessageBox.confirm(
+            'Confirmation',
+            'Voulez-vous cloner cette commande ?',
+            function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+
+                Ext.Ajax.request({
+                    url: '../api/v1/commande/clone-commande/' + commandeId,
+                    method: 'PUT',
+                    success: function (response) {
+                        let result = {};
+
+                        try {
+                            result = Ext.decode(response.responseText);
+                        } catch (e) {
+                            Ext.Msg.alert('Erreur', 'Réponse serveur invalide.');
+                            return;
+                        }
+
+                        if (result.success) {
+                            const ref = result.data && result.data.str_REF_ORDER
+                                    ? result.data.str_REF_ORDER
+                                    : '';
+
+                            Ext.Msg.alert(
+                                    'Succès',
+                                    ref
+                                            ? 'Commande clonée avec succès. Nouvelle référence : ' + ref
+                                            : 'Commande clonée avec succès.'
+                            );
+
+                            grid.getStore().reload();
+                        } else {
+                            Ext.Msg.alert('Erreur', result.msg || 'Erreur lors du clonage de la commande.');
+                        }
+                    },
+                    failure: function () {
+                        Ext.Msg.alert('Erreur', 'Erreur de communication avec le serveur.');
+                    }
+                });
+            }
     );
 }
 

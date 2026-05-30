@@ -177,6 +177,24 @@ public class CommandeRessource {
         return Response.ok().entity(this.orderService.addItem(orderDetail, tu).toString()).build();
     }
 
+    @PUT
+    @Path("clone-commande/{id}")
+    public Response cloneCommande(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
+        return Response.ok().entity(this.orderService.cloneCommande(id, tu).toString()).build();
+    }
+
+    @PUT
+    @Path("clone-suggestion-order/{id}")
+    public Response cloneSuggestionOrder(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+
+        return Response.ok().entity(this.orderService.cloneSuggestionOrder(id, tu).toString()).build();
+    }
+
     @GET
     @Path("list/passees")
     public Response findCommandePassees(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,

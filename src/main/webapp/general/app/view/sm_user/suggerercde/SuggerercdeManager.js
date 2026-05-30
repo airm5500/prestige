@@ -275,43 +275,57 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 {text: 'PRIX A. TARIF', flex: 1, sortable: true, hidden: true, align: 'right', renderer: Me_Window.numberColumnRenderer, dataIndex: 'lg_FAMILLE_PRIX_ACHAT', editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, selectOnFocus: true, regex: /[0-9.]/}},
                                 {text: 'PRIX A. FACT', flex: 1, sortable: true, dataIndex: 'int_PAF_SUGG', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, regex: /[0-9.]/}},
                                 {text: 'PRIX TIPS', flex: 1, sortable: true, hidden: true, align: 'right', renderer: Me_Window.numberColumnRenderer, dataIndex: 'int_PRIX_REFERENCE'},
-                                {text: 'STOCK', flex: 1, sortable: true, dataIndex: 'int_STOCK', align: 'right', renderer: function (value, metadata) {
-                                        // Applique le style CSS pour mettre le texte en vert et en gras
-                                        metadata.style = 'color: blue; font-weight: bold;font-size: 16px;';
-
-                                        // Retourne la valeur formatée (comme avant)
+                                {
+                                    text: 'STOCK',
+                                    flex: 1,
+                                    sortable: true,
+                                    dataIndex: 'int_STOCK',
+                                    align: 'right',
+                                    renderer: function (value, metadata, record) {
+                                        var bgStyle = Me_Window.manageColor(record);
+                                        metadata.style = bgStyle + 'color: blue; font-weight: bold; font-size: 16px;';
                                         return amountformat(value);
-                                    }},
+                                    }
+                                },
                                 {text: 'SEUIL', flex: 1, sortable: true, dataIndex: 'int_SEUIL', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
 
                                 {
-                                    header: 'QTE', dataIndex: 'int_NUMBER', align: 'right',
-                                    renderer: function (value, metadata) {
-                                        // Applique le style CSS pour mettre le texte en vert et en gras
-                                        metadata.style = 'color: green; font-weight: bold;font-size: 16px;';
-
-                                        // Retourne la valeur formatée (comme avant)
-                                        return amountformat(value);
-                                    }, flex: 1,
+    header: 'QTE',
+    dataIndex: 'int_NUMBER',
+    align: 'right',
+    renderer: function (value, metadata, record) {
+        var bgStyle = Me_Window.manageColor(record);
+        metadata.style = bgStyle + 'color: green; font-weight: bold; font-size: 16px;';
+        return amountformat(value);
+                                    },
+                                    flex: 1,
                                     editor: {
-                                        xtype: 'numberfield', minValue: 0,
-                                        selectOnFocus: true, allowBlank: false,
+                                        xtype: 'numberfield',
+                                        minValue: 0,
+                                        selectOnFocus: true,
+                                        allowBlank: false,
                                         enableKeyEvents: true,
                                         listeners: {
                                             specialkey: function (field, e) {
                                                 if (e.getKey() === e.ENTER) {
                                                     e.stopEvent();
+
                                                     var grid = Ext.getCmp('gridpanelSuggestionID');
                                                     var sm = grid.getSelectionModel();
                                                     var record = sm.getSelection()[0];
                                                     var position = sm.getCurrentPosition();
-                                                    if (!record)
+
+                                                    if (!record) {
                                                         return;
+                                                    }
+
                                                     var value = field.getValue();
+
                                                     if (value === 0) {
                                                         Me_Window.onRemoveClick(grid, position.row);
                                                         return;
                                                     }
+
                                                     Me_Window.updateQty(record, value, position);
                                                 }
                                             }
@@ -323,19 +337,16 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                     align: 'right',
                                     flex: 1,
                                     renderer: function (value, metadata, record) {
-                                        // 1. Récupérer les valeurs des 3 mois
-                                        var v1 = record.get('int_VALUE1');
-                                        var v2 = record.get('int_VALUE2');
-                                        var v3 = record.get('int_VALUE3');
+                                        var v1 = Number(record.get('int_VALUE1')) || 0;
+                                        var v2 = Number(record.get('int_VALUE2')) || 0;
+                                        var v3 = Number(record.get('int_VALUE3')) || 0;
 
-                                        // 2. Calculer la moyenne et l'arrondir
                                         var moyenne = Math.round((v1 + v2 + v3) / 3);
 
-                                        // 3. Appliquer le style demandé
-                                        metadata.style = 'color: red; font-weight: bold; font-size: 16px;';
+                                        var bgStyle = Me_Window.manageColor(record);
+                                        metadata.style = bgStyle + 'color: red; font-weight: bold; font-size: 16px;';
 
-                                        // 4. Retourner la valeur calculée
-                                        return moyenne;
+                                        return amountformat(moyenne);
                                     }
                                 },
 
@@ -376,7 +387,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             {
                     xtype: 'toolbar', ui: 'footer', dock: 'bottom', border: '0',
                     items: ['->',
-                        {text: 'Retour', id: 'btn_cancel',cls: 'btn-secondary', iconCls: 'icon-clear-group', scope: this, hidden: false, handler: this.onbtncancel},
+                        {text: 'Retour', id: 'btn_cancel',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: false, handler: this.onbtncancel},
                         {text: 'Imprimer', id: 'btn_print',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: true, handler: this.onbtnprint},
                         
                         {

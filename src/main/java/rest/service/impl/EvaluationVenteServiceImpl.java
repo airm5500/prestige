@@ -41,13 +41,27 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
 
     private static final Logger LOG = Logger.getLogger(EvaluationVenteServiceImpl.class.getName());
 
-    private static final String QUERY = "SELECT  p.lg_GROSSISTE_ID as grossisteId, p.lg_FAMILLE_ID as produitId,  p.int_CIP AS codeCip ,p.str_NAME AS libelle ,p.int_PRICE AS prixVente,p.int_PAF as prixAchat,SUM(CASE WHEN venteDetail.dateVente <>  MONTH(CURDATE()) "
-            + " THEN venteDetail.quantiteVendue ELSE 0 END) AS quantiteVendue,ROUND(SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END)/3,2) as moyenne,"
-            + "GROUP_CONCAT(venteDetail.quantiteVendue,':',venteDetail.dateVente) as quantite_mois  FROM t_famille p   join (SELECT d.lg_FAMILLE_ID AS produitId,SUM(d.int_QUANTITY) as quantiteVendue, MONTH(v.dt_UPDATED ) as dateVente FROM  t_preenregistrement_detail d JOIN t_preenregistrement v "
-            + " ON d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID WHERE v.b_IS_CANCEL=0 AND v.str_STATUT='is_Closed' AND v.int_PRICE >0 AND  DATE(v.dt_UPDATED) BETWEEN ?1 AND CURDATE() GROUP BY d.lg_FAMILLE_ID,dateVente) AS venteDetail on p.lg_FAMILLE_ID=venteDetail.produitId WHERE  p.str_STATUT='enable' {famille_article} {zone_geog} {search} GROUP BY p.lg_FAMILLE_ID {having_placeholder}  ORDER by p.str_NAME";
+    private static final String QUERY = "SELECT p.lg_GROSSISTE_ID as grossisteId, " + " p.lg_FAMILLE_ID as produitId, "
+            + " p.int_CIP AS codeCip, " + " p.str_NAME AS libelle, " + " p.int_PRICE AS prixVente, "
+            + " p.int_PAF as prixAchat, " + " COALESCE(fs.int_NUMBER_AVAILABLE, 0) AS stock, "
+            + " SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END) AS quantiteVendue, "
+            + " ROUND(SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END) / 3, 2) as moyenne, "
+            + " GROUP_CONCAT(venteDetail.quantiteVendue, ':', venteDetail.dateVente) as quantite_mois "
+            + " FROM t_famille p " + " JOIN ( " + "     SELECT d.lg_FAMILLE_ID AS produitId, "
+            + "            SUM(d.int_QUANTITY) as quantiteVendue, " + "            MONTH(v.dt_UPDATED) as dateVente "
+            + "     FROM t_preenregistrement_detail d " + "     JOIN t_preenregistrement v "
+            + "       ON d.lg_PREENREGISTREMENT_ID = v.lg_PREENREGISTREMENT_ID " + "     WHERE v.b_IS_CANCEL = 0 "
+            + "       AND v.str_STATUT = 'is_Closed' " + "       AND v.int_PRICE > 0 "
+            + "       AND v.dt_UPDATED >= ?1 " + "       AND v.dt_UPDATED < DATE_ADD(CURDATE(), INTERVAL 1 DAY) "
+            + "     GROUP BY d.lg_FAMILLE_ID, dateVente "
+            + " ) AS venteDetail ON p.lg_FAMILLE_ID = venteDetail.produitId " + " LEFT JOIN t_famille_stock fs "
+            + "   ON fs.lg_FAMILLE_ID = p.lg_FAMILLE_ID " + "  AND fs.lg_EMPLACEMENT_ID = '1' "
+            + "  AND fs.str_STATUT = 'enable' "
+            + " WHERE p.str_STATUT = 'enable' {famille_article} {zone_geog} {search} " + " GROUP BY p.lg_FAMILLE_ID "
+            + " {having_placeholder} " + " ORDER BY p.str_NAME";
 
     private static final String QUERY_COUNT = "SELECT count(c) AS total from (SELECT count(p.lg_FAMILLE_ID) as c FROM t_famille p   join (SELECT d.lg_FAMILLE_ID AS produitId,SUM(d.int_QUANTITY) as quantiteVendue, MONTH(v.dt_UPDATED ) as dateVente FROM  t_preenregistrement_detail d JOIN t_preenregistrement v "
-            + "  ON d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID WHERE v.b_IS_CANCEL=0 AND v.str_STATUT='is_Closed' AND v.int_PRICE >0 AND  DATE(v.dt_UPDATED) BETWEEN ?1 AND CURDATE()GROUP BY d.lg_FAMILLE_ID,dateVente) AS venteDetail on p.lg_FAMILLE_ID=venteDetail.produitId  WHERE  p.str_STATUT='enable'"
+            + "  ON d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID WHERE v.b_IS_CANCEL=0 AND v.str_STATUT='is_Closed' AND v.int_PRICE >0 AND v.dt_UPDATED >= ?1 AND v.dt_UPDATED <= CURDATE() GROUP BY d.lg_FAMILLE_ID,dateVente) AS venteDetail on p.lg_FAMILLE_ID=venteDetail.produitId  WHERE  p.str_STATUT='enable'"
             + " {famille_article} {zone_geog} {search} GROUP BY p.lg_FAMILLE_ID  {having_placeholder} ) as t  ";
 
     @PersistenceContext(unitName = "JTA_UNIT")
@@ -134,7 +148,7 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
         if (StringUtils.isNotEmpty(evaluationVenteFiltre.getFamilleId())
                 && !"ALL".equals(evaluationVenteFiltre.getFamilleId())) {
             sql = sql.replace("{famille_article}",
-                    String.format(" AND p.lg_FAMILLEARTICLE_ID=%s ", evaluationVenteFiltre.getFamilleId()));
+                    String.format(" AND p.lg_FAMILLEARTICLE_ID='%s' ", evaluationVenteFiltre.getFamilleId()));
 
         } else {
             sql = sql.replace("{famille_article}", "");
@@ -142,7 +156,7 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
         if (StringUtils.isNotEmpty(evaluationVenteFiltre.getEmplacementId())
                 && !"ALL".equals(evaluationVenteFiltre.getEmplacementId())) {
             sql = sql.replace("{zone_geog}",
-                    String.format(" AND p.lg_ZONE_GEO_ID=%s ", evaluationVenteFiltre.getEmplacementId()));
+                    String.format(" AND p.lg_ZONE_GEO_ID='%s' ", evaluationVenteFiltre.getEmplacementId()));
 
         } else {
             sql = sql.replace("{zone_geog}", "");
@@ -234,7 +248,8 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
         dto.setQuantiteVendue(quantiteVendue);
         dto.setMoyenne(t.get("moyenne", BigDecimal.class).floatValue());
         dto.setGrossisteId(grossisteId);
-        dto.setStock(getFamilleStockByProduitId(produitId));
+        Number stock = t.get("stock", Number.class);
+        dto.setStock(stock != null ? stock.intValue() : 0);
         buildMonthQuantityValue(quantiteMoisJson, dto);
         return dto;
 
@@ -263,21 +278,15 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
         }
 
     }
-
-    private int getFamilleStockByProduitId(String idFamille) {
-        try {
-            TypedQuery<TFamilleStock> q = getEntityManager().createQuery(
-                    "SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgEMPLACEMENTID.lgEMPLACEMENTID='1' AND o.strSTATUT='enable'",
-                    TFamilleStock.class);
-            q.setParameter(1, idFamille);
-
-            q.setMaxResults(1);
-            TFamilleStock familleStock = q.getSingleResult();
-            return familleStock.getIntNUMBERAVAILABLE();
-        } catch (Exception e) {
-            return 0;
-        }
-    }
+    /*
+     * private int getFamilleStockByProduitId(String idFamille) { try { TypedQuery<TFamilleStock> q =
+     * getEntityManager().createQuery(
+     * "SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgEMPLACEMENTID.lgEMPLACEMENTID='1' AND o.strSTATUT='enable'"
+     * , TFamilleStock.class); q.setParameter(1, idFamille);
+     *
+     * q.setMaxResults(1); TFamilleStock familleStock = q.getSingleResult(); return
+     * familleStock.getIntNUMBERAVAILABLE(); } catch (Exception e) { return 0; } }
+     */
 
     @Override
     public byte[] exportEvaluationVentesCsv(EvaluationVenteFiltre evaluationVenteFiltre) throws IOException {
