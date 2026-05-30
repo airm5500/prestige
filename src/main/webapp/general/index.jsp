@@ -78,9 +78,24 @@
 
             //code ajouté pr la gestion des langues
             $(function () {
-              
-
+                // Alerte reserve : nombre d'articles a reassortir selon suggestions
+                checkReassortReserve();
             });
+
+            function checkReassortReserve() {
+                $.get("../api/v1/reserve/suggestions?start=0&limit=1", {}, function (response) {
+                    try {
+                        var obj = (typeof response === 'string') ? jQuery.parseJSON(response) : response;
+                        var total = obj && obj.total ? parseInt(obj.total, 10) : 0;
+                        if (total > 0) {
+                            $("#freeow").freeow("Gestion des reserves",
+                                total + " article(s) a reassortir selon les suggestions.",
+                                { classes: ["gray", "pushpin"], autoHide: true, autoHideDelay: 8000 });
+                        }
+                    } catch (e) {
+                    }
+                });
+            }
 
             function updateALLData() {
                 UpdateNotification();
