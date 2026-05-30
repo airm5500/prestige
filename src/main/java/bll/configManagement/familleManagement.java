@@ -4013,10 +4013,9 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                     if (OTTypeStockFamille != null) {
                         OTFamille.setIntSEUILRESERVE(int_SEUIL_RESERVE);
                     }
-                    // if (new StockManager(this.getOdataManager(), this.getOTUser()).doReassort(0,
-                    // OTFamille.getLgFAMILLEID(), commonparameter.ASSORT)) {
-                    // OTFamille.setIntSEUILRESERVE(int_SEUIL_RESERVE);
-                    // }
+                } else {
+                    // article déjà en réserve : mise à jour simple du seuil
+                    OTFamille.setIntSEUILRESERVE(int_SEUIL_RESERVE);
                 }
 
             }
