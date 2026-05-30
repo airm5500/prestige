@@ -363,13 +363,14 @@ public class ReserveServiceImpl implements ReserveService {
 
     private Integer getNumberAvailable(String familleId, String empl) {
         try {
-            Query q = em.createQuery(
-                    "SELECT t.intNUMBERAVAILABLE FROM TFamilleStock t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 "
-                            + "AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND t.strSTATUT = 'enable'");
+            Query q = em.createNativeQuery(
+                    "SELECT t.int_NUMBER_AVAILABLE FROM t_famille_stock t WHERE t.lg_FAMILLE_ID = ?1 "
+                            + "AND t.lg_EMPLACEMENT_ID = ?2 AND t.str_STATUT = 'enable'");
             q.setParameter(1, familleId);
             q.setParameter(2, empl);
             q.setMaxResults(1);
-            return (Integer) q.getSingleResult();
+            Object result = q.getSingleResult();
+            return result != null ? ((Number) result).intValue() : null;
         } catch (Exception e) {
             return null;
         }
@@ -377,14 +378,15 @@ public class ReserveServiceImpl implements ReserveService {
 
     private Integer getTypeStockNumber(String typeStockId, String familleId, String empl) {
         try {
-            Query q = em.createQuery(
-                    "SELECT t.intNUMBER FROM TTypeStockFamille t WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = ?1 "
-                            + "AND t.lgFAMILLEID.lgFAMILLEID = ?2 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?3");
+            Query q = em.createNativeQuery(
+                    "SELECT t.int_NUMBER FROM t_type_stock_famille t WHERE t.lg_TYPE_STOCK_ID = ?1 "
+                            + "AND t.lg_FAMILLE_ID = ?2 AND t.lg_EMPLACEMENT_ID = ?3");
             q.setParameter(1, typeStockId);
             q.setParameter(2, familleId);
             q.setParameter(3, empl);
             q.setMaxResults(1);
-            return (Integer) q.getSingleResult();
+            Object result = q.getSingleResult();
+            return result != null ? ((Number) result).intValue() : null;
         } catch (Exception e) {
             return null;
         }

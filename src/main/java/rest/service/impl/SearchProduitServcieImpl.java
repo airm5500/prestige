@@ -452,6 +452,11 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("str_STATUT", t.getStrSTATUT());
 
             json.put("bool_RESERVE", t.getBoolRESERVE());
+            if (t.getBoolRESERVE() != null && t.getBoolRESERVE()) {
+                json.put("int_SEUIL_RESERVE", t.getIntSEUILRESERVE() != null ? t.getIntSEUILRESERVE() : 0);
+                Integer reserveStock = getReserveStockNumber(t.getLgFAMILLEID(), empl);
+                json.put("int_STOCK_RESERVE", reserveStock != null ? reserveStock : 0);
+            }
 
             json.put("dt_CREATED", DateUtil.convertDateToDD_MM_YYYY_HH_mm(t.getDtCREATED()));
             json.put("dt_UPDATED", DateUtil.convertDateToDD_MM_YYYY_HH_mm(t.getDtUPDATED()));
