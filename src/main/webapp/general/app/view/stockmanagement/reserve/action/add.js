@@ -1,4 +1,4 @@
-var url_services_transaction_reserve = '../api/v1/reserve/';
+var rsvmgr_url_transaction = '../api/v1/reserve/';
 
 
 var Oview;
@@ -127,9 +127,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         var internal_url = "";
 
         if (Omode === "assort") {
-            internal_url = url_services_transaction_reserve + 'assort';
+            internal_url = rsvmgr_url_transaction + 'assort';
         } else if (Omode === "reassort") {
-            internal_url = url_services_transaction_reserve + 'reassort';
+            internal_url = rsvmgr_url_transaction + 'reassort';
         }
 
         Ext.Ajax.request({

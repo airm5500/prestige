@@ -1,6 +1,6 @@
-var url_services_data_reserve = '../api/v1/reserve/articles';
-var url_services_transaction_reserve = '../api/v1/reserve/';
-var url_services_reassort_batch = '../api/v1/reserve/reassort-batch';
+var rsvmgr_url_articles = '../api/v1/reserve/articles';
+var rsvmgr_url_transaction = '../api/v1/reserve/';
+var rsvmgr_url_reassort_batch = '../api/v1/reserve/reassort-batch';
 
 var Me;
 Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
@@ -35,7 +35,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_reserve,
+                url: rsvmgr_url_articles,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -182,7 +182,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                             var value = cmp.getValue();
 
                             var OGrid = Ext.getCmp('GridReserveID');
-                            OGrid.getStore().getProxy().url = url_services_data_reserve + "?str_TYPE_TRANSACTION=" + value;
+                            OGrid.getStore().getProxy().url = rsvmgr_url_articles + "?str_TYPE_TRANSACTION=" + value;
                             OGrid.getStore().reload();
                         }
                     }
@@ -248,7 +248,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                         var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Traitement en cours');
                         Ext.Ajax.request({
                             method: 'POST',
-                            url: url_services_reassort_batch,
+                            url: rsvmgr_url_reassort_batch,
                             jsonData: {items: items},
                             success: function(response) {
                                 progress.hide();
@@ -308,7 +308,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 search_value: val.value,
                 str_TYPE_TRANSACTION: str_TYPE_TRANSACTION
             }
-        }, url_services_data_reserve);
+        }, rsvmgr_url_articles);
     }
 
 });
