@@ -177,6 +177,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                 if (object && object.success) {
                     Ext.MessageBox.alert('Confirmation', object.message);
                     Oview.getStore().reload();
+                    if (typeof refreshNotificationBadge === 'function') {
+                        refreshNotificationBadge();
+                    }
                     win.close();
                 } else {
                     // Erreur metier : on garde la fenetre ouverte pour corriger

@@ -273,6 +273,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                                 Ext.MessageBox.alert('Resultat',
                                         (res.traites || 0) + ' / ' + (res.total || 0) + ' reassort(s) effectue(s).');
                                 grid.getStore().reload();
+                                if (typeof refreshNotificationBadge === 'function') {
+                                    refreshNotificationBadge();
+                                }
                             },
                             failure: function(response) {
                                 progress.hide();

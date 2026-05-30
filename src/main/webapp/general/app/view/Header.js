@@ -168,6 +168,12 @@ Ext.define('testextjs.view.Header', {
         // Charge le compteur de notifications (articles a reassortir)
         this.on('afterrender', function () {
             refreshNotificationBadge();
+            // Rafraichissement temps reel du badge (toutes les 60s)
+            if (!window.PRESTIGE_NOTIF_TIMER) {
+                window.PRESTIGE_NOTIF_TIMER = setInterval(function () {
+                    refreshNotificationBadge();
+                }, 60000);
+            }
         }, this, {delay: 500, single: true});
     },
     Deconnexion: function () {
