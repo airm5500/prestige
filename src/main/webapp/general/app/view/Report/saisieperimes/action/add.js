@@ -512,6 +512,9 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                         myAppController.StopWaitingProcess();
                     }
                     store.load();
+                    if (typeof refreshNotificationBadge === 'function') {
+                        refreshNotificationBadge();
+                    }
                 }, failure: function (response, options) {
                     myAppController.StopWaitingProcess();
                 }

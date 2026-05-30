@@ -195,6 +195,9 @@ Ext.define('testextjs.view.stockmanagement.perime.action.add', {
                         } else {
                             Ext.MessageBox.alert('Confirmation', object.errors);
                             Oview.getStore().reload();
+                            if (typeof refreshNotificationBadge === 'function') {
+                                refreshNotificationBadge();
+                            }
                         }
                         var bouton = button.up('window');
                                 bouton.close();
