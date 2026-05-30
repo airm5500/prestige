@@ -773,7 +773,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         {
                             text: 'Retour',
                             id: 'btn_cancel',
-                            cls: 'btn-secondary',
+                            cls: 'btn-primary',
                             iconCls: 'icon-clear-group',
                             scope: this,
                             hidden: false,

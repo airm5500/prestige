@@ -1002,37 +1002,76 @@ public class SuggestionImpl implements SuggestionService {
         }
     }
 
+    /*
+     * private int getProduitQuantity(String lgFamille, int month, int year, String empl) {
+     *
+     * try { CriteriaBuilder cb = em.getCriteriaBuilder(); CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+     * Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class); Join<TPreenregistrementDetail,
+     * TFamille> prf = root.join("lgFAMILLEID", JoinType.INNER); Predicate criteria = cb.conjunction(); criteria =
+     * cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("bISCANCEL"), false)); criteria =
+     * cb.and(criteria, cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
+     * criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("strSTATUT"), "is_Closed")); criteria
+     * = cb.and(criteria, cb.equal(
+     * root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), empl));
+     * Predicate pu = cb.greaterThan(root.get("lgPREENREGISTREMENTID").get("intPRICE"), 0); cb.and(criteria, pu);
+     * Predicate pu2 = cb.greaterThan(root.get(TPreenregistrementDetail_.intQUANTITY), 0); criteria = cb.and(criteria,
+     * cb.equal(prf.get(TFamille_.lgFAMILLEID), lgFamille)); Predicate btw = cb.equal(cb.function("MONTH",
+     * Integer.class, root.get("dtCREATED")), month); Predicate btw2 = cb.equal(cb.function("YEAR", Integer.class,
+     * root.get("dtCREATED")), year); cq.select(cb.sumAsLong(root.get(TPreenregistrementDetail_.intQUANTITY)));
+     * cq.where(criteria, btw, pu2, btw2, pu); Query q = em.createQuery(cq); Long r = (Long) q.getSingleResult(); return
+     * (r != null ? r.intValue() : 0); } catch (Exception e) { LOG.log(Level.SEVERE, null, e); return 0; }
+     *
+     * }
+     */
+
     private int getProduitQuantity(String lgFamille, int month, int year, String empl) {
 
         try {
+            LocalDate startDate = LocalDate.of(year, month, 1);
+            LocalDate endDate = startDate.plusMonths(1);
+
+            Date dateDebut = java.sql.Timestamp.valueOf(startDate.atStartOfDay());
+            Date dateFin = java.sql.Timestamp.valueOf(endDate.atStartOfDay());
+
             CriteriaBuilder cb = em.getCriteriaBuilder();
             CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Join<TPreenregistrementDetail, TFamille> prf = root.join("lgFAMILLEID", JoinType.INNER);
+
             Predicate criteria = cb.conjunction();
+
+            criteria = cb.and(criteria, cb.equal(root.get("lgFAMILLEID").get("lgFAMILLEID"), lgFamille));
+
             criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("bISCANCEL"), false));
+
             criteria = cb.and(criteria,
-                    cb.notLike(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
+                    cb.notEqual(root.get("lgPREENREGISTREMENTID").get("lgTYPEVENTEID").get("lgTYPEVENTEID"), "5"));
+
             criteria = cb.and(criteria, cb.equal(root.get("lgPREENREGISTREMENTID").get("strSTATUT"), "is_Closed"));
+
             criteria = cb.and(criteria, cb.equal(
                     root.get("lgPREENREGISTREMENTID").get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
                     empl));
-            Predicate pu = cb.greaterThan(root.get("lgPREENREGISTREMENTID").get("intPRICE"), 0);
-            cb.and(criteria, pu);
-            Predicate pu2 = cb.greaterThan(root.get(TPreenregistrementDetail_.intQUANTITY), 0);
-            criteria = cb.and(criteria, cb.equal(prf.get(TFamille_.lgFAMILLEID), lgFamille));
-            Predicate btw = cb.equal(cb.function("MONTH", Integer.class, root.get("dtCREATED")), month);
-            Predicate btw2 = cb.equal(cb.function("YEAR", Integer.class, root.get("dtCREATED")), year);
+
+            criteria = cb.and(criteria, cb.greaterThan(root.get("lgPREENREGISTREMENTID").get("intPRICE"), 0));
+
+            criteria = cb.and(criteria, cb.greaterThan(root.get(TPreenregistrementDetail_.intQUANTITY), 0));
+
+            criteria = cb.and(criteria, cb.greaterThanOrEqualTo(root.get("dtCREATED"), dateDebut));
+
+            criteria = cb.and(criteria, cb.lessThan(root.get("dtCREATED"), dateFin));
+
             cq.select(cb.sumAsLong(root.get(TPreenregistrementDetail_.intQUANTITY)));
-            cq.where(criteria, btw, pu2, btw2, pu);
-            Query q = em.createQuery(cq);
-            Long r = (Long) q.getSingleResult();
-            return (r != null ? r.intValue() : 0);
+            cq.where(criteria);
+
+            Long r = em.createQuery(cq).getSingleResult();
+
+            return r != null ? r.intValue() : 0;
+
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return 0;
         }
-
     }
 
     public TFamilleStock getTProductItemStock(String lgId, String lgEMPLACEMENTID) {
@@ -1072,16 +1111,28 @@ public class SuggestionImpl implements SuggestionService {
     @Override
     public JSONObject fetchItems(String suggestionId, String searchValue, int start, int limit) {
         // removeInBulk(supprimerLigneSuggestion(suggestionId));
+
+        long globalStart = System.currentTimeMillis();
+
         TUser tUser = sessionHelperService.getCurrentUser();
         JSONObject data = new JSONObject();
+
+        long t0 = System.currentTimeMillis();
         int count = fetchItemsCount(searchValue, suggestionId);
+        LOG.info("SUGGESTION PERF - fetchItemsCount = " + (System.currentTimeMillis() - t0) + " ms, count=" + count);
 
         if (count == 0) {
+            LOG.info("SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
             return data.put("total", count).put("data", Collections.emptyList());
         }
+
+        long t1 = System.currentTimeMillis();
         List<TSuggestionOrderDetails> detailses = fetchSuggestionOrderDetails(searchValue, suggestionId, start, limit);
+        LOG.info("SUGGESTION PERF - fetchSuggestionOrderDetails = " + (System.currentTimeMillis() - t1) + " ms, size="
+                + detailses.size());
 
         if (detailses.isEmpty()) {
+            LOG.info("SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
             return data.put("total", count).put("data", Collections.emptyList());
         }
 
@@ -1092,36 +1143,60 @@ public class SuggestionImpl implements SuggestionService {
             Integer intACHAT = 0;
             Integer intVENTE = 0;
             String empl = tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+
             LocalDate today = LocalDate.now();
             LocalDate moisUn = LocalDate.of(today.getYear(), today.getMonthValue(), 1);
             LocalDate nMoinsUn = moisUn.minusMonths(1);
             LocalDate nMoinsDeux = moisUn.minusMonths(2);
             LocalDate nMoinsTrois = moisUn.minusMonths(3);
+
             data.put("total", count);
 
+            long boucleStart = System.currentTimeMillis();
+
             for (TSuggestionOrderDetails order : detailses) {
+                long lineStart = System.currentTimeMillis();
+
                 TFamille famille = order.getLgFAMILLEID();
                 JSONObject json = new JSONObject();
+
+                long stockStart = System.currentTimeMillis();
                 TFamilleStock oTFamillestock = getTProductItemStock(famille.getLgFAMILLEID(), empl);
+                LOG.info("SUGGESTION PERF - stock produit " + famille.getLgFAMILLEID() + " = "
+                        + (System.currentTimeMillis() - stockStart) + " ms");
+
                 if (oTFamillestock == null) {
+                    LOG.info("SUGGESTION PERF - produit ignore sans stock : " + famille.getLgFAMILLEID());
                     continue;
                 }
+
+                long fgStart = System.currentTimeMillis();
                 TFamilleGrossiste familleGrossiste = findFamilleGrossiste(famille.getLgFAMILLEID(),
                         grossiste.getLgGROSSISTEID());
+                LOG.info("SUGGESTION PERF - familleGrossiste produit " + famille.getLgFAMILLEID() + " = "
+                        + (System.currentTimeMillis() - fgStart) + " ms");
+
                 json.put("lg_SUGGESTION_ORDER_DETAILS_ID", order.getLgSUGGESTIONORDERDETAILSID());
                 json.put("lg_FAMILLE_ID", famille.getLgFAMILLEID());
                 json.put("bool_DECONDITIONNE_EXIST", famille.getBoolDECONDITIONNEEXIST());
                 json.put("lg_GROSSISTE_ID", order.getLgGROSSISTEID().getLgGROSSISTEID());
-                json.put("str_FAMILLE_CIP",
-                        (familleGrossiste != null ? familleGrossiste.getStrCODEARTICLE() : famille.getIntCIP()));
-                json.put("str_FAMILLE_NAME", famille.getStrDESCRIPTION());
-                json.put("int_DATE_BUTOIR_ARTICLE", (famille.getLgCODEGESTIONID() != null
-                        ? famille.getLgCODEGESTIONID().getIntDATEBUTOIRARTICLE() : 0));
-                json.put("int_STOCK", oTFamillestock.getIntNUMBERAVAILABLE());
 
+                json.put("str_FAMILLE_CIP",
+                        familleGrossiste != null ? familleGrossiste.getStrCODEARTICLE() : famille.getIntCIP());
+
+                json.put("str_FAMILLE_NAME", famille.getStrDESCRIPTION());
+
+                json.put("int_DATE_BUTOIR_ARTICLE", famille.getLgCODEGESTIONID() != null
+                        ? famille.getLgCODEGESTIONID().getIntDATEBUTOIRARTICLE() : 0);
+
+                json.put("int_STOCK", oTFamillestock.getIntNUMBERAVAILABLE());
                 json.put("int_NUMBER", order.getIntNUMBER());
 
+                long etatStart = System.currentTimeMillis();
                 json.put("produitState", new JSONObject(productStateService.getEtatProduit(famille.getLgFAMILLEID())));
+                LOG.info("SUGGESTION PERF - etatProduit produit " + famille.getLgFAMILLEID() + " = "
+                        + (System.currentTimeMillis() - etatStart) + " ms");
+
                 json.put("int_SEUIL", famille.getIntSEUILMIN());
                 json.put("str_STATUT", order.getStrSTATUT());
                 json.put("lg_FAMILLE_PRIX_VENTE", order.getIntPRICEDETAIL());
@@ -1140,31 +1215,57 @@ public class SuggestionImpl implements SuggestionService {
                         intQTEREASSORT = 0;
                     }
                 } catch (Exception e) {
+                    LOG.log(Level.SEVERE, "Erreur calcul int_QTE_REASSORT produit " + famille.getLgFAMILLEID(), e);
                 }
+
                 json.put("int_QTE_REASSORT", intQTEREASSORT);
 
                 intACHAT = intACHAT + order.getIntPAFDETAIL();
-
                 intVENTE = intVENTE + order.getIntPRICEDETAIL();
 
                 json.put("int_ACHAT", intACHAT);
                 json.put("int_VENTE", intVENTE);
 
+                long q0 = System.currentTimeMillis();
                 json.put("int_VALUE0",
                         getProduitQuantity(famille.getLgFAMILLEID(), moisUn.getMonthValue(), moisUn.getYear(), empl));
+                LOG.info("SUGGESTION PERF - qte mois courant produit " + famille.getLgFAMILLEID() + " = "
+                        + (System.currentTimeMillis() - q0) + " ms");
+
+                long q1 = System.currentTimeMillis();
                 json.put("int_VALUE1", getProduitQuantity(famille.getLgFAMILLEID(), nMoinsUn.getMonthValue(),
                         nMoinsUn.getYear(), empl));
+                LOG.info("SUGGESTION PERF - qte M-1 produit " + famille.getLgFAMILLEID() + " = "
+                        + (System.currentTimeMillis() - q1) + " ms");
+
+                long q2 = System.currentTimeMillis();
                 json.put("int_VALUE2", getProduitQuantity(famille.getLgFAMILLEID(), nMoinsDeux.getMonthValue(),
                         nMoinsDeux.getYear(), empl));
+                LOG.info("SUGGESTION PERF - qte M-2 produit " + famille.getLgFAMILLEID() + " = "
+                        + (System.currentTimeMillis() - q2) + " ms");
+
+                long q3 = System.currentTimeMillis();
                 json.put("int_VALUE3", getProduitQuantity(famille.getLgFAMILLEID(), nMoinsTrois.getMonthValue(),
                         nMoinsTrois.getYear(), empl));
+                LOG.info("SUGGESTION PERF - qte M-3 produit " + famille.getLgFAMILLEID() + " = "
+                        + (System.currentTimeMillis() - q3) + " ms");
+
                 arrayObj.put(json);
 
+                LOG.info("SUGGESTION PERF - ligne produit " + famille.getLgFAMILLEID() + " total = "
+                        + (System.currentTimeMillis() - lineStart) + " ms");
             }
+
+            LOG.info("SUGGESTION PERF - boucle totale = " + (System.currentTimeMillis() - boucleStart) + " ms");
+
             data.put("data", arrayObj);
+
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
+
+        LOG.info("SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
+
         return data;
     }
 

@@ -249,6 +249,18 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                                         });
                             }
                         }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/page_copy.png',
+                            tooltip: 'Cloner en commande',
+                            scope: this,
+                            handler: this.onCloneSuggestionClick
+                        }]
                 }
             ],
             selModel: {
@@ -428,6 +440,68 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 query: val.value
             }
         });
+    },
+    
+    onCloneSuggestionClick: function (grid, rowIndex) {
+    const me = this;
+    const rec = grid.getStore().getAt(rowIndex);
+
+    if (!rec) {
+        Ext.Msg.alert('Erreur', 'Impossible de retrouver la suggestion sélectionnée.');
+        return;
     }
+
+    const suggestionId = rec.get('lg_SUGGESTION_ORDER_ID') || rec.get('lgSUGGESTIONORDERID');
+
+    if (!suggestionId) {
+        Ext.Msg.alert('Erreur', 'Identifiant de la suggestion introuvable.');
+        return;
+    }
+
+    Ext.MessageBox.confirm(
+            'Confirmation',
+            'Voulez-vous cloner cette suggestion en nouvelle commande ?',
+            function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+
+                Ext.Ajax.request({
+                    url: '../api/v1/commande/clone-suggestion-order/' + suggestionId,
+                    method: 'PUT',
+                    success: function (response) {
+                        let result = {};
+
+                        try {
+                            result = Ext.decode(response.responseText);
+                        } catch (e) {
+                            Ext.Msg.alert('Erreur', 'Réponse serveur invalide.');
+                            return;
+                        }
+
+                        if (result.success) {
+                            const ref = result.data && result.data.str_REF_ORDER
+                                    ? result.data.str_REF_ORDER
+                                    : '';
+
+                            Ext.Msg.alert(
+                                    'Succès',
+                                    ref
+                                            ? 'Suggestion clonée en commande avec succès. Nouvelle référence : ' + ref
+                                            : 'Suggestion clonée en commande avec succès.'
+                            );
+
+                            grid.getStore().reload();
+                        } else {
+                            Ext.Msg.alert('Erreur', result.msg || 'Erreur lors du clonage de la suggestion.');
+                        }
+                    },
+                    failure: function () {
+                        Ext.Msg.alert('Erreur', 'Erreur de communication avec le serveur.');
+                    }
+                });
+            }
+    );
+}
 
 });

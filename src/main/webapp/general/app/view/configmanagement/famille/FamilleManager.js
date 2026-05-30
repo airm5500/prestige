@@ -48,6 +48,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         Me_Workflow = this;
         lg_EMPLACEMENT_ID = loadEmplacement();
         let itemsPerPage = 20;
+        
         const store = new Ext.data.Store({
             model: 'testextjs.model.Famille',
             pageSize: itemsPerPage,
@@ -55,14 +56,28 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/produit-search/fiche',
+                timeout: 60000,
                 reader: {
                     type: 'json',
                     root: 'results',
                     totalProperty: 'total'
                 }
+            },
+            listeners: {
+                beforeload: function (store, operation) {
+                    const proxy = store.getProxy();
 
+                    const searchCmp = Ext.getCmp('rechecher');
+                    const typeCmp = Ext.getCmp('str_TYPE_TRANSACTION');
+                    const dciCmp = Ext.getCmp('lg_DCI_PRINCIPAL_ID');
+                    const zoneCmp = Ext.getCmp('lg_ZONE_GEO_ID');
+
+                    proxy.setExtraParam('search_value', searchCmp ? (searchCmp.getValue() || '') : '');
+                    proxy.setExtraParam('str_TYPE_TRANSACTION', typeCmp ? (typeCmp.getValue() || '') : '');
+                    proxy.setExtraParam('lg_DCI_ID', dciCmp ? (dciCmp.getValue() || '') : '');
+                    proxy.setExtraParam('lg_ZONE_GEO_ID', zoneCmp ? (zoneCmp.getValue() || '') : '');
+                }
             }
-
         });
 
         const store_dci = new Ext.data.Store({
@@ -88,6 +103,30 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         });
 
 
+        const rayons = Ext.create('Ext.data.Store', {
+            idProperty: 'id',
+            fields: [
+                {
+                    name: 'id',
+                    type: 'string'
+                },
+                {
+                    name: 'libelle',
+                    type: 'string'
+                }
+            ],
+            autoLoad: false,
+            pageSize: 9999,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/rayons',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
 
         Ext.apply(this, {
             width: '98%',
@@ -373,6 +412,18 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
                         }]
                 },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/recherche.png',
+                            tooltip: 'Voir les lots / péremptions',
+                            scope: this,
+                            handler: this.onViewPerimesClick
+                        }]
+                },
 
                 {
                     xtype: 'actioncolumn',
@@ -543,160 +594,203 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [{
-                    text: ''
-                },
+            dockedItems: [
                 {
-                    text: 'Créer un Article',
-                    tooltip: 'rechercher',
-                    cls: 'btn-primary',
-                    scope: this,
-                    id: 'btn_add',
-                    iconCls: 'addicon',
-                    handler: this.onAddClick
-                }, {
-                    xtype: 'combobox',
-                    name: 'str_TYPE_TRANSACTION',
-                    margins: '0 0 0 10',
-                    id: 'str_TYPE_TRANSACTION',
-                    store: store_type,
-                    valueField: 'str_TYPE_TRANSACTION',
-                    displayField: 'str_desc',
-                    typeAhead: true,
-                    queryMode: 'local',
-//                    flex: 1,
-                    emptyText: 'Filtre article...',
-                    listeners: {
-                        select: function (cmp) {
-                            Me_Workflow.onRechClick();
-                        }
-                    }
-                }, '-', {
-                    xtype: 'combobox',
-                    name: 'lg_DCI_PRINCIPAL_ID',
-                    margins: '0 0 0 10',
-                    id: 'lg_DCI_PRINCIPAL_ID',
-                    store: store_dci,
-                    valueField: 'lg_DCI_ID',
-                    pageSize: 20, //ajout la barre de pagination
-                    displayField: 'str_NAME',
-                    typeAhead: true,
-//                    editable: false,
-                    width: 350,
-                    minChars: 2,
-                    queryMode: 'remote',
-//                    flex: 2,
-                    emptyText: 'Selectionner un DCI...',
-                    listeners: {
-                        select: function (cmp) {
-                            Me_Workflow.onRechClick();
-                        }
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
+                        {
+                            text: 'Créer un Article',
+                            tooltip: 'Créer un Article',
+                            cls: 'btn-primary',
+                            scope: this,
+                            id: 'btn_add',
+                            iconCls: 'addicon',
+                            handler: this.onAddClick
+                        },
+                        '-',
+                        {
+                            text: 'Importer',
+                            tooltip: 'Importer',
+                            id: 'btn_import',
+                            iconCls: 'importicon',
+                            scope: this,
+                            handler: this.onbtnimport
+                        },
+                        '-',
+                        {
+                            text: 'Verifier l\'importation',
+                            tooltip: 'Verifier l\'importation',
+                            id: 'btn_checkimport',
+                            iconCls: 'check_icon',
+                            scope: this,
+                            handler: this.onbtncheckimport
+                        },
+                        '-',
+                        {
+                            text: 'Importer des articles',
+                            tooltip: 'Importer stock',
+                            iconCls: 'importicon',
+                            scope: this,
+                            hidden: (lg_EMPLACEMENT_ID === '1'),
+                            handler: function () {
 
-                    }
-                }, '-', {
-                    xtype: 'textfield',
-                    id: 'rechecher',
-                    name: 'user',
-                    fieldStyle: 'background-color: orange; background-image: none;color:blue;font-weight:bold;font-size:1.3em',
-                    emptyText: 'Recherche',
-                    listeners: {
-                        'render': function (cmp) {
-                            cmp.getEl().on('keypress', function (e) {
-                                if (e.getKey() === e.ENTER) {
-                                    Me_Workflow.onRechClick();
-
-                                }
-                            });
-                        }
-                    }
-                }, '-', {
-                    text: 'rechercher',
-                    tooltip: 'rechercher',
-                    scope: this,
-                    iconCls: 'searchicon',
-                    handler: this.onRechClick
-                }, '-', {
-                    text: 'Imprimer',
-                    tooltip: 'imprimer',
-                    iconCls: 'printable',
-                    scope: this,
-                    handler: this.onPdfClick
-                }, '-', {
-                    text: 'Importer',
-                    tooltip: 'Importer',
-                    id: 'btn_import',
-                    iconCls: 'importicon',
-//                    hidden: true, //a decommenter en cas de probleme 10/06/2016
-                    scope: this,
-                    handler: this.onbtnimport
-                }, '-',
-
-                {
-                    text: 'Verifier l\'importation',
-                    tooltip: 'Verifier l\'importation',
-                    id: 'btn_checkimport',
-                    iconCls: 'check_icon',
-                    scope: this,
-                    handler: this.onbtncheckimport
-                }, '-',
-
-                {
-                    text: 'Importer des articles',
-                    tooltip: 'Importer stock',
-                    iconCls: 'importicon',
-                    scope: this,
-                    hidden: (lg_EMPLACEMENT_ID === '1'),
-                    handler: function () {
-
-                        const win = new Ext.window.Window({
-                            autoShow: false,
-                            title: 'Importer stock dépôt',
-                            width: 500,
-                            height: 150,
-                            layout: 'fit',
-                            plain: true,
-                            items: {
-                                xtype: 'form',
-                                bodyPadding: 10,
-                                defaults: {
-                                    anchor: '100%'
-                                },
-                                items: [{
-                                        xtype: 'fieldset',
-                                        bodyPadding: 20,
-                                        defaultType: 'filefield',
+                                const win = new Ext.window.Window({
+                                    autoShow: false,
+                                    title: 'Importer stock dépôt',
+                                    width: 500,
+                                    height: 150,
+                                    layout: 'fit',
+                                    plain: true,
+                                    items: {
+                                        xtype: 'form',
+                                        bodyPadding: 10,
                                         defaults: {
                                             anchor: '100%'
                                         },
-                                        items: [
-                                            {
-                                                xtype: 'filefield',
-                                                style: 'margin:5px !important;',
-                                                fieldLabel: 'Fichier xls',
-                                                emptyText: 'Fichier xls ',
-                                                name: 'fichier',
-                                                allowBlank: false,
-                                                buttonText: 'Choisir un fichier ',
-                                                width: 400
+                                        items: [{
+                                                xtype: 'fieldset',
+                                                bodyPadding: 20,
+                                                defaultType: 'filefield',
+                                                defaults: {
+                                                    anchor: '100%'
+                                                },
+                                                items: [
+                                                    {
+                                                        xtype: 'filefield',
+                                                        style: 'margin:5px !important;',
+                                                        fieldLabel: 'Fichier xls',
+                                                        emptyText: 'Fichier xls ',
+                                                        name: 'fichier',
+                                                        allowBlank: false,
+                                                        buttonText: 'Choisir un fichier ',
+                                                        width: 400
+                                                    }
+                                                ]
+                                            }]
+                                    },
+                                    buttons: [{
+                                            text: 'Enregistrer',
+                                            handler: this.onbtnImporter
+                                        }, {
+                                            text: 'Annuler',
+                                            handler: function () {
+                                                win.close();
                                             }
+                                        }]
+                                });
 
-
-                                        ]
-                                    }]
+                                win.show();
                             }
-                            ,
-                            buttons: [{
-                                    text: 'Enregistrer',
-                                    handler: this.onbtnImporter
-                                }, {
-                                    text: 'Annuler',
-                                    handler: function () {
-                                        win.close();
-                                    }
-                                }]
-                        });
-                        win.show();
-                    }
+                        },
+                        '->',
+                        {
+                            text: 'Imprimer',
+                            tooltip: 'imprimer',
+                            iconCls: 'printable',
+                            scope: this,
+                            handler: this.onPdfClick
+                        }
+                    ]
+                },
+                {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
+                        {
+                            xtype: 'combobox',
+                            name: 'str_TYPE_TRANSACTION',
+                            id: 'str_TYPE_TRANSACTION',
+                            store: store_type,
+                            valueField: 'str_TYPE_TRANSACTION',
+                            displayField: 'str_desc',
+                            typeAhead: true,
+                            queryMode: 'local',
+                            width: 220,
+                            emptyText: 'Filtre article...',
+                            listeners: {
+                                select: function () {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
+                        },
+                        '-',
+                        {
+                            xtype: 'combobox',
+                            name: 'lg_DCI_PRINCIPAL_ID',
+                            id: 'lg_DCI_PRINCIPAL_ID',
+                            store: store_dci,
+                            valueField: 'lg_DCI_ID',
+                            pageSize: 20,
+                            displayField: 'str_NAME',
+                            typeAhead: true,
+                            width: 350,
+                            minChars: 2,
+                            queryMode: 'remote',
+                            emptyText: 'Selectionner un DCI...',
+                            listeners: {
+                                select: function () {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
+                        },
+                        '-',
+                        {
+                            xtype: 'textfield',
+                            id: 'rechecher',
+                            name: 'user',
+                            width: 230,
+                            fieldStyle: 'background-color: orange; background-image: none;color:blue;font-weight:bold;font-size:1.3em',
+                            emptyText: 'Recherche',
+                            listeners: {
+                                render: function (cmp) {
+                                    cmp.getEl().on('keypress', function (e) {
+                                        if (e.getKey() === e.ENTER) {
+                                            Me_Workflow.onRechClick();
+                                        }
+                                    });
+                                }
+                            }
+                        },
+                        {
+                            text: '',
+                            tooltip: 'rechercher',
+                            scope: this,
+                            iconCls: 'searchicon',
+                            handler: this.onRechClick
+                        },
+                        '-',
+                        {
+                            xtype: 'combobox',
+                            name: 'lg_ZONE_GEO_ID',
+                            id: 'lg_ZONE_GEO_ID',
+                            store: rayons,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            typeAhead: false,
+                            queryMode: 'remote',
+                            minChars: 0,
+                            pageSize: 9999,
+                            width: 260,
+                            emptyText: 'Sélectionner un rayon...',
+                            forceSelection: true,
+                            listeners: {
+                                select: function () {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
+                        },
+                        {
+                            text: 'Effacer rayon',
+                            tooltip: 'Effacer le filtre rayon',
+                            iconCls: 'cancelicon',
+                            scope: this,
+                            handler: function () {
+                                Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
+                                Me_Workflow.onRechClick();
+                            }
+                        }
+                    ]
                 }
             ],
             bbar: {
@@ -708,19 +802,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 listeners: {
                     beforechange: function (page, currentPage) {
                         const myProxy = this.store.getProxy();
-                        myProxy.params = {
-                            search_value: '',
-                            str_TYPE_TRANSACTION: '',
-                            lg_DCI_ID: ''
-                        };
 
                         const lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
                         const str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
                         const search_value = Ext.getCmp('rechecher').getValue();
+                        const lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
 
-                        myProxy.setExtraParam('str_TYPE_TRANSACTION', str_TYPE_TRANSACTION);
-                        myProxy.setExtraParam('lg_DCI_ID', lg_DCI_PRINCIPAL_ID);
-                        myProxy.setExtraParam('search_value', search_value);
+                        myProxy.setExtraParam('str_TYPE_TRANSACTION', str_TYPE_TRANSACTION || '');
+                        myProxy.setExtraParam('lg_DCI_ID', lg_DCI_PRINCIPAL_ID || '');
+                        myProxy.setExtraParam('search_value', search_value || '');
+                        myProxy.setExtraParam('lg_ZONE_GEO_ID', lg_ZONE_GEO_ID || '');
                     }
 
                 }
@@ -736,18 +827,41 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 }
             }
         });
-
+        /*
         this.callParent();
-
+           
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
-        });
+        });*/
+        
+        this.callParent(arguments);
+
+        this.on('afterrender', function (grid) {
+            Ext.defer(function () {
+                grid.loadStore();
+            }, 300);
+        }, this);
 
     },
     loadStore: function () {
-        this.getStore().load({
-            callback: this.onStoreLoad
+        const grid = this;
+        const store = grid.getStore();
+        const proxy = store.getProxy();
+
+        proxy.setExtraParam('search_value', '');
+        proxy.setExtraParam('str_TYPE_TRANSACTION', '');
+        proxy.setExtraParam('lg_DCI_ID', '');
+        proxy.setExtraParam('lg_ZONE_GEO_ID', '');
+
+        store.loadPage(1, {
+            params: {
+                search_value: '',
+                str_TYPE_TRANSACTION: '',
+                lg_DCI_ID: '',
+                lg_ZONE_GEO_ID: ''
+            },
+            callback: grid.onStoreLoad
         });
     },
     onStoreLoad: function () {
@@ -814,18 +928,30 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         window.location = '../MigrationServlet?table_name=TABLE_FAMILLE' + "&extension=" + extension + "&liste_param=" + liste_param;
     },
     onPdfClick: function () {
-        let lg_DCI_PRINCIPAL_ID = "", str_TYPE_TRANSACTION = "";
-        if (Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() != null) {
-            lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
-        }
-        if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() != null) {
-            str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
-        }
-        const linkUrl = url_services_article_generate_pdf + '?str_TYPE_TRANSACTION=' + str_TYPE_TRANSACTION + '&lg_DCI_ID=' + lg_DCI_PRINCIPAL_ID + '&search_value=' + Ext.getCmp('rechecher').getValue();
+    let lg_DCI_PRINCIPAL_ID = "",
+            str_TYPE_TRANSACTION = "",
+            lg_ZONE_GEO_ID = "";
 
+    if (Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() != null) {
+        lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
+    }
 
-        window.open(linkUrl);
-    },
+    if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() != null) {
+        str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
+    }
+
+    if (Ext.getCmp('lg_ZONE_GEO_ID').getValue() != null) {
+        lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
+    }
+
+    const linkUrl = url_services_article_generate_pdf
+            + '?str_TYPE_TRANSACTION=' + str_TYPE_TRANSACTION
+            + '&lg_DCI_ID=' + lg_DCI_PRINCIPAL_ID
+            + '&lg_ZONE_GEO_ID=' + lg_ZONE_GEO_ID
+            + '&search_value=' + Ext.getCmp('rechecher').getValue();
+
+    window.open(linkUrl);
+},
 
     onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message',
@@ -1070,18 +1196,19 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     onRechClick: function () {
         const val = Ext.getCmp('rechecher');
 
-        Ext.getCmp('GridArticleID').getStore().load({
+        Ext.getCmp('GridArticleID').getStore().loadPage(1, {
             params: {
-                search_value: val.getValue(),
-                str_TYPE_TRANSACTION: Ext.getCmp('str_TYPE_TRANSACTION').getValue(),
-                lg_DCI_ID: Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue()
-
+                search_value: val.getValue() || '',
+                str_TYPE_TRANSACTION: Ext.getCmp('str_TYPE_TRANSACTION').getValue() || '',
+                lg_DCI_ID: Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() || '',
+                lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue() || ''
             }
         });
+
         Ext.getCmp('rechecher').focus(true, 100, function () {
-//            Ext.getCmp('rechecher').selectText(0, 1);
         });
     },
+    
     onAddGrossisteClick: function (grid, rowIndex) {
 
         const rec = grid.getStore().getAt(rowIndex);
@@ -1302,6 +1429,175 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 });
 
 
+    },
+
+    onViewPerimesClick: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        const cip = rec.get('int_CIP');
+        const designation = rec.get('str_DESCRIPTION') || rec.get('str_NAME') || '';
+
+        if (!cip) {
+            Ext.MessageBox.alert('Alerte Message', 'Code CIP introuvable pour ce produit.');
+            return;
+        }
+
+        const perimeStore = new Ext.data.Store({
+            fields: [
+                {name: 'datePerement', type: 'string'},
+                {name: 'quantiteLot', type: 'int'},
+                {name: 'numLot', type: 'string'},
+                {name: 'statut', type: 'string'},
+                {name: 'codeCip', type: 'string'}
+            ],
+            data: []
+        });
+
+        const printPerimeData = function () {
+            const rows = [];
+
+            perimeStore.each(function (record) {
+                rows.push(
+                        '<tr>' +
+                        '<td>' + Ext.String.htmlEncode(record.get('datePerement') || '') + '</td>' +
+                        '<td style="text-align:center;">' + Ext.String.htmlEncode(String(record.get('quantiteLot') || 0)) + '</td>' +
+                        '<td>' + Ext.String.htmlEncode(record.get('numLot') || '') + '</td>' +
+                        '<td>' + Ext.String.htmlEncode(record.get('statut') || '') + '</td>' +
+                        '</tr>'
+                        );
+            });
+
+            const html = '<!DOCTYPE html>' +
+                    '<html>' +
+                    '<head>' +
+                    '<meta charset="UTF-8">' +
+                    '<title>Lots / péremptions - ' + Ext.String.htmlEncode(String(cip)) + '</title>' +
+                    '<style>' +
+                    'body{font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:20px;}' +
+                    'h2{font-size:16px;margin:0 0 12px 0;}' +
+                    'table{width:100%;border-collapse:collapse;}' +
+                    'th,td{border:1px solid #000;padding:6px;}' +
+                    'th{background:#f0f0f0;text-align:left;}' +
+                    '</style>' +
+                    '</head>' +
+                    '<body>' +
+                    '<h2>' + Ext.String.htmlEncode(String(cip)) + ' - ' + Ext.String.htmlEncode(designation) + '</h2>' +
+                    '<table>' +
+                    '<thead>' +
+                    '<tr>' +
+                    '<th>Date péremption</th>' +
+                    '<th>Quantité</th>' +
+                    '<th>N° Lot</th>' +
+                    '<th>Statut</th>' +
+                    '</tr>' +
+                    '</thead>' +
+                    '<tbody>' +
+                    (rows.length > 0 ? rows.join('') : '<tr><td colspan="4">Aucune donnée à imprimer</td></tr>') +
+                    '</tbody>' +
+                    '</table>' +
+                    '</body>' +
+                    '</html>';
+
+            const printWindow = window.open('', '_blank');
+            printWindow.document.open();
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        };
+
+        const win = Ext.create('Ext.window.Window', {
+            title: cip + ' - ' + designation,
+            modal: true,
+            width: 850,
+            height: 360,
+            layout: 'fit',
+            items: [{
+                    xtype: 'grid',
+                    store: perimeStore,
+                    columns: [
+                        {
+                            text: 'Date péremption',
+                            dataIndex: 'datePerement',
+                            flex: 1
+                        },
+                        {
+                            text: 'Quantité',
+                            dataIndex: 'quantiteLot',
+                            align: 'center',
+                            flex: 0.7
+                        },
+                        {
+                            text: 'N° Lot',
+                            dataIndex: 'numLot',
+                            flex: 1
+                        },
+                        {
+                            text: 'Statut',
+                            dataIndex: 'statut',
+                            flex: 2
+                        }
+                    ],
+                    viewConfig: {
+                        emptyText: 'Aucun lot trouvé pour ce produit',
+                        deferEmptyText: false
+                    }
+                }],
+            dockedItems: [{
+                    xtype: 'toolbar',
+                    dock: 'bottom',
+                    ui: 'footer',
+                    layout: {
+                        pack: 'end',
+                        type: 'hbox'
+                    },
+                    items: [{
+                            text: 'Imprimer',
+                            iconCls: 'printable',
+                            handler: printPerimeData
+                        }, {
+                            text: 'Fermer',
+                            handler: function () {
+                                win.close();
+                            }
+                        }]
+                }],
+            listeners: {
+                close: function () {
+                    Ext.getCmp('rechecher').focus(true, 100);
+                }
+            }
+        });
+
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Chargement des lots');
+
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/fichearticle/perimes',
+            params: {
+                nbreMois: 24,
+                query: cip,
+                page: 1,
+                start: 0,
+                limit: 200
+            },
+            success: function (response) {
+                progress.hide();
+
+                const result = Ext.JSON.decode(response.responseText, true);
+                const data = result && result.data ? result.data : [];
+
+                const filteredData = Ext.Array.filter(data, function (item) {
+                    return String(item.codeCip) === String(cip);
+                });
+
+                perimeStore.loadData(filteredData);
+                win.show();
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.MessageBox.alert('Erreur', response.responseText || 'Impossible de charger les lots du produit.');
+            }
+        });
     },
 
 addPeremptiondate: function (grid, rowIndex) {
