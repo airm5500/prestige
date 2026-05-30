@@ -83,7 +83,7 @@
             });
 
             function checkReassortReserve() {
-                $.get("../api/v1/reserve/suggestions?start=0&limit=1", {}, function (response) {
+                $.get("${pageContext.request.contextPath}/api/v1/reserve/suggestions?start=0&limit=1", {}, function (response) {
                     try {
                         var obj = (typeof response === 'string') ? jQuery.parseJSON(response) : response;
                         var total = obj && obj.total ? parseInt(obj.total, 10) : 0;
@@ -179,6 +179,9 @@
     </head>
     <body>
 
+        <!-- Conteneur des notifications toast (freeow) : reserve, sms, etc. -->
+        <div id="freeow" class="freeow freeow-top-right"
+             style="position:fixed; top:10px; right:10px; z-index:99999; width:350px;"></div>
 
     </body>
 </html>

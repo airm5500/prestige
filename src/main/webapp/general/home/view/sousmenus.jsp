@@ -273,7 +273,7 @@
 
             // Badge reserve : injecte le nombre d'articles a reassortir sur le tile reservemanager
             $(function () {
-                $.getJSON("../../../api/v1/reserve/suggestions?start=0&limit=1", function (data) {
+                $.getJSON("${pageContext.request.contextPath}/api/v1/reserve/suggestions?start=0&limit=1", function (data) {
                     var total = data && data.total ? parseInt(data.total, 10) : 0;
                     if (total > 0) {
                         var tile = $("[onclick*='reservemanager']").first();
