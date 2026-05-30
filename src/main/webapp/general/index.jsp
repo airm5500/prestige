@@ -136,8 +136,8 @@
 
             //code ajouté pr la gestion des langues
             $(function () {
-                // Alerte reserve : nombre d'articles a reassortir selon suggestions
-                checkReassortReserve();
+                // Alerte reserve desactivee : remplacee par le centre de notifications (cloche)
+                // checkReassortReserve();
             });
 
             function checkReassortReserve() {

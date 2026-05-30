@@ -396,17 +396,22 @@ function buildNotificationWindow() {
         sections = '<div style="padding:24px; text-align:center; color:#888;">Aucune notification.</div>';
     }
 
-    var html = '<div id="pn-scroll" style="max-height:420px; overflow-y:auto;">' + sections + '</div>';
+    var html = '<div id="pn-scroll">' + sections + '</div>';
 
     Ext.create('Ext.window.Window', {
         id: 'notif-center-win',
         title: 'Notifications (' + grandTotal + ')',
         width: 400,
-        autoHeight: true,
-        maxHeight: 500,
+        height: 420,
+        minWidth: 300,
+        minHeight: 200,
+        resizable: true,
         modal: false,
         constrain: true,
+        layout: 'fit',
+        autoScroll: true,
         bodyPadding: 0,
+        bodyStyle: 'overflow-y:auto;',
         html: html,
         listeners: {
             show: function (win) {
