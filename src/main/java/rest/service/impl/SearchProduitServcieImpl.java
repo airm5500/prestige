@@ -79,14 +79,16 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         if (StringUtils.isNotEmpty(produitId)) {
             TFamille famille = this.em.find(TFamille.class, produitId);
-            Integer stockResult = getStock(famille.getLgFAMILLEID(), empl);
-            int stock = stockResult != null ? stockResult : 0;
-            Object[] tuple = new Object[] { famille, stock, famille.getGamme(), famille.getLaboratoire(),
-                    famille.getLgFAMILLEARTICLEID(), famille.getLgGROSSISTEID(), famille.getLgZONEGEOID(),
-                    famille.getLgTYPEETIQUETTEID(), famille.getLgCODEACTEID(), famille.getLgCODEGESTIONID(),
-                    famille.getLgFABRIQUANTID(), famille.getLgINDICATEURREAPPROVISIONNEMENTID(),
-                    famille.getLgREMISEID(), famille.getLgCODETVAID() };
-            arrayObj.put(buildProduitData(canceledBtn, tuple, objs, user, empl, checkExpirationdate));
+            if (famille != null) {
+                Integer stockResult = getStock(famille.getLgFAMILLEID(), empl);
+                int stock = stockResult != null ? stockResult : 0;
+                Object[] tuple = new Object[] { famille, stock, famille.getGamme(), famille.getLaboratoire(),
+                        famille.getLgFAMILLEARTICLEID(), famille.getLgGROSSISTEID(), famille.getLgZONEGEOID(),
+                        famille.getLgTYPEETIQUETTEID(), famille.getLgCODEACTEID(), famille.getLgCODEGESTIONID(),
+                        famille.getLgFABRIQUANTID(), famille.getLgINDICATEURREAPPROVISIONNEMENTID(),
+                        famille.getLgREMISEID(), famille.getLgCODETVAID() };
+                arrayObj.put(buildProduitData(canceledBtn, tuple, objs, user, empl, checkExpirationdate));
+            }
             data.put("total", 1);
         } else {
             getAllLite(false, search, diciId, empl, type, true, start, limit).forEach(
@@ -104,14 +106,16 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         if (StringUtils.isNotEmpty(produitId)) {
             TFamille famille = this.em.find(TFamille.class, produitId);
-            Integer stockResult = getStock(famille.getLgFAMILLEID(), empl);
-            int stock = stockResult != null ? stockResult : 0;
-            Object[] tuple = new Object[] { famille, stock, famille.getGamme(), famille.getLaboratoire(),
-                    famille.getLgFAMILLEARTICLEID(), famille.getLgGROSSISTEID(), famille.getLgZONEGEOID(),
-                    famille.getLgTYPEETIQUETTEID(), famille.getLgCODEACTEID(), famille.getLgCODEGESTIONID(),
-                    famille.getLgFABRIQUANTID(), famille.getLgINDICATEURREAPPROVISIONNEMENTID(),
-                    famille.getLgREMISEID(), famille.getLgCODETVAID() };
-            arrayObj.put(buildProduitData(tuple, empl));
+            if (famille != null) {
+                Integer stockResult = getStock(famille.getLgFAMILLEID(), empl);
+                int stock = stockResult != null ? stockResult : 0;
+                Object[] tuple = new Object[] { famille, stock, famille.getGamme(), famille.getLaboratoire(),
+                        famille.getLgFAMILLEARTICLEID(), famille.getLgGROSSISTEID(), famille.getLgZONEGEOID(),
+                        famille.getLgTYPEETIQUETTEID(), famille.getLgCODEACTEID(), famille.getLgCODEGESTIONID(),
+                        famille.getLgFABRIQUANTID(), famille.getLgINDICATEURREAPPROVISIONNEMENTID(),
+                        famille.getLgREMISEID(), famille.getLgCODETVAID() };
+                arrayObj.put(buildProduitData(tuple, empl));
+            }
             data.put("total", 1);
         } else {
             long count = getAllCount(search, null, empl, null, false);
@@ -839,7 +843,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         try {
             String sql = "SELECT tsf.int_NUMBER " + "FROM t_type_stock_famille tsf "
                     + "WHERE tsf.lg_TYPE_STOCK_ID = '2' " + "AND tsf.lg_FAMILLE_ID = ?1 "
-                    + "AND tsf.lg_EMPLACEMENT_ID LIKE ?2";
+                    + "AND tsf.lg_EMPLACEMENT_ID = ?2";
 
             Query q = em.createNativeQuery(sql);
             q.setParameter(1, produitId);
@@ -864,6 +868,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
 
         TFamille famille = this.em.find(TFamille.class, produitId);
+        if (famille == null) {
+            return data;
+        }
         Integer stockResult = getStock(famille.getLgFAMILLEID(), empl);
         int stock = stockResult != null ? stockResult : 0;
         Object[] tuple = new Object[] { famille, stock, famille.getGamme(), famille.getLaboratoire(),

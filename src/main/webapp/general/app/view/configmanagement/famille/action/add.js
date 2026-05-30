@@ -140,7 +140,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             xtype: 'displayfield',
             hidden: true,
             fieldLabel: 'Quantite reserve: ',
-            name: 'int_RESERVE',
+            name: 'int_STOCK_RESERVE',
             itemId: 'int_RESERVE',
             fieldStyle: 'color:blue;',
             flex: 1
