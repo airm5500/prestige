@@ -69,12 +69,68 @@
         <script src="ext/locale/ext-lang-fr.js" type="text/javascript"></script>
         <script src="app.js"></script>
 
-        <link rel="stylesheet" type="text/css" href="tools/alertToast/style/freeow/freeow.css" />
-
-        <script type="text/javascript" src="tools/alertToast/jquery.freeow.js"></script>
+        <style>
+            #prestige-toast-container {
+                position: fixed; top: 15px; right: 15px; z-index: 99999;
+                width: 320px; pointer-events: none;
+            }
+            .prestige-toast {
+                background: #4a4a4a; color: #fff;
+                border-left: 4px solid #e74c3c;
+                border-radius: 4px; padding: 12px 14px;
+                margin-bottom: 8px; font-size: 13px; line-height: 1.4;
+                box-shadow: 0 3px 10px rgba(0,0,0,.35);
+                pointer-events: all; cursor: pointer;
+                opacity: 0; transition: opacity .3s ease;
+            }
+            .prestige-toast.visible { opacity: 1; }
+            .prestige-toast .pt-title { font-weight: bold; margin-bottom: 4px; font-size: 13px; }
+            .prestige-toast .pt-close {
+                float: right; margin-left: 8px; font-size: 16px;
+                line-height: 1; cursor: pointer; color: #ccc;
+            }
+            .prestige-toast.reserve-toast { border-left-color: #e74c3c; }
+        </style>
 
         <script type="text/javascript">
+            // Mini systeme toast sans dependance
+            function prestigeToast(title, message, options) {
+                options = options || {};
+                var container = document.getElementById('prestige-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'prestige-toast-container';
+                    document.body.appendChild(container);
+                }
+                var el = document.createElement('div');
+                el.className = 'prestige-toast' + (options.cls ? ' ' + options.cls : '');
+                el.innerHTML = '<span class="pt-close" title="Fermer">&times;</span>'
+                    + '<div class="pt-title">' + title + '</div>'
+                    + '<div>' + message + '</div>';
+                container.appendChild(el);
+                setTimeout(function () { el.classList.add('visible'); }, 30);
+                var closeDelay = options.autoHideDelay || (options.autoHide === false ? 0 : 8000);
+                var tid;
+                function dismiss() {
+                    clearTimeout(tid);
+                    el.classList.remove('visible');
+                    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 350);
+                }
+                el.querySelector('.pt-close').addEventListener('click', function (e) {
+                    e.stopPropagation(); dismiss();
+                });
+                if (closeDelay > 0) { tid = setTimeout(dismiss, closeDelay); }
+                if (options.onClick) { el.addEventListener('click', function () { dismiss(); options.onClick(); }); }
+                return el;
+            }
+            // Compatibilite code existant NotifiSendPostPersonalMessage
+            function freeowCompat(title, msg, opts) {
+                opts = opts || {};
+                prestigeToast(title, msg, { autoHide: opts.autoHide !== false, autoHideDelay: opts.autoHideDelay || 8000 });
+            }
+        </script>
 
+        <script type="text/javascript">
 
             //code ajouté pr la gestion des langues
             $(function () {
@@ -88,31 +144,24 @@
                         var obj = (typeof response === 'string') ? jQuery.parseJSON(response) : response;
                         var total = obj && obj.total ? parseInt(obj.total, 10) : 0;
                         if (total > 0) {
-                            $("#freeow").freeow("Gestion des reserves",
-                                total + " article(s) a reassortir selon les suggestions.<br/><small>Cliquez pour ouvrir la gestion des reserves.</small>",
-                                { classes: ["gray", "pushpin", "reserve-toast"], autoHide: true, autoHideDelay: 8000 });
+                            prestigeToast(
+                                '<i class="fa fa-exclamation-circle" style="color:#e74c3c"></i> Gestion des reserves',
+                                total + ' article(s) a reassortir selon les suggestions.<br/><small style="color:#bbb;">Cliquez pour ouvrir la gestion des reserves.</small>',
+                                {
+                                    cls: 'reserve-toast',
+                                    autoHide: true,
+                                    autoHideDelay: 10000,
+                                    onClick: function () {
+                                        try {
+                                            testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
+                                        } catch (e) {}
+                                    }
+                                }
+                            );
                         }
-                    } catch (e) {
-                    }
+                    } catch (e) {}
                 });
             }
-
-            // Ouvre directement la vue reservemanager au clic sur le toast d'alerte reserve
-            function openReserveManagerView() {
-                try {
-                    testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
-                } catch (e) {
-                }
-            }
-            $(document).on("click", ".reserve-toast", function () {
-                openReserveManagerView();
-                $(this).fadeOut(200, function () {
-                    $(this).remove();
-                });
-            });
-            $(document).on("mouseenter", ".reserve-toast", function () {
-                $(this).css("cursor", "pointer");
-            });
 
             function updateALLData() {
                 UpdateNotification();
@@ -134,13 +183,11 @@
                     var obj = jQuery.parseJSON(response);
 
                     var DETAIL_MESSAGE = obj.results[0].message;
-                    // alert(" DETAIL_MESSAGE " + DETAIL_MESSAGE + " message " + obj.results[0].statut);
 
                     if (obj.results[0].statut == "1") {
                         NotifiSendPostPersonalMessage(DETAIL_MESSAGE);
                     }
                 });
-                //NotifiSendPostPersonalMessage("Bonjour a tous");
             }
 
             function updateSmsMiDayNotification() {
@@ -168,20 +215,15 @@
             }
 
             function NotifiSendPostPersonalMessage(Oval) {
-                // alert(Oval);
-                $("#freeow").freeow("Notification-Gestion des sms", Oval, {
-                    classes: ["gray", "pushpin"],
-                    autoHide: false
-                });
+                prestigeToast("Notification-Gestion des sms", Oval, { autoHide: false });
             }
             //fin code ajouté pr la gestion des langues
         </script>
     </head>
     <body>
 
-        <!-- Conteneur des notifications toast (freeow) : reserve, sms, etc. -->
-        <div id="freeow" class="freeow freeow-top-right"
-             style="position:fixed; top:10px; right:10px; z-index:99999; width:350px;"></div>
+        <!-- Conteneur des toasts prestige -->
+        <div id="prestige-toast-container"></div>
 
     </body>
 </html>
