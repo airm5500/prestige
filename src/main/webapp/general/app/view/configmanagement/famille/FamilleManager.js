@@ -219,6 +219,18 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         return v;
                     }
                 }, {
+                    header: 'RES',
+                    dataIndex: 'int_STOCK_RESERVE',
+                    align: 'center',
+                    flex: 0.5,
+                    renderer: function (v, m, r) {
+                        if (!r.data.bool_RESERVE) {
+                            return '';
+                        }
+                        m.style = 'color:#6600cc; font-weight:bold;font-size: 18px;';
+                        return v != null ? v : 0;
+                    }
+                }, {
                     header: 'Seuil',
                     dataIndex: 'int_STOCK_REAPROVISONEMENT',
                     align: 'center',
