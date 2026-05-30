@@ -69,6 +69,8 @@
         <script src="ext/locale/ext-lang-fr.js" type="text/javascript"></script>
         <script src="app.js"></script>
 
+        <link href="../resources/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
         <style>
             #prestige-toast-container {
                 position: fixed; top: 15px; right: 15px; z-index: 99999;
