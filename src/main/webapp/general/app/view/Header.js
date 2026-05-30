@@ -470,6 +470,8 @@ PrestigeNotif.register({
     },
     onItemClick: function () {
         try {
+            // Pre-remplit le nombre de mois a 6 et lance la recherche auto
+            window.PRESTIGE_PERIME_NBMOIS = 6;
             testextjs.app.getController('App').onLoadNewComponent("peremptionquery", "Gestion des peremptions", "");
         } catch (e) {
         }

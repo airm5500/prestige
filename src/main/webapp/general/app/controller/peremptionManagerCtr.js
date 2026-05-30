@@ -170,6 +170,11 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
     doInitStore: function () {
         const me = this;
         me.getPeremptionGrid().getStore().addListener('metachange', this.doMetachange, this);
+        // Ouverture depuis la notification "Peremptions proches" : pre-remplir nbreMois
+        if (window.PRESTIGE_PERIME_NBMOIS != null) {
+            me.getNbreMois().setValue(window.PRESTIGE_PERIME_NBMOIS);
+            window.PRESTIGE_PERIME_NBMOIS = null;
+        }
         me.doSearch();
     },
     doSearch: function () {
