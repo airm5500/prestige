@@ -268,9 +268,23 @@
 
             }
              function Call_OpenView_getView(view) {
-        //alert("Ouvrir Preenregistrement");
         window.parent.getSousMenuView(view,"");
     }
+
+            // Badge reserve : injecte le nombre d'articles a reassortir sur le tile reservemanager
+            $(function () {
+                $.getJSON("../../../api/v1/reserve/suggestions?start=0&limit=1", function (data) {
+                    var total = data && data.total ? parseInt(data.total, 10) : 0;
+                    if (total > 0) {
+                        var tile = $("[onclick*='reservemanager']").first();
+                        if (tile.length) {
+                            tile.find('.panel:first p').append(
+                                ' <span style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:bold;vertical-align:middle;">' + total + '</span>'
+                            );
+                        }
+                    }
+                });
+            });
 
 
 
