@@ -9,6 +9,7 @@ import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.FlywayException;
 
 /**
  *
@@ -35,7 +36,7 @@ public class FlywayStartupBean {
                     .validateOnMigrate(false).ignoreFutureMigrations(true).load();
             flyway.migrate();
             LOG.info("Flyway migration completed");
-        } catch (Exception e) {
+        } catch (FlywayException e) {
             LOG.log(Level.SEVERE, "Flyway migration failed", e);
         }
     }

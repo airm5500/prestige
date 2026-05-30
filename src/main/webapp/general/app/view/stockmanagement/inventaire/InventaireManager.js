@@ -4,6 +4,7 @@ var url_services_data_inventaire = '../webservices/stockmanagement/inventaire/ws
 var url_services_transaction_inventaire = '../webservices/stockmanagement/inventaire/ws_transactions.jsp?mode=';
 var Me;
 var url_services_pdf_fiche_inventaire = '../webservices/stockmanagement/inventaire/ws_generate_pdf.jsp';
+var url_services_rest_inventaire = '../api/v1/inventaire';
 
 Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
     extend: 'Ext.grid.Panel',
@@ -220,6 +221,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     cls: 'btn-primaryb',
                     handler: this.onAddUnitaireClick
                 }, '-', {
+                    text: 'Importer CSV inventaire',
+                    scope: this,
+                    iconCls: 'addicon',
+                    handler: this.onImportCsvClick
+                }, '-', {
                     xtype: 'combobox',
                     name: 'str_TYPE',
                     margins: '0 0 0 10',
@@ -326,6 +332,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
             titre: 'Analyse de l\'inventaire : ' + rec.get('str_NAME')
         }).show();
     },
+    
+    
 
     onAnalyseAvanceeClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
@@ -386,6 +394,48 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                 });
 
 
+    },
+    
+    onImportCsvClick: function() {
+        var me = this;
+        var fileInput = Ext.DomHelper.append(Ext.getBody(), {
+            tag: 'input',
+            type: 'file',
+            accept: '.csv,text/csv',
+            style: 'display:none'
+        }, true);
+        fileInput.on('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) {
+                fileInput.remove();
+                return;
+            }
+            var reader = new FileReader();
+            reader.onload = function(evt) {
+                testextjs.app.getController('App').ShowWaitingProcess();
+                Ext.Ajax.request({
+                    url: url_services_rest_inventaire + '/import-csv',
+                    method: 'POST',
+                    jsonData: {
+                        csvContent: evt.target.result
+                    },
+                    success: function(response) {
+                        testextjs.app.getController('App').StopWaitingProcess();
+                        var object = Ext.JSON.decode(response.responseText, false);
+                        Ext.Msg.alert('Information', object.message || 'Traitement termin\u00e9.');
+                        me.getStore().reload();
+                    },
+                    failure: function(response) {
+                        testextjs.app.getController('App').StopWaitingProcess();
+                        Ext.Msg.alert('Erreur', response.responseText);
+                    }
+                });
+            };
+            reader.readAsText(file, 'UTF-8');
+            fileInput.remove();
+        });
+        fileInput.dom.click();
     }
+
 
 });

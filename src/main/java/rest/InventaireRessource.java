@@ -16,6 +16,8 @@ import org.json.JSONObject;
 import rest.service.InventaireService;
 import toolkits.parameters.commonparameter;
 import util.Constant;
+import javax.ws.rs.POST;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  *
@@ -53,4 +55,18 @@ public class InventaireRessource {
         inventaireService.refreshStockLigneInventaire(id);
         return Response.ok().build();
     }
+
+    @POST
+    @Path("import-csv")
+    public Response createInventaireFromCsv(String payload) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject request = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        JSONObject json = inventaireService.createInventaireFromCsv(request.optString("csvContent"), tu);
+        return Response.ok().entity(json.toString()).build();
+    }
+
 }

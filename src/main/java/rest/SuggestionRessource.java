@@ -82,7 +82,8 @@ public class SuggestionRessource {
                 throw new WebApplicationException("File Not Found !!");
             }
         };
-        String filename = "suggestion_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("H_mm_ss")) + ".csv";
+        String filename = "Suggestion_PRESTIGE_du_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss")) + ".csv";
         return Response.ok(output, MediaType.APPLICATION_OCTET_STREAM)
                 .header("content-disposition", "attachment; filename = " + filename).build();
 

@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.logging.*;
 import javax.ejb.Asynchronous;
-
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
@@ -36,7 +36,11 @@ public class DailyStockService {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    @EJB
+    private DailyStockService self;
+
     @Asynchronous
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void processAsync(LocalDate dateStock) {
         try {
 
@@ -48,9 +52,10 @@ public class DailyStockService {
             LocalDateTime start = LocalDateTime.now();
             LOG.log(Level.INFO, "Daily stock started at {0}", start);
 
-            callProcedure();
-            updateStock(dateStock);
-            migrateSnapshots();
+            // Appels via self pour que les @TransactionAttribute soient appliqués par le proxy EJB
+            self.callProcedure();
+            self.updateStock(dateStock);
+            self.migrateSnapshots();
 
             LocalDateTime end = LocalDateTime.now();
             LOG.log(Level.INFO, "Daily stock finished at {0} duration(s): {1}",
@@ -71,18 +76,46 @@ public class DailyStockService {
         em.createNativeQuery("CALL proc_update_stock_snaps()").executeUpdate();
     }
 
-    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    /**
+     * Orchestrateur sans transaction : délègue chaque batch à processStockBatch() via le proxy EJB pour que chaque
+     * batch ouvre et committe sa propre transaction.
+     *
+     * @param dateStock
+     */
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void updateStock(LocalDate dateStock) {
 
         int dateAsInt = Integer.parseInt(dateStock.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+        int offset = 0;
+        int processed;
 
-        List<TFamilleStock> list = em
+        do {
+            processed = self.processStockBatch(dateAsInt, offset);
+            offset += processed;
+            LOG.log(Level.INFO, "Batch flush at offset {0}", offset);
+        } while (processed == BATCH_SIZE);
+
+        LOG.log(Level.INFO, "Fin execution du batch {0}", LocalDateTime.now());
+    }
+
+    /**
+     * Charge et traite un batch dans une transaction courte dédiée. Le fetch et le traitement sont dans la même
+     * transaction pour permettre le chargement des relations LAZY (lgFAMILLEID, etc.).
+     *
+     * @param dateAsInt
+     * @param offset
+     *
+     * @return nombre d'éléments traités
+     */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public int processStockBatch(int dateAsInt, int offset) {
+
+        List<TFamilleStock> batch = em
                 .createNamedQuery("TFamilleStock.findFamilleStockByEmplacement", TFamilleStock.class)
-                .setParameter("lgEMPLACEMENTID", Constant.OFFICINE).getResultList();
+                .setParameter("lgEMPLACEMENTID", Constant.OFFICINE).setFirstResult(offset).setMaxResults(BATCH_SIZE)
+                .getResultList();
 
-        int i = 0;
-
-        for (TFamilleStock next : list) {
+        for (TFamilleStock next : batch) {
 
             TFamille famille = next.getLgFAMILLEID();
 
@@ -100,16 +133,11 @@ public class DailyStockService {
                             .qty(next.getIntNUMBERAVAILABLE()).stockOfDay(dateAsInt));
 
             em.merge(snapshot);
-
-            if (++i % BATCH_SIZE == 0) {
-                em.flush();
-                em.clear();
-                LOG.log(Level.INFO, "Batch flush at {0}", i);
-            }
         }
 
         em.flush();
         em.clear();
+        return batch.size();
     }
 
     private int prixMpd(int stoc, int prixAchat) {
@@ -123,43 +151,57 @@ public class DailyStockService {
         }
     }
 
-    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    /**
+     * Orchestrateur sans transaction : délègue chaque batch à migrateSnapshotBatch() via le proxy EJB.
+     */
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void migrateSnapshots() {
-
-        while (true) {
-
-            List<TStockSnapshot> list = em.createNamedQuery("TStockSnapshot.findAll", TStockSnapshot.class)
-                    .setMaxResults(BATCH_SIZE).getResultList();
-
-            if (list.isEmpty()) {
-                break;
-            }
-
-            for (TStockSnapshot s : list) {
-
-                TFamille famille = new TFamille(s.getTStockSnapshotPK().getFamilleId());
-
-                StockSnapshot snapshot = em.find(StockSnapshot.class, famille.getLgFAMILLEID());
-
-                if (snapshot == null) {
-                    snapshot = new StockSnapshot().id(famille.getLgFAMILLEID());
-                }
-
-                snapshot.setProduit(famille);
-                snapshot.getStocks().add(new StockSnapshotValue().prixMoyentpondere(s.getPrixPaf()) // simplifié
-                        .prixPaf(s.getPrixPaf()).prixUni(s.getPrixUni()).qty(s.getQty()).stockOfDay(Integer.parseInt(
-                                s.getTStockSnapshotPK().getId().format(DateTimeFormatter.ofPattern("yyyyMMdd")))));
-
-                em.merge(snapshot);
-                em.remove(em.contains(s) ? s : em.merge(s));
-            }
-
-            em.flush();
-            em.clear();
+        while (self.migrateSnapshotBatch()) {
+            // continue jusqu'à ce qu'il n'y ait plus rien à migrer
         }
     }
 
+    /**
+     * Migre un batch de TStockSnapshot dans une transaction courte dédiée.
+     *
+     * @return true s'il reste des enregistrements à migrer, false sinon
+     */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public boolean migrateSnapshotBatch() {
+
+        List<TStockSnapshot> list = em.createNamedQuery("TStockSnapshot.findAll", TStockSnapshot.class)
+                .setMaxResults(BATCH_SIZE).getResultList();
+
+        if (list.isEmpty()) {
+            return false;
+        }
+
+        for (TStockSnapshot s : list) {
+
+            TFamille famille = new TFamille(s.getTStockSnapshotPK().getFamilleId());
+
+            StockSnapshot snapshot = em.find(StockSnapshot.class, famille.getLgFAMILLEID());
+
+            if (snapshot == null) {
+                snapshot = new StockSnapshot().id(famille.getLgFAMILLEID());
+            }
+
+            snapshot.setProduit(famille);
+            snapshot.getStocks().add(new StockSnapshotValue().prixMoyentpondere(s.getPrixPaf()) // simplifié
+                    .prixPaf(s.getPrixPaf()).prixUni(s.getPrixUni()).qty(s.getQty()).stockOfDay(Integer.parseInt(
+                            s.getTStockSnapshotPK().getId().format(DateTimeFormatter.ofPattern("yyyyMMdd")))));
+
+            em.merge(snapshot);
+            em.remove(em.contains(s) ? s : em.merge(s));
+        }
+
+        em.flush();
+        em.clear();
+        return true;
+    }
+
     @Asynchronous
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void updateStockDailyValueAsync() {
         LOG.info("Stock daily value update started");
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.BASIC_ISO_DATE;
@@ -171,7 +213,7 @@ public class DailyStockService {
 
         for (Integer id : ids) {
             if (!isAlreadyUpdated(id)) {
-                updateStock(id);
+                self.persistStockDailyValue(id);
             }
         }
         LOG.info("Stock daily value update finished");
@@ -182,7 +224,8 @@ public class DailyStockService {
         return sdv != null;
     }
 
-    private void updateStock(int id) {
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void persistStockDailyValue(int id) {
         List<Tuple> result = em.createNativeQuery("SELECT SUM(s.int_NUMBER_AVAILABLE * f.int_PRICE) AS VALEUR_VENTE, "
                 + "SUM(s.int_NUMBER_AVAILABLE * f.int_PAF) AS VALEUR_ACHAT " + "FROM t_famille f, t_famille_stock s "
                 + "WHERE s.lg_FAMILLE_ID=f.lg_FAMILLE_ID " + "AND s.lg_EMPLACEMENT_ID='1' "

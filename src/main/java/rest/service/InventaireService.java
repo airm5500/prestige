@@ -47,4 +47,6 @@ public interface InventaireService {
     void refreshStockLigneInventaire(String inventaireId);
 
     int create(Set<String> produitIds, String description);
+
+    JSONObject createInventaireFromCsv(String csvContent, TUser tUser);
 }

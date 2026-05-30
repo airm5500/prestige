@@ -1,4 +1,4 @@
-package job.ejb;
+package job;
 
 import dal.TParameters;
 import dal.enumeration.Canal;
@@ -31,6 +31,8 @@ public class NotificationJob {
     private EntityManager em;
     @EJB
     private NotificationService notificationService;
+    @EJB
+    private config.AppConfig appConfig;
     @Resource
     private TimerService timerService;
 
@@ -42,6 +44,13 @@ public class NotificationJob {
     }
 
     public void createTimer() {
+        // Annule les timers persistants existants avant d'en créer un nouveau,
+        // pour éviter l'accumulation de doublons à chaque redémarrage du serveur.
+        for (Timer t : timerService.getTimers()) {
+            if ("recapActivity".equals(t.getInfo())) {
+                t.cancel();
+            }
+        }
         TimerConfig recapActivity = new TimerConfig("recapActivity", true);
         timerService.createCalendarTimer(
                 new ScheduleExpression().hour(findHeureEnvoiSmsRecap()).dayOfMonth("*").year("*"), recapActivity);
@@ -58,10 +67,11 @@ public class NotificationJob {
 
     @Timeout
     public void timeout(Timer timer) {
-
+        if (!appConfig.isServerMode()) {
+            return;
+        }
         if ("recapActivity".equals(timer.getInfo())) {
             notificationService.sendPointActivite(new ActiviteParam(LocalDate.now().toString(), Canal.SMS));
-
         }
     }
 }

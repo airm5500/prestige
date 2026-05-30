@@ -547,9 +547,10 @@ public class CommandeServiceImpl implements CommandeService {
     private List<TInventaireFamille> findByInventaire(String id) {
         try {
             TypedQuery<TInventaireFamille> q = getEm().createQuery(
-                    "SELECT o FROM TInventaireFamille o WHERE o.lgINVENTAIREID.lgINVENTAIREID=?1",
+                    "SELECT o FROM TInventaireFamille o WHERE o.lgINVENTAIREID.lgINVENTAIREID=?1 AND o.boolINVENTAIRE = ?2",
                     TInventaireFamille.class);
             q.setParameter(1, id);
+            q.setParameter(2, Boolean.TRUE);
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -596,6 +597,7 @@ public class CommandeServiceImpl implements CommandeService {
             LongAdder count2 = new LongAdder();
             TEmplacement emplacement = user.getLgEMPLACEMENTID();
             list.stream().forEach(s -> {
+                // list.stream().filter(s -> Boolean.TRUE.equals(s.getBoolINVENTAIRE())).forEach(s -> {
                 if (s.getIntNUMBER().compareTo(s.getIntNUMBERINIT()) != 0) {
                     count.increment();
                     TFamilleStock stock = s.getLgFAMILLESTOCKID();
@@ -623,7 +625,7 @@ public class CommandeServiceImpl implements CommandeService {
             inventaire.setDtUPDATED(new Date());
             inventaire.setLgUSERID(user);
             emg.merge(inventaire);
-            String result = "Cloture effectuée avec succès; " + count.intValue() + " Articles mis à jour";
+            String result = "Inventaire cloturé; " + count.intValue() + " Article(s) mis à jour";
             json.put("success", true).put("msg", result);
             userTransaction.commit();
 

@@ -26,10 +26,7 @@ import javax.persistence.Tuple;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaUpdate;
 import javax.persistence.criteria.Root;
-import javax.transaction.HeuristicMixedException;
-import javax.transaction.HeuristicRollbackException;
-import javax.transaction.NotSupportedException;
-import javax.transaction.RollbackException;
+import javax.transaction.Status;
 import javax.transaction.SystemException;
 import javax.transaction.UserTransaction;
 import org.apache.commons.lang3.StringUtils;
@@ -76,12 +73,15 @@ public class StockReapproServiceImpl implements StockReapproService {
             userTransaction.begin();
             List<Produit> boiteCh = new ArrayList<>();
             Map<String, Integer> deconditiones = new HashMap<>();
-            fetchConsommationProduit(threeMonthAgo, lastMonth).forEach((t) -> {
+            for (Tuple t : fetchConsommationProduit(threeMonthAgo, lastMonth)) {
                 String id = t.get("id", String.class);
                 String parentId = t.get("parentId", String.class);
-                int consommation = t.get("consommation", BigDecimal.class).intValue();
-                short hasChild = t.get("hasChild", Byte.class).shortValue();
-                short isChild = t.get("isChild", Byte.class).shortValue();
+                BigDecimal consommationBd = t.get("consommation", BigDecimal.class);
+                int consommation = consommationBd != null ? consommationBd.intValue() : 0;
+                Byte hasChildByte = t.get("hasChild", Byte.class);
+                short hasChild = hasChildByte != null ? hasChildByte.shortValue() : 0;
+                Byte isChildByte = t.get("isChild", Byte.class);
+                short isChild = isChildByte != null ? isChildByte.shortValue() : 0;
                 Integer itemQuantity = t.get("itemQuantity", Integer.class);
                 if (StringUtils.isEmpty(parentId) && (hasChild == 0)) {
                     Reappro reappro = compute(consommation, dayStock, delayReappro);
@@ -94,20 +94,29 @@ public class StockReapproServiceImpl implements StockReapproService {
                         deconditiones.put(parentId, consommation);
                     }
                 }
-
-            });
+            }
 
             computeBoiteCh(boiteCh, deconditiones, dayStock, delayReappro, now);
             computeInvendus(lastMonth, threeMonthAgo, deconditiones, dayStock, delayReappro, now);
             TParameters p = getParameters("KEY_DAY_SEUIL_REAPPRO");
-            p.setStrVALUE(LocalDate.now().toString());
-            p.setDtUPDATED(now);
-            this.em.merge(p);
+            if (p != null) {
+                p.setStrVALUE(LocalDate.now().toString());
+                p.setDtUPDATED(now);
+                this.em.merge(p);
+            }
             userTransaction.commit();
 
-        } catch (IllegalStateException | SecurityException | HeuristicMixedException | HeuristicRollbackException
-                | NotSupportedException | RollbackException | SystemException e) {
+        } catch (Exception e) {
+
             LOG.log(Level.SEVERE, null, e);
+            try {
+                if (userTransaction.getStatus() == Status.STATUS_ACTIVE
+                        || userTransaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+                    userTransaction.rollback();
+                }
+            } catch (SystemException ex) {
+                LOG.log(Level.SEVERE, "Rollback failed", ex);
+            }
         }
         LOG.log(Level.INFO, "REAPPRO COMPUTE END AT ======>>>  {0} ", new Object[] { LocalDateTime.now() });
 

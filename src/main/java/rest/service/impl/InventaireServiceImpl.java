@@ -39,6 +39,10 @@ import rest.service.inventaire.dto.RayonDTO;
 import rest.service.inventaire.dto.UpdateInventaireDetailDTO;
 import util.Constant;
 import util.IdGenerator;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import javax.persistence.Query;
 
 /**
  *
@@ -454,7 +458,7 @@ public class InventaireServiceImpl implements InventaireService {
 
     @Override
     public void refreshStockLigneInventaire(String inventaireId) {
-        String query = "UPDATE t_inventaire_famille f SET f.int_NUMBER_INIT=(SELECT s.int_NUMBER_AVAILABLE FROM t_famille_stock s WHERE s.lg_FAMILLE_STOCK_ID= f.lg_FAMILLE_STOCK_ID ) WHERE f.lg_INVENTAIRE_ID=?1";
+        String query = "UPDATE t_inventaire_famille f SET f.int_NUMBER_INIT=(SELECT s.int_NUMBER_AVAILABLE FROM t_famille_stock s WHERE s.lg_FAMILLE_STOCK_ID= f.lg_FAMILLE_STOCK_ID ) WHERE f.lg_INVENTAIRE_ID=?1 AND f.bool_INVENTAIRE=true";
         em.createNativeQuery(query).setParameter(1, inventaireId).executeUpdate();
     }
 
@@ -509,4 +513,74 @@ public class InventaireServiceImpl implements InventaireService {
         inventaireFamille.setStrUPDATEDID("");
         em.persist(inventaireFamille);
     }
+
+    @Override
+    public JSONObject createInventaireFromCsv(String csvContent, TUser tUser) {
+        JSONObject json = new JSONObject();
+        if (StringUtils.isBlank(csvContent)) {
+            return json.put("success", false).put("count", 0).put("message", "Fichier CSV vide.");
+        }
+        Set<String> cips = Arrays.stream(csvContent.split("\\r?\\n")).map(String::trim).filter(StringUtils::isNotBlank)
+                .map(line -> line.split(";")[0].trim()).filter(StringUtils::isNotBlank)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (cips.isEmpty()) {
+            return json.put("success", false).put("count", 0).put("message", "Aucun CIP valide trouvé.");
+        }
+        StringBuilder cipQuery = new StringBuilder(
+                "SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE CAST(f.int_CIP AS CHAR) IN (");
+        int idx = 1;
+        for (int i = 0; i < cips.size(); i++) {
+            cipQuery.append("?").append(i + 1);
+            if (i < cips.size() - 1) {
+                cipQuery.append(",");
+            }
+        }
+        cipQuery.append(")");
+        Query cipNativeQuery = em.createNativeQuery(cipQuery.toString());
+        for (String cip : cips) {
+            cipNativeQuery.setParameter(idx++, cip);
+        }
+        List<String> familleIds = cipNativeQuery.getResultList();
+        if (familleIds.isEmpty()) {
+            return json.put("success", false).put("count", 0).put("message",
+                    "Aucun article correspondant aux CIPs importés.");
+        }
+        TInventaire inventaire = createInventaireFromCsv(tUser, familleIds.size());
+        StringBuilder insertQuery = new StringBuilder(
+                "INSERT INTO t_inventaire_famille(`lg_INVENTAIRE_ID`,`str_STATUT`,`dt_CREATED`,`bool_INVENTAIRE`,`lg_FAMILLE_ID`,`int_NUMBER`,`int_NUMBER_INIT`,`lg_FAMILLE_STOCK_ID`) ");
+        insertQuery.append(
+                "SELECT ?1,'enable',NOW(),TRUE,f.lg_FAMILLE_ID,s.int_NUMBER_AVAILABLE,s.int_NUMBER_AVAILABLE,s.lg_FAMILLE_STOCK_ID ");
+        insertQuery.append("FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID ");
+        insertQuery.append("WHERE f.lg_FAMILLE_ID IN (");
+        for (int i = 0; i < familleIds.size(); i++) {
+            insertQuery.append("?").append(i + 2);
+            if (i < familleIds.size() - 1) {
+                insertQuery.append(",");
+            }
+        }
+        insertQuery.append(") AND s.lg_EMPLACEMENT_ID='1'");
+        Query insertNativeQuery = em.createNativeQuery(insertQuery.toString()).setParameter(1,
+                inventaire.getLgINVENTAIREID());
+        idx = 2;
+        for (String familleId : familleIds) {
+            insertNativeQuery.setParameter(idx++, familleId);
+        }
+        int inserted = insertNativeQuery.executeUpdate();
+        return json.put("success", true).put("count", inserted).put("message", "Inventaire créé avec succès.");
+    }
+
+    private TInventaire createInventaireFromCsv(TUser tUser, int itemCount) {
+        TInventaire inventaire = new TInventaire(UUID.randomUUID().toString());
+        inventaire.setDtCREATED(new Date());
+        inventaire.setDtUPDATED(inventaire.getDtCREATED());
+        inventaire.setLgEMPLACEMENTID(tUser.getLgEMPLACEMENTID());
+        inventaire.setLgUSERID(tUser);
+        inventaire.setStrDESCRIPTION("INVENTAIRE IMPORTE CSV (" + itemCount + " articles)");
+        inventaire.setStrNAME("INVENTAIRE CSV");
+        inventaire.setStrSTATUT(Constant.STATUT_ENABLE);
+        inventaire.setStrTYPE("unitaire");
+        em.persist(inventaire);
+        return inventaire;
+    }
+
 }

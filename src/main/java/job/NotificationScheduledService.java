@@ -16,7 +16,10 @@ import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.Asynchronous;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
+import javax.ejb.TransactionAttribute;
+import javax.ejb.TransactionAttributeType;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -49,6 +52,8 @@ public class NotificationScheduledService {
     private EntityManager em;
     @Inject
     private NotificationService notificationService;
+    @EJB
+    private NotificationScheduledService self;
 
     @Asynchronous
     public void sendPendingEmailsAsync() {
@@ -56,6 +61,7 @@ public class NotificationScheduledService {
     }
 
     @Asynchronous
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void sendPendingSmsAsync() {
         if (checkParameterByKey(Constant.KEY_SMS_CLOTURE_CAISSE)) {
             List<Notification> notifications = findAllByCanal();
@@ -108,8 +114,23 @@ public class NotificationScheduledService {
         }
 
         LOG.log(Level.INFO, null, notification.getStatut());
-        em.merge(notification);
+        self.mergeNotification(notification);
 
+    }
+
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void mergeNotification(Notification notification) {
+        em.merge(notification);
+    }
+
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void persistSmsToken(SmsToken smsToken) {
+        em.persist(smsToken);
+    }
+
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void mergeSmsToken(SmsToken smsToken) {
+        em.merge(smsToken);
     }
 
     private List<NotificationClient> findNotificationClients(Notification n) {
@@ -145,7 +166,7 @@ public class NotificationScheduledService {
                 smsToken.setHeader("Basic ZkphT2xKZ3dVMmdnY1JXbUlsYlU5czdqWTh0YnNSeTg6U01FNTVndFlkdjJoNlkwUQ==");
                 smsToken.setCreateDate(LocalDateTime.now());
 
-                em.persist(smsToken);
+                self.persistSmsToken(smsToken);
             }
 
         } else {
@@ -157,7 +178,7 @@ public class NotificationScheduledService {
                     smsToken.setAccessToken(data.getString("access_token"));
                     smsToken.setExpiresIn(data.getInt("expires_in"));
                     smsToken.setCreateDate(LocalDateTime.now());
-                    em.merge(smsToken);
+                    self.mergeSmsToken(smsToken);
                 }
             }
         }

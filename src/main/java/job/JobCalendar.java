@@ -13,10 +13,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import javax.annotation.PostConstruct;
+import javax.ejb.EJB;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
-import javax.ejb.Startup;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
@@ -30,28 +29,26 @@ import util.DateConverter;
  * @author KKOFFI
  */
 @Singleton
-@Startup
 public class JobCalendar {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    @EJB
+    private config.AppConfig appConfig;
+
     public EntityManager getEm() {
         return em;
     }
 
-    @PostConstruct
-    public void init() {
+    @Schedule(hour = "0", dayOfMonth = "*", persistent = false)
+    public void execute() {
+        if (!appConfig.isServerMode()) {
+            return;
+        }
         exec();
         removeFacture();
         removeSuggestionO();
-        // updateOrderDetailPrices();
-    }
-
-    @Schedule(hour = "0", dayOfMonth = "*", persistent = false)
-    public void execute() {
-        exec();
-
     }
 
     public void exec() {

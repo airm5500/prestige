@@ -56,7 +56,6 @@ import net.sf.jasperreports.export.SimpleXlsxReportConfiguration;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import toolkits.parameters.commonparameter;
 import toolkits.utils.conversion;
 import toolkits.utils.date;
 import toolkits.utils.jdom;
