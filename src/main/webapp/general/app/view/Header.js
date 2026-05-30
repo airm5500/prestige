@@ -355,40 +355,55 @@ function buildNotificationWindow() {
     Ext.each(providers, function (p) {
         var data = cache[p.key] || {total: 0, results: []};
         var items = data.results || [];
-        grandTotal += (data.total || 0);
+        var total = data.total || items.length;
+        grandTotal += total;
 
-        if (items.length === 0) {
+        if (total === 0) {
             return; // section masquee si vide
         }
 
         var rows = '';
         for (var i = 0; i < items.length; i++) {
             var line = p.renderItem ? p.renderItem(items[i]) : (items[i].str_NAME || '');
-            rows += '<div class="notif-item" data-cat="' + p.key + '" data-idx="' + i + '" '
-                    + 'style="padding:10px 12px; border-bottom:1px solid #eee; cursor:pointer;" '
-                    + 'onmouseover="this.style.background=\'#f5f5f5\'" onmouseout="this.style.background=\'#fff\'" '
+            rows += '<div class="notif-item" '
+                    + 'style="padding:10px 14px; border-bottom:1px solid #eee; cursor:pointer; background:#fff;" '
+                    + 'onmouseover="this.style.background=\'#f5f7fa\'" onmouseout="this.style.background=\'#fff\'" '
                     + 'onclick="prestigeNotifItemClick(\'' + p.key + '\',' + i + ')">'
                     + line + '</div>';
         }
 
-        sections += '<div style="padding:7px 12px; background:' + (p.color || '#2c7873') + '; color:#fff; font-weight:bold;">'
-                + '<i class="fa ' + (p.icon || 'fa-bell') + '" style="margin-right:6px;"></i>'
-                + p.label + ' (' + (data.total || items.length) + ')</div>'
-                + rows;
+        // Titre cliquable + bouton toggle (replie par defaut)
+        sections += '<div class="pn-section">'
+                // En-tete : titre (cliquable) + toggle (+ / -)
+                + '<div style="display:flex; align-items:center; padding:9px 12px; background:' + (p.color || '#2c7873') + '; color:#fff;">'
+                +   '<span style="flex:1; cursor:pointer; font-weight:bold;" '
+                +         'onclick="prestigeNotifCategoryClick(\'' + p.key + '\')">'
+                +     '<i class="fa ' + (p.icon || 'fa-bell') + '" style="margin-right:7px;"></i>'
+                +     p.label + ' (' + total + ')'
+                +   '</span>'
+                +   '<span class="pn-toggle" '
+                +         'style="cursor:pointer; font-size:18px; line-height:1; padding:0 4px; user-select:none;" '
+                +         'onclick="prestigeNotifToggle(this)">'
+                +     '+'
+                +   '</span>'
+                + '</div>'
+                // Corps replie par defaut
+                + '<div class="pn-body" style="display:none;">' + rows + '</div>'
+                + '</div>';
     });
 
     if (sections === '') {
         sections = '<div style="padding:24px; text-align:center; color:#888;">Aucune notification.</div>';
     }
 
-    var html = '<div style="max-height:380px; overflow-y:auto;">' + sections + '</div>';
+    var html = '<div id="pn-scroll" style="max-height:420px; overflow-y:auto;">' + sections + '</div>';
 
     Ext.create('Ext.window.Window', {
         id: 'notif-center-win',
         title: 'Notifications (' + grandTotal + ')',
         width: 400,
         autoHeight: true,
-        maxHeight: 460,
+        maxHeight: 500,
         modal: false,
         constrain: true,
         bodyPadding: 0,
@@ -403,6 +418,32 @@ function buildNotificationWindow() {
             }
         }
     }).show();
+}
+
+// Deplier / replier une section (clic sur le +/-)
+function prestigeNotifToggle(toggleEl) {
+    var section = toggleEl.parentNode.parentNode; // .pn-section
+    var body = section.querySelector('.pn-body');
+    if (!body) {
+        return;
+    }
+    var open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    toggleEl.innerHTML = open ? '+' : '&minus;';
+}
+
+// Clic sur le titre de la categorie : redirige vers la vue et ferme le panneau
+function prestigeNotifCategoryClick(key) {
+    var win = Ext.getCmp('notif-center-win');
+    var providers = PrestigeNotif.getProviders();
+    var provider = null;
+    Ext.each(providers, function (p) {
+        if (p.key === key) { provider = p; }
+    });
+    if (win) { win.close(); }
+    if (provider && provider.onItemClick) {
+        provider.onItemClick(null); // null = pas d'item specifique, juste ouvrir la vue
+    }
 }
 
 // Dispatch du clic d'un element vers le onItemClick de sa categorie
