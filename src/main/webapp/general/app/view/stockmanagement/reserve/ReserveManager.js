@@ -156,6 +156,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                                 }
                             }
                         }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/loupe.png',
+                            tooltip: 'Historique des mouvements',
+                            scope: this,
+                            handler: this.onHistoriqueClick
+                        }]
                 }],
             selModel: {
                 selType: 'cellmodel'
@@ -201,6 +213,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                     id: 'btn_reassort_batch',
                     scope: this,
                     handler: this.onReassortBatch
+                }, '-', {
+                    text: 'Exporter (CSV)',
+                    tooltip: 'Exporter la liste affichee au format CSV',
+                    scope: this,
+                    handler: this.onExportCsv
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -291,6 +308,64 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
             parentview: this,
             mode: "reassort",
             titre: "Reassort de l'article [" + rec.get('str_NAME') + "]"
+        });
+    },
+    onExportCsv: function() {
+        var grid = Ext.getCmp('GridReserveID');
+        var store = grid.getStore();
+        if (store.getCount() === 0) {
+            Ext.MessageBox.alert('Message', 'Aucune donnee a exporter.');
+            return;
+        }
+
+        var sep = ';';
+        var headers = ['CIP', 'Designation', 'Emplacement', 'Stock Rayon',
+            'Stock Reserve', 'Seuil', 'Suggere'];
+        var esc = function(val) {
+            var s = (val === null || val === undefined) ? '' : String(val);
+            if (s.indexOf(sep) !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+                s = '"' + s.replace(/"/g, '""') + '"';
+            }
+            return s;
+        };
+
+        var lines = [headers.join(sep)];
+        store.each(function(rec) {
+            lines.push([
+                esc(rec.get('int_CIP')),
+                esc(rec.get('str_NAME')),
+                esc(rec.get('lg_ZONE_GEO_ID')),
+                esc(rec.get('int_STOCK_RAYON')),
+                esc(rec.get('int_STOCK_RESERVE')),
+                esc(rec.get('int_SEUIL_RESERVE')),
+                esc(rec.get('int_QTE_SUGGEREE'))
+            ].join(sep));
+        });
+
+        // BOM UTF-8 pour une ouverture correcte des accents dans Excel
+        var csv = '﻿' + lines.join('\r\n');
+        var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+        var fname = 'reserves_' + Ext.Date.format(new Date(), 'Ymd_His') + '.csv';
+
+        if (window.navigator.msSaveOrOpenBlob) { // IE / vieux Edge
+            window.navigator.msSaveOrOpenBlob(blob, fname);
+        } else {
+            var url = window.URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = fname;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    },
+    onHistoriqueClick: function(grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+
+        new testextjs.view.stockmanagement.reserve.action.historique({
+            odatasource: rec.data,
+            titre: "Historique des mouvements [" + rec.get('str_NAME') + "]"
         });
     },
     onRechClick: function() {

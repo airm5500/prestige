@@ -518,6 +518,7 @@ Ext.application({
         'testextjs.view.stockmanagement.reserve.ReserveManager',
         'testextjs.view.stockmanagement.reserve.action.add',
         'testextjs.view.stockmanagement.reserve.action.addToReserve',
+        'testextjs.view.stockmanagement.reserve.action.historique',
         'testextjs.view.sm_user.diffclient.DiffManager',
         'testextjs.model.Differes',
         //gestion des depots
