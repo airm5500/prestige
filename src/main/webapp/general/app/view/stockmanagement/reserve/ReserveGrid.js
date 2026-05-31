@@ -315,18 +315,19 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                 });
     },
 
-    // ---- Bouton commun : imprimer ---------------------------------------
+    // ---- Bouton commun : imprimer via reserveprint.html -------------------
     onPrint: function () {
         var me = this;
-        if (me.getStore().getCount() === 0) {
-            Ext.MessageBox.alert('Message', 'Aucune donnee a imprimer.');
-            return;
+        var mode = me.getGridmode();
+        var search = me.down('#rechFld').getValue() || '';
+        var qs = 'mode=articles&tabMode=' + encodeURIComponent(mode)
+                + '&titre=' + encodeURIComponent('Gestion des reserves - ' + mode)
+                + '&autoload=1';
+        if (search) {
+            qs += '&search=' + encodeURIComponent(search);
         }
-        try {
-            Ext.ux.grid.Printer.print(me);
-        } catch (e) {
-            window.print();
-        }
+        window.open('../reserveprint.html?' + qs, '_blank',
+                'width=1100,height=750,scrollbars=yes,resizable=yes');
     },
 
     // ---- Bouton commun : historiques globaux ----------------------------

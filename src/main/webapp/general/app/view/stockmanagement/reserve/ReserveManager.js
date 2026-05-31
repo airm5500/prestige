@@ -24,6 +24,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
             {xtype: 'reservegrid', title: 'REAPPRO RESERVE', gridmode: 'REAPPRO'},
             {xtype: 'reservegrid', title: 'REASSORT RAYON', gridmode: 'REASSORT'}
         ];
+        this.listeners = {
+            tabchange: function (tabPanel, newCard) {
+                if (newCard && newCard.reloadGrid) {
+                    newCard.reloadGrid();
+                }
+            }
+        };
         this.callParent();
     }
 });

@@ -62,7 +62,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             labelWidth: 60,
             width: 150,
             minValue: 1,
-            value: 1
+            value: 1,
+            enableKeyEvents: true,
+            listeners: {
+                keydown: function (field, e) {
+                    if (e.getKey() === e.ENTER) {
+                        addToCart();
+                    }
+                }
+            }
         });
 
         var infoLabel = Ext.create('Ext.form.field.Display', {
@@ -76,6 +84,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                 var r = records[0];
                 var dispo = (mode === 'assort') ? r.get('int_STOCK_RAYON') : r.get('int_STOCK_RESERVE');
                 infoLabel.setValue(stockLabel + ' disponible : <b>' + dispo + '</b>');
+                // Curseur vers quantite avec contenu preselectionne
+                qteField.focus(true, 100);
             }
         });
 
@@ -143,7 +153,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
         });
 
         var win = new Ext.window.Window({
-            autoShow: true,
+            autoShow: false,
             title: me.getTitre(),
             width: 640,
             height: 480,
@@ -214,6 +224,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                         win.close();
                     }}
             ]
+        });
+
+        win.show();
+        // Auto-focus sur le champ produit a l'ouverture
+        win.on('show', function () {
+            combo.focus(false, 150);
         });
 
         me.callParent();

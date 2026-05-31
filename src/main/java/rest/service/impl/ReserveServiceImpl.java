@@ -318,14 +318,29 @@ public class ReserveServiceImpl implements ReserveService {
 
     // ---------------------------------------------------------------- HISTORY
 
+    private java.util.Date parseDate(String iso) {
+        if (iso == null || iso.trim().isEmpty()) return null;
+        try { return new java.text.SimpleDateFormat("yyyy-MM-dd").parse(iso.trim()); } catch (Exception e) { return null; }
+    }
+
     @Override
-    public JSONObject mouvements(String familleId, int start, int limit) {
-        Query q = em.createNamedQuery("TMouvementReserve.findByFamille");
-        q.setParameter("lgFAMILLEID", familleId);
-        if (limit > 0) {
-            q.setFirstResult(start);
-            q.setMaxResults(limit);
-        }
+    public JSONObject mouvements(String familleId, String dtStart, String dtEnd, int start, int limit) {
+        java.util.Date dStart = parseDate(dtStart);
+        java.util.Date dEnd   = parseDate(dtEnd);
+        // extend dEnd to end-of-day
+        if (dEnd != null) { dEnd = new java.util.Date(dEnd.getTime() + 86399999L); }
+
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TMouvementReserve t WHERE t.lgFAMILLEID.lgFAMILLEID = :fid");
+        if (dStart != null) jpql.append(" AND t.dtCREATED >= :dStart");
+        if (dEnd   != null) jpql.append(" AND t.dtCREATED <= :dEnd");
+        jpql.append(" ORDER BY t.dtCREATED DESC");
+
+        Query q = em.createQuery(jpql.toString());
+        q.setParameter("fid", familleId);
+        if (dStart != null) q.setParameter("dStart", dStart, javax.persistence.TemporalType.TIMESTAMP);
+        if (dEnd   != null) q.setParameter("dEnd",   dEnd,   javax.persistence.TemporalType.TIMESTAMP);
+        if (limit > 0) { q.setFirstResult(start); q.setMaxResults(limit); }
+
         @SuppressWarnings("unchecked")
         List<TMouvementReserve> list = q.getResultList();
         JSONArray results = new JSONArray();
@@ -345,30 +360,30 @@ public class ReserveServiceImpl implements ReserveService {
     }
 
     @Override
-    public JSONObject allMouvements(String type, int start, int limit) {
-        String jpql = "SELECT t FROM TMouvementReserve t ";
+    public JSONObject allMouvements(String type, String dtStart, String dtEnd, int start, int limit) {
+        java.util.Date dStart = parseDate(dtStart);
+        java.util.Date dEnd   = parseDate(dtEnd);
+        if (dEnd != null) { dEnd = new java.util.Date(dEnd.getTime() + 86399999L); }
+
         boolean hasType = type != null && !type.trim().isEmpty() && !"ALL".equalsIgnoreCase(type);
-        if (hasType) {
-            jpql += "WHERE t.strTYPE = :type ";
-        }
-        jpql += "ORDER BY t.dtCREATED DESC";
-        Query q = em.createQuery(jpql);
-        if (hasType) {
-            q.setParameter("type", type);
-        }
-        if (limit > 0) {
-            q.setFirstResult(start);
-            q.setMaxResults(limit);
-        }
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TMouvementReserve t WHERE 1=1");
+        if (hasType)   jpql.append(" AND t.strTYPE = :type");
+        if (dStart != null) jpql.append(" AND t.dtCREATED >= :dStart");
+        if (dEnd   != null) jpql.append(" AND t.dtCREATED <= :dEnd");
+        jpql.append(" ORDER BY t.dtCREATED DESC");
+
+        Query q = em.createQuery(jpql.toString());
+        if (hasType)   q.setParameter("type", type);
+        if (dStart != null) q.setParameter("dStart", dStart, javax.persistence.TemporalType.TIMESTAMP);
+        if (dEnd   != null) q.setParameter("dEnd",   dEnd,   javax.persistence.TemporalType.TIMESTAMP);
+        if (limit > 0) { q.setFirstResult(start); q.setMaxResults(limit); }
+
         @SuppressWarnings("unchecked")
         List<TMouvementReserve> list = q.getResultList();
         JSONArray results = new JSONArray();
         for (TMouvementReserve m : list) {
             String name = "";
-            try {
-                name = m.getLgFAMILLEID() != null ? m.getLgFAMILLEID().getStrNAME() : "";
-            } catch (Exception e) {
-            }
+            try { name = m.getLgFAMILLEID() != null ? m.getLgFAMILLEID().getStrNAME() : ""; } catch (Exception e) {}
             results.put(new JSONObject()
                     .put("lg_MOUVEMENT_ID", m.getLgMOUVEMENTID())
                     .put("str_NAME", name)

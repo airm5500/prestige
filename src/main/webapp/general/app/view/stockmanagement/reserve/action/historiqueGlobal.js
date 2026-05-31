@@ -7,7 +7,7 @@
 Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
     extend: 'Ext.window.Window',
     xtype: 'reservehistoriqueglobal',
-    requires: ['Ext.grid.*', 'Ext.data.*', 'Ext.window.Window', 'Ext.ux.grid.Printer'],
+    requires: ['Ext.grid.*', 'Ext.data.*', 'Ext.window.Window', 'Ext.form.*'],
     config: {
         typeFilter: 'ALL',
         titre: ''
@@ -15,11 +15,6 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
     initComponent: function () {
         var me = this;
         var typeFilter = me.getTypeFilter() || 'ALL';
-
-        var extra = {};
-        if (typeFilter !== 'ALL') {
-            extra.type = typeFilter;
-        }
 
         var store = new Ext.data.Store({
             fields: [
@@ -31,18 +26,81 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
                 {name: 'int_STOCK_RESERVE_APRES', type: 'int'},
                 'str_USER', 'dt_CREATED'
             ],
-            autoLoad: true,
+            autoLoad: false,
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/reserve/mouvements',
-                extraParams: extra,
                 reader: {type: 'json', root: 'results', totalProperty: 'total'}
+            }
+        });
+
+        var loadWithFilters = function () {
+            var extra = {};
+            if (typeFilter !== 'ALL') {
+                extra.type = typeFilter;
+            }
+            var dtStart = dtStartField.getValue();
+            var dtEnd   = dtEndField.getValue();
+            if (dtStart) {
+                extra.dtStart = Ext.Date.format(dtStart, 'Y-m-d');
+            }
+            if (dtEnd) {
+                extra.dtEnd = Ext.Date.format(dtEnd, 'Y-m-d');
+            }
+            store.getProxy().extraParams = extra;
+            store.load();
+        };
+
+        var dtStartField = Ext.create('Ext.form.field.Date', {
+            fieldLabel: 'Du',
+            labelWidth: 25,
+            width: 160,
+            format: 'd/m/Y',
+            emptyText: 'jj/mm/aaaa'
+        });
+
+        var dtEndField = Ext.create('Ext.form.field.Date', {
+            fieldLabel: 'Au',
+            labelWidth: 25,
+            width: 160,
+            format: 'd/m/Y',
+            emptyText: 'jj/mm/aaaa'
+        });
+
+        var typeCombo = Ext.create('Ext.form.field.ComboBox', {
+            fieldLabel: 'Type',
+            labelWidth: 35,
+            width: 155,
+            store: [['ALL', 'Tous'], ['ASSORT', 'Assort'], ['REASSORT', 'Reassort']],
+            value: typeFilter,
+            editable: false,
+            listeners: {
+                select: function (cb) {
+                    typeFilter = cb.getValue();
+                }
             }
         });
 
         var grid = Ext.create('Ext.grid.Panel', {
             store: store,
             border: false,
+            tbar: [
+                dtStartField, ' ',
+                dtEndField, ' ',
+                typeCombo, ' ',
+                {text: 'Rechercher', handler: loadWithFilters},
+                '-',
+                {
+                    text: 'Effacer',
+                    handler: function () {
+                        dtStartField.reset();
+                        dtEndField.reset();
+                        typeCombo.setValue(me.getTypeFilter() || 'ALL');
+                        typeFilter = me.getTypeFilter() || 'ALL';
+                        loadWithFilters();
+                    }
+                }
+            ],
             columns: [
                 {header: 'Date', dataIndex: 'dt_CREATED', flex: 1.3},
                 {header: 'Designation', dataIndex: 'str_NAME', flex: 1.6},
@@ -75,37 +133,46 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             viewConfig: {emptyText: 'Aucun mouvement enregistre.', deferEmptyText: false}
         });
 
+        var openPrint = function () {
+            var proxy = store.getProxy();
+            var extra = proxy.extraParams || {};
+            var qs = 'mode=historique&titre=' + encodeURIComponent(me.getTitre() || 'Historique des mouvements');
+            if (extra.type) {
+                qs += '&type=' + encodeURIComponent(extra.type);
+            }
+            if (extra.dtStart) {
+                qs += '&dtStart=' + encodeURIComponent(extra.dtStart);
+            }
+            if (extra.dtEnd) {
+                qs += '&dtEnd=' + encodeURIComponent(extra.dtEnd);
+            }
+            qs += '&autoload=1';
+            window.open('../reserveprint.html?' + qs, '_blank',
+                    'width=1100,height=750,scrollbars=yes,resizable=yes');
+        };
+
         var win = new Ext.window.Window({
             autoShow: true,
             title: me.getTitre() || 'Historique des mouvements',
-            width: 900,
-            height: 500,
-            minWidth: 600,
-            minHeight: 350,
+            width: 950,
+            height: 530,
+            minWidth: 650,
+            minHeight: 380,
             layout: 'fit',
             modal: true,
             maximizable: true,
+            resizable: true,
             items: [grid],
             buttons: [
-                {
-                    text: 'Imprimer',
-                    handler: function () {
-                        if (store.getCount() === 0) {
-                            Ext.MessageBox.alert('Message', 'Aucune donnee a imprimer.');
-                            return;
-                        }
-                        try {
-                            Ext.ux.grid.Printer.print(grid);
-                        } catch (e) {
-                            window.print();
-                        }
-                    }
-                },
+                {text: 'Imprimer', handler: openPrint},
                 {text: 'Fermer', handler: function () {
                         win.close();
                     }}
             ]
         });
+
+        // Chargement initial avec le filtre type passe en config
+        loadWithFilters();
 
         me.callParent();
     }

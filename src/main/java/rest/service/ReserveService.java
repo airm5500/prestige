@@ -54,15 +54,15 @@ public interface ReserveService {
     JSONObject assortBatch(TUser user, List<JSONObject> items);
 
     /**
-     * Historique des mouvements d'un article.
+     * Historique des mouvements d'un article, avec filtre periode optionnel.
      */
-    JSONObject mouvements(String familleId, int start, int limit);
+    JSONObject mouvements(String familleId, String dtStart, String dtEnd, int start, int limit);
 
     /**
-     * Historique global des mouvements, filtre optionnel par type
-     * (ASSORT / REASSORT), classe par date decroissante.
+     * Historique global des mouvements, filtre optionnel par type et periode,
+     * classe par date decroissante.
      */
-    JSONObject allMouvements(String type, int start, int limit);
+    JSONObject allMouvements(String type, String dtStart, String dtEnd, int start, int limit);
 
     /**
      * Cree un inventaire a partir des articles affiches dans l'onglet courant

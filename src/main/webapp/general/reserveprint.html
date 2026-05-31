@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Impression - Gestion des réserves</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./iframe/resources/css/bootstrap.min.css" />
+    <style>
+      @page { size: A4 landscape; margin: 10mm; }
+      .print-page { max-width: 100%; margin: 0 auto; }
+      .print-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 6px;
+      }
+      .brand-name { font-weight: 700; font-size: 16px; }
+      .meta { font-size: 12px; color: #555; text-align: right; }
+      table { font-size: 12px; }
+      @media print {
+        body * { visibility: hidden !important; }
+        #printable, #printable * { visibility: visible !important; }
+        #printable { position: absolute; left: 0; top: 0; width: 100%; }
+        .no-print { display: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <script src="./iframe/resources/js/jquery.min.js"></script>
+    <script src="./iframe/resources/js/bootstrap.js"></script>
+
+    <!-- Panneau de filtres -->
+    <div class="container-fluid no-print" style="padding:8px;">
+      <div class="row">
+        <div class="col-md-2 p-1">
+          <div class="card">
+            <div class="card-body">
+              <div class="mb-2" id="typeFilterWrap">
+                <label class="form-label small">Type</label>
+                <select class="form-select form-select-sm" id="typeFilter">
+                  <option value="ALL">Tous</option>
+                  <option value="ASSORT">Assort</option>
+                  <option value="REASSORT">Réassort</option>
+                </select>
+              </div>
+              <div class="mb-2">
+                <label class="form-label small">Date début</label>
+                <input class="form-control form-control-sm" type="date" id="dtStart" />
+              </div>
+              <div class="mb-2">
+                <label class="form-label small">Date fin</label>
+                <input class="form-control form-control-sm" type="date" id="dtEnd" />
+              </div>
+              <div class="d-flex flex-column gap-2 mt-3">
+                <button id="btnApercu" class="btn btn-outline-secondary btn-sm">
+                  <svg viewBox="0 0 16 16" width="16" height="16" class="me-1" aria-hidden="true">
+                    <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8z"/>
+                    <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/>
+                  </svg>
+                  Aperçu
+                </button>
+                <button id="btnImprimer" class="btn btn-outline-success btn-sm">Imprimer</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-10 p-1" id="preview-container">
+          <p class="text-muted mt-3">Cliquez sur <strong>Aperçu</strong> pour charger les données.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="printable" style="display:none;" class="print-page p-3"></div>
+
+    <script>
+      const P = new URLSearchParams(location.search);
+      const MODE      = P.get('mode')      || 'articles';
+      const TYPE      = P.get('type')      || 'ALL';
+      const TITLE     = P.get('titre')     || 'Gestion des réserves';
+      const FAMILLE   = P.get('familleId') || '';
+      const TAB_MODE  = P.get('tabMode')   || 'ALL';
+
+      document.title = TITLE;
+
+      // Pré-remplir les filtres depuis l'URL
+      if (P.get('dtStart')) document.getElementById('dtStart').value = P.get('dtStart');
+      if (P.get('dtEnd'))   document.getElementById('dtEnd').value   = P.get('dtEnd');
+      if (TYPE !== 'ALL')   document.getElementById('typeFilter').value = TYPE;
+
+      // Masquer le filtre type pour les modes articles
+      if (MODE === 'articles') document.getElementById('typeFilterWrap').style.display = 'none';
+
+      function fmtDate(iso) {
+        if (!iso) return '';
+        const [y, m, d] = iso.split('-');
+        return d + '/' + m + '/' + y;
+      }
+
+      function buildApiUrl() {
+        const dtStart = document.getElementById('dtStart').value;
+        const dtEnd   = document.getElementById('dtEnd').value;
+        const typeVal = document.getElementById('typeFilter').value;
+        const qs = new URLSearchParams({ limit: 5000, start: 0 });
+
+        if (MODE === 'historique' || MODE === 'historique_article') {
+          if (MODE === 'historique') {
+            if (typeVal !== 'ALL') qs.set('type', typeVal);
+          }
+          if (dtStart) qs.set('dtStart', dtStart);
+          if (dtEnd)   qs.set('dtEnd',   dtEnd);
+          if (MODE === 'historique_article') {
+            return '../api/v1/reserve/mouvements/' + encodeURIComponent(FAMILLE) + '?' + qs.toString();
+          }
+          return '../api/v1/reserve/mouvements?' + qs.toString();
+        }
+
+        // mode articles
+        const typeMap = { REAPPRO: 'REAPPRO', REASSORT: 'REASSORT_RAYON', ALL: 'ALL' };
+        qs.set('str_TYPE_TRANSACTION', typeMap[TAB_MODE] || 'ALL');
+        if (dtStart) qs.set('dtStart', dtStart);
+        if (dtEnd)   qs.set('dtEnd',   dtEnd);
+        return '../api/v1/reserve/articles?' + qs.toString();
+      }
+
+      function buildHistoriqueTable(results) {
+        if (!results.length) return '<p class="text-muted">Aucun mouvement.</p>';
+        let rows = '';
+        results.forEach(function(r) {
+          const c = r.str_TYPE === 'REASSORT' ? 'color:#1f7a1f;font-weight:bold'
+                  : r.str_TYPE === 'ASSORT'   ? 'color:#cc6600;font-weight:bold' : '';
+          rows += '<tr>'
+            + '<td>' + (r.dt_CREATED || '') + '</td>'
+            + (MODE === 'historique' ? '<td>' + (r.str_NAME || '') + '</td>' : '')
+            + '<td style="' + c + '">' + (r.str_TYPE || '') + '</td>'
+            + '<td class="text-center">' + (r.int_QTE || 0) + '</td>'
+            + '<td class="text-center">' + (r.int_STOCK_RAYON_AVANT || 0) + ' → ' + (r.int_STOCK_RAYON_APRES || 0) + '</td>'
+            + '<td class="text-center">' + (r.int_STOCK_RESERVE_AVANT || 0) + ' → ' + (r.int_STOCK_RESERVE_APRES || 0) + '</td>'
+            + '<td>' + (r.str_USER || '') + '</td>'
+            + '</tr>';
+        });
+        const desigCol = MODE === 'historique' ? '<th>Désignation</th>' : '';
+        return '<table class="table table-bordered table-sm table-striped">'
+          + '<thead class="table-dark"><tr>'
+          + '<th>Date</th>' + desigCol + '<th>Type</th><th>Qté</th>'
+          + '<th>Rayon (avant→après)</th><th>Réserve (avant→après)</th><th>Utilisateur</th>'
+          + '</tr></thead><tbody>' + rows + '</tbody></table>';
+      }
+
+      function buildArticlesTable(results) {
+        if (!results.length) return '<p class="text-muted">Aucun article.</p>';
+        let rows = '';
+        results.forEach(function(r) {
+          rows += '<tr>'
+            + '<td>' + (r.int_CIP || '') + '</td>'
+            + '<td>' + (r.str_NAME || '') + '</td>'
+            + '<td>' + (r.lg_ZONE_GEO_ID || '') + '</td>'
+            + '<td class="text-center">' + (r.int_STOCK_RAYON || 0) + '</td>'
+            + '<td class="text-center">' + (r.int_STOCK_RESERVE || 0) + '</td>'
+            + '<td class="text-center">' + (r.int_SEUIL_RESERVE || 0) + '</td>'
+            + '<td class="text-center">' + (r.int_QTE_SUGGEREE > 0 ? r.int_QTE_SUGGEREE : '') + '</td>'
+            + '</tr>';
+        });
+        return '<table class="table table-bordered table-sm table-striped">'
+          + '<thead class="table-dark"><tr>'
+          + '<th>CIP</th><th>Désignation</th><th>Emplacement</th>'
+          + '<th>Stock Rayon</th><th>Stock Réserve</th><th>Seuil</th><th>Suggéré</th>'
+          + '</tr></thead><tbody>' + rows + '</tbody></table>';
+      }
+
+      function buildHeader(count) {
+        const dtStart = document.getElementById('dtStart').value;
+        const dtEnd   = document.getElementById('dtEnd').value;
+        const period  = (dtStart || dtEnd)
+          ? ('Période : du ' + fmtDate(dtStart) + ' au ' + fmtDate(dtEnd)) : 'Toutes dates';
+        const now = new Date().toLocaleDateString('fr-FR', {
+          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        return '<div class="print-header">'
+          + '<div><div class="brand-name" id="ph-brand">Pharmacie</div></div>'
+          + '<div class="meta">'
+          + '<div class="fw-bold">' + TITLE + '</div>'
+          + '<div>' + period + '</div>'
+          + '<div>' + count + ' ligne(s) — imprimé le ' + now + '</div>'
+          + '</div></div>';
+      }
+
+      async function loadOfficine() {
+        try {
+          let name = 'Pharmacie';
+          const cached = sessionStorage.getItem('officineInfo');
+          if (cached) {
+            const arr = JSON.parse(cached);
+            if (arr && arr[0]) name = arr[0].nomComplet || arr[0].fullName || name;
+          } else {
+            const res = await fetch('../api/v1/officine', { headers: { Accept: 'application/json' } });
+            if (res.ok) {
+              const arr = await res.json();
+              if (Array.isArray(arr) && arr[0]) {
+                sessionStorage.setItem('officineInfo', JSON.stringify(arr));
+                name = arr[0].nomComplet || arr[0].fullName || name;
+              }
+            }
+          }
+          document.querySelectorAll('#ph-brand').forEach(function(el) { el.textContent = name; });
+        } catch (e) {}
+      }
+
+      async function doApercu() {
+        document.getElementById('preview-container').innerHTML = '<p class="text-muted">Chargement...</p>';
+        try {
+          const url = buildApiUrl();
+          const res  = await fetch(url, { headers: { Accept: 'application/json' } });
+          const data = await res.json();
+          const results = data.results || data.data || [];
+          const isHisto = (MODE === 'historique' || MODE === 'historique_article');
+          const tbl  = isHisto ? buildHistoriqueTable(results) : buildArticlesTable(results);
+          const html = '<div class="print-page">' + buildHeader(results.length) + tbl + '</div>';
+          document.getElementById('preview-container').innerHTML = html;
+          document.getElementById('printable').innerHTML = html;
+          document.getElementById('printable').style.display = 'block';
+          await loadOfficine();
+        } catch (e) {
+          document.getElementById('preview-container').innerHTML =
+            '<p class="text-danger">Erreur lors du chargement : ' + e.message + '</p>';
+        }
+      }
+
+      document.getElementById('btnApercu').addEventListener('click', doApercu);
+      document.getElementById('btnImprimer').addEventListener('click', async function() {
+        if (!document.getElementById('printable').innerHTML.trim()) {
+          await doApercu();
+        }
+        window.print();
+      });
+
+      if (P.get('autoload') === '1') {
+        doApercu();
+      }
+    </script>
+  </body>
+</html>

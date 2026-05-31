@@ -139,12 +139,13 @@ public class ReserveRessource {
     @GET
     @Path("mouvements")
     public Response allMouvements(@QueryParam("type") String type,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("start") int start, @QueryParam("limit") int limit) throws JSONException {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = reserveService.allMouvements(type, start, limit > 0 ? limit : 500);
+        JSONObject json = reserveService.allMouvements(type, dtStart, dtEnd, start, limit > 0 ? limit : 500);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -163,8 +164,9 @@ public class ReserveRessource {
     @GET
     @Path("mouvements/{id}")
     public Response mouvements(@PathParam("id") String familleId,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("start") int start, @QueryParam("limit") int limit) throws JSONException {
-        JSONObject json = reserveService.mouvements(familleId, start, limit > 0 ? limit : 50);
+        JSONObject json = reserveService.mouvements(familleId, dtStart, dtEnd, start, limit > 0 ? limit : 200);
         return Response.ok().entity(json.toString()).build();
     }
 }
