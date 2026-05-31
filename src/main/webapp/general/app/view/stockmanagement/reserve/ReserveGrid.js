@@ -326,7 +326,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         if (search) {
             qs += '&search=' + encodeURIComponent(search);
         }
-        window.open('../reserveprint.html?' + qs, '_blank',
+        window.open('reserveprint.html?' + qs, '_blank',
                 'width=1100,height=750,scrollbars=yes,resizable=yes');
     },
 

@@ -227,9 +227,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
         });
 
         win.show();
-        // Auto-focus sur le champ produit a l'ouverture
-        win.on('show', function () {
-            combo.focus(false, 150);
+        // Auto-focus sur le champ produit apres rendu complet
+        win.on('afterrender', function () {
+            Ext.defer(function () { combo.focus(); }, 250);
         });
 
         me.callParent();
