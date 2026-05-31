@@ -226,11 +226,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             ]
         });
 
+        // Auto-focus sur le champ produit apres affichage complet de la fenetre
+        var focusCombo = function () {
+            Ext.defer(function () {
+                if (combo.inputEl && combo.inputEl.dom) {
+                    combo.inputEl.dom.focus();
+                } else {
+                    combo.focus();
+                }
+            }, 300);
+        };
+        win.on('show', focusCombo);
         win.show();
-        // Auto-focus sur le champ produit apres rendu complet
-        win.on('afterrender', function () {
-            Ext.defer(function () { combo.focus(); }, 250);
-        });
 
         me.callParent();
     }

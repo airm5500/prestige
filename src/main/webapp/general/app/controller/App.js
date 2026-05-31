@@ -159,6 +159,12 @@ Ext.define('testextjs.controller.App', {
                 xtypeload = accountInfo.xtypeload;
                 lg_USER_ID.setValue(accountInfo.lg_USER_ID);
                 Ext.getCmp('commonsettingapp').setText(accountInfo.str_FIRST_NAME + " " + accountInfo.str_LAST_NAME);
+                // Memorise le nom complet pour les impressions
+                try {
+                    sessionStorage.setItem('connectedUserName',
+                            ((accountInfo.str_FIRST_NAME || '') + ' ' + (accountInfo.str_LAST_NAME || '')).trim());
+                } catch (e) {
+                }
             },
             failure: function (response) {
                 Ext.MessageBox.alert('Error Message', response.responseText);
