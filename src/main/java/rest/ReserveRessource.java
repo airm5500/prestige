@@ -64,6 +64,18 @@ public class ReserveRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    @GET
+    @Path("suggestions-reappro")
+    public Response suggestionsReappro(@QueryParam("search_value") String search,
+            @QueryParam("start") int start, @QueryParam("limit") int limit) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = reserveService.suggestionsReappro(user, search, start, limit > 0 ? limit : 20);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @POST
     @Path("assort")
     public Response assort(String body) throws JSONException {
@@ -103,6 +115,48 @@ public class ReserveRessource {
             }
         }
         JSONObject json = reserveService.reassortBatch(user, items);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @POST
+    @Path("assort-batch")
+    public Response assortBatch(String body) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONArray arr = new JSONObject(body).optJSONArray("items");
+        List<JSONObject> items = new ArrayList<>();
+        if (arr != null) {
+            for (int i = 0; i < arr.length(); i++) {
+                items.add(arr.getJSONObject(i));
+            }
+        }
+        JSONObject json = reserveService.assortBatch(user, items);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("mouvements")
+    public Response allMouvements(@QueryParam("type") String type,
+            @QueryParam("start") int start, @QueryParam("limit") int limit) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = reserveService.allMouvements(type, start, limit > 0 ? limit : 500);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("create-inventaire")
+    public Response createInventaire(@QueryParam("search_value") String search,
+            @QueryParam("str_TYPE_TRANSACTION") String type) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = reserveService.createInventaire(user, search, type);
         return Response.ok().entity(json.toString()).build();
     }
 

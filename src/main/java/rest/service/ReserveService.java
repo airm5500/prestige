@@ -28,6 +28,12 @@ public interface ReserveService {
     JSONObject suggestions(TUser user, String search, int start, int limit);
 
     /**
+     * Liste des articles a reapprovisionner en reserve (rayon -&gt; reserve)
+     * avec quantite suggeree = max(0, stock_rayon - stock_reserve).
+     */
+    JSONObject suggestionsReappro(TUser user, String search, int start, int limit);
+
+    /**
      * Deplace une quantite du rayon vers la reserve (operation atomique).
      */
     JSONObject assort(TUser user, String familleId, int qte);
@@ -43,7 +49,24 @@ public interface ReserveService {
     JSONObject reassortBatch(TUser user, List<JSONObject> items);
 
     /**
+     * Applique en lot une serie d'assorts (rayon -&gt; reserve).
+     */
+    JSONObject assortBatch(TUser user, List<JSONObject> items);
+
+    /**
      * Historique des mouvements d'un article.
      */
     JSONObject mouvements(String familleId, int start, int limit);
+
+    /**
+     * Historique global des mouvements, filtre optionnel par type
+     * (ASSORT / REASSORT), classe par date decroissante.
+     */
+    JSONObject allMouvements(String type, int start, int limit);
+
+    /**
+     * Cree un inventaire a partir des articles affiches dans l'onglet courant
+     * (selon le filtre type + recherche). Nom : "Inventaire reserve du jj/MM/aaaa".
+     */
+    JSONObject createInventaire(TUser user, String search, String type);
 }
