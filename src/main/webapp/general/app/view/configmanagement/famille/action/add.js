@@ -395,7 +395,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                             if (v === 0) { mini = 0; }
                                             else if (v === 1) { mini = 1; }
                                             else { mini = Math.ceil(v / 2); }
+                                            miniField._autoCalc = true;
                                             miniField.setValue(mini);
+                                            miniField._autoCalc = false;
                                         }
                                     }
                                 },
@@ -412,8 +414,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     allowDecimals: false,
                                     listeners: {
                                         change: function (fld) {
-                                            // Marque comme modifie manuellement pour desactiver l'auto-calcul
-                                            fld._userModified = true;
+                                            if (!fld._autoCalc) { fld._userModified = true; }
                                         },
                                         focus: function (fld) {
                                             fld._userModified = true;
