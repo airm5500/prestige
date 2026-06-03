@@ -23,6 +23,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
     },
     initComponent: function () {
 
+        ['addreserveID', 'str_DESCRIPTION', 'int_NUMBER', 'int_NUMBER_REASSORT'].forEach(function (cid) {
+            var existing = Ext.getCmp(cid);
+            if (existing) { try { existing.destroy(); } catch (e) {} }
+        });
+
         Oview = this.getParentview();
         Omode = this.getMode();
 
@@ -95,13 +100,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
             ref = this.getOdatasource().lg_FAMILLE_ID;
             Ext.getCmp('str_DESCRIPTION').setValue(this.getOdatasource().str_NAME);
             Ext.getCmp('int_NUMBER').setValue(this.getOdatasource().int_STOCK_RAYON);
-            Ext.getCmp('int_NUMBER_REASSORT').setValue(0);
+            Ext.getCmp('int_NUMBER_REASSORT').setValue(this.getOdatasource().int_QTE_SUGGEREE || 0);
         }
 
-
-
         var win = new Ext.window.Window({
-            autoShow: true,
+            autoShow: false,
             title: this.getTitre(),
             width: 500,
             height: 300,
@@ -120,6 +123,19 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                     }
                 }]
         });
+
+        win.on('show', function () {
+            Ext.defer(function () {
+                var qf = Ext.getCmp('int_NUMBER_REASSORT');
+                if (qf && qf.inputEl && qf.inputEl.dom) {
+                    qf.inputEl.dom.focus();
+                    qf.inputEl.dom.select();
+                } else if (qf) {
+                    qf.focus(true, 100);
+                }
+            }, 200);
+        });
+        win.show();
 
     },
     onbtnsave: function () {
