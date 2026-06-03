@@ -52,6 +52,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                         m.style = 'color:#6600cc; font-weight:bold;';
                         return v;
                     }
+                },
+                {
+                    xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
+                    items: [{
+                        icon: 'resources/images/icons/fam/delete.png',
+                        tooltip: 'Retirer de la suggestion',
+                        handler: function (g, rowIndex) {
+                            store.removeAt(rowIndex);
+                        }
+                    }]
                 }
             ],
             viewConfig: {

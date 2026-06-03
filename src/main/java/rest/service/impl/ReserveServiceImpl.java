@@ -57,12 +57,15 @@ public class ReserveServiceImpl implements ReserveService {
         String extra = "";
         boolean reapproSuggestion = false;
         if ("REAPPRO".equalsIgnoreCase(type)) {
-            // rayon -> reserve : stock rayon > stock reserve
-            extra = " AND fs.int_NUMBER_AVAILABLE > tsf.int_NUMBER ";
+            // rayon -> reserve : stock_rayon > int_SEUIL_RESERVE (non null et > 0)
+            extra = " AND f.int_SEUIL_RESERVE IS NOT NULL AND f.int_SEUIL_RESERVE > 0 "
+                  + " AND fs.int_NUMBER_AVAILABLE > f.int_SEUIL_RESERVE ";
             reapproSuggestion = true;
         } else if ("REASSORT_RAYON".equalsIgnoreCase(type)) {
-            // reserve -> rayon : stock reserve > stock rayon
-            extra = " AND tsf.int_NUMBER > fs.int_NUMBER_AVAILABLE ";
+            // reserve -> rayon : bool_RESERVE=1, int_SEUIL_MINI_RAYON IS NOT NULL,
+            // stock_rayon <= int_SEUIL_MINI_RAYON
+            extra = " AND f.int_SEUIL_MINI_RAYON IS NOT NULL "
+                  + " AND fs.int_NUMBER_AVAILABLE <= f.int_SEUIL_MINI_RAYON ";
         }
 
         String base = "FROM t_type_stock_famille tsf "
@@ -98,10 +101,15 @@ public class ReserveServiceImpl implements ReserveService {
             }
             JSONObject json = buildArticleJson(f, empl, true);
             if (reapproSuggestion) {
-                // Onglet REAPPRO RESERVE : suggestion = max(0, stock_rayon - stock_reserve)
+                // REAPPRO rayon->reserve : suggestion = stock_rayon - int_SEUIL_RESERVE
                 int sr = json.optInt("int_STOCK_RAYON", 0);
-                int sv = json.optInt("int_STOCK_RESERVE", 0);
-                json.put("int_QTE_SUGGEREE", Math.max(0, sr - sv));
+                int seuil = json.optInt("int_SEUIL_RESERVE", 0);
+                json.put("int_QTE_SUGGEREE", Math.max(0, sr - seuil));
+            } else if ("REASSORT_RAYON".equalsIgnoreCase(type)) {
+                // REASSORT reserve->rayon : suggestion = int_SEUIL_RESERVE - stock_rayon
+                int sr = json.optInt("int_STOCK_RAYON", 0);
+                int seuil = json.optInt("int_SEUIL_RESERVE", 0);
+                json.put("int_QTE_SUGGEREE", Math.max(0, seuil - sr));
             }
             results.put(json);
         }
@@ -135,10 +143,20 @@ public class ReserveServiceImpl implements ReserveService {
             if (f == null) {
                 continue;
             }
-            JSONObject json = buildArticleJson(f, empl, true);
-            if (json.optInt("int_QTE_SUGGEREE", 0) > 0) {
-                suggested.add(json);
+            JSONObject json = buildArticleJson(f, empl, false);
+            Integer seuilMini = f.getIntSEUILMINIRAYON();
+            int stockRayon = json.optInt("int_STOCK_RAYON", 0);
+            int seuilReserve = json.optInt("int_SEUIL_RESERVE", 0);
+            // Nouveau declencheur : stock_rayon <= seuil_mini_rayon (non null)
+            if (seuilMini == null || stockRayon > seuilMini) {
+                continue;
             }
+            int sugg = Math.max(0, seuilReserve - stockRayon);
+            if (sugg <= 0) {
+                continue;
+            }
+            json.put("int_QTE_SUGGEREE", sugg);
+            suggested.add(json);
         }
 
         long total = suggested.size();
@@ -163,7 +181,8 @@ public class ReserveServiceImpl implements ReserveService {
                 + "WHERE tsf.lg_TYPE_STOCK_ID = '" + TYPE_STOCK_RESERVE + "' "
                 + "AND tsf.lg_EMPLACEMENT_ID = ?1 AND tsf.str_STATUT = 'enable' "
                 + "AND f.bool_RESERVE = 1 "
-                + "AND fs.int_NUMBER_AVAILABLE > tsf.int_NUMBER "
+                + "AND f.int_SEUIL_RESERVE IS NOT NULL AND f.int_SEUIL_RESERVE > 0 "
+                + "AND fs.int_NUMBER_AVAILABLE > f.int_SEUIL_RESERVE "
                 + "AND (f.str_NAME LIKE ?2 OR f.str_DESCRIPTION LIKE ?2 OR f.int_CIP LIKE ?2) ";
 
         Query q = em.createNativeQuery("SELECT DISTINCT tsf.lg_FAMILLE_ID " + base + " ORDER BY f.str_DESCRIPTION ASC");
@@ -180,7 +199,7 @@ public class ReserveServiceImpl implements ReserveService {
                 continue;
             }
             JSONObject json = buildArticleJson(f, empl, true);
-            int sugg = Math.max(0, json.optInt("int_STOCK_RAYON", 0) - json.optInt("int_STOCK_RESERVE", 0));
+            int sugg = Math.max(0, json.optInt("int_STOCK_RAYON", 0) - json.optInt("int_SEUIL_RESERVE", 0));
             json.put("int_QTE_SUGGEREE", sugg);
             if (sugg > 0) {
                 suggested.add(json);
@@ -437,6 +456,7 @@ public class ReserveServiceImpl implements ReserveService {
         json.put("int_STOCK_RAYON", stockRayon);
         json.put("int_STOCK_RESERVE", stockReserve);
         json.put("int_SEUIL_RESERVE", nz(f.getIntSEUILRESERVE()));
+        json.put("int_SEUIL_MINI_RAYON", f.getIntSEUILMINIRAYON() != null ? f.getIntSEUILMINIRAYON() : JSONObject.NULL);
         json.put("bool_RESERVE", f.getBoolRESERVE());
 
         if (withSuggestion) {

@@ -207,6 +207,9 @@ Ext.define('testextjs.model.Famille', {
             type: 'int'
         },
         {
+            name: 'int_SEUIL_MINI_RAYON'
+        },
+        {
             name: 'int_STOCK_RESERVE',
             type: 'int'
         },

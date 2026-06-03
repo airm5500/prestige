@@ -358,12 +358,15 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                         change: function (checkbox, newValue) {
                                             var fs = checkbox.up('#info_reserve') || checkbox.up('fieldset');
                                             var seuil = fs && fs.down('#int_SEUIL_RESERVE');
+                                            var seuilMini = fs && fs.down('#int_SEUIL_MINI_RAYON');
                                             var reserveDf = fs && fs.down('#int_RESERVE');
                                             if (newValue) {
                                                 seuil && seuil.show();
+                                                seuilMini && seuilMini.show();
                                                 reserveDf && reserveDf.show();
                                             } else {
                                                 if (seuil) { seuil.hide(); seuil.setValue(0); }
+                                                if (seuilMini) { seuilMini.hide(); seuilMini.setValue(null); seuilMini._userModified = false; }
                                                 reserveDf && reserveDf.hide();
                                             }
                                         }
@@ -381,7 +384,41 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     value: 0,
                                     xtype: 'numberfield',
                                     allowBlank: false,
-                                    regex: /[0-9.]/
+                                    allowDecimals: false,
+                                    listeners: {
+                                        change: function (fld, newVal) {
+                                            // Auto-calcul seuil mini rayon UNIQUEMENT en creation (pas en modification)
+                                            var miniField = fld.up('#info_reserve') && fld.up('#info_reserve').down('#int_SEUIL_MINI_RAYON');
+                                            if (!miniField || miniField._userModified) { return; }
+                                            var v = Math.max(0, parseInt(newVal, 10) || 0);
+                                            var mini;
+                                            if (v === 0) { mini = 0; }
+                                            else if (v === 1) { mini = 1; }
+                                            else { mini = Math.ceil(v / 2); }
+                                            miniField.setValue(mini);
+                                        }
+                                    }
+                                },
+                                { xtype: 'splitter' },
+                                {
+                                    fieldLabel: 'Seuil mini rayon',
+                                    flex: 1,
+                                    minValue: 0,
+                                    hidden: true,
+                                    emptyText: 'Seuil mini rayon (auto)',
+                                    name: 'int_SEUIL_MINI_RAYON',
+                                    itemId: 'int_SEUIL_MINI_RAYON',
+                                    xtype: 'numberfield',
+                                    allowDecimals: false,
+                                    listeners: {
+                                        change: function (fld) {
+                                            // Marque comme modifie manuellement pour desactiver l'auto-calcul
+                                            fld._userModified = true;
+                                        },
+                                        focus: function (fld) {
+                                            fld._userModified = true;
+                                        }
+                                    }
                                 },
                                 { xtype: 'splitter' },
                                 {
@@ -698,6 +735,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 int_EAN13: g('int_EAN13').getValue(),
                 lg_CODE_TVA_ID: g('lg_CODE_TVA_ID').getValue(),
                 int_SEUIL_RESERVE: (function(){ var s=form.down('#int_SEUIL_RESERVE'); return s ? s.getValue() : 0; })(),
+                int_SEUIL_MINI_RAYON: form.down('#int_SEUIL_MINI_RAYON') ? form.down('#int_SEUIL_MINI_RAYON').getValue() : null,
                 bool_RESERVE: g('bool_RESERVE').getValue(),
                 laboratoireId: g('laboratoireId').getValue(),
                 gammeId: g('gammeId').getValue(),

@@ -147,6 +147,8 @@ public class TFamille implements Serializable {
     private Date dtDATELASTSORTIE;
     @Column(name = "int_SEUIL_RESERVE")
     private Integer intSEUILRESERVE;
+    @Column(name = "int_SEUIL_MINI_RAYON")
+    private Integer intSEUILMINIRAYON;
     @Column(name = "int_NOMBRE_VENTES")
     private Integer intNOMBREVENTES;
     @Column(name = "int_QTE_MANQUANTE")
@@ -692,6 +694,14 @@ public class TFamille implements Serializable {
 
     public void setIntSEUILRESERVE(Integer intSEUILRESERVE) {
         this.intSEUILRESERVE = intSEUILRESERVE;
+    }
+
+    public Integer getIntSEUILMINIRAYON() {
+        return intSEUILMINIRAYON;
+    }
+
+    public void setIntSEUILMINIRAYON(Integer intSEUILMINIRAYON) {
+        this.intSEUILMINIRAYON = intSEUILMINIRAYON;
     }
 
     public Integer getIntNOMBREVENTES() {

@@ -297,6 +297,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.autreinfos', {
                                     emptyText: 'QUANTITE RESERVE',
                                     name: 'int_QTE_RESERVEE',
                                     id: 'int_QTE_RESERVEE'
+                                }, {
+                                    fieldLabel: 'Seuil mini rayon',
+                                    xtype: 'numberfield',
+                                    maskRe: /[0-9]/,
+                                    width: 400,
+                                    minValue: 0,
+                                    allowDecimals: false,
+                                    emptyText: 'Seuil mini rayon',
+                                    name: 'int_SEUIL_MINI_RAYON',
+                                    id: 'int_SEUIL_MINI_RAYON'
                                 }
                             ]
                         }, {
@@ -506,6 +516,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.autreinfos', {
             Ext.getCmp('int_STOCK_REAPROVISONEMENT').setValue(this.getOdatasource().int_STOCK_REAPROVISONEMENT);            
 //            Ext.getCmp('str_CODE_ETIQUETTE').setValue(this.getOdatasource().str_CODE_ETIQUETTE);
             Ext.getCmp('int_SEUIL_RESERVE').setValue(this.getOdatasource().int_SEUIL_RESERVE);
+            Ext.getCmp('int_SEUIL_MINI_RAYON').setValue(this.getOdatasource().int_SEUIL_MINI_RAYON);
             Ext.getCmp('int_PRICE_DETAIL').setValue(this.getOdatasource().int_PRICE_DETAIL);
             Ext.getCmp('int_DELAI_REAPPRO').setValue(this.getOdatasource().int_DELAI_REAPPRO);
             Ext.getCmp('lg_ZONE_GEO_ID').setValue(this.getOdatasource().lg_ZONE_GEO_ID);
@@ -591,6 +602,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.autreinfos', {
                 int_QTE_REAPPROVISIONNEMENT:Ext.getCmp('int_QTE_REAPPROVISIONNEMENT').getValue(),
 //                str_CODE_ETIQUETTE: Ext.getCmp('str_CODE_ETIQUETTE').getValue(),
                 int_SEUIL_RESERVE:Ext.getCmp('int_SEUIL_RESERVE').getValue(),
+                int_SEUIL_MINI_RAYON: Ext.getCmp('int_SEUIL_MINI_RAYON').getValue(),
                 int_PRICE_DETAIL: Ext.getCmp('int_PRICE_DETAIL').getValue(),
                 int_QTEDETAIL: Ext.getCmp('int_QTEDETAIL').getValue(),
                 int_DELAI_REAPPRO:Ext.getCmp('int_DELAI_REAPPRO').getValue(),

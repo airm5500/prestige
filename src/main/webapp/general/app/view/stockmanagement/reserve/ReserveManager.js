@@ -21,8 +21,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
     initComponent: function () {
         this.items = [
             {xtype: 'reservegrid', title: 'ALL', gridmode: 'ALL'},
-            {xtype: 'reservegrid', title: 'REAPPRO RESERVE', gridmode: 'REAPPRO'},
-            {xtype: 'reservegrid', title: 'REASSORT RAYON', gridmode: 'REASSORT'}
+            {
+                xtype: 'reservegrid', gridmode: 'REAPPRO',
+                title: '<span style="color:#cc6600;font-weight:bold;">REAPPRO RESERVE</span>'
+            },
+            {
+                xtype: 'reservegrid', gridmode: 'REASSORT',
+                title: '<span style="color:#1f7a1f;font-weight:bold;">REASSORT RAYON</span>'
+            }
         ];
         this.listeners = {
             tabchange: function (tabPanel, newCard) {

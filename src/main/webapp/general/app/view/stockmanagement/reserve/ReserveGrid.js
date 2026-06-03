@@ -66,7 +66,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                 }
             },
             {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1},
-            {header: 'Seuil', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1},
+            {header: 'Seuil Reserve', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1},
+            {
+                header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1,
+                hidden: mode !== 'REAPPRO',
+                renderer: function (v) {
+                    return (v === null || v === undefined || v === '') ? '-' : v;
+                }
+            },
             {
                 header: 'Suggere', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1,
                 renderer: function (v, m) {
