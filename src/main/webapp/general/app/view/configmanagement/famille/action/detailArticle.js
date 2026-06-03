@@ -49,6 +49,20 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         produitId: null
     },
     initComponent: function () {
+        // Nettoyage des IDs globaux partages avec d'autres vues (evite duplicate id)
+        var sharedIds = [
+            'lg_ZONE_GEO_ID', 'lg_FAMILLEARTICLE_ID', 'lg_CODE_ACTE_ID', 'lg_CODE_GESTION_ID',
+            'lg_TYPEETIQUETTE_ID', 'int_CIP', 'str_DESCRIPTION', 'int_EAN13',
+            'int_PRICE', 'int_PAF', 'int_PAT', 'int_PRICE_TIPS', 'int_TAUX_MARQUE',
+            'str_CODE_REMISE', 'str_CODE_TAUX_REMBOURSEMENT', 'int_T', 'str_CODE_TVA',
+            'int_QTEDETAIL', 'int_NUMBER_AVAILABLE', 'dt_DATE_LIVRAISON',
+            'int_STOCK_REAPROVISONEMENT', 'int_QTE_REAPPROVISIONNEMENT',
+            'gridpanelDetailID', 'datedebutDetail', 'datefinDetail'
+        ];
+        sharedIds.forEach(function (cid) {
+            var existing = Ext.getCmp(cid);
+            if (existing) { try { existing.destroy(); } catch (e) {} }
+        });
 
         valdatedebutDetail = "";
         valdatefinDetail = "";

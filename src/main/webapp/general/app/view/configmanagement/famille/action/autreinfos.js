@@ -33,8 +33,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.autreinfos', {
         titre: ''
     },
     initComponent: function () {
-
-        Oview = this.getParentview();
+        // Nettoyage des IDs globaux partages avec d'autres vues (evite duplicate id)
+        var sharedIds = [
+            'lg_ZONE_GEO_ID', 'lg_CODE_ACTE_ID', 'lg_CODE_GESTION_ID', 'lg_TABLEAU_ID',
+            'int_STOCK_REAPROVISONEMENT', 'int_QTE_REAPPROVISIONNEMENT', 'int_DELAI_REAPPRO',
+            'int_SEUIL_RESERVE', 'int_SEUIL_MINI_RAYON', 'int_QTE_RESERVEE', 'int_QTE_MANQUANTE',
+            'int_SEUIL_MAX', 'int_PRICE_DETAIL', 'int_QTEDETAIL', 'int_QTEDETAIL',
+            'lg_INDICATEUR_REAPPROVISIONNEMENT_ID', 'dt_DATE_LAST_ENTREE', 'infosup',
+            'bool_DECONDITIONNE', 'autreinfosfamilleID'
+        ];
+        sharedIds.forEach(function (cid) {
+            var existing = Ext.getCmp(cid);
+            if (existing) { try { existing.destroy(); } catch (e) {} }
+        });
        
                 ref = this.getOdatasource();
                 alert("ref ---"+ref);
