@@ -23,10 +23,14 @@ Ext.define('testextjs.view.Navigation', {
     useArrows: true,
     frame: false,
     border: false,
-    header: false,
+    /* header doit rester actif pour que le bouton collapse/expand du border layout fonctionne */
+    title: ' ',
     width: 260,
     minWidth: 180,
     autoScroll: true,
+
+    /* Menu flyout actif */
+    _flyoutMenu: null,
 
     initComponent: function () {
         var me = this;
@@ -51,12 +55,30 @@ Ext.define('testextjs.view.Navigation', {
         me.callParent();
 
         me.listeners = {
-            itemclick: function (s, r) {
-                me.callItemMenu(s, r);
-            },
             afterrender: function () {
                 me._refreshProfile();
                 Ext.defer(function () { me._applyFontAwesomeIcons(); }, 500);
+            },
+            /* Clic sur un item */
+            itemclick: function (view, record, item, index, e) {
+                if (record.isLeaf()) {
+                    /* Sous-menu : charger le composant */
+                    me.callItemMenu(view, record);
+                } else {
+                    /* Menu parent : ouvrir le flyout */
+                    me._showFlyout(record, item);
+                    /* Empêcher l'expansion inline */
+                    return false;
+                }
+            },
+            /* Masquer le flyout si on sort du panel */
+            el: {
+                mouseleave: function () {
+                    me._scheduleFlyoutHide();
+                },
+                mouseenter: function () {
+                    me._cancelFlyoutHide();
+                }
             },
             itemexpand: function () {
                 Ext.defer(function () { me._applyFontAwesomeIcons(); }, 150);
@@ -102,8 +124,81 @@ Ext.define('testextjs.view.Navigation', {
         if (roleEl && userRole) roleEl.textContent = userRole;
     },
 
+    /* Construit et affiche le menu flyout à droite du nœud parent cliqué */
+    _showFlyout: function (record, itemEl) {
+        var me = this;
+        me._cancelFlyoutHide();
+
+        /* Détruire le menu précédent */
+        if (me._flyoutMenu) {
+            me._flyoutMenu.destroy();
+            me._flyoutMenu = null;
+        }
+
+        var children = record.childNodes;
+        if (!children || children.length === 0) return;
+
+        var menuItems = [];
+        Ext.Array.each(children, function (child) {
+            menuItems.push({
+                text: child.get('text'),
+                cls: 'prestige-flyout-item',
+                handler: function () {
+                    me.callItemMenu(null, child);
+                }
+            });
+        });
+
+        /* Ajoute un titre de section en haut */
+        menuItems.unshift({
+            xtype: 'component',
+            cls: 'prestige-flyout-title',
+            html: '<div class="pft-header">'
+                + '<i class="fa-solid fa-folder-open"></i> '
+                + Ext.String.htmlEncode(record.get('text'))
+                + '</div>'
+        }, '-');
+
+        me._flyoutMenu = Ext.create('Ext.menu.Menu', {
+            cls: 'prestige-flyout-menu',
+            plain: true,
+            items: menuItems,
+            listeners: {
+                mouseleave: function () { me._scheduleFlyoutHide(); },
+                mouseenter: function () { me._cancelFlyoutHide(); },
+                hide: function () {
+                    me._flyoutMenu = null;
+                }
+            }
+        });
+
+        /* Positionner à droite du nœud, aligné en haut */
+        var navEl  = me.getEl();
+        var navBox = navEl.getBox();
+        var itemBox = Ext.get(itemEl).getBox();
+
+        me._flyoutMenu.showAt([navBox.x + navBox.width + 2, itemBox.y]);
+    },
+
+    _flyoutHideTimer: null,
+
+    _scheduleFlyoutHide: function () {
+        var me = this;
+        me._flyoutHideTimer = Ext.defer(function () {
+            if (me._flyoutMenu) {
+                me._flyoutMenu.hide();
+            }
+        }, 350);
+    },
+
+    _cancelFlyoutHide: function () {
+        if (this._flyoutHideTimer) {
+            clearTimeout(this._flyoutHideTimer);
+            this._flyoutHideTimer = null;
+        }
+    },
+
     _applyFontAwesomeIcons: function () {
-        /* Toutes les icônes en blanc semi-transparent sur fond bleu */
         var iconColor = 'rgba(255,255,255,0.9)';
         var iconMap = [
             { keys: ['vente', 'ventes', 'sale'],           icon: 'fa-cart-shopping'  },
@@ -129,10 +224,8 @@ Ext.define('testextjs.view.Navigation', {
 
         var nodes = Ext.query('.x-tree-node-text', this.getEl().dom);
         Ext.Array.each(nodes, function (node) {
-            /* Ne pas retraiter un nœud déjà modifié */
             if (node.getAttribute('data-fa-done')) return;
 
-            /* Lire le texte brut AVANT toute modification */
             var rawText = node.textContent || node.innerText || '';
             var lowerText = rawText.toLowerCase();
 
@@ -162,10 +255,14 @@ Ext.define('testextjs.view.Navigation', {
     },
 
     callItemMenu: function (parent, component) {
-        if (typeof component.data.id !== 'undefined') {
-            testextjs.app.getController('App').onLoadNewComponent(component.data.id, component.data.text, '');
-        }
         var me = this;
-        Ext.defer(function () { me._applyFontAwesomeIcons(); }, 200);
+        if (component && typeof component.data !== 'undefined' && typeof component.data.id !== 'undefined') {
+            testextjs.app.getController('App').onLoadNewComponent(component.data.id, component.data.text, '');
+        } else if (component && typeof component.get === 'function') {
+            testextjs.app.getController('App').onLoadNewComponent(component.get('id'), component.get('text'), '');
+        }
+        if (me._flyoutMenu) {
+            me._flyoutMenu.hide();
+        }
     }
 });

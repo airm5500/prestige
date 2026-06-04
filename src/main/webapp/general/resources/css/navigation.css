@@ -33,9 +33,35 @@
     overflow-x: hidden !important;
 }
 
-/* ---- Header ExtJS natif masqué ---- */
+/* ---- Header ExtJS natif : stylé en bleu, titre masqué ---- */
+/* On NE masque PAS le header sinon le bouton collapse/expand disparaît */
 .prestige-nav .x-panel-header {
+    background: #0d47a1 !important;
+    background-color: #0d47a1 !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+    padding: 4px 8px !important;
+    min-height: 28px !important;
+}
+
+/* Masquer uniquement le texte du titre, garder les outils */
+.prestige-nav .x-panel-header .x-title-text,
+.prestige-nav .x-panel-header .x-panel-header-text {
     display: none !important;
+}
+
+/* Colorier les outils (collapse arrow) en blanc */
+.prestige-nav .x-panel-header .x-tool-img,
+.prestige-nav .x-panel-header .x-tool {
+    color: rgba(255,255,255,0.7) !important;
+    filter: brightness(10) !important;
+}
+
+.prestige-nav .x-panel-header .x-tool:hover .x-tool-img,
+.prestige-nav .x-panel-header .x-tool:hover {
+    color: #ffffff !important;
+    background: rgba(255,255,255,0.15) !important;
+    border-radius: 3px;
 }
 
 /* ---- Header profil utilisateur ---- */
@@ -267,4 +293,92 @@
 
 .x-layout-split-west:hover {
     background: rgba(255,255,255,0.3) !important;
+}
+
+/* ============================================================
+   FLYOUT MENU — sous-menus s'ouvrant à droite
+   ============================================================ */
+
+/* Conteneur principal du flyout */
+.prestige-flyout-menu {
+    background: #1565c0 !important;
+    border: 1px solid rgba(255,255,255,0.2) !important;
+    border-radius: 6px !important;
+    box-shadow: 4px 6px 24px rgba(0,0,0,0.45) !important;
+    padding: 4px 0 !important;
+    min-width: 220px !important;
+    max-width: 300px !important;
+}
+
+/* Fond de la vue interne du menu */
+.prestige-flyout-menu .x-menu-body {
+    background: #1565c0 !important;
+    border-radius: 6px !important;
+}
+
+/* Titre de section en haut du flyout */
+.prestige-flyout-menu .pft-header {
+    padding: 10px 16px 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.prestige-flyout-menu .pft-header i {
+    margin-right: 6px;
+    font-size: 11px;
+}
+
+/* Séparateur après le titre */
+.prestige-flyout-menu .x-menu-item-separator {
+    background: rgba(255,255,255,0.12) !important;
+    margin: 2px 10px !important;
+    height: 1px !important;
+}
+
+/* Chaque item du flyout */
+.prestige-flyout-menu .prestige-flyout-item,
+.prestige-flyout-menu .x-menu-item {
+    background: transparent !important;
+    border: none !important;
+}
+
+.prestige-flyout-menu .x-menu-item-text {
+    color: rgba(255,255,255,0.82) !important;
+    font-size: 13px !important;
+    font-family: 'Segoe UI', sans-serif !important;
+    font-weight: 400 !important;
+    padding: 2px 0 !important;
+}
+
+/* Hover sur item flyout */
+.prestige-flyout-menu .x-menu-item-active,
+.prestige-flyout-menu .x-menu-item:hover {
+    background: rgba(255,255,255,0.15) !important;
+    border-left: 3px solid #69f0ae !important;
+    border-radius: 0 4px 4px 0 !important;
+}
+
+.prestige-flyout-menu .x-menu-item-active .x-menu-item-text,
+.prestige-flyout-menu .x-menu-item:hover .x-menu-item-text {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* Icône de puce à gauche des items */
+.prestige-flyout-menu .x-menu-item-icon {
+    display: none !important;
+}
+
+/* Animation d'apparition */
+.prestige-flyout-menu {
+    animation: flyout-in 0.15s ease-out;
+}
+
+@keyframes flyout-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
 }

@@ -32,7 +32,6 @@ Ext.define('testextjs.view.Viewport', {
             stateful: true,
             stateId: 'mainnav.west',
             collapsible: true,
-            collapseMode: 'mini',
             animCollapse: true,
             listeners: {
                 beforerender: function () {
