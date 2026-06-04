@@ -1,0 +1,288 @@
+/* ============================================================
+   Prestige Navigation - Modern Sidebar Style (Option A)
+   Font Awesome 6 + Dark gradient theme
+   ============================================================ */
+
+/* ---- Panel global ---- */
+.prestige-nav .x-panel-body {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+    border: none !important;
+}
+
+.prestige-nav .x-panel-header {
+    background: linear-gradient(135deg, #1e40af 0%, #1e293b 100%) !important;
+    border-bottom: 2px solid #3b82f6 !important;
+    padding: 0 !important;
+}
+
+.prestige-nav .x-title-text {
+    display: none !important;
+}
+
+/* ---- Header profil utilisateur ---- */
+.nav-profile-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 12px 12px 12px;
+    gap: 10px;
+    background: linear-gradient(135deg, #1e40af 0%, #1e293b 100%);
+    border-bottom: 2px solid #3b82f6;
+}
+
+.nav-profile-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #3b82f6;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #1e40af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+}
+
+.nav-profile-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.nav-profile-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.nav-profile-role {
+    font-size: 10px;
+    color: #94a3b8;
+    margin-top: 1px;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.nav-profile-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 1px solid #0f172a;
+    flex-shrink: 0;
+}
+
+/* ---- Search bar ---- */
+.nav-search-wrap {
+    padding: 10px 12px 6px 12px;
+    background: transparent;
+}
+
+.nav-search-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 6px 12px 6px 32px;
+    color: #e2e8f0;
+    font-size: 12px;
+    font-family: 'Segoe UI', sans-serif;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 10px center;
+}
+
+.nav-search-input::placeholder {
+    color: #64748b;
+}
+
+.nav-search-input:focus {
+    border-color: #3b82f6;
+    background-color: rgba(59,130,246,0.08);
+}
+
+/* ---- Tree items ---- */
+.prestige-nav .x-tree-view {
+    background: transparent !important;
+}
+
+.prestige-nav .x-grid-item {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Noeud parent (menu principal) */
+.prestige-nav .x-grid-row .x-tree-node-text {
+    color: #cbd5e1 !important;
+    font-size: 13px !important;
+    font-family: 'Segoe UI', sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px;
+}
+
+/* Noeud feuille (sous-menu) */
+.prestige-nav .x-grid-row .x-tree-node-leaf .x-tree-node-text {
+    color: #94a3b8 !important;
+    font-weight: 400 !important;
+    font-size: 12px !important;
+}
+
+/* Hover sur un item */
+.prestige-nav .x-grid-item-over .x-grid-cell {
+    background: rgba(59, 130, 246, 0.15) !important;
+    border-left: 3px solid #3b82f6 !important;
+    transition: all 0.15s ease !important;
+}
+
+.prestige-nav .x-grid-item-over .x-tree-node-text {
+    color: #f1f5f9 !important;
+}
+
+/* Item sélectionné / actif */
+.prestige-nav .x-grid-item-selected .x-grid-cell {
+    background: rgba(59, 130, 246, 0.25) !important;
+    border-left: 3px solid #60a5fa !important;
+}
+
+.prestige-nav .x-grid-item-selected .x-tree-node-text {
+    color: #bfdbfe !important;
+}
+
+/* Flèches de l'arbre */
+.prestige-nav .x-tree-expander {
+    color: #475569 !important;
+}
+
+.prestige-nav .x-grid-item-over .x-tree-expander {
+    color: #3b82f6 !important;
+}
+
+/* ---- Icônes Font Awesome dans les items ---- */
+.prestige-nav .x-tree-icon {
+    width: 20px !important;
+    height: 20px !important;
+    margin-right: 4px !important;
+    vertical-align: middle !important;
+    opacity: 0.85;
+}
+
+/* Icônes génériques de fallback si pas d'icône définie */
+.prestige-nav .x-tree-node-leaf .x-tree-icon-leaf {
+    display: none !important;
+}
+.prestige-nav .x-tree-node .x-tree-icon-parent {
+    display: none !important;
+}
+
+/* ---- Icônes FA par module (correspondance iconCls BDD) ---- */
+/* Format : la BDD retourne un iconCls, on le surcharge ici */
+[class*="icon_menu_"]::before,
+.nav-fa-icon::before {
+    font-family: "Font Awesome 6 Free" !important;
+    font-weight: 900 !important;
+    font-size: 14px !important;
+    width: 20px;
+    display: inline-block;
+    text-align: center;
+    color: #60a5fa;
+    margin-right: 6px;
+}
+
+/* Icônes par module — à enrichir selon les iconCls en base */
+.icon_vente::before        { content: "\f07a"; } /* shopping-cart */
+.icon_stock::before        { content: "\f1b2"; } /* cubes */
+.icon_caisse::before       { content: "\f09d"; } /* credit-card */
+.icon_commande::before     { content: "\f466"; } /* clipboard-list */
+.icon_client::before       { content: "\f0c0"; } /* users */
+.icon_fournisseur::before  { content: "\f1b3"; } /* building */
+.icon_rapport::before      { content: "\f080"; } /* chart-bar */
+.icon_config::before       { content: "\f013"; } /* gear */
+.icon_user::before         { content: "\f007"; } /* user */
+.icon_gear::before         { content: "\f013"; } /* cog */
+.icon_tag::before          { content: "\f02b"; } /* tag */
+.icon_dashboard::before    { content: "\f3fd"; } /* tachometer */
+.icon_livraison::before    { content: "\f48b"; } /* truck */
+.icon_facturation::before  { content: "\f571"; } /* file-invoice */
+.icon_rh::before           { content: "\f508"; } /* user-tie */
+.icon_stat::before         { content: "\f201"; } /* line-chart */
+
+/* ---- Scrollbar custom ---- */
+.prestige-nav .x-panel-body::-webkit-scrollbar {
+    width: 4px;
+}
+.prestige-nav .x-panel-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+.prestige-nav .x-panel-body::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+.prestige-nav .x-panel-body::-webkit-scrollbar-thumb:hover {
+    background: #3b82f6;
+}
+
+/* ---- Séparateur de section ---- */
+.nav-section-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 6px 12px;
+}
+
+/* ---- Badge compteur ---- */
+.nav-badge {
+    display: inline-block;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-family: 'Segoe UI', sans-serif;
+    line-height: 14px;
+}
+
+/* ---- Panel collapse button ---- */
+.prestige-nav .x-panel-collapse-placeholder {
+    background: linear-gradient(180deg, #1e40af 0%, #1e293b 100%) !important;
+    border-right: 2px solid #3b82f6 !important;
+}
+
+.prestige-nav .x-layout-split-west {
+    background: #1e293b !important;
+}
+
+/* ---- Footer du menu ---- */
+.nav-footer {
+    padding: 10px 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #475569;
+    font-size: 11px;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+.nav-footer i {
+    color: #3b82f6;
+}
+
+/* ---- Animation d'entrée ---- */
+.prestige-nav .x-panel-body {
+    transition: width 0.25s ease !important;
+}
+
+/* ---- Responsive : largeur réduite ---- */
+@media (max-width: 1366px) {
+    .prestige-nav {
+        min-width: 180px !important;
+    }
+}
