@@ -103,26 +103,28 @@ Ext.define('testextjs.view.Navigation', {
     },
 
     _applyFontAwesomeIcons: function () {
+        /* Toutes les icônes en blanc semi-transparent sur fond bleu */
+        var iconColor = 'rgba(255,255,255,0.9)';
         var iconMap = [
-            { keys: ['vente', 'ventes', 'sale'],           icon: 'fa-cart-shopping',  color: '#f59e0b' },
-            { keys: ['stock', 'inventaire', 'article'],    icon: 'fa-boxes-stacked',  color: '#10b981' },
-            { keys: ['caisse', 'paiement', 'encaiss'],     icon: 'fa-cash-register',  color: '#22c55e' },
-            { keys: ['commande', 'achat', 'approvision'],  icon: 'fa-clipboard-list', color: '#8b5cf6' },
-            { keys: ['client', 'clientèle', 'tiers'],      icon: 'fa-users',          color: '#3b82f6' },
-            { keys: ['fournisseur', 'grossiste'],           icon: 'fa-building',       color: '#06b6d4' },
+            { keys: ['vente', 'ventes', 'sale'],           icon: 'fa-cart-shopping'  },
+            { keys: ['stock', 'inventaire', 'article'],    icon: 'fa-boxes-stacked'  },
+            { keys: ['caisse', 'paiement', 'encaiss'],     icon: 'fa-cash-register'  },
+            { keys: ['commande', 'achat', 'approvision'],  icon: 'fa-clipboard-list' },
+            { keys: ['client', 'clientèle', 'tiers'],      icon: 'fa-users'          },
+            { keys: ['fournisseur', 'grossiste'],           icon: 'fa-building'       },
             { keys: ['rapport', 'statistique', 'stat',
-                      'bilan', 'analyse'],                  icon: 'fa-chart-bar',      color: '#f43f5e' },
+                      'bilan', 'analyse'],                  icon: 'fa-chart-bar'      },
             { keys: ['paramètre', 'config', 'réglage',
-                      'setting', 'administration'],         icon: 'fa-sliders',        color: '#94a3b8' },
+                      'setting', 'administration'],         icon: 'fa-sliders'        },
             { keys: ['utilisateur', 'user', 'personnel',
-                      'employé', 'rh'],                     icon: 'fa-user-tie',       color: '#a78bfa' },
-            { keys: ['livraison', 'expédition', 'trans'],  icon: 'fa-truck',          color: '#fb923c' },
-            { keys: ['facturation', 'facture', 'invoice'], icon: 'fa-file-invoice',   color: '#facc15' },
-            { keys: ['dashboard', 'tableau de bord'],      icon: 'fa-gauge-high',     color: '#38bdf8' },
-            { keys: ['retour', 'avoir'],                    icon: 'fa-rotate-left',    color: '#e879f9' },
-            { keys: ['sms', 'message', 'notification'],    icon: 'fa-bell',           color: '#fb7185' },
-            { keys: ['tarif', 'prix', 'promotion'],        icon: 'fa-tags',           color: '#fbbf24' },
-            { keys: ['agenda', 'rdv', 'calendrier'],       icon: 'fa-calendar-days',  color: '#4ade80' }
+                      'employé', 'rh'],                     icon: 'fa-user-tie'       },
+            { keys: ['livraison', 'expédition', 'trans'],  icon: 'fa-truck'          },
+            { keys: ['facturation', 'facture', 'invoice'], icon: 'fa-file-invoice'   },
+            { keys: ['dashboard', 'tableau de bord'],      icon: 'fa-gauge-high'     },
+            { keys: ['retour', 'avoir'],                    icon: 'fa-rotate-left'    },
+            { keys: ['sms', 'message', 'notification'],    icon: 'fa-bell'           },
+            { keys: ['tarif', 'prix', 'promotion'],        icon: 'fa-tags'           },
+            { keys: ['agenda', 'rdv', 'calendrier'],       icon: 'fa-calendar-days'  }
         ];
 
         var nodes = Ext.query('.x-tree-node-text', this.getEl().dom);
@@ -140,8 +142,8 @@ Ext.define('testextjs.view.Navigation', {
                 Ext.Array.each(entry.keys, function (k) {
                     if (lowerText.indexOf(k) !== -1) {
                         node.innerHTML = '<i class="fa-solid ' + entry.icon
-                            + '" style="color:' + entry.color
-                            + ';width:18px;margin-right:7px;font-size:13px;vertical-align:middle"></i>'
+                            + '" style="color:' + iconColor
+                            + ';width:20px;margin-right:8px;font-size:14px;vertical-align:middle;opacity:0.9"></i>'
                             + Ext.String.htmlEncode(rawText);
                         node.setAttribute('data-fa-done', '1');
                         matched = true;
@@ -151,8 +153,8 @@ Ext.define('testextjs.view.Navigation', {
             });
 
             if (!matched) {
-                node.innerHTML = '<i class="fa-solid fa-circle-dot"'
-                    + ' style="color:#475569;width:18px;margin-right:7px;font-size:11px;vertical-align:middle"></i>'
+                node.innerHTML = '<i class="fa-solid fa-chevron-right"'
+                    + ' style="color:rgba(255,255,255,0.4);width:20px;margin-right:8px;font-size:10px;vertical-align:middle"></i>'
                     + Ext.String.htmlEncode(rawText);
                 node.setAttribute('data-fa-done', '1');
             }
