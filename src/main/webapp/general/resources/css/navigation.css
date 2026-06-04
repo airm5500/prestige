@@ -34,34 +34,53 @@
 }
 
 /* ---- Header ExtJS natif : stylé en bleu, titre masqué ---- */
-/* On NE masque PAS le header sinon le bouton collapse/expand disparaît */
+/* NE PAS masquer le header : il contient le bouton collapse/expand du border layout */
 .prestige-nav .x-panel-header {
     background: #0d47a1 !important;
     background-color: #0d47a1 !important;
     border: none !important;
-    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
-    padding: 4px 8px !important;
-    min-height: 28px !important;
+    border-bottom: 2px solid rgba(255,255,255,0.15) !important;
+    padding: 6px 10px !important;
+    min-height: 32px !important;
+    cursor: pointer;
 }
 
-/* Masquer uniquement le texte du titre, garder les outils */
+/* Masquer le texte du titre uniquement */
 .prestige-nav .x-panel-header .x-title-text,
-.prestige-nav .x-panel-header .x-panel-header-text {
+.prestige-nav .x-panel-header .x-panel-header-text,
+.prestige-nav .x-panel-header .x-panel-header-title {
     display: none !important;
 }
 
-/* Colorier les outils (collapse arrow) en blanc */
-.prestige-nav .x-panel-header .x-tool-img,
-.prestige-nav .x-panel-header .x-tool {
-    color: rgba(255,255,255,0.7) !important;
-    filter: brightness(10) !important;
+/* Outils (collapse arrow) en blanc bien visible */
+.prestige-nav .x-panel-header .x-tool-img {
+    filter: brightness(0) invert(1) !important;
+    opacity: 0.8;
 }
 
-.prestige-nav .x-panel-header .x-tool:hover .x-tool-img,
+.prestige-nav .x-panel-header .x-tool {
+    background: rgba(255,255,255,0.1) !important;
+    border-radius: 4px !important;
+    padding: 2px !important;
+}
+
+.prestige-nav .x-panel-header .x-tool:hover .x-tool-img {
+    opacity: 1 !important;
+}
+
 .prestige-nav .x-panel-header .x-tool:hover {
-    color: #ffffff !important;
-    background: rgba(255,255,255,0.15) !important;
-    border-radius: 3px;
+    background: rgba(255,255,255,0.25) !important;
+}
+
+/* Placeholder quand le panel est collapsed (la bande bleue à gauche) */
+.x-layout-collapsed-placeholder {
+    background: #0d47a1 !important;
+    border-right: 2px solid #1565c0 !important;
+    cursor: pointer;
+}
+
+.x-layout-collapsed-placeholder .x-tool-img {
+    filter: brightness(0) invert(1) !important;
 }
 
 /* ---- Header profil utilisateur ---- */
