@@ -58,7 +58,6 @@ Ext.define('testextjs.view.Navigation', {
     height: 300,
 
     _flyoutMenu: null,
-    _flyoutTimer: null,
 
     initComponent: function () {
         var me = this;
@@ -92,7 +91,10 @@ Ext.define('testextjs.view.Navigation', {
             },
             afterrender: function () {
                 me._loadRealUser();
-                Ext.defer(function () { me._applyIcons(); }, 500);
+                /* Appliquer les icônes après chargement du store */
+                me.getStore().on('load', function () {
+                    Ext.defer(function () { me._applyIcons(); }, 300);
+                });
             },
             itemexpand: function () {
                 Ext.defer(function () { me._applyIcons(); }, 200);
@@ -106,7 +108,6 @@ Ext.define('testextjs.view.Navigation', {
 
     _showFlyout: function (record, rowEl) {
         var me = this;
-        me._clearFlyoutTimer();
         if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
 
         var children = record.childNodes;
@@ -141,11 +142,11 @@ Ext.define('testextjs.view.Navigation', {
         me._flyoutMenu = Ext.create('Ext.menu.Menu', {
             cls:   'prestige-flyout-menu',
             plain: true,
+            floating: true,
+            focusOnToFront: false,
             items: items,
             listeners: {
-                mouseleave: function () { me._scheduleFlyoutHide(); },
-                mouseenter: function () { me._clearFlyoutTimer(); },
-                hide:       function () { me._flyoutMenu = null; }
+                hide: function () { me._flyoutMenu = null; }
             }
         });
 
@@ -153,17 +154,6 @@ Ext.define('testextjs.view.Navigation', {
         var navBox = me.getEl().getBox();
         var rowBox = Ext.get(rowEl).getBox();
         me._flyoutMenu.showAt([navBox.x + navBox.width + 1, rowBox.y]);
-    },
-
-    _scheduleFlyoutHide: function () {
-        var me = this;
-        me._flyoutTimer = Ext.defer(function () {
-            if (me._flyoutMenu) me._flyoutMenu.hide();
-        }, 300);
-    },
-
-    _clearFlyoutTimer: function () {
-        if (this._flyoutTimer) { clearTimeout(this._flyoutTimer); this._flyoutTimer = null; }
     },
 
     /* ---- Profil utilisateur ---- */
