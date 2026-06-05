@@ -182,15 +182,7 @@
             ObllBase.setMessage(OInventaireManager.getMessage());
         } else if (request.getParameter("mode").toString().equals("cloturer")) {
 
-            // Inventaire de type "reserve" : cloture dediee qui met a jour uniquement
-            // le stock reserve (type 2) sans toucher au stock rayon.
-            TInventaire inventaireACloturer = OdataManager.getEm().find(TInventaire.class, lg_INVENTAIRE_ID);
-            if (inventaireACloturer != null && "reserve".equals(inventaireACloturer.getStrTYPE())) {
-                new logger().OCategory.info("Cloture inventaire RESERVE dediee pour " + lg_INVENTAIRE_ID);
-                OInventaireManager.closureReserveInventaire(lg_INVENTAIRE_ID);
-            } else {
-                OInventaireManager.closureInventaire(lg_INVENTAIRE_ID, lg_TYPE_STOCK_ID);
-            }
+            OInventaireManager.closureInventaire(lg_INVENTAIRE_ID, lg_TYPE_STOCK_ID);
             ObllBase.setDetailmessage(OInventaireManager.getDetailmessage());
             ObllBase.setMessage(OInventaireManager.getMessage());
         } else if (request.getParameter("mode").toString().equals("createbis")) {
@@ -220,7 +212,7 @@
                 ObllBase.setMessage(OInventaireManager.getMessage());
             } catch (Exception e) {
                 e.printStackTrace();
-                ObllBase.buildErrorTraceMessage("Echec de crï¿½ation de l'inventaitre");
+                ObllBase.buildErrorTraceMessage("Echec de création de l'inventaitre");
             }
 
         } else {

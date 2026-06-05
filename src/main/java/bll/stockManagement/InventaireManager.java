@@ -691,62 +691,6 @@ public class InventaireManager extends bllBase {
     }
     // fin fonction de cloture d'un inventaire
 
-    // cloture d'un inventaire de type "reserve" : met a jour UNIQUEMENT le stock
-    // reserve (t_type_stock_famille type 2) sans toucher au stock rayon (t_famille_stock).
-    public boolean closureReserveInventaire(String lg_INVENTAIRE_ID) {
-        boolean result = false;
-        List<TInventaireFamille> lstInventaireFamilles = new ArrayList<>();
-        int i = 0;
-        try {
-            TInventaire OInventaire = this.getOdataManager().getEm().find(TInventaire.class, lg_INVENTAIRE_ID);
-            StockManager OStockManager = new StockManager(this.getOdataManager(), this.getOTUser());
-            // type stock 2 = reserve
-            TTypeStock OTypeStockReserve = OStockManager.getTTypeStock("2");
-
-            lstInventaireFamilles = this.getOdataManager().getEm().createQuery(
-                    "SELECT t FROM TInventaireFamille t WHERE t.lgINVENTAIREID.lgINVENTAIREID = ?1 AND t.strSTATUT = ?2 AND t.boolINVENTAIRE = ?3")
-                    .setParameter(1, lg_INVENTAIRE_ID).setParameter(2, commonparameter.statut_enable)
-                    .setParameter(3, true).getResultList();
-
-            for (TInventaireFamille OTInventaireFamille : lstInventaireFamilles) {
-                boolean updated = true;
-                // n'applique la nouvelle valeur au stock reserve que si elle a change
-                if (OTInventaireFamille.getIntNUMBER() != OTInventaireFamille.getIntNUMBERINIT()) {
-                    updated = OStockManager.updateTypeStockFamille(OTInventaireFamille.getLgFAMILLEID(),
-                            OTypeStockReserve, OTInventaireFamille.getIntNUMBER());
-                }
-                if (updated) {
-                    OTInventaireFamille.setStrSTATUT(commonparameter.statut_is_Closed);
-                    OTInventaireFamille.setDtUPDATED(new Date());
-                    if (this.persiste(OTInventaireFamille)) {
-                        i++;
-                    }
-                }
-            }
-
-            if (i > 0) {
-                if (i == lstInventaireFamilles.size()) {
-                    OInventaire.setStrSTATUT(commonparameter.statut_is_Closed);
-                    OInventaire.setDtUPDATED(new Date());
-                    if (this.persiste(OInventaire)) {
-                        result = true;
-                        this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-                    }
-                } else {
-                    this.buildErrorTraceMessage(i + "/" + lstInventaireFamilles.size()
-                            + " produits ont été pris en compte. Veuillez réessayer pour finaliser");
-                }
-            } else {
-                this.buildErrorTraceMessage("Aucun produit pris en compte");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            this.buildErrorTraceMessage("Echec de clôture de l'inventaire réserve");
-        }
-        return result;
-    }
-    // fin cloture inventaire reserve
-
     // liste des ecarts d'inventaire (manquant ou surplus)
     public List<TInventaireFamille> listEcartInventaire(String search_value) {
 
