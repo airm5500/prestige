@@ -270,12 +270,23 @@
     background: linear-gradient(180deg, #1a3a5c 0%, #2a4a7a 100%) !important;
 }
 
-.x-layout-collapsed-placeholder .x-tool-img {
-    filter: brightness(0) invert(1) !important;
-    opacity: 0.7;
+/* Retirer la flèche/outil en haut de la barre (ne pas tromper l'utilisateur) */
+.x-layout-collapsed-placeholder .x-tool,
+.x-layout-collapsed-placeholder .x-tool-img,
+.x-layout-collapsed-placeholder .x-tool-expand-right,
+.x-layout-collapsed-placeholder .x-tool-expand-left {
+    display: none !important;
 }
 
-.x-layout-collapsed-placeholder:hover .x-tool-img { opacity: 1 !important; }
+/* Texte vertical de la barre repliée — couleurs du thème navigation */
+.x-layout-collapsed-placeholder .x-title-text,
+.x-layout-collapsed-placeholder .x-title,
+.x-layout-collapsed-placeholder .x-panel-header-title {
+    color: var(--nav-text) !important;
+    font-family: 'Segoe UI', sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px !important;
+}
 
 .x-layout-collapsed-placeholder::before {
     content: 'P';
