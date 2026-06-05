@@ -256,47 +256,44 @@
 .prestige-nav .x-panel-body::-webkit-scrollbar-thumb { background: rgba(93,173,226,0.35); border-radius: 3px; }
 .prestige-nav .x-panel-body::-webkit-scrollbar-thumb:hover { background: rgba(93,173,226,0.7); }
 
-/* ---- Collapsed placeholder visible ---- */
-.x-layout-collapsed-placeholder {
+/* ---- Barre verticale repliée (placeholder) ---- */
+.x-region-collapsed-placeholder,
+.x-region-collapsed-placeholder .x-header,
+.x-region-collapsed-placeholder.x-header {
     background: linear-gradient(180deg, var(--nav-header-bg) 0%, var(--nav-bg) 100%) !important;
+    background-color: var(--nav-header-bg) !important;
     border-right: 2px solid rgba(93,173,226,0.5) !important;
-    min-width: 28px !important;
+    border-left: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
     cursor: pointer;
     transition: border-color 0.2s;
 }
 
-.x-layout-collapsed-placeholder:hover {
+.x-region-collapsed-placeholder:hover {
     border-right-color: var(--nav-accent) !important;
     background: linear-gradient(180deg, #1a3a5c 0%, #2a4a7a 100%) !important;
 }
 
 /* Retirer la flèche/outil en haut de la barre (ne pas tromper l'utilisateur) */
-.x-layout-collapsed-placeholder .x-tool,
-.x-layout-collapsed-placeholder .x-tool-img,
-.x-layout-collapsed-placeholder .x-tool-expand-right,
-.x-layout-collapsed-placeholder .x-tool-expand-left {
+.x-region-collapsed-placeholder .x-tool,
+.x-region-collapsed-placeholder .x-tool-img,
+.x-region-collapsed-placeholder .x-tool-expand-right,
+.x-region-collapsed-placeholder .x-tool-expand-left {
     display: none !important;
+    width: 0 !important;
+    height: 0 !important;
 }
 
 /* Texte vertical de la barre repliée — couleurs du thème navigation */
-.x-layout-collapsed-placeholder .x-title-text,
-.x-layout-collapsed-placeholder .x-title,
-.x-layout-collapsed-placeholder .x-panel-header-title {
+.x-region-collapsed-placeholder .x-title-text,
+.x-region-collapsed-placeholder .x-title,
+.x-region-collapsed-placeholder .x-panel-header-title {
     color: var(--nav-text) !important;
+    background: transparent !important;
     font-family: 'Segoe UI', sans-serif !important;
     font-weight: 600 !important;
     letter-spacing: 0.5px !important;
-}
-
-.x-layout-collapsed-placeholder::before {
-    content: 'P';
-    display: block;
-    text-align: center;
-    font-size: 15px;
-    font-weight: 900;
-    color: var(--nav-accent);
-    padding: 10px 0 4px 0;
-    font-family: 'Segoe UI', sans-serif;
 }
 
 /* ---- Splitter ---- */
