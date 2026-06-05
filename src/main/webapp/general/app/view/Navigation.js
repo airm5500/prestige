@@ -57,7 +57,22 @@ Ext.define('testextjs.view.Navigation', {
     width: 350,
     height: 300,
 
-    _flyoutMenu: null,
+    _flyoutMenu:    null,
+    _closeTimer:    null,
+    _origSlideOut:  null,
+
+    _startCloseTimer: function () {
+        var me = this;
+        me._clearCloseTimer();
+        me._closeTimer = setTimeout(function () {
+            if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
+            if (me._origSlideOut) { me._origSlideOut.call(me); }
+        }, 350);
+    },
+
+    _clearCloseTimer: function () {
+        if (this._closeTimer) { clearTimeout(this._closeTimer); this._closeTimer = null; }
+    },
 
     initComponent: function () {
         var me = this;
@@ -85,27 +100,42 @@ Ext.define('testextjs.view.Navigation', {
                     me._showFlyout(record, item);
                     return false;
                 }
-                me.callItemMenu(view, record);
+                if (record.isLeaf()) { me.callItemMenu(view, record); }
+            },
+            /* Survol d'un menu principal → afficher son flyout immédiatement */
+            itemmouseenter: function (view, record, item) {
+                if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
+                    me._clearCloseTimer();
+                    me._showFlyout(record, item);
+                }
+            },
+            /* Survol d'un sous-menu (leaf) → juste annuler le timer de fermeture */
+            itemmouseleave: function () {
+                /* Laisser le flyout gérer sa propre fermeture */
             },
             afterrender: function () {
                 me._loadRealUser();
                 me.getStore().on('load', function () {
                     Ext.defer(function () { me._applyIcons(); }, 300);
                 });
-                /* Réappliquer les icônes à chaque rafraîchissement de la vue arbre */
                 me.getView().on('refresh', function () {
                     Ext.defer(function () { me._applyIcons(); }, 50);
                 });
-                /* Bloquer le retour automatique du panel flottant tant qu'un flyout est ouvert */
+                /* Quand la souris quitte le panel : démarrer timer de fermeture */
+                me.getEl().on('mouseleave', function () {
+                    me._startCloseTimer();
+                });
+                me.getEl().on('mouseenter', function () {
+                    me._clearCloseTimer();
+                });
+                /* Override slideOut : on gère nous-mêmes la fermeture via timer */
                 if (typeof me.slideOutFloatedPanel === 'function') {
-                    var origSlideOut = me.slideOutFloatedPanel;
+                    me._origSlideOut = me.slideOutFloatedPanel;
                     me.slideOutFloatedPanel = function () {
-                        if (me._flyoutMenu && !me._flyoutMenu.hidden) { return; }
-                        return origSlideOut.apply(me, arguments);
+                        /* Bloqué — on passe par _startCloseTimer/mouseleave */
                     };
                 }
             },
-            /* Panel affiché (fixé OU flottant depuis la barre réduite) */
             show: function () {
                 Ext.defer(function () { me._applyIcons(); }, 200);
             },
@@ -115,7 +145,6 @@ Ext.define('testextjs.view.Navigation', {
             itemexpand: function () {
                 Ext.defer(function () { me._applyIcons(); }, 200);
             },
-            /* Empêcher le collapse (panel fixé) si flyout affiché */
             beforecollapse: function () {
                 if (me._flyoutMenu && !me._flyoutMenu.hidden) {
                     return false;
@@ -172,6 +201,12 @@ Ext.define('testextjs.view.Navigation', {
             focusOnToFront: false,
             items: items,
             listeners: {
+                afterrender: function (menu) {
+                    /* Souris entre dans le flyout → annuler le timer de fermeture */
+                    menu.getEl().on('mouseenter', function () { me._clearCloseTimer(); });
+                    /* Souris quitte le flyout → démarrer le timer de fermeture */
+                    menu.getEl().on('mouseleave', function () { me._startCloseTimer(); });
+                },
                 hide: function () { me._flyoutMenu = null; }
             }
         });
