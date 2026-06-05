@@ -17,34 +17,33 @@ if (valwidth >= 1600) {
 
 /* Badge icône unique par module (fond pastel + icône FA colorée) */
 var PRESTIGE_ICON_MAP = [
-    { keys: ['facturation client'],                        icon: 'fa-file-invoice-dollar', bg: '#ede9fe', fg: '#7c3aed' },
-    { keys: ['tiers-payant', 'tiers payant', 'tiers-pay'],icon: 'fa-handshake',            bg: '#cffafe', fg: '#0891b2' },
-    { keys: ['menu pharmacien', 'pharmacien'],             icon: 'fa-prescription-bottle-medical', bg: '#f0fdf4', fg: '#16a34a' },
-    { keys: ['commande', 'approvision'],                   icon: 'fa-clipboard-list',       bg: '#f3e8ff', fg: '#9333ea' },
-    { keys: ['gestion du stock', 'stock'],                 icon: 'fa-boxes-stacked',         bg: '#e0f2fe', fg: '#0284c7' },
-    { keys: ['fichier'],                                   icon: 'fa-folder-open',           bg: '#fef3c7', fg: '#b45309' },
-    { keys: ['rétrocession', 'retrocession'],              icon: 'fa-right-left',            bg: '#ecfdf5', fg: '#059669' },
-    { keys: ['analyse de gestion', 'analyse'],             icon: 'fa-chart-line',            bg: '#fef9c3', fg: '#ca8a04' },
-    { keys: ['notification', 'sms', 'alerte'],             icon: 'fa-bell',                  bg: '#fff1f2', fg: '#e11d48' },
-    { keys: ['gestion des utilisateurs', 'utilisateur'],   icon: 'fa-users-gear',            bg: '#f1f5f9', fg: '#475569' },
-    { keys: ['configuration', 'config', 'param'],          icon: 'fa-sliders',               bg: '#f8fafc', fg: '#64748b' },
-    { keys: ['facturation'],                               icon: 'fa-receipt',               bg: '#f5f3ff', fg: '#6d28d9' },
-    { keys: ['vente'],                                     icon: 'fa-cart-shopping',         bg: '#fef3c7', fg: '#d97706' },
-    { keys: ['caisse', 'encaiss'],                         icon: 'fa-cash-register',         bg: '#dcfce7', fg: '#16a34a' },
-    { keys: ['paiement', 'règlement'],                     icon: 'fa-credit-card',           bg: '#d1fae5', fg: '#059669' },
-    { keys: ['client'],                                    icon: 'fa-users',                 bg: '#dbeafe', fg: '#2563eb' },
-    { keys: ['fournisseur', 'grossiste'],                  icon: 'fa-building',              bg: '#fce7f3', fg: '#be185d' },
-    { keys: ['article', 'produit'],                        icon: 'fa-pills',                 bg: '#f0fdf4', fg: '#15803d' },
-    { keys: ['rapport', 'statistique', 'bilan'],           icon: 'fa-chart-bar',             bg: '#fff7ed', fg: '#ea580c' },
-    { keys: ['livraison', 'expédition'],                   icon: 'fa-truck',                 bg: '#fff7ed', fg: '#c2410c' },
-    { keys: ['retour', 'avoir'],                           icon: 'fa-rotate-left',           bg: '#fdf4ff', fg: '#c026d3' },
-    { keys: ['tarif', 'prix', 'promotion'],                icon: 'fa-tags',                  bg: '#fefce8', fg: '#eab308' },
-    { keys: ['agenda', 'rdv', 'calendrier'],               icon: 'fa-calendar-days',         bg: '#ecfdf5', fg: '#10b981' },
-    { keys: ['dashboard', 'tableau de bord', 'accueil'],   icon: 'fa-gauge-high',            bg: '#eff6ff', fg: '#3b82f6' },
-    { keys: ['devis'],                                     icon: 'fa-file-pen',              bg: '#f5f3ff', fg: '#8b5cf6' },
-    { keys: ['achat'],                                     icon: 'fa-bag-shopping',          bg: '#fdf4ff', fg: '#a21caf' },
-    { keys: ['transfert', 'mouvement'],                    icon: 'fa-right-left',            bg: '#f0fdf4', fg: '#059669' },
-    { keys: ['message'],                                   icon: 'fa-envelope',              bg: '#eff6ff', fg: '#3b82f6' }
+    { keys: ['facturation client'],                         icon: 'fa-file-invoice-dollar',         bg: '#ede9fe', fg: '#7c3aed' },
+    { keys: ['tiers-payant', 'tiers payant', 'tiers-pay'], icon: 'fa-handshake',                   bg: '#cffafe', fg: '#0891b2' },
+    { keys: ['menu pharmacien', 'pharmacien'],              icon: 'fa-prescription-bottle-medical', bg: '#f0fdf4', fg: '#16a34a' },
+    { keys: ['commande', 'approvision'],                    icon: 'fa-clipboard-list',              bg: '#f3e8ff', fg: '#9333ea' },
+    { keys: ['gestion du stock', 'stock'],                  icon: 'fa-boxes-stacked',               bg: '#e0f2fe', fg: '#0284c7' },
+    { keys: ['fichier'],                                    icon: 'fa-folder-open',                 bg: '#fef3c7', fg: '#b45309' },
+    { keys: ['rétrocession', 'retrocession'],               icon: 'fa-right-left',                  bg: '#ecfdf5', fg: '#059669' },
+    { keys: ['analyse de gestion', 'analyse'],              icon: 'fa-chart-line',                  bg: '#fef9c3', fg: '#ca8a04' },
+    { keys: ['notification', 'sms', 'alerte'],              icon: 'fa-bell',                        bg: '#fff1f2', fg: '#e11d48' },
+    { keys: ['gestion des utilisateurs', 'utilisateur'],    icon: 'fa-users-gear',                  bg: '#f1f5f9', fg: '#475569' },
+    { keys: ['configuration', 'config', 'param'],           icon: 'fa-sliders',                     bg: '#f8fafc', fg: '#64748b' },
+    { keys: ['facturation'],                                icon: 'fa-receipt',                     bg: '#f5f3ff', fg: '#6d28d9' },
+    { keys: ['vente'],                                      icon: 'fa-cart-shopping',               bg: '#fef3c7', fg: '#d97706' },
+    { keys: ['caisse', 'encaiss'],                          icon: 'fa-cash-register',               bg: '#dcfce7', fg: '#16a34a' },
+    { keys: ['paiement', 'règlement'],                      icon: 'fa-credit-card',                 bg: '#d1fae5', fg: '#059669' },
+    { keys: ['client'],                                     icon: 'fa-users',                       bg: '#dbeafe', fg: '#2563eb' },
+    { keys: ['fournisseur', 'grossiste'],                   icon: 'fa-building',                    bg: '#fce7f3', fg: '#be185d' },
+    { keys: ['article', 'produit'],                         icon: 'fa-pills',                       bg: '#f0fdf4', fg: '#15803d' },
+    { keys: ['rapport', 'statistique', 'bilan'],            icon: 'fa-chart-bar',                   bg: '#fff7ed', fg: '#ea580c' },
+    { keys: ['livraison', 'expédition'],                    icon: 'fa-truck',                       bg: '#fff7ed', fg: '#c2410c' },
+    { keys: ['retour', 'avoir'],                            icon: 'fa-rotate-left',                 bg: '#fdf4ff', fg: '#c026d3' },
+    { keys: ['tarif', 'prix', 'promotion'],                 icon: 'fa-tags',                        bg: '#fefce8', fg: '#eab308' },
+    { keys: ['agenda', 'rdv', 'calendrier'],                icon: 'fa-calendar-days',               bg: '#ecfdf5', fg: '#10b981' },
+    { keys: ['dashboard', 'tableau de bord', 'accueil'],    icon: 'fa-gauge-high',                  bg: '#eff6ff', fg: '#3b82f6' },
+    { keys: ['devis'],                                      icon: 'fa-file-pen',                    bg: '#f5f3ff', fg: '#8b5cf6' },
+    { keys: ['achat'],                                      icon: 'fa-bag-shopping',                bg: '#fdf4ff', fg: '#a21caf' },
+    { keys: ['message'],                                    icon: 'fa-envelope',                    bg: '#eff6ff', fg: '#3b82f6' }
 ];
 
 Ext.define('testextjs.view.Navigation', {
@@ -57,6 +56,9 @@ Ext.define('testextjs.view.Navigation', {
     title: 'Prestige Navigation Menu',
     width: 350,
     height: 300,
+
+    _flyoutMenu: null,
+    _flyoutTimer: null,
 
     initComponent: function () {
         var me = this;
@@ -78,10 +80,15 @@ Ext.define('testextjs.view.Navigation', {
 
         me.callParent();
 
-        /* Comportement original intact */
         me.listeners = {
-            itemclick: function (s, r) {
-                me.callItemMenu(s, r);
+            itemclick: function (view, record, item) {
+                if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
+                    /* Menu parent avec enfants → flyout à droite */
+                    me._showFlyout(record, item);
+                    return false; /* bloquer l'expansion inline */
+                }
+                /* Feuille ou nœud sans enfants → comportement original */
+                me.callItemMenu(view, record);
             },
             afterrender: function () {
                 me._loadRealUser();
@@ -94,6 +101,72 @@ Ext.define('testextjs.view.Navigation', {
             expand:   function () {}
         };
     },
+
+    /* ---- Flyout ---- */
+
+    _showFlyout: function (record, rowEl) {
+        var me = this;
+        me._clearFlyoutTimer();
+        if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
+
+        var children = record.childNodes;
+        if (!children || children.length === 0) return;
+
+        /* Construction des items du flyout */
+        var items = [];
+
+        /* En-tête titre */
+        items.push({
+            xtype: 'component',
+            html: '<div class="pft-title">' + Ext.String.htmlEncode(record.get('text')) + '</div>',
+            cls: 'pft-header-wrap'
+        });
+        items.push({ xtype: 'menuseparator' });
+
+        Ext.Array.each(children, function (child) {
+            var childId   = child.data.id;
+            var childText = child.data.text;
+            items.push({
+                text: childText,
+                cls:  'pft-item',
+                handler: function () {
+                    if (me._flyoutMenu) { me._flyoutMenu.hide(); }
+                    if (typeof childId !== 'undefined') {
+                        testextjs.app.getController('App').onLoadNewComponent(childId, childText, '');
+                    }
+                }
+            });
+        });
+
+        me._flyoutMenu = Ext.create('Ext.menu.Menu', {
+            cls:   'prestige-flyout-menu',
+            plain: true,
+            items: items,
+            listeners: {
+                mouseleave: function () { me._scheduleFlyoutHide(); },
+                mouseenter: function () { me._clearFlyoutTimer(); },
+                hide:       function () { me._flyoutMenu = null; }
+            }
+        });
+
+        /* Position : à droite du panel, aligné sur la ligne cliquée */
+        var navBox = me.getEl().getBox();
+        var rowBox = Ext.get(rowEl).getBox();
+        me._flyoutMenu.showAt([navBox.x + navBox.width + 1, rowBox.y]);
+    },
+
+    _scheduleFlyoutHide: function () {
+        var me = this;
+        me._flyoutTimer = Ext.defer(function () {
+            if (me._flyoutMenu) me._flyoutMenu.hide();
+        }, 300);
+    },
+
+    _clearFlyoutTimer: function () {
+        if (this._flyoutTimer) { clearTimeout(this._flyoutTimer); this._flyoutTimer = null; }
+    },
+
+    /* ---- Profil utilisateur ---- */
 
     _buildProfileHeader: function () {
         return '<div class="nav-profile-header">'
@@ -108,7 +181,6 @@ Ext.define('testextjs.view.Navigation', {
              + '</div>';
     },
 
-    /* Charge le vrai nom via /api/v1/user/account */
     _loadRealUser: function () {
         Ext.Ajax.request({
             method: 'GET',
@@ -144,10 +216,11 @@ Ext.define('testextjs.view.Navigation', {
         });
     },
 
+    /* ---- Icônes colorées ---- */
+
     _matchIcon: function (text) {
         var lower  = (text || '').toLowerCase();
         var result = null;
-        /* Priorité aux clés les plus longues pour éviter les faux positifs */
         var sorted = PRESTIGE_ICON_MAP.slice().sort(function (a, b) {
             return b.keys[0].length - a.keys[0].length;
         });
@@ -187,6 +260,8 @@ Ext.define('testextjs.view.Navigation', {
             node.setAttribute('data-fa-done', '1');
         });
     },
+
+    /* ---- Comportement original inchangé ---- */
 
     callItemMenu: function (parent, component) {
         if (typeof component.data.id !== 'undefined') {

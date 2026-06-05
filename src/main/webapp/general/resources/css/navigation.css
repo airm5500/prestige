@@ -285,3 +285,85 @@
 }
 
 .x-layout-split-west:hover { background: rgba(91,141,238,0.45) !important; }
+
+/* ============================================================
+   FLYOUT — sous-menus positionnés à droite du panel
+   ============================================================ */
+
+.prestige-flyout-menu {
+    background: #1e2235 !important;
+    border: 1px solid rgba(91,141,238,0.3) !important;
+    border-radius: 8px !important;
+    box-shadow: 6px 8px 28px rgba(0,0,0,0.5) !important;
+    padding: 4px 0 8px 0 !important;
+    min-width: 230px !important;
+    animation: pft-in 0.16s cubic-bezier(.4,0,.2,1);
+}
+
+.prestige-flyout-menu .x-menu-body {
+    background: transparent !important;
+    border-radius: 8px !important;
+}
+
+/* Titre de section */
+.prestige-flyout-menu .pft-header-wrap {
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+.prestige-flyout-menu .pft-title {
+    padding: 10px 16px 7px 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7fa3;
+    text-transform: uppercase;
+    letter-spacing: 0.9px;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Séparateur */
+.prestige-flyout-menu .x-menu-item-separator {
+    background: rgba(255,255,255,0.07) !important;
+    margin: 0 12px 4px 12px !important;
+    height: 1px !important;
+}
+
+/* Item */
+.prestige-flyout-menu .pft-item .x-menu-item-text,
+.prestige-flyout-menu .x-menu-item-text {
+    color: #c8d3e6 !important;
+    font-size: 13px !important;
+    font-family: 'Segoe UI', sans-serif !important;
+    font-weight: 400 !important;
+    padding: 1px 0 !important;
+}
+
+.prestige-flyout-menu .x-menu-item,
+.prestige-flyout-menu .pft-item {
+    background: transparent !important;
+    border: none !important;
+    padding: 6px 16px !important;
+    transition: background 0.15s;
+}
+
+/* Hover item */
+.prestige-flyout-menu .x-menu-item-active,
+.prestige-flyout-menu .x-menu-item:hover {
+    background: #252d4a !important;
+    border-left: 3px solid #43d9ad !important;
+    border-radius: 0 5px 5px 0 !important;
+}
+
+.prestige-flyout-menu .x-menu-item-active .x-menu-item-text,
+.prestige-flyout-menu .x-menu-item:hover .x-menu-item-text {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.prestige-flyout-menu .x-menu-item-icon,
+.prestige-flyout-menu .x-menu-item-icon-right { display: none !important; }
+
+@keyframes pft-in {
+    from { opacity: 0; transform: translateX(-8px) scale(0.97); }
+    to   { opacity: 1; transform: translateX(0)   scale(1); }
+}
