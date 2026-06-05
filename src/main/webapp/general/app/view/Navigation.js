@@ -65,8 +65,12 @@ Ext.define('testextjs.view.Navigation', {
         var me = this;
         me._clearCloseTimer();
         me._closeTimer = setTimeout(function () {
+            me._closeTimer = null;
             if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
-            if (me._origSlideOut) { me._origSlideOut.call(me); }
+            /* Refermer le panel flottant via la méthode native, en toute sécurité */
+            if (me.collapsed && me._origSlideOut) {
+                try { me._origSlideOut.call(me); } catch (e) {}
+            }
         }, 350);
     },
 
@@ -128,11 +132,14 @@ Ext.define('testextjs.view.Navigation', {
                 me.getEl().on('mouseenter', function () {
                     me._clearCloseTimer();
                 });
-                /* Override slideOut : on gère nous-mêmes la fermeture via timer */
+                /* Override slideOut : bloquer le retour auto seulement si flyout ouvert.
+                   On NE remplace PAS par un no-op (cela casse l'état interne ExtJS
+                   et provoque "collapseDir is null"). */
                 if (typeof me.slideOutFloatedPanel === 'function') {
                     me._origSlideOut = me.slideOutFloatedPanel;
                     me.slideOutFloatedPanel = function () {
-                        /* Bloqué — on passe par _startCloseTimer/mouseleave */
+                        if (me._flyoutMenu && !me._flyoutMenu.hidden) { return; }
+                        return me._origSlideOut.apply(me, arguments);
                     };
                 }
             },
