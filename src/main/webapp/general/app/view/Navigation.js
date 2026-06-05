@@ -82,25 +82,34 @@ Ext.define('testextjs.view.Navigation', {
         me.listeners = {
             itemclick: function (view, record, item) {
                 if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
-                    /* Menu parent avec enfants → flyout à droite */
                     me._showFlyout(record, item);
-                    return false; /* bloquer l'expansion inline */
+                    return false;
                 }
-                /* Feuille ou nœud sans enfants → comportement original */
                 me.callItemMenu(view, record);
             },
             afterrender: function () {
                 me._loadRealUser();
-                /* Appliquer les icônes après chargement du store */
                 me.getStore().on('load', function () {
-                    Ext.defer(function () { me._applyIcons(); }, 300);
+                    /* Si le panel est déjà visible, appliquer immédiatement */
+                    if (!me.collapsed) {
+                        Ext.defer(function () { me._applyIcons(); }, 300);
+                    }
                 });
+            },
+            /* Appliquer les icônes à chaque fois que le panel s'ouvre */
+            expand: function () {
+                Ext.defer(function () { me._applyIcons(); }, 350);
             },
             itemexpand: function () {
                 Ext.defer(function () { me._applyIcons(); }, 200);
             },
+            /* Empêcher le collapse si le flyout est affiché */
+            beforecollapse: function () {
+                if (me._flyoutMenu && !me._flyoutMenu.hidden) {
+                    return false;
+                }
+            },
             collapse: function () {},
-            expand:   function () {}
         };
     },
 

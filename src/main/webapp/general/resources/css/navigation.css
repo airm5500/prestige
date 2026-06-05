@@ -1,21 +1,21 @@
 /* ============================================================
-   Prestige Navigation — Thème Slate moderne & soft
+   Prestige Navigation — Thème Navy moderne & lisible
    ============================================================ */
 
 :root {
-    --nav-bg:          #1e2235;
-    --nav-bg-sub:      #1a1f33;
-    --nav-bg-hover:    #252d4a;
-    --nav-bg-selected: #2d3a5e;
-    --nav-header-bg:   #161929;
-    --nav-accent:      #5b8dee;
-    --nav-accent-2:    #43d9ad;
-    --nav-text:        #c8d3e6;
-    --nav-text-muted:  #6b7fa3;
-    --nav-border:      rgba(255,255,255,0.07);
+    --nav-bg:          #1e3a5f;
+    --nav-bg-sub:      #183352;
+    --nav-bg-hover:    #2a4a7a;
+    --nav-bg-selected: #1a5276;
+    --nav-header-bg:   #152d4e;
+    --nav-accent:      #5dade2;
+    --nav-accent-2:    #48c9b0;
+    --nav-text:        #d6eaf8;
+    --nav-text-muted:  #85c1e9;
+    --nav-border:      rgba(255,255,255,0.1);
 }
 
-/* ---- Fond slate sur tout le panel ---- */
+/* ---- Fond navy sur tout le panel ---- */
 .prestige-nav,
 .prestige-nav .x-panel-body,
 .prestige-nav .x-tree-view,
@@ -58,7 +58,7 @@
 
 .prestige-nav .x-panel-header .x-tool-img {
     filter: brightness(0) invert(1) !important;
-    opacity: 0.55;
+    opacity: 0.7;
     transition: opacity 0.2s;
 }
 
@@ -69,31 +69,31 @@
 }
 
 .prestige-nav .x-panel-header .x-tool:hover .x-tool-img { opacity: 1 !important; }
-.prestige-nav .x-panel-header .x-tool:hover { background: rgba(91,141,238,0.2) !important; }
+.prestige-nav .x-panel-header .x-tool:hover { background: rgba(93,173,226,0.25) !important; }
 
 /* ---- Header profil utilisateur ---- */
 .nav-profile-header {
     display: flex;
     align-items: center;
-    padding: 16px 14px;
-    gap: 12px;
+    padding: 14px 12px;
+    gap: 11px;
     background: var(--nav-header-bg);
     border-bottom: 1px solid var(--nav-border);
 }
 
 .nav-profile-avatar {
-    width: 42px;
-    height: 42px;
+    width: 40px;
+    height: 40px;
     border-radius: 10px;
-    border: 2px solid rgba(91,141,238,0.5);
+    border: 2px solid rgba(93,173,226,0.6);
     object-fit: cover;
     flex-shrink: 0;
-    background: #252d4a;
+    background: #1a4475;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
-    color: #5b8dee;
+    font-size: 17px;
+    color: #5dade2;
 }
 
 .nav-profile-info { flex: 1; overflow: hidden; }
@@ -101,7 +101,7 @@
 .nav-profile-name {
     font-size: 13px;
     font-weight: 700;
-    color: #e2e8f0;
+    color: #eaf4fc;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -121,8 +121,8 @@
     width: 9px;
     height: 9px;
     border-radius: 50%;
-    background: #43d9ad;
-    box-shadow: 0 0 6px #43d9ad88;
+    background: #48c9b0;
+    box-shadow: 0 0 6px #48c9b088;
     flex-shrink: 0;
 }
 
@@ -156,14 +156,14 @@
 
 .prestige-nav .x-tree-node-expanded .x-tree-expander {
     transform: rotate(90deg) !important;
-    color: var(--nav-accent) !important;
+    color: #ffffff !important;
 }
 
 /* ---- Transitions sur chaque ligne ---- */
 .prestige-nav .x-grid-cell,
 .prestige-nav .x-grid-cell-inner {
     border-left: 3px solid transparent !important;
-    transition: background-color 0.22s ease, border-left-color 0.22s ease !important;
+    transition: background-color 0.2s ease, border-left-color 0.2s ease !important;
 }
 
 /* ---- Texte menus principaux ---- */
@@ -189,30 +189,30 @@
 }
 
 .prestige-nav .x-grid-row.x-tree-node-leaf {
-    border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+    border-bottom: 1px solid rgba(255,255,255,0.04) !important;
 }
 
-/* ---- HOVER menus principaux : slide + glow ---- */
+/* ---- HOVER menus principaux ---- */
 .prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell {
     background: var(--nav-bg-hover) !important;
     background-color: var(--nav-bg-hover) !important;
-    border-left: 3px solid var(--nav-accent) !important;
-    box-shadow: inset 4px 0 14px rgba(91,141,238,0.13) !important;
+    border-left: 3px solid #ffffff !important;
+    box-shadow: inset 4px 0 12px rgba(93,173,226,0.2) !important;
 }
 
 .prestige-nav .x-grid-item-over .x-tree-node-text { color: #ffffff !important; }
-.prestige-nav .x-grid-item-over .x-tree-expander  { color: var(--nav-accent) !important; }
+.prestige-nav .x-grid-item-over .x-tree-expander  { color: #ffffff !important; }
 
 /* ---- HOVER sous-menus ---- */
 .prestige-nav .x-tree-node-leaf.x-grid-item-over .x-grid-cell,
 .prestige-nav .x-tree-node-leaf.x-grid-item-over .x-grid-cell-inner {
-    background: #222845 !important;
-    background-color: #222845 !important;
+    background: #1a4880 !important;
+    background-color: #1a4880 !important;
     border-left: 3px solid var(--nav-accent-2) !important;
 }
 
 .prestige-nav .x-tree-node-leaf.x-grid-item-over .x-tree-node-text {
-    color: #e2e8f0 !important;
+    color: #ffffff !important;
     font-weight: 500 !important;
 }
 
@@ -231,21 +231,21 @@
 
 /* ---- Section ouverte ---- */
 .prestige-nav .x-tree-node-expanded > .x-grid-row .x-grid-cell {
-    background: #1c2140 !important;
-    background-color: #1c2140 !important;
-    border-left: 3px solid rgba(91,141,238,0.35) !important;
+    background: #17304f !important;
+    background-color: #17304f !important;
+    border-left: 3px solid rgba(93,173,226,0.5) !important;
 }
 
 /* ---- Scrollbar ---- */
 .prestige-nav .x-panel-body::-webkit-scrollbar { width: 3px; }
 .prestige-nav .x-panel-body::-webkit-scrollbar-track { background: transparent; }
-.prestige-nav .x-panel-body::-webkit-scrollbar-thumb { background: rgba(91,141,238,0.25); border-radius: 3px; }
-.prestige-nav .x-panel-body::-webkit-scrollbar-thumb:hover { background: rgba(91,141,238,0.6); }
+.prestige-nav .x-panel-body::-webkit-scrollbar-thumb { background: rgba(93,173,226,0.35); border-radius: 3px; }
+.prestige-nav .x-panel-body::-webkit-scrollbar-thumb:hover { background: rgba(93,173,226,0.7); }
 
 /* ---- Collapsed placeholder visible ---- */
 .x-layout-collapsed-placeholder {
     background: linear-gradient(180deg, var(--nav-header-bg) 0%, var(--nav-bg) 100%) !important;
-    border-right: 2px solid rgba(91,141,238,0.45) !important;
+    border-right: 2px solid rgba(93,173,226,0.5) !important;
     min-width: 28px !important;
     cursor: pointer;
     transition: border-color 0.2s;
@@ -253,17 +253,16 @@
 
 .x-layout-collapsed-placeholder:hover {
     border-right-color: var(--nav-accent) !important;
-    background: linear-gradient(180deg, #1c2140 0%, #252d4a 100%) !important;
+    background: linear-gradient(180deg, #1a3a5c 0%, #2a4a7a 100%) !important;
 }
 
 .x-layout-collapsed-placeholder .x-tool-img {
     filter: brightness(0) invert(1) !important;
-    opacity: 0.6;
+    opacity: 0.7;
 }
 
 .x-layout-collapsed-placeholder:hover .x-tool-img { opacity: 1 !important; }
 
-/* Lettre P visible quand réduit */
 .x-layout-collapsed-placeholder::before {
     content: 'P';
     display: block;
@@ -273,26 +272,25 @@
     color: var(--nav-accent);
     padding: 10px 0 4px 0;
     font-family: 'Segoe UI', sans-serif;
-    opacity: 0.9;
 }
 
 /* ---- Splitter ---- */
 .x-layout-split-west {
-    background: rgba(91,141,238,0.12) !important;
+    background: rgba(93,173,226,0.2) !important;
     border: none !important;
     width: 4px !important;
     transition: background 0.2s;
 }
 
-.x-layout-split-west:hover { background: rgba(91,141,238,0.45) !important; }
+.x-layout-split-west:hover { background: rgba(93,173,226,0.6) !important; }
 
 /* ============================================================
-   FLYOUT — sous-menus positionnés à droite du panel
+   FLYOUT — sous-menus à droite
    ============================================================ */
 
 .prestige-flyout-menu {
-    background: #1e2235 !important;
-    border: 1px solid rgba(91,141,238,0.3) !important;
+    background: #152d4e !important;
+    border: 1px solid rgba(93,173,226,0.3) !important;
     border-radius: 8px !important;
     box-shadow: 6px 8px 28px rgba(0,0,0,0.5) !important;
     padding: 4px 0 8px 0 !important;
@@ -305,7 +303,6 @@
     border-radius: 8px !important;
 }
 
-/* Titre de section */
 .prestige-flyout-menu .pft-header-wrap {
     background: transparent !important;
     padding: 0 !important;
@@ -315,42 +312,37 @@
     padding: 10px 16px 7px 16px;
     font-size: 11px;
     font-weight: 700;
-    color: #6b7fa3;
+    color: #85c1e9;
     text-transform: uppercase;
     letter-spacing: 0.9px;
     font-family: 'Segoe UI', sans-serif;
 }
 
-/* Séparateur */
 .prestige-flyout-menu .x-menu-item-separator {
-    background: rgba(255,255,255,0.07) !important;
+    background: rgba(255,255,255,0.08) !important;
     margin: 0 12px 4px 12px !important;
     height: 1px !important;
-}
-
-/* Item */
-.prestige-flyout-menu .pft-item .x-menu-item-text,
-.prestige-flyout-menu .x-menu-item-text {
-    color: #c8d3e6 !important;
-    font-size: 13px !important;
-    font-family: 'Segoe UI', sans-serif !important;
-    font-weight: 400 !important;
-    padding: 1px 0 !important;
 }
 
 .prestige-flyout-menu .x-menu-item,
 .prestige-flyout-menu .pft-item {
     background: transparent !important;
     border: none !important;
-    padding: 6px 16px !important;
+    border-left: 3px solid transparent !important;
     transition: background 0.15s;
 }
 
-/* Hover item */
+.prestige-flyout-menu .x-menu-item-text {
+    color: #d6eaf8 !important;
+    font-size: 13px !important;
+    font-family: 'Segoe UI', sans-serif !important;
+    font-weight: 400 !important;
+}
+
 .prestige-flyout-menu .x-menu-item-active,
 .prestige-flyout-menu .x-menu-item:hover {
-    background: #252d4a !important;
-    border-left: 3px solid #43d9ad !important;
+    background: #1e3a5f !important;
+    border-left: 3px solid #48c9b0 !important;
     border-radius: 0 5px 5px 0 !important;
 }
 
