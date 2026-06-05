@@ -157,6 +157,8 @@ Ext.define('testextjs.view.Navigation', {
                     return false;
                 }
             },
+            /* Empêcher le fixage (expand) du panel — toujours en mode flottant */
+            beforeexpand: function () { return false; },
             collapse: function () {},
         };
     },

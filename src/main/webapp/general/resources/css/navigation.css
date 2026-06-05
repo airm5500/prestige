@@ -39,6 +39,20 @@
     overflow-x: hidden !important;
 }
 
+/* ---- Masquer outils pin/expand (panel toujours flottant, jamais fixé) ---- */
+.prestige-nav .x-tool-collapse-top,
+.prestige-nav .x-tool-collapse-right,
+.prestige-nav .x-tool-collapse-bottom,
+.prestige-nav .x-tool-collapse-left,
+.prestige-nav .x-tool-expand-top,
+.prestige-nav .x-tool-expand-right,
+.prestige-nav .x-tool-expand-bottom,
+.prestige-nav .x-tool-expand-left,
+.prestige-nav .x-tool-pin,
+.prestige-nav .x-tool-unpin {
+    display: none !important;
+}
+
 /* ---- Header ExtJS : conservé pour le bouton collapse ---- */
 .prestige-nav .x-panel-header {
     background: var(--nav-header-bg) !important;
