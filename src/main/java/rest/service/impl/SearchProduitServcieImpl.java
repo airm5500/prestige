@@ -454,6 +454,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("bool_RESERVE", t.getBoolRESERVE());
             if (t.getBoolRESERVE() != null && t.getBoolRESERVE()) {
                 json.put("int_SEUIL_RESERVE", t.getIntSEUILRESERVE() != null ? t.getIntSEUILRESERVE() : 0);
+                json.put("int_SEUIL_MINI_RAYON", t.getIntSEUILMINIRAYON() != null ? t.getIntSEUILMINIRAYON() : JSONObject.NULL);
                 Integer reserveStock = getReserveStockNumber(t.getLgFAMILLEID(), empl);
                 json.put("int_STOCK_RESERVE", reserveStock != null ? reserveStock : 0);
             }
@@ -625,11 +626,14 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
             json.put("bool_RESERVE", t.getBoolRESERVE());
 
-            if (t.getBoolRESERVE() && "1".equals(empl)) {
-                json.put("int_SEUIL_RESERVE", t.getIntSEUILRESERVE());
-                Integer reserveStock = getReserveStockNumber(t.getLgFAMILLEID(), empl);
-                if (reserveStock != null) {
-                    json.put("int_STOCK_RESERVE", reserveStock);
+            if (t.getBoolRESERVE()) {
+                json.put("int_SEUIL_RESERVE", t.getIntSEUILRESERVE() != null ? t.getIntSEUILRESERVE() : 0);
+                json.put("int_SEUIL_MINI_RAYON", t.getIntSEUILMINIRAYON() != null ? t.getIntSEUILMINIRAYON() : JSONObject.NULL);
+                if ("1".equals(empl)) {
+                    Integer reserveStock = getReserveStockNumber(t.getLgFAMILLEID(), empl);
+                    if (reserveStock != null) {
+                        json.put("int_STOCK_RESERVE", reserveStock);
+                    }
                 }
             }
 
