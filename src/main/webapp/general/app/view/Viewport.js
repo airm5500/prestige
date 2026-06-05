@@ -30,6 +30,7 @@ Ext.define('testextjs.view.Viewport', {
             minWidth: 180,
             split: true,
             collapsible: true,
+            collapsed: true,
             animCollapse: true
         },
         {
