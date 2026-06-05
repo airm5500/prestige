@@ -1,15 +1,21 @@
 /* ============================================================
-   Prestige Navigation - Modern Sidebar Style (Option A)
-   Thème bleu moyen, hiérarchie claire, animations hover
+   Prestige Navigation — Thème Slate moderne & soft
    ============================================================ */
 
-/* ---- Palette de couleurs ---- */
-/* Fond principal : #1565c0 (bleu moyen, comme la référence) */
-/* Fond sous-menu : #1976d2 (légèrement plus clair) */
-/* Hover         : #1e88e5 */
-/* Actif         : #ffffff20 + bordure blanche */
+:root {
+    --nav-bg:          #1e2235;
+    --nav-bg-sub:      #1a1f33;
+    --nav-bg-hover:    #252d4a;
+    --nav-bg-selected: #2d3a5e;
+    --nav-header-bg:   #161929;
+    --nav-accent:      #5b8dee;
+    --nav-accent-2:    #43d9ad;
+    --nav-text:        #c8d3e6;
+    --nav-text-muted:  #6b7fa3;
+    --nav-border:      rgba(255,255,255,0.07);
+}
 
-/* ---- Base : TOUT le panel en bleu moyen ---- */
+/* ---- Fond slate sur tout le panel ---- */
 .prestige-nav,
 .prestige-nav .x-panel-body,
 .prestige-nav .x-tree-view,
@@ -22,66 +28,48 @@
 .prestige-nav tbody,
 .prestige-nav tr,
 .prestige-nav td {
-    background: #1565c0 !important;
-    background-color: #1565c0 !important;
+    background: var(--nav-bg) !important;
+    background-color: var(--nav-bg) !important;
     border-color: transparent !important;
 }
 
 .prestige-nav .x-panel-body {
-    background: #1565c0 !important;
+    background: var(--nav-bg) !important;
     border: none !important;
     overflow-x: hidden !important;
 }
 
-/* ---- Header ExtJS natif : stylé en bleu, titre masqué ---- */
-/* NE PAS masquer le header : il contient le bouton collapse/expand du border layout */
+/* ---- Header ExtJS : conservé pour le bouton collapse ---- */
 .prestige-nav .x-panel-header {
-    background: #0d47a1 !important;
-    background-color: #0d47a1 !important;
+    background: var(--nav-header-bg) !important;
+    background-color: var(--nav-header-bg) !important;
     border: none !important;
-    border-bottom: 2px solid rgba(255,255,255,0.15) !important;
-    padding: 6px 10px !important;
-    min-height: 32px !important;
+    border-bottom: 1px solid var(--nav-border) !important;
+    padding: 5px 10px !important;
+    min-height: 30px !important;
     cursor: pointer;
 }
 
-/* Masquer le texte du titre uniquement */
 .prestige-nav .x-panel-header .x-title-text,
 .prestige-nav .x-panel-header .x-panel-header-text,
 .prestige-nav .x-panel-header .x-panel-header-title {
     display: none !important;
 }
 
-/* Outils (collapse arrow) en blanc bien visible */
 .prestige-nav .x-panel-header .x-tool-img {
     filter: brightness(0) invert(1) !important;
-    opacity: 0.8;
+    opacity: 0.55;
+    transition: opacity 0.2s;
 }
 
 .prestige-nav .x-panel-header .x-tool {
-    background: rgba(255,255,255,0.1) !important;
+    background: transparent !important;
     border-radius: 4px !important;
-    padding: 2px !important;
+    transition: background 0.2s;
 }
 
-.prestige-nav .x-panel-header .x-tool:hover .x-tool-img {
-    opacity: 1 !important;
-}
-
-.prestige-nav .x-panel-header .x-tool:hover {
-    background: rgba(255,255,255,0.25) !important;
-}
-
-/* Placeholder quand le panel est collapsed (la bande bleue à gauche) */
-.x-layout-collapsed-placeholder {
-    background: #0d47a1 !important;
-    border-right: 2px solid #1565c0 !important;
-    cursor: pointer;
-}
-
-.x-layout-collapsed-placeholder .x-tool-img {
-    filter: brightness(0) invert(1) !important;
-}
+.prestige-nav .x-panel-header .x-tool:hover .x-tool-img { opacity: 1 !important; }
+.prestige-nav .x-panel-header .x-tool:hover { background: rgba(91,141,238,0.2) !important; }
 
 /* ---- Header profil utilisateur ---- */
 .nav-profile-header {
@@ -89,23 +77,23 @@
     align-items: center;
     padding: 16px 14px;
     gap: 12px;
-    background: #0d47a1;
-    border-bottom: 1px solid rgba(255,255,255,0.15);
+    background: var(--nav-header-bg);
+    border-bottom: 1px solid var(--nav-border);
 }
 
 .nav-profile-avatar {
     width: 42px;
     height: 42px;
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 10px;
+    border: 2px solid rgba(91,141,238,0.5);
     object-fit: cover;
     flex-shrink: 0;
-    background: #1976d2;
+    background: #252d4a;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 18px;
-    color: #fff;
+    color: #5b8dee;
 }
 
 .nav-profile-info { flex: 1; overflow: hidden; }
@@ -113,7 +101,7 @@
 .nav-profile-name {
     font-size: 13px;
     font-weight: 700;
-    color: #ffffff;
+    color: #e2e8f0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -122,23 +110,23 @@
 
 .nav-profile-role {
     font-size: 10px;
-    color: rgba(255,255,255,0.6);
-    margin-top: 2px;
+    color: var(--nav-text-muted);
+    margin-top: 3px;
     font-family: 'Segoe UI', sans-serif;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
 }
 
 .nav-profile-status {
-    width: 8px;
-    height: 8px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    background: #69f0ae;
-    border: 1px solid #0d47a1;
+    background: #43d9ad;
+    box-shadow: 0 0 6px #43d9ad88;
     flex-shrink: 0;
 }
 
-/* ---- Masquer TOUTES les icônes natives ExtJS ---- */
+/* ---- Masquer icônes natives ExtJS ---- */
 .prestige-nav .x-tree-icon,
 .prestige-nav .x-tree-icon-leaf,
 .prestige-nav .x-tree-icon-parent,
@@ -150,115 +138,90 @@
 .prestige-nav .x-tree-elbow-line,
 .prestige-nav .x-tree-icon-no-leaf {
     display: none !important;
-    width: 0 !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    width: 0 !important; height: 0 !important;
+    margin: 0 !important; padding: 0 !important;
 }
 
-/* ---- Flèche d'expansion — rotation animée ---- */
+/* ---- Flèche expansion animée ---- */
 .prestige-nav .x-tree-expander {
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    color: rgba(255,255,255,0.5) !important;
+    color: var(--nav-text-muted) !important;
     font-size: 10px !important;
     width: 16px !important;
-    transition: transform 0.25s ease, color 0.2s !important;
+    transition: transform 0.28s cubic-bezier(.4,0,.2,1), color 0.2s !important;
     flex-shrink: 0;
 }
 
-/* Quand le nœud est expanded, tourner la flèche */
 .prestige-nav .x-tree-node-expanded .x-tree-expander {
     transform: rotate(90deg) !important;
-    color: rgba(255,255,255,0.9) !important;
+    color: var(--nav-accent) !important;
 }
 
-/* ---- Ligne de chaque item — transition globale ---- */
+/* ---- Transitions sur chaque ligne ---- */
 .prestige-nav .x-grid-cell,
 .prestige-nav .x-grid-cell-inner {
-    transition: background-color 0.18s ease, border-left-color 0.18s ease !important;
     border-left: 3px solid transparent !important;
-    padding-top: 2px !important;
-    padding-bottom: 2px !important;
+    transition: background-color 0.22s ease, border-left-color 0.22s ease !important;
 }
 
-/* ---- Menus principaux (nœuds parents) ---- */
-.prestige-nav .x-grid-row:not(.x-tree-node-leaf) .x-grid-cell {
-    background: #1565c0 !important;
-    background-color: #1565c0 !important;
-    padding-top: 4px !important;
-    padding-bottom: 4px !important;
-}
-
-/* ---- Sous-menus (feuilles) — fond légèrement différent ---- */
-.prestige-nav .x-grid-row.x-tree-node-leaf .x-grid-cell {
-    background: #1976d2 !important;
-    background-color: #1976d2 !important;
-    padding-left: 12px !important;
-}
-
-.prestige-nav .x-grid-row.x-tree-node-leaf .x-grid-cell-inner {
-    background: #1976d2 !important;
-}
-
-/* Ligne subtile entre chaque sous-menu */
-.prestige-nav .x-grid-row.x-tree-node-leaf {
-    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-}
-
-/* ---- Texte : menus principaux ---- */
+/* ---- Texte menus principaux ---- */
 .prestige-nav .x-tree-node-text {
-    color: #ffffff !important;
+    color: var(--nav-text) !important;
     font-size: 13px !important;
     font-family: 'Segoe UI', sans-serif !important;
     font-weight: 600 !important;
-    letter-spacing: 0.2px;
     vertical-align: middle;
 }
 
-/* ---- Texte : sous-menus ---- */
+/* ---- Texte sous-menus ---- */
 .prestige-nav .x-tree-node-leaf .x-tree-node-text {
-    color: rgba(255,255,255,0.75) !important;
+    color: var(--nav-text-muted) !important;
     font-weight: 400 !important;
     font-size: 12.5px !important;
 }
 
-/* ---- HOVER sur un menu principal ---- */
+.prestige-nav .x-grid-row.x-tree-node-leaf .x-grid-cell,
+.prestige-nav .x-grid-row.x-tree-node-leaf .x-grid-cell-inner {
+    background: var(--nav-bg-sub) !important;
+    background-color: var(--nav-bg-sub) !important;
+}
+
+.prestige-nav .x-grid-row.x-tree-node-leaf {
+    border-bottom: 1px solid rgba(255,255,255,0.03) !important;
+}
+
+/* ---- HOVER menus principaux : slide + glow ---- */
 .prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell {
-    background: rgba(255,255,255,0.12) !important;
-    background-color: rgba(255,255,255,0.12) !important;
-    border-left: 3px solid rgba(255,255,255,0.6) !important;
-    cursor: pointer;
+    background: var(--nav-bg-hover) !important;
+    background-color: var(--nav-bg-hover) !important;
+    border-left: 3px solid var(--nav-accent) !important;
+    box-shadow: inset 4px 0 14px rgba(91,141,238,0.13) !important;
 }
 
-.prestige-nav .x-grid-item-over .x-tree-node-text {
-    color: #ffffff !important;
-}
+.prestige-nav .x-grid-item-over .x-tree-node-text { color: #ffffff !important; }
+.prestige-nav .x-grid-item-over .x-tree-expander  { color: var(--nav-accent) !important; }
 
-.prestige-nav .x-grid-item-over .x-tree-expander {
-    color: #ffffff !important;
-}
-
-/* ---- HOVER sur un sous-menu ---- */
+/* ---- HOVER sous-menus ---- */
 .prestige-nav .x-tree-node-leaf.x-grid-item-over .x-grid-cell,
 .prestige-nav .x-tree-node-leaf.x-grid-item-over .x-grid-cell-inner {
-    background: rgba(255,255,255,0.15) !important;
-    background-color: rgba(255,255,255,0.15) !important;
-    border-left: 3px solid #69f0ae !important;
+    background: #222845 !important;
+    background-color: #222845 !important;
+    border-left: 3px solid var(--nav-accent-2) !important;
 }
 
 .prestige-nav .x-tree-node-leaf.x-grid-item-over .x-tree-node-text {
-    color: #ffffff !important;
-    font-weight: 600 !important;
+    color: #e2e8f0 !important;
+    font-weight: 500 !important;
 }
 
-/* ---- ACTIF : sous-menu sélectionné ---- */
+/* ---- SÉLECTIONNÉ ---- */
 .prestige-nav .x-grid-item-selected .x-grid-cell,
 .prestige-nav .x-grid-item-selected .x-grid-cell-inner {
-    background: rgba(255,255,255,0.22) !important;
-    background-color: rgba(255,255,255,0.22) !important;
-    border-left: 4px solid #69f0ae !important;
+    background: var(--nav-bg-selected) !important;
+    background-color: var(--nav-bg-selected) !important;
+    border-left: 4px solid var(--nav-accent-2) !important;
 }
 
 .prestige-nav .x-grid-item-selected .x-tree-node-text {
@@ -266,138 +229,59 @@
     font-weight: 700 !important;
 }
 
-/* ---- Section ouverte : légère séparation visuelle ---- */
+/* ---- Section ouverte ---- */
 .prestige-nav .x-tree-node-expanded > .x-grid-row .x-grid-cell {
-    background: #0d47a1 !important;
-    background-color: #0d47a1 !important;
-    border-left: 3px solid rgba(255,255,255,0.3) !important;
+    background: #1c2140 !important;
+    background-color: #1c2140 !important;
+    border-left: 3px solid rgba(91,141,238,0.35) !important;
 }
 
 /* ---- Scrollbar ---- */
-.prestige-nav .x-panel-body::-webkit-scrollbar { width: 4px; }
+.prestige-nav .x-panel-body::-webkit-scrollbar { width: 3px; }
 .prestige-nav .x-panel-body::-webkit-scrollbar-track { background: transparent; }
-.prestige-nav .x-panel-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 4px; }
-.prestige-nav .x-panel-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.5); }
+.prestige-nav .x-panel-body::-webkit-scrollbar-thumb { background: rgba(91,141,238,0.25); border-radius: 3px; }
+.prestige-nav .x-panel-body::-webkit-scrollbar-thumb:hover { background: rgba(91,141,238,0.6); }
 
-/* ---- Collapse : barre latérale quand menu réduit ---- */
-.x-layout-collapsed {
-    background: #0d47a1 !important;
-}
-
-.x-layout-mini-collapse-ct {
-    background: #1565c0 !important;
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
-    width: 12px !important;
-}
-
+/* ---- Collapsed placeholder visible ---- */
 .x-layout-collapsed-placeholder {
-    background: #0d47a1 !important;
-    border-right: 2px solid rgba(255,255,255,0.3) !important;
+    background: linear-gradient(180deg, var(--nav-header-bg) 0%, var(--nav-bg) 100%) !important;
+    border-right: 2px solid rgba(91,141,238,0.45) !important;
+    min-width: 28px !important;
+    cursor: pointer;
+    transition: border-color 0.2s;
 }
 
-.x-layout-collapsed-placeholder .x-tool-collapse-west,
-.x-layout-collapsed-placeholder .x-tool-expand-west,
-.x-layout-mini-collapse-ct .x-tool {
-    color: #ffffff !important;
-    background: transparent !important;
+.x-layout-collapsed-placeholder:hover {
+    border-right-color: var(--nav-accent) !important;
+    background: linear-gradient(180deg, #1c2140 0%, #252d4a 100%) !important;
+}
+
+.x-layout-collapsed-placeholder .x-tool-img {
+    filter: brightness(0) invert(1) !important;
+    opacity: 0.6;
+}
+
+.x-layout-collapsed-placeholder:hover .x-tool-img { opacity: 1 !important; }
+
+/* Lettre P visible quand réduit */
+.x-layout-collapsed-placeholder::before {
+    content: 'P';
+    display: block;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--nav-accent);
+    padding: 10px 0 4px 0;
+    font-family: 'Segoe UI', sans-serif;
+    opacity: 0.9;
 }
 
 /* ---- Splitter ---- */
 .x-layout-split-west {
-    background: #1565c0 !important;
+    background: rgba(91,141,238,0.12) !important;
     border: none !important;
     width: 4px !important;
     transition: background 0.2s;
 }
 
-.x-layout-split-west:hover {
-    background: rgba(255,255,255,0.3) !important;
-}
-
-/* ============================================================
-   FLYOUT MENU — sous-menus s'ouvrant à droite
-   ============================================================ */
-
-/* Conteneur principal du flyout */
-.prestige-flyout-menu {
-    background: #1565c0 !important;
-    border: 1px solid rgba(255,255,255,0.2) !important;
-    border-radius: 6px !important;
-    box-shadow: 4px 6px 24px rgba(0,0,0,0.45) !important;
-    padding: 4px 0 !important;
-    min-width: 220px !important;
-    max-width: 300px !important;
-}
-
-/* Fond de la vue interne du menu */
-.prestige-flyout-menu .x-menu-body {
-    background: #1565c0 !important;
-    border-radius: 6px !important;
-}
-
-/* Titre de section en haut du flyout */
-.prestige-flyout-menu .pft-header {
-    padding: 10px 16px 8px 16px;
-    font-size: 12px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.5);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    font-family: 'Segoe UI', sans-serif;
-}
-
-.prestige-flyout-menu .pft-header i {
-    margin-right: 6px;
-    font-size: 11px;
-}
-
-/* Séparateur après le titre */
-.prestige-flyout-menu .x-menu-item-separator {
-    background: rgba(255,255,255,0.12) !important;
-    margin: 2px 10px !important;
-    height: 1px !important;
-}
-
-/* Chaque item du flyout */
-.prestige-flyout-menu .prestige-flyout-item,
-.prestige-flyout-menu .x-menu-item {
-    background: transparent !important;
-    border: none !important;
-}
-
-.prestige-flyout-menu .x-menu-item-text {
-    color: rgba(255,255,255,0.82) !important;
-    font-size: 13px !important;
-    font-family: 'Segoe UI', sans-serif !important;
-    font-weight: 400 !important;
-    padding: 2px 0 !important;
-}
-
-/* Hover sur item flyout */
-.prestige-flyout-menu .x-menu-item-active,
-.prestige-flyout-menu .x-menu-item:hover {
-    background: rgba(255,255,255,0.15) !important;
-    border-left: 3px solid #69f0ae !important;
-    border-radius: 0 4px 4px 0 !important;
-}
-
-.prestige-flyout-menu .x-menu-item-active .x-menu-item-text,
-.prestige-flyout-menu .x-menu-item:hover .x-menu-item-text {
-    color: #ffffff !important;
-    font-weight: 600 !important;
-}
-
-/* Icône de puce à gauche des items */
-.prestige-flyout-menu .x-menu-item-icon {
-    display: none !important;
-}
-
-/* Animation d'apparition */
-.prestige-flyout-menu {
-    animation: flyout-in 0.15s ease-out;
-}
-
-@keyframes flyout-in {
-    from { opacity: 0; transform: translateX(-8px); }
-    to   { opacity: 1; transform: translateX(0); }
-}
+.x-layout-split-west:hover { background: rgba(91,141,238,0.45) !important; }

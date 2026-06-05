@@ -15,22 +15,48 @@ if (valwidth >= 1600) {
     valwidth = 1050;
 }
 
+/* Badge icône unique par module (fond pastel + icône FA colorée) */
+var PRESTIGE_ICON_MAP = [
+    { keys: ['facturation client'],                        icon: 'fa-file-invoice-dollar', bg: '#ede9fe', fg: '#7c3aed' },
+    { keys: ['tiers-payant', 'tiers payant', 'tiers-pay'],icon: 'fa-handshake',            bg: '#cffafe', fg: '#0891b2' },
+    { keys: ['menu pharmacien', 'pharmacien'],             icon: 'fa-prescription-bottle-medical', bg: '#f0fdf4', fg: '#16a34a' },
+    { keys: ['commande', 'approvision'],                   icon: 'fa-clipboard-list',       bg: '#f3e8ff', fg: '#9333ea' },
+    { keys: ['gestion du stock', 'stock'],                 icon: 'fa-boxes-stacked',         bg: '#e0f2fe', fg: '#0284c7' },
+    { keys: ['fichier'],                                   icon: 'fa-folder-open',           bg: '#fef3c7', fg: '#b45309' },
+    { keys: ['rétrocession', 'retrocession'],              icon: 'fa-right-left',            bg: '#ecfdf5', fg: '#059669' },
+    { keys: ['analyse de gestion', 'analyse'],             icon: 'fa-chart-line',            bg: '#fef9c3', fg: '#ca8a04' },
+    { keys: ['notification', 'sms', 'alerte'],             icon: 'fa-bell',                  bg: '#fff1f2', fg: '#e11d48' },
+    { keys: ['gestion des utilisateurs', 'utilisateur'],   icon: 'fa-users-gear',            bg: '#f1f5f9', fg: '#475569' },
+    { keys: ['configuration', 'config', 'param'],          icon: 'fa-sliders',               bg: '#f8fafc', fg: '#64748b' },
+    { keys: ['facturation'],                               icon: 'fa-receipt',               bg: '#f5f3ff', fg: '#6d28d9' },
+    { keys: ['vente'],                                     icon: 'fa-cart-shopping',         bg: '#fef3c7', fg: '#d97706' },
+    { keys: ['caisse', 'encaiss'],                         icon: 'fa-cash-register',         bg: '#dcfce7', fg: '#16a34a' },
+    { keys: ['paiement', 'règlement'],                     icon: 'fa-credit-card',           bg: '#d1fae5', fg: '#059669' },
+    { keys: ['client'],                                    icon: 'fa-users',                 bg: '#dbeafe', fg: '#2563eb' },
+    { keys: ['fournisseur', 'grossiste'],                  icon: 'fa-building',              bg: '#fce7f3', fg: '#be185d' },
+    { keys: ['article', 'produit'],                        icon: 'fa-pills',                 bg: '#f0fdf4', fg: '#15803d' },
+    { keys: ['rapport', 'statistique', 'bilan'],           icon: 'fa-chart-bar',             bg: '#fff7ed', fg: '#ea580c' },
+    { keys: ['livraison', 'expédition'],                   icon: 'fa-truck',                 bg: '#fff7ed', fg: '#c2410c' },
+    { keys: ['retour', 'avoir'],                           icon: 'fa-rotate-left',           bg: '#fdf4ff', fg: '#c026d3' },
+    { keys: ['tarif', 'prix', 'promotion'],                icon: 'fa-tags',                  bg: '#fefce8', fg: '#eab308' },
+    { keys: ['agenda', 'rdv', 'calendrier'],               icon: 'fa-calendar-days',         bg: '#ecfdf5', fg: '#10b981' },
+    { keys: ['dashboard', 'tableau de bord', 'accueil'],   icon: 'fa-gauge-high',            bg: '#eff6ff', fg: '#3b82f6' },
+    { keys: ['devis'],                                     icon: 'fa-file-pen',              bg: '#f5f3ff', fg: '#8b5cf6' },
+    { keys: ['achat'],                                     icon: 'fa-bag-shopping',          bg: '#fdf4ff', fg: '#a21caf' },
+    { keys: ['transfert', 'mouvement'],                    icon: 'fa-right-left',            bg: '#f0fdf4', fg: '#059669' },
+    { keys: ['message'],                                   icon: 'fa-envelope',              bg: '#eff6ff', fg: '#3b82f6' }
+];
+
 Ext.define('testextjs.view.Navigation', {
     extend: 'Ext.tree.Panel',
     xtype: 'navigation',
     cls: 'prestige-nav',
     rootVisible: false,
-    useArrows: true,
-    frame: false,
-    border: false,
-    /* header doit rester actif pour que le bouton collapse/expand du border layout fonctionne */
-    title: ' ',
-    width: 260,
-    minWidth: 180,
-    autoScroll: true,
-
-    /* Menu flyout actif */
-    _flyoutMenu: null,
+    useArrows: false,
+    frame: true,
+    title: 'Prestige Navigation Menu',
+    width: 350,
+    height: 300,
 
     initComponent: function () {
         var me = this;
@@ -42,227 +68,140 @@ Ext.define('testextjs.view.Navigation', {
                     url: '../webservices/menumanagement/ws_tree_menu.jsp'
                 }
             }),
-            dockedItems: [
-                {
-                    xtype: 'container',
-                    dock: 'top',
-                    id: 'nav-profile-container',
-                    html: me._buildProfileHeader()
-                }
-            ]
+            dockedItems: [{
+                xtype: 'container',
+                dock: 'top',
+                id: 'nav-profile-container',
+                html: me._buildProfileHeader()
+            }]
         });
 
         me.callParent();
 
+        /* Comportement original intact */
         me.listeners = {
+            itemclick: function (s, r) {
+                me.callItemMenu(s, r);
+            },
             afterrender: function () {
-                me._refreshProfile();
-                Ext.defer(function () { me._applyFontAwesomeIcons(); }, 500);
-            },
-            /* Clic sur un item */
-            itemclick: function (view, record, item, index, e) {
-                if (record.isLeaf()) {
-                    /* Sous-menu : charger le composant */
-                    me.callItemMenu(view, record);
-                } else {
-                    /* Menu parent : ouvrir le flyout */
-                    me._showFlyout(record, item);
-                    /* Empêcher l'expansion inline */
-                    return false;
-                }
-            },
-            /* Masquer le flyout si on sort du panel */
-            el: {
-                mouseleave: function () {
-                    me._scheduleFlyoutHide();
-                },
-                mouseenter: function () {
-                    me._cancelFlyoutHide();
-                }
+                me._loadRealUser();
+                Ext.defer(function () { me._applyIcons(); }, 500);
             },
             itemexpand: function () {
-                Ext.defer(function () { me._applyFontAwesomeIcons(); }, 150);
+                Ext.defer(function () { me._applyIcons(); }, 200);
             },
-            load: function () {
-                Ext.defer(function () { me._applyFontAwesomeIcons(); }, 400);
-            }
+            collapse: function () {},
+            expand:   function () {}
         };
     },
 
     _buildProfileHeader: function () {
-        var userName = localStorage.getItem('str_USERNAME') || localStorage.getItem('str_PRENOM') || 'Utilisateur';
-        var userRole = localStorage.getItem('str_ROLE') || 'Profil';
-        var userPic  = localStorage.getItem('str_PIC') || '';
-        var avatarHtml;
-
-        if (userPic && userPic !== 'null' && userPic.length > 5) {
-            avatarHtml = '<img src="' + userPic + '" class="nav-profile-avatar" '
-                       + 'onerror="this.style.display=\'none\';document.getElementById(\'nav-avatar-fallback\').style.display=\'flex\'" />'
-                       + '<span id="nav-avatar-fallback" class="nav-profile-avatar" style="display:none">'
-                       + '<i class="fa-solid fa-user"></i></span>';
-        } else {
-            avatarHtml = '<span class="nav-profile-avatar" style="display:flex;align-items:center;justify-content:center">'
-                       + '<i class="fa-solid fa-user"></i></span>';
-        }
-
         return '<div class="nav-profile-header">'
-             +   avatarHtml
-             +   '<div class="nav-profile-info">'
-             +     '<div class="nav-profile-name" id="nav-user-name">' + Ext.String.htmlEncode(userName) + '</div>'
-             +     '<div class="nav-profile-role" id="nav-user-role">' + Ext.String.htmlEncode(userRole) + '</div>'
-             +   '</div>'
-             +   '<span class="nav-profile-status" title="En ligne"></span>'
+             + '<span class="nav-profile-avatar" id="nav-avatar-wrap" '
+             + 'style="display:flex;align-items:center;justify-content:center">'
+             + '<i class="fa-solid fa-user"></i></span>'
+             + '<div class="nav-profile-info">'
+             + '<div class="nav-profile-name" id="nav-user-name">...</div>'
+             + '<div class="nav-profile-role" id="nav-user-role">Profil</div>'
+             + '</div>'
+             + '<span class="nav-profile-status" title="En ligne"></span>'
              + '</div>';
     },
 
-    _refreshProfile: function () {
-        var userName = localStorage.getItem('str_USERNAME') || localStorage.getItem('str_PRENOM') || '';
-        var userRole = localStorage.getItem('str_ROLE') || '';
-        var nameEl = document.getElementById('nav-user-name');
-        var roleEl = document.getElementById('nav-user-role');
-        if (nameEl && userName) nameEl.textContent = userName;
-        if (roleEl && userRole) roleEl.textContent = userRole;
+    /* Charge le vrai nom via /api/v1/user/account */
+    _loadRealUser: function () {
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/user/account',
+            success: function (response) {
+                try {
+                    var data = Ext.JSON.decode(response.responseText, true);
+                    if (!data) return;
+                    var info      = data.accountInfo || data;
+                    var firstName = info.str_FIRST_NAME || info.firstName || '';
+                    var lastName  = info.str_LAST_NAME  || info.lastName  || '';
+                    var login     = info.str_LOGIN || info.login || '';
+                    var role      = info.str_ROLE  || info.role  || '';
+                    var fullName  = (firstName + ' ' + lastName).trim() || login || 'Utilisateur';
+
+                    var nameEl = document.getElementById('nav-user-name');
+                    var roleEl = document.getElementById('nav-user-role');
+                    if (nameEl) nameEl.textContent = fullName;
+                    if (roleEl && role) roleEl.textContent = role;
+
+                    var pic = localStorage.getItem('str_PIC') || '';
+                    if (pic && pic !== 'null' && pic.length > 5) {
+                        var wrap = document.getElementById('nav-avatar-wrap');
+                        if (wrap) {
+                            wrap.innerHTML = '<img src="' + pic
+                                + '" style="width:100%;height:100%;object-fit:cover;border-radius:8px"'
+                                + ' onerror="this.parentNode.innerHTML=\'<i class=&quot;fa-solid fa-user&quot;></i>\'" />';
+                        }
+                    }
+                } catch (e) {}
+            },
+            failure: function () {}
+        });
     },
 
-    /* Construit et affiche le menu flyout à droite du nœud parent cliqué */
-    _showFlyout: function (record, itemEl) {
-        var me = this;
-        me._cancelFlyoutHide();
-
-        /* Détruire le menu précédent */
-        if (me._flyoutMenu) {
-            me._flyoutMenu.destroy();
-            me._flyoutMenu = null;
-        }
-
-        var children = record.childNodes;
-        if (!children || children.length === 0) return;
-
-        var menuItems = [];
-        Ext.Array.each(children, function (child) {
-            menuItems.push({
-                text: child.get('text'),
-                cls: 'prestige-flyout-item',
-                handler: function () {
-                    me.callItemMenu(null, child);
-                }
+    _matchIcon: function (text) {
+        var lower  = (text || '').toLowerCase();
+        var result = null;
+        /* Priorité aux clés les plus longues pour éviter les faux positifs */
+        var sorted = PRESTIGE_ICON_MAP.slice().sort(function (a, b) {
+            return b.keys[0].length - a.keys[0].length;
+        });
+        Ext.Array.each(sorted, function (entry) {
+            if (result) return;
+            Ext.Array.each(entry.keys, function (k) {
+                if (lower.indexOf(k) !== -1) { result = entry; return false; }
             });
         });
-
-        /* Ajoute un titre de section en haut */
-        menuItems.unshift({
-            xtype: 'component',
-            cls: 'prestige-flyout-title',
-            html: '<div class="pft-header">'
-                + '<i class="fa-solid fa-folder-open"></i> '
-                + Ext.String.htmlEncode(record.get('text'))
-                + '</div>'
-        }, '-');
-
-        me._flyoutMenu = Ext.create('Ext.menu.Menu', {
-            cls: 'prestige-flyout-menu',
-            plain: true,
-            items: menuItems,
-            listeners: {
-                mouseleave: function () { me._scheduleFlyoutHide(); },
-                mouseenter: function () { me._cancelFlyoutHide(); },
-                hide: function () {
-                    me._flyoutMenu = null;
-                }
-            }
-        });
-
-        /* Positionner à droite du nœud, aligné en haut */
-        var navEl  = me.getEl();
-        var navBox = navEl.getBox();
-        var itemBox = Ext.get(itemEl).getBox();
-
-        me._flyoutMenu.showAt([navBox.x + navBox.width + 2, itemBox.y]);
+        return result;
     },
 
-    _flyoutHideTimer: null,
-
-    _scheduleFlyoutHide: function () {
+    _applyIcons: function () {
         var me = this;
-        me._flyoutHideTimer = Ext.defer(function () {
-            if (me._flyoutMenu) {
-                me._flyoutMenu.hide();
-            }
-        }, 350);
-    },
-
-    _cancelFlyoutHide: function () {
-        if (this._flyoutHideTimer) {
-            clearTimeout(this._flyoutHideTimer);
-            this._flyoutHideTimer = null;
-        }
-    },
-
-    _applyFontAwesomeIcons: function () {
-        var iconColor = 'rgba(255,255,255,0.9)';
-        var iconMap = [
-            { keys: ['vente', 'ventes', 'sale'],           icon: 'fa-cart-shopping'  },
-            { keys: ['stock', 'inventaire', 'article'],    icon: 'fa-boxes-stacked'  },
-            { keys: ['caisse', 'paiement', 'encaiss'],     icon: 'fa-cash-register'  },
-            { keys: ['commande', 'achat', 'approvision'],  icon: 'fa-clipboard-list' },
-            { keys: ['client', 'clientèle', 'tiers'],      icon: 'fa-users'          },
-            { keys: ['fournisseur', 'grossiste'],           icon: 'fa-building'       },
-            { keys: ['rapport', 'statistique', 'stat',
-                      'bilan', 'analyse'],                  icon: 'fa-chart-bar'      },
-            { keys: ['paramètre', 'config', 'réglage',
-                      'setting', 'administration'],         icon: 'fa-sliders'        },
-            { keys: ['utilisateur', 'user', 'personnel',
-                      'employé', 'rh'],                     icon: 'fa-user-tie'       },
-            { keys: ['livraison', 'expédition', 'trans'],  icon: 'fa-truck'          },
-            { keys: ['facturation', 'facture', 'invoice'], icon: 'fa-file-invoice'   },
-            { keys: ['dashboard', 'tableau de bord'],      icon: 'fa-gauge-high'     },
-            { keys: ['retour', 'avoir'],                    icon: 'fa-rotate-left'    },
-            { keys: ['sms', 'message', 'notification'],    icon: 'fa-bell'           },
-            { keys: ['tarif', 'prix', 'promotion'],        icon: 'fa-tags'           },
-            { keys: ['agenda', 'rdv', 'calendrier'],       icon: 'fa-calendar-days'  }
-        ];
-
-        var nodes = Ext.query('.x-tree-node-text', this.getEl().dom);
+        if (!me.getEl()) return;
+        var nodes = Ext.query('.x-tree-node-text', me.getEl().dom);
         Ext.Array.each(nodes, function (node) {
             if (node.getAttribute('data-fa-done')) return;
-
             var rawText = node.textContent || node.innerText || '';
-            var lowerText = rawText.toLowerCase();
+            if (!rawText.trim()) return;
 
-            var matched = false;
-            Ext.Array.each(iconMap, function (entry) {
-                if (matched) return;
-                Ext.Array.each(entry.keys, function (k) {
-                    if (lowerText.indexOf(k) !== -1) {
-                        node.innerHTML = '<i class="fa-solid ' + entry.icon
-                            + '" style="color:' + iconColor
-                            + ';width:20px;margin-right:8px;font-size:14px;vertical-align:middle;opacity:0.9"></i>'
-                            + Ext.String.htmlEncode(rawText);
-                        node.setAttribute('data-fa-done', '1');
-                        matched = true;
-                        return false;
-                    }
-                });
-            });
+            var entry = me._matchIcon(rawText);
+            var badge = entry
+                ? '<span style="display:inline-flex;align-items:center;justify-content:center;'
+                  + 'width:26px;height:26px;border-radius:7px;flex-shrink:0;'
+                  + 'background:' + entry.bg + ';margin-right:10px;vertical-align:middle">'
+                  + '<i class="fa-solid ' + entry.icon + '" style="color:' + entry.fg + ';font-size:13px"></i>'
+                  + '</span>'
+                : '<span style="display:inline-flex;align-items:center;justify-content:center;'
+                  + 'width:26px;height:26px;border-radius:7px;flex-shrink:0;'
+                  + 'background:rgba(107,127,163,0.12);margin-right:10px;vertical-align:middle">'
+                  + '<i class="fa-solid fa-circle-dot" style="color:#6b7fa3;font-size:11px"></i>'
+                  + '</span>';
 
-            if (!matched) {
-                node.innerHTML = '<i class="fa-solid fa-chevron-right"'
-                    + ' style="color:rgba(255,255,255,0.4);width:20px;margin-right:8px;font-size:10px;vertical-align:middle"></i>'
-                    + Ext.String.htmlEncode(rawText);
-                node.setAttribute('data-fa-done', '1');
-            }
+            node.innerHTML = badge + '<span style="vertical-align:middle">'
+                           + Ext.String.htmlEncode(rawText) + '</span>';
+            node.setAttribute('data-fa-done', '1');
         });
     },
 
     callItemMenu: function (parent, component) {
-        var me = this;
-        if (component && typeof component.data !== 'undefined' && typeof component.data.id !== 'undefined') {
-            testextjs.app.getController('App').onLoadNewComponent(component.data.id, component.data.text, '');
-        } else if (component && typeof component.get === 'function') {
-            testextjs.app.getController('App').onLoadNewComponent(component.get('id'), component.get('text'), '');
+        if (typeof component.data.id !== 'undefined') {
+            testextjs.app.getController('App').onLoadNewComponent(
+                component.data.id, component.data.text, '');
         }
-        if (me._flyoutMenu) {
-            me._flyoutMenu.hide();
-        }
+    },
+
+    onCheckedNodesClick: function () {
+        var records = this.getView().getChecked(), names = [];
+        Ext.Array.each(records, function (rec) { names.push(rec.get('text')); });
+        Ext.MessageBox.show({
+            title: 'Selected Nodes',
+            msg: names.join('<br />'),
+            icon: Ext.MessageBox.INFO
+        });
     }
 });
