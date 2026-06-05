@@ -5891,6 +5891,7 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
                     if (t.getBoolRESERVE() && "1".equals(emp.getLgEMPLACEMENTID())) {
                         json.put("int_SEUIL_RESERVE", t.getIntSEUILRESERVE());
+                        json.put("int_SEUIL_MINI_RAYON", t.getIntSEUILMINIRAYON() != null ? t.getIntSEUILMINIRAYON() : JSONObject.NULL);
                         TTypeStockFamille typeEtiquette = new StockManager().getTTypeStockFamilleByTypestock("2",
                                 t.getLgFAMILLEID());
                         json.put("int_STOCK_RESERVE", typeEtiquette.getIntNUMBER());

@@ -62,10 +62,10 @@ public class ReserveServiceImpl implements ReserveService {
                   + " AND fs.int_NUMBER_AVAILABLE > f.int_SEUIL_RESERVE ";
             reapproSuggestion = true;
         } else if ("REASSORT_RAYON".equalsIgnoreCase(type)) {
-            // reserve -> rayon : bool_RESERVE=1, int_SEUIL_MINI_RAYON IS NOT NULL,
-            // stock_rayon <= int_SEUIL_MINI_RAYON
+            // reserve -> rayon : stock_rayon <= seuil_mini_rayon ET stock_reserve > 0
             extra = " AND f.int_SEUIL_MINI_RAYON IS NOT NULL "
-                  + " AND fs.int_NUMBER_AVAILABLE <= f.int_SEUIL_MINI_RAYON ";
+                  + " AND fs.int_NUMBER_AVAILABLE <= f.int_SEUIL_MINI_RAYON "
+                  + " AND tsf.int_NUMBER > 0 ";
         }
 
         String base = "FROM t_type_stock_famille tsf "
@@ -146,9 +146,10 @@ public class ReserveServiceImpl implements ReserveService {
             JSONObject json = buildArticleJson(f, empl, false);
             Integer seuilMini = f.getIntSEUILMINIRAYON();
             int stockRayon = json.optInt("int_STOCK_RAYON", 0);
+            int stockReserve = json.optInt("int_STOCK_RESERVE", 0);
             int seuilReserve = json.optInt("int_SEUIL_RESERVE", 0);
-            // Nouveau declencheur : stock_rayon <= seuil_mini_rayon (non null)
-            if (seuilMini == null || stockRayon > seuilMini) {
+            // Declencheur : stock_rayon <= seuil_mini_rayon ET stock_reserve > 0
+            if (seuilMini == null || stockRayon > seuilMini || stockReserve <= 0) {
                 continue;
             }
             int sugg = Math.max(0, seuilReserve - stockRayon);
