@@ -3,6 +3,7 @@ package rest.service.impl;
 import dal.TEmplacement;
 import dal.TFamille;
 import dal.TFamilleStock;
+import dal.TTypeStockFamille;
 import dal.TFamille_;
 import dal.TInventaire;
 import dal.TInventaireFamille;
@@ -487,6 +488,76 @@ public class InventaireServiceImpl implements InventaireService {
         }
 
         return produitIds.size();
+    }
+
+    @Override
+    public int createReserveInventaire(Set<String> produitIds, String description) {
+        if (CollectionUtils.isEmpty(produitIds)) {
+            return 0;
+        }
+        TUser tUser = sessionHelperService.getCurrentUser();
+        TEmplacement emplacement = tUser.getLgEMPLACEMENTID();
+        String emplId = emplacement.getLgEMPLACEMENTID();
+
+        TInventaire oTInventaire = new TInventaire(IdGenerator.getComplexId());
+        oTInventaire.setStrNAME(description);
+        oTInventaire.setStrDESCRIPTION(description);
+        oTInventaire.setLgUSERID(tUser);
+        oTInventaire.setStrTYPE("reserve");          // distingue des inventaires normaux
+        oTInventaire.setStrSTATUT(Constant.STATUT_ENABLE);
+        oTInventaire.setDtCREATED(new Date());
+        oTInventaire.setDtUPDATED(oTInventaire.getDtCREATED());
+        oTInventaire.setLgEMPLACEMENTID(emplacement);
+        em.persist(oTInventaire);
+
+        int count = 0;
+        for (String produitId : produitIds) {
+            try {
+                TFamilleStock familleStock = findByProduitId(produitId, emplId);
+                int stockReserve = findReserveStock(produitId, emplId);
+                saveInventaireFamilleWithQte(oTInventaire, familleStock, stockReserve);
+                count++;
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "createReserveInventaire: impossible de traiter produit={0} : {1}",
+                        new Object[]{produitId, e.getMessage()});
+            }
+        }
+        LOG.log(Level.INFO, "createReserveInventaire: {0}/{1} produits, inventaire={2}",
+                new Object[]{count, produitIds.size(), oTInventaire.getLgINVENTAIREID()});
+        return count;
+    }
+
+    /** Retourne le stock reserve (t_type_stock_famille type 2) pour un produit/emplacement. */
+    private int findReserveStock(String produitId, String emplId) {
+        try {
+            Query q = em.createNativeQuery(
+                "SELECT t.int_NUMBER FROM t_type_stock_famille t " +
+                "WHERE t.lg_FAMILLE_ID = ?1 AND t.lg_EMPLACEMENT_ID = ?2 " +
+                "AND t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable'");
+            q.setParameter(1, produitId);
+            q.setParameter(2, emplId);
+            q.setMaxResults(1);
+            Object result = q.getSingleResult();
+            return result == null ? 0 : ((Number) result).intValue();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "findReserveStock: pas de stock reserve pour produit={0} empl={1}",
+                    new Object[]{produitId, emplId});
+            return 0;
+        }
+    }
+
+    private void saveInventaireFamilleWithQte(TInventaire oTInventaire, TFamilleStock familleStock, int qte) {
+        TInventaireFamille inventaireFamille = new TInventaireFamille();
+        inventaireFamille.setDtCREATED(oTInventaire.getDtCREATED());
+        inventaireFamille.setLgFAMILLEID(familleStock.getLgFAMILLEID());
+        inventaireFamille.setBoolINVENTAIRE(Boolean.TRUE);
+        inventaireFamille.setLgFAMILLESTOCKID(familleStock);
+        inventaireFamille.setStrSTATUT(Constant.STATUT_ENABLE);
+        inventaireFamille.setIntNUMBER(qte);
+        inventaireFamille.setIntNUMBERINIT(qte);
+        inventaireFamille.setLgINVENTAIREID(oTInventaire);
+        inventaireFamille.setStrUPDATEDID("");
+        em.persist(inventaireFamille);
     }
 
     private TFamilleStock findByProduitId(String produitId, String emplId) {

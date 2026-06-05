@@ -48,5 +48,11 @@ public interface InventaireService {
 
     int create(Set<String> produitIds, String description);
 
+    /**
+     * Cree un inventaire de type "reserve" seede depuis t_type_stock_famille (type 2).
+     * Isole du create() generique pour ne pas impacter les autres fonctionnalites.
+     */
+    int createReserveInventaire(Set<String> produitIds, String description);
+
     JSONObject createInventaireFromCsv(String csvContent, TUser tUser);
 }

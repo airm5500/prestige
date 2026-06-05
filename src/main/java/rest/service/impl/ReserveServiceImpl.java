@@ -475,7 +475,7 @@ public class ReserveServiceImpl implements ReserveService {
         }
         String jour = new java.text.SimpleDateFormat("dd/MM/yyyy").format(new Date());
         String title = "Inventaire reserve du " + jour;
-        int count = inventaireService.create(ids, title);
+        int count = inventaireService.createReserveInventaire(ids, title);
         return new JSONObject().put("count", count).put("message", title);
     }
 
