@@ -5889,12 +5889,16 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
                     json.put("bool_RESERVE", t.getBoolRESERVE());
 
-                    if (t.getBoolRESERVE() && "1".equals(emp.getLgEMPLACEMENTID())) {
-                        json.put("int_SEUIL_RESERVE", t.getIntSEUILRESERVE());
-                        json.put("int_SEUIL_MINI_RAYON", t.getIntSEUILMINIRAYON() != null ? t.getIntSEUILMINIRAYON() : JSONObject.NULL);
-                        TTypeStockFamille typeEtiquette = new StockManager().getTTypeStockFamilleByTypestock("2",
-                                t.getLgFAMILLEID());
-                        json.put("int_STOCK_RESERVE", typeEtiquette.getIntNUMBER());
+                    if (t.getBoolRESERVE()) {
+                        Integer seuilRes = t.getIntSEUILRESERVE();
+                        Integer seuilMiniRayon = t.getIntSEUILMINIRAYON();
+                        json.put("int_SEUIL_RESERVE", seuilRes != null ? seuilRes : 0);
+                        json.put("int_SEUIL_MINI_RAYON", seuilMiniRayon != null ? seuilMiniRayon : JSONObject.NULL);
+                        if ("1".equals(emp.getLgEMPLACEMENTID())) {
+                            TTypeStockFamille typeEtiquette = new StockManager().getTTypeStockFamilleByTypestock("2",
+                                    t.getLgFAMILLEID());
+                            json.put("int_STOCK_RESERVE", typeEtiquette.getIntNUMBER());
+                        }
                     }
 
                     json.put("dt_CREATED", date.DateToString(t.getDtCREATED(), date.formatterShort));
