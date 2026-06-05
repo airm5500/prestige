@@ -90,20 +90,29 @@ Ext.define('testextjs.view.Navigation', {
             afterrender: function () {
                 me._loadRealUser();
                 me.getStore().on('load', function () {
-                    /* Si le panel est déjà visible, appliquer immédiatement */
                     if (!me.collapsed) {
                         Ext.defer(function () { me._applyIcons(); }, 300);
                     }
                 });
+                /* Bloquer slideBack (retour automatique du panel flottant) si flyout ouvert */
+                var origSlideBack = me.slideBack ? me.slideBack.bind(me) : null;
+                me.slideBack = function () {
+                    if (me._flyoutMenu && !me._flyoutMenu.hidden) { return; }
+                    if (origSlideBack) { origSlideBack.apply(me, arguments); }
+                };
             },
-            /* Appliquer les icônes à chaque fois que le panel s'ouvre */
+            /* Panel fixé (expand) */
             expand: function () {
+                Ext.defer(function () { me._applyIcons(); }, 350);
+            },
+            /* Panel flottant (non fixé, survol de la barre réduite) */
+            floated: function () {
                 Ext.defer(function () { me._applyIcons(); }, 350);
             },
             itemexpand: function () {
                 Ext.defer(function () { me._applyIcons(); }, 200);
             },
-            /* Empêcher le collapse si le flyout est affiché */
+            /* Empêcher le collapse (panel fixé) si flyout affiché */
             beforecollapse: function () {
                 if (me._flyoutMenu && !me._flyoutMenu.hidden) {
                     return false;
@@ -136,9 +145,21 @@ Ext.define('testextjs.view.Navigation', {
         Ext.Array.each(children, function (child) {
             var childId   = child.data.id;
             var childText = child.data.text;
+            var entry     = me._matchIcon(childText);
+            var iconHtml  = entry
+                ? '<span style="display:inline-flex;align-items:center;justify-content:center;'
+                  + 'width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-right:8px;'
+                  + 'background:' + entry.bg + ';vertical-align:middle">'
+                  + '<i class="fa-solid ' + entry.icon + '" style="color:' + entry.fg + ';font-size:11px"></i>'
+                  + '</span>'
+                : '<span style="display:inline-flex;align-items:center;justify-content:center;'
+                  + 'width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-right:8px;'
+                  + 'background:rgba(93,173,226,0.12);vertical-align:middle">'
+                  + '<i class="fa-solid fa-angle-right" style="color:#85c1e9;font-size:10px"></i>'
+                  + '</span>';
             items.push({
-                text: childText,
-                cls:  'pft-item',
+                text:        iconHtml + '<span style="vertical-align:middle">' + Ext.String.htmlEncode(childText) + '</span>',
+                cls:         'pft-item',
                 handler: function () {
                     if (me._flyoutMenu) { me._flyoutMenu.hide(); }
                     if (typeof childId !== 'undefined') {
