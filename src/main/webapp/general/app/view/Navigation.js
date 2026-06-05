@@ -90,23 +90,26 @@ Ext.define('testextjs.view.Navigation', {
             afterrender: function () {
                 me._loadRealUser();
                 me.getStore().on('load', function () {
-                    if (!me.collapsed) {
-                        Ext.defer(function () { me._applyIcons(); }, 300);
-                    }
+                    Ext.defer(function () { me._applyIcons(); }, 300);
                 });
-                /* Bloquer slideBack (retour automatique du panel flottant) si flyout ouvert */
-                var origSlideBack = me.slideBack ? me.slideBack.bind(me) : null;
-                me.slideBack = function () {
-                    if (me._flyoutMenu && !me._flyoutMenu.hidden) { return; }
-                    if (origSlideBack) { origSlideBack.apply(me, arguments); }
-                };
+                /* Réappliquer les icônes à chaque rafraîchissement de la vue arbre */
+                me.getView().on('refresh', function () {
+                    Ext.defer(function () { me._applyIcons(); }, 50);
+                });
+                /* Bloquer le retour automatique du panel flottant tant qu'un flyout est ouvert */
+                if (typeof me.slideOutFloatedPanel === 'function') {
+                    var origSlideOut = me.slideOutFloatedPanel;
+                    me.slideOutFloatedPanel = function () {
+                        if (me._flyoutMenu && !me._flyoutMenu.hidden) { return; }
+                        return origSlideOut.apply(me, arguments);
+                    };
+                }
             },
-            /* Panel fixé (expand) */
+            /* Panel affiché (fixé OU flottant depuis la barre réduite) */
+            show: function () {
+                Ext.defer(function () { me._applyIcons(); }, 200);
+            },
             expand: function () {
-                Ext.defer(function () { me._applyIcons(); }, 350);
-            },
-            /* Panel flottant (non fixé, survol de la barre réduite) */
-            floated: function () {
                 Ext.defer(function () { me._applyIcons(); }, 350);
             },
             itemexpand: function () {
@@ -145,17 +148,10 @@ Ext.define('testextjs.view.Navigation', {
         Ext.Array.each(children, function (child) {
             var childId   = child.data.id;
             var childText = child.data.text;
-            var entry     = me._matchIcon(childText);
-            var iconHtml  = entry
-                ? '<span style="display:inline-flex;align-items:center;justify-content:center;'
-                  + 'width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-right:8px;'
-                  + 'background:' + entry.bg + ';vertical-align:middle">'
-                  + '<i class="fa-solid ' + entry.icon + '" style="color:' + entry.fg + ';font-size:11px"></i>'
-                  + '</span>'
-                : '<span style="display:inline-flex;align-items:center;justify-content:center;'
-                  + 'width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-right:8px;'
-                  + 'background:rgba(93,173,226,0.12);vertical-align:middle">'
-                  + '<i class="fa-solid fa-angle-right" style="color:#85c1e9;font-size:10px"></i>'
+            /* Flèche standard pour tous les sous-menus */
+            var iconHtml  = '<span style="display:inline-flex;align-items:center;justify-content:center;'
+                  + 'width:22px;height:22px;flex-shrink:0;margin-right:8px;vertical-align:middle">'
+                  + '<i class="fa-solid fa-angle-right" style="color:#85c1e9;font-size:12px"></i>'
                   + '</span>';
             items.push({
                 text:        iconHtml + '<span style="vertical-align:middle">' + Ext.String.htmlEncode(childText) + '</span>',
