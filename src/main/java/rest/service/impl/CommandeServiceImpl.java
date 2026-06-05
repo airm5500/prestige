@@ -18,6 +18,7 @@ import dal.TEtiquette;
 import dal.TFamille;
 import dal.TFamilleGrossiste;
 import dal.TFamilleStock;
+import dal.TTypeStockFamille;
 import dal.TGrossiste;
 import dal.TInventaire;
 import dal.TInventaireFamille;
@@ -590,6 +591,7 @@ public class CommandeServiceImpl implements CommandeService {
         EntityManager emg = this.getEm();
         try {
             TInventaire inventaire = emg.find(TInventaire.class, inventaireId);
+            boolean isReserve = inventaire != null && "reserve".equals(inventaire.getStrTYPE());
             List<TInventaireFamille> list = findByInventaire(inventaireId);
             Typemvtproduit typemvtproduit = findById(Constant.INVENTAIRE);
             userTransaction.begin();
@@ -600,19 +602,28 @@ public class CommandeServiceImpl implements CommandeService {
                 // list.stream().filter(s -> Boolean.TRUE.equals(s.getBoolINVENTAIRE())).forEach(s -> {
                 if (s.getIntNUMBER().compareTo(s.getIntNUMBERINIT()) != 0) {
                     count.increment();
-                    TFamilleStock stock = s.getLgFAMILLESTOCKID();
-                    stock.setIntNUMBERAVAILABLE(s.getIntNUMBER());
-                    stock.setIntNUMBER(s.getIntNUMBER());
-                    stock.setDtUPDATED(new Date());
-                    emg.merge(stock);
+                    if (isReserve) {
+                        // Inventaire reserve : on met a jour UNIQUEMENT le stock reserve
+                        // (t_type_stock_famille type 2), sans toucher au stock rayon.
+                        updateStockReserve(emg, s.getLgFAMILLEID().getLgFAMILLEID(),
+                                emplacement.getLgEMPLACEMENTID(), s.getIntNUMBER());
+                    } else {
+                        TFamilleStock stock = s.getLgFAMILLESTOCKID();
+                        stock.setIntNUMBERAVAILABLE(s.getIntNUMBER());
+                        stock.setIntNUMBER(s.getIntNUMBER());
+                        stock.setDtUPDATED(new Date());
+                        emg.merge(stock);
+                    }
                     s.setStrSTATUT(Constant.STATUT_IS_CLOSED);
                     s.setDtUPDATED(new Date());
                     emg.merge(s);
 
                 }
 
-                saveMvtProduit(s.getLgINVENTAIREFAMILLEID() + "", typemvtproduit, s.getLgFAMILLEID(), user, emplacement,
-                        s.getIntNUMBER(), s.getIntNUMBERINIT(), s.getIntNUMBER());
+                if (!isReserve) {
+                    saveMvtProduit(s.getLgINVENTAIREFAMILLEID() + "", typemvtproduit, s.getLgFAMILLEID(), user,
+                            emplacement, s.getIntNUMBER(), s.getIntNUMBERINIT(), s.getIntNUMBER());
+                }
 
                 count2.increment();
                 if (count2.intValue() > 0 && count2.intValue() % 10 == 0) {
@@ -644,6 +655,27 @@ public class CommandeServiceImpl implements CommandeService {
             }
         }
         return json;
+    }
+
+    /**
+     * Met a jour le stock reserve (t_type_stock_famille type 2) d'un produit pour
+     * un emplacement donne, sans toucher au stock rayon (t_famille_stock).
+     */
+    private void updateStockReserve(EntityManager emg, String familleId, String emplacementId, int qte) {
+        try {
+            TTypeStockFamille typeStock = (TTypeStockFamille) emg.createQuery(
+                    "SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = '2' "
+                    + "AND t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 "
+                    + "AND t.strSTATUT = 'enable'")
+                    .setParameter(1, familleId).setParameter(2, emplacementId)
+                    .setMaxResults(1).getSingleResult();
+            typeStock.setIntNUMBER(qte);
+            typeStock.setDtUPDATED(new Date());
+            emg.merge(typeStock);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "updateStockReserve: pas de stock reserve pour famille={0} empl={1} : {2}",
+                    new Object[]{familleId, emplacementId, e.getMessage()});
+        }
     }
 
     @Override
