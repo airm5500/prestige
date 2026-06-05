@@ -57,25 +57,16 @@ Ext.define('testextjs.view.Navigation', {
     width: 350,
     height: 300,
 
-    _flyoutMenu:    null,
-    _closeTimer:    null,
-    _origSlideOut:  null,
+    _flyoutMenu: null,
 
-    _startCloseTimer: function () {
-        var me = this;
-        me._clearCloseTimer();
-        me._closeTimer = setTimeout(function () {
-            me._closeTimer = null;
-            if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
-            /* Refermer le panel flottant via la méthode native, en toute sécurité */
-            if (me.collapsed && me._origSlideOut) {
-                try { me._origSlideOut.call(me); } catch (e) {}
-            }
-        }, 350);
+    /* Annuler la fermeture native du panel flottant (slideOutTask) */
+    _holdPanel: function () {
+        if (this.slideOutTask) { this.slideOutTask.cancel(); }
     },
 
-    _clearCloseTimer: function () {
-        if (this._closeTimer) { clearTimeout(this._closeTimer); this._closeTimer = null; }
+    /* Réarmer la fermeture native du panel flottant */
+    _releasePanel: function (delay) {
+        if (this.slideOutTask) { this.slideOutTask.delay(delay || 300); }
     },
 
     initComponent: function () {
@@ -109,13 +100,9 @@ Ext.define('testextjs.view.Navigation', {
             /* Survol d'un menu principal → afficher son flyout immédiatement */
             itemmouseenter: function (view, record, item) {
                 if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
-                    me._clearCloseTimer();
+                    me._holdPanel();
                     me._showFlyout(record, item);
                 }
-            },
-            /* Survol d'un sous-menu (leaf) → juste annuler le timer de fermeture */
-            itemmouseleave: function () {
-                /* Laisser le flyout gérer sa propre fermeture */
             },
             afterrender: function () {
                 me._loadRealUser();
@@ -125,21 +112,12 @@ Ext.define('testextjs.view.Navigation', {
                 me.getView().on('refresh', function () {
                     Ext.defer(function () { me._applyIcons(); }, 50);
                 });
-                /* Quand la souris quitte le panel : démarrer timer de fermeture */
-                me.getEl().on('mouseleave', function () {
-                    me._startCloseTimer();
-                });
-                me.getEl().on('mouseenter', function () {
-                    me._clearCloseTimer();
-                });
-                /* Override slideOut : bloquer le retour auto seulement si flyout ouvert.
-                   On NE remplace PAS par un no-op (cela casse l'état interne ExtJS
-                   et provoque "collapseDir is null"). */
+                /* Quand le panel flottant se referme (slideOut natif), détruire le flyout */
                 if (typeof me.slideOutFloatedPanel === 'function') {
-                    me._origSlideOut = me.slideOutFloatedPanel;
+                    var origSlideOut = me.slideOutFloatedPanel;
                     me.slideOutFloatedPanel = function () {
-                        if (me._flyoutMenu && !me._flyoutMenu.hidden) { return; }
-                        return me._origSlideOut.apply(me, arguments);
+                        if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
+                        return origSlideOut.apply(me, arguments);
                     };
                 }
             },
@@ -211,10 +189,11 @@ Ext.define('testextjs.view.Navigation', {
             items: items,
             listeners: {
                 afterrender: function (menu) {
-                    /* Souris entre dans le flyout → annuler le timer de fermeture */
-                    menu.getEl().on('mouseenter', function () { me._clearCloseTimer(); });
-                    /* Souris quitte le flyout → démarrer le timer de fermeture */
-                    menu.getEl().on('mouseleave', function () { me._startCloseTimer(); });
+                    /* Souris sur le flyout → garder panel + flyout ouverts */
+                    menu.getEl().on('mouseenter', function () { me._holdPanel(); });
+                    /* Souris quitte le flyout → réarmer la fermeture native du panel
+                       (qui détruira aussi le flyout via slideOutFloatedPanel) */
+                    menu.getEl().on('mouseleave', function () { me._releasePanel(300); });
                 },
                 hide: function () { me._flyoutMenu = null; }
             }
