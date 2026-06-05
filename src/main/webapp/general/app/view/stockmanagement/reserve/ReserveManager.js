@@ -19,36 +19,37 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
     closable: false,
     frame: true,
     initComponent: function () {
+        // Inject tab color CSS once
+        if (!document.getElementById('reserve-tab-styles')) {
+            var s = document.createElement('style');
+            s.id = 'reserve-tab-styles';
+            s.textContent = [
+                '.tab-reappro.x-tab { background-color: #d97200 !important; border-color: #b05a00 !important; }',
+                '.tab-reappro.x-tab .x-tab-inner, .tab-reappro.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
+                '.tab-reappro.x-tab-active { background-color: #ff9500 !important; border-top: 3px solid #fff !important; }',
+                '.tab-reassort.x-tab { background-color: #2a6b2e !important; border-color: #1a4a1e !important; }',
+                '.tab-reassort.x-tab .x-tab-inner, .tab-reassort.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
+                '.tab-reassort.x-tab-active { background-color: #3daa42 !important; border-top: 3px solid #fff !important; }'
+            ].join('\n');
+            document.head.appendChild(s);
+        }
+
         this.items = [
             {xtype: 'reservegrid', title: 'ALL', gridmode: 'ALL'},
-            {xtype: 'reservegrid', gridmode: 'REAPPRO', title: 'REAPPRO RESERVE'},
-            {xtype: 'reservegrid', gridmode: 'REASSORT', title: 'REASSORT RAYON'}
+            {
+                xtype: 'reservegrid', gridmode: 'REAPPRO', title: 'REAPPRO RESERVE',
+                tabConfig: {cls: 'tab-reappro'}
+            },
+            {
+                xtype: 'reservegrid', gridmode: 'REASSORT', title: 'REASSORT RAYON',
+                tabConfig: {cls: 'tab-reassort'}
+            }
         ];
         this.listeners = {
             tabchange: function (tabPanel, newCard) {
                 if (newCard && newCard.reloadGrid) {
                     newCard.reloadGrid();
                 }
-            },
-            afterrender: function (tp) {
-                Ext.defer(function () {
-                    var bar = tp.tabBar;
-                    if (!bar) { return; }
-                    var reapproTab = bar.items.getAt(1);
-                    var reassortTab = bar.items.getAt(2);
-                    if (reapproTab && reapproTab.el) {
-                        reapproTab.el.setStyle('background-color', '#e07b00');
-                        reapproTab.el.setStyle('border-color', '#c06800');
-                        var inner = reapproTab.el.down('.x-tab-inner');
-                        if (inner) { inner.setStyle('color', '#fff'); }
-                    }
-                    if (reassortTab && reassortTab.el) {
-                        reassortTab.el.setStyle('background-color', '#2e7d32');
-                        reassortTab.el.setStyle('border-color', '#1b5e20');
-                        var inner2 = reassortTab.el.down('.x-tab-inner');
-                        if (inner2) { inner2.setStyle('color', '#fff'); }
-                    }
-                }, 100);
             }
         };
         this.callParent();

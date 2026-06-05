@@ -69,7 +69,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             {header: 'Seuil Reserve', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1},
             {
                 header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1,
-                hidden: mode !== 'REAPPRO',
+                hidden: mode !== 'REASSORT',
                 renderer: function (v) {
                     return (v === null || v === undefined || v === '') ? '-' : v;
                 }

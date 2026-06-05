@@ -47,8 +47,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.autreinfos', {
             if (existing) { try { existing.destroy(); } catch (e) {} }
         });
        
-                ref = this.getOdatasource();
-                alert("ref ---"+ref);
+        ref = this.getOdatasource();
         Omode = this.getMode();
 
         Me = this;
@@ -592,7 +591,25 @@ Ext.define('testextjs.view.configmanagement.famille.action.autreinfos', {
 
     },
     onbtnsave: function () {
-
+        // Validation seuil reserve / seuil mini rayon
+        var srField = Ext.getCmp('int_SEUIL_RESERVE');
+        var smrField = Ext.getCmp('int_SEUIL_MINI_RAYON');
+        var srVal = srField ? srField.getValue() : '';
+        var smrVal = smrField ? smrField.getValue() : '';
+        var sr = (srVal === null || srVal === '') ? 0 : (parseInt(srVal, 10) || 0);
+        var smr = (smrVal === null || smrVal === '') ? null : (parseInt(smrVal, 10) || 0);
+        if (sr > 0 && (smr === null || smr <= 0)) {
+            Ext.MessageBox.alert('Validation', 'Le seuil mini rayon doit etre renseigne et superieur a 0.');
+            return;
+        }
+        if (sr <= 0 && smr > 0) {
+            Ext.MessageBox.alert('Validation', 'Le seuil reserve doit etre renseigne et superieur a 0.');
+            return;
+        }
+        if (sr > 0 && smr > 0 && smr >= sr) {
+            Ext.MessageBox.alert('Validation', 'Le seuil mini rayon doit etre inferieur au seuil reserve.');
+            return;
+        }
 
         var internal_url = "";
 

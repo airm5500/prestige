@@ -180,6 +180,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
             internal_url = rsvmgr_url_transaction + 'reassort';
         }
 
+        var libOp = (Omode === 'assort') ? 'assort (rayon → reserve)' : 'reassort (reserve → rayon)';
+        Ext.MessageBox.confirm('Confirmation',
+            'Voulez-vous valider cet ' + libOp + ' de <b>' + qte + '</b> unite(s) ?',
+            function (btn) {
+                if (btn !== 'yes') {
+                    focusQte();
+                    return;
+                }
+                doRequest();
+            });
+
+        function doRequest() {
         Ext.Ajax.request({
             method: 'POST',
             url: internal_url,
@@ -210,5 +222,6 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                 Ext.MessageBox.alert('Error Message', "Echec de la communication avec le serveur", focusQte);
             }
         });
+        } // end doRequest
     }
 });
