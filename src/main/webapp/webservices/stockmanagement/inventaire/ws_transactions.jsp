@@ -195,7 +195,16 @@
             ObllBase.setMessage(OInventaireManager.getMessage());
         } else if (request.getParameter("mode").equals("cloturer")) {
             result = "Echec de cloture de l'inventaitre";
-            nligne = OInventaireManager.clotureInventaire(lg_INVENTAIRE_ID);
+            // Inventaire de type "reserve" : cloture dediee, met a jour uniquement
+            // le stock reserve (type 2) sans toucher au stock rayon.
+            TInventaire inventaireACloturer = OdataManager.getEm().find(TInventaire.class, lg_INVENTAIRE_ID);
+            if (inventaireACloturer != null && "reserve".equals(inventaireACloturer.getStrTYPE())) {
+                new logger().OCategory.info("Cloture inventaire RESERVE pour " + lg_INVENTAIRE_ID);
+                boolean clotureOk = OInventaireManager.closureReserveInventaire(lg_INVENTAIRE_ID);
+                nligne = clotureOk ? 1 : 0;
+            } else {
+                nligne = OInventaireManager.clotureInventaire(lg_INVENTAIRE_ID);
+            }
             success = 1;
             result = "Cloture effectuée avec succès; " + nligne + " Articles mis à jour";
             /*if (nligne > 0) {
