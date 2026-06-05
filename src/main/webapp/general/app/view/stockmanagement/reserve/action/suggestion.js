@@ -47,7 +47,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                 {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', width: 95, align: 'center'},
                 {
                     header: 'Quantite', dataIndex: 'int_QTE_SUGGEREE', width: 90, align: 'center',
-                    editor: {xtype: 'numberfield', minValue: 0, allowBlank: false},
+                    editor: {
+                        xtype: 'numberfield', minValue: 0, allowBlank: false,
+                        listeners: {
+                            focus: function (fld) {
+                                Ext.defer(function () {
+                                    if (fld.inputEl && fld.inputEl.dom) {
+                                        fld.inputEl.dom.select();
+                                    }
+                                }, 50);
+                            }
+                        }
+                    },
                     renderer: function (v, m) {
                         m.style = 'color:#6600cc; font-weight:bold;';
                         return v;

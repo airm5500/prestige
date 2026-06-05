@@ -165,11 +165,24 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         // Plafond : stock disponible selon le sens de l'operation
         var stockDispo = parseInt(Ext.getCmp('int_NUMBER').getValue(), 10);
         if (!isNaN(stockDispo) && qte > stockDispo) {
-            var libelle = (Omode === 'assort') ? 'le stock rayon disponible' : 'le stock reserve disponible';
-            var msg = 'La quantite (' + qte + ') ne peut pas depasser ' + libelle + ' (' + stockDispo + ').';
-            qteField.markInvalid(msg);
-            Ext.MessageBox.alert('Quantite invalide', msg, focusQte);
-            return;
+            if (Omode === 'reassort') {
+                if (stockDispo <= 0) {
+                    qteField.markInvalid('Aucun stock reserve disponible pour ce produit.');
+                    Ext.MessageBox.alert('Stock insuffisant', 'Aucun stock reserve disponible pour ce produit.', focusQte);
+                    return;
+                }
+                // Propose le maximum disponible en stock reserve
+                qteField.setValue(stockDispo);
+                Ext.MessageBox.alert('Quantite ajustee',
+                    'Le stock reserve disponible est de ' + stockDispo + ' unites. La quantite a ete ajustee a ce maximum.',
+                    focusQte);
+                return;
+            } else {
+                var msg = 'La quantite (' + qte + ') ne peut pas depasser le stock rayon disponible (' + stockDispo + ').';
+                qteField.markInvalid(msg);
+                Ext.MessageBox.alert('Quantite invalide', msg, focusQte);
+                return;
+            }
         }
 
         var internal_url = "";

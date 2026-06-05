@@ -46,6 +46,8 @@ public class ReserveServiceImpl implements ReserveService {
 
     @Override
     public JSONObject listArticles(TUser user, String search, String type, int start, int limit) {
+        LOG.log(Level.INFO, "listArticles type={0} search={1} start={2} limit={3} user={4}",
+                new Object[]{type, search, start, limit, user.getLgUSERID()});
         // Compatibilite : "REASSORT" historique = articles a reassortir (suggestions reassort rayon)
         if ("REASSORT".equalsIgnoreCase(type)) {
             return suggestions(user, search, start, limit);
@@ -68,6 +70,7 @@ public class ReserveServiceImpl implements ReserveService {
                   + " AND tsf.int_NUMBER > 0 ";
         }
 
+        try {
         String base = "FROM t_type_stock_famille tsf "
                 + "JOIN t_famille f ON f.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID "
                 + "JOIN t_famille_stock fs ON fs.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID "
@@ -93,10 +96,12 @@ public class ReserveServiceImpl implements ReserveService {
         @SuppressWarnings("unchecked")
         List<String> ids = q.getResultList();
 
+        LOG.log(Level.INFO, "listArticles empl={0} type={1} total={2}", new Object[]{empl, type, total});
         JSONArray results = new JSONArray();
         for (String familleId : ids) {
             TFamille f = em.find(TFamille.class, familleId);
             if (f == null) {
+                LOG.log(Level.WARNING, "listArticles: TFamille introuvable pour id={0}", familleId);
                 continue;
             }
             JSONObject json = buildArticleJson(f, empl, true);
@@ -113,13 +118,20 @@ public class ReserveServiceImpl implements ReserveService {
             }
             results.put(json);
         }
+        LOG.log(Level.INFO, "listArticles retourne {0} articles", results.length());
         return new JSONObject().put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "listArticles ECHEC type=" + type + " user=" + user.getLgUSERID(), e);
+            return new JSONObject().put("total", 0).put("results", new JSONArray());
+        }
     }
 
     // ------------------------------------------------------------ SUGGESTIONS
 
     @Override
     public JSONObject suggestions(TUser user, String search, int start, int limit) {
+        LOG.log(Level.INFO, "suggestions (reassort rayon) search={0} start={1} limit={2} user={3}",
+                new Object[]{search, start, limit, user.getLgUSERID()});
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         String like = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
 
@@ -221,16 +233,19 @@ public class ReserveServiceImpl implements ReserveService {
 
     @Override
     public JSONObject assort(TUser user, String familleId, int qte) {
+        LOG.log(Level.INFO, "assort famille={0} qte={1} user={2}", new Object[]{familleId, qte, user.getLgUSERID()});
         return doMove(user, familleId, qte, TMouvementReserve.TYPE_ASSORT);
     }
 
     @Override
     public JSONObject reassort(TUser user, String familleId, int qte) {
+        LOG.log(Level.INFO, "reassort famille={0} qte={1} user={2}", new Object[]{familleId, qte, user.getLgUSERID()});
         return doMove(user, familleId, qte, TMouvementReserve.TYPE_REASSORT);
     }
 
     @Override
     public JSONObject reassortBatch(TUser user, List<JSONObject> items) {
+        LOG.log(Level.INFO, "reassortBatch {0} articles user={1}", new Object[]{items.size(), user.getLgUSERID()});
         JSONArray details = new JSONArray();
         int ok = 0;
         for (JSONObject item : items) {
@@ -239,15 +254,19 @@ public class ReserveServiceImpl implements ReserveService {
             JSONObject r = doMove(user, familleId, qte, TMouvementReserve.TYPE_REASSORT);
             if (r.optBoolean("success", false)) {
                 ok++;
+            } else {
+                LOG.log(Level.WARNING, "reassortBatch echec article famille={0}: {1}", new Object[]{familleId, r.optString("message")});
             }
             details.put(r);
         }
+        LOG.log(Level.INFO, "reassortBatch termine: {0}/{1} ok", new Object[]{ok, items.size()});
         return new JSONObject().put("success", ok == items.size()).put("traites", ok)
                 .put("total", items.size()).put("details", details);
     }
 
     @Override
     public JSONObject assortBatch(TUser user, List<JSONObject> items) {
+        LOG.log(Level.INFO, "assortBatch {0} articles user={1}", new Object[]{items.size(), user.getLgUSERID()});
         JSONArray details = new JSONArray();
         int ok = 0;
         for (JSONObject item : items) {
@@ -256,9 +275,12 @@ public class ReserveServiceImpl implements ReserveService {
             JSONObject r = doMove(user, familleId, qte, TMouvementReserve.TYPE_ASSORT);
             if (r.optBoolean("success", false)) {
                 ok++;
+            } else {
+                LOG.log(Level.WARNING, "assortBatch echec article famille={0}: {1}", new Object[]{familleId, r.optString("message")});
             }
             details.put(r);
         }
+        LOG.log(Level.INFO, "assortBatch termine: {0}/{1} ok", new Object[]{ok, items.size()});
         return new JSONObject().put("success", ok == items.size()).put("traites", ok)
                 .put("total", items.size()).put("details", details);
     }
@@ -269,31 +291,42 @@ public class ReserveServiceImpl implements ReserveService {
      * la transaction JTA est annulee automatiquement.
      */
     private JSONObject doMove(TUser user, String familleId, int qte, String typeMouvement) {
+        LOG.log(Level.INFO, "doMove type={0} famille={1} qte={2} user={3}",
+                new Object[]{typeMouvement, familleId, qte, user.getLgUSERID()});
         if (familleId == null || familleId.trim().isEmpty()) {
+            LOG.log(Level.WARNING, "doMove: familleId null ou vide");
             return fail("Article introuvable.");
         }
         if (qte <= 0) {
+            LOG.log(Level.WARNING, "doMove: qte invalide ({0})", qte);
             return fail("La quantite doit etre superieure a zero.");
         }
         try {
             String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             TFamille famille = em.find(TFamille.class, familleId);
             if (famille == null) {
+                LOG.log(Level.WARNING, "doMove: TFamille introuvable pour id={0}", familleId);
                 return fail("Article introuvable.");
             }
             TFamilleStock stockRayon = findFamilleStock(familleId, empl);
             TTypeStockFamille typeRayon = findTypeStock(TYPE_STOCK_RAYON, familleId, empl);
             TTypeStockFamille typeReserve = findTypeStock(TYPE_STOCK_RESERVE, familleId, empl);
             if (stockRayon == null || typeRayon == null || typeReserve == null) {
+                LOG.log(Level.WARNING, "doMove: config stock incomplete famille={0} empl={1} stockRayon={2} typeRayon={3} typeReserve={4}",
+                        new Object[]{familleId, empl, stockRayon, typeRayon, typeReserve});
                 return fail("Configuration de stock incomplete pour cet article.");
             }
 
             int rayonAvant = nz(stockRayon.getIntNUMBERAVAILABLE());
             int reserveAvant = nz(typeReserve.getIntNUMBER());
+            LOG.log(Level.INFO, "doMove avant: famille={0} rayonAvant={1} reserveAvant={2} qte={3}",
+                    new Object[]{familleId, rayonAvant, reserveAvant, qte});
 
             if (TMouvementReserve.TYPE_ASSORT.equals(typeMouvement)) {
                 // rayon -> reserve : on retire du rayon, on ajoute en reserve
                 if (rayonAvant < qte) {
+                    LOG.log(Level.WARNING, "doMove ASSORT: stock rayon insuffisant famille={0} rayon={1} qte={2}",
+                            new Object[]{familleId, rayonAvant, qte});
                     return fail("Stock rayon insuffisant (" + rayonAvant + " disponible).");
                 }
                 stockRayon.setIntNUMBERAVAILABLE(rayonAvant - qte);
@@ -303,6 +336,8 @@ public class ReserveServiceImpl implements ReserveService {
             } else {
                 // reserve -> rayon : on retire de la reserve, on ajoute au rayon
                 if (reserveAvant < qte) {
+                    LOG.log(Level.WARNING, "doMove REASSORT: stock reserve insuffisant famille={0} reserve={1} qte={2}",
+                            new Object[]{familleId, reserveAvant, qte});
                     return fail("Stock reserve insuffisant (" + reserveAvant + " disponible).");
                 }
                 stockRayon.setIntNUMBERAVAILABLE(rayonAvant + qte);
@@ -325,14 +360,16 @@ public class ReserveServiceImpl implements ReserveService {
             recordMouvement(famille, user, stockRayon.getLgEMPLACEMENTID(), typeMouvement, qte,
                     rayonAvant, reserveAvant, stockRayon.getIntNUMBERAVAILABLE(), typeReserve.getIntNUMBER());
 
+            LOG.log(Level.INFO, "doMove apres: famille={0} rayonApres={1} reserveApres={2}",
+                    new Object[]{familleId, stockRayon.getIntNUMBERAVAILABLE(), typeReserve.getIntNUMBER()});
             return new JSONObject().put("success", true)
                     .put("message", "Operation effectuee avec succes.")
                     .put("lg_FAMILLE_ID", familleId)
                     .put("int_NUMBER", stockRayon.getIntNUMBERAVAILABLE())
                     .put("int_STOCK_RESERVE", typeReserve.getIntNUMBER());
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Echec doMove " + typeMouvement + " famille=" + familleId, e);
-            return fail("Echec de l'operation.");
+            LOG.log(Level.SEVERE, "doMove ECHEC type=" + typeMouvement + " famille=" + familleId + " qte=" + qte, e);
+            return fail("Echec de l'operation: " + e.getMessage());
         }
     }
 
