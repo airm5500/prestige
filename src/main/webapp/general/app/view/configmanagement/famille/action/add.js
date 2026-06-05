@@ -385,7 +385,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     xtype: 'numberfield',
                                     allowBlank: false,
                                     allowDecimals: false,
-                                    listeners: {}
+                                    listeners: {
+                                        change: function (fld, newVal) {
+                                            // Auto-calcul seuil mini rayon en creation uniquement
+                                            if (Omode !== 'create') { return; }
+                                            var miniField = fld.up('fieldset') && fld.up('fieldset').down('#int_SEUIL_MINI_RAYON');
+                                            if (!miniField) { return; }
+                                            var v = Math.max(0, parseInt(newVal, 10) || 0);
+                                            miniField.setValue(v === 0 ? 0 : Math.ceil(v / 2));
+                                        }
+                                    }
                                 },
                                 { xtype: 'splitter' },
                                 {
@@ -680,15 +689,21 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 var sr = (srVal === null || srVal === '') ? 0 : (parseInt(srVal, 10) || 0);
                 var smr = (smrVal === null || smrVal === '') ? null : (parseInt(smrVal, 10) || 0);
                 if (sr <= 0 && (smr === null || smr <= 0)) {
-                    Ext.MessageBox.alert('Validation', 'Avec la reserve activee, le seuil reserve et le seuil mini rayon doivent etre renseignes et superieurs a 0.');
+                    Ext.MessageBox.alert('Validation',
+                        'Avec la reserve activee, le seuil reserve et le seuil mini rayon doivent etre renseignes et superieurs a 0.',
+                        function () { if (seuilField) { seuilField.focus(true, 100); } });
                     return;
                 }
                 if (sr > 0 && (smr === null || smr <= 0)) {
-                    Ext.MessageBox.alert('Validation', 'Le seuil mini rayon doit etre renseigne et superieur a 0.');
+                    Ext.MessageBox.alert('Validation',
+                        'Le seuil mini rayon doit etre renseigne et superieur a 0.',
+                        function () { if (seuilMiniField) { seuilMiniField.focus(true, 100); } });
                     return;
                 }
                 if (sr <= 0 && smr > 0) {
-                    Ext.MessageBox.alert('Validation', 'Le seuil reserve doit etre renseigne et superieur a 0.');
+                    Ext.MessageBox.alert('Validation',
+                        'Le seuil reserve doit etre renseigne et superieur a 0.',
+                        function () { if (seuilField) { seuilField.focus(true, 100); } });
                     return;
                 }
             }
