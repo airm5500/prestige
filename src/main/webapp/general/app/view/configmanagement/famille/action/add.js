@@ -387,10 +387,15 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     allowDecimals: false,
                                     listeners: {
                                         change: function (fld, newVal) {
-                                            // Auto-calcul seuil mini rayon en creation uniquement
-                                            if (Omode !== 'create') { return; }
                                             var miniField = fld.up('fieldset') && fld.up('fieldset').down('#int_SEUIL_MINI_RAYON');
                                             if (!miniField) { return; }
+                                            // Creation : auto-calcul a chaque changement.
+                                            // Modification : auto-calcul seulement si le seuil mini rayon est vide
+                                            // (produit qu'on active en reserve), jamais sur une valeur deja enregistree.
+                                            if (Omode !== 'create') {
+                                                var cur = miniField.getValue();
+                                                if (cur !== null && cur !== '' && cur > 0) { return; }
+                                            }
                                             var v = Math.max(0, parseInt(newVal, 10) || 0);
                                             miniField.setValue(v === 0 ? 0 : Math.ceil(v / 2));
                                         }
