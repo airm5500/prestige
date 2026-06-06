@@ -821,10 +821,13 @@ public class FileFormaManager extends HttpServlet {
         // String etablissement, String facture, Integer ligne, String cip, String libelle, Integer cmde, int ug,
         // Integer cmdeL,
         // Double montant, Double prixUn, String refBl, Double tva
+        // col(8) = Prix de cession = prix d'achat : on le renseigne explicitement
+        // car le constructeur le stocke dans montant.
         items.add(new OrderItem(cSVRecord.get(0), cSVRecord.get(1), Integer.valueOf(cSVRecord.get(2)), cSVRecord.get(3),
                 cSVRecord.get(4), Integer.valueOf(cSVRecord.get(5)), Integer.parseInt(cSVRecord.get(6)),
                 Integer.valueOf(cSVRecord.get(7)), Double.valueOf(cSVRecord.get(8)), Double.valueOf(cSVRecord.get(9)),
-                cSVRecord.get(10), Double.valueOf(cSVRecord.get(11))));
+                cSVRecord.get(10), Double.valueOf(cSVRecord.get(11)))
+                        .prixAchat(Double.valueOf(cSVRecord.get(8)).intValue()));
     }
 
     private javax.json.JsonArray buildItemsJsonArray(List<OrderItem> list) {

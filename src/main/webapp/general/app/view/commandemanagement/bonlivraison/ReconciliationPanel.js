@@ -5,7 +5,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
     xtype: 'reconciliation-panel',
 
     title: 'Réconciliation des produits non reconnus',
-    width: 1100,
+    width: 1280,
     height: 520,
     layout: 'border',
     modal: true,
@@ -126,7 +126,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
     buildGrid: function () {
         var me = this;
         var store = Ext.create('Ext.data.Store', {
-            fields: ['cip', 'libelle', 'cmde', 'cmdeL', 'prixAchat', 'ug', 'statut', 'familleName'],
+            fields: ['cip', 'libelle', 'ligne', 'cmde', 'cmdeL', 'prixAchat', 'prixUn', 'ug', 'statut', 'familleName'],
             data: me.rows
         });
 
@@ -181,6 +181,15 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                         return '<span style="color:darkorange;">&#9203; En attente</span>';
                     }
                 },
+                {
+                    text: 'N° ligne',
+                    dataIndex: 'ligne',
+                    width: 65,
+                    align: 'center',
+                    renderer: function (v) {
+                        return v ? v : '';
+                    }
+                },
                 { text: 'Code BL', dataIndex: 'cip', width: 120 },
                 {
                     text: 'Libellé BL',
@@ -196,6 +205,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                 { text: 'Qté cmdée', dataIndex: 'cmde', width: 75, align: 'center' },
                 { text: 'Qté livrée', dataIndex: 'cmdeL', width: 75, align: 'center' },
                 { text: 'Prix Achat', dataIndex: 'prixAchat', width: 85, align: 'right' },
+                { text: 'Prix Vente', dataIndex: 'prixUn', width: 85, align: 'right' },
                 { text: 'UG', dataIndex: 'ug', width: 45, align: 'center' },
                 {
                     text: 'Produit associé',
