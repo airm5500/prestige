@@ -319,7 +319,17 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     text: 'Annuler',
                     handler: function () { dialog.destroy(); }
                 }
-            ]
+            ],
+            listeners: {
+                show: function () {
+                    Ext.defer(function () {
+                        var sf = dialog.down('#searchField');
+                        if (sf) {
+                            sf.focus(true, 100);
+                        }
+                    }, 150);
+                }
+            }
         });
 
         dialog.show();
@@ -352,6 +362,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                 title: 'Type de code détecté',
                 msg: 'Le code importé <b>' + codeImporte + '</b> est de type <b>' + msgType + '</b>.<br><br>'
                     + 'Que souhaitez-vous faire pour le produit <b>' + nomProduit + '</b> ?',
+                minWidth: 480,
                 buttons: {
                     yes: 'Stocker comme EAN13 (CIP inchangé)',
                     no: 'Remplacer le code CIP par ce code'
