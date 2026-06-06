@@ -184,7 +184,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             handler: this.onEditOrderByImportClick
                         }, '-',
                         {
-                            icon: 'resources/images/icons/fam/page_white_edit.png',
+                            icon: 'resources/images/icons/fam/verifier.png',
                             tooltip: 'Réconcilier les produits non reconnus',
                             scope: this,
                             handler: this.onReconcilierClick
@@ -454,15 +454,10 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     }
                 });
     },
-    onReconcilierClick: function () {
-        const parentGrid = Ext.getCmp('OderGrid');
-        const sel = parentGrid.getSelectionModel().getSelection();
-        if (!sel.length) {
-            Ext.MessageBox.alert('Sélection requise', 'Veuillez sélectionner une commande dans la liste.');
-            return;
-        }
-        const rec = sel[0];
+    onReconcilierClick: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
         const orderId = rec.get('lg_ORDER_ID');
+        const parentGrid = grid;
         Ext.Ajax.request({
             url: '../commande?action=reconciliation&orderId=' + orderId,
             method: 'GET',
