@@ -470,7 +470,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                         nonReconnus: res.nonReconnus,
                         nbReconnus: res.nbReconnus || 0,
                         nbTotal: res.nbTotal || 0,
-                        csvLink: null,
+                        csvLink: res.csvFile ? '../VericationCommande?fileName=' + res.csvFile : null,
                         parentGrid: parentGrid
                     }).show();
                 } else {

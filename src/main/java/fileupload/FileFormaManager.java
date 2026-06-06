@@ -143,17 +143,20 @@ public class FileFormaManager extends HttpServlet {
                 String finalFile = fichierReponse(request.getServletContext(),
                         fileName.substring(0, fileName.indexOf('.')), Format.valueOf(modeBL), items);
                 jdom.InitRessource();
+                int nbNonReconnus = items.size();
                 json.add("success", "<span style='color:blue;font-weight:800;'>" + responseJson.getInt("count") + "/"
                         + responseJson.getInt("ligne")
                         + "\n</span> produits mis à jour <a href=\"../VericationCommande?fileName=" + finalFile
-                        + " \" style=\"color:red !important;\">Voir le contenu à traiter</a>");
+                        + " \" style=\"color:red !important;\">Cliquez ici pour voir les " + nbNonReconnus
+                        + " produits non pris en compte</a>");
                 javax.json.JsonArray nonReconnusArray = buildItemsJsonArray(items);
                 json.add("nonReconnus", nonReconnusArray);
+                json.add("csvFile", finalFile);
                 json.add("nbReconnus", responseJson.getInt("count"));
                 json.add("nbTotal", responseJson.getInt("ligne"));
                 // persistance pour pouvoir rouvrir la reconciliation plus tard
                 persistReconciliationFile(responseJson.optString("orderId", ""), lgGROSSISTEID,
-                        responseJson.getInt("count"), responseJson.getInt("ligne"), nonReconnusArray);
+                        responseJson.getInt("count"), responseJson.getInt("ligne"), nonReconnusArray, finalFile);
             } else {
                 json.add("toBe", false);
                 json.add("success", "<span style='color:blue;font-weight:800;'>" + responseJson.getInt("count") + "/"
@@ -855,7 +858,7 @@ public class FileFormaManager extends HttpServlet {
     }
 
     private void persistReconciliationFile(String orderId, String grossisteId, int nbReconnus, int nbTotal,
-            javax.json.JsonArray nonReconnus) {
+            javax.json.JsonArray nonReconnus, String csvFile) {
         if (orderId == null || orderId.isEmpty()) {
             return;
         }
@@ -865,6 +868,7 @@ public class FileFormaManager extends HttpServlet {
             obj.add("grossisteId", grossisteId != null ? grossisteId : "");
             obj.add("nbReconnus", nbReconnus);
             obj.add("nbTotal", nbTotal);
+            obj.add("csvFile", csvFile != null ? csvFile : "");
             obj.add("nonReconnus", nonReconnus);
             String content = obj.build().toString();
             Files.write(reconciliationFilePath(orderId), content.getBytes(StandardCharsets.UTF_8));
@@ -894,6 +898,18 @@ public class FileFormaManager extends HttpServlet {
             if (remaining == null || remaining.length() == 0) {
                 Files.deleteIfExists(path);
             } else {
+                // Préserve le nom du fichier CSV mémorisé à l'import pour que le
+                // téléchargement reste disponible après réouverture.
+                if (!payload.has("csvFile") && Files.exists(path)) {
+                    try {
+                        JSONObject previous = new JSONObject(
+                                new String(Files.readAllBytes(path), StandardCharsets.UTF_8));
+                        if (previous.has("csvFile")) {
+                            payload.put("csvFile", previous.getString("csvFile"));
+                        }
+                    } catch (Exception ignore) {
+                    }
+                }
                 Files.write(path, payload.toString().getBytes(StandardCharsets.UTF_8));
             }
             out.println("{\"success\":true}");

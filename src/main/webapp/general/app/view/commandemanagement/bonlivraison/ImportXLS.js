@@ -152,7 +152,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ImportXLS', {
                                                         nonReconnus: result.nonReconnus,
                                                         nbReconnus: result.nbReconnus || 0,
                                                         nbTotal: result.nbTotal || 0,
-                                                        csvLink: null,
+                                                        csvLink: result.csvFile ? '../VericationCommande?fileName=' + result.csvFile : null,
                                                         parentGrid: parentGrid
                                                     }).show();
                                                 }

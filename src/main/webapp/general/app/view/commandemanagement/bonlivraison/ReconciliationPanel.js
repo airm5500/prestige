@@ -44,6 +44,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                 handler: function () {
                     if (me.getCsvLink()) {
                         window.open(me.getCsvLink(), '_blank');
+                    } else {
+                        Ext.Msg.alert('Information', 'Le fichier CSV n\'est pas disponible pour cette commande.');
                     }
                 }
             },
