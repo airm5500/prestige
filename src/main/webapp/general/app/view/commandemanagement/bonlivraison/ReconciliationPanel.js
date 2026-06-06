@@ -356,27 +356,46 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                 }
             );
         } else {
-            // Code EAN (13 car.) ou longueur inconnue — proposer le choix
+            // Code EAN (13 car.) ou longueur inconnue — proposer le choix via
+            // une fenêtre dédiée (Ext.Msg avec libellés longs masque les boutons).
             var msgType = len === 13 ? 'EAN13 (' + len + ' car.)' : 'longueur inhabituelle (' + len + ' car.)';
-            Ext.Msg.show({
+            var choix = Ext.create('Ext.window.Window', {
                 title: 'Type de code détecté',
-                msg: 'Le code importé <b>' + codeImporte + '</b> est de type <b>' + msgType + '</b>.<br><br>'
-                    + 'Que souhaitez-vous faire pour le produit <b>' + nomProduit + '</b> ?',
-                minWidth: 480,
-                buttons: {
-                    yes: 'Stocker comme EAN13 (CIP inchangé)',
-                    no: 'Remplacer le code CIP par ce code'
-                },
-                icon: Ext.Msg.QUESTION,
-                fn: function (btn) {
-                    if (btn === 'yes') {
-                        me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'EAN');
-                    } else if (btn === 'no') {
-                        me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'CIP');
+                modal: true,
+                width: 520,
+                bodyPadding: 15,
+                layout: 'fit',
+                items: [
+                    {
+                        xtype: 'component',
+                        html: '<div style="font-size:13px;line-height:1.5;">'
+                            + 'Le code importé <b>' + codeImporte + '</b> est de type <b>' + msgType + '</b>.<br><br>'
+                            + 'Que souhaitez-vous faire pour le produit <b>' + nomProduit + '</b> ?'
+                            + '</div>'
                     }
-                    // cancel = ne rien faire
-                }
+                ],
+                buttons: [
+                    {
+                        text: 'Stocker comme EAN13 (CIP inchangé)',
+                        handler: function () {
+                            choix.destroy();
+                            me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'EAN');
+                        }
+                    },
+                    {
+                        text: 'Remplacer le code CIP',
+                        handler: function () {
+                            choix.destroy();
+                            me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'CIP');
+                        }
+                    },
+                    {
+                        text: 'Annuler',
+                        handler: function () { choix.destroy(); }
+                    }
+                ]
             });
+            choix.show();
         }
     },
 
