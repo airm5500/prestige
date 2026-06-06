@@ -88,6 +88,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.CommandeService;
+import rest.service.dto.ReconcilierLigneDTO;
 import rest.service.LogService;
 import rest.service.MouvementProduitService;
 import rest.service.MvtProduitService;
@@ -1161,6 +1162,60 @@ public class CommandeServiceImpl implements CommandeService {
         } catch (IOException e) {
             LOG.log(Level.SEVERE, "Erreur lors de la génération Excel des détails de commande", e);
             return new byte[0];
+        }
+    }
+
+    @Override
+    public JSONObject addLigneReconciliee(ReconcilierLigneDTO dto) {
+        JSONObject json = new JSONObject();
+        try {
+            TOrder order = getEm().find(TOrder.class, dto.getOrderId());
+            TFamille famille = getEm().find(TFamille.class, dto.getFamilleId());
+            if (order == null || famille == null) {
+                return json.put("success", false).put("message", "Commande ou produit introuvable");
+            }
+            userTransaction.begin();
+            TOrderDetail existing = findByProductAndOrder(order, famille);
+            if (existing == null) {
+                TOrderDetail detail = new TOrderDetail();
+                detail.setLgORDERDETAILID(org.apache.commons.lang.RandomStringUtils.randomAlphanumeric(20));
+                detail.setLgORDERID(order);
+                detail.setLgFAMILLEID(famille);
+                detail.setLgGROSSISTEID(order.getLgGROSSISTEID());
+                detail.setIntNUMBER(dto.getQty());
+                detail.setIntQTEREPGROSSISTE(dto.getQty());
+                detail.setIntQTEMANQUANT(0);
+                detail.setIntPRICEDETAIL(famille.getIntPRICE());
+                int paf = dto.getPrixAchat() > 0 ? dto.getPrixAchat() : famille.getIntPAF();
+                detail.setIntPAFDETAIL(paf);
+                detail.setPrixAchat(paf);
+                detail.setIntPRICE(dto.getQty() * paf);
+                detail.setStrSTATUT(DateConverter.STATUT_PROCESS);
+                detail.setDtCREATED(new java.util.Date());
+                detail.setDtUPDATED(detail.getDtCREATED());
+                detail.setUg(dto.getUg());
+                getEm().persist(detail);
+            } else {
+                existing.setIntNUMBER(existing.getIntNUMBER() + dto.getQty());
+                existing.setIntQTEMANQUANT(0);
+                existing.setIntQTEREPGROSSISTE(existing.getIntNUMBER());
+                existing.setIntPRICE(existing.getIntNUMBER() * existing.getIntPAFDETAIL());
+                existing.setDtUPDATED(new java.util.Date());
+                getEm().merge(existing);
+            }
+            userTransaction.commit();
+            return json.put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Erreur addLigneReconciliee", e);
+            try {
+                if (userTransaction.getStatus() == Status.STATUS_ACTIVE
+                        || userTransaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+                    userTransaction.rollback();
+                }
+            } catch (SystemException ex) {
+                LOG.log(Level.SEVERE, null, ex);
+            }
+            return json.put("success", false).put("message", "Erreur lors de l'ajout de la ligne");
         }
     }
 

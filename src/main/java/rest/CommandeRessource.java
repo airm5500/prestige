@@ -43,6 +43,7 @@ import rest.service.dto.CommandeFiltre;
 import rest.service.dto.CommandeIdsDTO;
 import rest.service.dto.DeleteLot;
 import rest.service.dto.OrderDetailDTO;
+import rest.service.dto.ReconcilierLigneDTO;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -387,6 +388,13 @@ public class CommandeRessource {
 
         return Response.ok(data)
                 .header("Content-Disposition", "attachment; filename=\"commande_" + orderId + "_details.xls\"").build();
+    }
+
+    @POST
+    @Path("reconcilier-ligne")
+    public Response reconcilierLigne(ReconcilierLigneDTO dto) throws JSONException {
+        JSONObject json = commandeService.addLigneReconciliee(dto);
+        return Response.ok().entity(json.toString()).build();
     }
 
 }

@@ -21,6 +21,7 @@ import javax.ejb.Local;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.dto.CreationProduitDTO;
+import rest.service.dto.UpdateCipDTO;
 
 /**
  *
@@ -105,4 +106,6 @@ public interface ProduitService {
 
     TFamilleGrossiste createTFamilleGrossisteFromRupture(CreationProduitDTO creationProduit, TFamille famille,
             TGrossiste grossiste);
+
+    JSONObject updateCodeCip(String familleId, UpdateCipDTO dto);
 }

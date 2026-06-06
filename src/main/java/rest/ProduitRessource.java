@@ -384,6 +384,12 @@ public class ProduitRessource {
     }
 
     @PUT
+    @Path("update-cip/{familleId}")
+    public Response updateCodeCip(@PathParam("familleId") String familleId, rest.service.dto.UpdateCipDTO dto) {
+        return Response.ok().entity(produitService.updateCodeCip(familleId, dto).toString()).build();
+    }
+
+    @PUT
     @Path("create-detail/{id}")
     public Response updateProduitDetail(@PathParam("id") String id, CreationProduitDTO produit) {
         return Response.ok().entity(produitService.updateProduitDetail(produit, id).toString()).build();

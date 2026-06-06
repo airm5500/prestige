@@ -117,6 +117,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ImportXLS', {
                         listeners: {
                             click: function () {
                                 var form = Ext.getCmp('formImport');
+                                var grossisteCombo = form.down('[name=lg_GROSSISTE_ID]');
+                                var grossisteId = grossisteCombo ? grossisteCombo.getValue() : null;
 
                                 form.submit({
                                     clientValidation: true,
@@ -127,31 +129,44 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ImportXLS', {
                                     success: function (form, action) {
 
                                         var result = Ext.JSON.decode(action.response.responseText, false);
+                                        var parentGrid = Ext.getCmp('OderGrid');
 
-                                        Ext.getCmp('OderGrid').getStore().load();
+                                        if (parentGrid) {
+                                            parentGrid.getStore().load();
+                                        }
+
                                         Ext.getCmp('xlsxdialog').destroy();
-                                        if (!result.toBe) {
+
+                                        if (result.toBe && result.nonReconnus && result.nonReconnus.length > 0) {
                                             Ext.MessageBox.show({
                                                 title: 'Info',
                                                 msg: result.success,
                                                 icon: Ext.MessageBox.INFO,
-                                                buttons: Ext.MessageBox.OK
+                                                width: 520,
+                                                height: 140,
+                                                buttons: Ext.MessageBox.OK,
+                                                fn: function () {
+                                                    Ext.create('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel', {
+                                                        orderId: result.orderId,
+                                                        grossisteId: grossisteId,
+                                                        nonReconnus: result.nonReconnus,
+                                                        nbReconnus: result.nbReconnus || 0,
+                                                        nbTotal: result.nbTotal || 0,
+                                                        csvLink: null,
+                                                        parentGrid: parentGrid
+                                                    }).show();
+                                                }
                                             });
                                         } else {
                                             Ext.MessageBox.show({
                                                 title: 'Info',
                                                 msg: result.success,
                                                 icon: Ext.MessageBox.INFO,
-                                                width: 500,
-                                                height: 140,
                                                 buttons: Ext.MessageBox.OK
                                             });
                                         }
-
-
                                     },
                                     failure: function (form, action) {
-                                        var result = Ext.JSON.decode(action.response.responseText, false);
                                         Ext.Msg.show({
                                             title: 'Error!',
                                             msg: "Erreur d'importation ",

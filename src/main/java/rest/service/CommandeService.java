@@ -15,6 +15,7 @@ import javax.ejb.Local;
 import javax.servlet.http.Part;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.dto.ReconcilierLigneDTO;
 
 /**
  *
@@ -51,5 +52,7 @@ public interface CommandeService {
     JSONObject verificationCommande(Part part, String orderId, TUser user);
 
     public byte[] buildCommandeDetailsExcel(TUser tu, String orderId);
+
+    JSONObject addLigneReconciliee(ReconcilierLigneDTO dto);
 
 }

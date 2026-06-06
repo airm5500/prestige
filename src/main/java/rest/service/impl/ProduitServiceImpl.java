@@ -96,6 +96,7 @@ import rest.service.NotificationService;
 import rest.service.ProduitService;
 import rest.service.SessionHelperService;
 import rest.service.dto.CreationProduitDTO;
+import rest.service.dto.UpdateCipDTO;
 import util.Constant;
 import util.DateCommonUtils;
 import util.DateConverter;
@@ -2376,5 +2377,50 @@ public class ProduitServiceImpl implements ProduitService {
         typeStockFamille.setStrSTATUT(Constant.STATUT_ENABLE);
         em.persist(typeStockFamille);
 
+    }
+
+    @Override
+    public JSONObject updateCodeCip(String familleId, UpdateCipDTO dto) {
+        JSONObject json = new JSONObject();
+        String newCip = dto.getNewCip();
+        String grossisteId = dto.getGrossisteId();
+
+        if (newCip == null || newCip.trim().length() < 6) {
+            return json.put("success", false).put("message", "Le code CIP doit avoir au minimum 6 caractères");
+        }
+
+        TFamilleGrossiste existant = isCIPExist(newCip.trim(), grossisteId);
+        if (existant != null && !existant.getLgFAMILLEID().getLgFAMILLEID().equals(familleId)) {
+            return json.put("success", false).put("message",
+                    "Ce code est déjà utilisé par : " + existant.getLgFAMILLEID().getStrDESCRIPTION());
+        }
+
+        TFamille existProduct = isCIPGrossistet(newCip.trim(), grossisteId);
+        if (existProduct != null && !existProduct.getLgFAMILLEID().equals(familleId)) {
+            return json.put("success", false).put("message",
+                    "Ce code est déjà utilisé par : " + existProduct.getStrDESCRIPTION());
+        }
+
+        TFamille famille = em.find(TFamille.class, familleId);
+        if (famille == null) {
+            return json.put("success", false).put("message", "Produit introuvable");
+        }
+
+        famille.setIntCIP(newCip.trim());
+        em.merge(famille);
+
+        try {
+            TypedQuery<TFamilleGrossiste> q = em.createQuery(
+                    "SELECT t FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgGROSSISTEID.lgGROSSISTEID = ?2",
+                    TFamilleGrossiste.class);
+            q.setParameter(1, familleId).setParameter(2, grossisteId).setMaxResults(1);
+            TFamilleGrossiste fg = q.getSingleResult();
+            fg.setStrCODEARTICLE(newCip.trim());
+            em.merge(fg);
+        } catch (Exception e) {
+            // no TFamilleGrossiste for this distributor, that's acceptable
+        }
+
+        return json.put("success", true);
     }
 }

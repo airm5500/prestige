@@ -35,6 +35,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.inject.Inject;
 import javax.json.Json;
+import javax.json.JsonArrayBuilder;
 import javax.json.JsonBuilderFactory;
 import javax.json.JsonObjectBuilder;
 import javax.persistence.EntityManager;
@@ -125,8 +126,8 @@ public class FileFormaManager extends HttpServlet {
 
                 break;
             }
+            json.add("orderId", responseJson.optString("orderId", ""));
             if (!items.isEmpty()) {
-
                 json.add("toBe", true);
                 String finalFile = fichierReponse(request.getServletContext(),
                         fileName.substring(0, fileName.indexOf('.') - 1), Format.valueOf(modeBL), items);
@@ -135,6 +136,9 @@ public class FileFormaManager extends HttpServlet {
                         + responseJson.getInt("ligne")
                         + "\n</span> produits mis à jour <a href=\"../VericationCommande?fileName=" + finalFile
                         + " \" style=\"color:red !important;\">Cliquer sur le lien pour télécharger les produits non pris en compte</a>");
+                json.add("nonReconnus", buildItemsJsonArray(items));
+                json.add("nbReconnus", responseJson.getInt("count"));
+                json.add("nbTotal", responseJson.getInt("ligne"));
             } else {
                 json.add("toBe", false);
                 json.add("success", "<span style='color:blue;font-weight:800;'>" + responseJson.getInt("count") + "/"
@@ -259,6 +263,7 @@ public class FileFormaManager extends HttpServlet {
         TGrossiste grossiste = em.find(TGrossiste.class, lgGROSSISTE);
         userTransaction.begin();
         TOrder order = createOrder(grossiste, user);
+        json.put("orderId", order.getLgORDERID());
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(part.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -296,6 +301,7 @@ public class FileFormaManager extends HttpServlet {
             TGrossiste grossiste = em.find(TGrossiste.class, lgGROSSISTE);
             userTransaction.begin();
             TOrder order = createOrder(grossiste, user);
+            json.put("orderId", order.getLgORDERID());
             CSVParser parser = new CSVParser(new InputStreamReader(part.getInputStream()),
                     CSVFormat.EXCEL.withDelimiter(';'));
             switch (mode) {
@@ -797,5 +803,24 @@ public class FileFormaManager extends HttpServlet {
                 cSVRecord.get(4), Integer.valueOf(cSVRecord.get(5)), Integer.parseInt(cSVRecord.get(6)),
                 Integer.valueOf(cSVRecord.get(7)), Double.valueOf(cSVRecord.get(8)), Double.valueOf(cSVRecord.get(9)),
                 cSVRecord.get(10), Double.valueOf(cSVRecord.get(11))));
+    }
+
+    private javax.json.JsonArray buildItemsJsonArray(List<OrderItem> list) {
+        JsonArrayBuilder arrayBuilder = Json.createArrayBuilder();
+        for (OrderItem item : list) {
+            JsonObjectBuilder obj = Json.createObjectBuilder();
+            obj.add("cip", item.getCip() != null ? item.getCip() : "");
+            obj.add("libelle", item.getLibelle() != null ? item.getLibelle() : "");
+            obj.add("cmde", item.getCmde() != null ? item.getCmde() : 0);
+            obj.add("cmdeL", item.getCmdeL() != null ? item.getCmdeL() : 0);
+            obj.add("prixAchat", item.getPrixAchat() != null ? item.getPrixAchat() : 0);
+            obj.add("prixUn", item.getPrixUn() != null ? item.getPrixUn() : 0);
+            obj.add("ug", item.getUg() != null ? item.getUg() : 0);
+            obj.add("tva", item.getTva() != null ? item.getTva() : 0.0);
+            obj.add("facture", item.getFacture() != null ? item.getFacture() : "");
+            obj.add("ligne", item.getLigne() != null ? item.getLigne() : 0);
+            arrayBuilder.add(obj);
+        }
+        return arrayBuilder.build();
     }
 }
