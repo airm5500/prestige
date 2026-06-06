@@ -601,28 +601,37 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             success: function (response) {
                 var res = Ext.JSON.decode(response.responseText, true);
                 if (res && res.success === '1') {
-                    me.rechercherProduitParCip(values.int_CIP, function (familleId, familleName) {
-                        if (familleId) {
-                            var qty = blRecord.get('cmdeL') || blRecord.get('cmde') || 0;
-                            var prixAchat = blRecord.get('prixAchat') || 0;
-                            var ug = blRecord.get('ug') || 0;
-                            me.ajouterLigneCommande(familleId, qty, prixAchat, ug, function () {
-                                blRecord.set('statut', 'cree');
-                                blRecord.set('familleName', familleName || values.str_DESCRIPTION);
-                                me.rows[rowIndex].statut = 'cree';
-                                me.rows[rowIndex].familleId = familleId;
-                                dialog.destroy();
-                                me.updateScore();
-                            });
-                        } else {
-                            dialog.setLoading(false);
-                            Ext.Msg.alert('Info', 'Produit créé mais non retrouvé. La ligne sera traitée lors de la prochaine importation.');
+                    // L'ID du produit créé est renvoyé directement (res.ref) par le
+                    // service de création — on l'utilise pour ajouter la ligne à la
+                    // commande en cours sans dépendre d'une recherche.
+                    var ajouterAvecFamille = function (familleId, familleName) {
+                        var qty = blRecord.get('cmdeL') || blRecord.get('cmde') || 0;
+                        var prixAchat = blRecord.get('prixAchat') || 0;
+                        var ug = blRecord.get('ug') || 0;
+                        me.ajouterLigneCommande(familleId, qty, prixAchat, ug, function () {
                             blRecord.set('statut', 'cree');
+                            blRecord.set('familleName', familleName || values.str_DESCRIPTION);
                             me.rows[rowIndex].statut = 'cree';
+                            me.rows[rowIndex].familleId = familleId;
                             dialog.destroy();
                             me.updateScore();
-                        }
-                    });
+                        });
+                    };
+
+                    if (res.ref) {
+                        ajouterAvecFamille(res.ref, values.str_DESCRIPTION);
+                    } else {
+                        // Repli : on recherche le produit par son CIP
+                        me.rechercherProduitParCip(values.int_CIP, function (familleId, familleName) {
+                            if (familleId) {
+                                ajouterAvecFamille(familleId, familleName);
+                            } else {
+                                dialog.setLoading(false);
+                                if (btn) btn.enable();
+                                Ext.Msg.alert('Erreur', 'Produit créé mais introuvable. Impossible de l\'ajouter à la commande.');
+                            }
+                        });
+                    }
                 } else {
                     dialog.setLoading(false);
                     if (btn) btn.enable();

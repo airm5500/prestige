@@ -184,7 +184,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             handler: this.onEditOrderByImportClick
                         }, '-',
                         {
-                            icon: 'resources/images/icons/fam/verifier.png',
+                            icon: 'resources/images/icons/fam/coches.png',
                             tooltip: 'Réconcilier les produits non reconnus',
                             scope: this,
                             handler: this.onReconcilierClick
