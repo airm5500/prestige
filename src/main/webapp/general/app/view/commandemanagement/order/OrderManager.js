@@ -184,6 +184,12 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             handler: this.onEditOrderByImportClick
                         }, '-',
                         {
+                            icon: 'resources/images/icons/fam/page_white_edit.png',
+                            tooltip: 'Réconcilier les produits non reconnus',
+                            scope: this,
+                            handler: this.onReconcilierClick
+                        }, '-',
+                        {
                             icon: 'resources/images/icons/fam/excel_csv.png',
                             tooltip: 'Generer le fichier CSV de la commande',
                             scope: this,
@@ -447,6 +453,36 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
 
                     }
                 });
+    },
+    onReconcilierClick: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        const orderId = rec.get('lg_ORDER_ID');
+        const parentGrid = grid;
+        Ext.Ajax.request({
+            url: '../commande?action=reconciliation&orderId=' + orderId,
+            method: 'GET',
+            success: function (response) {
+                var res = Ext.JSON.decode(response.responseText, true);
+                if (res && res.success && res.nonReconnus && res.nonReconnus.length > 0) {
+                    Ext.create('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel', {
+                        orderId: orderId,
+                        grossisteId: res.grossisteId,
+                        nonReconnus: res.nonReconnus,
+                        nbReconnus: res.nbReconnus || 0,
+                        nbTotal: res.nbTotal || 0,
+                        csvLink: null,
+                        parentGrid: parentGrid
+                    }).show();
+                } else {
+                    Ext.MessageBox.alert('Information',
+                            'Aucun produit non reconnu à traiter pour cette commande.');
+                }
+            },
+            failure: function () {
+                Ext.MessageBox.alert('Erreur',
+                        'Impossible de récupérer les produits non reconnus de cette commande.');
+            }
+        });
     },
     onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message',

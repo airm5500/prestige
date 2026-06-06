@@ -100,6 +100,27 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
         }
 
         me.getGrid().getStore().reload();
+        me.persistRemaining();
+    },
+
+    // Met à jour le fichier persisté côté serveur : on retire les lignes
+    // définitivement traitées (associées/créées) pour éviter tout doublon
+    // si l'utilisateur rouvre la réconciliation ultérieurement.
+    persistRemaining: function () {
+        var me = this;
+        var remaining = Ext.Array.filter(me.rows, function (r) {
+            return r.statut !== 'associe' && r.statut !== 'cree';
+        });
+        Ext.Ajax.request({
+            url: '../commande?action=reconciliation-save&orderId=' + me.getOrderId(),
+            method: 'POST',
+            jsonData: {
+                grossisteId: me.getGrossisteId(),
+                nbReconnus: me.getNbReconnus(),
+                nbTotal: me.getNbTotal(),
+                nonReconnus: remaining
+            }
+        });
     },
 
     buildGrid: function () {
