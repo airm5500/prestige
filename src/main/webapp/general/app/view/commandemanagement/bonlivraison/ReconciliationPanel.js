@@ -396,20 +396,26 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
     openCreerDialog: function (record, rowIndex) {
         var me = this;
 
-        var familleArticleStore = Ext.create('Ext.data.Store', {
-            fields: ['lg_FAMILLEARTICLE_ID', 'str_LIBELLE'],
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/produit/famille-article',
-                reader: { type: 'json', root: 'data' }
-            },
-            autoLoad: true
+        var storeEmplacement = Ext.create('Ext.data.Store', {
+            fields: ['id', 'libelle'],
+            autoLoad: false,
+            proxy: { type: 'ajax', url: '../api/v1/common/emplacement', reader: { type: 'json', root: 'data' } }
+        });
+        var storeFamille = Ext.create('Ext.data.Store', {
+            fields: ['lg_FAMILLEARTICLE_ID', 'libelle'],
+            autoLoad: false,
+            proxy: { type: 'ajax', url: '../api/v1/common/famillearticle', reader: { type: 'json', root: 'data' } }
+        });
+        var storeCodetva = Ext.create('Ext.data.Store', {
+            model: 'testextjs.model.CodeTva',
+            autoLoad: true,
+            proxy: { type: 'ajax', url: '../webservices/sm_user/famille/ws_data_codetva.jsp', reader: { type: 'json', root: 'results' } }
         });
 
         var dialog = Ext.create('Ext.window.Window', {
-            title: 'Créer le produit — Code BL : ' + record.get('cip'),
-            width: 500,
-            height: 400,
+            title: 'Créer le produit — Code BL : ' + record.get('cip') + '  |  ' + record.get('libelle'),
+            width: 600,
+            height: 520,
             modal: true,
             layout: 'fit',
             items: [
@@ -417,73 +423,159 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     xtype: 'form',
                     itemId: 'createForm',
                     bodyPadding: 15,
-                    fieldDefaults: { labelAlign: 'right', labelWidth: 120, anchor: '100%' },
+                    autoScroll: true,
+                    fieldDefaults: { labelAlign: 'right', labelWidth: 140, anchor: '100%', msgTarget: 'side' },
                     items: [
                         {
-                            xtype: 'textfield',
-                            name: 'intCip',
-                            fieldLabel: 'Code CIP',
-                            allowBlank: false,
-                            value: record.get('cip')
-                        },
-                        {
-                            xtype: 'textfield',
-                            name: 'strName',
-                            fieldLabel: 'Nom',
-                            allowBlank: false,
-                            value: record.get('libelle')
-                        },
-                        {
-                            xtype: 'textfield',
-                            name: 'strDescription',
-                            fieldLabel: 'Description',
-                            allowBlank: false,
-                            value: record.get('libelle')
-                        },
-                        {
-                            xtype: 'numberfield',
-                            name: 'intPaf',
-                            fieldLabel: 'Prix Achat (PAF)',
-                            allowBlank: false,
-                            value: record.get('prixAchat') || 0
-                        },
-                        {
-                            xtype: 'numberfield',
-                            name: 'intPrice',
-                            fieldLabel: 'Prix Vente',
-                            allowBlank: false,
-                            value: record.get('prixUn') || 0
-                        },
-                        {
-                            xtype: 'combobox',
-                            name: 'lgFamilleArticleId',
-                            fieldLabel: 'Famille Article',
-                            allowBlank: false,
-                            store: familleArticleStore,
-                            valueField: 'lg_FAMILLEARTICLE_ID',
-                            displayField: 'str_LIBELLE',
-                            queryMode: 'local',
-                            emptyText: 'Sélectionner une famille...'
-                        },
-                        {
-                            xtype: 'hiddenfield',
-                            name: 'lgGrossisteId',
-                            value: me.getGrossisteId()
+                            xtype: 'fieldset',
+                            title: 'Information article',
+                            defaultType: 'textfield',
+                            defaults: { anchor: '100%' },
+                            items: [
+                                {
+                                    fieldLabel: 'Code CIP',
+                                    name: 'int_CIP',
+                                    maskRe: /[0-9.]/,
+                                    width: 420,
+                                    allowBlank: false,
+                                    value: record.get('cip')
+                                },
+                                {
+                                    fieldLabel: 'Désignation',
+                                    name: 'str_DESCRIPTION',
+                                    width: 420,
+                                    allowBlank: false,
+                                    value: record.get('libelle')
+                                },
+                                {
+                                    xtype: 'combobox',
+                                    fieldLabel: 'Emplacement',
+                                    name: 'lg_ZONE_GEO_ID',
+                                    itemId: 'comboEmplacement',
+                                    width: 420,
+                                    store: storeEmplacement,
+                                    valueField: 'id',
+                                    displayField: 'libelle',
+                                    typeAhead: true,
+                                    allowBlank: false,
+                                    queryMode: 'local',
+                                    emptyText: 'Choisir un emplacement...'
+                                },
+                                {
+                                    xtype: 'combobox',
+                                    fieldLabel: 'Famille',
+                                    name: 'lg_FAMILLEARTICLE_ID',
+                                    itemId: 'comboFamille',
+                                    width: 420,
+                                    store: storeFamille,
+                                    valueField: 'lg_FAMILLEARTICLE_ID',
+                                    displayField: 'libelle',
+                                    typeAhead: true,
+                                    allowBlank: false,
+                                    queryMode: 'local',
+                                    emptyText: 'Choisir une famille...'
+                                },
+                                {
+                                    xtype: 'combobox',
+                                    fieldLabel: 'Code TVA',
+                                    name: 'lg_CODE_TVA_ID',
+                                    width: 420,
+                                    store: storeCodetva,
+                                    valueField: 'lg_CODE_TVA_ID',
+                                    displayField: 'str_NAME',
+                                    typeAhead: true,
+                                    allowBlank: false,
+                                    queryMode: 'local',
+                                    emptyText: 'Choisir un code TVA...'
+                                },
+                                {
+                                    fieldLabel: 'Prix Achat (PAF)',
+                                    name: 'int_PAF',
+                                    itemId: 'fieldPaf',
+                                    xtype: 'numberfield',
+                                    maskRe: /[0-9.]/,
+                                    width: 350,
+                                    allowBlank: false,
+                                    value: record.get('prixAchat') || 0
+                                },
+                                {
+                                    fieldLabel: 'Prix Vente',
+                                    name: 'int_PRICE',
+                                    itemId: 'fieldPrice',
+                                    xtype: 'numberfield',
+                                    maskRe: /[0-9.]/,
+                                    width: 350,
+                                    allowBlank: false,
+                                    value: record.get('prixUn') || 0
+                                },
+                                {
+                                    xtype: 'hiddenfield',
+                                    name: 'lg_GROSSISTE_ID',
+                                    value: me.getGrossisteId()
+                                },
+                                {
+                                    fieldLabel: 'Code EAN 13',
+                                    name: 'EAN',
+                                    maskRe: /[0-9.]/,
+                                    width: 420
+                                },
+                                {
+                                    fieldLabel: 'Code Tableau',
+                                    name: 'int_T',
+                                    width: 350
+                                }
+                            ]
                         }
                     ]
                 }
             ],
+            listeners: {
+                afterrender: function () {
+                    storeEmplacement.load({
+                        callback: function () {
+                            var defRec = storeEmplacement.findRecord('libelle', 'Default', 0, false, false, true);
+                            if (!defRec) {
+                                defRec = storeEmplacement.findRecord('id', '1');
+                            }
+                            var combo = dialog.down('[itemId=comboEmplacement]');
+                            if (defRec && combo) {
+                                combo.setValue(defRec.get('id'));
+                            }
+                        }
+                    });
+                    storeFamille.load({
+                        callback: function () {
+                            var defRec = storeFamille.findRecord('libelle', 'SPECIALITES PUBLIQUES', 0, false, false, true);
+                            var combo = dialog.down('[itemId=comboFamille]');
+                            if (defRec && combo) {
+                                combo.setValue(defRec.get('lg_FAMILLEARTICLE_ID'));
+                            }
+                        }
+                    });
+                }
+            },
             buttons: [
                 {
                     text: 'Créer le produit',
-                    formBind: true,
                     handler: function (btn) {
                         var form = dialog.down('#createForm');
                         if (!form.isValid()) {
                             Ext.Msg.alert('Formulaire incomplet', 'Veuillez remplir tous les champs obligatoires.');
                             return;
                         }
-                        me.soumettreCreation(form.getValues(), record, rowIndex, dialog);
+                        var paf = form.down('[itemId=fieldPaf]').getValue();
+                        var price = form.down('[itemId=fieldPrice]').getValue();
+                        if (paf > price) {
+                            Ext.MessageBox.show({
+                                title: 'Erreur de saisie',
+                                msg: "Le prix d'achat ne peut pas être supérieur au prix de vente.",
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.WARNING
+                            });
+                            return;
+                        }
+                        btn.setDisabled(true);
+                        me.soumettreCreation(form.getValues(), record, rowIndex, dialog, btn);
                     }
                 },
                 {
@@ -496,25 +588,27 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
         dialog.show();
     },
 
-    soumettreCreation: function (values, blRecord, rowIndex, dialog) {
+    soumettreCreation: function (values, blRecord, rowIndex, dialog, btn) {
         var me = this;
         dialog.setLoading('Création en cours...');
 
+        var paf = parseInt(values.int_PAF, 10) || 0;
+        var params = Ext.apply({}, values, { int_PAT: paf });
+
         Ext.Ajax.request({
-            url: '../api/v1/produit/create',
-            method: 'POST',
-            jsonData: values,
+            url: '../webservices/sm_user/famille/ws_transaction.jsp?mode=create',
+            params: params,
             success: function (response) {
                 var res = Ext.JSON.decode(response.responseText, true);
                 if (res && res.success === '1') {
-                    me.rechercherProduitParCip(values.intCip, function (familleId, familleName) {
+                    me.rechercherProduitParCip(values.int_CIP, function (familleId, familleName) {
                         if (familleId) {
                             var qty = blRecord.get('cmdeL') || blRecord.get('cmde') || 0;
                             var prixAchat = blRecord.get('prixAchat') || 0;
                             var ug = blRecord.get('ug') || 0;
                             me.ajouterLigneCommande(familleId, qty, prixAchat, ug, function () {
                                 blRecord.set('statut', 'cree');
-                                blRecord.set('familleName', familleName || values.strName);
+                                blRecord.set('familleName', familleName || values.str_DESCRIPTION);
                                 me.rows[rowIndex].statut = 'cree';
                                 me.rows[rowIndex].familleId = familleId;
                                 dialog.destroy();
@@ -531,11 +625,13 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     });
                 } else {
                     dialog.setLoading(false);
-                    Ext.Msg.alert('Erreur', res && res.message ? res.message : 'Erreur lors de la création du produit.');
+                    if (btn) btn.enable();
+                    Ext.Msg.alert('Erreur', res && res.errors ? res.errors : 'Erreur lors de la création du produit.');
                 }
             },
             failure: function () {
                 dialog.setLoading(false);
+                if (btn) btn.enable();
                 Ext.Msg.alert('Erreur', 'Erreur réseau lors de la création du produit.');
             }
         });
@@ -545,7 +641,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
         Ext.Ajax.request({
             url: '../api/v1/vente/search',
             method: 'GET',
-            params: { search: cip },
+            params: { query: cip },
             success: function (response) {
                 var res = Ext.JSON.decode(response.responseText, true);
                 var data = res && res.data ? res.data : [];

@@ -454,10 +454,15 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     }
                 });
     },
-    onReconcilierClick: function (grid, rowIndex) {
-        const rec = grid.getStore().getAt(rowIndex);
+    onReconcilierClick: function () {
+        const parentGrid = Ext.getCmp('OderGrid');
+        const sel = parentGrid.getSelectionModel().getSelection();
+        if (!sel.length) {
+            Ext.MessageBox.alert('Sélection requise', 'Veuillez sélectionner une commande dans la liste.');
+            return;
+        }
+        const rec = sel[0];
         const orderId = rec.get('lg_ORDER_ID');
-        const parentGrid = grid;
         Ext.Ajax.request({
             url: '../commande?action=reconciliation&orderId=' + orderId,
             method: 'GET',
