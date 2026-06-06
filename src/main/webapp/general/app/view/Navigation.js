@@ -57,7 +57,8 @@ Ext.define('testextjs.view.Navigation', {
     width: 350,
     height: 300,
 
-    _flyoutMenu: null,
+    _flyoutMenu:      null,
+    _flyoutCloseTimer: null,
 
     /* Annuler la fermeture native du panel flottant (slideOutTask) */
     _holdPanel: function () {
@@ -67,6 +68,20 @@ Ext.define('testextjs.view.Navigation', {
     /* Réarmer la fermeture native du panel flottant */
     _releasePanel: function (delay) {
         if (this.slideOutTask) { this.slideOutTask.delay(delay || 300); }
+    },
+
+    /* Fermer le flyout après un court délai (annulable si on entre sur un autre menu) */
+    _scheduleFlyoutClose: function () {
+        var me = this;
+        me._cancelFlyoutClose();
+        me._flyoutCloseTimer = setTimeout(function () {
+            me._flyoutCloseTimer = null;
+            if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
+        }, 200);
+    },
+
+    _cancelFlyoutClose: function () {
+        if (this._flyoutCloseTimer) { clearTimeout(this._flyoutCloseTimer); this._flyoutCloseTimer = null; }
     },
 
     initComponent: function () {
@@ -98,12 +113,20 @@ Ext.define('testextjs.view.Navigation', {
                 if (record.isLeaf()) { me.callItemMenu(view, record); }
             },
             itemdblclick: function () { return false; },
-            /* Survol d'un menu principal → afficher son flyout immédiatement */
+            /* Survol d'un menu principal → annuler fermeture flyout + afficher le sien */
             itemmouseenter: function (view, record, item) {
+                me._cancelFlyoutClose();
                 if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
                     me._holdPanel();
                     me._showFlyout(record, item);
+                } else {
+                    /* Ligne sans enfants (leaf ou parent vide) : fermer le flyout ouvert */
+                    me._scheduleFlyoutClose();
                 }
+            },
+            /* Souris quitte une ligne → programmer fermeture du flyout */
+            itemmouseleave: function () {
+                me._scheduleFlyoutClose();
             },
             afterrender: function () {
                 me._loadRealUser();
@@ -192,11 +215,16 @@ Ext.define('testextjs.view.Navigation', {
             items: items,
             listeners: {
                 afterrender: function (menu) {
-                    /* Souris sur le flyout → garder panel + flyout ouverts */
-                    menu.getEl().on('mouseenter', function () { me._holdPanel(); });
-                    /* Souris quitte le flyout → réarmer la fermeture native du panel
-                       (qui détruira aussi le flyout via slideOutFloatedPanel) */
-                    menu.getEl().on('mouseleave', function () { me._releasePanel(300); });
+                    /* Souris sur le flyout → annuler fermeture + garder panel ouvert */
+                    menu.getEl().on('mouseenter', function () {
+                        me._cancelFlyoutClose();
+                        me._holdPanel();
+                    });
+                    /* Souris quitte le flyout → programmer fermeture flyout + panel */
+                    menu.getEl().on('mouseleave', function () {
+                        me._scheduleFlyoutClose();
+                        me._releasePanel(300);
+                    });
                 },
                 hide: function () { me._flyoutMenu = null; }
             }
