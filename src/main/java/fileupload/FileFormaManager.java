@@ -141,7 +141,7 @@ public class FileFormaManager extends HttpServlet {
             if (!items.isEmpty()) {
                 json.add("toBe", true);
                 String finalFile = fichierReponse(request.getServletContext(),
-                        fileName.substring(0, fileName.indexOf('.') - 1), Format.valueOf(modeBL), items);
+                        fileName.substring(0, fileName.indexOf('.')), Format.valueOf(modeBL), items);
                 jdom.InitRessource();
                 json.add("success", "<span style='color:blue;font-weight:800;'>" + responseJson.getInt("count") + "/"
                         + responseJson.getInt("ligne")
@@ -632,8 +632,15 @@ public class FileFormaManager extends HttpServlet {
         return familleGrossiste;
     }
 
-    private String fichierReponse(ServletContext context, String fileName, Format mode, List<OrderItem> list)
+    private String fichierReponse(ServletContext context, String baseName, Format mode, List<OrderItem> list)
             throws IOException {
+        // Calcule le prochain numéro de version : baseName-verif1.csv, -verif2.csv, …
+        int version = 1;
+        while (Files.exists(Paths.get(context.getRealPath("WEB-INF") + File.separator
+                + baseName + "-verif" + version + ".csv"))) {
+            version++;
+        }
+        String fileName = baseName + "-verif" + version;
         try (BufferedWriter writer = Files.newBufferedWriter(
                 Paths.get(context.getRealPath("WEB-INF") + File.separator + fileName + ".csv"),
                 StandardCharsets.UTF_8)) {
