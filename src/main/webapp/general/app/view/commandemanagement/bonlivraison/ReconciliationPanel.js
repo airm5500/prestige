@@ -327,8 +327,52 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
 
     confirmerAssociation: function (blRecord, rowIndex, produitRecord, dialog) {
         var me = this;
+        var codeImporte = blRecord.get('cip') || '';
+        var len = codeImporte.replace(/\s/g, '').length;
+        var nomProduit = produitRecord.get('strNAME');
+
+        // Détermine le type du code pour orienter la question
+        if (len >= 6 && len <= 7) {
+            // Code CIP clair — demander confirmation de remplacement
+            Ext.MessageBox.confirm(
+                'Mise à jour du code CIP',
+                'Le code importé <b>' + codeImporte + '</b> (CIP, ' + len + ' car.) '
+                + 'va remplacer le code CIP actuel du produit <b>' + nomProduit + '</b>.<br><br>'
+                + 'Confirmer la mise à jour ?',
+                function (btn) {
+                    if (btn === 'yes') {
+                        me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'CIP');
+                    }
+                }
+            );
+        } else {
+            // Code EAN (13 car.) ou longueur inconnue — proposer le choix
+            var msgType = len === 13 ? 'EAN13 (' + len + ' car.)' : 'longueur inhabituelle (' + len + ' car.)';
+            Ext.Msg.show({
+                title: 'Type de code détecté',
+                msg: 'Le code importé <b>' + codeImporte + '</b> est de type <b>' + msgType + '</b>.<br><br>'
+                    + 'Que souhaitez-vous faire pour le produit <b>' + nomProduit + '</b> ?',
+                buttons: {
+                    yes: 'Stocker comme EAN13 (CIP inchangé)',
+                    no: 'Remplacer le code CIP par ce code'
+                },
+                icon: Ext.Msg.QUESTION,
+                fn: function (btn) {
+                    if (btn === 'yes') {
+                        me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'EAN');
+                    } else if (btn === 'no') {
+                        me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'CIP');
+                    }
+                    // cancel = ne rien faire
+                }
+            });
+        }
+    },
+
+    appliquerAssociation: function (blRecord, rowIndex, produitRecord, dialog, field) {
+        var me = this;
         var familleId = produitRecord.get('lgFAMILLEID');
-        var cipBl = blRecord.get('cip');
+        var codeImporte = blRecord.get('cip');
         var qty = blRecord.get('cmdeL') || blRecord.get('cmde') || 0;
         var prixAchat = blRecord.get('prixAchat') || 0;
         var ug = blRecord.get('ug') || 0;
@@ -339,8 +383,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             url: '../api/v1/produit/update-cip/' + familleId,
             method: 'PUT',
             jsonData: {
-                newCip: cipBl,
-                grossisteId: me.getGrossisteId()
+                newCip: codeImporte,
+                grossisteId: me.getGrossisteId(),
+                field: field
             },
             success: function (response) {
                 var res = Ext.JSON.decode(response.responseText, true);
@@ -356,12 +401,12 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     });
                 } else {
                     dialog.setLoading(false);
-                    Ext.Msg.alert('Erreur', res && res.message ? res.message : 'Impossible de mettre à jour le code CIP.');
+                    Ext.Msg.alert('Erreur', res && res.message ? res.message : 'Impossible de mettre à jour le code.');
                 }
             },
             failure: function () {
                 dialog.setLoading(false);
-                Ext.Msg.alert('Erreur', 'Erreur réseau lors de la mise à jour du code CIP.');
+                Ext.Msg.alert('Erreur', 'Erreur réseau lors de la mise à jour du code.');
             }
         });
     },
