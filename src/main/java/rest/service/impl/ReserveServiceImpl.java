@@ -130,7 +130,7 @@ public class ReserveServiceImpl implements ReserveService {
 
     @Override
     public JSONObject suggestions(TUser user, String search, int start, int limit) {
-        LOG.log(Level.INFO, "suggestions (reassort rayon) search={0} start={1} limit={2} user={3}",
+        LOG.log(Level.FINE, "suggestions (reassort rayon) search={0} start={1} limit={2} user={3}",
                 new Object[]{search, start, limit, user.getLgUSERID()});
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         String like = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
