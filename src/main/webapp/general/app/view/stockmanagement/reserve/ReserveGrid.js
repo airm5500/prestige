@@ -327,8 +327,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                     n++;
                 }
             }
-            if (win) {
-                win.down('#selCount').setText('Selectionnes : ' + n);
+            // selCount est docke sur la grille (disponible des la creation de grid)
+            var cmp = grid && grid.down('#selCount');
+            if (cmp) {
+                cmp.setText('Selectionnes : ' + n);
             }
         };
 
@@ -359,6 +361,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             reapplySelection();
         });
 
+        var pager = Ext.create('Ext.toolbar.Paging', {
+            store: selStore,
+            dock: 'bottom',
+            displayInfo: true
+        });
+
         var grid = Ext.create('Ext.grid.Panel', {
             border: false,
             flex: 1,
@@ -371,59 +379,64 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                 {header: 'Prix achat', dataIndex: 'int_PAF', align: 'right', flex: 1, renderer: prixRenderer},
                 {header: 'Prix vente', dataIndex: 'int_PRICE', align: 'right', flex: 1, renderer: prixRenderer}
             ],
-            tbar: [{
-                    text: 'Tout selectionner (toutes les pages)', iconCls: '',
-                    handler: function () {
-                        var prog = Ext.MessageBox.wait('Chargement...', 'Selection de tous les articles');
-                        Ext.Ajax.request({
-                            url: '../api/v1/reserve/articles',
-                            method: 'GET',
-                            params: {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
-                            timeout: 600000,
-                            success: function (response) {
-                                prog.hide();
-                                var res = Ext.JSON.decode(response.responseText, true);
-                                var list = (res && res.results) ? res.results : [];
-                                Ext.each(list, function (a) {
-                                    if (a.lg_FAMILLE_ID) {
-                                        selectedIds[a.lg_FAMILLE_ID] = true;
+            dockedItems: [
+                {
+                    xtype: 'toolbar', dock: 'top',
+                    items: [{
+                            text: 'Tout selectionner (toutes les pages)',
+                            handler: function () {
+                                var prog = Ext.MessageBox.wait('Chargement...', 'Selection de tous les articles');
+                                Ext.Ajax.request({
+                                    url: '../api/v1/reserve/articles',
+                                    method: 'GET',
+                                    params: {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
+                                    timeout: 600000,
+                                    success: function (response) {
+                                        prog.hide();
+                                        var res = Ext.JSON.decode(response.responseText, true);
+                                        var list = (res && res.results) ? res.results : [];
+                                        Ext.each(list, function (a) {
+                                            if (a.lg_FAMILLE_ID) {
+                                                selectedIds[a.lg_FAMILLE_ID] = true;
+                                            }
+                                        });
+                                        reapplySelection();
+                                    },
+                                    failure: function () {
+                                        prog.hide();
+                                        Ext.MessageBox.alert('Erreur', 'Echec du chargement de la liste complete.');
                                     }
                                 });
-                                reapplySelection();
-                            },
-                            failure: function () {
-                                prog.hide();
-                                Ext.MessageBox.alert('Erreur', 'Echec du chargement de la liste complete.');
                             }
-                        });
-                    }
-                }, {
-                    text: 'Tout deselectionner',
-                    handler: function () {
-                        selectedIds = {};
-                        selModel.deselectAll();
-                        updateCounter();
-                    }
-                }, '->', {
-                    xtype: 'tbtext', itemId: 'selCount', text: 'Selectionnes : 0'
-                }],
-            bbar: {xtype: 'pagingtoolbar', store: selStore, dock: 'bottom', displayInfo: true}
+                        }, {
+                            text: 'Tout deselectionner',
+                            handler: function () {
+                                selectedIds = {};
+                                selModel.deselectAll();
+                                updateCounter();
+                            }
+                        }, '->', {
+                            xtype: 'tbtext', itemId: 'selCount', text: 'Selectionnes : 0'
+                        }]
+                },
+                pager
+            ]
         });
 
         win = Ext.create('Ext.window.Window', {
             title: 'Creer un inventaire reserve',
             modal: true,
-            width: 800,
-            height: 560,
-            layout: 'vbox',
-            bodyPadding: 8,
+            width: 860,
+            height: 580,
+            layout: {type: 'vbox', align: 'stretch'},
+            constrainHeader: true,
+            bodyPadding: '8 8 0 8',
             items: [{
                     xtype: 'textarea',
                     itemId: 'commentFld',
                     fieldLabel: 'Commentaire',
                     labelAlign: 'top',
-                    width: '100%',
-                    height: 60,
+                    height: 70,
                     emptyText: 'Commentaire optionnel (enregistre dans la description de l\'inventaire)'
                 }, grid],
             buttons: [{
