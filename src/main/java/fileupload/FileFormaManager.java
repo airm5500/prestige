@@ -135,7 +135,7 @@ public class FileFormaManager extends HttpServlet {
                 json.add("success", "<span style='color:blue;font-weight:800;'>" + responseJson.getInt("count") + "/"
                         + responseJson.getInt("ligne")
                         + "\n</span> produits mis à jour <a href=\"../VericationCommande?fileName=" + finalFile
-                        + " \" style=\"color:red !important;\">Cliquer sur le lien pour télécharger les produits non pris en compte</a>");
+                        + " \" style=\"color:red !important;\">Voir le contenu à traiter</a>");
                 json.add("nonReconnus", buildItemsJsonArray(items));
                 json.add("nbReconnus", responseJson.getInt("count"));
                 json.add("nbTotal", responseJson.getInt("ligne"));

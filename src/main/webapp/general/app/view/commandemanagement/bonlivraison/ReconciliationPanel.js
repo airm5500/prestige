@@ -5,7 +5,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
     xtype: 'reconciliation-panel',
 
     title: 'Réconciliation des produits non reconnus',
-    width: 900,
+    width: 1100,
     height: 520,
     layout: 'border',
     modal: true,
@@ -117,25 +117,34 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             itemId: 'reconcileGrid',
             store: store,
             stripeRows: true,
-            forceFit: true,
+            forceFit: false,
             listeners: {
                 cellclick: function (grid, td, cellIndex, record, tr, rowIndex, e) {
                     var target = e.getTarget('.reconcile-action');
                     if (!target) {
                         return;
                     }
+                    var action = target.getAttribute('data-action');
+                    if (action === 'ignorer') {
+                        if (record.get('statut') === 'ignore') {
+                            // remettre en attente si ignoré par erreur
+                            record.set('statut', 'pending');
+                            me.rows[rowIndex].statut = 'pending';
+                            me.updateScore();
+                        } else if (record.get('statut') === 'pending') {
+                            record.set('statut', 'ignore');
+                            me.rows[rowIndex].statut = 'ignore';
+                            me.updateScore();
+                        }
+                        return;
+                    }
                     if (record.get('statut') !== 'pending') {
                         return;
                     }
-                    var action = target.getAttribute('data-action');
                     if (action === 'associer') {
                         me.openAssocierDialog(record, rowIndex);
                     } else if (action === 'creer') {
                         me.openCreerDialog(record, rowIndex);
-                    } else if (action === 'ignorer') {
-                        record.set('statut', 'ignore');
-                        me.rows[rowIndex].statut = 'ignore';
-                        me.updateScore();
                     }
                 }
             },
@@ -143,7 +152,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                 {
                     text: 'Statut',
                     dataIndex: 'statut',
-                    width: 100,
+                    width: 105,
                     renderer: function (v) {
                         if (v === 'associe') return '<span style="color:green;font-weight:bold;">&#10004; Associé</span>';
                         if (v === 'cree') return '<span style="color:green;font-weight:bold;">&#10010; Créé</span>';
@@ -151,16 +160,16 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                         return '<span style="color:darkorange;">&#9203; En attente</span>';
                     }
                 },
-                { text: 'Code BL', dataIndex: 'cip', width: 100 },
-                { text: 'Libellé BL', dataIndex: 'libelle', flex: 1 },
-                { text: 'Qté cmdée', dataIndex: 'cmde', width: 80, align: 'center' },
-                { text: 'Qté livrée', dataIndex: 'cmdeL', width: 80, align: 'center' },
-                { text: 'Prix Achat', dataIndex: 'prixAchat', width: 90, align: 'right' },
-                { text: 'UG', dataIndex: 'ug', width: 50, align: 'center' },
+                { text: 'Code BL', dataIndex: 'cip', width: 120 },
+                { text: 'Libellé BL', dataIndex: 'libelle', width: 200 },
+                { text: 'Qté cmdée', dataIndex: 'cmde', width: 75, align: 'center' },
+                { text: 'Qté livrée', dataIndex: 'cmdeL', width: 75, align: 'center' },
+                { text: 'Prix Achat', dataIndex: 'prixAchat', width: 85, align: 'right' },
+                { text: 'UG', dataIndex: 'ug', width: 45, align: 'center' },
                 {
                     text: 'Produit associé',
                     dataIndex: 'familleName',
-                    flex: 1,
+                    width: 180,
                     renderer: function (v) {
                         return v ? '<span style="color:green;">' + v + '</span>' : '-';
                     }
@@ -172,7 +181,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     menuDisabled: true,
                     dataIndex: 'statut',
                     renderer: function (v) {
-                        if (v !== 'pending') {
+                        if (v === 'associe' || v === 'cree') {
                             return '<span style="color:gray;">Traité</span>';
                         }
                         var btn = function (action, label, color) {
@@ -181,6 +190,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                                 + 'border-radius:3px;color:' + color + ';text-decoration:none;font-size:11px;cursor:pointer;">'
                                 + label + '</a>';
                         };
+                        if (v === 'ignore') {
+                            return btn('ignorer', 'Remettre en attente', '#e65100');
+                        }
                         return btn('associer', 'Associer', '#1565c0')
                             + btn('creer', 'Créer', '#2e7d32')
                             + btn('ignorer', 'Ignorer', '#757575');
@@ -207,7 +219,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
         });
 
         var dialog = Ext.create('Ext.window.Window', {
-            title: 'Associer un produit existant — Code BL : ' + record.get('cip'),
+            title: 'Associer — Code BL : ' + record.get('cip') + '  |  ' + record.get('libelle'),
             width: 600,
             height: 350,
             modal: true,
