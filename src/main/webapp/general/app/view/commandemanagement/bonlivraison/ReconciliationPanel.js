@@ -182,7 +182,17 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     }
                 },
                 { text: 'Code BL', dataIndex: 'cip', width: 120 },
-                { text: 'Libellé BL', dataIndex: 'libelle', width: 200 },
+                {
+                    text: 'Libellé BL',
+                    dataIndex: 'libelle',
+                    width: 200,
+                    renderer: function (v, metaData) {
+                        if (v) {
+                            metaData.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(v) + '"';
+                        }
+                        return v || '';
+                    }
+                },
                 { text: 'Qté cmdée', dataIndex: 'cmde', width: 75, align: 'center' },
                 { text: 'Qté livrée', dataIndex: 'cmdeL', width: 75, align: 'center' },
                 { text: 'Prix Achat', dataIndex: 'prixAchat', width: 85, align: 'right' },
@@ -232,6 +242,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
 
         var searchStore = Ext.create('Ext.data.Store', {
             fields: ['lgFAMILLEID', 'strNAME', 'intCIP', 'intPRICE', 'intNUMBERAVAILABLE'],
+            autoLoad: false,
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/vente/search',
@@ -264,7 +275,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                                 keyup: function (field) {
                                     var val = field.getValue();
                                     if (val && val.length >= 3) {
-                                        searchStore.load({ params: { search: val } });
+                                        searchStore.load({ params: { query: val } });
+                                    } else if (!val || val.length === 0) {
+                                        searchStore.removeAll();
                                     }
                                 }
                             }
