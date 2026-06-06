@@ -492,6 +492,11 @@ public class InventaireServiceImpl implements InventaireService {
 
     @Override
     public int createReserveInventaire(Set<String> produitIds, String description) {
+        return createReserveInventaire(produitIds, description, description);
+    }
+
+    @Override
+    public int createReserveInventaire(Set<String> produitIds, String name, String description) {
         if (CollectionUtils.isEmpty(produitIds)) {
             return 0;
         }
@@ -500,7 +505,7 @@ public class InventaireServiceImpl implements InventaireService {
         String emplId = emplacement.getLgEMPLACEMENTID();
 
         TInventaire oTInventaire = new TInventaire(IdGenerator.getComplexId());
-        oTInventaire.setStrNAME(description);
+        oTInventaire.setStrNAME(name);
         oTInventaire.setStrDESCRIPTION(description);
         oTInventaire.setLgUSERID(tUser);
         oTInventaire.setStrTYPE("reserve");          // distingue des inventaires normaux

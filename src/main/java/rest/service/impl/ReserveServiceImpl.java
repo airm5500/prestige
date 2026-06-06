@@ -473,10 +473,27 @@ public class ReserveServiceImpl implements ReserveService {
         if (ids.isEmpty()) {
             return new JSONObject().put("count", 0).put("message", "Aucun produit a inventorier.");
         }
-        String jour = new java.text.SimpleDateFormat("dd/MM/yyyy").format(new Date());
-        String title = "Inventaire reserve du " + jour;
+        String title = buildInventaireName();
         int count = inventaireService.createReserveInventaire(ids, title);
         return new JSONObject().put("count", count).put("message", title);
+    }
+
+    @Override
+    public JSONObject createInventaireFromSelection(TUser user, java.util.Set<String> ids, String commentaire) {
+        if (ids == null || ids.isEmpty()) {
+            return new JSONObject().put("count", 0).put("message", "Aucun produit selectionne.");
+        }
+        String title = buildInventaireName();
+        String description = (commentaire != null && !commentaire.trim().isEmpty())
+                ? commentaire.trim() : title;
+        int count = inventaireService.createReserveInventaire(ids, title, description);
+        return new JSONObject().put("count", count).put("message", title);
+    }
+
+    // Nom de l'inventaire reserve : "Inventaire reserve du dd/MM/yyyy HH:mm"
+    private String buildInventaireName() {
+        String jour = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new Date());
+        return "Inventaire reserve du " + jour;
     }
 
     // ----------------------------------------------------------------- HELPERS
@@ -495,6 +512,8 @@ public class ReserveServiceImpl implements ReserveService {
         json.put("int_STOCK_RESERVE", stockReserve);
         json.put("int_SEUIL_RESERVE", nz(f.getIntSEUILRESERVE()));
         json.put("int_SEUIL_MINI_RAYON", f.getIntSEUILMINIRAYON() != null ? f.getIntSEUILMINIRAYON() : JSONObject.NULL);
+        json.put("int_PAF", nz(f.getIntPAF()));     // prix d'achat
+        json.put("int_PRICE", nz(f.getIntPRICE()));  // prix de vente
         json.put("bool_RESERVE", f.getBoolRESERVE());
 
         if (withSuggestion) {

@@ -54,5 +54,11 @@ public interface InventaireService {
      */
     int createReserveInventaire(Set<String> produitIds, String description);
 
+    /**
+     * Variante avec un nom et une description distincts (le commentaire saisi
+     * va dans str_DESCRIPTION, le nom horodate reste dans str_NAME).
+     */
+    int createReserveInventaire(Set<String> produitIds, String name, String description);
+
     JSONObject createInventaireFromCsv(String csvContent, TUser tUser);
 }

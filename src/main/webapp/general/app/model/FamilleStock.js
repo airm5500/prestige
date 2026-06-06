@@ -234,6 +234,10 @@ Ext.define('testextjs.model.FamilleStock', {
             type: 'int'
         },
         {
+            name: 'int_PAF',
+            type: 'int'
+        },
+        {
             name: 'bool_RESERVE',
             type: 'boolean'
         }

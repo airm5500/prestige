@@ -161,6 +161,29 @@ public class ReserveRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    @POST
+    @Path("create-inventaire-selection")
+    public Response createInventaireSelection(String body) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject in = new JSONObject(body);
+        String commentaire = in.optString("description", null);
+        JSONArray arr = in.optJSONArray("ids");
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        if (arr != null) {
+            for (int i = 0; i < arr.length(); i++) {
+                String id = arr.optString(i, null);
+                if (id != null && !id.isEmpty()) {
+                    ids.add(id);
+                }
+            }
+        }
+        JSONObject json = reserveService.createInventaireFromSelection(user, ids, commentaire);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @GET
     @Path("mouvements/{id}")
     public Response mouvements(@PathParam("id") String familleId,

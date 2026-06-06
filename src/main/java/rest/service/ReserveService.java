@@ -69,4 +69,11 @@ public interface ReserveService {
      * (selon le filtre type + recherche). Nom : "Inventaire reserve du jj/MM/aaaa".
      */
     JSONObject createInventaire(TUser user, String search, String type);
+
+    /**
+     * Cree un inventaire reserve a partir d'une liste d'ids selectionnes par
+     * l'utilisateur, avec un commentaire optionnel place dans str_DESCRIPTION.
+     * Nom : "Inventaire reserve du jj/MM/aaaa HH:mm".
+     */
+    JSONObject createInventaireFromSelection(TUser user, java.util.Set<String> ids, String commentaire);
 }
