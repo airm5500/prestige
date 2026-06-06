@@ -41,7 +41,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
         me.buttons = [
             {
                 text: 'Télécharger le CSV des non reconnus',
-                iconCls: 'fa fa-download',
                 handler: function () {
                     if (me.getCsvLink()) {
                         window.open(me.getCsvLink(), '_blank');
@@ -51,7 +50,6 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             '->',
             {
                 text: 'Terminer',
-                iconCls: 'fa fa-check',
                 handler: function () {
                     var pg = me.getParentGrid();
                     if (pg) {
@@ -120,16 +118,37 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
             store: store,
             stripeRows: true,
             forceFit: true,
+            listeners: {
+                cellclick: function (grid, td, cellIndex, record, tr, rowIndex, e) {
+                    var target = e.getTarget('.reconcile-action');
+                    if (!target) {
+                        return;
+                    }
+                    if (record.get('statut') !== 'pending') {
+                        return;
+                    }
+                    var action = target.getAttribute('data-action');
+                    if (action === 'associer') {
+                        me.openAssocierDialog(record, rowIndex);
+                    } else if (action === 'creer') {
+                        me.openCreerDialog(record, rowIndex);
+                    } else if (action === 'ignorer') {
+                        record.set('statut', 'ignore');
+                        me.rows[rowIndex].statut = 'ignore';
+                        me.updateScore();
+                    }
+                }
+            },
             columns: [
                 {
                     text: 'Statut',
                     dataIndex: 'statut',
-                    width: 90,
+                    width: 100,
                     renderer: function (v) {
-                        if (v === 'associe') return '<span style="color:green;"><i class="fa fa-check-circle"></i> Associé</span>';
-                        if (v === 'cree') return '<span style="color:green;"><i class="fa fa-plus-circle"></i> Créé</span>';
-                        if (v === 'ignore') return '<span style="color:gray;"><i class="fa fa-minus-circle"></i> Ignoré</span>';
-                        return '<span style="color:darkorange;"><i class="fa fa-clock-o"></i> En attente</span>';
+                        if (v === 'associe') return '<span style="color:green;font-weight:bold;">&#10004; Associé</span>';
+                        if (v === 'cree') return '<span style="color:green;font-weight:bold;">&#10010; Créé</span>';
+                        if (v === 'ignore') return '<span style="color:gray;">&#10006; Ignoré</span>';
+                        return '<span style="color:darkorange;">&#9203; En attente</span>';
                     }
                 },
                 { text: 'Code BL', dataIndex: 'cip', width: 100 },
@@ -147,46 +166,25 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     }
                 },
                 {
-                    xtype: 'actioncolumn',
-                    width: 200,
                     text: 'Actions',
-                    items: [
-                        {
-                            tooltip: 'Associer à un produit existant',
-                            getClass: function (v, meta, record) {
-                                return record.get('statut') === 'pending' ? 'fa fa-search action-col-icon' : 'fa fa-search action-col-icon x-item-disabled';
-                            },
-                            handler: function (grid, rowIndex) {
-                                var record = grid.getStore().getAt(rowIndex);
-                                if (record.get('statut') !== 'pending') return;
-                                me.openAssocierDialog(record, rowIndex);
-                            }
-                        },
-                        {
-                            tooltip: 'Créer ce produit',
-                            getClass: function (v, meta, record) {
-                                return record.get('statut') === 'pending' ? 'fa fa-plus action-col-icon' : 'fa fa-plus action-col-icon x-item-disabled';
-                            },
-                            handler: function (grid, rowIndex) {
-                                var record = grid.getStore().getAt(rowIndex);
-                                if (record.get('statut') !== 'pending') return;
-                                me.openCreerDialog(record, rowIndex);
-                            }
-                        },
-                        {
-                            tooltip: 'Ignorer cette ligne',
-                            getClass: function (v, meta, record) {
-                                return record.get('statut') === 'pending' ? 'fa fa-ban action-col-icon' : 'fa fa-ban action-col-icon x-item-disabled';
-                            },
-                            handler: function (grid, rowIndex) {
-                                var record = grid.getStore().getAt(rowIndex);
-                                if (record.get('statut') !== 'pending') return;
-                                record.set('statut', 'ignore');
-                                me.rows[rowIndex].statut = 'ignore';
-                                me.updateScore();
-                            }
+                    width: 230,
+                    sortable: false,
+                    menuDisabled: true,
+                    dataIndex: 'statut',
+                    renderer: function (v) {
+                        if (v !== 'pending') {
+                            return '<span style="color:gray;">Traité</span>';
                         }
-                    ]
+                        var btn = function (action, label, color) {
+                            return '<a href="#" class="reconcile-action" data-action="' + action + '" '
+                                + 'style="display:inline-block;margin:1px 2px;padding:2px 6px;border:1px solid ' + color + ';'
+                                + 'border-radius:3px;color:' + color + ';text-decoration:none;font-size:11px;cursor:pointer;">'
+                                + label + '</a>';
+                        };
+                        return btn('associer', 'Associer', '#1565c0')
+                            + btn('creer', 'Créer', '#2e7d32')
+                            + btn('ignorer', 'Ignorer', '#757575');
+                    }
                 }
             ]
         };
