@@ -120,12 +120,18 @@ Ext.define('testextjs.view.Navigation', {
                     me._holdPanel();
                     me._showFlyout(record, item);
                 } else {
-                    /* Ligne sans enfants (leaf ou parent vide) : fermer le flyout ouvert */
+                    /* Ligne sans enfants : fermer le flyout ouvert */
                     me._scheduleFlyoutClose();
                 }
             },
-            /* Souris quitte une ligne → programmer fermeture du flyout */
-            itemmouseleave: function () {
+            /* Souris quitte une ligne → fermer flyout SAUF si elle va vers le flyout */
+            itemmouseleave: function (view, record, item, index, e) {
+                var related = e && e.getRelatedTarget ? e.getRelatedTarget() : null;
+                if (related && me._flyoutMenu && me._flyoutMenu.getEl &&
+                        me._flyoutMenu.getEl().contains(related)) {
+                    /* La souris va directement dans le flyout : ne pas fermer */
+                    return;
+                }
                 me._scheduleFlyoutClose();
             },
             afterrender: function () {
@@ -220,8 +226,16 @@ Ext.define('testextjs.view.Navigation', {
                         me._cancelFlyoutClose();
                         me._holdPanel();
                     });
-                    /* Souris quitte le flyout → programmer fermeture flyout + panel */
-                    menu.getEl().on('mouseleave', function () {
+                    /* Souris quitte le flyout */
+                    menu.getEl().on('mouseleave', function (e) {
+                        var related = e && e.getRelatedTarget ? e.getRelatedTarget() : null;
+                        var navEl   = me.getEl ? me.getEl() : null;
+                        if (related && navEl && navEl.contains(related)) {
+                            /* La souris revient dans le panel nav : ne pas fermer */
+                            me._cancelFlyoutClose();
+                            return;
+                        }
+                        /* Souris hors des deux zones : tout fermer */
                         me._scheduleFlyoutClose();
                         me._releasePanel(300);
                     });
