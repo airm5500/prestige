@@ -57,9 +57,8 @@ Ext.define('testextjs.view.Navigation', {
     width: 350,
     height: 300,
 
-    _flyoutMenu:     null,
-    _flyoutRecord:   null,
-    _flyoutHideTime: 0,
+    _flyoutMenu:    null,
+    _flyoutRecord:  null,
 
     /* Annuler la fermeture native du panel flottant (slideOutTask) */
     _holdPanel: function () {
@@ -95,15 +94,14 @@ Ext.define('testextjs.view.Navigation', {
             /* Clic sur un menu parent : toggle du flyout */
             itemclick: function (view, record, item) {
                 if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
-                    /* Si hide vient de se déclencher (<100ms) sur ce même menu,
-                       c'est ce clic qui l'a causé → ne pas rouvrir (toggle off) */
-                    var justHidden = (me._flyoutRecord === record) &&
-                                    (Date.now() - me._flyoutHideTime < 100);
-                    if (justHidden) {
+                    /* Même menu cliqué une 2ème fois → fermer */
+                    if (me._flyoutRecord === record && me._flyoutMenu) {
+                        me._flyoutMenu.destroy();
+                        me._flyoutMenu   = null;
                         me._flyoutRecord = null;
-                        return false;
+                    } else {
+                        me._showFlyout(record, item);
                     }
-                    me._showFlyout(record, item);
                     return false;
                 }
                 if (record.isLeaf()) { me.callItemMenu(view, record); }
@@ -154,8 +152,7 @@ Ext.define('testextjs.view.Navigation', {
     _showFlyout: function (record, rowEl) {
         var me = this;
         if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
-        me._flyoutRecord   = record;
-        me._flyoutHideTime = 0;
+        me._flyoutRecord = record;
 
         var children = record.childNodes;
         if (!children || children.length === 0) return;
@@ -204,9 +201,8 @@ Ext.define('testextjs.view.Navigation', {
                     menu.getEl().on('mouseleave', function () { me._releasePanel(500); });
                 },
                 hide: function () {
-                    me._flyoutMenu     = null;
-                    me._flyoutHideTime = Date.now();
-                    /* _flyoutRecord conservé : itemclick s'en sert pour détecter le toggle */
+                    me._flyoutMenu   = null;
+                    me._flyoutRecord = null;
                 }
             }
         });
