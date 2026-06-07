@@ -57,8 +57,8 @@ Ext.define('testextjs.view.Navigation', {
     width: 350,
     height: 300,
 
-    _flyoutMenu:      null,
-    _flyoutCloseTimer: null,
+    _flyoutMenu:    null,
+    _flyoutRecord:  null,
 
     /* Annuler la fermeture native du panel flottant (slideOutTask) */
     _holdPanel: function () {
@@ -67,21 +67,7 @@ Ext.define('testextjs.view.Navigation', {
 
     /* Réarmer la fermeture native du panel flottant */
     _releasePanel: function (delay) {
-        if (this.slideOutTask) { this.slideOutTask.delay(delay || 300); }
-    },
-
-    /* Fermer le flyout après un court délai (annulable si on entre sur un autre menu) */
-    _scheduleFlyoutClose: function () {
-        var me = this;
-        me._cancelFlyoutClose();
-        me._flyoutCloseTimer = setTimeout(function () {
-            me._flyoutCloseTimer = null;
-            if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
-        }, 600);
-    },
-
-    _cancelFlyoutClose: function () {
-        if (this._flyoutCloseTimer) { clearTimeout(this._flyoutCloseTimer); this._flyoutCloseTimer = null; }
+        if (this.slideOutTask) { this.slideOutTask.delay(delay || 500); }
     },
 
     initComponent: function () {
@@ -105,35 +91,23 @@ Ext.define('testextjs.view.Navigation', {
         me.callParent();
 
         me.listeners = {
+            /* Clic sur un menu parent : toggle du flyout */
             itemclick: function (view, record, item) {
                 if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
-                    me._showFlyout(record, item);
+                    /* Même menu cliqué une 2ème fois → fermer */
+                    if (me._flyoutRecord === record && me._flyoutMenu) {
+                        me._flyoutMenu.destroy();
+                        me._flyoutMenu   = null;
+                        me._flyoutRecord = null;
+                    } else {
+                        me._showFlyout(record, item);
+                    }
                     return false;
                 }
                 if (record.isLeaf()) { me.callItemMenu(view, record); }
             },
             itemdblclick: function () { return false; },
-            /* Survol d'un menu principal → annuler fermeture flyout + afficher le sien */
-            itemmouseenter: function (view, record, item) {
-                me._cancelFlyoutClose();
-                if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
-                    me._holdPanel();
-                    me._showFlyout(record, item);
-                } else {
-                    /* Ligne sans enfants : fermer le flyout ouvert */
-                    me._scheduleFlyoutClose();
-                }
-            },
-            /* Souris quitte une ligne → fermer flyout SAUF si elle va vers le flyout */
-            itemmouseleave: function (view, record, item, index, e) {
-                var related = e && e.getRelatedTarget ? e.getRelatedTarget() : null;
-                if (related && me._flyoutMenu && me._flyoutMenu.getEl &&
-                        me._flyoutMenu.getEl().contains(related)) {
-                    /* La souris va directement dans le flyout : ne pas fermer */
-                    return;
-                }
-                me._scheduleFlyoutClose();
-            },
+            beforeitemexpand: function () { return false; },
             afterrender: function () {
                 me._loadRealUser();
                 me.getStore().on('load', function () {
@@ -178,6 +152,7 @@ Ext.define('testextjs.view.Navigation', {
     _showFlyout: function (record, rowEl) {
         var me = this;
         if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
+        me._flyoutRecord = record;
 
         var children = record.childNodes;
         if (!children || children.length === 0) return;
@@ -214,33 +189,21 @@ Ext.define('testextjs.view.Navigation', {
         });
 
         me._flyoutMenu = Ext.create('Ext.menu.Menu', {
-            cls:   'prestige-flyout-menu',
-            plain: true,
-            floating: true,
+            cls:            'prestige-flyout-menu',
+            plain:          true,
+            floating:       true,
             focusOnToFront: false,
-            items: items,
+            items:          items,
             listeners: {
                 afterrender: function (menu) {
-                    /* Souris sur le flyout → annuler fermeture + garder panel ouvert */
-                    menu.getEl().on('mouseenter', function () {
-                        me._cancelFlyoutClose();
-                        me._holdPanel();
-                    });
-                    /* Souris quitte le flyout */
-                    menu.getEl().on('mouseleave', function (e) {
-                        var related = e && e.getRelatedTarget ? e.getRelatedTarget() : null;
-                        var navEl   = me.getEl ? me.getEl() : null;
-                        if (related && navEl && navEl.contains(related)) {
-                            /* La souris revient dans le panel nav : ne pas fermer */
-                            me._cancelFlyoutClose();
-                            return;
-                        }
-                        /* Souris hors des deux zones : tout fermer */
-                        me._scheduleFlyoutClose();
-                        me._releasePanel(300);
-                    });
+                    /* Maintenir le panel ouvert tant que la souris est sur le flyout */
+                    menu.getEl().on('mouseenter', function () { me._holdPanel(); });
+                    menu.getEl().on('mouseleave', function () { me._releasePanel(500); });
                 },
-                hide: function () { me._flyoutMenu = null; }
+                hide: function () {
+                    me._flyoutMenu   = null;
+                    me._flyoutRecord = null;
+                }
             }
         });
 
