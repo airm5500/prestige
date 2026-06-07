@@ -77,7 +77,7 @@ Ext.define('testextjs.view.Navigation', {
         me._flyoutCloseTimer = setTimeout(function () {
             me._flyoutCloseTimer = null;
             if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
-        }, 200);
+        }, 600);
     },
 
     _cancelFlyoutClose: function () {
