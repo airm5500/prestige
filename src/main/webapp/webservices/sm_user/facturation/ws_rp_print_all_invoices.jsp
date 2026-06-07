@@ -83,10 +83,11 @@
         obllBase.checkDatamanager();
         TOfficine oTOfficine = obllBase.getOdataManager().getEm().find(dal.TOfficine.class, "1");
         String footer = "";
-        String CODEFATUREGROUPE = "FACTURE N° :";
+        String CODEFATUREGROUPE = "FACTURE Nï¿½ :";
         invoicesToPrint = (HashSet<TFacture>) session.getAttribute("invoicesToPrint");
         Iterator<TFacture> it = invoicesToPrint.iterator();
         long P_ATT_AMOUNTGROUPE = 0l;
+        String groupeName = "";
         facManagement = new factureManagement(OdataManager, OTUser);
         TParameters recapParam = null;
         try {
@@ -99,6 +100,10 @@
             TFacture OFacture = it.next();
             CODEFATUREGROUPE += OFacture.getStrCODEFACTURE() + ",";
             TTiersPayant OTiersPayant = obllBase.getOdataManager().getEm().find(TTiersPayant.class, OFacture.getStrCUSTOMER());
+            // Nom du groupe d'assurances (libelle), capturï¿½ une seule fois pour le nom du fichier de sortie
+            if ("".equals(groupeName) && OTiersPayant.getLgGROUPEID() != null && OTiersPayant.getLgGROUPEID().getStrLIBELLE() != null) {
+                groupeName = OTiersPayant.getLgGROUPEID().getStrLIBELLE();
+            }
             TTypeMvtCaisse OTypeMvtCaisse = obllBase.getOdataManager().getEm().find(TTypeMvtCaisse.class, OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
             String scr_report_file = "rp_facturerecap";
             String codeModelFacture = OTiersPayant.getLgMODELFACTUREID().getLgMODELFACTUREID();
@@ -132,24 +137,24 @@
             parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
             parameters.put("P_LG_FACTURE_ID", OFacture.getLgFACTUREID());
             parameters.put("P_LG_TIERS_PAYANT_ID", OTiersPayant.getLgTIERSPAYANTID());
-            parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
+            parameters.put("P_CODE_FACTURE", "FACTURE Nï¿½ " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
             parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
              parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(montantRecap).toUpperCase() + " (" + conversion.AmountFormat(montantRecap.intValue()) + " FCFA)");
             String P_FOOTER_RC = "";
 
             if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-                P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+                P_FOOTER_RC += "RC Nï¿½ " + oTOfficine.getStrREGISTRECOMMERCE();
             }
 
             if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-                P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+                P_FOOTER_RC += " - CC Nï¿½ " + oTOfficine.getStrCOMPTECONTRIBUABLE();
             }
             if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-                P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+                P_FOOTER_RC += " - Rï¿½gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
             }
             if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-                P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+                P_FOOTER_RC += " - Centre des Impï¿½ts: " + oTOfficine.getStrCENTREIMPOSITION();
             }
 
             if (oTOfficine.getStrPHONE() != null) {
@@ -168,7 +173,7 @@
                 P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
             }
             if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-                P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+                P_INSTITUTION_ADRESSE += " - CPT Nï¿½: " + oTOfficine.getStrNUMCOMPTABLE();
             }
 
             parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
@@ -291,7 +296,7 @@
                         parameters.put("DATE_MVT", idCMP.get("dateMvt"));
                          parameters.put("LGCMP", idCMP.get("idcmp"));
                         parameters.put("DATEFACT", dateFact);
-                        parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
+                        parameters.put("P_CODE_FACTURE", "FACTURE Nï¿½ " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
                         parameters.put("P_CLIENT_NAME", idCMP.get("strFIRSTNAME"));
                         parameters.put("P_NUMEROS", idCMP.get("strNUMEROSECURITESOCIAL"));
                         OreportManager.setPath_report_src(Ojdom.scr_report_file + "rp_facture_Client" + ".jrxml");
@@ -410,7 +415,15 @@
             inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + footer));
         }
 
-        String str_file = "rp_facture_" + date.FILENAME.format(new Date()) + ".pdf";
+        // Nom de sortie : Facture_Groupe_<NomGroupe>_<dd-MM-yyyy>_<HHmmss>.pdf
+        String safeGroupe = groupeName.replaceAll("[^A-Za-z0-9]", "");
+        if (safeGroupe.isEmpty()) {
+            safeGroupe = CODEREGROUPEMENT.replaceAll("[^A-Za-z0-9]", "");
+        }
+        String str_file = "Facture_Groupe_"
+                + (safeGroupe.isEmpty() ? "" : safeGroupe + "_")
+                + new java.text.SimpleDateFormat("dd-MM-yyyy").format(new Date()) + "_"
+                + new java.text.SimpleDateFormat("HHmmss").format(new Date()) + ".pdf";
         String outputStreamFile = Ojdom.scr_report_pdf + str_file;
         OutputStream outputStream = new FileOutputStream(outputStreamFile);
         PdfFiles.mergePdfFiles(inputPdfList, outputStream);
