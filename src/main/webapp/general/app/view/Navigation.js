@@ -59,6 +59,7 @@ Ext.define('testextjs.view.Navigation', {
 
     _flyoutMenu:    null,
     _flyoutRecord:  null,
+    _flyoutOpen:    false,
 
     /* Annuler la fermeture native du panel flottant (slideOutTask) */
     _holdPanel: function () {
@@ -94,12 +95,14 @@ Ext.define('testextjs.view.Navigation', {
             /* Clic sur un menu parent : toggle du flyout */
             itemclick: function (view, record, item) {
                 if (!record.isLeaf() && record.childNodes && record.childNodes.length > 0) {
-                    /* Même menu cliqué une 2ème fois → fermer */
-                    if (me._flyoutRecord === record && me._flyoutMenu) {
-                        me._flyoutMenu.destroy();
-                        me._flyoutMenu   = null;
+                    /* Même menu + flyout encore visible → fermer (toggle off) */
+                    if (me._flyoutRecord === record && me._flyoutOpen) {
+                        if (me._flyoutMenu) { me._flyoutMenu.destroy(); me._flyoutMenu = null; }
+                        me._flyoutOpen   = false;
                         me._flyoutRecord = null;
                     } else {
+                        /* Nouveau menu ou flyout déjà fermé → ouvrir */
+                        me._flyoutOpen = true;
                         me._showFlyout(record, item);
                     }
                     return false;
@@ -201,8 +204,10 @@ Ext.define('testextjs.view.Navigation', {
                     menu.getEl().on('mouseleave', function () { me._releasePanel(500); });
                 },
                 hide: function () {
-                    me._flyoutMenu   = null;
-                    me._flyoutRecord = null;
+                    me._flyoutMenu = null;
+                    me._flyoutOpen = false;
+                    /* _flyoutRecord conservé pour que le prochain clic sur le même menu
+                       sache qu'il était déjà ouvert et l'ouvre à nouveau (pas toggle-off) */
                 }
             }
         });
