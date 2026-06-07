@@ -47,6 +47,19 @@
 <%@page import="bll.userManagement.privilege"  %>
 <%@page import="toolkits.parameters.commonparameter"  %>
 
+<%!
+    // Garantit un nom de fichier unique au sein du PDF de groupe (sinon suffixe _2, _3, ...)
+    private String uniqueName(java.util.Set<String> used, String base) {
+        String name = base + ".pdf";
+        int i = 2;
+        while (used.contains(name)) {
+            name = base + "_" + (i++) + ".pdf";
+        }
+        used.add(name);
+        return name;
+    }
+%>
+
 <%
     Translate OTranslate = new Translate();
     dataManager OdataManager = new dataManager();
@@ -170,11 +183,17 @@
 
     String CODEFATUREGROUPE = "FACTURE N� :";
     parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
+    java.util.Set<String> usedNames = new java.util.HashSet<>();
     for (TFacture OFacture : factures) {
         String tauxpath = "";
         CODEFATUREGROUPE += OFacture.getStrCODEFACTURE() + ",";
         String scr_report_file = "rp_facturerecap";
         TTiersPayant OTiersPayant = obllBase.getOdataManager().getEm().find(TTiersPayant.class, OFacture.getStrCUSTOMER());
+        // Nom lisible de la sous-facture : Facture_<TiersPayant>-<debut ddMMyyyy>_<fin ddMMyyyy>-<HHmmss>.pdf
+        String subTpName = (OTiersPayant.getStrNAME() != null ? OTiersPayant.getStrNAME() : "").replaceAll("[^A-Za-z0-9]", "");
+        String subDebut = OFacture.getDtDEBUTFACTURE() != null ? new java.text.SimpleDateFormat("ddMMyyyy").format(OFacture.getDtDEBUTFACTURE()) : "";
+        String subFin = OFacture.getDtFINFACTURE() != null ? new java.text.SimpleDateFormat("ddMMyyyy").format(OFacture.getDtFINFACTURE()) : "";
+        String subBaseName = "Facture_" + subTpName + "-" + subDebut + "_" + subFin;
         TTypeMvtCaisse OTypeMvtCaisse = obllBase.getOdataManager().getEm().find(TTypeMvtCaisse.class, OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
         String report_generate_file = key.GetNumberRandom();
         report_generate_file = report_generate_file + ".pdf";
@@ -258,11 +277,12 @@
 
             new logger().OCategory.info("scr_report_file " + scr_report_file);
             report_generate_file = report_generate_file + ".pdf";
+            String subFactureFile = uniqueName(usedNames, subBaseName + "-" + new java.text.SimpleDateFormat("HHmmss").format(new Date()));
             OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
-            OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file);
+            OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + subFactureFile);
             OreportManager.BuildReport(parameters, Ojconnexion);
-            inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
-            finalpath = Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file;
+            inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + subFactureFile));
+            finalpath = Ojdom.scr_report_pdf + subFactureFile;
         } else {
 
             List taux = facManagement.getFacturePercent(OFacture.getLgFACTUREID());
@@ -304,8 +324,9 @@
                 report_generate_file = key.GetNumberRandom();
 
                 report_generate_file = report_generate_file + ".pdf";
+                String subFactureFile = uniqueName(usedNames, subBaseName + "-" + new java.text.SimpleDateFormat("HHmmss").format(new Date()) + "_" + tauxValue);
                 OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
-                OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_facture_percentage_" + report_generate_file);
+                OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + subFactureFile);
                 parameters.put("P_REMISEFORFAITAIRE", conversion.AmountFormat((int) P_REMISEFORFAITAIRE, ' '));
 
                 parameters.put("P_MONTANTBRUTTP", conversion.AmountFormat((int) P_MONTANTBRUTTP, ' '));
@@ -318,8 +339,8 @@
 
                 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
                 OreportManager.BuildReport(parameters, Ojconnexion);
-                inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_percentage_" + report_generate_file));
-                finalpath = Ojdom.scr_report_pdf + "rp_facture_percentage_" + report_generate_file;
+                inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + subFactureFile));
+                finalpath = Ojdom.scr_report_pdf + subFactureFile;
                 tauxpath += finalpath + "@";
             }
 

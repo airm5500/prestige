@@ -49,6 +49,19 @@
 <%@page import="bll.userManagement.privilege"  %>
 <%@page import="toolkits.parameters.commonparameter"  %>
 
+<%!
+    // Garantit un nom de fichier unique au sein du PDF de groupe (sinon suffixe _2, _3, ...)
+    private String uniqueName(java.util.Set<String> used, String base) {
+        String name = base + ".pdf";
+        int i = 2;
+        while (used.contains(name)) {
+            name = base + "_" + (i++) + ".pdf";
+        }
+        used.add(name);
+        return name;
+    }
+%>
+
 <%
     Translate OTranslate = new Translate();
     dataManager OdataManager = new dataManager();
@@ -138,6 +151,7 @@
     } catch (Exception e) {
     }
     String firstGroupeName = "";
+    java.util.Set<String> usedNames = new java.util.HashSet<>();
     for (Map.Entry<String, LinkedHashSet<TFacture>> en : invoicesToPrint.entrySet()) {
         LinkedHashSet<TFacture> factures = en.getValue();
 
@@ -184,11 +198,15 @@
         LongAdder count = new LongAdder();
         for (TFacture OFacture : factures) {
             count.increment();
-            String factuteFileName = "rp_facture_" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyy_MM_dd_H_mm_ss")) + count.intValue() + ".pdf";
             String tauxpath = "";
             CODEFATUREGROUPE += OFacture.getStrCODEFACTURE() + ",";
             String scr_report_file = "rp_facturerecap";
             TTiersPayant OTiersPayant = OdataManager.getEm().find(TTiersPayant.class, OFacture.getStrCUSTOMER());
+            // Nom lisible de la sous-facture : Facture_<TiersPayant>-<debut ddMMyyyy>_<fin ddMMyyyy>-<HHmmss>.pdf
+            String subTpName = (OTiersPayant.getStrNAME() != null ? OTiersPayant.getStrNAME() : "").replaceAll("[^A-Za-z0-9]", "");
+            String subDebut = OFacture.getDtDEBUTFACTURE() != null ? new java.text.SimpleDateFormat("ddMMyyyy").format(OFacture.getDtDEBUTFACTURE()) : "";
+            String subFin = OFacture.getDtFINFACTURE() != null ? new java.text.SimpleDateFormat("ddMMyyyy").format(OFacture.getDtFINFACTURE()) : "";
+            String factuteFileName = uniqueName(usedNames, "Facture_" + subTpName + "-" + subDebut + "_" + subFin + "-" + new java.text.SimpleDateFormat("HHmmss").format(new Date()));
             TTypeMvtCaisse OTypeMvtCaisse = OdataManager.getEm().find(TTypeMvtCaisse.class, OFacture.getLgTYPEFACTUREID().getLgTYPEFACTUREID());
             String report_generate_file = key.GetNumberRandom();
             report_generate_file = report_generate_file + ".pdf";
