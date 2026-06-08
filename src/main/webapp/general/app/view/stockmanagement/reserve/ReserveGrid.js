@@ -77,13 +77,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             {
                 header: 'Quantité Suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1,
                 renderer: function (v, m, r) {
-                    if (v > 0) {
-                        m.style = 'color:#6600cc; font-weight:bold;';
-                        // Onglet REASSORT : hover pedagogique expliquant la quantite suggeree
-                        if (mode === 'REASSORT') {
-                            var sr = r.get('int_STOCK_RAYON');
-                            var seuil = r.get('int_SEUIL_RESERVE');
-                            var resv = r.get('int_STOCK_RESERVE');
+                    // Onglet REASSORT : hover pedagogique, y compris quand la cellule est vide
+                    if (mode === 'REASSORT') {
+                        var sr = r.get('int_STOCK_RAYON');
+                        var seuil = r.get('int_SEUIL_RESERVE');
+                        var resv = r.get('int_STOCK_RESERVE');
+                        if (v > 0) {
+                            m.style = 'color:#6600cc; font-weight:bold;';
                             var manque = Math.max(0, seuil - sr);
                             var qtip = "<div style='text-align:left; line-height:1.7; padding:2px'>"
                                     + "<div style='font-weight:bold; color:#6600cc; margin-bottom:4px'>Envoyer " + v + " de la réserve vers le rayon</div>"
@@ -92,7 +92,27 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                                     + "<div style='margin-top:4px'>➜ On envoie le plus petit des deux : <b>" + v + "</b></div>"
                                     + "</div>";
                             m.tdAttr = 'data-qtip="' + qtip + '"';
+                            return v;
                         }
+                        // Cellule vide : expliquer pourquoi aucune quantite n'est suggeree
+                        var raison;
+                        if (resv <= 0) {
+                            raison = "La réserve est vide : il n'y a rien à envoyer vers le rayon.";
+                        } else if (!seuil || seuil <= 0) {
+                            raison = "Le seuil réserve n'est pas défini pour cet article.<br/>Renseignez-le pour obtenir une suggestion.";
+                        } else {
+                            raison = "Le stock rayon (" + sr + ") a déjà atteint le seuil réserve (" + seuil + ").<br/>Aucun réassort n'est nécessaire.";
+                        }
+                        var qtipEmpty = "<div style='text-align:left; line-height:1.7; padding:2px'>"
+                                + "<div style='font-weight:bold; color:#888; margin-bottom:4px'>Aucune quantité suggérée</div>"
+                                + "<div>" + raison + "</div>"
+                                + "</div>";
+                        m.tdAttr = 'data-qtip="' + qtipEmpty + '"';
+                        return '';
+                    }
+                    // Autres onglets : comportement d'origine
+                    if (v > 0) {
+                        m.style = 'color:#6600cc; font-weight:bold;';
                         return v;
                     }
                     return '';
@@ -104,7 +124,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var colAssort = {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
-                    icon: 'resources/images/icons/fam/fleche_verte_droite.svg',
+                    icon: 'resources/images/icons/fam/fleche_orange_droite.svg',
                     tooltip: 'Faire un reappro (rayon -> reserve)',
                     scope: me,
                     handler: me.onAssortClick,
@@ -116,7 +136,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var colReassort = {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
-                    icon: 'resources/images/icons/fam/fleche_orange_gauche.svg',
+                    icon: 'resources/images/icons/fam/fleche_verte_gauche.svg',
                     tooltip: 'Faire un reassort (reserve -> rayon)',
                     scope: me,
                     handler: me.onReassortClick,
