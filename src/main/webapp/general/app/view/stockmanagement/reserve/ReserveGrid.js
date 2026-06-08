@@ -79,15 +79,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                 renderer: function (v, m, r) {
                     if (v > 0) {
                         m.style = 'color:#6600cc; font-weight:bold;';
-                        // Onglet REASSORT : hover detaillant la regle de calcul de la ligne
+                        // Onglet REASSORT : hover pedagogique expliquant la quantite suggeree
                         if (mode === 'REASSORT') {
                             var sr = r.get('int_STOCK_RAYON');
                             var seuil = r.get('int_SEUIL_RESERVE');
                             var resv = r.get('int_STOCK_RESERVE');
                             var manque = Math.max(0, seuil - sr);
-                            var qtip = 'Quantité suggérée = min(Stock Réserve ; Seuil Réserve - Stock Rayon)'
-                                    + '<br/>= min(' + resv + ' ; ' + seuil + ' - ' + sr + ')'
-                                    + '<br/>= min(' + resv + ' ; ' + manque + ') = <b>' + v + '</b>';
+                            var qtip = "<div style='text-align:left; line-height:1.7; padding:2px'>"
+                                    + "<div style='font-weight:bold; color:#6600cc; margin-bottom:4px'>Envoyer " + v + " de la réserve vers le rayon</div>"
+                                    + "<div>1) Il manque <b>" + manque + "</b> en rayon <span style='color:#888'>(seuil " + seuil + " − rayon " + sr + ")</span></div>"
+                                    + "<div>2) Disponible en réserve : <b>" + resv + "</b></div>"
+                                    + "<div style='margin-top:4px'>➜ On envoie le plus petit des deux : <b>" + v + "</b></div>"
+                                    + "</div>";
                             m.tdAttr = 'data-qtip="' + qtip + '"';
                         }
                         return v;
@@ -101,7 +104,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var colAssort = {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
-                    icon: 'resources/images/icons/fam/add.png',
+                    icon: 'resources/images/icons/fam/fleche_verte_droite.svg',
                     tooltip: 'Faire un reappro (rayon -> reserve)',
                     scope: me,
                     handler: me.onAssortClick,
@@ -113,7 +116,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var colReassort = {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
-                    icon: 'resources/images/icons/fam/retourdroit.png',
+                    icon: 'resources/images/icons/fam/fleche_orange_gauche.svg',
                     tooltip: 'Faire un reassort (reserve -> rayon)',
                     scope: me,
                     handler: me.onReassortClick,
@@ -125,7 +128,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var colHisto = {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
-                    icon: 'resources/images/icons/fam/loupe.png',
+                    icon: 'resources/images/icons/fam/historique_horloge.svg',
                     tooltip: 'Historique des mouvements',
                     scope: me,
                     handler: me.onHistoriqueClick

@@ -39,7 +39,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
         }
 
         this.items = [
-            {xtype: 'reservegrid', title: 'ALL', gridmode: 'ALL'},
+            {xtype: 'reservegrid', title: 'TOUT', gridmode: 'ALL'},
             {
                 xtype: 'reservegrid', gridmode: 'REAPPRO', title: 'REAPPRO RESERVE',
                 tabConfig: {cls: 'tab-reappro'}
