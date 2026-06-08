@@ -75,7 +75,7 @@
     }
     String stock_condition = "";
     if (!stock_sql_operator.equals("") && stock_number != null) {
-        stock_condition = " AND fs.int_NUMBER_AVAILABLE " + stock_sql_operator + " " + stock_number + " ";
+        stock_condition = " AND int_NUMBER_AVAILABLE " + stock_sql_operator + " " + stock_number + " ";
     }
     new logger().OCategory.info("stock_condition " + stock_condition);
 
