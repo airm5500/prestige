@@ -52,11 +52,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         // ---- Colonnes communes (identiques a la vue d'origine)
         var columns = [
             {header: 'lg_FAMILLE_ID', dataIndex: 'lg_FAMILLE_ID', hidden: true, flex: 1},
-            {header: 'CIP', dataIndex: 'int_CIP', flex: 1},
+            {header: 'CIP', dataIndex: 'int_CIP', flex: 1, minWidth: 80},
             {header: 'Designation', dataIndex: 'str_NAME', flex: 3, minWidth: 220},
-            {header: 'Emplacement', dataIndex: 'lg_ZONE_GEO_ID', flex: 1},
+            {header: 'Emplacement', dataIndex: 'lg_ZONE_GEO_ID', flex: 1, minWidth: 110},
             {
-                header: 'Stock Rayon', dataIndex: 'int_STOCK_RAYON', align: 'center', flex: 1,
+                header: 'Stock Rayon', dataIndex: 'int_STOCK_RAYON', align: 'center', flex: 1, minWidth: 90,
                 renderer: function (v, m, r) {
                     var seuil = r.get('int_SEUIL_RESERVE');
                     if (seuil > 0 && v < seuil) {
@@ -65,17 +65,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                     return v;
                 }
             },
-            {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1},
-            {header: 'Seuil Reserve (maxi rayon)', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1},
+            {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1, minWidth: 100},
+            {header: 'Seuil Reserve (maxi rayon)', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1, minWidth: 130},
             {
-                header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1,
+                header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1, minWidth: 110,
                 hidden: mode !== 'REASSORT',
                 renderer: function (v) {
                     return (v === null || v === undefined || v === '') ? '-' : v;
                 }
             },
             {
-                header: 'Quantité Suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1,
+                header: 'Quantité Suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1, minWidth: 120,
                 renderer: function (v, m, r) {
                     // Onglet REASSORT : hover pedagogique, y compris quand la cellule est vide
                     if (mode === 'REASSORT') {
