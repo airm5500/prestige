@@ -34,6 +34,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         Me = this;
         var itemsPerPage = 20;
 
+        // Libelles dynamiques selon le sens de l'operation
+        //   assort   : rayon -> reserve (on lit le stock rayon, on envoie en reserve)
+        //   reassort : reserve -> rayon (on lit le stock reserve, on envoie en rayon)
+        var stockLabel = (Omode === 'reassort') ? 'Stock Reserve:' : 'Stock Rayon:';
+        var qteLabel = (Omode === 'reassort') ? 'Quantité à envoyer en rayon' : 'Quantité à envoyer en reserve';
+
         str_DESCRIPTION = new Ext.form.field.Display(
                 {
                     xtype: 'displayfield',
@@ -49,7 +55,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         int_NUMBER = new Ext.form.field.Display(
                 {
                     xtype: 'displayfield',
-                    fieldLabel: 'Quantite stock:',
+                    fieldLabel: stockLabel,
                     name: 'int_NUMBER',
                     id: 'int_NUMBER',
                     fieldStyle: "color:blue;",
@@ -62,7 +68,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
             bodyPadding: 10,
             fieldDefaults: {
                 labelAlign: 'right',
-                labelWidth: 115,
+                labelWidth: 180,
                 msgTarget: 'side'
             },
             items: [{
@@ -76,8 +82,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                         str_DESCRIPTION,
                         int_NUMBER,
                         {
-                            fieldLabel: 'Quantite re(assort)',
-                            emptyText: 'Quantite re(assort)',
+                            fieldLabel: qteLabel,
+                            emptyText: qteLabel,
                             name: 'int_NUMBER_REASSORT',
                             id: 'int_NUMBER_REASSORT'
                         }

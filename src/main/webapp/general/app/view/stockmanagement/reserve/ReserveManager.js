@@ -29,7 +29,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 '.tab-reappro.x-tab-active { background-color: #ff9500 !important; border-top: 3px solid #fff !important; }',
                 '.tab-reassort.x-tab { background-color: #2a6b2e !important; border-color: #1a4a1e !important; }',
                 '.tab-reassort.x-tab .x-tab-inner, .tab-reassort.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
-                '.tab-reassort.x-tab-active { background-color: #3daa42 !important; border-top: 3px solid #fff !important; }'
+                '.tab-reassort.x-tab-active { background-color: #3daa42 !important; border-top: 3px solid #fff !important; }',
+                '.btn-reappro-orange.x-btn { background-color: #ff9500 !important; background-image: none !important; border-color: #b05a00 !important; }',
+                '.btn-reappro-orange.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                '.btn-reassort-green.x-btn { background-color: #3daa42 !important; background-image: none !important; border-color: #1a4a1e !important; }',
+                '.btn-reassort-green.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }'
             ].join('\n');
             document.head.appendChild(s);
         }

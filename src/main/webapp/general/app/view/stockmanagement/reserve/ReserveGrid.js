@@ -66,7 +66,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                 }
             },
             {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1},
-            {header: 'Seuil Reserve', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1},
+            {header: 'Seuil Reserve (maxi rayon)', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1},
             {
                 header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1,
                 hidden: mode !== 'REASSORT',
@@ -75,10 +75,21 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                 }
             },
             {
-                header: 'Suggere', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1,
-                renderer: function (v, m) {
+                header: 'Quantité Suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1,
+                renderer: function (v, m, r) {
                     if (v > 0) {
                         m.style = 'color:#6600cc; font-weight:bold;';
+                        // Onglet REASSORT : hover detaillant la regle de calcul de la ligne
+                        if (mode === 'REASSORT') {
+                            var sr = r.get('int_STOCK_RAYON');
+                            var seuil = r.get('int_SEUIL_RESERVE');
+                            var resv = r.get('int_STOCK_RESERVE');
+                            var manque = Math.max(0, seuil - sr);
+                            var qtip = 'Quantité suggérée = min(Stock Réserve ; Seuil Réserve - Stock Rayon)'
+                                    + '<br/>= min(' + resv + ' ; ' + seuil + ' - ' + sr + ')'
+                                    + '<br/>= min(' + resv + ' ; ' + manque + ') = <b>' + v + '</b>';
+                            m.tdAttr = 'data-qtip="' + qtip + '"';
+                        }
                         return v;
                     }
                     return '';
@@ -91,7 +102,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/add.png',
-                    tooltip: 'Faire un assort (rayon -> reserve)',
+                    tooltip: 'Faire un reappro (rayon -> reserve)',
                     scope: me,
                     handler: me.onAssortClick,
                     getClass: function (value, metadata, record) {
@@ -102,7 +113,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var colReassort = {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
-                    icon: 'resources/images/icons/fam/delete.png',
+                    icon: 'resources/images/icons/fam/retourdroit.png',
                     tooltip: 'Faire un reassort (reserve -> rayon)',
                     scope: me,
                     handler: me.onReassortClick,
@@ -138,14 +149,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
 
         if (mode === 'REAPPRO') {
             tbar.push({text: 'Faire un reappro', iconCls: '', scope: me, handler: me.onFaireReappro});
-            tbar.push({text: 'Suggerer un reappro', scope: me, handler: me.onSuggererReappro});
+            tbar.push({text: 'Suggerer un reappro', cls: 'btn-reappro-orange', scope: me, handler: me.onSuggererReappro});
             tbar.push('-');
         } else if (mode === 'REASSORT') {
             tbar.push({text: 'Faire un reassort rayon', scope: me, handler: me.onFaireReassort});
-            tbar.push({text: 'Suggerer un reassort rayon', scope: me, handler: me.onSuggererReassort});
-            tbar.push('-');
-        } else {
-            tbar.push({text: 'Tout reassortir selon suggestions', scope: me, handler: me.onReassortBatchAll});
+            tbar.push({text: 'Suggerer un reassort rayon', cls: 'btn-reassort-green', scope: me, handler: me.onSuggererReassort});
             tbar.push('-');
         }
 
@@ -191,7 +199,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             odatasource: rec.data,
             parentview: me,
             mode: 'assort',
-            titre: "Assort de l'article [" + rec.get('str_NAME') + "]"
+            titre: "Reappro de la reserve de l'article [" + rec.get('str_NAME') + "]"
         });
     },
 
@@ -202,7 +210,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             odatasource: rec.data,
             parentview: me,
             mode: 'reassort',
-            titre: "Reassort de l'article [" + rec.get('str_NAME') + "]"
+            titre: "Reassort du rayon de l'article [" + rec.get('str_NAME') + "]"
         });
     },
 
