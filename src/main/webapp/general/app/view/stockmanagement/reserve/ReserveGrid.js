@@ -148,7 +148,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var colHisto = {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
-                    icon: 'resources/images/icons/fam/historique_horloge.svg',
+                    icon: 'resources/images/icons/fam/historique_liste.svg',
                     tooltip: 'Historique des mouvements',
                     scope: me,
                     handler: me.onHistoriqueClick
