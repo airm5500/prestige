@@ -53,7 +53,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var columns = [
             {header: 'lg_FAMILLE_ID', dataIndex: 'lg_FAMILLE_ID', hidden: true, flex: 1},
             {header: 'CIP', dataIndex: 'int_CIP', flex: 1},
-            {header: 'Designation', dataIndex: 'str_NAME', flex: 1},
+            {header: 'Designation', dataIndex: 'str_NAME', flex: 3, minWidth: 220},
             {header: 'Emplacement', dataIndex: 'lg_ZONE_GEO_ID', flex: 1},
             {
                 header: 'Stock Rayon', dataIndex: 'int_STOCK_RAYON', align: 'center', flex: 1,
