@@ -394,7 +394,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     allowBlank: false,
                                     allowDecimals: false,
                                     listeners: {
-                                        change: function (fld, newVal) {
+                                        // buffer : on attend la fin de la saisie pour calculer sur la valeur
+                                        // finale (ex. "50") et non sur les frappes intermediaires ("5" -> 3).
+                                        change: {
+                                            buffer: 350,
+                                            fn: function (fld, newVal) {
                                             var miniField = fld.up('fieldset') && fld.up('fieldset').down('#int_SEUIL_MINI_RAYON');
                                             if (!miniField) { return; }
                                             // Création ou réserve venant d'être activée : toujours auto-calculer.
@@ -406,8 +410,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                             }
                                             var v = Math.max(0, parseInt(newVal, 10) || 0);
                                             miniField.setValue(v === 0 ? 0 : Math.ceil(v / 2));
-                                            // L'auto-calcul vient de s'appliquer : désactiver le flag
-                                            miniField._reserveJustActivated = false;
+                                            }
                                         }
                                     }
                                 },
