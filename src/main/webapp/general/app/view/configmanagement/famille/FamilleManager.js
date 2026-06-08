@@ -678,6 +678,50 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         },
                         '-',
                         {
+                            xtype: 'combobox',
+                            name: 'stock_operator',
+                            id: 'stock_operator',
+                            store: store_stock_operator,
+                            valueField: 'operator',
+                            displayField: 'str_desc',
+                            typeAhead: true,
+                            queryMode: 'local',
+                            width: 150,
+                            emptyText: 'Operateur stock...',
+                            listeners: {
+                                select: function () {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
+                        },
+                        {
+                            xtype: 'textfield',
+                            id: 'stock_value',
+                            name: 'stock_value',
+                            width: 90,
+                            emptyText: 'Qte.Stock',
+                            enableKeyEvents: true,
+                            listeners: {
+                                specialKey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        Me_Workflow.onRechClick();
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            text: 'Effacer stock',
+                            tooltip: 'Effacer le filtre stock',
+                            iconCls: 'cancelicon',
+                            scope: this,
+                            handler: function () {
+                                Ext.getCmp('stock_operator').clearValue();
+                                Ext.getCmp('stock_value').setValue('');
+                                Me_Workflow.onRechClick();
+                            }
+                        },
+                        '-',
+                        {
                             text: 'Importer des articles',
                             tooltip: 'Importer stock',
                             iconCls: 'importicon',
@@ -837,50 +881,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             scope: this,
                             handler: function () {
                                 Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
-                                Me_Workflow.onRechClick();
-                            }
-                        },
-                        '-',
-                        {
-                            xtype: 'combobox',
-                            name: 'stock_operator',
-                            id: 'stock_operator',
-                            store: store_stock_operator,
-                            valueField: 'operator',
-                            displayField: 'str_desc',
-                            typeAhead: true,
-                            queryMode: 'local',
-                            width: 150,
-                            emptyText: 'Operateur stock...',
-                            listeners: {
-                                select: function () {
-                                    Me_Workflow.onRechClick();
-                                }
-                            }
-                        },
-                        {
-                            xtype: 'textfield',
-                            id: 'stock_value',
-                            name: 'stock_value',
-                            width: 90,
-                            emptyText: 'Qte.Stock',
-                            enableKeyEvents: true,
-                            listeners: {
-                                specialKey: function (field, e) {
-                                    if (e.getKey() === e.ENTER) {
-                                        Me_Workflow.onRechClick();
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            text: 'Effacer stock',
-                            tooltip: 'Effacer le filtre stock',
-                            iconCls: 'cancelicon',
-                            scope: this,
-                            handler: function () {
-                                Ext.getCmp('stock_operator').clearValue();
-                                Ext.getCmp('stock_value').setValue('');
                                 Me_Workflow.onRechClick();
                             }
                         }
