@@ -394,11 +394,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     allowBlank: false,
                                     allowDecimals: false,
                                     listeners: {
-                                        // buffer : on attend la fin de la saisie pour calculer sur la valeur
-                                        // finale (ex. "50") et non sur les frappes intermediaires ("5" -> 3).
-                                        change: {
-                                            buffer: 350,
-                                            fn: function (fld, newVal) {
+                                        // On calcule sur blur (perte de focus) plutot que sur change :
+                                        // le change d'ExtJS se declenche a chaque frappe ("5" puis "50"),
+                                        // ce qui afficherait 3 avant 25. Sur blur on a la valeur finale.
+                                        blur: function (fld) {
                                             var miniField = fld.up('fieldset') && fld.up('fieldset').down('#int_SEUIL_MINI_RAYON');
                                             if (!miniField) { return; }
                                             // Création ou réserve venant d'être activée : toujours auto-calculer.
@@ -408,9 +407,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                                 var cur = miniField.getValue();
                                                 if (cur !== null && cur !== '' && cur > 0) { return; }
                                             }
-                                            var v = Math.max(0, parseInt(newVal, 10) || 0);
+                                            var v = Math.max(0, parseInt(fld.getValue(), 10) || 0);
                                             miniField.setValue(v === 0 ? 0 : Math.ceil(v / 2));
-                                            }
                                         }
                                     }
                                 },
