@@ -56,7 +56,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             {header: 'Designation', dataIndex: 'str_NAME', flex: 3, minWidth: 220},
             {header: 'Emplacement', dataIndex: 'lg_ZONE_GEO_ID', flex: 1, minWidth: 110},
             {
-                header: 'Stock Rayon', dataIndex: 'int_STOCK_RAYON', align: 'center', flex: 1, minWidth: 90,
+                header: 'Stock Rayon', dataIndex: 'int_STOCK_RAYON', align: 'center', flex: 1, minWidth: 100,
                 renderer: function (v, m, r) {
                     var seuil = r.get('int_SEUIL_RESERVE');
                     if (seuil > 0 && v < seuil) {
@@ -65,17 +65,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                     return v;
                 }
             },
-            {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1, minWidth: 100},
-            {header: 'Seuil Reserve (maxi rayon)', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1, minWidth: 130},
+            {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1, minWidth: 110},
+            {header: 'Seuil Reserve (maxi rayon)', dataIndex: 'int_SEUIL_RESERVE', align: 'center', flex: 1.4, minWidth: 210},
             {
-                header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1, minWidth: 110,
+                header: 'Seuil Mini Rayon', dataIndex: 'int_SEUIL_MINI_RAYON', align: 'center', flex: 1, minWidth: 130,
                 hidden: mode !== 'REASSORT',
                 renderer: function (v) {
                     return (v === null || v === undefined || v === '') ? '-' : v;
                 }
             },
             {
-                header: 'Quantité Suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1, minWidth: 120,
+                header: 'Quantité Suggérée', dataIndex: 'int_QTE_SUGGEREE', align: 'center', flex: 1, minWidth: 150,
                 renderer: function (v, m, r) {
                     // Onglet REASSORT : hover pedagogique, y compris quand la cellule est vide
                     if (mode === 'REASSORT') {

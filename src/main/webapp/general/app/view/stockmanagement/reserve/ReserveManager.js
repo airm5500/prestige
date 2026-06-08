@@ -33,9 +33,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 '.btn-reappro-orange.x-btn { background-color: #ff9500 !important; background-image: none !important; border-color: #b05a00 !important; }',
                 '.btn-reappro-orange.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
                 '.btn-reassort-green.x-btn { background-color: #3daa42 !important; background-image: none !important; border-color: #1a4a1e !important; }',
-                '.btn-reassort-green.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
-                '#reservemanagerID .x-column-header-text { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; line-height: 1.25; }',
-                '#reservemanagerID .x-column-header-text-inner { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }'
+                '.btn-reassort-green.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }'
             ].join('\n');
             document.head.appendChild(s);
         }
