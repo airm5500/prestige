@@ -170,9 +170,6 @@ Ext.define('testextjs.controller.DevisCtr', {
         {ref: 'vnobtnCloture',
             selector: 'doDevis #contenu [xtype=toolbar] #btnCloture'
         },
-        {ref: 'vnobtnPrint',
-            selector: 'doDevis #contenu [xtype=toolbar] #btnPrintProforma'
-        },
         {ref: 'vnobtnGoBack',
             selector: 'doDevis #contenu [xtype=toolbar] #btnGoBack'
         },
@@ -315,9 +312,6 @@ Ext.define('testextjs.controller.DevisCtr', {
                     },
                     'doDevis #contenu [xtype=toolbar] #btnCloture': {
                         click: this.doCloture
-                    },
-                    'doDevis #contenu [xtype=toolbar] #btnPrintProforma': {
-                        click: this.onPrintProforma
                     },
                     'assuranceDevis #btnCancelClient': {
                         click: this.onBtnCancelClient
@@ -1233,10 +1227,6 @@ Ext.define('testextjs.controller.DevisCtr', {
         // On garde le champ de recherche client visible afin de pouvoir
         // modifier le client d'une proforma existante.
         clientSearchBox.show();
-        // La proforma existante possède déjà un identifiant imprimable :
-        // on active le bouton Imprimer.
-        me.printableDevisId = record.lgPREENREGISTREMENTID;
-        me.getVnobtnPrint().enable();
         me.loadClient(client.lgCLIENTID, lgTYPEVENTEID, record.lgPREENREGISTREMENTID, intPRICE);
 
 
@@ -1541,24 +1531,24 @@ Ext.define('testextjs.controller.DevisCtr', {
     doCloture: function () {
 
         var me = this, vente = me.getCurrent();
-        // On mémorise l'identifiant de la proforma enregistrée AVANT le reset,
-        // afin que le bouton Imprimer pointe vers la bonne proforma.
+        // On mémorise l'identifiant de la proforma enregistrée avant de vider
+        // la vue, afin de pouvoir l'imprimer si l'utilisateur le souhaite.
         var venteId = vente ? vente.lgPREENREGISTREMENTID : null;
         me.resetAlls();
-        if (venteId) {
-            me.printableDevisId = venteId;
-            me.getVnobtnPrint().enable();
-        }
+        Ext.MessageBox.show({
+            title: 'Impression',
+            msg: 'Voulez-vous imprimer la proforma ?',
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.QUESTION,
+            fn: function (button) {
+                if (button === 'yes' && venteId) {
+                    // Même action que le bouton "Re-imprimer la proforma" de la liste.
+                    window.open('../FacturePdfServlet?mode=DEVIS&venteId=' + venteId);
+                }
+                me.goBack();
+            }
+        });
 
-    },
-
-    onPrintProforma: function () {
-        var me = this, venteId = me.printableDevisId;
-        if (!venteId) {
-            return;
-        }
-        // Même action que le bouton "Re-imprimer la proforma" de la liste.
-        window.open('../FacturePdfServlet?mode=DEVIS&venteId=' + venteId);
     },
 
     buildSaleParams: function (record, qte, typeVente) {
