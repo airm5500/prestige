@@ -112,9 +112,8 @@ public class ClientRessource {
 
     @GET
     @Path("bytype/{type}")
-    public Response findAllClients(@QueryParam(value = "query") String query, @PathParam("type") String id,
-            String typeClientId) {
-        List<ClientDTO> data = clientService.findClientAssurance(query, typeClientId);
+    public Response findAllClientsByType(@QueryParam(value = "query") String query, @PathParam("type") String id) {
+        List<ClientDTO> data = clientService.findClientAssurance(query, null);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
