@@ -39,6 +39,8 @@ public class SearchProduitServcieRessource {
     public Response getAll(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "search_value") String search, @QueryParam(value = "str_TYPE_TRANSACTION") String type,
             @QueryParam(value = "lg_DCI_ID") String diciId, @QueryParam(value = "lg_ZONE_GEO_ID") String zoneGeoId,
+            @QueryParam(value = "stock_operator") String stockOperator,
+            @QueryParam(value = "stock_value") String stockValue,
             @QueryParam(value = "produitId") String produitId)
             throws JSONException {
         HttpSession hs = servletRequest.getSession();
@@ -47,7 +49,7 @@ public class SearchProduitServcieRessource {
 
         List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         JSONObject jsono = this.searchProduitServcie.fetchProduits(attribute, tu, produitId, search, diciId, type,
-                zoneGeoId, limit, start);
+                zoneGeoId, stockOperator, stockValue, limit, start);
         return Response.ok().entity(jsono.toString()).build();
     }
 

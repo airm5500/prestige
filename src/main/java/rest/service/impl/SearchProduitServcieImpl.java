@@ -70,7 +70,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
     @Override
     public JSONObject fetchProduits(List<TPrivilege> usersPrivileges, TUser user, String produitId, String search,
-            String diciId, String type, String zoneGeoId, int limit, int start) {
+            String diciId, String type, String zoneGeoId, String stockOperator, String stockValue, int limit,
+            int start) {
         boolean checkExpirationdate = checkDatePeremption();
         JSONObject data = new JSONObject();
         Object[] objs = getPrivilegeProductByUser(user.getLgUSERID());
@@ -91,9 +92,10 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             data.put("total", 1);
         } else {
-            getAllLite(false, search, diciId, empl, type, zoneGeoId, true, start, limit).forEach(
-                    tuple -> arrayObj.put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate)));
-            data.put("total", getAllCount(search, diciId, empl, type, zoneGeoId, true));
+            getAllLite(false, search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, true, start, limit)
+                    .forEach(tuple -> arrayObj
+                            .put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate)));
+            data.put("total", getAllCount(search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, true));
         }
         data.put("results", arrayObj);
         return data;
@@ -118,7 +120,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             data.put("total", 1);
         } else {
-            long count = getAllCount(search, null, empl, null, null, false);
+            long count = getAllCount(search, null, empl, null, null, null, null, false);
             if (count == 0) {
                 JSONObject jSONObject = new JSONObject();
                 jSONObject.put("lg_FAMILLE_ID", "0");
@@ -128,7 +130,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                 jSONObject.put("str_DESCRIPTION_PLUS", "Ajouter un nouvel article");
                 arrayObj.put(jSONObject);
             } else {
-                getAll(false, search, null, empl, null, null, false, start, limit)
+                getAll(false, search, null, empl, null, null, null, null, false, start, limit)
                         .forEach(tuple -> arrayObj.put(buildProduitData(tuple, empl)));
             }
 
@@ -158,7 +160,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     private List<Object[]> getAll(boolean all, String search, String diciId, String emplacementId, String type,
-            String zoneGeoId, boolean checkDeconditionne, int start, int limit) {
+            String zoneGeoId, String stockOperator, String stockValue, boolean checkDeconditionne, int start,
+            int limit) {
         try {
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT DISTINCT {t.*}, fs.int_NUMBER_AVAILABLE as stock, ");
@@ -188,7 +191,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
-            applyFilters(sql, search, diciId, type, zoneGeoId, checkDeconditionne);
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, checkDeconditionne);
 
             sql.append(" ORDER BY t.str_DESCRIPTION ASC");
 
@@ -204,7 +207,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                     .addEntity("remise", dal.TRemise.class).addEntity("tva", dal.TCodeTva.class);
 
             // Set centralized filter parameters
-            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId);
+            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue);
 
             if (!all) {
                 q.setFirstResult(start);
@@ -224,7 +227,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      * data is not needed
      */
     private List<Object[]> getAllLite(boolean all, String search, String diciId, String emplacementId, String type,
-            String zoneGeoId, boolean checkDeconditionne, int start, int limit) {
+            String zoneGeoId, String stockOperator, String stockValue, boolean checkDeconditionne, int start,
+            int limit) {
         try {
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT DISTINCT {t.*}, fs.int_NUMBER_AVAILABLE as stock, {zone.*} ");
@@ -238,7 +242,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
-            applyFilters(sql, search, diciId, type, zoneGeoId, checkDeconditionne);
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, checkDeconditionne);
 
             sql.append(" ORDER BY t.str_DESCRIPTION ASC");
 
@@ -248,7 +252,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                     .addEntity("zone", dal.TZoneGeographique.class);
 
             // Set centralized filter parameters
-            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId);
+            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue);
 
             if (!all) {
                 q.setFirstResult(start);
@@ -263,7 +267,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     private long getAllCount(String search, String diciId, String emplacementId, String type, String zoneGeoId,
-            boolean checkDeconditionne) {
+            String stockOperator, String stockValue, boolean checkDeconditionne) {
         try {
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT COUNT(DISTINCT t.lg_FAMILLE_ID) FROM t_famille t ");
@@ -275,12 +279,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
-            applyFilters(sql, search, diciId, type, zoneGeoId, checkDeconditionne);
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, checkDeconditionne);
 
             Query q = em.createNativeQuery(sql.toString());
 
             // Set centralized filter parameters
-            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId);
+            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue);
 
             return ((Number) q.getSingleResult()).longValue();
 
@@ -295,7 +299,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      * Centralized method to apply common filters to product queries
      */
     private void applyFilters(StringBuilder sql, String search, String diciId, String type, String zoneGeoId,
-            boolean checkDeconditionne) {
+            String stockOperator, String stockValue, boolean checkDeconditionne) {
         if (StringUtils.isNotEmpty(search)) {
             sql.append(
                     "AND (t.int_CIP LIKE :search  OR fg.str_CODE_ARTICLE LIKE :search OR t.int_EAN13 LIKE :search OR t.str_NAME LIKE :search OR t.code_ean_fabriquant LIKE :search ) ");
@@ -308,6 +312,10 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         }
         if (StringUtils.isNotEmpty(zoneGeoId) && !"ALL".equalsIgnoreCase(zoneGeoId)) {
             sql.append("AND t.lg_ZONE_GEO_ID = :zoneGeoId ");
+        }
+        String stockSymbol = resolveStockOperator(stockOperator);
+        if (stockSymbol != null && parseStockValue(stockValue) != null) {
+            sql.append("AND fs.int_NUMBER_AVAILABLE ").append(stockSymbol).append(" :stockValue ");
         }
         if (StringUtils.isNotEmpty(type)) {
             switch (type) {
@@ -329,7 +337,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     /**
      * Centralized method to set filter parameters on queries
      */
-    private void setFilterParameters(Query q, String emplacementId, String search, String diciId, String zoneGeoId) {
+    private void setFilterParameters(Query q, String emplacementId, String search, String diciId, String zoneGeoId,
+            String stockOperator, String stockValue) {
         q.setParameter("emplacementId", emplacementId);
         if (StringUtils.isNotEmpty(search)) {
             q.setParameter("search", search + "%");
@@ -339,6 +348,49 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         }
         if (StringUtils.isNotEmpty(zoneGeoId) && !"ALL".equalsIgnoreCase(zoneGeoId)) {
             q.setParameter("zoneGeoId", zoneGeoId);
+        }
+        Integer stockNumber = parseStockValue(stockValue);
+        if (resolveStockOperator(stockOperator) != null && stockNumber != null) {
+            q.setParameter("stockValue", stockNumber);
+        }
+    }
+
+    /**
+     * Maps the stock filter operator code sent by the UI to its SQL comparison symbol. Returns {@code null} for an
+     * unknown/empty operator so that no stock filter is applied (whitelist approach, prevents SQL injection since the
+     * symbol is concatenated into the query).
+     */
+    private String resolveStockOperator(String stockOperator) {
+        if (StringUtils.isEmpty(stockOperator)) {
+            return null;
+        }
+        switch (stockOperator) {
+        case "LESS":
+            return "<";
+        case "MORE":
+            return ">";
+        case "EQUAL":
+            return "=";
+        case "LESSOREQUAL":
+            return "<=";
+        case "MOREOREQUAL":
+            return ">=";
+        default:
+            return null;
+        }
+    }
+
+    /**
+     * Safely parses the stock value sent by the UI. Returns {@code null} when empty or not a valid integer.
+     */
+    private Integer parseStockValue(String stockValue) {
+        if (StringUtils.isEmpty(stockValue)) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(stockValue.trim());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 

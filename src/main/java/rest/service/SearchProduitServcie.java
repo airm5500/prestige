@@ -14,7 +14,8 @@ import org.json.JSONObject;
 public interface SearchProduitServcie {
 
     JSONObject fetchProduits(List<TPrivilege> usersPrivileges, TUser user, String produitId, String search,
-            String diciId, String type, String zoneGeoId, int limit, int start);
+            String diciId, String type, String zoneGeoId, String stockOperator, String stockValue, int limit,
+            int start);
 
     JSONObject fetchOrderProduits(TUser user, String produitId, String search, int limit, int start);
 

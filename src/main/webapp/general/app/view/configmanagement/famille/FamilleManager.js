@@ -71,11 +71,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     const typeCmp = Ext.getCmp('str_TYPE_TRANSACTION');
                     const dciCmp = Ext.getCmp('lg_DCI_PRINCIPAL_ID');
                     const zoneCmp = Ext.getCmp('lg_ZONE_GEO_ID');
+                    const stockOpCmp = Ext.getCmp('stock_operator');
+                    const stockValCmp = Ext.getCmp('stock_value');
 
                     proxy.setExtraParam('search_value', searchCmp ? (searchCmp.getValue() || '') : '');
                     proxy.setExtraParam('str_TYPE_TRANSACTION', typeCmp ? (typeCmp.getValue() || '') : '');
                     proxy.setExtraParam('lg_DCI_ID', dciCmp ? (dciCmp.getValue() || '') : '');
                     proxy.setExtraParam('lg_ZONE_GEO_ID', zoneCmp ? (zoneCmp.getValue() || '') : '');
+                    proxy.setExtraParam('stock_operator', stockOpCmp ? (stockOpCmp.getValue() || '') : '');
+                    proxy.setExtraParam('stock_value', stockValCmp ? (stockValCmp.getValue() || '') : '');
                 }
             }
         });
@@ -100,6 +104,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         const store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
             data: [{str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}, {str_TYPE_TRANSACTION: 'DECONDITION', str_desc: 'Les articles deconditionnables'}, {str_TYPE_TRANSACTION: 'DECONDITIONNE', str_desc: 'Les articles deconditionnes'}, {str_TYPE_TRANSACTION: 'SANSEMPLACEMENT', str_desc: 'Les articles sans emplacement'}]
+        });
+
+        const store_stock_operator = new Ext.data.Store({
+            fields: ['operator', 'str_desc'],
+            data: [
+                {operator: 'LESS', str_desc: 'Inferieur a'},
+                {operator: 'MORE', str_desc: 'Superieur a'},
+                {operator: 'EQUAL', str_desc: 'Egal a'},
+                {operator: 'LESSOREQUAL', str_desc: 'Inferieur ou egal a'},
+                {operator: 'MOREOREQUAL', str_desc: 'Superieur ou egal a'}
+            ]
         });
 
 
@@ -824,6 +839,50 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
                                 Me_Workflow.onRechClick();
                             }
+                        },
+                        '-',
+                        {
+                            xtype: 'combobox',
+                            name: 'stock_operator',
+                            id: 'stock_operator',
+                            store: store_stock_operator,
+                            valueField: 'operator',
+                            displayField: 'str_desc',
+                            typeAhead: true,
+                            queryMode: 'local',
+                            width: 150,
+                            emptyText: 'Operateur stock...',
+                            listeners: {
+                                select: function () {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
+                        },
+                        {
+                            xtype: 'textfield',
+                            id: 'stock_value',
+                            name: 'stock_value',
+                            width: 90,
+                            emptyText: 'Qte.Stock',
+                            enableKeyEvents: true,
+                            listeners: {
+                                specialKey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        Me_Workflow.onRechClick();
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            text: 'Effacer stock',
+                            tooltip: 'Effacer le filtre stock',
+                            iconCls: 'cancelicon',
+                            scope: this,
+                            handler: function () {
+                                Ext.getCmp('stock_operator').clearValue();
+                                Ext.getCmp('stock_value').setValue('');
+                                Me_Workflow.onRechClick();
+                            }
                         }
                     ]
                 }
@@ -842,11 +901,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         const str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
                         const search_value = Ext.getCmp('rechecher').getValue();
                         const lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
+                        const stock_operator = Ext.getCmp('stock_operator').getValue();
+                        const stock_value = Ext.getCmp('stock_value').getValue();
 
                         myProxy.setExtraParam('str_TYPE_TRANSACTION', str_TYPE_TRANSACTION || '');
                         myProxy.setExtraParam('lg_DCI_ID', lg_DCI_PRINCIPAL_ID || '');
                         myProxy.setExtraParam('search_value', search_value || '');
                         myProxy.setExtraParam('lg_ZONE_GEO_ID', lg_ZONE_GEO_ID || '');
+                        myProxy.setExtraParam('stock_operator', stock_operator || '');
+                        myProxy.setExtraParam('stock_value', stock_value || '');
                     }
 
                 }
@@ -888,13 +951,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         proxy.setExtraParam('str_TYPE_TRANSACTION', '');
         proxy.setExtraParam('lg_DCI_ID', '');
         proxy.setExtraParam('lg_ZONE_GEO_ID', '');
+        proxy.setExtraParam('stock_operator', '');
+        proxy.setExtraParam('stock_value', '');
 
         store.loadPage(1, {
             params: {
                 search_value: '',
                 str_TYPE_TRANSACTION: '',
                 lg_DCI_ID: '',
-                lg_ZONE_GEO_ID: ''
+                lg_ZONE_GEO_ID: '',
+                stock_operator: '',
+                stock_value: ''
             },
             callback: grid.onStoreLoad
         });
@@ -1236,7 +1303,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 search_value: val.getValue() || '',
                 str_TYPE_TRANSACTION: Ext.getCmp('str_TYPE_TRANSACTION').getValue() || '',
                 lg_DCI_ID: Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() || '',
-                lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue() || ''
+                lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue() || '',
+                stock_operator: Ext.getCmp('stock_operator').getValue() || '',
+                stock_value: Ext.getCmp('stock_value').getValue() || ''
             }
         });
 
