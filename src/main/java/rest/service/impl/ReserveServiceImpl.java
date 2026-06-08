@@ -111,10 +111,12 @@ public class ReserveServiceImpl implements ReserveService {
                 int seuil = json.optInt("int_SEUIL_RESERVE", 0);
                 json.put("int_QTE_SUGGEREE", Math.max(0, sr - seuil));
             } else if ("REASSORT_RAYON".equalsIgnoreCase(type)) {
-                // REASSORT reserve->rayon : suggestion = int_SEUIL_RESERVE - stock_rayon
+                // REASSORT reserve->rayon : suggestion = int_SEUIL_RESERVE - stock_rayon,
+                // plafonnée au stock réserve disponible (cohérent avec suggestions()).
                 int sr = json.optInt("int_STOCK_RAYON", 0);
                 int seuil = json.optInt("int_SEUIL_RESERVE", 0);
-                json.put("int_QTE_SUGGEREE", Math.max(0, seuil - sr));
+                int stockReserve = json.optInt("int_STOCK_RESERVE", 0);
+                json.put("int_QTE_SUGGEREE", Math.min(stockReserve, Math.max(0, seuil - sr)));
             }
             results.put(json);
         }
