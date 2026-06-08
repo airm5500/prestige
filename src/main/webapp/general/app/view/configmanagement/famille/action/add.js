@@ -362,11 +362,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                             var reserveDf = fs && fs.down('#int_RESERVE');
                                             if (newValue) {
                                                 seuil && seuil.show();
-                                                seuilMini && seuilMini.show();
+                                                if (seuilMini) {
+                                                    seuilMini.show();
+                                                    // Efface la valeur résiduelle puis pose le flag : l'auto-calcul
+                                                    // de SEUIL_RESERVE pourra s'appliquer même en mode update.
+                                                    // Le flag est posé APRÈS setValue pour ne pas être effacé par
+                                                    // l'éventuel listener change de seuilMini.
+                                                    seuilMini.setValue(null);
+                                                    seuilMini._reserveJustActivated = true;
+                                                }
                                                 reserveDf && reserveDf.show();
                                             } else {
                                                 if (seuil) { seuil.hide(); seuil.setValue(0); }
-                                                if (seuilMini) { seuilMini.hide(); seuilMini.setValue(null); seuilMini._userModified = false; }
+                                                if (seuilMini) { seuilMini.hide(); seuilMini.setValue(null); seuilMini._userModified = false; seuilMini._reserveJustActivated = false; }
                                                 reserveDf && reserveDf.hide();
                                             }
                                         }
@@ -389,15 +397,17 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                         change: function (fld, newVal) {
                                             var miniField = fld.up('fieldset') && fld.up('fieldset').down('#int_SEUIL_MINI_RAYON');
                                             if (!miniField) { return; }
-                                            // Creation : auto-calcul a chaque changement.
-                                            // Modification : auto-calcul seulement si le seuil mini rayon est vide
-                                            // (produit qu'on active en reserve), jamais sur une valeur deja enregistree.
-                                            if (Omode !== 'create') {
+                                            // Création ou réserve venant d'être activée : toujours auto-calculer.
+                                            // Modification d'un article qui avait déjà une réserve : on n'écrase
+                                            // la valeur existante que si elle est vide (0 / null).
+                                            if (Omode !== 'create' && !miniField._reserveJustActivated) {
                                                 var cur = miniField.getValue();
                                                 if (cur !== null && cur !== '' && cur > 0) { return; }
                                             }
                                             var v = Math.max(0, parseInt(newVal, 10) || 0);
                                             miniField.setValue(v === 0 ? 0 : Math.ceil(v / 2));
+                                            // L'auto-calcul vient de s'appliquer : désactiver le flag
+                                            miniField._reserveJustActivated = false;
                                         }
                                     }
                                 },
