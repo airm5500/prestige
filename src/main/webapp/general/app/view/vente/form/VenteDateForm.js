@@ -210,8 +210,20 @@ Ext.define('testextjs.view.vente.form.VenteDateForm', {
                 params: Ext.JSON.encode(datas),
                 success: function (response, options) {
                     progress.hide();
-                    wind.destroy();
+                    const venteId = wind.getVente().get('lgPREENREGISTREMENTID');
+                    Ext.MessageBox.show({
+                        title: 'Impression du ticket',
+                        msg: 'Voulez-vous imprimer le ticket ?',
+                        buttons: Ext.MessageBox.YESNO,
+                        fn: function (button) {
+                            if ('yes' == button) {
+                                wind.onPrintTicket(venteId);
+                            }
+                        },
+                        icon: Ext.MessageBox.QUESTION
+                    });
                     wind.getGrid().getStore().reload();
+                    wind.destroy();
 
                 },
                 failure: function (response, options) {
@@ -220,6 +232,22 @@ Ext.define('testextjs.view.vente.form.VenteDateForm', {
                 }
             });
         }
+    },
+    onPrintTicket: function (id) {
+        const url = '../api/v1/vente/ticket/vo/' + id;
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+        Ext.Ajax.request({
+            headers: {'Content-Type': 'application/json'},
+            method: 'POST',
+            url: url,
+            success: function (response, options) {
+                progress.hide();
+            },
+            failure: function (response, options) {
+                progress.hide();
+            }
+
+        });
     },
     closeWindow: function () {
         let me = this;

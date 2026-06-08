@@ -4,7 +4,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
     extend: 'Ext.panel.Panel',
     xtype: 'ventemanager',
     frame: true,
-    title: 'Liste des Ventes',
+    title: 'Liste des Ventes terminées',
     iconCls: 'icon-grid',
     width: '97%',
     height: 'auto',
