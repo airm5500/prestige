@@ -164,7 +164,9 @@ public class ReserveServiceImpl implements ReserveService {
             if (seuilMini == null || stockRayon > seuilMini || stockReserve <= 0) {
                 continue;
             }
-            int sugg = Math.max(0, seuilReserve - stockRayon);
+            // On plafonne la suggestion au stock réserve disponible pour éviter
+            // l'erreur "stock reserve insuffisant" lors du reassort.
+            int sugg = Math.min(stockReserve, Math.max(0, seuilReserve - stockRayon));
             if (sugg <= 0) {
                 continue;
             }
