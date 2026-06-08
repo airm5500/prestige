@@ -241,6 +241,14 @@ Ext.define('testextjs.view.devis.DoDevis', {
                                             disabled: true
                                         },
                                         {
+                                            text: 'Imprimer',
+                                            tooltip: 'Imprimer la proforma',
+                                            itemId: 'btnPrintProforma',
+                                            iconCls: 'printable',
+                                            scope: this,
+                                            disabled: true
+                                        },
+                                        {
                                             text: 'Retour',
                                             itemId: 'btnGoBack',
                                             iconCls: 'icon-clear-group',

@@ -258,7 +258,7 @@ Ext.define('testextjs.view.devis.Devis', {
                             menuDisabled: true,
                             items: [{
                                     icon: 'resources/images/icons/fam/printer.png',
-                                    tooltip: 'Re-imprimer le proforma',
+                                    tooltip: 'Re-imprimer la proforma',
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('toPrintTicket', view, rowIndex, colIndex, item, e, record, row);
                                     }
