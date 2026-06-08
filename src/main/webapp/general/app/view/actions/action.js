@@ -1,5 +1,5 @@
 /* global Ext */
-var  datasFlag;
+var datasFlag;
 Ext.define('testextjs.view.actions.action', {
     extend: 'Ext.panel.Panel',
     xtype: 'kobysky',
@@ -17,7 +17,7 @@ Ext.define('testextjs.view.actions.action', {
         pack: 'start'
     },
     initComponent: function () {
-      
+
         datasFlag = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields:
@@ -73,7 +73,7 @@ Ext.define('testextjs.view.actions.action', {
             success: function (response)
             {
                 const object = Ext.JSON.decode(response.responseText, false);
-             
+
                 Ext.getCmp('action_ca').setValue(object.montantCa);
                 if (!object.success) {
                     Ext.MessageBox.show({
@@ -93,7 +93,7 @@ Ext.define('testextjs.view.actions.action', {
         });
     },
 
-    appliquer: function () {
+    appliquer: function (amount) {
         const progressBar = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             url: '../api/v1/custom/ponctionner',
@@ -103,7 +103,8 @@ Ext.define('testextjs.view.actions.action', {
             params: {
                 dtStart: Ext.getCmp('dt_action_start').getSubmitValue(),
                 dtEnd: Ext.getCmp('dt_end_action').getSubmitValue(),
-                amount: Ext.getCmp('fixedamount').getValue()
+//                amount: Ext.getCmp('fixedamount').getValue()
+                amount
 
             },
             success: function (action) {
@@ -301,7 +302,7 @@ Ext.define('testextjs.view.actions.action', {
                                 text: "Appliquer",
                                 listeners: {
                                     "click": function (src) {
-                                        context.appliquer();
+                                        context.appliquer( Ext.getCmp('fixedamount').getValue());
 //                                }
                                     }
                                 }
@@ -372,7 +373,7 @@ Ext.define('testextjs.view.actions.action', {
                                 text: "Appliquer",
                                 listeners: {
                                     "click": function (src) {
-                                        context.appliquer();
+                                        context.appliquer( Ext.getCmp('percentamount').getValue());
 
 //                                }
                                     }

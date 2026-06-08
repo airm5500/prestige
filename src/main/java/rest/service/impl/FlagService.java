@@ -9,16 +9,11 @@ import commonTasks.dto.FlagDTO;
 import dal.Flag;
 import dal.MvtTransaction;
 import dal.TPreenregistrement;
-import dal.TPreenregistrement_;
-import dal.TReglement;
-import dal.TUser;
 import dal.VenteReglement;
-import dal.enumeration.TypeTransaction;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.StringJoiner;
 import java.util.logging.Level;
@@ -28,20 +23,10 @@ import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
 import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Join;
-import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
-import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONObject;
 import rest.service.CaisseService;
-import util.Constant;
-import util.DateConverter;
 import util.NumberUtils;
 
 /**
@@ -126,8 +111,11 @@ public class FlagService {
      * @return
      */
     public JSONObject ponctionnerMontant(String dtStart, String dtEnd, int virtualAmount) {
-
         JSONObject json = new JSONObject();
+        if (virtualAmount <= 0) {
+            buildError(json, "Saissez une valeur correcte");
+        }
+
         try {
 
             LocalDate dtSt = LocalDate.parse(dtStart);

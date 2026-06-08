@@ -533,7 +533,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('bool_RESERVE').setValue(ds.bool_RESERVE);
             g('dt_Peremtion_new').setValue(ds.dt_Peremtion);
 
-            if (ds.bool_RESERVE == 'true') {
+           // if (ds.bool_RESERVE == 'true') {
+                if (ds.bool_RESERVE) {
                 var dfReserve = g('int_RESERVE');
                 var seuil = g('int_SEUIL_RESERVE');
                 if (seuil) { seuil.setValue(ds.int_SEUIL_RESERVE); seuil.show(); }

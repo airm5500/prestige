@@ -258,6 +258,33 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         return v;
                     }
                 }, {
+                    header: 'RES',
+                    dataIndex: 'int_STOCK_RESERVE',
+                    align: 'center',
+                    flex: 0.5,
+                    hidden: true,
+                    renderer: function (v, m, r) {
+                        if (!r.data.bool_RESERVE) {
+                            return '';
+                        }
+
+                        const reserve = v != null ? v : 0;
+
+                        // Appliquer la même mise en forme que Stock
+                        if (reserve < 0) {
+                            // Valeurs négatives : texte en rouge, fond rosé
+                            m.style = 'color:red; font-weight:bold; background-color:#F5BCA9;font-size: 18px;';
+                        } else if (reserve == 0) {
+                            // Valeur zéro : texte en bleu, fond verdâtre
+                            m.style = 'color:blue; font-weight:bold; background-color:#B0F2B6;font-size: 18px;';
+                        } else {
+                            // Valeurs positives : texte en vert
+                            m.style = 'color:green; font-weight:bold;font-size: 18px;';
+                        }
+
+                        return reserve;
+                    }
+                }, {
                     header: 'Seuil',
                     dataIndex: 'int_STOCK_REAPROVISONEMENT',
                     align: 'center',

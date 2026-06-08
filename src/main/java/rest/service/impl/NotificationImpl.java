@@ -292,7 +292,10 @@ public class NotificationImpl implements NotificationService {
 
             String[] emails = email.split(";");
             for (String email1 : emails) {
-                listadd.add(new InternetAddress(email1));
+                if (StringUtils.isNotBlank(email)) {
+                    listadd.add(new InternetAddress(email1));
+                }
+
             }
 
             Address[] recipient = new InternetAddress[listadd.size()];
