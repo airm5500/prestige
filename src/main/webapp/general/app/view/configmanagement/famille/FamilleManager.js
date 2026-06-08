@@ -1032,7 +1032,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     onPdfClick: function () {
     let lg_DCI_PRINCIPAL_ID = "",
             str_TYPE_TRANSACTION = "",
-            lg_ZONE_GEO_ID = "";
+            lg_ZONE_GEO_ID = "",
+            stock_operator = "",
+            stock_value = "";
 
     if (Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() != null) {
         lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
@@ -1046,10 +1048,20 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
     }
 
+    if (Ext.getCmp('stock_operator').getValue() != null) {
+        stock_operator = Ext.getCmp('stock_operator').getValue();
+    }
+
+    if (Ext.getCmp('stock_value').getValue() != null) {
+        stock_value = Ext.getCmp('stock_value').getValue();
+    }
+
     const linkUrl = url_services_article_generate_pdf
             + '?str_TYPE_TRANSACTION=' + str_TYPE_TRANSACTION
             + '&lg_DCI_ID=' + lg_DCI_PRINCIPAL_ID
             + '&lg_ZONE_GEO_ID=' + lg_ZONE_GEO_ID
+            + '&stock_operator=' + stock_operator
+            + '&stock_value=' + stock_value
             + '&search_value=' + Ext.getCmp('rechecher').getValue();
 
     window.open(linkUrl);

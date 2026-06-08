@@ -46,6 +46,39 @@
         new logger().OCategory.info("lg_DCI_ID " + lg_DCI_ID);
     }
 
+    // Filtre stock (operateur + valeur) - meme logique que la fiche article ecran.
+    // P_STOCK_CONDITION est un fragment SQL pret a etre injecte dans le report (.jrxml)
+    // via $P!{P_STOCK_CONDITION}; vide si le filtre n'est pas (ou mal) renseigne.
+    String stock_operator = request.getParameter("stock_operator");
+    String stock_value = request.getParameter("stock_value");
+    String stock_sql_operator = "";
+    Integer stock_number = null;
+    if (stock_operator != null) {
+        if ("LESS".equals(stock_operator)) {
+            stock_sql_operator = "<";
+        } else if ("MORE".equals(stock_operator)) {
+            stock_sql_operator = ">";
+        } else if ("EQUAL".equals(stock_operator)) {
+            stock_sql_operator = "=";
+        } else if ("LESSOREQUAL".equals(stock_operator)) {
+            stock_sql_operator = "<=";
+        } else if ("MOREOREQUAL".equals(stock_operator)) {
+            stock_sql_operator = ">=";
+        }
+    }
+    if (stock_value != null && !stock_value.trim().equals("")) {
+        try {
+            stock_number = Integer.valueOf(stock_value.trim());
+        } catch (NumberFormatException e) {
+            stock_number = null;
+        }
+    }
+    String stock_condition = "";
+    if (!stock_sql_operator.equals("") && stock_number != null) {
+        stock_condition = " AND fs.int_NUMBER_AVAILABLE " + stock_sql_operator + " " + stock_number + " ";
+    }
+    new logger().OCategory.info("stock_condition " + stock_condition);
+
     reportManager OreportManager = new reportManager();
     String scr_report_file = "rp_fiche_article";
     String report_generate_file = key.GetNumberRandom();
@@ -120,6 +153,11 @@
     parameters.put("P_REFERENCE", lg_FAMILLE_ID);
     parameters.put("P_EMPLACEMENT", OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
     parameters.put("P_SEARCH", search_value + "%");
+    // Parametres du filtre stock pour les reports (.jrxml). P_STOCK_CONDITION = fragment SQL
+    // injectable via $P!{P_STOCK_CONDITION} (vide => aucun filtre stock).
+    parameters.put("P_STOCK_CONDITION", stock_condition);
+    parameters.put("P_STOCK_OPERATOR", stock_sql_operator);
+    parameters.put("P_STOCK_VALUE", stock_number);
     new logger().OCategory.info("emplacement:" + OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID() + "|boolDECONDITIONNE:"+boolDECONDITIONNE);
 
     OreportManager.BuildReport(parameters, ojconnexion);
