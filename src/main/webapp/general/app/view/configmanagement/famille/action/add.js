@@ -394,21 +394,25 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                     allowBlank: false,
                                     allowDecimals: false,
                                     listeners: {
-                                        // On calcule sur blur (perte de focus) plutot que sur change :
-                                        // le change d'ExtJS se declenche a chaque frappe ("5" puis "50"),
-                                        // ce qui afficherait 3 avant 25. Sur blur on a la valeur finale.
-                                        blur: function (fld) {
-                                            var miniField = fld.up('fieldset') && fld.up('fieldset').down('#int_SEUIL_MINI_RAYON');
-                                            if (!miniField) { return; }
-                                            // Création ou réserve venant d'être activée : toujours auto-calculer.
-                                            // Modification d'un article qui avait déjà une réserve : on n'écrase
-                                            // la valeur existante que si elle est vide (0 / null).
-                                            if (Omode !== 'create' && !miniField._reserveJustActivated) {
-                                                var cur = miniField.getValue();
-                                                if (cur !== null && cur !== '' && cur > 0) { return; }
+                                        // Calcul en direct via change, mais avec un buffer assez long
+                                        // (400 ms) : une saisie normale comme "50" (frappes "5" puis "0")
+                                        // tient dans la fenetre, donc un seul calcul sur la valeur finale
+                                        // (50 -> 25), sans afficher le 3 intermediaire et sans quitter le champ.
+                                        change: {
+                                            buffer: 400,
+                                            fn: function (fld, newVal) {
+                                                var miniField = fld.up('fieldset') && fld.up('fieldset').down('#int_SEUIL_MINI_RAYON');
+                                                if (!miniField) { return; }
+                                                // Création ou réserve venant d'être activée : toujours auto-calculer.
+                                                // Modification d'un article qui avait déjà une réserve : on n'écrase
+                                                // la valeur existante que si elle est vide (0 / null).
+                                                if (Omode !== 'create' && !miniField._reserveJustActivated) {
+                                                    var cur = miniField.getValue();
+                                                    if (cur !== null && cur !== '' && cur > 0) { return; }
+                                                }
+                                                var v = Math.max(0, parseInt(newVal, 10) || 0);
+                                                miniField.setValue(v === 0 ? 0 : Math.ceil(v / 2));
                                             }
-                                            var v = Math.max(0, parseInt(fld.getValue(), 10) || 0);
-                                            miniField.setValue(v === 0 ? 0 : Math.ceil(v / 2));
                                         }
                                     }
                                 },
