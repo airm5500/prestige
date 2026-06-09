@@ -102,6 +102,42 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     @Override
+    public List<String> fetchProduitIds(TUser user, String search, String diciId, String type, String zoneGeoId,
+            String stockOperator, String stockValue, boolean onlyReserve) {
+        try {
+            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            StringBuilder sql = new StringBuilder();
+            sql.append("SELECT DISTINCT t.lg_FAMILLE_ID FROM t_famille t ");
+            sql.append("INNER JOIN t_famille_stock fs ON t.lg_FAMILLE_ID = fs.lg_FAMILLE_ID ");
+            sql.append("INNER JOIN t_famille_grossiste fg ON t.lg_FAMILLE_ID = fg.lg_FAMILLE_ID ");
+            if (StringUtils.isNotEmpty(diciId)) {
+                sql.append("INNER JOIN t_famille_dci fd ON t.lg_FAMILLE_ID = fd.lg_FAMILLE_ID ");
+            }
+            sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
+
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, true);
+            if (onlyReserve) {
+                sql.append("AND t.bool_RESERVE = 1 ");
+            }
+
+            Query q = em.createNativeQuery(sql.toString());
+            setFilterParameters(q, empl, search, diciId, zoneGeoId, stockOperator, stockValue);
+
+            List<?> rows = q.getResultList();
+            List<String> ids = new java.util.ArrayList<>();
+            for (Object r : rows) {
+                if (r != null) {
+                    ids.add(String.valueOf(r));
+                }
+            }
+            return ids;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
     public JSONObject fetchOrderProduits(TUser user, String produitId, String search, int limit, int start) {
         JSONArray arrayObj = new JSONArray();
         JSONObject data = new JSONObject();

@@ -7,8 +7,11 @@ import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -17,6 +20,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.InventaireService;
 import rest.service.SearchProduitServcie;
 import toolkits.parameters.commonparameter;
 import util.Constant;
@@ -33,6 +37,7 @@ public class SearchProduitServcieRessource {
     @Inject
     private HttpServletRequest servletRequest;
     private @EJB SearchProduitServcie searchProduitServcie;
+    private @EJB InventaireService inventaireService;
 
     @GET
     @Path("fiche")
@@ -50,6 +55,48 @@ public class SearchProduitServcieRessource {
         JSONObject jsono = this.searchProduitServcie.fetchProduits(attribute, tu, produitId, search, diciId, type,
                 zoneGeoId, stockOperator, stockValue, limit, start);
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /**
+     * Cree un inventaire a partir du resultat de la recherche courante de la fiche article. mode = "RESERVE" : inventaire
+     * de reserve, restreint aux produits ayant bool_RESERVE = true ; sinon : inventaire normal (emplacement) de tous les
+     * produits filtres.
+     */
+    @POST
+    @Path("create-inventaire")
+    public Response createInventaire(String body) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE)
+                            .toString())
+                    .build();
+        }
+        JSONObject in = new JSONObject(body);
+        String search = in.optString("search_value", "");
+        String type = in.optString("str_TYPE_TRANSACTION", "");
+        String diciId = in.optString("lg_DCI_ID", "");
+        String zoneGeoId = in.optString("lg_ZONE_GEO_ID", "");
+        String stockOperator = in.optString("stock_operator", "");
+        String stockValue = in.optString("stock_value", "");
+        String mode = in.optString("mode", "RAYON");
+        String name = in.optString("name", "Inventaire");
+        boolean onlyReserve = "RESERVE".equalsIgnoreCase(mode);
+
+        List<String> idList = this.searchProduitServcie.fetchProduitIds(tu, search, diciId, type, zoneGeoId,
+                stockOperator, stockValue, onlyReserve);
+        Set<String> ids = new LinkedHashSet<>(idList);
+
+        JSONObject json = new JSONObject();
+        if (ids.isEmpty()) {
+            return Response.ok().entity(json.put("success", false).put("count", 0)
+                    .put("message", "Aucun produit a inventorier.").toString()).build();
+        }
+        int count = onlyReserve ? this.inventaireService.createReserveInventaire(ids, name, name)
+                : this.inventaireService.create(ids, name);
+        return Response.ok().entity(json.put("success", true).put("count", count).put("name", name).toString())
+                .build();
     }
 
     @GET
