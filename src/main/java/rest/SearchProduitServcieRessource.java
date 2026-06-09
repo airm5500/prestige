@@ -9,6 +9,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -50,6 +51,22 @@ public class SearchProduitServcieRessource {
         List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         JSONObject jsono = this.searchProduitServcie.fetchProduits(attribute, tu, produitId, search, diciId, type,
                 zoneGeoId, stockOperator, stockValue, limit, start);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    @POST
+    @Path("create-inventaire")
+    public Response createInventaire(String body) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject in = new JSONObject(body);
+        JSONObject jsono = this.searchProduitServcie.createInventaireFromSearch(tu, in.optString("search_value", ""),
+                in.optString("lg_DCI_ID", ""), in.optString("str_TYPE_TRANSACTION", ""),
+                in.optString("lg_ZONE_GEO_ID", ""), in.optString("stock_operator", ""),
+                in.optString("stock_value", ""), in.optString("name", "inventaire fiche article"));
         return Response.ok().entity(jsono.toString()).build();
     }
 

@@ -17,6 +17,9 @@ public interface SearchProduitServcie {
             String diciId, String type, String zoneGeoId, String stockOperator, String stockValue, int limit,
             int start);
 
+    JSONObject createInventaireFromSearch(TUser user, String search, String diciId, String type, String zoneGeoId,
+            String stockOperator, String stockValue, String name);
+
     JSONObject fetchOrderProduits(TUser user, String produitId, String search, int limit, int start);
 
     JSONObject fetchOne(List<TPrivilege> usersPrivileges, TUser user, String produitId);

@@ -68,6 +68,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     @EJB
     private ProductStateService productStateService;
 
+    @EJB
+    private rest.service.InventaireService inventaireService;
+
     @Override
     public JSONObject fetchProduits(List<TPrivilege> usersPrivileges, TUser user, String produitId, String search,
             String diciId, String type, String zoneGeoId, String stockOperator, String stockValue, int limit,
@@ -99,6 +102,27 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         }
         data.put("results", arrayObj);
         return data;
+    }
+
+    @Override
+    public JSONObject createInventaireFromSearch(TUser user, String search, String diciId, String type,
+            String zoneGeoId, String stockOperator, String stockValue, String name) {
+        JSONObject result = new JSONObject();
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        getAllLite(true, search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, true, 0, 0)
+                .forEach(tuple -> ids.add(((TFamille) tuple[0]).getLgFAMILLEID()));
+        if (ids.isEmpty()) {
+            result.put("success", false);
+            result.put("count", 0);
+            result.put("message", "Aucun produit a inventorier pour les criteres selectionnes.");
+            return result;
+        }
+        int count = inventaireService.create(ids, name);
+        result.put("success", true);
+        result.put("count", count);
+        result.put("message", name);
+        return result;
     }
 
     @Override
@@ -327,6 +351,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                 break;
             case "SANSEMPLACEMENT":
                 sql.append("AND t.lg_ZONE_GEO_ID = '1' ");
+                break;
+            case "RESERVE":
+                sql.append("AND t.bool_RESERVE = 1 ");
                 break;
             default:
                 break;

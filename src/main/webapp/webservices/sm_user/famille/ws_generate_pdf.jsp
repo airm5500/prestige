@@ -107,12 +107,19 @@
         if(!lg_DCI_ID.equalsIgnoreCase("")) {
             scr_report_file = "rp_fiche_article_sansemplacement_dci";
         }
+    } else if (str_TYPE_TRANSACTION.equalsIgnoreCase("RESERVE")) {
+        // Articles en reserve : meme report que la liste standard, avec une condition supplementaire
+        P_H_TITLE = "Les articles en reserve";
+        if(!lg_DCI_ID.equalsIgnoreCase("")) {
+            scr_report_file = "rp_fiche_article_dci";
+        }
+        stock_condition += " AND lg_FAMILLE_ID IN (SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.bool_RESERVE = 1) ";
     } else {
         if (str_TYPE_TRANSACTION.equalsIgnoreCase("DECONDITIONNE")) {
             boolDECONDITIONNE = 1;
-            P_H_TITLE = "Les articles deconditionnes";           
+            P_H_TITLE = "Les articles deconditionnes";
         } else {
-            P_H_TITLE = "Les articles deconditionnables";  
+            P_H_TITLE = "Les articles deconditionnables";
         }
         if(!lg_DCI_ID.equalsIgnoreCase("")) {
             scr_report_file = "rp_fiche_article_dci_decondition";
@@ -121,7 +128,19 @@
         }
     }
 
-    
+    // Filtre rayon/emplacement : ajoute au meme fragment SQL injecte via P_STOCK_CONDITION.
+    // L'identifiant est nettoye (alphanumerique uniquement) avant concatenation.
+    if (request.getParameter("lg_ZONE_GEO_ID") != null
+            && !request.getParameter("lg_ZONE_GEO_ID").equalsIgnoreCase("")
+            && !request.getParameter("lg_ZONE_GEO_ID").equalsIgnoreCase("ALL")) {
+        String lg_ZONE_GEO_ID_PARAM = request.getParameter("lg_ZONE_GEO_ID").replaceAll("[^a-zA-Z0-9_-]", "");
+        if (!lg_ZONE_GEO_ID_PARAM.equals("")) {
+            stock_condition += " AND lg_ZONE_GEO_ID = '" + lg_ZONE_GEO_ID_PARAM + "' ";
+        }
+    }
+    new logger().OCategory.info("extra_condition " + stock_condition);
+
+
     new logger().OCategory.info("scr_report_file:" + scr_report_file);
     OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
     OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "fiche_article_" + report_generate_file);

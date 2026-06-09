@@ -103,7 +103,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
         const store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
-            data: [{str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}, {str_TYPE_TRANSACTION: 'DECONDITION', str_desc: 'Les articles deconditionnables'}, {str_TYPE_TRANSACTION: 'DECONDITIONNE', str_desc: 'Les articles deconditionnes'}, {str_TYPE_TRANSACTION: 'SANSEMPLACEMENT', str_desc: 'Les articles sans emplacement'}]
+            data: [{str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}, {str_TYPE_TRANSACTION: 'DECONDITION', str_desc: 'Les articles deconditionnables'}, {str_TYPE_TRANSACTION: 'DECONDITIONNE', str_desc: 'Les articles deconditionnes'}, {str_TYPE_TRANSACTION: 'SANSEMPLACEMENT', str_desc: 'Les articles sans emplacement'}, {str_TYPE_TRANSACTION: 'RESERVE', str_desc: 'Les articles en reserve'}]
         });
 
         const store_stock_operator = new Ext.data.Store({
@@ -270,6 +270,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             // Valeurs positives : texte en bleu
                             m.style = 'color:green; font-weight:bold;font-size: 18px;';
                         }
+                        if (r.data.bool_RESERVE) {
+                            const rayonQte = stock != null ? stock : 0;
+                            const reserveQte = r.data.int_STOCK_RESERVE != null ? r.data.int_STOCK_RESERVE : 0;
+                            m.tdAttr = 'data-qtip="Stock total = rayon + reserve = '
+                                    + rayonQte + ' + ' + reserveQte + ' = ' + (rayonQte + reserveQte) + '"';
+                        }
                         return v;
                     }
                 }, {
@@ -304,6 +310,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         } else if (stock < 0) {
                             m.style = 'color: black; font-weight:bold;background-color:#F5BCA9;font-weight:bold;font-size: 18px;';
                         }
+
+                        const rayonQte = stock != null ? stock : 0;
+                        m.tdAttr = 'data-qtip="Stock total = rayon + reserve = '
+                                + rayonQte + ' + ' + reserve + ' = ' + (rayonQte + reserve) + '"';
 
                         return reserve;
                     }
@@ -719,6 +729,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 Ext.getCmp('stock_value').setValue('');
                                 Me_Workflow.onRechClick();
                             }
+                        },
+                        '-',
+                        {
+                            text: 'Creer inventaire',
+                            tooltip: 'Creer un inventaire avec le resultat de la recherche courante',
+                            iconCls: 'addicon',
+                            scope: this,
+                            handler: this.onCreateInventaireClick
                         },
                         '-',
                         {
@@ -1324,7 +1342,68 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         Ext.getCmp('rechecher').focus(true, 100, function () {
         });
     },
-    
+
+    onCreateInventaireClick: function () {
+        const typeCmp = Ext.getCmp('str_TYPE_TRANSACTION');
+        const zoneCmp = Ext.getCmp('lg_ZONE_GEO_ID');
+
+        // Nom de l'inventaire : libelle(s) du/des filtre(s) actif(s) + HHmm
+        const labels = [];
+        const typeVal = typeCmp.getValue();
+        if (typeVal && typeVal !== 'ALL') {
+            let typeLabel = typeCmp.getRawValue() || typeVal;
+            typeLabel = typeLabel.replace(/^Les articles\s+/i, '');
+            labels.push(typeLabel);
+        }
+        const zoneVal = zoneCmp.getValue();
+        if (zoneVal && zoneVal !== 'ALL') {
+            labels.push(zoneCmp.getRawValue() || zoneVal);
+        }
+        const libelle = labels.length > 0 ? labels.join(' ') : 'fiche article';
+        const inventaireName = "inventaire '" + libelle + "' " + Ext.Date.format(new Date(), 'Hi');
+
+        Ext.MessageBox.confirm('Message',
+                "Creer l'inventaire <b>" + inventaireName + "</b> avec les articles du resultat de recherche courant ?",
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    const progress = Ext.MessageBox.wait('Veuillez patienter . . .', "Creation de l'inventaire");
+                    Ext.Ajax.request({
+                        url: '../api/v1/produit-search/create-inventaire',
+                        method: 'POST',
+                        jsonData: {
+                            name: inventaireName,
+                            search_value: Ext.getCmp('rechecher').getValue() || '',
+                            str_TYPE_TRANSACTION: typeCmp.getValue() || '',
+                            lg_DCI_ID: Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() || '',
+                            lg_ZONE_GEO_ID: zoneCmp.getValue() || '',
+                            stock_operator: Ext.getCmp('stock_operator').getValue() || '',
+                            stock_value: Ext.getCmp('stock_value').getValue() || ''
+                        },
+                        timeout: 600000,
+                        success: function (response) {
+                            progress.hide();
+                            const res = Ext.JSON.decode(response.responseText, true);
+                            if (res && res.success) {
+                                Ext.MessageBox.alert('Inventaire',
+                                        'Inventaire cree : <b>' + inventaireName + '</b><br/>Produits en compte : <b>' + (res.count || 0) + '</b>',
+                                        function () {
+                                            testextjs.app.getController('App').onLoadNewComponent('inventaire', 'Gestion des inventaires', '');
+                                        });
+                            } else {
+                                Ext.MessageBox.alert('Message',
+                                        (res && res.message) ? res.message : "La creation de l'inventaire a echoue.");
+                            }
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.MessageBox.alert('Erreur', "La creation de l'inventaire a echoue.");
+                        }
+                    });
+                });
+    },
+
     onAddGrossisteClick: function (grid, rowIndex) {
 
         const rec = grid.getStore().getAt(rowIndex);
