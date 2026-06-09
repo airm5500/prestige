@@ -888,28 +888,23 @@ Ext.Ajax.request({
                         }, 10);
                     } else {
                         win.close();
-                        // Le masque d'attente (Ext.MessageBox singleton) vient d'etre masque par
-                        // StopWaitingProcess. On differe l'alerte pour eviter la course hide()/show()
-                        // qui laisse parfois un masque modal orphelin (gel loupe / touche Entree).
-                        Ext.defer(function () {
-                            Ext.MessageBox.alert('Confirmation', object.errors, function () {
-                                // Filet de securite : lever tout masque residuel avant de rendre la main.
-                                var body = Ext.getBody();
-                                if (body && Ext.isFunction(body.unmask)) { body.unmask(); }
-                                if (Omode === 'create' || Omode === 'update' || Omode === 'decondition') {
-                                    if (type == 'famillemanager') {
-                                        Me_Workflow = Oview;
-                                        // Rester sur la page courante : reload() conserve currentPage
-                                        // (contrairement a onRechClick qui force loadPage(1)).
-                                        Me_Workflow.getStore().reload();
-                                        Ext.getCmp('rechecher').focus(true, 100);
-                                    } else if (type == 'commande') {
-                                        Ext.getCmp('lgFAMILLEID').setValue(str_DESCRIPTION);
-                                        Ext.getCmp('lgFAMILLEID').getStore().reload();
-                                    }
-                                }
-                            });
-                        }, 10);
+                        // Pas de popup de confirmation au succes : on garde le flux d'origine, fluide.
+                        // (Supprime aussi la course hide()/show() du MessageBox singleton qui pouvait
+                        // laisser un masque modal orphelin -> gel loupe / touche Entree.)
+                        var body = Ext.getBody();
+                        if (body && Ext.isFunction(body.unmask)) { body.unmask(); }
+                        if (Omode === 'create' || Omode === 'update' || Omode === 'decondition') {
+                            if (type == 'famillemanager') {
+                                Me_Workflow = Oview;
+                                // Rester sur la page courante : reload() conserve currentPage
+                                // (contrairement a onRechClick qui force loadPage(1)).
+                                Me_Workflow.getStore().reload();
+                                Ext.getCmp('rechecher').focus(true, 100);
+                            } else if (type == 'commande') {
+                                Ext.getCmp('lgFAMILLEID').setValue(str_DESCRIPTION);
+                                Ext.getCmp('lgFAMILLEID').getStore().reload();
+                            }
+                        }
                     }
                 },
                 failure: function (response) {
