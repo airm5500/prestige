@@ -15,7 +15,9 @@ if (Ext.repoDevMode) {
 
 Ext.Loader.setConfig({
     enabled: true,
-    disableCaching: true,
+    // false: laisse le navigateur mettre en cache les fichiers JS de l'application
+    // (true ajoutait ?_dc=<timestamp> a chaque requete et re-telechargeait tout a chaque connexion)
+    disableCaching: false,
     paths: {
         'testextjs': '/prestige/general/app'
         //,'Ext.ux': '/prestige/general/ux'

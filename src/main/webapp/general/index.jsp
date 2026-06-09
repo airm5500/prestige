@@ -62,7 +62,7 @@
         <!-- Navigation moderne -->
         <link rel="stylesheet" type="text/css" href="resources/css/navigation.css" />
         <link rel="stylesheet" href="bootstrap.css">
-        <script src="ext/ext-dev.js"></script>
+        <script src="ext/ext-all.js"></script>
 
         <script src="bootstrap.js"></script>
 
