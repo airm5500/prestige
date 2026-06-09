@@ -270,10 +270,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             // Valeurs positives : texte en bleu
                             m.style = 'color:green; font-weight:bold;font-size: 18px;';
                         }
-                        const rayonQte = Number(stock) || 0;
-                        const reserveQte = Number(r.data.int_STOCK_RESERVE) || 0;
-                        const totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;\'>Stock total = ' + rayonQte + ' (rayon) + ' + reserveQte + ' (reserve) = ' + totalQte + '</span>"';
+                        var rayonQte = parseInt(stock, 10);
+                        if (isNaN(rayonQte)) { rayonQte = 0; }
+                        var reserveQte = parseInt(r.data.int_STOCK_RESERVE, 10);
+                        if (isNaN(reserveQte)) { reserveQte = 0; }
+                        var totalQte = rayonQte + reserveQte;
+                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;\'>Stock total = ' + totalQte + ' (rayon ' + rayonQte + ' + reserve ' + reserveQte + ')</span>"';
                         return v;
                     }
                 }, {
@@ -309,10 +311,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             m.style = 'color:#6600cc; font-weight:bold;background-color:#F5BCA9;font-weight:bold;font-size: 18px;';
                         }
 
-                        const rayonQte = Number(stock) || 0;
-                        const reserveQte = Number(reserve) || 0;
-                        const totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;\'>Stock total = ' + rayonQte + ' (rayon) + ' + reserveQte + ' (reserve) = ' + totalQte + '</span>"';
+                        var rayonQte = parseInt(stock, 10);
+                        if (isNaN(rayonQte)) { rayonQte = 0; }
+                        var reserveQte = parseInt(reserve, 10);
+                        if (isNaN(reserveQte)) { reserveQte = 0; }
+                        var totalQte = rayonQte + reserveQte;
+                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;\'>Stock total = ' + totalQte + ' (rayon ' + rayonQte + ' + reserve ' + reserveQte + ')</span>"';
 
                         return reserve;
                     }
