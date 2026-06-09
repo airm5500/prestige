@@ -272,7 +272,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         }
                         const rayonQte = stock != null ? stock : 0;
                         const reserveQte = r.data.int_STOCK_RESERVE != null ? r.data.int_STOCK_RESERVE : 0;
-                        m.tdAttr = 'data-qtip="Stock Total = Stock rayon + reserve = ' + rayonQte + ' + ' + reserveQte + ' = ' + (rayonQte + reserveQte) + '"';
+                        m.tdAttr = 'data-qtip="Stock Total = ' + rayonQte + ' + ' + reserveQte + ' = ' + (rayonQte + reserveQte) + '"';
                         return v;
                     }
                 }, {
@@ -310,7 +310,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
                         const rayonQte = stock != null ? stock : 0;
                         const reserveQte = reserve != null ? reserve : 0;
-                        m.tdAttr = 'data-qtip="Stock Total = Stock rayon + reserve = ' + rayonQte + ' + ' + reserveQte + ' = ' + (rayonQte + reserveQte) + '"';
+                        m.tdAttr = 'data-qtip="Stock Total = ' + rayonQte + ' + ' + reserveQte + ' = ' + (rayonQte + reserveQte) + '"';
 
                         return reserve;
                     }
@@ -1383,7 +1383,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             return (n < 10 ? '0' : '') + n;
         };
         const hhmmss = pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
-        return 'inventaire ' + (parts.length ? parts.join('-') : 'courant') + '+' + hhmmss;
+        return 'inventaire ' + (parts.length ? parts.join('-') : 'courant') + ' ' + hhmmss;
     },
 
     onCreateInventaireClick: function () {
