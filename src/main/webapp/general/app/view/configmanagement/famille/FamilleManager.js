@@ -783,6 +783,23 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         },
                         '->',
                         {
+                            text: 'Effacer tous les filtres',
+                            tooltip: 'Vider tous les filtres et revenir a la 1ere page',
+                            icon: 'resources/images/icons/fam/delete.png',
+                            style: 'background-color:#add8e6; border-color:#add8e6;',
+                            scope: this,
+                            handler: function () {
+                                Ext.getCmp('rechecher').setValue('');
+                                Ext.getCmp('str_TYPE_TRANSACTION').clearValue();
+                                Ext.getCmp('lg_DCI_PRINCIPAL_ID').clearValue();
+                                Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
+                                Ext.getCmp('stock_operator').clearValue();
+                                Ext.getCmp('stock_value').setValue('');
+                                Me_Workflow.onRechClick();
+                            }
+                        },
+                        '-',
+                        {
                             text: 'Imprimer',
                             tooltip: 'imprimer',
                             iconCls: 'printable',
@@ -885,22 +902,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             scope: this,
                             handler: function () {
                                 Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
-                                Me_Workflow.onRechClick();
-                            }
-                        },
-                        '-',
-                        {
-                            text: 'Effacer tous les filtres',
-                            tooltip: 'Vider tous les filtres et revenir a la 1ere page',
-                            iconCls: 'cancelicon',
-                            scope: this,
-                            handler: function () {
-                                Ext.getCmp('rechecher').setValue('');
-                                Ext.getCmp('str_TYPE_TRANSACTION').clearValue();
-                                Ext.getCmp('lg_DCI_PRINCIPAL_ID').clearValue();
-                                Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
-                                Ext.getCmp('stock_operator').clearValue();
-                                Ext.getCmp('stock_value').setValue('');
                                 Me_Workflow.onRechClick();
                             }
                         }
