@@ -103,7 +103,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
         const store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_desc'],
-            data: [{str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}, {str_TYPE_TRANSACTION: 'DECONDITION', str_desc: 'Les articles deconditionnables'}, {str_TYPE_TRANSACTION: 'DECONDITIONNE', str_desc: 'Les articles deconditionnes'}, {str_TYPE_TRANSACTION: 'SANSEMPLACEMENT', str_desc: 'Les articles sans emplacement'}]
+            data: [{str_TYPE_TRANSACTION: 'ALL', str_desc: 'Tous'}, {str_TYPE_TRANSACTION: 'DECONDITION', str_desc: 'Les articles deconditionnables'}, {str_TYPE_TRANSACTION: 'DECONDITIONNE', str_desc: 'Les articles deconditionnes'}, {str_TYPE_TRANSACTION: 'SANSEMPLACEMENT', str_desc: 'Les articles sans emplacement'}, {str_TYPE_TRANSACTION: 'RESERVE', str_desc: 'Les articles en reserve'}]
         });
 
         const store_stock_operator = new Ext.data.Store({
@@ -687,12 +687,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             typeAhead: true,
                             queryMode: 'local',
                             width: 150,
-                            emptyText: 'Operateur stock...',
-                            listeners: {
-                                select: function () {
-                                    Me_Workflow.onRechClick();
-                                }
-                            }
+                            emptyText: 'Operateur stock...'
                         },
                         {
                             xtype: 'textfield',

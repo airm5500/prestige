@@ -328,6 +328,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             case "SANSEMPLACEMENT":
                 sql.append("AND t.lg_ZONE_GEO_ID = '1' ");
                 break;
+            case "RESERVE":
+                sql.append("AND t.bool_RESERVE = 1 ");
+                break;
             default:
                 break;
             }

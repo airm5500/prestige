@@ -888,7 +888,10 @@ Ext.Ajax.request({
                             if (Omode === 'create' || Omode === 'update' || Omode === 'decondition') {
                                 if (type == 'famillemanager') {
                                     Me_Workflow = Oview;
-                                    Me_Workflow.onRechClick();
+                                    // Rester sur la page courante : reload() conserve currentPage
+                                    // (contrairement a onRechClick qui force loadPage(1)).
+                                    Me_Workflow.getStore().reload();
+                                    Ext.getCmp('rechecher').focus(true, 100);
                                 } else if (type == 'commande') {
                                     Ext.getCmp('lgFAMILLEID').setValue(str_DESCRIPTION);
                                     Ext.getCmp('lgFAMILLEID').getStore().reload();
