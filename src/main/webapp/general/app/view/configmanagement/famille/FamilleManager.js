@@ -296,7 +296,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             m.style = 'color:green; font-weight:bold;font-size: 18px;';
                         }*/
                         
-                        m.style = 'color:#6600cc; font-weight:bold;font-size: 18px;';
+                        const stock = r.data.int_NUMBER_AVAILABLE;
+                        if (stock == 0) {
+                            m.style = 'color:#6600cc; font-weight:bold;background-color:#B0F2B6;font-weight:bold;font-size: 18px;';
+                        } else if (stock > 0) {
+                            m.style = 'color:#6600cc; font-weight:bold;font-weight:bold;font-size: 18px;';
+                        } else if (stock < 0) {
+                            m.style = 'color:#6600cc; font-weight:bold;background-color:#F5BCA9;font-weight:bold;font-size: 18px;';
+                        }
 
                         return reserve;
                     }
@@ -878,6 +885,22 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             scope: this,
                             handler: function () {
                                 Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
+                                Me_Workflow.onRechClick();
+                            }
+                        },
+                        '-',
+                        {
+                            text: 'Effacer tous les filtres',
+                            tooltip: 'Vider tous les filtres et revenir a la 1ere page',
+                            iconCls: 'cancelicon',
+                            scope: this,
+                            handler: function () {
+                                Ext.getCmp('rechecher').setValue('');
+                                Ext.getCmp('str_TYPE_TRANSACTION').clearValue();
+                                Ext.getCmp('lg_DCI_PRINCIPAL_ID').clearValue();
+                                Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
+                                Ext.getCmp('stock_operator').clearValue();
+                                Ext.getCmp('stock_value').setValue('');
                                 Me_Workflow.onRechClick();
                             }
                         }
