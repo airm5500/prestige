@@ -275,7 +275,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         var reserveQte = parseInt(r.data.int_STOCK_RESERVE, 10);
                         if (isNaN(reserveQte)) { reserveQte = 0; }
                         var totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;\'>Stock Total : ' + totalQte + '</span>"';
+                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;white-space:nowrap;\'>Stock Total : ' + totalQte + '</span>" data-qwidth="160"';
                         return v;
                     }
                 }, {
@@ -316,7 +316,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         var reserveQte = parseInt(reserve, 10);
                         if (isNaN(reserveQte)) { reserveQte = 0; }
                         var totalQte = rayonQte + reserveQte;
-                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;\'>Stock Total : ' + totalQte + '</span>"';
+                        m.tdAttr = 'data-qtip="<span style=\'color:blue;font-weight:bold;white-space:nowrap;\'>Stock Total : ' + totalQte + '</span>" data-qwidth="160"';
 
                         return reserve;
                     }
