@@ -1098,12 +1098,28 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         stock_value = Ext.getCmp('stock_value').getValue();
     }
 
+    const rayonLabel = Ext.getCmp('lg_ZONE_GEO_ID').getRawValue();
+    const search_value = Ext.getCmp('rechecher').getValue();
+    const opSymbols = {LESS: '<', MORE: '>', EQUAL: '=', LESSOREQUAL: '<=', MOREOREQUAL: '>='};
+    const filtreParts = [];
+    if (lg_ZONE_GEO_ID && rayonLabel) {
+        filtreParts.push('emplacement ' + rayonLabel);
+    }
+    if (stock_operator && opSymbols[stock_operator] && stock_value !== '') {
+        filtreParts.push('stock ' + opSymbols[stock_operator] + ' ' + stock_value);
+    }
+    if (search_value) {
+        filtreParts.push('recherche "' + search_value + '"');
+    }
+    const titre_filtre = filtreParts.join(' et ');
+
     const linkUrl = url_services_article_generate_pdf
             + '?str_TYPE_TRANSACTION=' + str_TYPE_TRANSACTION
             + '&lg_DCI_ID=' + lg_DCI_PRINCIPAL_ID
             + '&lg_ZONE_GEO_ID=' + lg_ZONE_GEO_ID
             + '&stock_operator=' + stock_operator
             + '&stock_value=' + stock_value
+            + '&titre_filtre=' + encodeURIComponent(titre_filtre)
             + '&search_value=' + Ext.getCmp('rechecher').getValue();
 
     window.open(linkUrl);

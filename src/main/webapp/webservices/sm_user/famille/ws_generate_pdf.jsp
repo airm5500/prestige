@@ -151,6 +151,12 @@
 
     TOfficine oTOfficine = OdataManager.getEm().find(dal.TOfficine.class, "1");
 
+    // Ajoute au titre la description lisible des filtres appliques (transmise par l'ecran).
+    String titre_filtre = request.getParameter("titre_filtre");
+    if (titre_filtre != null && !titre_filtre.trim().equals("")) {
+        P_H_TITLE = P_H_TITLE + " - " + titre_filtre.trim();
+    }
+
     parameters.put("P_H_CLT_INFOS", P_H_TITLE.toUpperCase());
     parameters.put("P_H_INSTITUTION", oTOfficine.getStrNOMABREGE());
     parameters.put("P_INSTITUTION_ADRESSE", oTOfficine.getStrADRESSSEPOSTALE());
