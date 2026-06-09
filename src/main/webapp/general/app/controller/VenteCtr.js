@@ -845,7 +845,7 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     produitSelect: function (cmp, record) {
         const me = this;
-        let  typeVente = me.getTypeVenteCombo().getValue();
+        let  typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         if (typeVente !== '1') {
             const client = me.getClient();
             if (!client) {
@@ -889,7 +889,7 @@ Ext.define('testextjs.controller.VenteCtr', {
     onUserSelect: function (cmp) {
         const me = this;
         let clientSearchBox = me.getClientSearchTextField(),
-                typeVente = me.getTypeVenteCombo().getValue();
+                typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         if (typeVente === '1') {
             me.getVnoproduitCombo().focus(true, 100);
         } else {
@@ -907,7 +907,7 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     onComputeNet: function () {
         const me = this;
-        const typeVente = me.getTypeVenteCombo().getValue();
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         if (typeVente === '1') {
             me.showNetPaidVno();
         } else {
@@ -973,7 +973,13 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.toRecalculate = true;
         me.netAmountToPay = null;
 
-        const typeVente = me.getTypeVenteCombo().getValue();
+        // Chemin d'enregistrement : type de vente sécurisé SANS défaut deviné.
+        const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+        if (!typeVenteCmp) {
+            me.recoverVenteView();
+            return;
+        }
+        const typeVente = typeVenteCmp.getValue();
         const vente = me.getCurrent();
         const isVno = (typeVente === '1');
 
@@ -1109,6 +1115,78 @@ Ext.define('testextjs.controller.VenteCtr', {
                 icon: Ext.MessageBox.QUESTION
             }, [produitCmp, qtyField]);
         }
+    },
+    // Lit la valeur d'un combo de façon sûre : si le composant est
+    // momentanément indisponible (ref ExtJS détruite), retourne la valeur par
+    // défaut au lieu de lever une exception. À RÉSERVER aux chemins d'affichage
+    // (calcul net, navigation) : ne JAMAIS l'utiliser pour décider du type d'une
+    // vente qu'on enregistre (risque d'enregistrer le mauvais type).
+    getSafeComboValue: function (getterName, defaultValue) {
+        const me = this;
+        const getter = me[getterName];
+        if (!getter) {
+            return defaultValue;
+        }
+        const cmp = getter.call(me);
+        if (!cmp || cmp.destroyed || !cmp.getValue) {
+            return defaultValue;
+        }
+        const value = cmp.getValue();
+        return (value === null || value === undefined || value === '') ? defaultValue : value;
+    },
+    // Récupère le record produit déjà sélectionné SANS dépendre du store du
+    // combo (qui peut être null). On le cherche dans la sélection courante,
+    // puis dans lastSelection / valueModels (ExtJS 4), puis dans les stores
+    // disponibles. Évite l'erreur "ds is null" dans findRecord.
+    getSelectedProduitRecord: function (produitCmp) {
+        if (!produitCmp) {
+            return null;
+        }
+        const value = produitCmp.getValue ? produitCmp.getValue() : null;
+        const matchesValue = function (record) {
+            if (!record || !record.get) {
+                return false;
+            }
+            return record.get('lgFAMILLEID') === value || record.get('intCIP') === value;
+        };
+        const selection = produitCmp.getSelection && produitCmp.getSelection();
+        if (matchesValue(selection)) {
+            return selection;
+        }
+        if (produitCmp.lastSelection && produitCmp.lastSelection.length && matchesValue(produitCmp.lastSelection[0])) {
+            return produitCmp.lastSelection[0];
+        }
+        if (produitCmp.valueModels && produitCmp.valueModels.length && matchesValue(produitCmp.valueModels[0])) {
+            return produitCmp.valueModels[0];
+        }
+
+        let stores = [];
+        if (produitCmp.getStore && produitCmp.getStore()) {
+            stores.push(produitCmp.getStore());
+        }
+        if (produitCmp.store && stores.indexOf(produitCmp.store) === -1) {
+            stores.push(produitCmp.store);
+        }
+        if (produitCmp.getPicker && produitCmp.getPicker()) {
+            const picker = produitCmp.getPicker();
+            const pickerStore = picker && picker.getStore ? picker.getStore() : null;
+            if (pickerStore && stores.indexOf(pickerStore) === -1) {
+                stores.push(pickerStore);
+            }
+        }
+
+        for (let i = 0; i < stores.length; i++) {
+            const store = stores[i];
+            if (!store || !store.findRecord) {
+                continue;
+            }
+            const record = store.findRecord('lgFAMILLEID', value, 0, false, false, true)
+                    || store.findRecord('intCIP', value, 0, false, false, true);
+            if (record) {
+                return record;
+            }
+        }
+        return null;
     },
     // Reconstruit la zone de vente (#contenu) en place lorsqu'un combo ou son
     // store a été détruit/perdu. Évite à l'utilisateur de devoir recharger la
@@ -1274,31 +1352,27 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.recoverVenteView();
                     return;
                 }
-                // ✅ Sécuriser le store du combo (évite "ds is null" dans findRecord)
-                let ds = (produitCmp.getStore) ? produitCmp.getStore() : produitCmp.store;
-                if (!ds && produitCmp.getPicker && produitCmp.getPicker()) {
-                    let picker = produitCmp.getPicker();
-                    ds = (picker && picker.getStore) ? picker.getStore() : null;
-                }
-                if (!ds) {
-                    // Store du combo produit perdu : la validation par ENTRÉE ne
-                    // peut plus aboutir. On reconstruit la zone de vente en place
+
+                // ✅ Récupère le produit déjà sélectionné SANS dépendre du store
+                // (évite "ds is null" dans findRecord).
+                let record = me.getSelectedProduitRecord(produitCmp);
+                if (!record) {
+                    // Aucun record récupérable (store ET sélection perdus) :
+                    // dernier recours, on reconstruit la zone de vente en place
                     // pour rétablir le fonctionnement SANS recharger la page.
                     me.recoverVenteView();
                     return;
                 }
 
-                // ✅ Sécuriser l'accès au combo Type de vente (évite
-                // "me.getTypeVenteCombo() is undefined" qui figeait la touche ENTRÉE)
+                // ✅ Type de vente : sécurisé SANS défaut deviné. C'est un chemin
+                // d'enregistrement : si le combo est perdu, on reconstruit plutôt
+                // que de risquer d'enregistrer la vente avec le mauvais type.
                 const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
                 if (!typeVenteCmp) {
                     me.recoverVenteView();
                     return;
                 }
-
-                let record = ds.findRecord("lgFAMILLEID", produitCmp.getValue(), 0, false, false, true),
-                        typeVente = typeVenteCmp.getValue();
-                record = record ? record : ds.findRecord("intCIP", produitCmp.getValue(), 0, false, false, true);
+                const typeVente = typeVenteCmp.getValue();
                 const vente = me.getCurrent();
                 const isVno = (typeVente === '1') ? true : false;
                 let url = vente ? '../api/v1/vente/add/item' : isVno ? '../api/v1/vente/add/vno' : '../api/v1/vente/add/assurance';
@@ -1609,10 +1683,22 @@ Ext.define('testextjs.controller.VenteCtr', {
             let data = me.getNetAmountToPay();
             let netTopay = data.montantNet;
 
-            let typeVenteCombo = me.getTypeVenteCombo().getValue(),
+            // Chemin de clôture (soumission) : si l'un des combos décisifs est
+            // perdu, on NE devine PAS de valeur (risque d'enregistrer une vente
+            // erronée). On reconstruit la zone de vente et on abandonne la
+            // clôture proprement plutôt que de figer ou de soumettre faux.
+            const typeVenteCmpC = me.getTypeVenteCombo && me.getTypeVenteCombo();
+            const natureCmpC = me.getNatureCombo && me.getNatureCombo();
+            const userCmpC = me.getUserCombo && me.getUserCombo();
+            if (!typeVenteCmpC || !natureCmpC || !userCmpC) {
+                me.recoverVenteView();
+                return false;
+            }
+
+            let typeVenteCombo = typeVenteCmpC.getValue(),
                     remiseId = me.getVnoremise().getValue(),
-                    natureCombo = me.getNatureCombo().getValue(),
-                    userCombo = me.getUserCombo().getValue(),
+                    natureCombo = natureCmpC.getValue(),
+                    userCombo = userCmpC.getValue(),
                     montantRecu = me.getMontantRecu().getValue();
             let montantExtra = 0;
             const montantExtraCmp = me.getMontantExtra();
@@ -5008,7 +5094,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             }, 50);
         }
 
-        const typeVente = me.getTypeVenteCombo().getValue();
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         if (me.getToRecalculate()) {
             if (typeVente === '1') {
                 me.showNetPaidVno();

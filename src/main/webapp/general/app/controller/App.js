@@ -140,7 +140,17 @@ Ext.define('testextjs.controller.App', {
                     store = navigation.getStore(),
                     node;
 
-            node = id ? store.getNodeById(id) : store.getRootNode().firstChild.firstChild;
+            if (id) {
+                node = store.getNodeById(id);
+            } else if (store.getRootNode() && store.getRootNode().firstChild) {
+                // Évite "store.getRootNode().firstChild is null" quand l'arbre
+                // de menu n'a pas encore de premier nœud au chargement.
+                node = store.getRootNode().firstChild.firstChild || store.getRootNode().firstChild;
+            }
+
+            if (!node) {
+                return;
+            }
             navigation.getSelectionModel().select(node);
             navigation.getView().focusNode(node);
             this.navigationSelected = true;
