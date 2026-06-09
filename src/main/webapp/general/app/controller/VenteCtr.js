@@ -1110,11 +1110,48 @@ Ext.define('testextjs.controller.VenteCtr', {
             }, [produitCmp, qtyField]);
         }
     },
+    // Reconstruit la zone de vente (#contenu) en place lorsqu'un combo ou son
+    // store a été détruit/perdu. Évite à l'utilisateur de devoir recharger la
+    // page ou vider le cache pour que la validation par ENTRÉE refonctionne.
+    recoverVenteView: function () {
+        const me = this;
+        const contenu = me.getContenu && me.getContenu();
+        if (!contenu || contenu.destroyed) {
+            return false;
+        }
+        try {
+            const vente = me.getCurrent && me.getCurrent();
+            contenu.removeAll();
+            const vno = Ext.create('testextjs.view.vente.VenteVNO');
+            contenu.add(vno);
+            if (vente && vente.lgPREENREGISTREMENTID) {
+                // Vente en cours : on recharge ses données (le panier est
+                // persisté côté serveur, rien n'est perdu).
+                me.loadVenteData(vente.lgPREENREGISTREMENTID);
+            } else {
+                me.updateComboxFields(null, null, null, null, null);
+            }
+            const produit = me.getVnoproduitCombo && me.getVnoproduitCombo();
+            if (produit) {
+                produit.focus(true, 200);
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    },
     onProduitSpecialKey: function (combo, e) {
         const me = this;
 
+        // ✅ Sécuriser l'accès au combo Type de vente (évite l'exception
+        // "me.getTypeVenteCombo() is undefined" qui bloquait la saisie produit)
+        const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+        if (!typeVenteCmp) {
+            me.recoverVenteView();
+            return false;
+        }
         // contrôle client inchangé
-        const typeVente = me.getTypeVenteCombo().getValue();
+        const typeVente = typeVenteCmp.getValue();
         if (typeVente !== '1') {
             let client = me.getClient();
             if (!client) {
@@ -1231,6 +1268,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                 me.toRecalculate = true;
                 let produitCmp = me.getVnoproduitCombo();
                 if (!produitCmp) {
+                    // Combo produit introuvable (zone de vente corrompue) :
+                    // on reconstruit la zone en place plutôt que d'imposer
+                    // un rechargement de la page.
+                    me.recoverVenteView();
                     return;
                 }
                 // ✅ Sécuriser le store du combo (évite "ds is null" dans findRecord)
@@ -1240,13 +1281,23 @@ Ext.define('testextjs.controller.VenteCtr', {
                     ds = (picker && picker.getStore) ? picker.getStore() : null;
                 }
                 if (!ds) {
-                    // Fallback : on remet le focus sur la recherche produit et on stoppe
-                    produitCmp.focus(true, 100);
+                    // Store du combo produit perdu : la validation par ENTRÉE ne
+                    // peut plus aboutir. On reconstruit la zone de vente en place
+                    // pour rétablir le fonctionnement SANS recharger la page.
+                    me.recoverVenteView();
+                    return;
+                }
+
+                // ✅ Sécuriser l'accès au combo Type de vente (évite
+                // "me.getTypeVenteCombo() is undefined" qui figeait la touche ENTRÉE)
+                const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+                if (!typeVenteCmp) {
+                    me.recoverVenteView();
                     return;
                 }
 
                 let record = ds.findRecord("lgFAMILLEID", produitCmp.getValue(), 0, false, false, true),
-                        typeVente = me.getTypeVenteCombo().getValue();
+                        typeVente = typeVenteCmp.getValue();
                 record = record ? record : ds.findRecord("intCIP", produitCmp.getValue(), 0, false, false, true);
                 const vente = me.getCurrent();
                 const isVno = (typeVente === '1') ? true : false;
