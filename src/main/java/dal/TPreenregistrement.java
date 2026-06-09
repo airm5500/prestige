@@ -33,7 +33,8 @@ import javax.xml.bind.annotation.XmlTransient;
  * @author MKABOU
  */
 @Entity
-@Table(name = "t_preenregistrement", indexes = { @Index(name = "indexpreechecked", columnList = "checked"), })
+@Table(name = "t_preenregistrement", indexes = { @Index(name = "indexpreechecked", columnList = "checked"),
+        @Index(name = "idx_preenregistrement_dt_updated", columnList = "dt_UPDATED"), })
 @XmlRootElement
 @NamedQueries({ @NamedQuery(name = "TPreenregistrement.findAll", query = "SELECT t FROM TPreenregistrement t"),
         @NamedQuery(name = "TPreenregistrement.findByLgPREENREGISTREMENTID", query = "SELECT t FROM TPreenregistrement t WHERE t.lgPREENREGISTREMENTID = :lgPREENREGISTREMENTID"),

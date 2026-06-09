@@ -17,9 +17,11 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -58,160 +60,143 @@ public class StatisticSales extends bll.bllBase {
 
     public JSONArray getSalesStatistics(String dt_start, String dt_end, String emp) {
         JSONArray array = new JSONArray();
-        Set<String> dates = new HashSet<>();
-        List<TPreenregistrement> listprePreenregistrements;
-        EntityManager em = this.getOdataManager().getEm();
         try {
             LocalDate _start = LocalDate.parse(dt_start);
             LocalDate _end = LocalDate.parse(dt_end);
-            LocalDate finalEndDate = LocalDate.of(_end.getYear(), _end.getMonthValue(), _end.lengthOfMonth());
-            LocalDate finalStartDate = LocalDate.of(_start.getYear(), _start.getMonthValue(), 1);
-            CriteriaBuilder cb = em.getCriteriaBuilder();
-            CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
-            Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
-            Predicate criteria = cb.conjunction();
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
-                    java.sql.Date.valueOf(finalStartDate), java.sql.Date.valueOf(finalEndDate));
-            criteria = cb.and(criteria,
-                    cb.equal(root.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
-            criteria = cb.and(criteria, cb.equal(root.get(TPreenregistrement_.bISCANCEL), false));
-            criteria = cb.and(criteria,
-                    cb.notLike(root.get("lgTYPEVENTEID").get("lgTYPEVENTEID"), Parameter.VENTE_DEPOT_EXTENSION));
-            Predicate pu = cb.greaterThan(root.get(TPreenregistrement_.intPRICE), 0);
-            criteria = cb.and(criteria,
-                    cb.equal(root.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emp));
-            cq.select(root);
-            cq.where(criteria, btw, pu);
-            Query q = em.createQuery(cq);
-            listprePreenregistrements = q.getResultList();
-            listprePreenregistrements.forEach((listprePreenregistrement) -> {
-                dates.add(date.FORMATTERMOUNTHFULLYEAR.format(listprePreenregistrement.getDtCREATED()));
-            });
+            LocalDate firstMonth = LocalDate.of(_start.getYear(), _start.getMonthValue(), 1);
+            LocalDate lastMonth = LocalDate.of(_end.getYear(), _end.getMonthValue(), 1);
+
+            Map<String, Object[]> aggregatesByMonth = new HashMap<>();
+            for (Object[] row : getMonthlySalesAggregates(dt_start, dt_end, emp)) {
+                aggregatesByMonth.put(((Number) row[0]).intValue() + "_" + ((Number) row[1]).intValue(), row);
+            }
 
             int id = 0;
+            // les cumuls repartent de zero a chaque annee civile
+            int cumulYear = -1;
+            int nbreclients_cumul = 0, count_vo_cumul = 0, count_vno_cumul = 0;
+            double montant_brut_cumul = 0, remise_cumul = 0, montant_vo_cumul = 0, montant_vno_cumul = 0;
+            for (LocalDate monthDate = firstMonth; !monthDate.isAfter(lastMonth); monthDate = monthDate
+                    .plusMonths(1)) {
+                int year = monthDate.getYear();
+                int month = monthDate.getMonthValue();
+                Object[] row = aggregatesByMonth.get(year + "_" + month);
+                int count = row != null ? ((Number) row[2]).intValue() : 0;
+                double amount = row != null ? ((Number) row[3]).doubleValue() : 0;
+                double remise = row != null ? ((Number) row[4]).doubleValue() : 0;
+                int count_vo = row != null ? ((Number) row[5]).intValue() : 0;
+                double amount_vo = row != null ? ((Number) row[6]).doubleValue() : 0;
+                int count_vno = row != null ? ((Number) row[7]).intValue() : 0;
+                double amount_vno = row != null ? ((Number) row[8]).doubleValue() : 0;
 
-            for (Iterator<String> iterator = dates.iterator(); iterator.hasNext();) {
+                if (year != cumulYear) {
+                    cumulYear = year;
+                    nbreclients_cumul = 0;
+                    count_vo_cumul = 0;
+                    count_vno_cumul = 0;
+                    montant_brut_cumul = 0;
+                    remise_cumul = 0;
+                    montant_vo_cumul = 0;
+                    montant_vno_cumul = 0;
+                }
+                nbreclients_cumul += count;
+                montant_brut_cumul += amount;
+                remise_cumul += remise;
+                count_vo_cumul += count_vo;
+                montant_vo_cumul += amount_vo;
+                count_vno_cumul += count_vno;
+                montant_vno_cumul += amount_vno;
+
+                double net_ttc = amount - remise;
+                double panier_moy_vo = count_vo > 0 ? amount_vo / count_vo : 0;
+                double panier_moy_vno = count_vno > 0 ? amount_vno / count_vno : 0;
+                double panier_moy_vo_cumul = count_vo_cumul > 0 ? montant_vo_cumul / count_vo_cumul : 0;
+                double panier_moy_vno_cumul = count_vno_cumul > 0 ? montant_vno_cumul / count_vno_cumul : 0;
+                double vo_month_percent = 0, vno_month_percent = 0;
+                if (amount_vo > 0 || amount_vno > 0) {
+                    vo_month_percent = (amount_vo * 100) / (amount_vo + amount_vno);
+                    vno_month_percent = (amount_vno * 100) / (amount_vo + amount_vno);
+                }
+                double vo_cumul_percent = 0, vno_cumul_percent = 0;
+                if (montant_vo_cumul > 0 || montant_vno_cumul > 0) {
+                    vo_cumul_percent = (montant_vo_cumul * 100) / (montant_vo_cumul + montant_vno_cumul);
+                    vno_cumul_percent = (montant_vno_cumul * 100) / (montant_vo_cumul + montant_vno_cumul);
+                }
+
                 JSONObject json = new JSONObject();
                 id++;
-                String next = iterator.next();
-                String[] splitstring = next.split("/");
-                int month = Integer.parseInt(splitstring[0]);
-                int year = Integer.parseInt(splitstring[1]);
-
-                json.put("month", next);
+                json.put("id", id);
+                json.put("month", String.format("%02d/%d", month, year));
                 json.put("num", month);
                 json.put("year", year);
-                double amount = 0, montant_brut_cumul = 0, remise_cumul = 0, montant_net_cumul = 0,
-                        montant_vno_cumul = 0;
-                double amount_vo = 0, montant_vo_cumul = 0;
-                double amount_vno = 0;
-                int count = 0, count_vo = 0, count_vno = 0, nbreclients_cumul = 0, count_vo_cumul = 0,
-                        count_vno_cumul = 0;
-                double net_ttc = 0;
-                double remise = 0;
-                double panier_moy_vo = 0, panier_moy_vno = 0, panier_moy_vno_cumul = 0, panier_moy_vo_cumul = 0,
-                        vno_month_percent = 0, vno_cumul_percent = 0, vo_month_percent = 0, vo_cumul_percent = 0;
-                for (TPreenregistrement listprePreenregistrement : listprePreenregistrements) {
-                    if (next.equals(date.FORMATTERMOUNTHFULLYEAR.format(listprePreenregistrement.getDtCREATED()))) {
-                        count++;
-                        amount += listprePreenregistrement.getIntPRICE();
-                        remise += listprePreenregistrement.getIntPRICEREMISE();
-                        if (Parameter.KEY_VENTE_ORDONNANCE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
-                            count_vo++;
-                            amount_vo += (listprePreenregistrement.getIntPRICE()
-                                    - listprePreenregistrement.getIntPRICEREMISE());
-                        }
-                        if (Parameter.KEY_VENTE_NON_ORDONNANCEE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
-                            count_vno++;
-                            amount_vno += (listprePreenregistrement.getIntPRICE()
-                                    - listprePreenregistrement.getIntPRICEREMISE());
-                        }
-                    }
-
-                    net_ttc = amount - remise;
-                    json.put("id", id);
-                    json.put("NB_CLIENT", count);
-                    json.put("AMOUT_VO", amount_vo);
-                    json.put("AMOUT_VNO", amount_vno);
-                    json.put("BRUT_TTC", amount);
-                    json.put("NET_TTC", net_ttc);
-                    json.put("REMISE", remise);
-                    if (count_vo > 0) {
-                        panier_moy_vo = amount_vo / count_vo;
-
-                    }
-
-                    if (count_vno > 0) {
-                        panier_moy_vno = amount_vno / count_vno;
-                    }
-                    json.put("PANIER_MOYEN_M_VNO", Math.round(panier_moy_vno));
-                    json.put("PANIER_MOYEN_M_VO", Math.round(panier_moy_vo));
-
-                    String[] formatdate = date.FORMATTERMOUNTHFULLYEAR.format(listprePreenregistrement.getDtCREATED())
-                            .split("/");
-                    int month_value = Integer.parseInt(formatdate[0]);
-                    int year_value = Integer.parseInt(formatdate[1]);
-                    if (month >= month_value) {
-                        nbreclients_cumul++;
-                        montant_brut_cumul += listprePreenregistrement.getIntPRICE();
-                        remise_cumul += listprePreenregistrement.getIntPRICEREMISE();
-                        if (Parameter.KEY_VENTE_NON_ORDONNANCEE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
-                            montant_vno_cumul += (listprePreenregistrement.getIntPRICE()
-                                    - listprePreenregistrement.getIntPRICEREMISE());
-                            count_vno_cumul++;
-                        }
-                        if (Parameter.KEY_VENTE_ORDONNANCE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
-                            count_vo_cumul++;
-                            montant_vo_cumul += (listprePreenregistrement.getIntPRICE()
-                                    - listprePreenregistrement.getIntPRICEREMISE());
-                        }
-
-                    }
-
-                    if (count_vo_cumul > 0) {
-                        panier_moy_vo_cumul = montant_vo_cumul / count_vo_cumul;
-                    }
-
-                    if (montant_vo_cumul > 0 || montant_vno_cumul > 0) {
-                        vo_cumul_percent = (montant_vo_cumul * 100) / (montant_vo_cumul + montant_vno_cumul);
-                        vno_cumul_percent = (montant_vno_cumul * 100) / (montant_vo_cumul + montant_vno_cumul);
-                    }
-
-                    if (amount_vno > 0 || amount_vo > 0) {
-                        vno_month_percent = (amount_vno * 100) / (amount_vno + amount_vo);
-                        vo_month_percent = (amount_vo * 100) / (amount_vno + amount_vo);
-                    }
-                    if (count_vno_cumul > 0) {
-                        panier_moy_vno_cumul = montant_vno_cumul / count_vno_cumul;
-                    }
-
-                    montant_net_cumul = montant_brut_cumul - remise_cumul;
-                    json.put("NB_CLIENTCUMUL", nbreclients_cumul);
-                    json.put("MONTANT_BRUTCUMUL", montant_brut_cumul);
-                    json.put("MONTANT_VNOCUMUL", montant_vno_cumul);
-                    json.put("MONTANT_VOCUMUL", montant_vo_cumul);
-                    json.put("MONTANT_NETCUMUL", montant_net_cumul);
-                    json.put("MONTANT_REMISECUMUL", remise_cumul);
-
-                    json.put("PANIER_MOYEN_M_VNO_CUMUL", Math.round(panier_moy_vno_cumul));
-                    json.put("PANIER_MOYEN_M_VO_CUMUL", Math.round(panier_moy_vo_cumul));
-                    json.put("vo_month_percent", vo_month_percent);
-                    json.put("vno_month_percent", vno_month_percent);
-
-                    json.put("vo_cumul_percent", vo_cumul_percent);
-                    json.put("vno_cumul_percent", vno_cumul_percent);
-
-                }
+                json.put("NB_CLIENT", count);
+                json.put("AMOUT_VO", amount_vo);
+                json.put("AMOUT_VNO", amount_vno);
+                json.put("BRUT_TTC", amount);
+                json.put("NET_TTC", net_ttc);
+                json.put("REMISE", remise);
+                json.put("PANIER_MOYEN_M_VNO", Math.round(panier_moy_vno));
+                json.put("PANIER_MOYEN_M_VO", Math.round(panier_moy_vo));
+                json.put("NB_CLIENTCUMUL", nbreclients_cumul);
+                json.put("MONTANT_BRUTCUMUL", montant_brut_cumul);
+                json.put("MONTANT_VNOCUMUL", montant_vno_cumul);
+                json.put("MONTANT_VOCUMUL", montant_vo_cumul);
+                json.put("MONTANT_NETCUMUL", montant_brut_cumul - remise_cumul);
+                json.put("MONTANT_REMISECUMUL", remise_cumul);
+                json.put("PANIER_MOYEN_M_VNO_CUMUL", Math.round(panier_moy_vno_cumul));
+                json.put("PANIER_MOYEN_M_VO_CUMUL", Math.round(panier_moy_vo_cumul));
+                json.put("vo_month_percent", vo_month_percent);
+                json.put("vno_month_percent", vno_month_percent);
+                json.put("vo_cumul_percent", vo_cumul_percent);
+                json.put("vno_cumul_percent", vno_cumul_percent);
                 array.put(json);
             }
         } catch (JSONException ex) {
             Logger.getLogger(StatisticSales.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-
         }
 
         return array;
 
+    }
+
+    /**
+     * Agregats mensuels des ventes calcules directement en base (une ligne par mois) : la borne de date est posee sur
+     * la colonne dt_UPDATED (date de cloture effective) sans fonction afin d'exploiter l'index.
+     */
+    public List<Object[]> getMonthlySalesAggregates(String dt_start, String dt_end, String emp) {
+        LocalDate _start = LocalDate.parse(dt_start);
+        LocalDate _end = LocalDate.parse(dt_end);
+        LocalDate finalStartDate = LocalDate.of(_start.getYear(), _start.getMonthValue(), 1);
+        LocalDate endExclusive = LocalDate.of(_end.getYear(), _end.getMonthValue(), 1).plusMonths(1);
+        String sql = "SELECT YEAR(p.dt_UPDATED), MONTH(p.dt_UPDATED),"
+                + " COUNT(*),"
+                + " SUM(p.int_PRICE),"
+                + " SUM(IFNULL(p.int_PRICE_REMISE,0)),"
+                + " SUM(CASE WHEN p.str_TYPE_VENTE = ? THEN 1 ELSE 0 END),"
+                + " SUM(CASE WHEN p.str_TYPE_VENTE = ? THEN (p.int_PRICE - IFNULL(p.int_PRICE_REMISE,0)) ELSE 0 END),"
+                + " SUM(CASE WHEN p.str_TYPE_VENTE = ? THEN 1 ELSE 0 END),"
+                + " SUM(CASE WHEN p.str_TYPE_VENTE = ? THEN (p.int_PRICE - IFNULL(p.int_PRICE_REMISE,0)) ELSE 0 END)"
+                + " FROM t_preenregistrement p"
+                + " INNER JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
+                + " WHERE p.dt_UPDATED >= ? AND p.dt_UPDATED < ?"
+                + " AND p.str_STATUT = ?"
+                + " AND p.b_IS_CANCEL = 0"
+                + " AND p.int_PRICE > 0"
+                + " AND p.lg_TYPE_VENTE_ID NOT LIKE ?"
+                + " AND u.lg_EMPLACEMENT_ID = ?"
+                + " GROUP BY YEAR(p.dt_UPDATED), MONTH(p.dt_UPDATED)"
+                + " ORDER BY YEAR(p.dt_UPDATED), MONTH(p.dt_UPDATED)";
+        return this.getOdataManager().getEm().createNativeQuery(sql)
+                .setParameter(1, Parameter.KEY_VENTE_ORDONNANCE)
+                .setParameter(2, Parameter.KEY_VENTE_ORDONNANCE)
+                .setParameter(3, Parameter.KEY_VENTE_NON_ORDONNANCEE)
+                .setParameter(4, Parameter.KEY_VENTE_NON_ORDONNANCEE)
+                .setParameter(5, java.sql.Timestamp.valueOf(finalStartDate.atStartOfDay()))
+                .setParameter(6, java.sql.Timestamp.valueOf(endExclusive.atStartOfDay()))
+                .setParameter(7, commonparameter.statut_is_Closed)
+                .setParameter(8, Parameter.VENTE_DEPOT_EXTENSION)
+                .setParameter(9, emp)
+                .getResultList();
     }
 
     public List<TPreenregistrement> getPreenregistrementsForSalesStatistics(String dt_start, String dt_end,
@@ -227,8 +212,12 @@ public class StatisticSales extends bll.bllBase {
             CriteriaQuery<TPreenregistrement> cq = cb.createQuery(TPreenregistrement.class);
             Root<TPreenregistrement> root = cq.from(TPreenregistrement.class);
             Predicate criteria = cb.conjunction();
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrement_.dtUPDATED)),
-                    java.sql.Date.valueOf(finalStartDate), java.sql.Date.valueOf(finalEndDate));
+            // bornes posees directement sur la colonne (sans fonction DATE) pour exploiter l'index
+            Predicate btw = cb.and(
+                    cb.greaterThanOrEqualTo(root.get(TPreenregistrement_.dtUPDATED),
+                            (Date) java.sql.Timestamp.valueOf(finalStartDate.atStartOfDay())),
+                    cb.lessThan(root.get(TPreenregistrement_.dtUPDATED),
+                            (Date) java.sql.Timestamp.valueOf(finalEndDate.plusDays(1).atStartOfDay())));
             criteria = cb.and(criteria,
                     cb.equal(root.get(TPreenregistrement_.strSTATUT), commonparameter.statut_is_Closed));
             criteria = cb.and(criteria, cb.equal(root.get(TPreenregistrement_.bISCANCEL), false));
