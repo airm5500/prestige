@@ -296,14 +296,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             m.style = 'color:green; font-weight:bold;font-size: 18px;';
                         }*/
                         
-                        const stock = r.data.int_NUMBER_AVAILABLE;
-                        if (stock == 0) {
-                            m.style = 'color: black; font-weight:bold;background-color:#B0F2B6;font-weight:bold;font-size: 18px;';
-                        } else if (stock > 0) {
-                            m.style = 'color: black; font-weight:bold;font-weight:bold;font-size: 18px;';
-                        } else if (stock < 0) {
-                            m.style = 'color: black; font-weight:bold;background-color:#F5BCA9;font-weight:bold;font-size: 18px;';
-                        }
+                        m.style = 'color:#6600cc; font-weight:bold;font-size: 18px;';
 
                         return reserve;
                     }
@@ -687,7 +680,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             typeAhead: true,
                             queryMode: 'local',
                             width: 150,
-                            emptyText: 'Operateur stock...'
+                            emptyText: 'Operateur stock...',
+                            listeners: {
+                                select: function () {
+                                    // Au choix d'un operateur : envoyer le focus sur la quantite.
+                                    const qte = Ext.getCmp('stock_value');
+                                    if (qte) {
+                                        qte.focus(true, 100);
+                                    }
+                                }
+                            }
                         },
                         {
                             xtype: 'textfield',
