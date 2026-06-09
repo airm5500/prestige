@@ -79,6 +79,18 @@
     }
     new logger().OCategory.info("stock_condition " + stock_condition);
 
+    // Filtre rayon (lg_ZONE_GEO_ID) : injecte via une sous-requete sur t_famille pour ne PAS dependre
+    // des colonnes exposees par la vue v_article_recherche (seul lg_FAMILLE_ID est requis cote vue).
+    String zone_condition = "";
+    String lg_ZONE_GEO_ID = request.getParameter("lg_ZONE_GEO_ID");
+    if (lg_ZONE_GEO_ID != null && !lg_ZONE_GEO_ID.trim().equals("") && !lg_ZONE_GEO_ID.equalsIgnoreCase("ALL")) {
+        zone_condition = " AND lg_FAMILLE_ID IN (SELECT lg_FAMILLE_ID FROM t_famille WHERE lg_ZONE_GEO_ID = '"
+                + lg_ZONE_GEO_ID.trim() + "') ";
+        new logger().OCategory.info("zone_condition " + zone_condition);
+    }
+    // Filtre reserve : renseigne plus bas si str_TYPE_TRANSACTION = RESERVE.
+    String reserve_condition = "";
+
     reportManager OreportManager = new reportManager();
     String scr_report_file = "rp_fiche_article";
     String report_generate_file = key.GetNumberRandom();
@@ -106,6 +118,13 @@
         scr_report_file = "rp_fiche_article_sansemplacement";
         if(!lg_DCI_ID.equalsIgnoreCase("")) {
             scr_report_file = "rp_fiche_article_sansemplacement_dci";
+        }
+    } else if (str_TYPE_TRANSACTION.equalsIgnoreCase("RESERVE")) {
+        P_H_TITLE = "Les articles en reserve";
+        reserve_condition = " AND lg_FAMILLE_ID IN (SELECT lg_FAMILLE_ID FROM t_famille WHERE bool_RESERVE = 1) ";
+        scr_report_file = "rp_fiche_article";
+        if(!lg_DCI_ID.equalsIgnoreCase("")) {
+            scr_report_file = "rp_fiche_article_dci";
         }
     } else {
         if (str_TYPE_TRANSACTION.equalsIgnoreCase("DECONDITIONNE")) {
@@ -155,7 +174,7 @@
     parameters.put("P_SEARCH", search_value + "%");
     // Parametres du filtre stock pour les reports (.jrxml). P_STOCK_CONDITION = fragment SQL
     // injectable via $P!{P_STOCK_CONDITION} (vide => aucun filtre stock).
-    parameters.put("P_STOCK_CONDITION", stock_condition);
+    parameters.put("P_STOCK_CONDITION", stock_condition + zone_condition + reserve_condition);
     parameters.put("P_STOCK_OPERATOR", stock_sql_operator);
     parameters.put("P_STOCK_VALUE", stock_number);
     new logger().OCategory.info("emplacement:" + OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID() + "|boolDECONDITIONNE:"+boolDECONDITIONNE);
