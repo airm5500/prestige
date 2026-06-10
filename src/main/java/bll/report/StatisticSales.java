@@ -1002,17 +1002,15 @@ public class StatisticSales extends bll.bllBase {
     public long getFrequentationCount(String dt_start, String dt_end) {
         long count = 0l;
         try {
-            List obj = this.getOdataManager().getEm().createNativeQuery(
-                    "SELECT COUNT(*) FROM t_preenregistrement p WHERE  p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)>='"
-                            + dt_start + "' AND DATE(p.`dt_CREATED`)<='" + dt_end
-                            + "' GROUP BY p.`lg_USER_VENDEUR_ID`,DATE(p.`dt_CREATED`)")
-                    .getResultList();
-            for (Object object : obj) {
-                // System.out.println("object "+object);
-                count++;
-            }
+            Object obj = this.getOdataManager().getEm().createNativeQuery(
+                    "SELECT COUNT(*) FROM (SELECT 1 FROM t_preenregistrement p WHERE p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed' "
+                            + "AND p.`dt_CREATED` >= :dtStart AND p.`dt_CREATED` < DATE_ADD(:dtEnd, INTERVAL 1 DAY) "
+                            + "GROUP BY p.`lg_USER_VENDEUR_ID`,DATE(p.`dt_CREATED`)) t")
+                    .setParameter("dtStart", dt_start)
+                    .setParameter("dtEnd", dt_end)
+                    .getSingleResult();
 
-            count = obj.size();
+            count = (obj != null) ? Long.parseLong(obj.toString()) : 0L;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1045,43 +1043,43 @@ public class StatisticSales extends bll.bllBase {
                 + "               \n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)>='0' AND HOUR(p.`dt_CREATED`)<='6') AS `DIX_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)>='7' AND HOUR(p.`dt_CREATED`)<='8') AS `UN_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)>='9' AND HOUR(p.`dt_CREATED`)<='10') AS `DEUX_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)>='11' AND HOUR(p.`dt_CREATED`)<='13') AS `TROIS_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)>='14' AND HOUR(p.`dt_CREATED`)<='15') AS `QUATRE_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)='16' ) AS `CINQ_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)='17' ) AS `SIX_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)='18' ) AS `SEPT_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)='19' ) AS `HUIT_REFERNCEVALUE`,\n"
                 + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
                 + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND DATE(p.`dt_CREATED`)=DATE(o.`dt_CREATED`) AND\n"
+                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
                 + "                HOUR(p.`dt_CREATED`)>='20' AND HOUR(p.`dt_CREATED`)<='23') AS `NEUF_REFERNCEVALUE`,\n"
                 + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='0' AND HOUR(o.`dt_CREATED`)<='6') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)<='0' AND HOUR(o.`dt_CREATED`)<'7'),1, NULL)),0) AS `PAN_MOY_DIX`,\n"
                 + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='7' AND HOUR(o.`dt_CREATED`)<='8') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='7' AND HOUR(o.`dt_CREATED`)<'9'),1, NULL)),0) AS `PAN_MOY_UN`, \n"
@@ -1094,12 +1092,15 @@ public class StatisticSales extends bll.bllBase {
                 + "                ROUND(SUM((CASE WHEN HOUR(o.`dt_CREATED`)='19'  THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF (HOUR(o.`dt_CREATED`)='19' ,1, NULL)),0) AS `PAN_MOY_HUIT`,  \n"
                 + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23'),1, NULL)),0) AS `PAN_MOY_NEUF` \n"
                 + "FROM t_preenregistrement o,t_user u WHERE  u.`lg_USER_ID`=o.`lg_USER_VENDEUR_ID` AND "
-                + "DATE(o.`dt_CREATED`)>='" + dt_start + "' AND DATE(o.`dt_CREATED`)<='" + dt_end + "' "
+                + "o.`dt_CREATED` >= :dtStart AND o.`dt_CREATED` < DATE_ADD(:dtEnd, INTERVAL 1 DAY) "
                 + "AND o.`int_PRICE`>0 AND o.`b_IS_CANCEL`=0 AND o.`str_STATUT`='is_Closed' GROUP BY o.`lg_USER_VENDEUR_ID` ,DATE(o.`dt_CREATED`) ORDER BY DATE(o.`dt_CREATED`) DESC  LIMIT "
                 + start + "," + limit + "   ";
 
         try {
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
+            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query)
+                    .setParameter("dtStart", dt_start)
+                    .setParameter("dtEnd", dt_end)
+                    .getResultList();
 
             for (Object[] objects : list) {
                 EntityData entityData = new EntityData();
@@ -1130,7 +1131,6 @@ public class StatisticSales extends bll.bllBase {
                 _8ref = (objects[30] != null ? objects[30] : 0) + "";
                 _9rep = (objects[41] != null ? objects[41] : 0) + "";
                 _9ref = (objects[31] != null ? objects[31] : 0) + "";
-                System.out.println("objects[25] " + objects[25]);
                 entityData.setStr_value13(objects[3] + "_" + objects[2] + "_" + _10rep + "_" + _10ref);
                 entityData.setStr_value4(objects[5] + "_" + objects[4] + "_" + _1rep + "_" + _1ref + "");
                 entityData.setStr_value5(objects[7] + "_" + objects[6] + "_" + _2rep + "_" + _2ref + "");
