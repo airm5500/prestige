@@ -361,7 +361,7 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                             text: 'ACHATS (A VENDRE)',
                             columns: [
                                 {
-                                    header: 'LABOREX ',
+                                    header: 'UBIPHARM ',
                                     dataIndex: 'LABOREX',
                                     flex: 1,
                                     summaryType: "sum",
