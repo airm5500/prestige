@@ -211,19 +211,25 @@ public class BalanceServiceImpl implements BalanceService {
     public JSONObject tableauBoardDatas(BalanceParamsDTO balanceParams) throws JSONException {
 
         JSONObject json = new JSONObject();
+        long tData = System.currentTimeMillis();
         Map<TableauBaordSummary, List<TableauBaordPhDTO>> map = getTableauBoardData(balanceParams);
+        LOG.log(Level.INFO, "[PERF] getTableauBoardData (SQL + build Java): {0} ms",
+                System.currentTimeMillis() - tData);
 
         if (map.isEmpty()) {
             json.put("total", 0);
             json.put("data", new JSONArray());
 
         }
+        long tJson = System.currentTimeMillis();
         map.forEach((k, v) -> {
             json.put("total", v.size());
             json.put("data", new JSONArray(v));
             json.put("metaData", new JSONObject(k));
 
         });
+        LOG.log(Level.INFO, "[PERF] Serialisation JSON tableau board: {0} ms",
+                System.currentTimeMillis() - tJson);
         return json;
 
     }
@@ -742,7 +748,11 @@ public class BalanceServiceImpl implements BalanceService {
                     .setParameter(2, balanceParams.getEmplacementId())
                     .setParameter(3, java.sql.Date.valueOf(balanceParams.getDtStart()))
                     .setParameter(4, java.sql.Date.valueOf(balanceParams.getDtEnd()));
-            return query.getResultList();
+            long t0 = System.currentTimeMillis();
+            List<Tuple> result = query.getResultList();
+            LOG.log(Level.INFO, "[PERF] SQL ventes (TABLEAU_BOARD_SQL): {0} ms - {1} lignes",
+                    new Object[]{System.currentTimeMillis() - t0, result.size()});
+            return result;
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -757,7 +767,11 @@ public class BalanceServiceImpl implements BalanceService {
                     .setParameter(3, balanceParams.getEmplacementId())
                     .setParameter(1, java.sql.Date.valueOf(balanceParams.getDtStart()))
                     .setParameter(2, java.sql.Date.valueOf(balanceParams.getDtEnd()));
-            return query.getResultList();
+            long t0 = System.currentTimeMillis();
+            List<Tuple> result = query.getResultList();
+            LOG.log(Level.INFO, "[PERF] SQL achats (TABLEAU_BOARD_SQL_ACHATS): {0} ms - {1} lignes",
+                    new Object[]{System.currentTimeMillis() - t0, result.size()});
+            return result;
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
