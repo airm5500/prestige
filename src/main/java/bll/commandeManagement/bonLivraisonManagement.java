@@ -1042,12 +1042,20 @@ public class bonLivraisonManagement extends bllBase implements Bonlivraisonmanag
     public List<TLot> getAllLots(String searchValue, String lgLOTID, Date dtStart, Date dtEnd) {
         List<TLot> list = new ArrayList<>();
         try {
+            // Borne haute exclusive = lendemain de dtEnd a 00:00, afin de couvrir toute
+            // la journee dtEnd sans envelopper la colonne dans FUNCTION('DATE', ...).
+            // La condition reste ainsi "sargable" et permet l'utilisation d'un index sur dtUPDATED.
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            cal.setTime(dtEnd);
+            cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
+            Date dtEndExclusive = cal.getTime();
+
             TypedQuery<TLot> q = this.getOdataManager().getEm().createQuery(
-                    "SELECT o FROM TLot o WHERE o.lgLOTID LIKE ?1 AND (o.lgFAMILLEID.strNAME LIKE ?2 OR o.lgFAMILLEID.intCIP LIKE ?2 OR  o.strREFLIVRAISON LIKE ?2 OR o.strREFORDER LIKE ?2 )  AND  FUNCTION('DATE',o.dtUPDATED ) >=?3 AND FUNCTION('DATE',o.dtUPDATED)<=?4   ",
+                    "SELECT o FROM TLot o WHERE o.lgLOTID LIKE ?1 AND (o.lgFAMILLEID.strNAME LIKE ?2 OR o.lgFAMILLEID.intCIP LIKE ?2 OR  o.strREFLIVRAISON LIKE ?2 OR o.strREFORDER LIKE ?2 )  AND  o.dtUPDATED >=?3 AND o.dtUPDATED < ?4   ",
                     TLot.class);
             return q.setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)
                     .setParameter(1, "%" + lgLOTID + "%").setParameter(2, searchValue + "%").setParameter(3, dtStart)
-                    .setParameter(4, dtEnd).getResultList();
+                    .setParameter(4, dtEndExclusive).getResultList();
         } catch (Exception e) {
             e.printStackTrace();
         }

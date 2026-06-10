@@ -1721,6 +1721,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
         const perimeStore = new Ext.data.Store({
             fields: [
+                {name: 'lgLOTID', type: 'string'},
                 {name: 'datePerement', type: 'string'},
                 {name: 'quantiteLot', type: 'int'},
                 {name: 'numLot', type: 'string'},
@@ -1783,6 +1784,135 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             printWindow.print();
         };
 
+        // Chargement (et rechargement) des lots / peremptions du produit.
+        const loadPerimes = function (showWin) {
+            const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Chargement des lots');
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/fichearticle/perimes',
+                params: {
+                    nbreMois: 24,
+                    query: cip,
+                    page: 1,
+                    start: 0,
+                    limit: 200
+                },
+                success: function (response) {
+                    progress.hide();
+                    const result = Ext.JSON.decode(response.responseText, true);
+                    const data = result && result.data ? result.data : [];
+                    const filteredData = Ext.Array.filter(data, function (item) {
+                        return String(item.codeCip) === String(cip);
+                    });
+                    perimeStore.loadData(filteredData);
+                    if (showWin) {
+                        win.show();
+                    }
+                },
+                failure: function (response) {
+                    progress.hide();
+                    Ext.MessageBox.alert('Erreur', response.responseText || 'Impossible de charger les lots du produit.');
+                }
+            });
+        };
+
+        // Modification du numero de lot et/ou de la date de peremption d'une ligne.
+        // Reutilise le service de mise a jour du menu "Liste des lots".
+        const openEditLot = function (record) {
+            const lotId = record.get('lgLOTID');
+            if (!lotId) {
+                Ext.MessageBox.alert('Alerte Message', 'Identifiant du lot introuvable, modification impossible.');
+                return;
+            }
+            const editWin = Ext.create('Ext.window.Window', {
+                title: 'Modifier le lot',
+                modal: true,
+                width: 400,
+                layout: 'fit',
+                items: [{
+                        xtype: 'form',
+                        id: 'editLotForm',
+                        bodyPadding: 10,
+                        modelValidation: true,
+                        items: [{
+                                xtype: 'fieldset',
+                                bodyPadding: 10,
+                                title: cip + ' - ' + designation,
+                                layout: 'anchor',
+                                defaults: {
+                                    anchor: '100%',
+                                    labelAlign: 'top'
+                                },
+                                items: [{
+                                        xtype: 'textfield',
+                                        fieldLabel: 'Numéro de lot',
+                                        name: 'int_NUM_LOT',
+                                        allowBlank: false,
+                                        value: record.get('numLot')
+                                    }, {
+                                        xtype: 'datefield',
+                                        fieldLabel: 'Date de péremption',
+                                        name: 'str_PEREMPTION',
+                                        allowBlank: false,
+                                        format: 'd/m/Y',
+                                        submitFormat: 'Y-m-d',
+                                        value: record.get('datePerement')
+                                    }]
+                            }]
+                    }],
+                dockedItems: [{
+                        xtype: 'toolbar',
+                        dock: 'bottom',
+                        ui: 'footer',
+                        layout: {
+                            pack: 'end',
+                            type: 'hbox'
+                        },
+                        items: [{
+                                xtype: 'button',
+                                text: 'Enregistrer',
+                                handler: function () {
+                                    const form = Ext.getCmp('editLotForm');
+                                    if (form && form.isValid()) {
+                                        const vals = form.getValues();
+                                        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                                        Ext.Ajax.request({
+                                            method: 'POST',
+                                            url: '../webservices/commandemanagement/lots/ws_transaction.jsp?mode=update&lg_LOT_ID=' + encodeURIComponent(lotId),
+                                            params: {
+                                                int_NUM_LOT: vals.int_NUM_LOT,
+                                                str_PEREMPTION: vals.str_PEREMPTION
+                                            },
+                                            success: function (response) {
+                                                progress.hide();
+                                                const res = Ext.JSON.decode(response.responseText, true);
+                                                if (res && res.success === 1) {
+                                                    editWin.close();
+                                                    loadPerimes(false);
+                                                    Ext.MessageBox.alert('Confirmation', 'La modification du lot est effectuée avec succès.');
+                                                } else {
+                                                    Ext.MessageBox.alert('Échec', 'La modification du lot a échoué.');
+                                                }
+                                            },
+                                            failure: function () {
+                                                progress.hide();
+                                                Ext.MessageBox.alert('Échec', 'La modification du lot a échoué.');
+                                            }
+                                        });
+                                    }
+                                }
+                            }, {
+                                xtype: 'button',
+                                text: 'Annuler',
+                                handler: function () {
+                                    editWin.close();
+                                }
+                            }]
+                    }]
+            });
+            editWin.show();
+        };
+
         const win = Ext.create('Ext.window.Window', {
             title: cip + ' - ' + designation,
             modal: true,
@@ -1813,6 +1943,21 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             text: 'Statut',
                             dataIndex: 'statut',
                             flex: 2
+                        },
+                        {
+                            xtype: 'actioncolumn',
+                            text: 'Modifier',
+                            width: 70,
+                            align: 'center',
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/page_white_edit.png',
+                                    tooltip: 'Modifier le lot / la date de péremption',
+                                    handler: function (grid, rowIndex) {
+                                        openEditLot(grid.getStore().getAt(rowIndex));
+                                    }
+                                }]
                         }
                     ],
                     viewConfig: {
@@ -1846,36 +1991,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             }
         });
 
-        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Chargement des lots');
-
-        Ext.Ajax.request({
-            method: 'GET',
-            url: '../api/v1/fichearticle/perimes',
-            params: {
-                nbreMois: 24,
-                query: cip,
-                page: 1,
-                start: 0,
-                limit: 200
-            },
-            success: function (response) {
-                progress.hide();
-
-                const result = Ext.JSON.decode(response.responseText, true);
-                const data = result && result.data ? result.data : [];
-
-                const filteredData = Ext.Array.filter(data, function (item) {
-                    return String(item.codeCip) === String(cip);
-                });
-
-                perimeStore.loadData(filteredData);
-                win.show();
-            },
-            failure: function (response) {
-                progress.hide();
-                Ext.MessageBox.alert('Erreur', response.responseText || 'Impossible de charger les lots du produit.');
-            }
-        });
+        loadPerimes(true);
     },
 
 addPeremptiondate: function (grid, rowIndex) {

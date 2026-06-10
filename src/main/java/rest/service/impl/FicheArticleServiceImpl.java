@@ -173,11 +173,11 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
             List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
                     nbreMois, dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, emp);
-            cq.select(cb.construct(commonTasks.dto.LotDTO.class, joinLot.get(TFamille_.intCIP),
-                    joinFa.get(TFamillearticle_.strLIBELLE), joinFaz.get(TZoneGeographique_.strLIBELLEE),
-                    joinLot.get(TFamille_.strNAME), root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION),
-                    joinFaG.get(TGrossiste_.strLIBELLE), root.get(TLot_.intNUMBER),
-                    cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
+            cq.select(cb.construct(commonTasks.dto.LotDTO.class, root.get(TLot_.lgLOTID),
+                    joinLot.get(TFamille_.intCIP), joinFa.get(TFamillearticle_.strLIBELLE),
+                    joinFaz.get(TZoneGeographique_.strLIBELLEE), joinLot.get(TFamille_.strNAME),
+                    root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION), joinFaG.get(TGrossiste_.strLIBELLE),
+                    root.get(TLot_.intNUMBER), cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
                     cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE))))
 
                     .orderBy(cb.asc(joinFaz.get(TZoneGeographique_.strLIBELLEE)), cb.asc(root.get(TLot_.dtPEREMPTION)));

@@ -17,6 +17,7 @@ import util.DateConverter;
  */
 public class LotDTO {
 
+    private String lgLOTID;
     private String codeCip;
     private String libelleFamille;
     private String libelleRayon;
@@ -35,6 +36,14 @@ public class LotDTO {
     private Long totalValeurVente;
 
     public LotDTO() {
+    }
+
+    public String getLgLOTID() {
+        return lgLOTID;
+    }
+
+    public void setLgLOTID(String lgLOTID) {
+        this.lgLOTID = lgLOTID;
     }
 
     public String getCodeCip() {
@@ -163,8 +172,10 @@ public class LotDTO {
         this.totalValeurVente = totalValeurVente;
     }
 
-    public LotDTO(String codeCip, String libelleFamille, String libelleRayon, String libelle, String numLot,
-            Date datePerement, String libelleGrossiste, Integer quantiteLot, Integer valeurAchat, Integer valeurVente) {
+    public LotDTO(String lgLOTID, String codeCip, String libelleFamille, String libelleRayon, String libelle,
+            String numLot, Date datePerement, String libelleGrossiste, Integer quantiteLot, Integer valeurAchat,
+            Integer valeurVente) {
+        this.lgLOTID = lgLOTID;
         this.codeCip = codeCip;
         this.libelleFamille = libelleFamille;
         this.libelleRayon = libelleRayon;
