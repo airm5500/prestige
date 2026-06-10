@@ -228,129 +228,107 @@ public class StatisticSales extends bll.bllBase {
 
     public JSONArray getSalesByOperateur(String dt_start, String dt_end, String search_value) {
         JSONArray array = new JSONArray();
-        if (!"".equals(dt_start)) {
-            Date dtstart = java.sql.Date.valueOf(dt_start);
-            Set<TUser> operateur = new HashSet<>();
-            List<TPreenregistrement> listprePreenregistrements = new ArrayList<>();
-            try {
-                if (!"".equals(dt_end) && !dt_start.equals(dt_end)) {
-                    Date dtend = java.sql.Date.valueOf(dt_end);
-                    listprePreenregistrements = this.getOdataManager().getEm().createQuery(
-                            "SELECT o FROM  TPreenregistrement o WHERE o.dtCREATED BETWEEN ?1 AND ?2  AND o.intPRICE >0 AND o.bISCANCEL = FALSE AND o.strSTATUT =?3 AND (o.lgUSERVENDEURID.strFIRSTNAME LIKE ?4 OR  o.lgUSERVENDEURID.strLASTNAME LIKE ?4 ) ORDER BY o.lgUSERVENDEURID.strFIRSTNAME,o.lgUSERVENDEURID.strLASTNAME ")
-                            .setParameter(1, dtstart).setParameter(2, dtend)
-                            .setParameter(3, commonparameter.statut_is_Closed).setParameter(4, search_value + "%")
-                            .getResultList();
-                } else {
+        if ("".equals(dt_start) || dt_start == null) {
+            return array;
+        }
+        if (search_value == null) {
+            search_value = "";
+        }
+        try {
+            // Borne basse incluse. Borne haute exclusive = lendemain de dt_end :
+            // dtCREATED etant un TIMESTAMP, un "<= dt_end" (ou BETWEEN) ignorerait
+            // toutes les ventes du dernier jour faites apres minuit.
+            Date dateDebut = java.sql.Date.valueOf(dt_start);
+            boolean hasEnd = (dt_end != null) && !"".equals(dt_end);
+            Date dateFinExclusive = hasEnd
+                    ? java.sql.Date.valueOf(LocalDate.parse(dt_end).plusDays(1))
+                    : null;
 
-                    listprePreenregistrements = this.getOdataManager().getEm().createQuery(
-                            "SELECT o FROM  TPreenregistrement o WHERE o.dtCREATED >= ?1 AND o.intPRICE >0 AND o.strSTATUT =?2 AND o.bISCANCEL = FALSE AND (o.lgUSERVENDEURID.strFIRSTNAME LIKE ?3 OR  o.lgUSERVENDEURID.strLASTNAME LIKE ?3 ) ORDER BY o.dtCREATED DESC")
-                            .setParameter(1, dtstart).setParameter(2, commonparameter.statut_is_Closed)
-                            .setParameter(3, search_value + "%").getResultList();
-                    for (TPreenregistrement tPreenregistrement : listprePreenregistrements) {
-                        this.refresh(tPreenregistrement);
+            // Agregation directe en base (GROUP BY operateur) plutot que de charger
+            // toutes les entites puis d'agreger en Java : 1 requete au lieu de N+1.
+            String jpql = "SELECT o.lgUSERVENDEURID.lgUSERID, o.lgUSERVENDEURID.strFIRSTNAME, o.lgUSERVENDEURID.strLASTNAME, "
+                    + "COUNT(o), "
+                    + "SUM(o.intPRICE), "
+                    + "SUM(o.intPRICEREMISE), "
+                    + "SUM(CASE WHEN o.strTYPEVENTE = :ord AND o.intCUSTPART = 0 THEN 1 ELSE 0 END), "
+                    + "SUM(CASE WHEN o.strTYPEVENTE = :ord AND o.intCUSTPART = 0 THEN (o.intPRICE - o.intPRICEREMISE) ELSE 0 END), "
+                    + "SUM(CASE WHEN o.strTYPEVENTE = :ord AND o.intCUSTPART <> 0 THEN 1 ELSE 0 END), "
+                    + "SUM(CASE WHEN o.strTYPEVENTE = :ord AND o.intCUSTPART <> 0 THEN (o.intPRICE - o.intPRICEREMISE) ELSE 0 END), "
+                    + "SUM(CASE WHEN o.strTYPEVENTE = :nonord THEN 1 ELSE 0 END), "
+                    + "SUM(CASE WHEN o.strTYPEVENTE = :nonord THEN (o.intPRICE - o.intPRICEREMISE) ELSE 0 END) "
+                    + "FROM TPreenregistrement o "
+                    + "WHERE o.dtCREATED >= :dateDebut "
+                    + (hasEnd ? "AND o.dtCREATED < :dateFin " : "")
+                    + "AND o.intPRICE > 0 AND o.bISCANCEL = FALSE AND o.strSTATUT = :statut "
+                    + "AND (o.lgUSERVENDEURID.strFIRSTNAME LIKE :search OR o.lgUSERVENDEURID.strLASTNAME LIKE :search) "
+                    + "GROUP BY o.lgUSERVENDEURID.lgUSERID, o.lgUSERVENDEURID.strFIRSTNAME, o.lgUSERVENDEURID.strLASTNAME "
+                    + "ORDER BY o.lgUSERVENDEURID.strFIRSTNAME, o.lgUSERVENDEURID.strLASTNAME";
 
-                    }
-                }
-                for (TPreenregistrement OPreenregistrement : listprePreenregistrements) {
-                    this.refresh(OPreenregistrement);
-                }
-                int totalcount = 0;
-                double totalamount = 0;
-                for (TPreenregistrement listprePreenregistrement : listprePreenregistrements) {
-                    totalamount += (listprePreenregistrement.getIntPRICE()
-                            - listprePreenregistrement.getIntPRICEREMISE());
-                    totalcount++;
-
-                    operateur.add(listprePreenregistrement.getLgUSERVENDEURID());
-
-                }
-                int id = 0;
-                for (Iterator<TUser> iterator = operateur.iterator(); iterator.hasNext();) {
-                    JSONObject json = new JSONObject();
-                    id++;
-                    TUser next = iterator.next();
-
-                    json.put("Operateur",
-                            next.getStrFIRSTNAME().substring(0, 1).toUpperCase() + "." + next.getStrLASTNAME());
-                    double amount = 0;
-                    double amount_vo = 0, amount_vop = 0;
-                    double amount_vno = 0;
-                    int count = 0, count_vo = 0, count_vop = 0, count_vno = 0;
-                    double net_ttc = 0;
-                    double remise = 0;
-                    double panier_moy_vo = 0, panier_moy_vno = 0, panier_moy = 0, CA = 0;
-                    for (TPreenregistrement listprePreenregistrement : listprePreenregistrements) {
-
-                        if (next.getLgUSERID().equals(listprePreenregistrement.getLgUSERVENDEURID().getLgUSERID())) {
-                            count++;
-                            amount += listprePreenregistrement.getIntPRICE();
-                            remise += listprePreenregistrement.getIntPRICEREMISE();
-                            if (Parameter.KEY_VENTE_ORDONNANCE.equals(listprePreenregistrement.getStrTYPEVENTE())) {
-
-                                if (listprePreenregistrement.getIntCUSTPART() == 0) {
-                                    count_vo++;
-                                    amount_vo += (listprePreenregistrement.getIntPRICE()
-                                            - listprePreenregistrement.getIntPRICEREMISE());
-                                } else {
-                                    count_vop++;
-                                    amount_vop += (listprePreenregistrement.getIntPRICE()
-                                            - listprePreenregistrement.getIntPRICEREMISE());
-                                }
-                            }
-                            if (Parameter.KEY_VENTE_NON_ORDONNANCEE
-                                    .equals(listprePreenregistrement.getStrTYPEVENTE())) {
-                                count_vno++;
-                                amount_vno += (listprePreenregistrement.getIntPRICE()
-                                        - listprePreenregistrement.getIntPRICEREMISE());
-                            }
-                        }
-
-                        net_ttc = amount - remise;
-                        json.put("id", id);
-                        json.put("NB CLIENT", count);
-                        json.put("NB_VO", count_vo);
-                        json.put("NB_VNO", count_vno);
-                        json.put("NB_VOP", count_vop);
-
-                        json.put("VO_MONTANT", amount_vo);
-                        json.put("VNO_MONTANT", amount_vno);
-                        json.put("BRUT TTC", amount);
-                        json.put("NET TTC", net_ttc);
-                        json.put("REMISE", remise);
-                        json.put("VO_MONTANTP", amount_vop);
-                        if (count > 0) {
-                            panier_moy = net_ttc / count;
-
-                        }
-                        if (count_vop > 0 || count_vo > 0) {
-                            panier_moy_vo = (amount_vop + amount_vo) / (count_vop + count_vo);
-
-                        }
-
-                        if (count_vno > 0) {
-                            panier_moy_vno = amount_vno / count_vno;
-                        }
-
-                        json.put("PANIER_MOYEN_VNO", Math.round(panier_moy_vno));
-                        json.put("PANIER_MOYEN_VOP", Math.round(panier_moy_vo));
-
-                        if (net_ttc > 0 || totalamount > 0) {
-                            CA = (net_ttc * 100) / (totalamount);
-
-                        }
-
-                        json.put("CA", new BigDecimal(CA).setScale(2, RoundingMode.HALF_UP));
-
-                        json.put("PANIER MOYEN", Math.round(panier_moy));
-                        json.put("M Ord", (amount_vo + amount_vop));
-                        json.put("M Non Ord", amount_vno);
-
-                    }
-                    array.put(json);
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
+            Query query = this.getOdataManager().getEm().createQuery(jpql)
+                    .setParameter("ord", Parameter.KEY_VENTE_ORDONNANCE)
+                    .setParameter("nonord", Parameter.KEY_VENTE_NON_ORDONNANCEE)
+                    .setParameter("dateDebut", dateDebut)
+                    .setParameter("statut", commonparameter.statut_is_Closed)
+                    .setParameter("search", search_value + "%");
+            if (hasEnd) {
+                query.setParameter("dateFin", dateFinExclusive);
             }
+
+            List<Object[]> rows = query.getResultList();
+
+            // Total general des nets (brut - remise), base du calcul du %CA.
+            double totalamount = 0;
+            for (Object[] row : rows) {
+                totalamount += (((Number) row[4]).doubleValue() - ((Number) row[5]).doubleValue());
+            }
+
+            int id = 0;
+            for (Object[] row : rows) {
+                id++;
+                String firstName = (String) row[1];
+                String lastName = (String) row[2];
+                long count = ((Number) row[3]).longValue();
+                double amount = ((Number) row[4]).doubleValue();
+                double remise = ((Number) row[5]).doubleValue();
+                long count_vo = ((Number) row[6]).longValue();
+                double amount_vo = ((Number) row[7]).doubleValue();
+                long count_vop = ((Number) row[8]).longValue();
+                double amount_vop = ((Number) row[9]).doubleValue();
+                long count_vno = ((Number) row[10]).longValue();
+                double amount_vno = ((Number) row[11]).doubleValue();
+
+                double net_ttc = amount - remise;
+                double panier_moy = count > 0 ? net_ttc / count : 0;
+                double panier_moy_vo = (count_vop + count_vo) > 0
+                        ? (amount_vop + amount_vo) / (count_vop + count_vo) : 0;
+                double panier_moy_vno = count_vno > 0 ? amount_vno / count_vno : 0;
+                double CA = totalamount != 0 ? (net_ttc * 100) / totalamount : 0;
+
+                JSONObject json = new JSONObject();
+                json.put("id", id);
+                json.put("Operateur",
+                        firstName.substring(0, 1).toUpperCase() + "." + lastName);
+                json.put("NB CLIENT", count);
+                json.put("NB_VO", count_vo);
+                json.put("NB_VNO", count_vno);
+                json.put("NB_VOP", count_vop);
+                json.put("VO_MONTANT", amount_vo);
+                json.put("VNO_MONTANT", amount_vno);
+                json.put("BRUT TTC", amount);
+                json.put("NET TTC", net_ttc);
+                json.put("REMISE", remise);
+                json.put("VO_MONTANTP", amount_vop);
+                json.put("PANIER_MOYEN_VNO", Math.round(panier_moy_vno));
+                json.put("PANIER_MOYEN_VOP", Math.round(panier_moy_vo));
+                json.put("CA", new BigDecimal(CA).setScale(2, RoundingMode.HALF_UP));
+                json.put("PANIER MOYEN", Math.round(panier_moy));
+                json.put("M Ord", (amount_vo + amount_vop));
+                json.put("M Non Ord", amount_vno);
+
+                array.put(json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return array;
 
