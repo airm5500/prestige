@@ -1002,12 +1002,13 @@ public class StatisticSales extends bll.bllBase {
     public long getFrequentationCount(String dt_start, String dt_end) {
         long count = 0l;
         try {
+            String dtEndExclusive = LocalDate.parse(dt_end).plusDays(1).toString();
             Object obj = this.getOdataManager().getEm().createNativeQuery(
                     "SELECT COUNT(*) FROM (SELECT 1 FROM t_preenregistrement p WHERE p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed' "
-                            + "AND p.`dt_CREATED` >= :dtStart AND p.`dt_CREATED` < DATE_ADD(:dtEnd, INTERVAL 1 DAY) "
+                            + "AND p.`dt_CREATED` >= ?1 AND p.`dt_CREATED` < ?2 "
                             + "GROUP BY p.`lg_USER_VENDEUR_ID`,DATE(p.`dt_CREATED`)) t")
-                    .setParameter("dtStart", dt_start)
-                    .setParameter("dtEnd", dt_end)
+                    .setParameter(1, dt_start)
+                    .setParameter(2, dtEndExclusive)
                     .getSingleResult();
 
             count = (obj != null) ? Long.parseLong(obj.toString()) : 0L;
@@ -1092,14 +1093,15 @@ public class StatisticSales extends bll.bllBase {
                 + "                ROUND(SUM((CASE WHEN HOUR(o.`dt_CREATED`)='19'  THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF (HOUR(o.`dt_CREATED`)='19' ,1, NULL)),0) AS `PAN_MOY_HUIT`,  \n"
                 + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23'),1, NULL)),0) AS `PAN_MOY_NEUF` \n"
                 + "FROM t_preenregistrement o,t_user u WHERE  u.`lg_USER_ID`=o.`lg_USER_VENDEUR_ID` AND "
-                + "o.`dt_CREATED` >= :dtStart AND o.`dt_CREATED` < DATE_ADD(:dtEnd, INTERVAL 1 DAY) "
+                + "o.`dt_CREATED` >= ?1 AND o.`dt_CREATED` < ?2 "
                 + "AND o.`int_PRICE`>0 AND o.`b_IS_CANCEL`=0 AND o.`str_STATUT`='is_Closed' GROUP BY o.`lg_USER_VENDEUR_ID` ,DATE(o.`dt_CREATED`) ORDER BY DATE(o.`dt_CREATED`) DESC  LIMIT "
                 + start + "," + limit + "   ";
 
         try {
+            String dtEndExclusive = LocalDate.parse(dt_end).plusDays(1).toString();
             List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query)
-                    .setParameter("dtStart", dt_start)
-                    .setParameter("dtEnd", dt_end)
+                    .setParameter(1, dt_start)
+                    .setParameter(2, dtEndExclusive)
                     .getResultList();
 
             for (Object[] objects : list) {
