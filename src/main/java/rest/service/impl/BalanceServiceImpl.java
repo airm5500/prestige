@@ -121,6 +121,8 @@ public class BalanceServiceImpl implements BalanceService {
 
     private static final String TYPE_REGELEMENT_QUERY = "SELECT SUM(vr.flaged_amount) AS flaged_amount, p.`lg_TYPE_VENTE_ID` AS typeVente, r.`str_NAME` AS libelle, vr.type_regelement AS typeReglement,SUM(vr.montant) AS montant,SUM(vr.montant_attentu) AS montant_attendu,SUM(vr.ug_amount) AS ug_amount,SUM(vr.ug_amount_net) AS ug_amount_net,SUM(vr.amount_non_ca) AS amount_non_ca FROM  vente_reglement vr JOIN t_preenregistrement p ON p.`lg_PREENREGISTREMENT_ID`=vr.vente_id JOIN mvttransaction m ON m.pkey=p.`lg_PREENREGISTREMENT_ID` JOIN t_type_reglement r ON r.`lg_TYPE_REGLEMENT_ID`=vr.type_regelement WHERE DATE(p.`dt_UPDATED`) BETWEEN   ?3 AND ?4 AND p.`str_STATUT`='is_Closed'  AND p.`lg_TYPE_VENTE_ID` <>  ?1  AND m.`lg_EMPLACEMENT_ID` =?2 AND p.imported=0 {excludeStatement}  GROUP BY typeReglement,typeVente ";
 
+    private static final String TYPE_REGELEMENT_QUERY_BY_DAY = "SELECT DATE_FORMAT(p.`dt_UPDATED`,'%Y-%m-%d') AS mvtDate, SUM(vr.flaged_amount) AS flaged_amount, p.`lg_TYPE_VENTE_ID` AS typeVente, r.`str_NAME` AS libelle, vr.type_regelement AS typeReglement,SUM(vr.montant) AS montant,SUM(vr.montant_attentu) AS montant_attendu,SUM(vr.ug_amount) AS ug_amount,SUM(vr.ug_amount_net) AS ug_amount_net,SUM(vr.amount_non_ca) AS amount_non_ca FROM  vente_reglement vr JOIN t_preenregistrement p ON p.`lg_PREENREGISTREMENT_ID`=vr.vente_id JOIN mvttransaction m ON m.pkey=p.`lg_PREENREGISTREMENT_ID` JOIN t_type_reglement r ON r.`lg_TYPE_REGLEMENT_ID`=vr.type_regelement WHERE p.`dt_UPDATED` >= ?3 AND p.`dt_UPDATED` < DATE_ADD(?4, INTERVAL 1 DAY) AND p.`str_STATUT`='is_Closed'  AND p.`lg_TYPE_VENTE_ID` <>  ?1  AND m.`lg_EMPLACEMENT_ID` =?2 AND p.imported=0 {excludeStatement}  GROUP BY mvtDate,typeReglement,typeVente ";
+
     private final Comparator<TableauBaordPhDTO> comparator = Comparator.comparing(TableauBaordPhDTO::getMvtDate);
 
     @PersistenceContext(unitName = "JTA_UNIT")
@@ -935,13 +937,16 @@ public class BalanceServiceImpl implements BalanceService {
         List<TableauBaordPhDTO> list = new ArrayList<>();
         boolean checkUg = checkUg();
         if (CollectionUtils.isNotEmpty(tuple)) {
+            // Une seule requete groupee par jour, puis lookup en memoire (evite le N+1 par jour)
+            Map<String, List<VenteReglementReportDTO>> reglementsByDay = fetchByModeReglementsGroupByDay(balanceParams);
             for (Tuple t : tuple) {
                 TableauBaordPhDTO o = new TableauBaordPhDTO();
 
                 int flagedAmountModeReglement = 0;
                 int montantAttentu = 0;
                 o.setVente(true);
-                o.setMvtDate(LocalDate.parse(t.get("mvtDate", String.class)));
+                String mvtDay = t.get("mvtDate", String.class);
+                o.setMvtDate(LocalDate.parse(mvtDay));
                 int montantTTC = t.get("montantTTCDetatil", BigDecimal.class).intValue();
                 int montantNet = t.get("montantNet", BigDecimal.class).intValue();
                 int montantRemise = t.get("montantRemise", BigDecimal.class).intValue();
@@ -953,10 +958,8 @@ public class BalanceServiceImpl implements BalanceService {
                 o.setMontantRemise(montantRemise);
                 o.setMontantCredit(montantCredit + montantDiffere);
                 o.setNbreVente(totalVente);
-                balanceParams.setDtStart(o.getMvtDate().toString());
-                balanceParams.setDtEnd(balanceParams.getDtStart());
-                List<VenteReglementReportDTO> reglementReports = fetchByModeReglements(balanceParams).stream()
-                        .map(this::buildVenteReglementReportDTO).collect(Collectors.toList());
+                List<VenteReglementReportDTO> reglementReports = reglementsByDay.getOrDefault(mvtDay,
+                        Collections.emptyList());
 
                 for (VenteReglementReportDTO reglementReport : reglementReports) {
                     // montantRegle += reglementReport.getMontant();
@@ -1209,6 +1212,28 @@ public class BalanceServiceImpl implements BalanceService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return new ArrayList<>();
+        }
+    }
+
+    private Map<String, List<VenteReglementReportDTO>> fetchByModeReglementsGroupByDay(BalanceParamsDTO balanceParams) {
+        String sql = replacePlaceHolder(TYPE_REGELEMENT_QUERY_BY_DAY, balanceParams);
+        LOG.log(Level.INFO, "sql--- balance vente mode reglement (group by day) {0}", sql);
+        Map<String, List<VenteReglementReportDTO>> map = new HashMap<>();
+        try {
+            Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, Constant.DEPOT_EXTENSION)
+                    .setParameter(2, balanceParams.getEmplacementId())
+                    .setParameter(3, java.sql.Date.valueOf(balanceParams.getDtStart()))
+                    .setParameter(4, java.sql.Date.valueOf(balanceParams.getDtEnd()));
+            List<Tuple> rows = query.getResultList();
+            for (Tuple t : rows) {
+                String day = t.get("mvtDate", String.class);
+                map.computeIfAbsent(day, k -> new ArrayList<>()).add(buildVenteReglementReportDTO(t));
+            }
+            return map;
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return map;
         }
     }
 
