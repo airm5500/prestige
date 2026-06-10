@@ -96,9 +96,10 @@ public class DataReporingServiceImpl implements DataReporingService {
             String codeFamille, TUser u, String codeRayon, String codeGrossiste) {
         List<Predicate> predicates = new ArrayList<>();
         TEmplacement emp = u.getLgEMPLACEMENTID();
-        Predicate btw = cb.between(cb.function("DATE", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-        predicates.add(btw);
+        predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtStart.atStartOfDay())));
+        predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay())));
         predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
         predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
         predicates.add(cb.isFalse(join.get(TPreenregistrement_.bISCANCEL)));
@@ -248,9 +249,10 @@ public class DataReporingServiceImpl implements DataReporingService {
             String codeFamille, TUser u, String codeRayon, String codeGrossiste) {
         List<Predicate> predicates = new ArrayList<>();
         TEmplacement emp = u.getLgEMPLACEMENTID();
-        Predicate btw = cb.between(cb.function("DATE", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-        predicates.add(btw);
+        predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtStart.atStartOfDay())));
+        predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay())));
         predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
         predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
         predicates.add(cb.isFalse(join.get(TPreenregistrement_.bISCANCEL)));
@@ -374,9 +376,10 @@ public class DataReporingServiceImpl implements DataReporingService {
             String codeFamille, TUser u, String codeRayon, String codeGrossiste, String gammeId) {
         List<Predicate> predicates = new ArrayList<>();
         TEmplacement emp = u.getLgEMPLACEMENTID();
-        Predicate btw = cb.between(cb.function("DATE", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-        predicates.add(btw);
+        predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtStart.atStartOfDay())));
+        predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay())));
         predicates.add(cb.isNotNull(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.gamme)));
         predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
         predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
@@ -414,9 +417,10 @@ public class DataReporingServiceImpl implements DataReporingService {
             String codeFamille, TUser u, String codeRayon, String codeGrossiste, String laboratoireId) {
         List<Predicate> predicates = new ArrayList<>();
         TEmplacement emp = u.getLgEMPLACEMENTID();
-        Predicate btw = cb.between(cb.function("DATE", Date.class, join.get(TPreenregistrement_.dtUPDATED)),
-                java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-        predicates.add(btw);
+        predicates.add(cb.greaterThanOrEqualTo(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtStart.atStartOfDay())));
+        predicates.add(cb.lessThan(join.get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay())));
         predicates.add(cb.isNotNull(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.laboratoire)));
         predicates.add(cb.equal(join.get(TPreenregistrement_.lgUSERID).get(TUser_.lgEMPLACEMENTID), emp));
         predicates.add(cb.equal(join.get(TPreenregistrement_.strSTATUT), DateConverter.STATUT_IS_CLOSED));
@@ -748,13 +752,12 @@ public class DataReporingServiceImpl implements DataReporingService {
                 .isFalse(root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID).get(TPreenregistrement_.bISCANCEL)));
         predicates.add(cb.greaterThan(
                 root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID).get(TPreenregistrement_.intPRICE), 0));
-        Predicate btw = cb
-                .between(
-                        cb.function("DATE", Date.class,
-                                root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID)
-                                        .get(TPreenregistrement_.dtUPDATED)),
-                        java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-        predicates.add(btw);
+        predicates.add(cb.greaterThanOrEqualTo(
+                root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID).get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(LocalDate.parse(dtStart).atStartOfDay())));
+        predicates.add(cb.lessThan(
+                root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID).get(TPreenregistrement_.dtUPDATED),
+                java.sql.Timestamp.valueOf(LocalDate.parse(dtEnd).plusDays(1).atStartOfDay())));
         predicates.add(
                 cb.equal(root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID).get(TPreenregistrement_.lgUSERID)
                         .get(TUser_.lgEMPLACEMENTID).get(TEmplacement_.lgEMPLACEMENTID), emplacementId));
