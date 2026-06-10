@@ -48,6 +48,7 @@ import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Predicate;
@@ -142,6 +143,42 @@ public class DataReporingServiceImpl implements DataReporingService {
         return (Long) q.getSingleResult();
     }
 
+    /**
+     * Reproduit en SQL (clause HAVING) le calcul du pourcentage de marge fait
+     * cote Java dans FamilleArticleStatDTO : TRUNCATE(ROUND(MARGE / HT, 2) * 100),
+     * avec HT = SUM(prix) - SUM(remise) - SUM(tva) et MARGE = HT - SUM(achat).
+     * Permet de filtrer (et trier) cote base de donnees au lieu de charger tout
+     * le resultat groupe en memoire pour le filtrer via un stream Java.
+     */
+    private Predicate margePourcentageHaving(CriteriaBuilder cb, Root<TPreenregistrementDetail> root, MargeEnum filtre,
+            long critere) {
+        Expression<Integer> sumTtc = cb.sum(root.get(TPreenregistrementDetail_.intPRICE));
+        Expression<Integer> sumRemise = cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE));
+        Expression<Integer> sumTva = cb.sum(root.get(TPreenregistrementDetail_.montantTva));
+        Expression<Integer> sumAchat = cb.sum(cb.prod(root.get(TPreenregistrementDetail_.prixAchat),
+                root.get(TPreenregistrementDetail_.intQUANTITY)));
+        Expression<Integer> ht = cb.diff(cb.diff(sumTtc, sumRemise), sumTva);
+        Expression<Integer> marge = cb.diff(ht, sumAchat);
+        Expression<Double> rounded = cb.function("ROUND", Double.class, cb.quot(marge, ht), cb.literal(2));
+        Expression<Long> pourcentage = cb.function("TRUNCATE", Long.class, cb.prod(rounded, 100.0), cb.literal(0));
+        switch (filtre) {
+        case EQUAL:
+            return cb.equal(pourcentage, critere);
+        case NOT:
+            return cb.notEqual(pourcentage, critere);
+        case GREATER:
+            return cb.gt(pourcentage, critere);
+        case GREATER_EQUAL:
+            return cb.ge(pourcentage, critere);
+        case LESS:
+            return cb.lt(pourcentage, critere);
+        case LESS_EQUAL:
+            return cb.le(pourcentage, critere);
+        default:
+            return cb.conjunction();
+        }
+    }
+
     @Override
     public Pair<Long, List<FamilleArticleStatDTO>> margeProduitsVendus(String dtStart, String dtEnd, String codeFamille,
             Integer critere, String query, TUser u, String codeRayon, String codeGrossiste, int start, int limit,
@@ -170,9 +207,13 @@ public class DataReporingServiceImpl implements DataReporingService {
                     LocalDate.parse(dtEnd), query, codeFamille, u, codeRayon, codeGrossiste);
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+            boolean filtreMarge = critere != null && filtre != null && filtre != MargeEnum.ALL;
+            if (filtreMarge) {
+                cq.having(margePourcentageHaving(cb, root, filtre, critere.longValue()));
+            }
             TypedQuery<FamilleArticleStatDTO> q = getEntityManager().createQuery(cq);
             Long count = 0l;
-            if (critere == null || filtre == MargeEnum.ALL) {
+            if (!filtreMarge) {
                 if (!all) {
                     q.setFirstResult(start);
                     q.setMaxResults(limit);
@@ -181,46 +222,16 @@ public class DataReporingServiceImpl implements DataReporingService {
 
                 return Pair.of(count, q.getResultList());
             } else {
-                List<FamilleArticleStatDTO> l = new ArrayList<>();
-                long critere0 = Long.valueOf(critere);
-                switch (filtre) {
-
-                case EQUAL:
-                    l = q.getResultList().stream().filter(x -> x.getPourcentageCumulMage() == critere0)
-                            .collect(Collectors.toList());
-                    break;
-                case GREATER:
-                    l = q.getResultList().stream().filter(x -> x.getPourcentageCumulMage() > critere0)
-                            .collect(Collectors.toList());
-                    break;
-                case GREATER_EQUAL:
-                    l = q.getResultList().stream().filter(x -> x.getPourcentageCumulMage() >= critere0)
-                            .collect(Collectors.toList());
-                    break;
-                case LESS:
-                    l = q.getResultList().stream().filter(x -> x.getPourcentageCumulMage() < critere0)
-                            .collect(Collectors.toList());
-                    break;
-                case LESS_EQUAL:
-                    l = q.getResultList().stream().filter(x -> x.getPourcentageCumulMage() <= critere0)
-                            .collect(Collectors.toList());
-                    break;
-                case NOT:
-                    l = q.getResultList().stream().filter(x -> x.getPourcentageCumulMage() != critere0)
-                            .collect(Collectors.toList());
-                    break;
-
-                }
-
+                // Filtre sur le pourcentage de marge et tri pousses en SQL (HAVING + ORDER BY) :
+                // la liste est deja filtree et triee, on ne fait que decouper la page demandee.
+                List<FamilleArticleStatDTO> l = q.getResultList();
                 if (!all) {
                     count = (long) l.size();
-                    l.sort(Comparator.comparing(FamilleArticleStatDTO::getLibelle));
                     int limit0 = limit + start;
                     return Pair.of(count, l.subList(start, (limit0 <= l.size()) ? limit0 : l.size()));
                 } else {
                     return Pair.of(0L, l);
                 }
-
             }
 
         } catch (Exception e) {
