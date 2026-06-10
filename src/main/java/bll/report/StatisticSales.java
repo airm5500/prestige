@@ -1003,15 +1003,16 @@ public class StatisticSales extends bll.bllBase {
         long count = 0l;
         try {
             String dtEndExclusive = LocalDate.parse(dt_end).plusDays(1).toString();
+            // La vue affiche desormais une seule ligne cumulee sur la periode :
+            // le total vaut 1 s'il existe au moins une vente, 0 sinon.
             Object obj = this.getOdataManager().getEm().createNativeQuery(
-                    "SELECT COUNT(*) FROM (SELECT 1 FROM t_preenregistrement p WHERE p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed' "
-                            + "AND p.`dt_CREATED` >= ?1 AND p.`dt_CREATED` < ?2 "
-                            + "GROUP BY p.`lg_USER_VENDEUR_ID`,DATE(p.`dt_CREATED`)) t")
+                    "SELECT COUNT(*) FROM t_preenregistrement p WHERE p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed' "
+                            + "AND p.`dt_CREATED` >= ?1 AND p.`dt_CREATED` < ?2")
                     .setParameter(1, dt_start)
                     .setParameter(2, dtEndExclusive)
                     .getSingleResult();
 
-            count = (obj != null) ? Long.parseLong(obj.toString()) : 0L;
+            count = (obj != null && Long.parseLong(obj.toString()) > 0) ? 1L : 0L;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -1020,158 +1021,142 @@ public class StatisticSales extends bll.bllBase {
 
     public List<EntityData> analyseFrequentation(String dt_start, String dt_end, int start, int limit) {
         List<EntityData> data = new ArrayList<>();
-        String query = " SELECT DATE(o.`dt_CREATED`) AS DATEOPERATION, CONCAT(ucase(substr(u.`str_FIRST_NAME`,1,1)),'.',u.`str_LAST_NAME`) AS VENDEUR, \n"
-                + "                COUNT(IF ((HOUR(o.`dt_CREATED`)>='0' AND HOUR(o.`dt_CREATED`)<='6'),1, NULL)) AS `DIX_COUNT`,\n"
-                + "                SUM((CASE WHEN (HOUR(o.`dt_CREATED`)<='0' AND HOUR(o.`dt_CREATED`)<='6') THEN o.`int_PRICE` ELSE 0 END)) AS `DIX_MONTANT`, \n"
-                + "                COUNT(IF ((HOUR(o.`dt_CREATED`)>='7' AND HOUR(o.`dt_CREATED`)<='8'),1, NULL)) AS `UN_COUNT`,\n"
-                + "                SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='7' AND HOUR(o.`dt_CREATED`)<='8') THEN o.`int_PRICE` ELSE 0 END)) AS `UN_MONTANT`, \n"
-                + "                COUNT(IF ((HOUR(o.`dt_CREATED`)>='9' AND HOUR(o.`dt_CREATED`)<='10'),1, NULL)) AS `DEUX_COUNT`,\n"
-                + "                SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='9' AND HOUR(o.`dt_CREATED`)<='10') THEN o.`int_PRICE` ELSE 0 END)) AS `DEUX_MONTANT`, \n"
-                + "                COUNT(IF ((HOUR(o.`dt_CREATED`)>='11' AND HOUR(o.`dt_CREATED`)<='13'),1, NULL)) AS `TROIS_COUNT`,\n"
-                + "                SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='11' AND HOUR(o.`dt_CREATED`)<='13') THEN o.`int_PRICE` ELSE 0 END)) AS `TROIS_MONTANT` , \n"
-                + "                COUNT(IF ((HOUR(o.`dt_CREATED`)>='14' AND HOUR(o.`dt_CREATED`)<='15'),1, NULL)) AS `QUATRE_COUNT`,\n"
-                + "                SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='14' AND HOUR(o.`dt_CREATED`)<='15') THEN o.`int_PRICE` ELSE 0 END)) AS `QUATRE_MONTANT`, \n"
-                + "                COUNT(IF (HOUR(o.`dt_CREATED`)='16' ,1, NULL)) AS `CINQ_COUNT`,\n"
-                + "                SUM((CASE WHEN HOUR(o.`dt_CREATED`)='16'  THEN o.`int_PRICE` ELSE 0 END)) AS `CINQ_MONTANT`, \n"
-                + "                COUNT(IF (HOUR(o.`dt_CREATED`)='17' ,1, NULL))  AS `SIX_COUNT`,\n"
-                + "                SUM((CASE WHEN HOUR(o.`dt_CREATED`)='17' THEN o.`int_PRICE` ELSE 0 END)) AS `SIX_MONTANT` ,\n"
-                + "                COUNT(IF (HOUR(o.`dt_CREATED`)='18' ,1, NULL)) AS  `SEPT_COUNT`,\n"
-                + "                SUM((CASE WHEN HOUR(o.`dt_CREATED`)='18'  THEN o.`int_PRICE` ELSE 0 END)) AS `SEPT_MONTANT`, \n"
-                + "                COUNT(IF (HOUR(o.`dt_CREATED`)='19' ,1, NULL))  AS `HUIT_COUNT`,\n"
-                + "                SUM((CASE WHEN HOUR(o.`dt_CREATED`)='19'  THEN o.`int_PRICE` ELSE 0 END)) AS `HUIT_MONTANT`, \n"
-                + "                COUNT(IF ((HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23'),1, NULL)) AS `NEUF_COUNT`,\n"
-                + "                 SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23') THEN o.`int_PRICE` ELSE 0 END))  AS `NEUF_MONTANT` ,\n"
-                + "               \n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)>='0' AND HOUR(p.`dt_CREATED`)<='6') AS `DIX_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)>='7' AND HOUR(p.`dt_CREATED`)<='8') AS `UN_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)>='9' AND HOUR(p.`dt_CREATED`)<='10') AS `DEUX_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)>='11' AND HOUR(p.`dt_CREATED`)<='13') AS `TROIS_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)>='14' AND HOUR(p.`dt_CREATED`)<='15') AS `QUATRE_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)='16' ) AS `CINQ_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)='17' ) AS `SIX_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)='18' ) AS `SEPT_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)='19' ) AS `HUIT_REFERNCEVALUE`,\n"
-                + "                (SELECT SUM(d.`int_QUANTITY`) FROM t_preenregistrement_detail d,t_preenregistrement p WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID`\n"
-                + "                AND p.`lg_USER_VENDEUR_ID`=o.`lg_USER_VENDEUR_ID` AND p.`int_PRICE`>0 AND \n"
-                + "                p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'  AND p.`dt_CREATED`>=DATE(o.`dt_CREATED`) AND p.`dt_CREATED`<DATE(o.`dt_CREATED`) + INTERVAL 1 DAY AND\n"
-                + "                HOUR(p.`dt_CREATED`)>='20' AND HOUR(p.`dt_CREATED`)<='23') AS `NEUF_REFERNCEVALUE`,\n"
-                + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='0' AND HOUR(o.`dt_CREATED`)<='6') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)<='0' AND HOUR(o.`dt_CREATED`)<'7'),1, NULL)),0) AS `PAN_MOY_DIX`,\n"
-                + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='7' AND HOUR(o.`dt_CREATED`)<='8') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='7' AND HOUR(o.`dt_CREATED`)<'9'),1, NULL)),0) AS `PAN_MOY_UN`, \n"
-                + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='9' AND HOUR(o.`dt_CREATED`)<='10') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='9' AND HOUR(o.`dt_CREATED`)<'11'),1, NULL)),0) AS `PAN_MOY_DEUX`, \n"
-                + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='11' AND HOUR(o.`dt_CREATED`)<='13') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='11' AND HOUR(o.`dt_CREATED`)<'14'),1, NULL)),0) AS `PAN_MOY_TROIX`, \n"
-                + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='14' AND HOUR(o.`dt_CREATED`)<='15') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='14' AND HOUR(o.`dt_CREATED`)<'16'),1, NULL)),0) AS `PAN_MOY_QUATRE`, \n"
-                + "                ROUND(SUM((CASE WHEN HOUR(o.`dt_CREATED`)='16' THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF (HOUR(o.`dt_CREATED`)='16' ,1, NULL)),0) AS `PAN_MOY_CINQ`,\n"
-                + "                ROUND(SUM((CASE WHEN HOUR(o.`dt_CREATED`)='17'  THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF (HOUR(o.`dt_CREATED`)='17' ,1, NULL)),0) AS `PAN_MOY_SIX`,  \n"
-                + "                ROUND(SUM((CASE WHEN HOUR(o.`dt_CREATED`)='18' THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF (HOUR(o.`dt_CREATED`)='18' ,1, NULL)),0) AS `PAN_MOY_SEPT`,  \n"
-                + "                ROUND(SUM((CASE WHEN HOUR(o.`dt_CREATED`)='19'  THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF (HOUR(o.`dt_CREATED`)='19' ,1, NULL)),0) AS `PAN_MOY_HUIT`,  \n"
-                + "                ROUND(SUM((CASE WHEN (HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23') THEN o.`int_PRICE` ELSE 0 END))/COUNT(IF ((HOUR(o.`dt_CREATED`)>='20' AND HOUR(o.`dt_CREATED`)<='23'),1, NULL)),0) AS `PAN_MOY_NEUF` \n"
-                + "FROM t_preenregistrement o,t_user u WHERE  u.`lg_USER_ID`=o.`lg_USER_VENDEUR_ID` AND "
-                + "o.`dt_CREATED` >= ?1 AND o.`dt_CREATED` < ?2 "
-                + "AND o.`int_PRICE`>0 AND o.`b_IS_CANCEL`=0 AND o.`str_STATUT`='is_Closed' GROUP BY o.`lg_USER_VENDEUR_ID` ,DATE(o.`dt_CREATED`) ORDER BY DATE(o.`dt_CREATED`) DESC  LIMIT "
-                + start + "," + limit + "   ";
-
         try {
             String dtEndExclusive = LocalDate.parse(dt_end).plusDays(1).toString();
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query)
+
+            // Montant des ventes et nombre de ventes par tranche horaire, cumules sur
+            // toute la periode (sans distinction d'operateur ni de jour) : une seule ligne.
+            // Filtre sur dt_CREATED en plage (sargable) -> utilise l'index existant.
+            String montantQuery = "SELECT "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 7 AND 8 THEN o.`int_PRICE` ELSE 0 END) AS UN_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 7 AND 8 THEN 1 END) AS UN_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 9 AND 10 THEN o.`int_PRICE` ELSE 0 END) AS DEUX_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 9 AND 10 THEN 1 END) AS DEUX_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 11 AND 13 THEN o.`int_PRICE` ELSE 0 END) AS TROIS_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 11 AND 13 THEN 1 END) AS TROIS_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 14 AND 15 THEN o.`int_PRICE` ELSE 0 END) AS QUATRE_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 14 AND 15 THEN 1 END) AS QUATRE_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) = 16 THEN o.`int_PRICE` ELSE 0 END) AS CINQ_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) = 16 THEN 1 END) AS CINQ_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) = 17 THEN o.`int_PRICE` ELSE 0 END) AS SIX_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) = 17 THEN 1 END) AS SIX_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) = 18 THEN o.`int_PRICE` ELSE 0 END) AS SEPT_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) = 18 THEN 1 END) AS SEPT_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) = 19 THEN o.`int_PRICE` ELSE 0 END) AS HUIT_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) = 19 THEN 1 END) AS HUIT_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 20 AND 23 THEN o.`int_PRICE` ELSE 0 END) AS NEUF_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 20 AND 23 THEN 1 END) AS NEUF_COUNT, "
+                    + "SUM(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 0 AND 6 THEN o.`int_PRICE` ELSE 0 END) AS DIX_MONTANT, "
+                    + "COUNT(CASE WHEN HOUR(o.`dt_CREATED`) BETWEEN 0 AND 6 THEN 1 END) AS DIX_COUNT "
+                    + "FROM t_preenregistrement o "
+                    + "WHERE o.`dt_CREATED` >= ?1 AND o.`dt_CREATED` < ?2 "
+                    + "AND o.`int_PRICE`>0 AND o.`b_IS_CANCEL`=0 AND o.`str_STATUT`='is_Closed'";
+
+            Object[] m = (Object[]) this.getOdataManager().getEm().createNativeQuery(montantQuery)
                     .setParameter(1, dt_start)
                     .setParameter(2, dtEndExclusive)
-                    .getResultList();
+                    .getSingleResult();
 
-            for (Object[] objects : list) {
-                EntityData entityData = new EntityData();
-                entityData.setStr_value1(objects[0] + "");
-                entityData.setStr_value2(objects[1] + "");
-                entityData.setStr_value3("val_nbre_pan_lig");
-                String _1ref = "", _2ref = "", _3ref = "", _4ref = "", _5ref = "", _6ref = "", _7ref = "", _8ref = "",
-                        _9ref = "", _10ref = "", _11ref = "";
-                String _1rep = "", _2rep = "", _3rep = "", _4rep = "", _5rep = "", _6rep = "", _7rep = "", _8rep = "",
-                        _9rep = "", _10rep = "", _11rep = "";
-                _10rep = (objects[32] != null ? objects[32] : 0) + "";
-                _10ref = (objects[22] != null ? objects[22] : 0) + "";
-                _1rep = (objects[33] != null ? objects[33] : 0) + "";
-                _1ref = (objects[23] != null ? objects[23] : 0) + "";
-                _2rep = (objects[34] != null ? objects[34] : 0) + "";
-                _2ref = (objects[24] != null ? objects[24] : 0) + "";
-                _3rep = (objects[35] != null ? objects[35] : 0) + "";
-                _3ref = (objects[25] != null ? objects[25] : 0) + "";
-                _4rep = (objects[36] != null ? objects[36] : 0) + "";
-                _4ref = (objects[26] != null ? objects[26] : 0) + "";
-                _5rep = (objects[37] != null ? objects[37] : 0) + "";
-                _5ref = (objects[27] != null ? objects[27] : 0) + "";
-                _6rep = (objects[38] != null ? objects[38] : 0) + "";
-                _6ref = (objects[28] != null ? objects[28] : 0) + "";
-                _7rep = (objects[39] != null ? objects[39] : 0) + "";
-                _7ref = (objects[29] != null ? objects[29] : 0) + "";
-                _8rep = (objects[40] != null ? objects[40] : 0) + "";
-                _8ref = (objects[30] != null ? objects[30] : 0) + "";
-                _9rep = (objects[41] != null ? objects[41] : 0) + "";
-                _9ref = (objects[31] != null ? objects[31] : 0) + "";
-                entityData.setStr_value13(objects[3] + "_" + objects[2] + "_" + _10rep + "_" + _10ref);
-                entityData.setStr_value4(objects[5] + "_" + objects[4] + "_" + _1rep + "_" + _1ref + "");
-                entityData.setStr_value5(objects[7] + "_" + objects[6] + "_" + _2rep + "_" + _2ref + "");
-                entityData.setStr_value6(objects[9] + "_" + objects[8] + "_" + _3rep + "_" + _3ref + "");
-                entityData.setStr_value7(objects[11] + "_" + objects[10] + "_" + _4rep + "_" + _4ref + "");
-                entityData.setStr_value8(objects[13] + "_" + objects[12] + "_" + _5rep + "_" + _5ref + "");
-                entityData.setStr_value9(objects[15] + "_" + objects[14] + "_" + _6rep + "_" + _6ref + "");
-                entityData.setStr_value10(objects[17] + "_" + objects[16] + "_" + _7rep + "_" + _7ref + "");
-                entityData.setStr_value11(objects[19] + "_" + objects[18] + "_" + _8rep + "_" + _8ref + "");
-                entityData.setStr_value12(objects[21] + "_" + objects[20] + "_" + _9rep + "_" + _9ref + "");
+            // Nombre de lignes (quantites vendues) par tranche horaire, meme periode.
+            // Une seule jointure agregee remplace les anciennes sous-requetes correlees.
+            String refQuery = "SELECT "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) BETWEEN 7 AND 8 THEN d.`int_QUANTITY` ELSE 0 END) AS UN_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) BETWEEN 9 AND 10 THEN d.`int_QUANTITY` ELSE 0 END) AS DEUX_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) BETWEEN 11 AND 13 THEN d.`int_QUANTITY` ELSE 0 END) AS TROIS_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) BETWEEN 14 AND 15 THEN d.`int_QUANTITY` ELSE 0 END) AS QUATRE_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) = 16 THEN d.`int_QUANTITY` ELSE 0 END) AS CINQ_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) = 17 THEN d.`int_QUANTITY` ELSE 0 END) AS SIX_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) = 18 THEN d.`int_QUANTITY` ELSE 0 END) AS SEPT_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) = 19 THEN d.`int_QUANTITY` ELSE 0 END) AS HUIT_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) BETWEEN 20 AND 23 THEN d.`int_QUANTITY` ELSE 0 END) AS NEUF_REF, "
+                    + "SUM(CASE WHEN HOUR(p.`dt_CREATED`) BETWEEN 0 AND 6 THEN d.`int_QUANTITY` ELSE 0 END) AS DIX_REF "
+                    + "FROM t_preenregistrement_detail d, t_preenregistrement p "
+                    + "WHERE d.`lg_PREENREGISTREMENT_ID`=p.`lg_PREENREGISTREMENT_ID` "
+                    + "AND p.`dt_CREATED` >= ?1 AND p.`dt_CREATED` < ?2 "
+                    + "AND p.`int_PRICE`>0 AND p.`b_IS_CANCEL`=0 AND p.`str_STATUT`='is_Closed'";
 
-                long totalAmont = Long.valueOf(objects[3] + "") + Long.valueOf(objects[5] + "")
-                        + Long.valueOf(objects[7] + "") + Long.valueOf(objects[9] + "") + Long.valueOf(objects[11] + "")
-                        + Long.valueOf(objects[13] + "") + Long.valueOf(objects[15] + "")
-                        + Long.valueOf(objects[17] + "") + Long.valueOf(objects[19] + "")
-                        + Long.valueOf(objects[21] + "");
-                long totalCount = Long.valueOf(objects[2] + "") + Long.valueOf(objects[4] + "")
-                        + Long.valueOf(objects[6] + "") + Long.valueOf(objects[8] + "") + Long.valueOf(objects[10] + "")
-                        + Long.valueOf(objects[12] + "") + Long.valueOf(objects[14] + "")
-                        + Long.valueOf(objects[16] + "") + Long.valueOf(objects[18] + "")
-                        + Long.valueOf(objects[20] + "");
-                long totalPMOY = Long.valueOf(_10rep) + Long.valueOf(_1rep) + Long.valueOf(_2rep) + Long.valueOf(_3rep)
-                        + Long.valueOf(_4rep) + Long.valueOf(_5rep) + Long.valueOf(_6rep) + Long.valueOf(_7rep)
-                        + Long.valueOf(_8rep) + Long.valueOf(_9rep);
-                long totalREF = Long.valueOf(_10ref) + Long.valueOf(_1ref) + Long.valueOf(_2ref) + Long.valueOf(_3ref)
-                        + Long.valueOf(_4ref) + Long.valueOf(_5ref) + Long.valueOf(_6ref) + Long.valueOf(_7ref)
-                        + Long.valueOf(_8ref) + Long.valueOf(_9ref);
+            Object[] r = (Object[]) this.getOdataManager().getEm().createNativeQuery(refQuery)
+                    .setParameter(1, dt_start)
+                    .setParameter(2, dtEndExclusive)
+                    .getSingleResult();
 
-                entityData.setStr_value14(totalAmont + "_" + totalCount + "_" + totalPMOY + "_" + totalREF + "");
-                data.add(entityData);
-
+            // Tranches dans l'ordre UN..NEUF puis DIX (00:00-06:59).
+            long[] montant = new long[10];
+            long[] nbre = new long[10];
+            long[] ref = new long[10];
+            long totalCount = 0;
+            for (int i = 0; i < 10; i++) {
+                montant[i] = toLong(m[i * 2]);
+                nbre[i] = toLong(m[i * 2 + 1]);
+                ref[i] = toLong(r[i]);
+                totalCount += nbre[i];
             }
+
+            // Aucune vente sur la periode : pas de ligne (grille "Pas de donnees").
+            if (totalCount == 0) {
+                return data;
+            }
+
+            // Cellule = montant_nbreVentes_panierMoyen_nbreLignes
+            String[] cell = new String[10];
+            long totalAmont = 0, totalPMOY = 0, totalREF = 0;
+            for (int i = 0; i < 10; i++) {
+                long panmoy = (nbre[i] > 0) ? Math.round((double) montant[i] / nbre[i]) : 0;
+                cell[i] = montant[i] + "_" + nbre[i] + "_" + panmoy + "_" + ref[i];
+                totalAmont += montant[i];
+                totalPMOY += panmoy;
+                totalREF += ref[i];
+            }
+
+            EntityData entityData = new EntityData();
+            entityData.setStr_value1(buildPeriodLabel(dt_start, dt_end));
+            entityData.setStr_value2("CUMUL");
+            entityData.setStr_value3("val_nbre_pan_lig");
+            entityData.setStr_value4(cell[0]);   // 7:00 - 8:59
+            entityData.setStr_value5(cell[1]);   // 9:00 - 10:59
+            entityData.setStr_value6(cell[2]);   // 11:00 - 13:59
+            entityData.setStr_value7(cell[3]);   // 14:00 - 15:59
+            entityData.setStr_value8(cell[4]);   // 16:00 - 16:59
+            entityData.setStr_value9(cell[5]);   // 17:00 - 17:59
+            entityData.setStr_value10(cell[6]);  // 18:00 - 18:59
+            entityData.setStr_value11(cell[7]);  // 19:00 - 19:59
+            entityData.setStr_value12(cell[8]);  // 20:00 - 23:59
+            entityData.setStr_value13(cell[9]);  // 00:00 - 6:59
+            entityData.setStr_value14(totalAmont + "_" + totalCount + "_" + totalPMOY + "_" + totalREF);
+            data.add(entityData);
         } catch (Exception e) {
             e.printStackTrace();
-
         }
 
         return data;
 
+    }
+
+    // Convertit une valeur d'agregat SQL (BigDecimal/BigInteger/Long/null) en long.
+    private static long toLong(Object o) {
+        if (o == null) {
+            return 0L;
+        }
+        if (o instanceof Number) {
+            return ((Number) o).longValue();
+        }
+        try {
+            return Long.parseLong(o.toString().trim());
+        } catch (NumberFormatException e) {
+            return Math.round(Double.parseDouble(o.toString().trim()));
+        }
+    }
+
+    // Libelle de periode affiche dans la colonne "Jour" de la ligne cumulee.
+    private String buildPeriodLabel(String dt_start, String dt_end) {
+        try {
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            String debut = LocalDate.parse(dt_start).format(fmt);
+            String fin = LocalDate.parse(dt_end).format(fmt);
+            return debut.equals(fin) ? "Le " + debut : "Du " + debut + " au " + fin;
+        } catch (Exception e) {
+            return dt_start + " - " + dt_end;
+        }
     }
 
     // fonction de calcul pour les 20/80

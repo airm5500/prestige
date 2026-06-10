@@ -48,7 +48,7 @@
 
         json.put("id", i);
 
-        json.put("JOUR",date.formatterShort.format(java.sql.Date.valueOf(datas.get(i).getStr_value1())) );
+        json.put("JOUR", datas.get(i).getStr_value1());
         json.put("OP", datas.get(i).getStr_value2());
         json.put("VALUES", datas.get(i).getStr_value3());
         json.put("UN", datas.get(i).getStr_value4());
