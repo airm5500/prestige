@@ -175,8 +175,9 @@ public class DashBoardServiceImpl implements DashBoardService {
                     root.get(TDossierReglement_.lgFACTUREID).get(TFacture_.dblMONTANTRESTANT)));
             predicates.add(cb.equal(root.get(TDossierReglement_.lgUSERID).get(TUser_.lgEMPLACEMENTID)
                     .get(TEmplacement_.lgEMPLACEMENTID), emplacementId));
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TDossierReglement_.dtCREATED)),
-                    java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
+            Predicate btw = cb.and(
+                    cb.greaterThanOrEqualTo(root.get(TDossierReglement_.dtCREATED), java.sql.Date.valueOf(dtStart)),
+                    cb.lessThan(root.get(TDossierReglement_.dtCREATED), java.sql.Date.valueOf(dtEnd.plusDays(1))));
             predicates.add(btw);
             if (query != null && !"".equals(query)) {
                 List<String> or = getPayants(query).stream().map(TTiersPayant::getLgTIERSPAYANTID)
@@ -209,8 +210,9 @@ public class DashBoardServiceImpl implements DashBoardService {
             cq.select(cb.count(root));
             predicates.add(cb.equal(root.get(TDossierReglement_.lgUSERID).get(TUser_.lgEMPLACEMENTID)
                     .get(TEmplacement_.lgEMPLACEMENTID), emplacementId));
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TDossierReglement_.dtCREATED)),
-                    java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
+            Predicate btw = cb.and(
+                    cb.greaterThanOrEqualTo(root.get(TDossierReglement_.dtCREATED), java.sql.Date.valueOf(dtStart)),
+                    cb.lessThan(root.get(TDossierReglement_.dtCREATED), java.sql.Date.valueOf(dtEnd.plusDays(1))));
             predicates.add(btw);
             if (query != null && !"".equals(query)) {
                 List<String> or = getPayants(query).stream().map(TTiersPayant::getLgTIERSPAYANTID)
