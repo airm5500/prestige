@@ -1441,39 +1441,81 @@
 	</pageFooter>
 	<summary>
 		<band height="250">
-			<lineChart>
+			<multiAxisChart>
 				<chart evaluationTime="Report">
-					<reportElement x="0" y="10" width="812" height="230" uuid="48c81fbb-0423-4171-85ec-adfa6ea6e539"/>
+					<reportElement x="0" y="10" width="812" height="230" uuid="f9735a5a-465e-4305-9aee-4ccd1e3b9887"/>
 					<chartTitle>
-						<titleExpression><![CDATA["Evolution de l'affluence par tranche horaire (nombre de ventes)"]]></titleExpression>
+						<titleExpression><![CDATA["Evolution par tranche horaire : affluence et montant"]]></titleExpression>
 					</chartTitle>
-					<chartSubtitle/>
 					<chartLegend/>
 				</chart>
-				<categoryDataset>
-					<dataset>
-						<datasetRun subDataset="ds_evolution" uuid="aa34f137-a1b1-4785-90f7-370b7ef6e069">
-							<datasetParameter name="P_DATE_START">
-								<datasetParameterExpression><![CDATA[$P{P_DATE_START}]]></datasetParameterExpression>
-							</datasetParameter>
-							<datasetParameter name="P_DATE_END">
-								<datasetParameterExpression><![CDATA[$P{P_DATE_END}]]></datasetParameterExpression>
-							</datasetParameter>
-							<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
-						</datasetRun>
-					</dataset>
-					<categorySeries>
-						<seriesExpression><![CDATA["Nombre de ventes"]]></seriesExpression>
-						<categoryExpression><![CDATA[$F{HORAIRE}]]></categoryExpression>
-						<valueExpression><![CDATA[$F{NBRE}]]></valueExpression>
-					</categorySeries>
-				</categoryDataset>
-				<linePlot isShowShapes="true">
+				<multiAxisPlot>
 					<plot/>
-					<categoryAxisLabelExpression><![CDATA["Tranche horaire"]]></categoryAxisLabelExpression>
-					<valueAxisLabelExpression><![CDATA["Nombre de ventes"]]></valueAxisLabelExpression>
-				</linePlot>
-			</lineChart>
+					<axis position="leftOrTop">
+						<lineChart>
+							<chart>
+								<reportElement x="0" y="0" width="812" height="230" uuid="94d0c458-6004-4018-a0bf-c1db28ccd096"/>
+							</chart>
+							<categoryDataset>
+								<dataset>
+							<datasetRun subDataset="ds_evolution" uuid="1259edcb-47c4-4218-8e18-2c28f09cad09">
+								<datasetParameter name="P_DATE_START">
+									<datasetParameterExpression><![CDATA[$P{P_DATE_START}]]></datasetParameterExpression>
+								</datasetParameter>
+								<datasetParameter name="P_DATE_END">
+									<datasetParameterExpression><![CDATA[$P{P_DATE_END}]]></datasetParameterExpression>
+								</datasetParameter>
+								<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+							</datasetRun>
+						</dataset>
+								<categorySeries>
+									<seriesExpression><![CDATA["Nombre de ventes"]]></seriesExpression>
+									<categoryExpression><![CDATA[$F{HORAIRE}]]></categoryExpression>
+									<valueExpression><![CDATA[$F{NBRE}]]></valueExpression>
+								</categorySeries>
+							</categoryDataset>
+							<linePlot isShowShapes="true">
+								<plot>
+									<seriesColor seriesOrder="0" color="#3892D3"/>
+								</plot>
+								<categoryAxisLabelExpression><![CDATA["Tranche horaire"]]></categoryAxisLabelExpression>
+								<valueAxisLabelExpression><![CDATA["Nombre de ventes"]]></valueAxisLabelExpression>
+							</linePlot>
+						</lineChart>
+					</axis>
+					<axis position="rightOrBottom">
+						<lineChart>
+							<chart>
+								<reportElement x="0" y="0" width="812" height="230" uuid="c33e00f8-0700-4998-b824-a029d994c4f4"/>
+							</chart>
+							<categoryDataset>
+								<dataset>
+							<datasetRun subDataset="ds_evolution" uuid="9cdf00c1-9cd4-46d5-a334-3be55f8c5d52">
+								<datasetParameter name="P_DATE_START">
+									<datasetParameterExpression><![CDATA[$P{P_DATE_START}]]></datasetParameterExpression>
+								</datasetParameter>
+								<datasetParameter name="P_DATE_END">
+									<datasetParameterExpression><![CDATA[$P{P_DATE_END}]]></datasetParameterExpression>
+								</datasetParameter>
+								<connectionExpression><![CDATA[$P{REPORT_CONNECTION}]]></connectionExpression>
+							</datasetRun>
+						</dataset>
+								<categorySeries>
+									<seriesExpression><![CDATA["Montant ventes"]]></seriesExpression>
+									<categoryExpression><![CDATA[$F{HORAIRE}]]></categoryExpression>
+									<valueExpression><![CDATA[$F{MONTANT}]]></valueExpression>
+								</categorySeries>
+							</categoryDataset>
+							<linePlot isShowShapes="true">
+								<plot>
+									<seriesColor seriesOrder="0" color="#CC3333"/>
+								</plot>
+								<valueAxisLabelExpression><![CDATA["Montant ventes"]]></valueAxisLabelExpression>
+							</linePlot>
+						</lineChart>
+					</axis>
+				</multiAxisPlot>
+			</multiAxisChart>
 		</band>
 	</summary>
 </jasperReport>
