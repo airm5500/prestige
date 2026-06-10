@@ -1,23 +1,27 @@
 /* global Ext */
 
-// Construit les points de la courbe d'evolution (affluence = nombre de ventes)
-// par tranche horaire, dans l'ordre chronologique, a partir de la ligne cumulee.
+// Construit les points de la courbe d'evolution par tranche horaire, dans
+// l'ordre chronologique, a partir de la ligne cumulee : affluence (nombre de
+// ventes) et montant des ventes.
 function buildVisitorEvolutionData(record) {
-    function nbre(field) {
+    function part(field, index) {
         var v = record.get(field);
-        return v ? Number(v.split('_')[1]) : 0;
+        return v ? Number(v.split('_')[index]) : 0;
+    }
+    function point(horaire, field) {
+        return {HORAIRE: horaire, NBRE: part(field, 1), MONTANT: part(field, 0)};
     }
     return [
-        {HORAIRE: '00:00-6:59', NBRE: nbre('DIX')},
-        {HORAIRE: '7:00-8:59', NBRE: nbre('UN')},
-        {HORAIRE: '9:00-10:59', NBRE: nbre('DEUX')},
-        {HORAIRE: '11:00-13:59', NBRE: nbre('TROIS')},
-        {HORAIRE: '14:00-15:59', NBRE: nbre('QUATRE')},
-        {HORAIRE: '16:00-16:59', NBRE: nbre('CINQ')},
-        {HORAIRE: '17:00-17:59', NBRE: nbre('SIX')},
-        {HORAIRE: '18:00-18:59', NBRE: nbre('SEPT')},
-        {HORAIRE: '19:00-19:59', NBRE: nbre('HUIT')},
-        {HORAIRE: '20:00-23:59', NBRE: nbre('NEUF')}
+        point('00:00-6:59', 'DIX'),
+        point('7:00-8:59', 'UN'),
+        point('9:00-10:59', 'DEUX'),
+        point('11:00-13:59', 'TROIS'),
+        point('14:00-15:59', 'QUATRE'),
+        point('16:00-16:59', 'CINQ'),
+        point('17:00-17:59', 'SIX'),
+        point('18:00-18:59', 'SEPT'),
+        point('19:00-19:59', 'HUIT'),
+        point('20:00-23:59', 'NEUF')
     ];
 }
 
@@ -49,8 +53,11 @@ Ext.define('testextjs.view.Report.analyseFrequentationOff.analyseFrequentationOf
             flex: 1,
             animate: true,
             style: 'background:#fff',
+            legend: {
+                position: 'bottom'
+            },
             store: Ext.create('Ext.data.Store', {
-                fields: ['HORAIRE', 'NBRE'],
+                fields: ['HORAIRE', 'NBRE', 'MONTANT'],
                 data: []
             }),
             axes: [
@@ -63,6 +70,18 @@ Ext.define('testextjs.view.Report.analyseFrequentationOff.analyseFrequentationOf
                     grid: true
                 },
                 {
+                    type: 'Numeric',
+                    position: 'right',
+                    fields: ['MONTANT'],
+                    title: 'Montant ventes',
+                    minimum: 0,
+                    label: {
+                        renderer: function (v) {
+                            return Ext.util.Format.number(v, '0,000');
+                        }
+                    }
+                },
+                {
                     type: 'Category',
                     position: 'bottom',
                     fields: ['HORAIRE'],
@@ -73,13 +92,20 @@ Ext.define('testextjs.view.Report.analyseFrequentationOff.analyseFrequentationOf
                 {
                     type: 'line',
                     axis: 'left',
+                    title: 'Nombre de ventes',
                     xField: 'HORAIRE',
                     yField: 'NBRE',
                     smooth: true,
+                    style: {
+                        stroke: '#3892d3',
+                        'stroke-width': 2
+                    },
                     markerConfig: {
                         type: 'circle',
                         size: 4,
-                        radius: 4
+                        radius: 4,
+                        fill: '#3892d3',
+                        stroke: '#3892d3'
                     },
                     highlight: {
                         size: 7,
@@ -87,10 +113,41 @@ Ext.define('testextjs.view.Report.analyseFrequentationOff.analyseFrequentationOf
                     },
                     tips: {
                         trackMouse: true,
-                        width: 160,
+                        width: 170,
                         height: 30,
                         renderer: function (storeItem) {
                             this.setTitle(storeItem.get('HORAIRE') + ' : ' + storeItem.get('NBRE') + ' ventes');
+                        }
+                    }
+                },
+                {
+                    type: 'line',
+                    axis: 'right',
+                    title: 'Montant ventes',
+                    xField: 'HORAIRE',
+                    yField: 'MONTANT',
+                    smooth: true,
+                    style: {
+                        stroke: '#cc3333',
+                        'stroke-width': 2
+                    },
+                    markerConfig: {
+                        type: 'circle',
+                        size: 4,
+                        radius: 4,
+                        fill: '#cc3333',
+                        stroke: '#cc3333'
+                    },
+                    highlight: {
+                        size: 7,
+                        radius: 7
+                    },
+                    tips: {
+                        trackMouse: true,
+                        width: 200,
+                        height: 30,
+                        renderer: function (storeItem) {
+                            this.setTitle(storeItem.get('HORAIRE') + ' : ' + Ext.util.Format.number(storeItem.get('MONTANT'), '0,000'));
                         }
                     }
                 }
