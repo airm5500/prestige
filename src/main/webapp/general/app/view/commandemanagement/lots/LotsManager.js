@@ -41,8 +41,8 @@ Ext.define('testextjs.view.commandemanagement.lots.LotsManager', {
 
                                 grid.getStore().load({
                                     params: {
-                                        dt_start_vente: dt_start_vente,
-                                        dt_end_vente: dt_end_vente,
+                                        dtStart: dt_start_vente,
+                                        dtEnd: dt_end_vente,
                                         search_value: field.getValue()
                                     }
                                 });
@@ -109,8 +109,8 @@ Ext.define('testextjs.view.commandemanagement.lots.LotsManager', {
 
                             grid.getStore().load({
                                 params: {
-                                    dt_start_vente: dt_start_vente,
-                                    dt_end_vente: dt_end_vente,
+                                    dtStart: dt_start_vente,
+                                    dtEnd: dt_end_vente,
                                     search_value: search_value
                                 }
                             });

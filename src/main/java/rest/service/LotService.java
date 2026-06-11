@@ -14,7 +14,7 @@ import rest.service.dto.LotDTO;
 @Local
 public interface LotService {
 
-    JSONObject getAllLots(String dtStart, String dtEnd, int start, int limit);
+    JSONObject getAllLots(String dtStart, String dtEnd, String searchValue, int start, int limit);
 
     JSONObject getAllLots();
 

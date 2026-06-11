@@ -31,9 +31,10 @@ public class LotRessource {
     @Path("listlot")
     // methode avec parametre
     public Response getAllLots(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd) {
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "search_value") String searchValue) {
 
-        return Response.ok().entity(lotService.getAllLots(dtStart, dtEnd, limit, start).toString()).build();
+        return Response.ok().entity(lotService.getAllLots(dtStart, dtEnd, searchValue, start, limit).toString()).build();
     }
 
     @GET

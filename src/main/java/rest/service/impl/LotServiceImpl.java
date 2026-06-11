@@ -53,19 +53,117 @@ public class LotServiceImpl implements LotService {
             + "l.dt_SORTIE_USINE, l.dt_PEREMPTION\n" + "FROM t_lot l, t_famille f, t_grossiste g\n"
             + "WHERE l.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND f.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID";
 
-    private static final String MVT_QUERY_COUNT = "SELECT COUNT(l.lg_LOT_ID) FROM t_lot l WHERE DATE(l.dt_CREATED) BETWEEN ?1 AND ?2 ";
-
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
     private final String pattern = "dd/MM/YYYY";
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern(pattern);
 
+    // Requete projetee (sans hydratation d'entites ni lazy-loading) alimentant la grille
+    // "Liste des lots". Filtre sargable sur dt_CREATED (borne haute exclusive) + recherche.
+    private static final String GRID_SELECT = "SELECT l.lg_LOT_ID, f.int_CIP, f.str_NAME, l.int_NUM_LOT, "
+            + "l.str_REF_LIVRAISON, l.str_REF_ORDER, l.int_NUMBER, l.int_NUMBER_GRATUIT, g.str_LIBELLE, "
+            + "l.dt_CREATED, l.dt_PEREMPTION, te.str_NAME "
+            + "FROM t_lot l "
+            + "JOIN t_famille f ON l.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
+            + "JOIN t_grossiste g ON l.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID "
+            + "LEFT JOIN t_typeetiquette te ON l.lg_TYPEETIQUETTE_ID = te.lg_TYPEETIQUETTE_ID "
+            + "WHERE l.dt_CREATED >= ?1 AND l.dt_CREATED < ?2 ";
+
+    private static final String GRID_COUNT = "SELECT COUNT(l.lg_LOT_ID) FROM t_lot l "
+            + "JOIN t_famille f ON l.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
+            + "WHERE l.dt_CREATED >= ?1 AND l.dt_CREATED < ?2 ";
+
+    private static final String GRID_SEARCH_CLAUSE = "AND (f.str_NAME LIKE ?3 OR f.int_CIP LIKE ?3 "
+            + "OR l.str_REF_LIVRAISON LIKE ?3 OR l.str_REF_ORDER LIKE ?3) ";
+
+    private static final DateTimeFormatter DISPLAY_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     @Override
     // appEler dans la ressource
-    public JSONObject getAllLots(String dtStart, String dtEnd, int limit, int start) {
-        int total = getCount(dtStart, dtEnd);
-        return FunctionUtils.returnData(this.getAllLots(dtStart, dtEnd, limit, start, true), total);
+    public JSONObject getAllLots(String dtStart, String dtEnd, String searchValue, int start, int limit) {
+        // Bornes: defaut = aujourd'hui (comme l'ancien JSP). Borne haute exclusive = lendemain a 00:00
+        // afin de couvrir toute la journee sans envelopper la colonne dans DATE() (condition sargable).
+        LocalDate startDate = (dtStart == null || dtStart.isEmpty()) ? LocalDate.now() : LocalDate.parse(dtStart);
+        LocalDate endDate = (dtEnd == null || dtEnd.isEmpty()) ? LocalDate.now() : LocalDate.parse(dtEnd);
+        java.sql.Date pStart = java.sql.Date.valueOf(startDate);
+        java.sql.Date pEnd = java.sql.Date.valueOf(endDate.plusDays(1));
+
+        String search = (searchValue == null) ? "" : searchValue.trim();
+        boolean hasSearch = !search.isEmpty();
+        String searchLike = search + "%";
+
+        long total = countLotsForGrid(pStart, pEnd, hasSearch, searchLike);
+        org.json.JSONArray data = fetchLotsForGrid(pStart, pEnd, hasSearch, searchLike, start, limit);
+        return new JSONObject().put("total", total).put("data", data);
+    }
+
+    private long countLotsForGrid(java.sql.Date pStart, java.sql.Date pEnd, boolean hasSearch, String searchLike) {
+        try {
+            String sql = hasSearch ? GRID_COUNT + GRID_SEARCH_CLAUSE : GRID_COUNT;
+            Query query = em.createNativeQuery(sql).setParameter(1, pStart).setParameter(2, pEnd);
+            if (hasSearch) {
+                query.setParameter(3, searchLike);
+            }
+            return ((Number) query.getSingleResult()).longValue();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return 0;
+        }
+    }
+
+    private org.json.JSONArray fetchLotsForGrid(java.sql.Date pStart, java.sql.Date pEnd, boolean hasSearch,
+            String searchLike, int start, int limit) {
+        org.json.JSONArray array = new org.json.JSONArray();
+        try {
+            String sql = (hasSearch ? GRID_SELECT + GRID_SEARCH_CLAUSE : GRID_SELECT) + "ORDER BY l.dt_CREATED DESC";
+            Query query = em.createNativeQuery(sql).setParameter(1, pStart).setParameter(2, pEnd);
+            if (hasSearch) {
+                query.setParameter(3, searchLike);
+            }
+            if (limit > 0) {
+                query.setFirstResult(start);
+                query.setMaxResults(limit);
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = query.getResultList();
+            for (Object[] r : rows) {
+                int number = toInt(r[6]);
+                int gratuit = toInt(r[7]);
+                JSONObject json = new JSONObject();
+                json.put("lg_LOT_ID", toStr(r[0]));
+                json.put("CIP", toStr(r[1]));
+                json.put("LIBELLE", toStr(r[2]));
+                json.put("NUMLOT", toStr(r[3]));
+                json.put("REFBL", toStr(r[4]));
+                json.put("REFCMDE", toStr(r[5]));
+                json.put("NUMBER", number - gratuit);
+                json.put("NUMBERGT", gratuit);
+                json.put("GROSSISTE", toStr(r[8]));
+                json.put("DATESORTIE", formatDate(r[9]));
+                json.put("DATEPEREMPTION", formatDate(r[10]));
+                json.put("ETIQUETTE", toStr(r[11]));
+                array.put(json);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return array;
+    }
+
+    private static int toInt(Object o) {
+        return (o instanceof Number) ? ((Number) o).intValue() : 0;
+    }
+
+    private static String toStr(Object o) {
+        return (o == null) ? "" : String.valueOf(o);
+    }
+
+    private static String formatDate(Object o) {
+        if (o instanceof java.util.Date) {
+            return new Timestamp(((java.util.Date) o).getTime()).toLocalDateTime().format(DISPLAY_FORMAT);
+        }
+        return "";
     }
 
     @Override
@@ -103,21 +201,6 @@ public class LotServiceImpl implements LotService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return new ArrayList<>();
-        }
-    }
-
-    private int getCount(String dtStart, String dtEnd) {
-
-        LOG.log(Level.INFO, "sql--- getCount {0}", MVT_QUERY_COUNT);
-        try {
-            Query query = em.createNativeQuery(MVT_QUERY_COUNT).setParameter(1, java.sql.Date.valueOf(dtStart))
-                    .setParameter(2, java.sql.Date.valueOf(dtEnd));
-
-            return ((Number) query.getSingleResult()).intValue();
-
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return 0;
         }
     }
 

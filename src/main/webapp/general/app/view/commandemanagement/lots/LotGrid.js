@@ -300,15 +300,15 @@ Ext.define('testextjs.view.commandemanagement.lots.LotGrid', {
                     beforechange: function (page, currentPage) {
                         var myProxy = this.store.getProxy();
                         myProxy.params = {
-                            dt_start_vente: '',
-                            dt_end_vente: '',
+                            dtStart: '',
+                            dtEnd: '',
                             search_value: ''
                         };
                         var search_value = Ext.getCmp('rechlot').getValue();
                         var dt_start = Ext.getCmp('dt_start_lot').getSubmitValue();
                         var dt_end = Ext.getCmp('dt_end_lot').getSubmitValue();
-                        myProxy.setExtraParam('dt_start_vente', dt_start);
-                        myProxy.setExtraParam('dt_end_vente', dt_end);
+                        myProxy.setExtraParam('dtStart', dt_start);
+                        myProxy.setExtraParam('dtEnd', dt_end);
                         myProxy.setExtraParam('search_value', search_value);
 
                     }

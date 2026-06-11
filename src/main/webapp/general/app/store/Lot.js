@@ -11,7 +11,7 @@ Ext.define('testextjs.store.Lot', {
     autoLoad: true,
     proxy: {
         type: 'ajax',
-        url:'../webservices/commandemanagement/lots/ws_data.jsp',
+        url:'../api/v1/lot/listlot',
         reader: {
             type: 'json',
             root: 'data',
