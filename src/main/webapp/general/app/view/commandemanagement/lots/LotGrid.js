@@ -62,13 +62,8 @@ Ext.define('testextjs.view.commandemanagement.lots.LotGrid', {
                     flex: 2
                 },
                 {
-                    header: 'R&eacute;f.Livraison',
+                    header: 'Numero BL',
                     dataIndex: 'REFBL',
-                    flex: 1
-                },
-                {
-                    header: 'R&eacute;f.CMDE',
-                    dataIndex: 'REFCMDE',
                     flex: 1
                 },
                 {
