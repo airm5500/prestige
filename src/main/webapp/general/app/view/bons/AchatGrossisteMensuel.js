@@ -54,19 +54,19 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
         });
         const numberRenderer = function (v, metaData) {
             const formatted = Ext.util.Format.number(v, '0,000.');
-            // Infobulle avec le montant complet : les colonnes mois sont etroites
-            // et les grands montants peuvent etre tronques a l'affichage.
+            // Infobulle native (title) avec le montant complet : les colonnes mois sont
+            // etroites et les grands montants peuvent etre tronques a l'affichage.
+            // On evite les quicktips Ext (data-qtip), trop lourds en survols rapides.
             if (metaData) {
-                metaData.tdAttr = 'data-qtip="' + formatted + '"';
+                metaData.tdAttr = 'title="' + formatted + '"';
             }
             return formatted;
         };
-        const summaryRenderer = function (v, summaryData, dataIndex, metaData) {
+        // Le summaryRenderer d'ExtJS 4 ne fournit pas de metaData :
+        // l'infobulle est integree directement dans le HTML de la cellule.
+        const summaryRenderer = function (v) {
             const formatted = Ext.util.Format.number(v, '0,000.');
-            if (metaData) {
-                metaData.tdAttr = 'data-qtip="' + formatted + '"';
-            }
-            return '<b>' + formatted + '</b>';
+            return '<b title="' + formatted + '">' + formatted + '</b>';
         };
         const actionColumn = {
                 xtype: 'actioncolumn',
