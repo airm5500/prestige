@@ -61,8 +61,13 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
             + " {having_placeholder} " + " ORDER BY p.str_NAME";
 
     private static final String QUERY_COUNT = "SELECT count(c) AS total from (SELECT count(p.lg_FAMILLE_ID) as c FROM t_famille p   join (SELECT d.lg_FAMILLE_ID AS produitId,SUM(d.int_QUANTITY) as quantiteVendue, MONTH(v.dt_UPDATED ) as dateVente FROM  t_preenregistrement_detail d JOIN t_preenregistrement v "
-            + "  ON d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID WHERE v.b_IS_CANCEL=0 AND v.str_STATUT='is_Closed' AND v.int_PRICE >0 AND v.dt_UPDATED >= ?1 AND v.dt_UPDATED <= CURDATE() GROUP BY d.lg_FAMILLE_ID,dateVente) AS venteDetail on p.lg_FAMILLE_ID=venteDetail.produitId  WHERE  p.str_STATUT='enable'"
+            + "  ON d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID WHERE v.b_IS_CANCEL=0 AND v.str_STATUT='is_Closed' AND v.int_PRICE >0 AND v.dt_UPDATED >= ?1 AND v.dt_UPDATED < DATE_ADD(CURDATE(), INTERVAL 1 DAY) GROUP BY d.lg_FAMILLE_ID,dateVente) AS venteDetail on p.lg_FAMILLE_ID=venteDetail.produitId  WHERE  p.str_STATUT='enable'"
             + " {famille_article} {zone_geog} {search} GROUP BY p.lg_FAMILLE_ID  {having_placeholder} ) as t  ";
+
+    private static final String QUERY_COUNT_SIMPLE = "SELECT COUNT(DISTINCT p.lg_FAMILLE_ID) AS total FROM t_famille p "
+            + " JOIN (SELECT DISTINCT d.lg_FAMILLE_ID AS produitId FROM t_preenregistrement_detail d JOIN t_preenregistrement v "
+            + "  ON d.lg_PREENREGISTREMENT_ID=v.lg_PREENREGISTREMENT_ID WHERE v.b_IS_CANCEL=0 AND v.str_STATUT='is_Closed' AND v.int_PRICE >0 AND v.dt_UPDATED >= ?1 AND v.dt_UPDATED < DATE_ADD(CURDATE(), INTERVAL 1 DAY)) AS venteDetail on p.lg_FAMILLE_ID=venteDetail.produitId "
+            + " WHERE p.str_STATUT='enable' {famille_article} {zone_geog} {search} ";
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -211,10 +216,17 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
 
     private int getCount(EvaluationVenteFiltre evaluationVenteFiltre) {
 
-        String sql = replacePlaceHolder(QUERY_COUNT, evaluationVenteFiltre);
-        sql = manageFiltre(sql,
-                " HAVING ROUND(SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END)/3,2) %s %f",
-                evaluationVenteFiltre);
+        boolean hasFiltreMoyenne = StringUtils.isNotEmpty(evaluationVenteFiltre.getFiltre())
+                && Objects.nonNull(evaluationVenteFiltre.getFiltreValue());
+        String sql;
+        if (hasFiltreMoyenne) {
+            sql = replacePlaceHolder(QUERY_COUNT, evaluationVenteFiltre);
+            sql = manageFiltre(sql,
+                    " HAVING ROUND(SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END)/3,2) %s %f",
+                    evaluationVenteFiltre);
+        } else {
+            sql = replacePlaceHolder(QUERY_COUNT_SIMPLE, evaluationVenteFiltre);
+        }
         LOG.log(Level.INFO, "sql---  COUNT {0}", sql);
         try {
             Query query = em.createNativeQuery(sql, Tuple.class);
