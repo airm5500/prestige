@@ -92,7 +92,7 @@ Ext.define('testextjs.view.commandemanagement.lots.LotGrid', {
                     renderer: amountformat
                 },
                 {
-                    text: 'Date Entr&eaacute;e',
+                    text: 'Date Entr&eacute;e',
                     dataIndex: 'DATESORTIE',
                     flex: 0.7,
                     align: 'center'
