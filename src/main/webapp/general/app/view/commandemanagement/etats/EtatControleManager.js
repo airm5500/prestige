@@ -384,6 +384,30 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             tbar: [
                 {
                     xtype: 'combobox',
+                    id: 'dateType',
+                    name: 'dateType',
+                    editable: false,
+                    queryMode: 'local',
+                    value: 'LIVRAISON',
+                    valueField: 'value',
+                    displayField: 'label',
+                    flex: 0.9,
+                    emptyText: 'Filtrer par...',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['value', 'label'],
+                        data: [
+                            {value: 'LIVRAISON', label: 'Date du BL'},
+                            {value: 'ENTREE', label: "Date d'entrée"}
+                        ]
+                    }),
+                    listeners: {
+                        select: function () {
+                            Me.onRechClick();
+                        }
+                    }
+                },
+                {
+                    xtype: 'combobox',
                     name: 'lg_GROSSISTE_ID',
                     margins: '0 0 0 10',
                     id: 'lg_GROSSISTE_ID',
@@ -507,6 +531,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                         myProxy.setExtraParam('dtEnd', Ext.getCmp('datefin').getSubmitValue());
                         myProxy.setExtraParam('search', Ext.getCmp('rechecher').getValue());
                         myProxy.setExtraParam('grossisteId', lg_GROSSISTE_ID);
+                        myProxy.setExtraParam('dateType', Ext.getCmp('dateType').getValue());
                     }
 
                 }
@@ -660,7 +685,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
         const dtStart = Ext.getCmp('datedebut').getSubmitValue();
 
         const linkUrl = '../EtatControlStockServlet?dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&grossisteId=' + lg_GROSSISTE_ID + '&search=' + valeur;
+                + '&grossisteId=' + lg_GROSSISTE_ID + '&search=' + valeur
+                + '&dateType=' + Ext.getCmp('dateType').getValue();
         window.open(linkUrl);
 
     },
@@ -675,7 +701,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
         const dtStart = Ext.getCmp('datedebut').getSubmitValue();
 
         window.location = '../api/v1/etat-control-bon/export-excel?dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&grossisteId=' + lg_GROSSISTE_ID + '&search=' + valeur + '&fileType=excel';
+                + '&grossisteId=' + lg_GROSSISTE_ID + '&search=' + valeur + '&fileType=excel'
+                + '&dateType=' + Ext.getCmp('dateType').getValue();
       
 
     },
@@ -695,7 +722,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 search: Ext.getCmp('rechecher').getValue(),
                 grossisteId: lg_GROSSISTE_ID,
                 dtStart: Ext.getCmp('datedebut').getSubmitValue(),
-                dtEnd: Ext.getCmp('datefin').getSubmitValue()
+                dtEnd: Ext.getCmp('datefin').getSubmitValue(),
+                dateType: Ext.getCmp('dateType').getValue()
             }
         });
     },

@@ -38,6 +38,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import javax.persistence.metamodel.SingularAttribute;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import rest.service.EtatControlBonService;
@@ -72,19 +73,28 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     private EntityManager em;
 
     private static final String DELETE = "delete";
+    // Type de filtre sur la date : "ENTREE" => dt_CREATED (date d'entree en stock),
+    // sinon (defaut) => dt_DATE_LIVRAISON (date du BL). Pas de regression : valeur absente = comportement actuel.
+    private static final String DATE_TYPE_ENTREE = "ENTREE";
     @EJB
     private ExcelGeneratorService excelGeneratorService;
 
+    private SingularAttribute<TBonLivraison, Date> dateAttribute(String dateType) {
+        return DATE_TYPE_ENTREE.equalsIgnoreCase(dateType) ? TBonLivraison_.dtCREATED
+                : TBonLivraison_.dtDATELIVRAISON;
+    }
+
     @Override
     public List<EtatControlBon> list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
-            int start, int limit, boolean all) {
+            int start, int limit, boolean all, String dateType) {
 
+        SingularAttribute<TBonLivraison, Date> dateAttr = dateAttribute(dateType);
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<TBonLivraison> cq = cb.createQuery(TBonLivraison.class);
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
-        cq.select(root).distinct(true).orderBy(cb.desc(root.get(TBonLivraison_.dtDATELIVRAISON)));
+        cq.select(root).distinct(true).orderBy(cb.desc(root.get(dateAttr)));
         List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                grossisteId, search);
+                grossisteId, search, dateAttr);
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
         TypedQuery<TBonLivraison> q = em.createQuery(cq);
         if (!all) {
@@ -97,13 +107,13 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                 .collect(Collectors.toList());
     }
 
-    private long count(String search, String dtStart, String dtEnd, String grossisteId) {
+    private long count(String search, String dtStart, String dtEnd, String grossisteId, String dateType) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
         cq.select(cb.countDistinct(root));
         List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                grossisteId, search);
+                grossisteId, search, dateAttribute(dateType));
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
         TypedQuery<Long> q = em.createQuery(cq);
         return Objects.isNull(q.getSingleResult()) ? 0 : q.getSingleResult();
@@ -111,17 +121,17 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     }
 
     private List<Predicate> listPredicates(CriteriaBuilder cb, Root<TBonLivraison> root, LocalDate dtStart,
-            LocalDate dtEnd, String grossisteId, String search) {
+            LocalDate dtEnd, String grossisteId, String search, SingularAttribute<TBonLivraison, Date> dateAttr) {
         List<Predicate> predicates = new ArrayList<>();
 
         // On compare directement la colonne (TIMESTAMP) avec des bornes, sans l'envelopper dans DATE(...).
-        // Cela rend le predicat "sargable" : MySQL peut utiliser l'index sur dt_DATE_LIVRAISON
+        // Cela rend le predicat "sargable" : MySQL peut utiliser l'index sur la colonne de date
         // au lieu de scanner toute la table (cause de la lenteur au chargement et en recherche).
         Date startInclusive = java.sql.Timestamp.valueOf(dtStart.atStartOfDay());
         Date endExclusive = java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay());
         predicates.add(cb.equal(root.get(TBonLivraison_.strSTATUT), Constant.STATUT_IS_CLOSED));
-        predicates.add(cb.greaterThanOrEqualTo(root.get(TBonLivraison_.dtDATELIVRAISON), startInclusive));
-        predicates.add(cb.lessThan(root.get(TBonLivraison_.dtDATELIVRAISON), endExclusive));
+        predicates.add(cb.greaterThanOrEqualTo(root.get(dateAttr), startInclusive));
+        predicates.add(cb.lessThan(root.get(dateAttr), endExclusive));
         if (StringUtils.isNotEmpty(grossisteId)) {
             predicates.add(cb.equal(
                     root.get(TBonLivraison_.lgORDERID).get(TOrder_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
@@ -140,10 +150,10 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
 
     @Override
     public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
-            int limit) {
-        long count = count(search, dtStart, dtEnd, grossisteId);
-        return FunctionUtils.returnData(list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, false),
-                count);
+            int limit, String dateType) {
+        long count = count(search, dtStart, dtEnd, grossisteId, dateType);
+        return FunctionUtils.returnData(
+                list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, false, dateType), count);
     }
 
     @Override
@@ -417,8 +427,10 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     }
 
     @Override
-    public byte[] generate(String search, String dtStart, String dtEnd, String grossisteId) throws IOException {
-        return this.excelGeneratorService.generate(buildExeclData(search, dtStart, dtEnd, grossisteId), "bordereau");
+    public byte[] generate(String search, String dtStart, String dtEnd, String grossisteId, String dateType)
+            throws IOException {
+        return this.excelGeneratorService.generate(buildExeclData(search, dtStart, dtEnd, grossisteId, dateType),
+                "bordereau");
     }
 
     @Override
@@ -428,9 +440,10 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                 "bordereau_annuel");
     }
 
-    private GenericExcelDTO buildExeclData(String search, String dtStart, String dtEnd, String grossisteId) {
+    private GenericExcelDTO buildExeclData(String search, String dtStart, String dtEnd, String grossisteId,
+            String dateType) {
         GenericExcelDTO genericExcel = new GenericExcelDTO();
-        List<EtatControlBon> data = this.list(false, search, dtStart, dtEnd, grossisteId, 0, 0, true);
+        List<EtatControlBon> data = this.list(false, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType);
 
         genericExcel.addColumn("Grossiste", "No Commande", "Réf Bon", "Montant Ht", "Montant Tva", "Montant Ttc",
                 "Date livraison", "Date d'entrée", "Montant avoir", "Opérateur");

@@ -36,13 +36,15 @@ public class EtatControlBonResource {
     @Path("list")
     public Response list(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "search") String search, @QueryParam(value = "grossisteId") String grossisteId,
-            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd) {
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "dateType") String dateType) {
         boolean returnFullBLLAuthority = Utils.hasAuthorityByName(Utils.getconnectedUserPrivileges(servletRequest),
                 Parameter.ACTION_RETURN_FULL_BL);
 
         return Response.ok()
                 .entity(etatControlBonService
-                        .list(returnFullBLLAuthority, search, dtStart, dtEnd, grossisteId, start, limit).toString())
+                        .list(returnFullBLLAuthority, search, dtStart, dtEnd, grossisteId, start, limit, dateType)
+                        .toString())
                 .build();
 
     }
@@ -90,10 +92,11 @@ public class EtatControlBonResource {
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
     public Response exportToExecel(@QueryParam(value = "search") String search,
             @QueryParam(value = "grossisteId") String grossisteId, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws IOException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dateType") String dateType)
+            throws IOException {
 
-        return this.exportExcelUtilService
-                .exportToExecel(etatControlBonService.generate(search, dtStart, dtEnd, grossisteId), "etat_control_");
+        return this.exportExcelUtilService.exportToExecel(
+                etatControlBonService.generate(search, dtStart, dtEnd, grossisteId, dateType), "etat_control_");
 
     }
 }

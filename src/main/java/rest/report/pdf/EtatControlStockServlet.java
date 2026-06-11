@@ -83,6 +83,7 @@ public class EtatControlStockServlet extends HttpServlet {
         String grossisteId = request.getParameter("grossisteId");
 
         String search = request.getParameter("search");
+        String dateType = request.getParameter("dateType");
 
         LocalDate dtSt = LocalDate.parse(dtStart);
         LocalDate dtd = LocalDate.parse(dtEnd);
@@ -95,7 +96,7 @@ public class EtatControlStockServlet extends HttpServlet {
 
         parameters.put("P_H_CLT_INFOS", "LISTE DES ETATS DE CONTRÔLE D'ACHATS\n DU  " + periode);
         List<EtatControlBon> datas = this.etatControlBonService.list(true, search, dtStart, dtEnd, grossisteId, 0, 0,
-                true);
+                true, dateType);
 
         return reportUtil.buildReport(parameters, reportName, datas);
 
@@ -149,6 +150,7 @@ public class EtatControlStockServlet extends HttpServlet {
         String grossisteId = request.getParameter("grossisteId");
 
         String search = request.getParameter("search");
+        String dateType = request.getParameter("dateType");
 
         LocalDate dtSt = LocalDate.parse(dtStart);
         LocalDate dtd = LocalDate.parse(dtEnd);
@@ -161,7 +163,7 @@ public class EtatControlStockServlet extends HttpServlet {
 
         parameters.put("P_H_CLT_INFOS", "LISTE DES ETATS DE CONTRÔLE D'ACHATS\n DU  " + periode);
         List<EtatControlBon> datas = this.etatControlBonService.list(true, search, dtStart, dtEnd, grossisteId, 0, 0,
-                true);
+                true, dateType);
         String reportGenerateFile = "rp_etat_control_achats_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".xlsx";
         String finalFilePath = jdom.scr_report_pdf + reportGenerateFile;

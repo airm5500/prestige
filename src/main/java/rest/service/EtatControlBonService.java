@@ -16,10 +16,10 @@ import rest.service.dto.EtatControlBonEditDto;
 public interface EtatControlBonService {
 
     List<EtatControlBon> list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
-            int start, int limit, boolean all);
+            int start, int limit, boolean all, String dateType);
 
     JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
-            int limit);
+            int limit, String dateType);
 
     EtatControlAnnuelWrapperDTO listBonAnnuel(String groupBy, String dtStart, String dtEnd, String grossisteId,
             Integer groupeId);
@@ -30,7 +30,8 @@ public interface EtatControlBonService {
 
     JSONObject updateBon(EtatControlBonEditDto bonEdit);
 
-    byte[] generate(String search, String dtStart, String dtEnd, String grossisteId) throws IOException;
+    byte[] generate(String search, String dtStart, String dtEnd, String grossisteId, String dateType)
+            throws IOException;
 
     byte[] generate(String groupBy, String dtStart, String dtEnd, String grossisteId, Integer groupeId)
             throws IOException;
