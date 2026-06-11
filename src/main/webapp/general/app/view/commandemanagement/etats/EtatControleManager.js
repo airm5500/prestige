@@ -574,12 +574,16 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             data: rows
         });
 
+        var fournisseur = rec.get('fournisseur') || {};
+        var grossisteName = fournisseur.fournisseurLibelle || rec.get('fournisseurLibelle') || '';
+
         Ext.create('Ext.window.Window', {
             autoShow: true,
             modal: true,
-            width: '70%',
+            width: '90%',
             height: 480,
-            title: 'D&eacute;tail du contr&ocirc;le - BL N&deg;' + rec.get('strREFLIVRAISON'),
+            maximizable: true,
+            title: (grossisteName ? grossisteName + ' - ' : '') + 'BL N&deg;' + rec.get('strREFLIVRAISON'),
             layout: 'fit',
             items: [{
                     xtype: 'grid',
@@ -588,7 +592,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     columns: [
                         {xtype: 'rownumberer', width: 40},
                         {header: 'CIP', dataIndex: 'cip', width: 90},
-                        {header: 'D&eacute;signation', dataIndex: 'designation', flex: 2},
+                        {header: 'D&eacute;signation', dataIndex: 'designation', flex: 3, minWidth: 320},
                         {header: 'Prix achat', dataIndex: 'prixAchat', renderer: amountformat, align: 'right', flex: 1},
                         {header: 'Prix vente', dataIndex: 'prixVente', renderer: amountformat, align: 'right', flex: 1},
                         {header: 'Stock', dataIndex: 'stock', align: 'right', flex: 0.7},
