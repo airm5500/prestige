@@ -1,0 +1,696 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_achats_grossiste_mensuel" pageWidth="842" pageHeight="595" orientation="Landscape" whenNoDataType="AllSectionsNoDetail" columnWidth="832" leftMargin="5" rightMargin="5" topMargin="20" bottomMargin="20" isSummaryWithPageHeaderAndFooter="true" uuid="ef57e828-c850-485d-b5f6-555f04f5c277">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<import value="net.sf.jasperreports.engine.*"/>
+	<import value="java.util.*"/>
+	<import value="net.sf.jasperreports.engine.data.*"/>
+	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+	<parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+	<parameter name="P_H_LOGO" class="java.lang.String"/>
+	<parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+	<parameter name="P_PRINTED_BY" class="java.lang.String"/>
+	<parameter name="P_CODE_OFFICINE" class="java.lang.String"/>
+	<parameter name="P_REGISTRE_COMMERCE" class="java.lang.String"/>
+	<parameter name="P_FOOTER_RC" class="java.lang.String"/>
+	<parameter name="P_COMPTE_CONTRIBUABLE" class="java.lang.String"/>
+	<parameter name="P_CODE_POSTALE" class="java.lang.String"/>
+	<parameter name="P_CODE_COMPTABLE" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="grossisteId" class="java.lang.String"/>
+	<field name="libelle" class="java.lang.String"/>
+	<field name="janvier" class="java.lang.Long"/>
+	<field name="fevrier" class="java.lang.Long"/>
+	<field name="mars" class="java.lang.Long"/>
+	<field name="avril" class="java.lang.Long"/>
+	<field name="mai" class="java.lang.Long"/>
+	<field name="juin" class="java.lang.Long"/>
+	<field name="juillet" class="java.lang.Long"/>
+	<field name="aout" class="java.lang.Long"/>
+	<field name="septembre" class="java.lang.Long"/>
+	<field name="octobre" class="java.lang.Long"/>
+	<field name="novembre" class="java.lang.Long"/>
+	<field name="decembre" class="java.lang.Long"/>
+	<field name="total" class="java.lang.Long"/>
+	<variable name="v_sum_janvier" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{janvier} != null ? $F{janvier} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_fevrier" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{fevrier} != null ? $F{fevrier} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_mars" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{mars} != null ? $F{mars} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_avril" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{avril} != null ? $F{avril} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_mai" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{mai} != null ? $F{mai} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_juin" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{juin} != null ? $F{juin} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_juillet" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{juillet} != null ? $F{juillet} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_aout" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{aout} != null ? $F{aout} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_septembre" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{septembre} != null ? $F{septembre} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_octobre" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{octobre} != null ? $F{octobre} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_novembre" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{novembre} != null ? $F{novembre} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_decembre" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{decembre} != null ? $F{decembre} : 0)]]></variableExpression>
+	</variable>
+	<variable name="v_sum_total" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{total} != null ? $F{total} : 0)]]></variableExpression>
+	</variable>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="112">
+			<textField>
+				<reportElement x="120" y="32" width="592" height="17" isRemoveLineWhenBlank="true" uuid="7b7fd1c0-db22-49cd-8368-0f78ef1f921a"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="120" y="2" width="592" height="31" isRemoveLineWhenBlank="true" uuid="e0b409d8-0338-4e40-9fe3-c4a50e197365"/>
+				<textElement textAlignment="Center">
+					<font fontName="Century Gothic" size="20" isBold="true" isItalic="true" isPdfEmbedded="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Transparent" x="211" y="78" width="410" height="29" backcolor="#E0DEDE" uuid="382f998c-e527-4f18-940f-0fd8dd1a809d"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="9" isBold="false" isUnderline="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+			</textField>
+			<textField pattern="EEEEE dd MMMMM yyyy" isBlankWhenNull="false">
+				<reportElement key="textField" x="699" y="49" width="109" height="15" forecolor="#000000" backcolor="#FFFFFF" uuid="5f89696c-b411-43ec-99b7-2529e40bcd68"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[new Date()]]></textFieldExpression>
+			</textField>
+			<image onErrorType="Blank">
+				<reportElement x="7" y="1" width="79" height="47" uuid="8c55dfa1-c446-43f0-8191-58756961340a"/>
+				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement mode="Opaque" x="1" y="67" width="830" height="2" backcolor="#CCCCCC" uuid="cec3f9ff-4fd0-4c51-a9f4-338def899cdb"/>
+				<box>
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band height="21">
+			<staticText>
+				<reportElement mode="Opaque" x="2" y="1" width="110" height="20" backcolor="#F5F2F2" uuid="a2ac71f6-400c-43f6-9f66-df52901addcf"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Grossiste]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="112" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="61ee5545-be64-457b-a290-81792d28656c"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Janvier]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="164" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="71b5e78f-d6c6-4b47-a166-496b2942af22"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Février]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="216" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="60e3a9a9-6904-4837-94f6-165de8b420ed"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Mars]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="268" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="08a5a91e-c08f-4652-a95c-17a60d1dd281"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Avril]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="320" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="82ad97fd-5f46-49a0-8c59-caf206021220"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Mai]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="372" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="7d5617ee-2c35-4e34-b7a6-a33207fb2caf"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Juin]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="424" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="b6f27af8-3a46-4751-8568-3e33a1f049e2"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Juillet]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="476" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="ac462f7a-85e9-49d0-8ff3-c5055344fcbf"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Août]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="528" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="ba2c741d-5586-4e93-866f-565b4a581a97"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Sept.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="580" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="0bc9972b-f6ed-4765-8016-9241422276d5"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Octobre]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="632" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="a1dcf416-2053-46ba-a3df-7f476d7bf699"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Nov.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="684" y="1" width="52" height="20" backcolor="#F5F2F2" uuid="16fd3f3e-5e1a-4bb2-a776-9c3c392f164d"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Décembre]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="736" y="1" width="94" height="20" backcolor="#F5F2F2" uuid="dc46898a-910e-41e7-8a9b-6c33359ddd82"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+				</textElement>
+				<text><![CDATA[Total]]></text>
+			</staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="14" splitType="Stretch">
+			<textField>
+				<reportElement x="2" y="0" width="110" height="14" uuid="206eab92-4bce-4b58-af55-7fa47c2b5e42"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="112" y="0" width="52" height="14" uuid="87aa0316-4a6e-457d-bc9a-0de23dddc6e1"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{janvier}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="164" y="0" width="52" height="14" uuid="5ff9b82c-ecd5-46d2-be84-fadefde3030e"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{fevrier}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="216" y="0" width="52" height="14" uuid="764d2d20-8cfb-4d39-b27c-eb972150d20f"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{mars}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="268" y="0" width="52" height="14" uuid="6a145699-cc42-4614-a18b-3ca0c1c2df0c"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{avril}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="320" y="0" width="52" height="14" uuid="21ac5e4b-6cc4-42c1-8367-1536eaad6c2b"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{mai}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="372" y="0" width="52" height="14" uuid="c548f4fd-d15e-4ca2-9ba1-890a154398e5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{juin}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="424" y="0" width="52" height="14" uuid="8e87c56e-f79b-4070-9845-babee9276974"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{juillet}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="476" y="0" width="52" height="14" uuid="04eaa694-543b-41a5-8ab5-4cec2ee1961f"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{aout}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="528" y="0" width="52" height="14" uuid="f1a490f7-4d9d-49ef-831d-6ca9cc1ff968"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{septembre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="580" y="0" width="52" height="14" uuid="8a6e73a8-230d-46ea-8ecb-1c7d13a6dbc5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{octobre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="632" y="0" width="52" height="14" uuid="0fea322d-2fa4-425b-832e-166f188faa1a"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{novembre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="684" y="0" width="52" height="14" uuid="13619814-7c06-4136-9070-a4f1f16f56d6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{decembre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="736" y="0" width="94" height="14" uuid="8af958c8-0cbc-4580-a017-9ed4f6a1536e"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="60">
+			<textField>
+				<reportElement x="1" y="44" width="830" height="15" uuid="45199292-3322-447a-b2a7-94fcba6b74ea"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="1" y="28" width="830" height="15" uuid="61c6af26-0466-4232-acfe-6f33e4bcdfc8"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="430" y="8" width="40" height="15" uuid="9cf3accb-9004-4e89-89b2-77217eb2c80a"/>
+				<textElement verticalAlignment="Bottom">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA["" + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="349" y="8" width="80" height="15" uuid="517a8e8d-9dfa-4dba-a7b6-71e437a99854"/>
+				<textElement textAlignment="Right" verticalAlignment="Bottom">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}+"/"]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="606" y="8" width="223" height="15" uuid="03decb9a-0c12-494d-b1fe-4df667085879"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None">
+					<font fontName="Monospaced" size="8" isBold="true" isItalic="true" isUnderline="true" isStrikeThrough="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_PRINTED_BY}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="17">
+			<staticText>
+				<reportElement mode="Opaque" x="2" y="1" width="110" height="15" backcolor="#F5F2F2" uuid="6bb3563c-3aa0-42eb-b5b1-9b5af1766876"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="112" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="fdbbb5d0-67b1-4640-8006-2ed173731101"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_janvier}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="164" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="df2f434a-38bc-404c-be19-c54a7ec368c7"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_fevrier}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="216" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="c97b0d2c-f57c-414e-b437-99995a681b77"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_mars}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="268" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="522a94f1-8118-4335-9d6e-f8f9c4b5195c"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_avril}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="320" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="b9c772bd-9ebf-4689-9cfa-ff5a7bfd103b"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_mai}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="372" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="a3b978e7-9981-47e5-84ca-31c8ce477481"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_juin}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="424" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="a0ede7eb-75f9-41c1-bb7c-47e8335ff9e2"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_juillet}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="476" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="852605ce-306b-4ff5-8afd-6d6f16a63247"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_aout}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="528" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="c3479e8d-ea83-48fd-b3af-198801071de1"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_septembre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="580" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="4e6e7477-8cd2-4b2d-9f7e-9c0ca8d73015"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_octobre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="632" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="a20f2d90-7b27-4396-aab0-9ac74c78b1e0"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_novembre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="684" y="1" width="52" height="15" backcolor="#F5F2F2" uuid="ba12a05f-31cc-49d0-93be-07218badb757"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_decembre}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="false">
+				<reportElement mode="Opaque" x="736" y="1" width="94" height="15" backcolor="#F5F2F2" uuid="03f7e770-ac8c-49f7-a69d-c9eab9a82ce3"/>
+				<box>
+					<pen lineWidth="0.5" lineColor="#666666"/>
+					<topPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<leftPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<bottomPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+					<rightPen lineWidth="0.5" lineStyle="Solid" lineColor="#666666"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="7" isBold="true"/>
+					<paragraph leftIndent="1" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{v_sum_total}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

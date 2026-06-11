@@ -43,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import rest.service.EtatControlBonService;
 import rest.service.ExcelGeneratorService;
+import rest.service.dto.AchatGrossisteMensuelDTO;
 import rest.service.dto.EtatAnnuelDTO;
 import rest.service.dto.EtatAnnuelWrapperDTO;
 import rest.service.dto.EtatControlAnnuelDTO;
@@ -62,11 +63,33 @@ import util.FunctionUtils;
 public class EtatControlBonServiceImpl implements EtatControlBonService {
 
     private static final Logger LOG = Logger.getLogger(EtatControlBonServiceImpl.class.getName());
-    private static final String BON_ANNUEL_SQL = " SELECT {groupByLibelle} AS groupByLibelle, SUM(b.`int_MHT`) AS montantHtaxe,SUM(b.`int_TVA`) montantTaxe, sum(b.`int_HTTC`) montantTtc,COUNT(b.`lg_BON_LIVRAISON_ID`) AS nbreBon, SUM(item.itemPrixVente) AS montantVenteTtc  FROM  t_bon_livraison b,t_order o,t_grossiste g,groupefournisseur gp,(SELECT d.`lg_BON_LIVRAISON_ID` AS bonId,   SUM(d.`int_PRIX_VENTE`* d.`int_QTE_RECUE`) AS itemPrixVente FROM t_bon_livraison_detail d GROUP BY bonId) AS item"
-            + "  WHERE item.bonId =b.`lg_BON_LIVRAISON_ID` AND  DATE(b.`dt_DATE_LIVRAISON`) BETWEEN  ?1 AND ?2 AND b.`str_STATUT`='is_Closed' AND b.`lg_ORDER_ID` =o.`lg_ORDER_ID` AND o.`lg_GROSSISTE_ID` =g.`lg_GROSSISTE_ID` AND g.`groupeId`=gp.id  {grossisteIdClose} {groupeIdClose}  GROUP BY groupByLibelle ";
+    // Bornes de dates comparees directement a la colonne (>= debut, < fin+1j) pour rester "sargable"
+    // (utilisation de l'index sur dt_DATE_LIVRAISON), conformement au standard du projet.
+    // La table derivee "item" est filtree sur la meme periode/statut afin de ne plus agreger
+    // tout l'historique de t_bon_livraison_detail (cause principale de la lenteur).
+    // LEFT JOIN groupefournisseur : un grossiste sans groupe reste inclus dans l'etat.
+    private static final String BON_ANNUEL_SQL = " SELECT {groupByLibelle} AS groupByLibelle, SUM(b.`int_MHT`) AS montantHtaxe,SUM(b.`int_TVA`) montantTaxe, SUM(b.`int_HTTC`) montantTtc,COUNT(b.`lg_BON_LIVRAISON_ID`) AS nbreBon, SUM(item.itemPrixVente) AS montantVenteTtc, SUM(item.itemAvoir) AS montantAvoir "
+            + " FROM t_bon_livraison b JOIN t_order o ON b.`lg_ORDER_ID`=o.`lg_ORDER_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` LEFT JOIN groupefournisseur gp ON g.`groupeId`=gp.id "
+            + " JOIN (SELECT d.`lg_BON_LIVRAISON_ID` AS bonId, SUM(d.`int_PRIX_VENTE`* d.`int_QTE_RECUE`) AS itemPrixVente, SUM(IFNULL(d.`int_QTE_RETURN`,0)* d.`int_PAF`) AS itemAvoir FROM t_bon_livraison_detail d JOIN t_bon_livraison b2 ON d.`lg_BON_LIVRAISON_ID`=b2.`lg_BON_LIVRAISON_ID` WHERE b2.`dt_DATE_LIVRAISON` >= ?1 AND b2.`dt_DATE_LIVRAISON` < ?2 AND b2.`str_STATUT`='is_Closed' GROUP BY bonId) AS item ON item.bonId=b.`lg_BON_LIVRAISON_ID` "
+            + " WHERE b.`dt_DATE_LIVRAISON` >= ?3 AND b.`dt_DATE_LIVRAISON` < ?4 AND b.`str_STATUT`='is_Closed' {grossisteIdClose} {groupeIdClose} GROUP BY groupByLibelle ";
 
-    private static final String BON_ANNUEL_SQL_GROUP = " SELECT  SUM(b.`int_MHT`) AS montantHtaxe,SUM(b.`int_TVA`) montantTaxe, sum(b.`int_HTTC`) montantTtc,COUNT(b.`lg_BON_LIVRAISON_ID`) AS nbreBon, SUM(item.itemPrixVente) AS montantVenteTtc  FROM  t_bon_livraison b,t_order o,t_grossiste g,groupefournisseur gp,(SELECT d.`lg_BON_LIVRAISON_ID` AS bonId,   SUM(d.`int_PRIX_VENTE`* d.`int_QTE_RECUE`) AS itemPrixVente FROM t_bon_livraison_detail d GROUP BY bonId) AS item"
-            + "  WHERE item.bonId =b.`lg_BON_LIVRAISON_ID` AND  DATE(b.`dt_DATE_LIVRAISON`) BETWEEN  ?1 AND ?2 AND b.`str_STATUT`='is_Closed' AND b.`lg_ORDER_ID` =o.`lg_ORDER_ID` AND o.`lg_GROSSISTE_ID` =g.`lg_GROSSISTE_ID` AND g.`groupeId`=gp.id  {grossisteIdClose} {groupeIdClose}  ";
+    private static final String ACHAT_MENSUEL_SQL = " SELECT g.`lg_GROSSISTE_ID` AS grossisteId, g.`str_LIBELLE` AS libelle, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=1 THEN b.{amountColumn} ELSE 0 END) AS janvier, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=2 THEN b.{amountColumn} ELSE 0 END) AS fevrier, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=3 THEN b.{amountColumn} ELSE 0 END) AS mars, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=4 THEN b.{amountColumn} ELSE 0 END) AS avril, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=5 THEN b.{amountColumn} ELSE 0 END) AS mai, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=6 THEN b.{amountColumn} ELSE 0 END) AS juin, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=7 THEN b.{amountColumn} ELSE 0 END) AS juillet, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=8 THEN b.{amountColumn} ELSE 0 END) AS aout, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=9 THEN b.{amountColumn} ELSE 0 END) AS septembre, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=10 THEN b.{amountColumn} ELSE 0 END) AS octobre, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=11 THEN b.{amountColumn} ELSE 0 END) AS novembre, "
+            + " SUM(CASE WHEN MONTH(b.`dt_DATE_LIVRAISON`)=12 THEN b.{amountColumn} ELSE 0 END) AS decembre, "
+            + " SUM(b.{amountColumn}) AS total "
+            + " FROM t_bon_livraison b JOIN t_order o ON b.`lg_ORDER_ID`=o.`lg_ORDER_ID` JOIN t_grossiste g ON o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` "
+            + " WHERE b.`dt_DATE_LIVRAISON` >= ?1 AND b.`dt_DATE_LIVRAISON` < ?2 AND b.`str_STATUT`='is_Closed' "
+            + " GROUP BY g.`lg_GROSSISTE_ID`, g.`str_LIBELLE` ORDER BY libelle ";
     private static final String BON_ETATANNUEL_SQL = "SELECT YEAR(b.`dt_DATE_LIVRAISON`) AS annee, MONTH(b.`dt_DATE_LIVRAISON`) AS mois, SUM(b.`int_MHT`) AS montantHtaxe,SUM(b.`int_TVA`) montantTaxe, sum(b.`int_HTTC`) montantTtc  FROM  t_bon_livraison b\n"
             + " WHERE  YEAR(b.`dt_DATE_LIVRAISON`) BETWEEN  ?1 AND ?2  AND b.`str_STATUT`='is_Closed' GROUP BY annee,mois";
     @PersistenceContext(unitName = "JTA_UNIT")
@@ -160,7 +183,10 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             Integer groupeId) {
 
         List<EtatControlAnnuelDTO> list = listBonsAnnuel(groupBy, dtStart, dtEnd, grossisteId, groupeId);
-        EtatControlAnnuelWrapperDTO annuelSummary = bonsAnnuelGroup(dtStart, dtEnd, grossisteId, groupeId);
+        // Les totaux sont la somme des lignes groupees (meme filtre) : on les calcule en Java
+        // au lieu de relancer une seconde requete identique sur la base.
+        EtatControlAnnuelWrapperDTO annuelSummary = EtatControlAnnuelWrapperDTO.builder()
+                .summary(buildEtatControlAnnuelSummaryDTO(list)).build();
         annuelSummary.setEtatControlAnnuels(list.stream().peek(
                 el -> el.setPourcentage(computePercent(el.getMontantTtc(), annuelSummary.getSummary().getTotalTtc())))
                 .sorted(Comparator.comparing(EtatControlAnnuelDTO::getGroupByLibelle)).collect(Collectors.toList()));
@@ -170,37 +196,69 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     }
 
     private float computePercent(long montantTTC, long totalTTC) {
+        if (totalTTC == 0) {
+            return 0;
+        }
         return BigDecimal.valueOf((montantTTC * 100) / Double.valueOf(totalTTC)).setScale(2, RoundingMode.HALF_UP)
                 .floatValue();
     }
 
+    private long toLong(Tuple tuple, String alias) {
+        Number value = tuple.get(alias, Number.class);
+        return Objects.isNull(value) ? 0 : value.longValue();
+    }
+
     private EtatControlAnnuelDTO buildEtatControlAnnuels(Tuple tuple) {
-        long montantTtc = tuple.get("montantTtc", BigDecimal.class).longValue();
-        long montantVenteTtc = tuple.get("montantVenteTtc", BigDecimal.class).longValue();
-        long montantTaxe = tuple.get("montantTaxe", BigDecimal.class).longValue();
+        long montantTtc = toLong(tuple, "montantTtc");
+        long montantVenteTtc = toLong(tuple, "montantVenteTtc");
+        long montantTaxe = toLong(tuple, "montantTaxe");
         long marge = montantVenteTtc - montantTtc;
-        return EtatControlAnnuelDTO.builder().montantMarge(marge)
-                .montantHtaxe(tuple.get("montantHtaxe", BigDecimal.class).longValue())
+        return EtatControlAnnuelDTO.builder().montantMarge(marge).montantHtaxe(toLong(tuple, "montantHtaxe"))
                 .nbreBon(tuple.get("nbreBon", BigInteger.class).intValue()).montantTtc(montantTtc)
                 .montantTaxe(montantTaxe).groupByLibelle(tuple.get("groupByLibelle", String.class))
-                .montantVenteTtc(montantVenteTtc).build();
+                .montantAvoir(toLong(tuple, "montantAvoir")).montantVenteTtc(montantVenteTtc).build();
     }
 
     private List<EtatControlAnnuelDTO> listBonsAnnuel(String groupBy, String dtStart, String dtEnd, String grossisteId,
             Integer groupeId) {
         String sql = BON_ANNUEL_SQL;
-        sql = buildSqlQuery(grossisteId, groupeId, sql);
+        boolean withGrossiste = StringUtils.isNotEmpty(grossisteId);
+        boolean withGroupe = Objects.nonNull(groupeId) && groupeId != 0;
+        int paramIndex = 5;
+        int grossisteParamIndex = 0;
+        int groupeParamIndex = 0;
+        if (withGrossiste) {
+            grossisteParamIndex = paramIndex++;
+            sql = sql.replace("{grossisteIdClose}", " AND g.`lg_GROSSISTE_ID`= ?" + grossisteParamIndex + " ");
+        } else {
+            sql = sql.replace("{grossisteIdClose}", " ");
+        }
+        if (withGroupe) {
+            groupeParamIndex = paramIndex;
+            sql = sql.replace("{groupeIdClose}", " AND gp.id= ?" + groupeParamIndex + " ");
+        } else {
+            sql = sql.replace("{groupeIdClose}", " ");
+        }
 
         if ("GROUP".equals(groupBy)) {
-            sql = sql.replace("{groupByLibelle}", " gp.libelle ");
+            sql = sql.replace("{groupByLibelle}", " IFNULL(gp.libelle,'SANS GROUPE') ");
         } else {
             sql = sql.replace("{groupByLibelle}", " g.`str_LIBELLE` ");
         }
 
         LOG.log(Level.INFO, "sql--- listBonAnnuel  {0}", sql);
         try {
-            Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, java.sql.Date.valueOf(dtStart))
-                    .setParameter(2, java.sql.Date.valueOf(dtEnd));
+            java.sql.Timestamp startInclusive = java.sql.Timestamp.valueOf(LocalDate.parse(dtStart).atStartOfDay());
+            java.sql.Timestamp endExclusive = java.sql.Timestamp
+                    .valueOf(LocalDate.parse(dtEnd).plusDays(1).atStartOfDay());
+            Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, startInclusive)
+                    .setParameter(2, endExclusive).setParameter(3, startInclusive).setParameter(4, endExclusive);
+            if (withGrossiste) {
+                query.setParameter(grossisteParamIndex, grossisteId);
+            }
+            if (withGroupe) {
+                query.setParameter(groupeParamIndex, groupeId);
+            }
             List<Tuple> list = query.getResultList();
             return list.stream().map(this::buildEtatControlAnnuels).collect(Collectors.toList());
 
@@ -210,35 +268,17 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         }
     }
 
-    private EtatControlAnnuelWrapperDTO bonsAnnuelGroup(String dtStart, String dtEnd, String grossisteId,
-            Integer groupeId) {
-        String sql = BON_ANNUEL_SQL_GROUP;
-        sql = buildSqlQuery(grossisteId, groupeId, sql);
-
-        LOG.log(Level.INFO, "sql--- bonsAnnuelGroup  {0}", sql);
-        try {
-            Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, java.sql.Date.valueOf(dtStart))
-                    .setParameter(2, java.sql.Date.valueOf(dtEnd));
-            Tuple tuple = (Tuple) query.getSingleResult();
-            return buildEtatControlAnnuelSummaryDTO(tuple);
-
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return EtatControlAnnuelWrapperDTO.builder().build();
-        }
-    }
-
-    private EtatControlAnnuelWrapperDTO buildEtatControlAnnuelSummaryDTO(Tuple tuple) {
-        long montantTtc = tuple.get("montantTtc", BigDecimal.class).longValue();
-        long montantVenteTtc = tuple.get("montantVenteTtc", BigDecimal.class).longValue();
-        long montantTaxe = tuple.get("montantTaxe", BigDecimal.class).longValue();
-        long marge = montantVenteTtc - montantTtc;
-        return EtatControlAnnuelWrapperDTO.builder()
-                .summary(EtatControlAnnuelWrapperDTO.EtatControlAnnuelSummary.builder().totalMarge(marge)
-                        .totaltHtaxe(tuple.get("montantHtaxe", BigDecimal.class).longValue())
-                        .totalNbreBon(tuple.get("nbreBon", BigInteger.class).intValue()).totalTtc(montantTtc)
-                        .totalTaxe(montantTaxe).totalVenteTtc(montantVenteTtc).build())
-                .build();
+    private EtatControlAnnuelWrapperDTO.EtatControlAnnuelSummary buildEtatControlAnnuelSummaryDTO(
+            List<EtatControlAnnuelDTO> list) {
+        long montantTtc = list.stream().mapToLong(EtatControlAnnuelDTO::getMontantTtc).sum();
+        long montantVenteTtc = list.stream().mapToLong(EtatControlAnnuelDTO::getMontantVenteTtc).sum();
+        return EtatControlAnnuelWrapperDTO.EtatControlAnnuelSummary.builder()
+                .totalMarge(montantVenteTtc - montantTtc)
+                .totaltHtaxe(list.stream().mapToLong(EtatControlAnnuelDTO::getMontantHtaxe).sum())
+                .totalNbreBon(list.stream().mapToInt(EtatControlAnnuelDTO::getNbreBon).sum()).totalTtc(montantTtc)
+                .totalTaxe(list.stream().mapToLong(EtatControlAnnuelDTO::getMontantTaxe).sum())
+                .totalAvoir(list.stream().mapToLong(EtatControlAnnuelDTO::getMontantAvoir).sum())
+                .totalVenteTtc(montantVenteTtc).build();
     }
 
     @Override
@@ -249,19 +289,39 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         return FunctionUtils.returnData(annuels, annuels.size(), annuelSummary.getSummary());
     }
 
-    private String buildSqlQuery(String grossisteId, Integer groupeId, String sql) {
-        if (StringUtils.isNotEmpty(grossisteId)) {
-            sql = sql.replace("{grossisteIdClose}", String.format("  AND g.`lg_GROSSISTE_ID`= %s ", grossisteId));
-        } else {
-            sql = sql.replace("{grossisteIdClose}", " ");
+    @Override
+    public List<AchatGrossisteMensuelDTO> listAchatsMensuels(String dtStart, String dtEnd, String type) {
+        // type = "HT" => int_MHT, sinon TTC (int_HTTC) par defaut.
+        String sql = ACHAT_MENSUEL_SQL.replace("{amountColumn}",
+                "HT".equalsIgnoreCase(type) ? "`int_MHT`" : "`int_HTTC`");
+        try {
+            java.sql.Timestamp startInclusive = java.sql.Timestamp.valueOf(LocalDate.parse(dtStart).atStartOfDay());
+            java.sql.Timestamp endExclusive = java.sql.Timestamp
+                    .valueOf(LocalDate.parse(dtEnd).plusDays(1).atStartOfDay());
+            Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, startInclusive).setParameter(2,
+                    endExclusive);
+            List<Tuple> list = query.getResultList();
+            return list.stream().map(this::buildAchatGrossisteMensuel).collect(Collectors.toList());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
         }
-        if (Objects.nonNull(groupeId) && groupeId != 0) {
-            sql = sql.replace("{groupeIdClose}", String.format("  AND gp.id= %d ", groupeId));
-        } else {
-            sql = sql.replace("{groupeIdClose}", " ");
-        }
+    }
 
-        return sql;
+    private AchatGrossisteMensuelDTO buildAchatGrossisteMensuel(Tuple tuple) {
+        return AchatGrossisteMensuelDTO.builder().grossisteId(tuple.get("grossisteId", String.class))
+                .libelle(tuple.get("libelle", String.class)).janvier(toLong(tuple, "janvier"))
+                .fevrier(toLong(tuple, "fevrier")).mars(toLong(tuple, "mars")).avril(toLong(tuple, "avril"))
+                .mai(toLong(tuple, "mai")).juin(toLong(tuple, "juin")).juillet(toLong(tuple, "juillet"))
+                .aout(toLong(tuple, "aout")).septembre(toLong(tuple, "septembre")).octobre(toLong(tuple, "octobre"))
+                .novembre(toLong(tuple, "novembre")).decembre(toLong(tuple, "decembre"))
+                .total(toLong(tuple, "total")).build();
+    }
+
+    @Override
+    public JSONObject achatsMensuelsView(String dtStart, String dtEnd, String type) {
+        List<AchatGrossisteMensuelDTO> achats = listAchatsMensuels(dtStart, dtEnd, type);
+        return FunctionUtils.returnData(achats, achats.size());
     }
 
     @Override
@@ -463,13 +523,14 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         GenericExcelDTO genericExcel = new GenericExcelDTO();
         EtatControlAnnuelWrapperDTO annuelSummary = listBonAnnuel(groupBy, dtStart, dtEnd, grossisteId, groupeId);
         List<EtatControlAnnuelDTO> annuels = annuelSummary.getEtatControlAnnuels();
-        genericExcel.addColumn("Libellé", "Total Ht", "Total Tva", "Total Ttc", "Total vente Ttc", "Totam marge",
-                "Nombre de bon", "Ttc%");
-        genericExcel.addWidths(12000, 6000, 6000, 6000, 6000, 6000, 6000, 6000);
+        genericExcel.addColumn("Libellé", "Total Ht", "Total Tva", "Avoir", "Total Ttc", "Total vente Ttc",
+                "Total marge", "Nombre de bon", "Ttc%");
+        genericExcel.addWidths(12000, 6000, 6000, 6000, 6000, 6000, 6000, 6000, 6000);
         annuels.forEach(d -> {
 
-            Object[] row = { d.getGroupByLibelle(), d.getMontantHtaxe(), d.getMontantTaxe(), d.getMontantTtc(),
-                    d.getMontantVenteTtc(), d.getMontantMarge(), d.getNbreBon(), d.getPourcentage() };
+            Object[] row = { d.getGroupByLibelle(), d.getMontantHtaxe(), d.getMontantTaxe(), d.getMontantAvoir(),
+                    d.getMontantTtc(), d.getMontantVenteTtc(), d.getMontantMarge(), d.getNbreBon(),
+                    d.getPourcentage() };
             genericExcel.addRow(row);
         });
 

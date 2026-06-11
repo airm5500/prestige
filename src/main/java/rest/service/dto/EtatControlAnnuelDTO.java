@@ -25,6 +25,7 @@ public class EtatControlAnnuelDTO {
     private final long montantTtc;
     private final long montantVenteTtc;
     private final long montantMarge;
+    private final long montantAvoir;
     private final int nbreBon;
     private float pourcentage;
 }

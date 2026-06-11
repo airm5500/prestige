@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import javax.ejb.Local;
 import org.json.JSONObject;
+import rest.service.dto.AchatGrossisteMensuelDTO;
 import rest.service.dto.EtatControlAnnuelWrapperDTO;
 import rest.service.dto.EtatControlBon;
 import rest.service.dto.EtatControlBonEditDto;
@@ -27,6 +28,10 @@ public interface EtatControlBonService {
     JSONObject listBonAnnuelView(String groupBy, String dtStart, String dtEnd, String grossisteId, Integer groupeId);
 
     JSONObject etatLastThreeYears();
+
+    List<AchatGrossisteMensuelDTO> listAchatsMensuels(String dtStart, String dtEnd, String type);
+
+    JSONObject achatsMensuelsView(String dtStart, String dtEnd, String type);
 
     JSONObject updateBon(EtatControlBonEditDto bonEdit);
 

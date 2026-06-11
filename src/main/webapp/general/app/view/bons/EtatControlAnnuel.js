@@ -23,6 +23,7 @@ Ext.define('testextjs.view.bons.EtatControlAnnuel', {
                 {name: 'groupByLibelle', type: 'string'},
                 {name: 'montantHtaxe', type: 'number'},
                 {name: 'montantTaxe', type: 'number'},
+                {name: 'montantAvoir', type: 'number'},
                 {name: 'montantTtc', type: 'number'},
                 {name: 'montantVenteTtc', type: 'number'},
                 {name: 'montantMarge', type: 'number'},
@@ -332,6 +333,15 @@ Ext.define('testextjs.view.bons.EtatControlAnnuel', {
                             header: 'Total TVA',
                             dataIndex: 'montantTaxe',
                             flex: 0.5,
+                            align: 'right',
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            }
+                        },
+                        {
+                            header: 'Avoir',
+                            dataIndex: 'montantAvoir',
+                            flex: 0.4,
                             align: 'right',
                             renderer: function (v) {
                                 return Ext.util.Format.number(v, '0,000.');

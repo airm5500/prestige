@@ -36,6 +36,7 @@ public class EtatControlAnnuelWrapperDTO {
         private final long totalTtc;
         private final long totalVenteTtc;
         private final long totalMarge;
+        private final long totalAvoir;
         private final int totalNbreBon;
     }
 

@@ -65,6 +65,14 @@ public class EtatControlBonResource {
 
     }
 
+    @GET
+    @Path("achats-mensuels")
+    public Response achatsMensuels(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "type") String type) {
+        return Response.ok().entity(etatControlBonService.achatsMensuelsView(dtStart, dtEnd, type).toString()).build();
+
+    }
+
     @POST
     @Path("edit")
     public Response editBon(EtatControlBonEditDto bonEditDto) {

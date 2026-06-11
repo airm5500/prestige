@@ -17,6 +17,7 @@ import javax.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
 import rest.report.ReportUtil;
 import rest.service.EtatControlBonService;
+import rest.service.dto.AchatGrossisteMensuelDTO;
 import rest.service.dto.EtatControlAnnuelDTO;
 import rest.service.dto.EtatControlAnnuelWrapperDTO;
 import rest.service.dto.EtatControlBon;
@@ -46,6 +47,8 @@ public class EtatControlStockServlet extends HttpServlet {
                 response.sendRedirect(request.getContextPath() + buildReportAnnuel(request));
             }
 
+        } else if ("achatMensuel".equals(mode)) {
+            response.sendRedirect(request.getContextPath() + buildReportAchatMensuel(request));
         } else {
             if ("excel".equals(fileType)) {
                 exportToExceReport(request, response);
@@ -136,8 +139,35 @@ public class EtatControlStockServlet extends HttpServlet {
         parameters.put("totaltHtaxe", summary.getTotaltHtaxe());
         parameters.put("totalTaxe", summary.getTotalTaxe());
         parameters.put("totalTtc", summary.getTotalTtc());
+        parameters.put("totalAvoir", summary.getTotalAvoir());
 
         return reportUtil.buildReport(parameters, reportName, annuels);
+
+    }
+
+    private String buildReportAchatMensuel(HttpServletRequest request) {
+        HttpSession session = request.getSession();
+        TUser user = (TUser) session.getAttribute(Constant.AIRTIME_USER);
+
+        String dtStart = request.getParameter("dtStart");
+        String dtEnd = request.getParameter("dtEnd");
+        String type = request.getParameter("type");
+        String typeLibelle = "HT".equalsIgnoreCase(type) ? "HT" : "TTC";
+
+        LocalDate dtSt = LocalDate.parse(dtStart);
+        LocalDate dtd = LocalDate.parse(dtEnd);
+        Map<String, Object> parameters = reportUtil.officineData(user);
+        String periode = dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        if (!dtSt.isEqual(dtd)) {
+            periode += " AU " + dtd.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        }
+        String reportName = "rp_achats_grossiste_mensuel";
+
+        parameters.put("P_H_CLT_INFOS",
+                "ACHATS MENSUELS PAR GROSSISTE (MONTANTS " + typeLibelle + ") \n DU  " + periode);
+        List<AchatGrossisteMensuelDTO> achats = this.etatControlBonService.listAchatsMensuels(dtStart, dtEnd, type);
+
+        return reportUtil.buildReport(parameters, reportName, achats);
 
     }
 
