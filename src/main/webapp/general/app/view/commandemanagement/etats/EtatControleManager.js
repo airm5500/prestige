@@ -167,6 +167,14 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 {
                     name: 'dateLivraison',
                     type: 'date'
+                },
+                {
+                    name: 'checked',
+                    type: 'string'
+                },
+                {
+                    name: 'bonLivraisonDetails',
+                    type: 'auto'
                 }
 
             ],
@@ -258,6 +266,28 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     tpl: '{user.fullName}',
                     xtype: 'templatecolumn',
                     flex: 1.5
+                },
+                {
+                    header: 'CONTROLE',
+                    dataIndex: 'checked',
+                    width: 100,
+                    align: 'center',
+                    sortable: true,
+                    renderer: this.controleStatutRenderer
+                },
+                {
+                    xtype: 'actioncolumn',
+                    header: 'DETAIL',
+                    width: 45,
+                    align: 'center',
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/application_view_list.png',
+                            tooltip: 'Voir le detail du controle (quantites controlees saisies)',
+                            scope: this,
+                            handler: this.onDetailControleClick
+                        }]
                 },
                 {
                     text: '',
@@ -498,6 +528,96 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     onStoreLoad: function () {
 
 
+    },
+    controleStatutRenderer: function (value) {
+        var map = {
+            'TERMINE': {libelle: 'Termin&eacute;', color: '#2e7d32', bg: '#c8e6c9'},
+            'EN_COURS': {libelle: 'En cours', color: '#ef6c00', bg: '#ffe0b2'},
+            'NON_TRAITE': {libelle: '&Agrave; faire', color: '#c62828', bg: '#ffcdd2'}
+        };
+        var s = map[value] || map['NON_TRAITE'];
+        return '<span style="display:inline-block;padding:1px 8px;border-radius:10px;'
+                + 'color:' + s.color + ';background:' + s.bg + ';font-weight:bold;">'
+                + s.libelle + '</span>';
+    },
+    onDetailControleClick: function (grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        var details = rec.get('bonLivraisonDetails') || [];
+
+        var rows = Ext.Array.map(details, function (d) {
+            var produit = d.produit || {};
+            var comptage = d.quantiteControle || 0;
+            var stock = d.intINITSTOCK || 0;
+            return {
+                cip: produit.intCIP,
+                designation: produit.strDESCRIPTION,
+                prixAchat: d.intPAF,
+                prixVente: d.intPRIXVENTE,
+                stock: stock,
+                comptage: comptage,
+                ecart: comptage - stock,
+                checked: d.checked === true
+            };
+        });
+
+        var detailStore = Ext.create('Ext.data.Store', {
+            fields: [
+                {name: 'cip', type: 'string'},
+                {name: 'designation', type: 'string'},
+                {name: 'prixAchat', type: 'number'},
+                {name: 'prixVente', type: 'number'},
+                {name: 'stock', type: 'number'},
+                {name: 'comptage', type: 'number'},
+                {name: 'ecart', type: 'number'},
+                {name: 'checked', type: 'boolean'}
+            ],
+            data: rows
+        });
+
+        Ext.create('Ext.window.Window', {
+            autoShow: true,
+            modal: true,
+            width: '70%',
+            height: 480,
+            title: 'D&eacute;tail du contr&ocirc;le - BL N&deg;' + rec.get('strREFLIVRAISON'),
+            layout: 'fit',
+            items: [{
+                    xtype: 'grid',
+                    border: false,
+                    store: detailStore,
+                    columns: [
+                        {xtype: 'rownumberer', width: 40},
+                        {header: 'CIP', dataIndex: 'cip', width: 90},
+                        {header: 'D&eacute;signation', dataIndex: 'designation', flex: 2},
+                        {header: 'Prix achat', dataIndex: 'prixAchat', renderer: amountformat, align: 'right', flex: 1},
+                        {header: 'Prix vente', dataIndex: 'prixVente', renderer: amountformat, align: 'right', flex: 1},
+                        {header: 'Stock', dataIndex: 'stock', align: 'right', flex: 0.7},
+                        {header: 'Comptage', dataIndex: 'comptage', align: 'right', flex: 0.7},
+                        {
+                            header: '&Eacute;cart',
+                            dataIndex: 'ecart',
+                            align: 'right',
+                            flex: 0.7,
+                            renderer: function (v) {
+                                var color = v === 0 ? '#000' : (v > 0 ? '#2e7d32' : '#c62828');
+                                return '<span style="color:' + color + ';font-weight:bold;">' + v + '</span>';
+                            }
+                        },
+                        {
+                            header: 'Contr&ocirc;l&eacute;',
+                            dataIndex: 'checked',
+                            width: 80,
+                            align: 'center',
+                            renderer: function (v) {
+                                var color = v ? '#2e7d32' : '#bdbdbd';
+                                var tip = v ? 'Produit contr&ocirc;l&eacute;' : 'Non contr&ocirc;l&eacute;';
+                                return '<span title="' + tip + '" style="display:inline-block;width:12px;height:12px;'
+                                        + 'border-radius:50%;background:' + color + ';"></span>';
+                            }
+                        }
+                    ]
+                }]
+        });
     },
     onbtnexport: function (grid, rowIndex) {
 

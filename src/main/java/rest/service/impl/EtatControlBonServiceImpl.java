@@ -114,10 +114,14 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             LocalDate dtEnd, String grossisteId, String search) {
         List<Predicate> predicates = new ArrayList<>();
 
-        Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TBonLivraison_.dtDATELIVRAISON)),
-                java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
+        // On compare directement la colonne (TIMESTAMP) avec des bornes, sans l'envelopper dans DATE(...).
+        // Cela rend le predicat "sargable" : MySQL peut utiliser l'index sur dt_DATE_LIVRAISON
+        // au lieu de scanner toute la table (cause de la lenteur au chargement et en recherche).
+        Date startInclusive = java.sql.Timestamp.valueOf(dtStart.atStartOfDay());
+        Date endExclusive = java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay());
         predicates.add(cb.equal(root.get(TBonLivraison_.strSTATUT), Constant.STATUT_IS_CLOSED));
-        predicates.add(btw);
+        predicates.add(cb.greaterThanOrEqualTo(root.get(TBonLivraison_.dtDATELIVRAISON), startInclusive));
+        predicates.add(cb.lessThan(root.get(TBonLivraison_.dtDATELIVRAISON), endExclusive));
         if (StringUtils.isNotEmpty(grossisteId)) {
             predicates.add(cb.equal(
                     root.get(TBonLivraison_.lgORDERID).get(TOrder_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
