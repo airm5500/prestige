@@ -61,9 +61,13 @@ public class LotServiceImpl implements LotService {
 
     // Requete projetee (sans hydratation d'entites ni lazy-loading) alimentant la grille
     // "Liste des lots". Filtre sargable sur dt_CREATED (borne haute exclusive) + recherche.
-    private static final String GRID_SELECT = "SELECT l.lg_LOT_ID, f.int_CIP, f.str_NAME, l.int_NUM_LOT, "
-            + "l.str_REF_LIVRAISON, l.str_REF_ORDER, l.int_NUMBER, l.int_NUMBER_GRATUIT, g.str_LIBELLE, "
-            + "l.dt_CREATED, l.dt_PEREMPTION, te.str_NAME "
+    // Chaque colonne est aliasee explicitement: f.str_NAME et te.str_NAME portent le meme
+    // nom et provoquent sinon NonUniqueDiscoveredSqlAliasException sur la requete native.
+    private static final String GRID_SELECT = "SELECT l.lg_LOT_ID AS c_lot_id, f.int_CIP AS c_cip, "
+            + "f.str_NAME AS c_libelle, l.int_NUM_LOT AS c_numlot, l.str_REF_LIVRAISON AS c_refbl, "
+            + "l.str_REF_ORDER AS c_refcmde, l.int_NUMBER AS c_number, l.int_NUMBER_GRATUIT AS c_numbergt, "
+            + "g.str_LIBELLE AS c_grossiste, l.dt_CREATED AS c_datesortie, l.dt_PEREMPTION AS c_dateperemption, "
+            + "te.str_NAME AS c_etiquette "
             + "FROM t_lot l "
             + "JOIN t_famille f ON l.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
             + "LEFT JOIN t_grossiste g ON l.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID "
