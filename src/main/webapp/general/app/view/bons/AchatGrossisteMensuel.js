@@ -6,8 +6,10 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
     frame: true,
     title: 'Achats mensuels par grossiste',
     width: '98%',
+    // Hauteur calee sur l'ecran : le panneau occupe la zone de contenu et reste
+    // colle en haut (centerContent), la grille defile en interne si besoin.
+    height: Ext.Element.getViewportHeight() - 100,
     minHeight: 580,
-    maxHeight: 780,
     cls: 'custompanel',
     layout: 'fit',
     initComponent: function () {
@@ -56,11 +58,10 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
         const summaryRenderer = function (v) {
             return '<b>' + Ext.util.Format.number(v, '0,000.') + '</b>';
         };
-        const columns = [
-            {
+        const actionColumn = {
                 xtype: 'actioncolumn',
                 header: 'Courbe',
-                width: 50,
+                width: 55,
                 align: 'center',
                 items: [
                     {
@@ -139,7 +140,8 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
                         }
                     }
                 ]
-            },
+            };
+        const columns = [
             {
                 header: 'Grossiste',
                 dataIndex: 'libelle',
@@ -173,6 +175,7 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
             summaryType: 'sum',
             summaryRenderer: summaryRenderer
         });
+        columns.push(actionColumn);
         const me = this;
         // Type de montant courant : TTC par defaut, bascule HT via le bouton de la barre d'outils.
         me.amountType = 'TTC';
