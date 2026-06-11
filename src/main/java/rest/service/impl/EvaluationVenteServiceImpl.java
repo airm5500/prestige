@@ -41,7 +41,8 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
 
     private static final Logger LOG = Logger.getLogger(EvaluationVenteServiceImpl.class.getName());
 
-    private static final String QUERY = "SELECT p.lg_GROSSISTE_ID as grossisteId, " + " p.lg_FAMILLE_ID as produitId, "
+    private static final String QUERY = "SELECT COUNT(*) OVER() AS totalCount, p.lg_GROSSISTE_ID as grossisteId, "
+            + " p.lg_FAMILLE_ID as produitId, "
             + " p.int_CIP AS codeCip, " + " p.str_NAME AS libelle, " + " p.int_PRICE AS prixVente, "
             + " p.int_PAF as prixAchat, " + " COALESCE(fs.int_NUMBER_AVAILABLE, 0) AS stock, "
             + " SUM(CASE WHEN venteDetail.dateVente <> MONTH(CURDATE()) THEN venteDetail.quantiteVendue ELSE 0 END) AS quantiteVendue, "
@@ -113,15 +114,17 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
     @Override
     public JSONObject fetchEvaluationVentes(EvaluationVenteFiltre evaluationVenteFiltre) {
         JSONObject json = new JSONObject();
-        int count = getCount(evaluationVenteFiltre);
-        json.put("total", count);
-        if (count == 0) {
-            json.put("data", new JSONArray());
-            return json;
+        List<Tuple> tuples = fetchData(evaluationVenteFiltre);
+        int count;
+        if (tuples.isEmpty()) {
+            // page demandee au dela des resultats : le total n'est pas disponible dans les lignes
+            count = evaluationVenteFiltre.getStart() > 0 ? getCount(evaluationVenteFiltre) : 0;
+        } else {
+            count = ((Number) tuples.get(0).get("totalCount")).intValue();
         }
-        List<EvaluationVenteDto> data = getEvaluationVentes(evaluationVenteFiltre);
-
-        json.put("data", new JSONArray(data));
+        json.put("total", count);
+        json.put("data",
+                new JSONArray(tuples.stream().map(this::buildFromTuple).collect(Collectors.toList())));
         return json;
     }
 
@@ -181,31 +184,36 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
 
     private String manageFiltre(String sql, String aving, EvaluationVenteFiltre evaluationVenteFiltre) {
 
+        String operateur = null;
         if (StringUtils.isNotEmpty(evaluationVenteFiltre.getFiltre())
                 && Objects.nonNull(evaluationVenteFiltre.getFiltreValue())) {
-            sql = sql.replace("{having_placeholder}", aving);
             switch (evaluationVenteFiltre.getFiltre()) {
             case Constant.LESS:
-                sql = String.format(Locale.US, sql, "<", evaluationVenteFiltre.getFiltreValue());
+                operateur = "<";
                 break;
             case Constant.MORE:
-                sql = String.format(Locale.US, sql, ">", evaluationVenteFiltre.getFiltreValue());
+                operateur = ">";
                 break;
             case Constant.MOREOREQUAL:
-                sql = String.format(Locale.US, sql, ">=", evaluationVenteFiltre.getFiltreValue());
+                operateur = ">=";
                 break;
             case Constant.LESSOREQUAL:
-                sql = String.format(Locale.US, sql, "<=", evaluationVenteFiltre.getFiltreValue());
+                operateur = "<=";
                 break;
             case Constant.EQUAL:
-                sql = String.format(Locale.US, sql, "=", evaluationVenteFiltre.getFiltreValue());
+                operateur = "=";
                 break;
             case Constant.NOT:
-                sql = String.format(Locale.US, sql, "<>", evaluationVenteFiltre.getFiltreValue());
+                operateur = "<>";
                 break;
             default:
                 break;
             }
+        }
+        if (operateur != null) {
+            // formate uniquement le fragment HAVING : le SQL complet peut contenir des '%' (LIKE)
+            sql = sql.replace("{having_placeholder}",
+                    String.format(Locale.US, aving, operateur, evaluationVenteFiltre.getFiltreValue()));
         } else {
             sql = sql.replace("{having_placeholder}", "");
         }
