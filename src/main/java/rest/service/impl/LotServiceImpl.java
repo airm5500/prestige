@@ -66,7 +66,7 @@ public class LotServiceImpl implements LotService {
             + "l.dt_CREATED, l.dt_PEREMPTION, te.str_NAME "
             + "FROM t_lot l "
             + "JOIN t_famille f ON l.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
-            + "JOIN t_grossiste g ON l.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID "
+            + "LEFT JOIN t_grossiste g ON l.lg_GROSSISTE_ID = g.lg_GROSSISTE_ID "
             + "LEFT JOIN t_typeetiquette te ON l.lg_TYPEETIQUETTE_ID = te.lg_TYPEETIQUETTE_ID "
             + "WHERE l.dt_CREATED >= ?1 AND l.dt_CREATED < ?2 ";
 
