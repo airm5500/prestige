@@ -52,11 +52,21 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
                 timeout: 2400000
             }
         });
-        const numberRenderer = function (v) {
-            return Ext.util.Format.number(v, '0,000.');
+        const numberRenderer = function (v, metaData) {
+            const formatted = Ext.util.Format.number(v, '0,000.');
+            // Infobulle avec le montant complet : les colonnes mois sont etroites
+            // et les grands montants peuvent etre tronques a l'affichage.
+            if (metaData) {
+                metaData.tdAttr = 'data-qtip="' + formatted + '"';
+            }
+            return formatted;
         };
-        const summaryRenderer = function (v) {
-            return '<b>' + Ext.util.Format.number(v, '0,000.') + '</b>';
+        const summaryRenderer = function (v, summaryData, dataIndex, metaData) {
+            const formatted = Ext.util.Format.number(v, '0,000.');
+            if (metaData) {
+                metaData.tdAttr = 'data-qtip="' + formatted + '"';
+            }
+            return '<b>' + formatted + '</b>';
         };
         const actionColumn = {
                 xtype: 'actioncolumn',
@@ -99,7 +109,9 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
                                                 title: 'Montant ' + typeLibelle,
                                                 minimum: 0,
                                                 label: {
-                                                    renderer: numberRenderer
+                                                    renderer: function (v) {
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 }
                                             },
                                             {
@@ -170,7 +182,7 @@ Ext.define('testextjs.view.bons.AchatGrossisteMensuel', {
             align: 'right',
             renderer: function (v, metaData) {
                 metaData.style = 'font-weight:bold;';
-                return numberRenderer(v);
+                return numberRenderer(v, metaData);
             },
             summaryType: 'sum',
             summaryRenderer: summaryRenderer
