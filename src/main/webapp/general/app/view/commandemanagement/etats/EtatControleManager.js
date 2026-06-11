@@ -583,7 +583,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             width: '90%',
             height: 480,
             maximizable: true,
-            title: (grossisteName ? grossisteName + ' - ' : '') + 'BL N&deg;' + rec.get('strREFLIVRAISON'),
+            title: 'DETAILS : ' + (grossisteName ? grossisteName + ' - ' : '') + 'BL N&deg;' + rec.get('strREFLIVRAISON'),
             layout: 'fit',
             items: [{
                     xtype: 'grid',
