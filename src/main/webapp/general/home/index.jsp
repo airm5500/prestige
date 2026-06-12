@@ -58,6 +58,8 @@
         <link rel="stylesheet" href="assets/css/metro-styles.css" />
         <!-- Design moderne du menu metro (charge en dernier pour primer) -->
         <link rel="stylesheet" href="assets/css/metro-modern.css" />
+        <!-- Icones de secours pour les menus sans icone en base -->
+        <script src="assets/js/metro-icons.js" type="text/javascript"></script>
 
     </head>
     <body class="body-bg pm-body">
@@ -98,7 +100,12 @@
 
 
             function AppelerGestionClientele(lg_MENU_ID) {
-                $("#metro-sub-menu").load("view/sousmenus.jsp?lg_MENU_ID=" + lg_MENU_ID);
+                $("#metro-sub-menu").load("view/sousmenus.jsp?lg_MENU_ID=" + lg_MENU_ID, function () {
+                    // Reapplique les icones de secours sur les sous-menus charges en Ajax
+                    if (window.prestigeMetroIcons) {
+                        window.prestigeMetroIcons();
+                    }
+                });
             }
             function ReloadIframe() {
 

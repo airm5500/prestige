@@ -62,6 +62,8 @@
         <link rel="stylesheet" href="assets/css/metro-styles.css" />
         <!-- Design moderne du menu metro (charge en dernier pour primer) -->
         <link rel="stylesheet" href="assets/css/metro-modern.css" />
+        <!-- Icones de secours pour les menus sans icone en base -->
+        <script src="assets/js/metro-icons.js" type="text/javascript"></script>
 
     </head>
     <body class="body-bg pm-body">
