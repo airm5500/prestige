@@ -23,78 +23,86 @@
 
 
 
-<%  Translate OTranslate = new Translate();
+<%
     dataManager OdataManager = new dataManager();
-    String strLASTNAME = "%%", strFIRSTNAME = "%%", strLOGIN = "%%", lg_ROLE_ID = "", lg_USER_ID = "";
-    date key = new date();
-    privilege Oprivilege = new privilege();
-    json Ojson = new json();
-    List<TMenu> lstTMenu = new ArrayList<>();
+    List<TMenu> lstTMenu;
 %>
 
 <%
     TUser OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
-    new logger().OCategory.info(" ws tree_menu TUser  " + OTUser.getStrLOGIN());
     OdataManager.initEntityManager();
-    Oprivilege.LoadDataManger(OdataManager);
-    Oprivilege.LoadMultilange(OTranslate);
-    Oprivilege.setOTUser(OTUser);
+    try {
+        List<TPrivilege> lstPrivileges = (List<TPrivilege>) session.getAttribute(Constant.USER_LIST_PRIVILEGE);
 
-    lstTMenu = OdataManager.getEm().createQuery("SELECT t FROM TMenu t  WHERE t.strStatus LIKE ?1 AND t.lgMODULEID.lgMODULEID LIKE ?2 ORDER BY t.intPRIORITY ASC").
-            setParameter(1, Constant.STATUT_ENABLE).
-            setParameter(2, "1").
-            getResultList();
-    new logger().OCategory.info(" lstTMenu " + lstTMenu.size());
+        lstTMenu = OdataManager.getEm().createQuery("SELECT t FROM TMenu t  WHERE t.strStatus LIKE ?1 AND t.lgMODULEID.lgMODULEID LIKE ?2 ORDER BY t.intPRIORITY ASC").
+                setParameter(1, Constant.STATUT_ENABLE).
+                setParameter(2, "1").
+                getResultList();
 
-    JSONArray arrayObj = new JSONArray();
+        // Tous les sous-menus actifs en une seule requete (au lieu d'une requete + refresh par menu),
+        // regroupes par menu parent.
+        List<TSousMenu> lstAllSousMenu = OdataManager.getEm().createQuery(
+                "SELECT t FROM TSousMenu t WHERE t.strStatus = ?1 AND t.lgMENUID.strStatus = ?2 AND t.lgMENUID.lgMODULEID.lgMODULEID = ?3 ORDER BY t.intPRIORITY ASC")
+                .setParameter(1, Constant.STATUT_ENABLE)
+                .setParameter(2, Constant.STATUT_ENABLE)
+                .setParameter(3, "1")
+                .getResultList();
 
-    for (int i = 0; i < lstTMenu.size(); i++) {
-
-        OdataManager.getEm().refresh(lstTMenu.get(i));
-
-        boolean isValid = privilege.hasAuthorityByName((List<TPrivilege>) session.getAttribute(Constant.USER_LIST_PRIVILEGE), lstTMenu.get(i).getPKey());
-        if (isValid) {
-//    if (Oprivilege.isAvalaible(lstTMenu.get(i).getPKey())) {
-            List<TSousMenu> lstTSousMenu = new ArrayList<>();
-            lstTSousMenu = OdataManager.getEm().createQuery("SELECT t FROM TSousMenu t WHERE t.lgMENUID.lgMENUID = ?1  AND t.strStatus = ?2 ORDER BY t.intPRIORITY ASC")
-                    .setParameter(1, lstTMenu.get(i).getLgMENUID())
-                    .setParameter(2, Constant.STATUT_ENABLE)
-                    .getResultList();
-
-            JSONObject json = new JSONObject();
-            //affichage des menus
-            json.put("text", lstTMenu.get(i).getStrDESCRIPTION());
-            if (lstTMenu.get(i).getStrIMAGECSS() != null) { // a decommenter si bonne image trouvée
-                json.put("iconCls", lstTMenu.get(i).getStrIMAGECSS());
+        Map<String, List<TSousMenu>> sousMenusByMenu = new HashMap<>();
+        for (TSousMenu OTSousMenu : lstAllSousMenu) {
+            String menuId = OTSousMenu.getLgMENUID().getLgMENUID();
+            List<TSousMenu> children = sousMenusByMenu.get(menuId);
+            if (children == null) {
+                children = new ArrayList<>();
+                sousMenusByMenu.put(menuId, children);
             }
-            //json.put("expanded", "false");
-            JSONArray arrayObj_sub = new JSONArray();
-            for (int j = 0; j < lstTSousMenu.size(); j++) {
-                TSousMenu OTSousMenu = lstTSousMenu.get(j);
-                OdataManager.getEm().refresh(OTSousMenu);
-                JSONObject json_sub = new JSONObject();
+            children.add(OTSousMenu);
+        }
 
-                boolean isValid2 = privilege.hasAuthorityByName((List<TPrivilege>) session.getAttribute(Constant.USER_LIST_PRIVILEGE), lstTSousMenu.get(j).getPKey());
-                //if (Oprivilege.isAvalaible(lstTSousMenu.get(j).getPKey())) {
-                if (isValid2) {
-                    json_sub.put("id", OTSousMenu.getStrCOMPOSANT());
-                    json_sub.put("text", OTSousMenu.getStrDESCRIPTION());//leaf:true
-                    json_sub.put("leaf", "true");
-                    if (OTSousMenu.getStrIMAGECSS() != null) { // a decommenter si bonne image trouvée
-                        json.put("iconCls", OTSousMenu.getStrIMAGECSS());
+        JSONArray arrayObj = new JSONArray();
+
+        for (TMenu OTMenu : lstTMenu) {
+
+            boolean isValid = privilege.hasAuthorityByName(lstPrivileges, OTMenu.getPKey());
+            if (isValid) {
+                List<TSousMenu> lstTSousMenu = sousMenusByMenu.get(OTMenu.getLgMENUID());
+                if (lstTSousMenu == null) {
+                    lstTSousMenu = Collections.emptyList();
+                }
+
+                JSONObject json = new JSONObject();
+                //affichage des menus
+                json.put("text", OTMenu.getStrDESCRIPTION());
+                if (OTMenu.getStrIMAGECSS() != null) {
+                    json.put("iconCls", OTMenu.getStrIMAGECSS());
+                }
+                JSONArray arrayObj_sub = new JSONArray();
+                for (TSousMenu OTSousMenu : lstTSousMenu) {
+
+                    boolean isValid2 = privilege.hasAuthorityByName(lstPrivileges, OTSousMenu.getPKey());
+                    if (isValid2) {
+                        JSONObject json_sub = new JSONObject();
+                        json_sub.put("id", OTSousMenu.getStrCOMPOSANT());
+                        json_sub.put("text", OTSousMenu.getStrDESCRIPTION());
+                        json_sub.put("leaf", "true");
+                        if (OTSousMenu.getStrIMAGECSS() != null) {
+                            json_sub.put("iconCls", OTSousMenu.getStrIMAGECSS());
+                        }
+                        arrayObj_sub.put(json_sub);
                     }
-                    //json_sub.put("iconCls", "export_csv_icon");
-                    arrayObj_sub.put(json_sub);
-
                 }
                 json.put("children", arrayObj_sub);
-            }
 
-            arrayObj.put(json);
+                arrayObj.put(json);
+            }
         }
-    }
 
 
 %>
 
 <%= arrayObj.toString()%>
+<%
+    } finally {
+        OdataManager.closeEntityManager();
+    }
+%>

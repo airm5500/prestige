@@ -2,6 +2,10 @@
 
 var OFFICINE = localStorage.getItem("OFFICINE");
 var str_PIC = localStorage.getItem("str_PIC");
+/* Sans photo de profil, str_PIC vaut null/"undefined" et genere une requete 404 vers general/undefined */
+if (!str_PIC || str_PIC === 'null' || str_PIC === 'undefined') {
+    str_PIC = 'resources/images/photo_personne/default.png';
+}
 var lg_EMPLACEMENT_ID = localStorage.getItem("lg_EMPLACEMENT_ID");
 var lg_USER_ID;
 Ext.define('testextjs.view.Header', {

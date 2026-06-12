@@ -10,6 +10,9 @@ import dal.TUser;
 import dal.dataManager;
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -44,6 +47,32 @@ public class DashBoardRessource {
     private HttpServletRequest servletRequest;
     @EJB
     DashBoardService dashBoardService;
+
+    // Cache memoire court pour les agregats les plus lourds du tableau de bord (scans annuels/mensuels).
+    // Les donnees sont globales a l'officine : une entree par endpoint suffit.
+    private static final Map<String, CachedPayload> DASHBOARD_CACHE = new ConcurrentHashMap<>();
+
+    private static final class CachedPayload {
+
+        final String payload;
+        final long expiresAt;
+
+        CachedPayload(String payload, long expiresAt) {
+            this.payload = payload;
+            this.expiresAt = expiresAt;
+        }
+    }
+
+    private String cachedPayload(String key, long ttlMillis, Supplier<String> loader) {
+        long now = System.currentTimeMillis();
+        CachedPayload entry = DASHBOARD_CACHE.get(key);
+        if (entry != null && entry.expiresAt > now) {
+            return entry.payload;
+        }
+        String payload = loader.get();
+        DASHBOARD_CACHE.put(key, new CachedPayload(payload, now + ttlMillis));
+        return payload;
+    }
 
     @GET
     @Path("credits")
@@ -164,6 +193,10 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
+        return okDashboard(cachedPayload("ca-graphe", 180_000, this::buildCaGraphePayload));
+    }
+
+    private String buildCaGraphePayload() {
         Dashboard dashboard = dashboardReport();
         JSONArray data = dashboard.getCaGrapheData();
         int thisYear = Integer.valueOf(date.FORMATTERYEAR.format(new Date()));
@@ -222,7 +255,7 @@ public class DashBoardRessource {
         json.put("oct", oct);
         json.put("nov", nov);
         json.put("dec", dec);
-        return okDashboard(json.toString());
+        return json.toString();
     }
 
     @GET
@@ -252,7 +285,11 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
-        return dashboardDataResponse(dashboardReport().getValeurAchatByGrossiste());
+        return okDashboard(cachedPayload("achat-grossiste", 120_000, () -> {
+            JSONObject json = new JSONObject();
+            json.put("data", dashboardReport().getValeurAchatByGrossiste());
+            return json.toString();
+        }));
     }
 
     @GET

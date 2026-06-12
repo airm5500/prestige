@@ -21,6 +21,23 @@ public class dataManager {
     private EntityManagerFactory emf;
     private EntityManager em;
     private static final String PERSISTENCE_UNIT_NAME = "DALPU";
+    // La creation d'une EntityManagerFactory est tres couteuse (bootstrap JPA + pool de connexions) :
+    // elle doit etre partagee par toute l'application et non recree a chaque requete.
+    private static volatile EntityManagerFactory SHARED_EMF;
+
+    private static EntityManagerFactory sharedEntityManagerFactory() {
+        EntityManagerFactory factory = SHARED_EMF;
+        if (factory == null || !factory.isOpen()) {
+            synchronized (dataManager.class) {
+                factory = SHARED_EMF;
+                if (factory == null || !factory.isOpen()) {
+                    factory = Persistence.createEntityManagerFactory(PERSISTENCE_UNIT_NAME);
+                    SHARED_EMF = factory;
+                }
+            }
+        }
+        return factory;
+    }
     private EntityTransaction Transaction;
     private boolean bTransactionGroupe = false;
     // début transaction
@@ -45,7 +62,7 @@ public class dataManager {
      */
     public void initEntityManager() {
 
-        setEmf(Persistence.createEntityManagerFactory(PERSISTENCE_UNIT_NAME));
+        setEmf(sharedEntityManagerFactory());
         setEm(getEmf().createEntityManager());
         isConected = true;
 
@@ -88,8 +105,8 @@ public class dataManager {
     }
 
     public void closeEntityManager() {
+        // Ne ferme que l'EntityManager : la factory est partagee par toute l'application.
         getEm().close();
-        getEmf().close();
         isConected = false;
     }
 
