@@ -16,6 +16,16 @@
     background-image: none !important;
 }
 
+/* Neutralise la bannière photo (baniere_laborex.png) appliquée par le
+   thème KitchenSink sur le conteneur interne : elle rendait les
+   écritures illisibles */
+#app-header #app-header-innerCt,
+#app-header-innerCt {
+    background: transparent !important;
+    background-image: none !important;
+    background-color: transparent !important;
+}
+
 /* ---- Titre PRESTIGE 2 ---- */
 #app-header-title {
     text-shadow: none !important;
@@ -37,8 +47,8 @@
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    max-width: 480px;
-    padding: 6px 18px;
+    max-width: 640px;
+    padding: 6px 22px;
     border-radius: 19px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(93, 173, 226, 0.25);
@@ -48,16 +58,16 @@
 }
 
 #app-header .hdr-officine .fa-medkit {
-    font-size: 16px;
+    font-size: 20px;
     color: var(--nav-accent-2, #48c9b0);
     flex-shrink: 0;
 }
 
 #app-header .hdr-officine span {
     color: #ffffff;
-    font-size: 16px;
+    font-size: 21px;
     font-weight: 700;
-    letter-spacing: 1.2px;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -68,7 +78,7 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    margin-right: 14px;
+    margin-left: 18px;
     padding: 5px 12px;
     border-radius: 15px;
     background: rgba(255, 255, 255, 0.06);
@@ -129,7 +139,7 @@
     font-family: 'Segoe UI', Tahoma, sans-serif;
 }
 
-/* ---- Carte utilisateur : photo + nom + rôle (clic = Mon compte) ---- */
+/* ---- Carte utilisateur : photo + nom + rôle (informatif, sans action) ---- */
 #app-header .hdr-user {
     display: inline-flex;
     align-items: center;
@@ -137,15 +147,9 @@
     margin-right: 12px;
     padding: 3px 12px 3px 4px;
     border-radius: 21px;
-    cursor: pointer;
+    cursor: default;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(93, 173, 226, 0.25);
-    transition: background 0.2s, border-color 0.2s;
-}
-
-#app-header .hdr-user:hover {
-    background: rgba(93, 173, 226, 0.22);
-    border-color: var(--nav-accent, #5dade2);
 }
 
 #app-header .hdr-avatar {
@@ -155,11 +159,6 @@
     object-fit: cover;
     flex-shrink: 0;
     border: 2px solid rgba(93, 173, 226, 0.6);
-    transition: border-color 0.2s;
-}
-
-#app-header .hdr-user:hover .hdr-avatar {
-    border-color: var(--nav-accent-2, #48c9b0);
 }
 
 #app-header .hdr-user-info {
@@ -231,4 +230,24 @@
     background: #c0392b;
     transform: scale(1.1);
     box-shadow: 0 3px 14px rgba(231, 76, 60, 0.7);
+}
+
+/* ============================================================
+   Barre de titre du panneau central : même palette navy que
+   la navigation (remplace le bleu Neptune par défaut)
+   ============================================================ */
+#content-panel > .x-panel-header {
+    background: linear-gradient(180deg, var(--nav-bg, #1e3a5f) 0%, var(--nav-header-bg, #152d4e) 100%) !important;
+    background-color: var(--nav-bg, #1e3a5f) !important;
+    background-image: linear-gradient(180deg, var(--nav-bg, #1e3a5f) 0%, var(--nav-header-bg, #152d4e) 100%) !important;
+    border-color: var(--nav-header-bg, #152d4e) !important;
+}
+
+#content-panel > .x-panel-header .x-title-text,
+#content-panel > .x-panel-header .x-panel-header-text,
+#content-panel > .x-panel-header .x-panel-header-title {
+    color: #eaf4fc !important;
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px !important;
 }

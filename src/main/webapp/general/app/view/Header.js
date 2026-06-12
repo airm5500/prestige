@@ -85,6 +85,15 @@ Ext.define('testextjs.view.Header', {
 
         if (!Ext.getCmp('options-toolbar')) {
             this.items.push(
+                    /* Horloge : date et heure du jour, a droite de PRESTIGE 2 */
+                    {
+                        xtype: 'component',
+                        id: 'hdr-clock',
+                        html: '<div class="hdr-clock">'
+                                + '<i class="fa fa-clock-o"></i>'
+                                + '<span id="hdr-clock-text"></span>'
+                                + '</div>'
+                    },
                     /* Espaceur gauche : centre le nom de l'officine */
                     {
                         xtype: 'component',
@@ -103,15 +112,6 @@ Ext.define('testextjs.view.Header', {
                     {
                         xtype: 'component',
                         flex: 1
-                    },
-                    /* Horloge : date et heure du jour */
-                    {
-                        xtype: 'component',
-                        id: 'hdr-clock',
-                        html: '<div class="hdr-clock">'
-                                + '<i class="fa fa-clock-o"></i>'
-                                + '<span id="hdr-clock-text"></span>'
-                                + '</div>'
                     }, {
                 xtype: 'component',
                 id: 'notif-bell',
@@ -120,11 +120,11 @@ Ext.define('testextjs.view.Header', {
                         + '<span id="notif-badge" style="display:none;">0</span>'
                         + '</span>'
             },
-                    /* Carte utilisateur : photo + nom + role */
+                    /* Carte utilisateur : photo + nom + role (informatif, sans action) */
                     {
                         xtype: 'component',
                         id: 'hdr-user-card',
-                        html: '<div class="hdr-user" onclick="changePicture()" title="Mon compte">'
+                        html: '<div class="hdr-user">'
                                 + '<img src="' + str_PIC + '" class="hdr-avatar" alt="photo_profile" id="photo_profile"/>'
                                 + '<div class="hdr-user-info">'
                                 + '<div class="hdr-user-name" id="hdr-user-name">...</div>'
@@ -196,11 +196,6 @@ Ext.define('testextjs.view.Header', {
     }
 });
 
-
-// Clic sur la carte utilisateur / photo : ouvre la vue Mon compte
-function changePicture() {
-    testextjs.app.getController('App').onLoadNewComponent("myaccountmanager", "Mon compte", "");
-}
 
 // Deconnexion depuis le bouton rond du header (avec confirmation)
 function prestigeHeaderLogout() {
