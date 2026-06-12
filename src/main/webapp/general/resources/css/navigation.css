@@ -217,19 +217,29 @@
 /* ---- HOVER menus principaux : meme animation que les flyouts ----
    NB : ExtJS 4.2 pose la classe x-grid-row-over (x-grid-item-over est
    la nomenclature ExtJS 5+, conservee par compatibilite) */
+/* Le fond doit etre pose sur la cellule ET sur l'inner : la regle
+   generale peint x-grid-cell-inner en navy opaque, qui masquerait la
+   couleur du survol posee sur la cellule seule */
 .prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell,
-.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell {
+.prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell-inner,
+.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell,
+.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell-inner {
     background-color: #1a4880 !important;
     background-image: linear-gradient(90deg, rgba(72, 201, 176, 0.22) 0%, rgba(93, 173, 226, 0.08) 55%, transparent 100%) !important;
+}
+
+.prestige-nav .x-grid-row:not(.x-tree-node-leaf).x-grid-item-over .x-grid-cell,
+.prestige-nav .x-grid-row-over:not(.x-tree-node-leaf) .x-grid-cell {
     border-left: 4px solid var(--nav-accent-2) !important;
     box-shadow: inset 0 0 0 1px rgba(72, 201, 176, 0.2) !important;
 }
 
-/* Glissade du contenu vers la droite (le transform sur l'inner ne
-   perturbe pas la table du tree) */
+/* Glissade + effet grossissant du contenu (le transform sur l'inner
+   ne perturbe pas la table du tree) */
 .prestige-nav .x-grid-item-over .x-grid-cell-inner,
 .prestige-nav .x-grid-row-over .x-grid-cell-inner {
-    transform: translateX(4px);
+    transform: translateX(5px) scale(1.05);
+    transform-origin: left center;
 }
 
 .prestige-nav .x-grid-item-over .x-tree-node-text,
