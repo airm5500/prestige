@@ -23,7 +23,10 @@ Ext.define('testextjs.view.Header', {
         this.items = [{
                 xtype: 'component',
                 id: 'app-header-title',
-                html: '<a href="#" onclick="loadMainMenu();" style="text-decoration:none; color:#FFFFFF;">PRESTIGE 2</a>'
+                html: '<a href="#" onclick="loadMainMenu();" class="hdr-brand" title="Retour au menu principal">'
+                        + '<span class="hdr-brand-ico"><i class="fa fa-plus"></i></span>'
+                        + '<span class="hdr-brand-txt">PRESTIGE 3</span>'
+                        + '</a>'
             }
         ];
 
@@ -116,7 +119,7 @@ Ext.define('testextjs.view.Header', {
          * absorbe le manque de place sur les petits ecrans (ellipse CSS). */
         if (!Ext.getCmp('options-toolbar')) {
             this.items.push(
-                    /* Horloge : date et heure du jour, a droite de PRESTIGE 2 */
+                    /* Horloge : date et heure du jour, a droite de PRESTIGE 3 */
                     {
                         xtype: 'component',
                         id: 'hdr-clock',
@@ -126,6 +129,16 @@ Ext.define('testextjs.view.Header', {
                                 + '<i class="fa fa-clock-o"></i>'
                                 + '<span id="hdr-clock-text"></span>'
                                 + '</div>'
+                    },
+                    /* Acces direct au menu Metro (largeur fixe : pas de chevauchement) */
+                    {
+                        xtype: 'component',
+                        id: 'hdr-metro-btn',
+                        width: 38,
+                        margin: '0 0 0 12',
+                        html: '<span class="hdr-metro" onclick="prestigeShowMetro()" title="Menu principal (Metro)">'
+                                + '<i class="fa fa-th-large"></i>'
+                                + '</span>'
                     },
                     /* Nom de l'officine : flexible, centre, ellipse si etroit */
                     {
@@ -227,6 +240,19 @@ Ext.define('testextjs.view.Header', {
     }
 });
 
+
+// Affiche le menu principal Metro (icone 4 carres du header)
+function prestigeShowMetro() {
+    try {
+        loadMainMenu();
+    } catch (e) {
+        // Secours si loadMainMenu n'est pas encore charge
+        try {
+            testextjs.app.getController('App').onLoadNewComponent(xtypeload, "", "");
+        } catch (e2) {
+        }
+    }
+}
 
 // Deconnexion depuis le bouton rond du header (avec confirmation)
 function prestigeHeaderLogout() {
