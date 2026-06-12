@@ -246,6 +246,105 @@
 }
 
 /* ============================================================
+   Centre de notifications (cloche) : même palette navy que
+   la navigation
+   ============================================================ */
+.prestige-notif-win {
+    border: 1px solid rgba(93, 173, 226, 0.35) !important;
+    border-radius: 8px !important;
+    box-shadow: 6px 8px 28px rgba(0, 0, 0, 0.5) !important;
+}
+
+.prestige-notif-win .x-window-header {
+    background: var(--nav-header-bg, #152d4e) !important;
+    background-color: var(--nav-header-bg, #152d4e) !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.prestige-notif-win .x-window-header .x-title-text,
+.prestige-notif-win .x-window-header .x-window-header-text {
+    color: #eaf4fc !important;
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px;
+}
+
+.prestige-notif-win .x-window-body {
+    background: var(--nav-bg, #1e3a5f) !important;
+    background-color: var(--nav-bg, #1e3a5f) !important;
+    border: none !important;
+    color: var(--nav-text, #d6eaf8);
+}
+
+/* En-tête de catégorie : navy foncé + icône accent */
+.prestige-notif-win .pn-head {
+    display: flex;
+    align-items: center;
+    padding: 9px 12px;
+    background: var(--nav-header-bg, #152d4e);
+    color: #eaf4fc;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+.prestige-notif-win .pn-label {
+    flex: 1;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.prestige-notif-win .pn-label:hover {
+    color: var(--nav-accent, #5dade2);
+}
+
+.prestige-notif-win .pn-toggle {
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 6px;
+    user-select: none;
+    color: var(--nav-text-muted, #85c1e9);
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.prestige-notif-win .pn-toggle:hover {
+    background: rgba(93, 173, 226, 0.25);
+    color: #ffffff;
+}
+
+/* Ligne de notification : même style que les sous-menus navigation */
+.prestige-notif-win .pn-row {
+    padding: 10px 14px;
+    cursor: pointer;
+    background: var(--nav-bg-sub, #183352);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 3px solid transparent;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    transition: background 0.15s, border-left-color 0.15s;
+}
+
+.prestige-notif-win .pn-row:hover {
+    background: #1a4880;
+    border-left-color: var(--nav-accent-2, #48c9b0);
+}
+
+.prestige-notif-win .pn-empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--nav-text-muted, #85c1e9);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* Scrollbar assortie */
+.prestige-notif-win .x-window-body::-webkit-scrollbar { width: 4px; }
+.prestige-notif-win .x-window-body::-webkit-scrollbar-track { background: transparent; }
+.prestige-notif-win .x-window-body::-webkit-scrollbar-thumb { background: rgba(93, 173, 226, 0.35); border-radius: 3px; }
+.prestige-notif-win .x-window-body::-webkit-scrollbar-thumb:hover { background: rgba(93, 173, 226, 0.7); }
+
+/* ============================================================
    Barre de titre du panneau central : même palette navy que
    la navigation (remplace le bleu Neptune par défaut)
    ============================================================ */

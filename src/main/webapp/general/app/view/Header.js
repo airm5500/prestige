@@ -39,45 +39,72 @@ Ext.define('testextjs.view.Header', {
 
 
 
+        /* Icone + libelle d'un item du menu Options (meme rendu que les
+         * flyouts du menu navigation) */
+        var mkOptionItem = function (faIcon, label) {
+            return '<span style="display:inline-flex;align-items:center;justify-content:center;'
+                    + 'width:22px;height:22px;flex-shrink:0;margin-right:8px;vertical-align:middle">'
+                    + '<i class="fa ' + faIcon + '" style="color:#85c1e9;font-size:13px"></i>'
+                    + '</span><span style="vertical-align:middle">' + label + '</span>';
+        };
+
         var btnConfig = new Ext.button.Split({
             xtype: 'splitbutton',
             icon: 'resources/images/icons/fam/cog.png',
             id: 'commonsettingapp',
             tooltip: 'Options',
             text: '',
-            menu: [{
-                    text: 'Mon compte',
-                    handler: function () {
-                        testextjs.app.getController('App').onLoadNewComponent("myaccountmanager", "Mon compte", "");
-                    }
-                }, {
-                    text: 'Deconnexion',
-                    handler: function () {
-                        Me_header.Deconnexion();
-                    }
+            /* Ext.create explicite : l'alias widget "menu" est ecrase par
+             * testextjs.store.Menu (xtype errone herite du KitchenSink),
+             * une config objet creerait donc un store au lieu d'un menu */
+            menu: Ext.create('Ext.menu.Menu', {
+                cls: 'prestige-flyout-menu',
+                plain: true,
+                items: [{
+                        xtype: 'component',
+                        cls: 'pft-header-wrap',
+                        html: '<div class="pft-title">Options</div>'
+                    }, {
+                        xtype: 'menuseparator'
+                    }, {
+                        text: mkOptionItem('fa-user', 'Mon compte'),
+                        cls: 'pft-item',
+                        handler: function () {
+                            testextjs.app.getController('App').onLoadNewComponent("myaccountmanager", "Mon compte", "");
+                        }
+                    }, {
+                        text: mkOptionItem('fa-power-off', 'Deconnexion'),
+                        cls: 'pft-item',
+                        handler: function () {
+                            Me_header.Deconnexion();
+                        }
 
-                }, {
-                    text: 'Aide',
-                    handler: function () {
-                        alert("Veuillez Appeler le service D.IC.I au 0708080068");
+                    }, {
+                        text: mkOptionItem('fa-question-circle', 'Aide'),
+                        cls: 'pft-item',
+                        handler: function () {
+                            alert("Veuillez Appeler le service D.IC.I au 0708080068");
+                        }
                     }
-                }
-                , {
-                    text: 'Metro',
-                    handler: function () {
+                    , {
+                        text: mkOptionItem('fa-th-large', 'Metro'),
+                        cls: 'pft-item',
+                        handler: function () {
 //                        testextjs.app.getController('App').onLoadNewComponent("mainmenumanager", "", "");
-                        testextjs.app.getController('App').onLoadNewComponent(xtypeload, "", "");
+                            testextjs.app.getController('App').onLoadNewComponent(xtypeload, "", "");
 
+                        }
                     }
-                }
 
-                , {
-                    text: 'A propos',
-                    handler: function () {
-                        // testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos","");
-                        testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos", "");
-                    }
-                }]
+                    , {
+                        text: mkOptionItem('fa-info-circle', 'A propos'),
+                        cls: 'pft-item',
+                        handler: function () {
+                            // testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos","");
+                            testextjs.app.getController('App').onLoadNewComponent("aboutmanager", "A Propos", "");
+                        }
+                    }]
+            })
         });
 
 
@@ -401,9 +428,7 @@ function buildNotificationWindow() {
         var rows = '';
         for (var i = 0; i < items.length; i++) {
             var line = p.renderItem ? p.renderItem(items[i]) : (items[i].str_NAME || '');
-            rows += '<div class="notif-item" '
-                    + 'style="padding:10px 14px; border-bottom:1px solid #eee; cursor:pointer; background:#fff;" '
-                    + 'onmouseover="this.style.background=\'#f5f7fa\'" onmouseout="this.style.background=\'#fff\'" '
+            rows += '<div class="notif-item pn-row" '
                     + 'onclick="prestigeNotifItemClick(\'' + p.key + '\',' + i + ')">'
                     + line + '</div>';
         }
@@ -411,15 +436,13 @@ function buildNotificationWindow() {
         // Titre cliquable + bouton toggle (replie par defaut)
         sections += '<div class="pn-section">'
                 // En-tete : titre (cliquable) + toggle (+ / -)
-                + '<div style="display:flex; align-items:center; padding:9px 12px; background:' + (p.color || '#2c7873') + '; color:#fff;">'
-                +   '<span style="flex:1; cursor:pointer; font-weight:bold;" '
+                + '<div class="pn-head">'
+                +   '<span class="pn-label" '
                 +         'onclick="prestigeNotifCategoryClick(\'' + p.key + '\')">'
-                +     '<i class="fa ' + (p.icon || 'fa-bell') + '" style="margin-right:7px;"></i>'
+                +     '<i class="fa ' + (p.icon || 'fa-bell') + '" style="color:' + (p.color || '#5dade2') + '; margin-right:8px;"></i>'
                 +     p.label + ' (' + total + ')'
                 +   '</span>'
-                +   '<span class="pn-toggle" '
-                +         'style="cursor:pointer; font-size:18px; line-height:1; padding:0 4px; user-select:none;" '
-                +         'onclick="prestigeNotifToggle(this)">'
+                +   '<span class="pn-toggle" onclick="prestigeNotifToggle(this)">'
                 +     '+'
                 +   '</span>'
                 + '</div>'
@@ -429,13 +452,14 @@ function buildNotificationWindow() {
     });
 
     if (sections === '') {
-        sections = '<div style="padding:24px; text-align:center; color:#888;">Aucune notification.</div>';
+        sections = '<div class="pn-empty">Aucune notification.</div>';
     }
 
     var html = '<div id="pn-scroll">' + sections + '</div>';
 
     Ext.create('Ext.window.Window', {
         id: 'notif-center-win',
+        cls: 'prestige-notif-win',
         title: 'Notifications (' + grandTotal + ')',
         width: 400,
         height: 420,
@@ -514,14 +538,14 @@ PrestigeNotif.register({
     key: 'reserve',
     label: 'Articles a reassortir',
     icon: 'fa-exchange',
-    color: '#2c7873',
+    color: '#48c9b0',
     url: '../api/v1/reserve/suggestions',
     limit: 50,
     renderItem: function (n) {
-        return '<div style="font-weight:bold; color:#333;">'
+        return '<div style="font-weight:bold; color:#eaf4fc;">'
                 + '<i class="fa fa-exclamation-circle" style="color:#e74c3c; margin-right:6px;"></i>'
                 + (n.str_NAME || n.str_DESCRIPTION || '') + '</div>'
-                + '<div style="font-size:12px; color:#666; margin-top:3px;">A reassortir : <b>' + (n.int_QTE_SUGGEREE || 0) + '</b>'
+                + '<div style="font-size:12px; color:#85c1e9; margin-top:3px;">A reassortir : <b>' + (n.int_QTE_SUGGEREE || 0) + '</b>'
                 + ' &nbsp;|&nbsp; Rayon : ' + (n.int_STOCK_RAYON || 0)
                 + ' &nbsp;|&nbsp; Reserve : ' + (n.int_STOCK_RESERVE || 0) + '</div>';
     },
@@ -538,14 +562,14 @@ PrestigeNotif.register({
     key: 'perimes',
     label: 'Peremptions proches (6 mois)',
     icon: 'fa-flask',
-    color: '#c0392b',
+    color: '#ff6b6b',
     url: '../api/v1/fichearticle/perimes?nbreMois=6&codeFamile=&codeRayon=&codeGrossiste=&query=&dtStart=&dtEnd=',
     limit: 50,
     renderItem: function (p) {
-        return '<div style="font-weight:bold; color:#333;">'
-                + '<i class="fa fa-clock-o" style="color:#c0392b; margin-right:6px;"></i>'
+        return '<div style="font-weight:bold; color:#eaf4fc;">'
+                + '<i class="fa fa-clock-o" style="color:#ff6b6b; margin-right:6px;"></i>'
                 + (p.libelle || '') + '</div>'
-                + '<div style="font-size:12px; color:#666; margin-top:3px;">'
+                + '<div style="font-size:12px; color:#85c1e9; margin-top:3px;">'
                 + (p.statut || '') + ' &nbsp;|&nbsp; Lot : ' + (p.numLot || '-')
                 + ' &nbsp;|&nbsp; Qte : ' + (p.quantiteLot || 0)
                 + ' &nbsp;|&nbsp; ' + (p.datePerement || '') + '</div>';
