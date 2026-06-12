@@ -1,4 +1,4 @@
-<%-- 
+<%--
     Document   : index
     Created on : 7 avr. 2016, 11:40:03
     Author     : KKOFFI
@@ -39,7 +39,7 @@
         <!--<script src="assets/plugins/jquery-1.8.3.min.js" type="text/javascript"></script> -->
         <script type="text/javascript" src="../../resources/boostrap/bb/js/jquery.min.js"></script>
 
-        <script src="../../resources/boostrap/bb/js/bootstrap.min.js" type="text/javascript"></script> 
+        <script src="../../resources/boostrap/bb/js/bootstrap.min.js" type="text/javascript"></script>
 
 
         <link rel="stylesheet" type="text/css" href="../../resources/boostrap/bb/css/bootstrap.css"/>
@@ -56,187 +56,44 @@
         <!-- END CSS TEMPLATE -->
         <!-- WINDOWS 8 TILES STYLE -->
         <link rel="stylesheet" href="assets/css/metro-styles.css" />
+        <!-- Design moderne du menu metro (charge en dernier pour primer) -->
+        <link rel="stylesheet" href="assets/css/metro-modern.css" />
 
     </head>
-    <body class="body-bg" style="background-color: #E5E9EC !important; ">
+    <body class="body-bg pm-body">
 
-        <div class="demo-wrapper" id="metro-sub-menu"> 
+        <div class="demo-wrapper" id="metro-sub-menu">
 
-
-            <!-- DEBUT - AFFICHAGE MENU METRO PRINCIPALE --> 
-
-            <div class="dashboard clearfix">
-                <div class="row">
-                    <%                        for (int i = 0; i < Menudatas.size(); i++) {
-                            if (i == 4) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-sm-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="AppelerGestionClientele('<%=Menudatas.get(i).getStr_value2()%>');"  style="width: 24%;margin-right: 1%;">
-                        <div class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%=Menudatas.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%= Menudatas.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
+            <!-- DEBUT - AFFICHAGE MENU METRO PRINCIPALE -->
+            <div class="pm-wrap">
+                <div class="pm-head">
+                    <span class="pm-head-ico"><i class="fa fa-th-large"></i></span>
+                    <div>
+                        <div class="pm-head-title">Menu principal</div>
+                        <div class="pm-head-sub">Choisissez un module pour commencer</div>
+                    </div>
                 </div>
 
-
-                <div class="row">
-                    <%                        for (int i = 4; i < Menudatas.size(); i++) {
-                            if (i == 8) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-sm-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="AppelerGestionClientele('<%=Menudatas.get(i).getStr_value2()%>');" style="width: 24%;margin-right: 1%;">
-                        <div class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%=Menudatas.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%= Menudatas.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-
-
-
-                <div class="row">
-                    <%                        for (int i = 8; i < Menudatas.size(); i++) {
-                            if (i == 12) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-sm-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="AppelerGestionClientele('<%=Menudatas.get(i).getStr_value2()%>');" style="width: 24%;margin-right: 1%;">
-                        <div class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%=Menudatas.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%= Menudatas.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
+                <div class="pm-grid">
+                    <%  for (int i = 0; i < Menudatas.size(); i++) { %>
+                    <div class="pm-tile pm-c<%=(i % 8) + 1%>"
+                         onClick="AppelerGestionClientele('<%=Menudatas.get(i).getStr_value2()%>');"
+                         title="<%=Menudatas.get(i).getStr_value1()%>">
+                        <span class="pm-ico"><i class="<%=Menudatas.get(i).getStr_value3()%>"></i></span>
+                        <span class="pm-label"><%=Menudatas.get(i).getStr_value1()%></span>
+                        <i class="fa fa-chevron-right pm-arrow"></i>
+                    </div>
+                    <%  } %>
                 </div>
-
-                <div class="row">
-                    <%                        for (int i = 12; i < Menudatas.size(); i++) {
-                            if (i == 16) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-sm-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="AppelerGestionClientele('<%=Menudatas.get(i).getStr_value2()%>');" style="width: 24%;margin-right: 1%;">
-                        <div class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%=Menudatas.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%= Menudatas.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-
-                <div class="row">
-                    <%                        for (int i = 16; i < Menudatas.size(); i++) {
-                            if (i == 20) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-sm-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="AppelerGestionClientele('<%=Menudatas.get(i).getStr_value2()%>');" style="width: 24%;margin-right: 1%;">
-                        <div class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%=Menudatas.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%= Menudatas.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-
-
-                <div class="row">
-                    <%                        for (int i = 16; i < Menudatas.size(); i++) {
-                            if (i == 19) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-sm-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="AppelerGestionClientele('<%=Menudatas.get(i).getStr_value2()%>');" style="width: 24%;margin-right: 1%;">
-                        <div class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%=Menudatas.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=Menudatas.get(i).getStr_value3()%> text-white text-right fa-lg"></i><%= Menudatas.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-
-
             </div>
-
 
         </div>
 
 
 
 
-        <!-- WINDOWS 8 TILES --> 
-        <!-- CHARGEMENT DU SOUS MENU STYLE METRO --> 
+        <!-- WINDOWS 8 TILES -->
+        <!-- CHARGEMENT DU SOUS MENU STYLE METRO -->
         <script type="text/javascript">
 
 
@@ -257,7 +114,7 @@
 
 
 
-        </script> 
- 
+        </script>
+
     </body>
 </html>

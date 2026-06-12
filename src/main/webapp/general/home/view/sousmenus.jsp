@@ -1,4 +1,4 @@
-<%-- 
+<%--
     Document   : index
     Created on : 7 avr. 2016, 11:40:03
     Author     : KKOFFI
@@ -41,10 +41,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta content="" name="description" />
         <meta content="" name="author" />
-        
-        <script src="../../resources/boostrap/bb/js/bootstrap.min.js" type="text/javascript"></script> 
 
-   
+        <script src="../../resources/boostrap/bb/js/bootstrap.min.js" type="text/javascript"></script>
+
+
         <!-- BEGIN CORE CSS FRAMEWORK -->
         <link rel="stylesheet" type="text/css" href="../../resources/boostrap/bb/css/bootstrap.css"/>
         <link rel="stylesheet" type="text/css" href="../../resources/boostrap/bb/css/bootstrap-theme.min.css"/>
@@ -60,201 +60,51 @@
         <!-- END CSS TEMPLATE -->
         <!-- WINDOWS 8 TILES STYLE -->
         <link rel="stylesheet" href="assets/css/metro-styles.css" />
+        <!-- Design moderne du menu metro (charge en dernier pour primer) -->
+        <link rel="stylesheet" href="assets/css/metro-modern.css" />
 
     </head>
-    <body class="body-bg" style="background-color: #E5E9EC !important; ">
+    <body class="body-bg pm-body">
 
-        <div class="demo-wrapper" id="metro-sub-menu"> 
+        <div class="demo-wrapper" id="metro-sub-menu">
 
-
-            <!-- DEBUT - AFFICHAGE MENU METRO PRINCIPALE --> 
-
-            <div class="dashboard clearfix">
-                <%  
-            String height="height: 8em";
-            if(sousmenudata.size()>12){
-            height="height:4em";
-            }
-                
-                %>
-                <div class="row">
-                    <div class="col-xs-3 tile tile-big tile-7 slideTextUp" id="menu-service-client" onClick="ReloadIframe();" style="margin-right: 1%;width: 24%;<%= height %>;">
-                        <div class="panel">
-                            <p><i class="fa fa-home text-white text-right fa-lg"></i>MENU GENERAL</p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="fa fa-home text-white text-right fa-lg"></i>MENU GENERAL</p>
-
-                        </div>
-                    </div> 
-                    <%                        for (int i = 0; i < sousmenudata.size(); i++) {
-                            if (i == 3) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-xs-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');" style="margin-right: 1%;width: 24%;<%= height %>;">
-                        <div class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%=sousmenudata.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%= sousmenudata.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
+            <!-- SOUS-MENUS STYLE METRO -->
+            <div class="pm-wrap">
+                <div class="pm-head">
+                    <span class="pm-head-ico"><i class="fa fa-folder-open"></i></span>
+                    <div>
+                        <div class="pm-head-title">Sous-menus</div>
+                        <div class="pm-head-sub">Cliquez sur Menu g&eacute;n&eacute;ral pour revenir &agrave; l'accueil</div>
+                    </div>
                 </div>
 
+                <div class="pm-grid">
+                    <!-- Tuile retour : navy comme le header/navigation -->
+                    <div class="pm-tile pm-back" onClick="ReloadIframe();" title="Retour au menu g&eacute;n&eacute;ral">
+                        <span class="pm-ico"><i class="fa fa-home"></i></span>
+                        <span class="pm-label">MENU GENERAL</span>
+                        <i class="fa fa-chevron-right pm-arrow"></i>
+                    </div>
 
-                <div class="row">
-                    <%                        for (int i = 3; i < sousmenudata.size(); i++) {
-                            if (i == 7) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-xs-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');" style="margin-right: 1%;width: 24%;<%= height %>;">
-                        <div class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%=sousmenudata.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%= sousmenudata.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-
-
-
-                <div class="row">
-                    <%                        for (int i = 7; i < sousmenudata.size(); i++) {
-                            if (i == 11) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-xs-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>'); " style="margin-right: 1%;width: 24%;<%= height %>;">
-                        <div class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%=sousmenudata.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%= sousmenudata.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
+                    <%  for (int i = 0; i < sousmenudata.size(); i++) { %>
+                    <div class="pm-tile pm-c<%=(i % 8) + 1%>"
+                         onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');"
+                         title="<%=sousmenudata.get(i).getStr_value1()%>">
+                        <span class="pm-ico"><i class="<%=sousmenudata.get(i).getStr_value2()%>"></i></span>
+                        <span class="pm-label"><%=sousmenudata.get(i).getStr_value1()%></span>
+                        <i class="fa fa-chevron-right pm-arrow"></i>
+                    </div>
+                    <%  } %>
                 </div>
-
-                <div class="row">
-                    <%                        for (int i = 11; i < sousmenudata.size(); i++) {
-                            if (i == 15) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-xs-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');" style="margin-right: 1%;width: 24%;<%= height %>;">
-                        <div class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%=sousmenudata.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%= sousmenudata.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-
-                <div class="row">
-                    <%                        for (int i = 15; i < sousmenudata.size(); i++) {
-                            if (i == 19) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-xs-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');" style="margin-right: 1%;width: 24%;<%= height %>;">
-                        <div class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%=sousmenudata.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%= sousmenudata.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-                <div class="row">
-                    <%                        for (int i = 19; i < sousmenudata.size(); i++) {
-                            if (i == 23) {
-                                break;
-                            }
-                    %>
-
-                    <div class="col-xs-3 tile tile-big tile-<%=i + 1%> slideTextUp" id="menu-service-client" onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');" style="margin-right: 1%;width: 24%;<%= height %>;">
-                        <div class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%=sousmenudata.get(i).getStr_value1()%></p>
-                        </div>
-                        <div  class="panel">
-                            <p><i class="<%=sousmenudata.get(i).getStr_value2()%> text-white text-right fa-lg"></i><%= sousmenudata.get(i).getStr_value1()%></p>
-
-                        </div>
-                    </div>  
-
-
-                    <%
-
-                        }
-
-                    %>
-
-                </div> 
-
-
             </div>
-
 
         </div>
 
 
 
 
-        <!-- WINDOWS 8 TILES --> 
-        <!-- CHARGEMENT DU SOUS MENU STYLE METRO --> 
+        <!-- WINDOWS 8 TILES -->
+        <!-- CHARGEMENT DU SOUS MENU STYLE METRO -->
         <script type="text/javascript">
 
 
@@ -278,8 +128,8 @@
                     if (total > 0) {
                         var tile = $("[onclick*='reservemanager']").first();
                         if (tile.length) {
-                            tile.find('.panel:first p').append(
-                                ' <span style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:bold;vertical-align:middle;">' + total + '</span>'
+                            tile.find('.pm-label').append(
+                                ' <span class="pm-badge" style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:bold;vertical-align:middle;">' + total + '</span>'
                             );
                         }
                     }
@@ -294,7 +144,7 @@
 
 
 
-        </script> 
-     
+        </script>
+
     </body>
 </html>
