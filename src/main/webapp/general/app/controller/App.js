@@ -168,11 +168,14 @@ Ext.define('testextjs.controller.App', {
                 const accountInfo = data.accountInfo;
                 xtypeload = accountInfo.xtypeload;
                 lg_USER_ID.setValue(accountInfo.lg_USER_ID);
-                Ext.getCmp('commonsettingapp').setText(accountInfo.str_FIRST_NAME + " " + accountInfo.str_LAST_NAME);
+                const fullName = ((accountInfo.str_FIRST_NAME || '') + ' ' + (accountInfo.str_LAST_NAME || '')).trim();
+                // Affiche nom + role dans la carte utilisateur du header
+                if (typeof prestigeSetHeaderUser === 'function') {
+                    prestigeSetHeaderUser(fullName, accountInfo.str_ROLE || accountInfo.role || '');
+                }
                 // Memorise le nom complet pour les impressions
                 try {
-                    sessionStorage.setItem('connectedUserName',
-                            ((accountInfo.str_FIRST_NAME || '') + ' ' + (accountInfo.str_LAST_NAME || '')).trim());
+                    sessionStorage.setItem('connectedUserName', fullName);
                 } catch (e) {
                 }
             },

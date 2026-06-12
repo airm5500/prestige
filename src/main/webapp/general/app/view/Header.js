@@ -13,75 +13,17 @@ Ext.define('testextjs.view.Header', {
     xtype: 'appHeader',
     id: 'app-header',
     height: 52,
-    bodyStyle: "background-image:url(../../../resources/images/headerlb.png) !important",
     layout: {
         type: 'hbox',
         align: 'middle'
     },
-    tools: [
-        {
-            type: 'toggle'
-        },
-        {
-            type: 'close'
-        },
-        {
-            type: 'minimize'
-        },
-        {
-            type: 'maximize'
-        },
-        {
-            type: 'restore'
-        },
-        {
-            type: 'gear'
-        },
-        {
-            type: 'pin'
-        },
-        {
-            type: 'unpin'
-        },
-        {
-            type: 'right'
-        },
-        {
-            type: 'left'
-        },
-        {
-            type: 'down'
-        },
-        {
-            type: 'refresh'
-        },
-        {
-            type: 'minus'
-        },
-        {
-            type: 'plus'
-        },
-        {
-            type: 'help'
-        },
-        {
-            type: 'search'
-        },
-        {
-            type: 'save'
-        },
-        {
-            type: 'print'
-        }
-    ],
     initComponent: function () {
         Me_header = this;
 //alert("str_PIC:"+str_PIC);
         this.items = [{
                 xtype: 'component',
                 id: 'app-header-title',
-                html: '<a href="#" onclick="loadMainMenu();" style="text-decoration:none; color:#FFFFFF;">PRESTIGE 2</a>',
-                flex: 1
+                html: '<a href="#" onclick="loadMainMenu();" style="text-decoration:none; color:#FFFFFF;">PRESTIGE 2</a>'
             }
         ];
 
@@ -101,6 +43,7 @@ Ext.define('testextjs.view.Header', {
             xtype: 'splitbutton',
             icon: 'resources/images/icons/fam/cog.png',
             id: 'commonsettingapp',
+            tooltip: 'Options',
             text: '',
             menu: [{
                     text: 'Mon compte',
@@ -142,12 +85,33 @@ Ext.define('testextjs.view.Header', {
 
         if (!Ext.getCmp('options-toolbar')) {
             this.items.push(
+                    /* Espaceur gauche : centre le nom de l'officine */
                     {
                         xtype: 'component',
-                        cls: 'liner',
-
-                        html: '<p class="microsoft marquee"><span id="bienvenu" >Bienvenue à   <span id="officine">  * ' + OFFICINE + ' *</span>  </span></p>'
-                                //  html: '<span style="font-size: 2.5em;font-weight:bold;font-family:Buxton Sketch;color:white;display:inline-block;margin-right:350px;margin-top:20px;width: 100%;">' + OFFICINE + '</span>'
+                        flex: 1
+                    },
+                    /* Nom de l'officine : titre fixe (remplace le marquee defilant) */
+                    {
+                        xtype: 'component',
+                        id: 'hdr-officine',
+                        html: '<div class="hdr-officine" title="' + OFFICINE + '">'
+                                + '<i class="fa fa-medkit"></i>'
+                                + '<span id="officine">' + OFFICINE + '</span>'
+                                + '</div>'
+                    },
+                    /* Espaceur droit */
+                    {
+                        xtype: 'component',
+                        flex: 1
+                    },
+                    /* Horloge : date et heure du jour */
+                    {
+                        xtype: 'component',
+                        id: 'hdr-clock',
+                        html: '<div class="hdr-clock">'
+                                + '<i class="fa fa-clock-o"></i>'
+                                + '<span id="hdr-clock-text"></span>'
+                                + '</div>'
                     }, {
                 xtype: 'component',
                 id: 'notif-bell',
@@ -155,10 +119,19 @@ Ext.define('testextjs.view.Header', {
                         + '<i class="fa fa-bell"></i>'
                         + '<span id="notif-badge" style="display:none;">0</span>'
                         + '</span>'
-            }, {
-                xtype: 'component',
-                html: '<img src="' + str_PIC + '" class="hdr-avatar" alt="photo_profile" id="photo_profile" onclick="changePicture()" title="Photo de profil"/>'
             },
+                    /* Carte utilisateur : photo + nom + role */
+                    {
+                        xtype: 'component',
+                        id: 'hdr-user-card',
+                        html: '<div class="hdr-user" onclick="changePicture()" title="Mon compte">'
+                                + '<img src="' + str_PIC + '" class="hdr-avatar" alt="photo_profile" id="photo_profile"/>'
+                                + '<div class="hdr-user-info">'
+                                + '<div class="hdr-user-name" id="hdr-user-name">...</div>'
+                                + '<div class="hdr-user-role" id="hdr-user-role">Profil</div>'
+                                + '</div>'
+                                + '</div>'
+                    },
                     {
                         xtype: 'themeSwitcher'
                     }, lg_USER_ID, btnConfig,
@@ -184,6 +157,11 @@ Ext.define('testextjs.view.Header', {
                 window.PRESTIGE_NOTIF_TIMER = setInterval(function () {
                     refreshNotificationBadge();
                 }, 60000);
+            }
+            // Horloge du header (date + heure, mise a jour chaque seconde)
+            prestigeHeaderClock();
+            if (!window.PRESTIGE_CLOCK_TIMER) {
+                window.PRESTIGE_CLOCK_TIMER = setInterval(prestigeHeaderClock, 1000);
             }
         }, this, {delay: 500, single: true});
     },
@@ -219,9 +197,9 @@ Ext.define('testextjs.view.Header', {
 });
 
 
+// Clic sur la carte utilisateur / photo : ouvre la vue Mon compte
 function changePicture() {
-    alert("My picture");
-    //testextjs.app.getController('App').onLoadNewComponent("updatepicture", "Mise a jour de la photo de profil", "");
+    testextjs.app.getController('App').onLoadNewComponent("myaccountmanager", "Mon compte", "");
 }
 
 // Deconnexion depuis le bouton rond du header (avec confirmation)
@@ -231,6 +209,45 @@ function prestigeHeaderLogout() {
             Me_header.Deconnexion();
         }
     });
+}
+
+// Renseigne nom + role dans la carte utilisateur du header.
+// Retente quelques fois si le DOM n'est pas encore rendu (Ajax plus rapide que le rendu).
+function prestigeSetHeaderUser(name, role, attempt) {
+    var nameEl = document.getElementById('hdr-user-name');
+    var roleEl = document.getElementById('hdr-user-role');
+    if (!nameEl) {
+        if ((attempt || 0) < 10) {
+            setTimeout(function () {
+                prestigeSetHeaderUser(name, role, (attempt || 0) + 1);
+            }, 400);
+        }
+        return;
+    }
+    nameEl.textContent = name || 'Utilisateur';
+    if (roleEl && role) {
+        roleEl.textContent = role;
+    }
+}
+
+// Horloge du header : "jeu. 12 juin 2026 - 14:35:09"
+function prestigeHeaderClock() {
+    var el = document.getElementById('hdr-clock-text');
+    if (!el) {
+        return;
+    }
+    var now = new Date();
+    var dateStr;
+    try {
+        dateStr = now.toLocaleDateString('fr-FR', {weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'});
+    } catch (e) {
+        dateStr = now.toLocaleDateString();
+    }
+    function pad(n) {
+        return n < 10 ? '0' + n : '' + n;
+    }
+    var timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    el.innerHTML = dateStr + ' <b>' + timeStr + '</b>';
 }
 
 // ===================================================================
