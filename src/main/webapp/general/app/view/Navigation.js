@@ -20,6 +20,7 @@ var PRESTIGE_ICON_MAP = [
     { keys: ['facturation client'],                         icon: 'fa-file-invoice-dollar',         bg: '#ede9fe', fg: '#7c3aed' },
     { keys: ['tiers-payant', 'tiers payant', 'tiers-pay'], icon: 'fa-handshake',                   bg: '#cffafe', fg: '#0891b2' },
     { keys: ['menu pharmacien', 'pharmacien'],              icon: 'fa-prescription-bottle-medical', bg: '#f0fdf4', fg: '#16a34a' },
+    { keys: ['gestion courante'],                           icon: 'fa-briefcase',                   bg: '#e0e7ff', fg: '#4f46e5' },
     { keys: ['commande', 'approvision'],                    icon: 'fa-clipboard-list',              bg: '#f3e8ff', fg: '#9333ea' },
     { keys: ['gestion du stock', 'stock'],                  icon: 'fa-boxes-stacked',               bg: '#e0f2fe', fg: '#0284c7' },
     { keys: ['fichier'],                                    icon: 'fa-folder-open',                 bg: '#fef3c7', fg: '#b45309' },
