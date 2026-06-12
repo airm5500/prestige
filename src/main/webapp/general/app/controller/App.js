@@ -624,6 +624,12 @@ Ext.define('testextjs.controller.App', {
                 overflowY,
                 offsets;
 
+        // Le metro (mainmenumanager) occupe tout le content panel et gere
+        // lui-meme sa taille et sa position : ne pas le recentrer.
+        if (item && item.isXType && item.isXType('mainmenumanager')) {
+            return;
+        }
+
         if (item) {
             overflowX = (body.getWidth() < (item.getWidth() + 40));
             overflowY = (body.getHeight() < (item.getHeight() + 40));

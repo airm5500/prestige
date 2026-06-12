@@ -28,7 +28,7 @@ Ext.define('testextjs.view.sm_user.mainmenu.MainMenuManager', {
     },
     initComponent: function () {
 
-
+        var me = this;
         var url_order_component = "../general/home/index.jsp?mode=SIMPLE";
 
         this.items = [{
@@ -36,10 +36,36 @@ Ext.define('testextjs.view.sm_user.mainmenu.MainMenuManager', {
                 border: false,
                 autoEl: {
                     tag: "iframe",
-                    src: url_order_component
+                    src: url_order_component,
+                    frameBorder: 0,
+                    style: "border:none;"
                 }
             }],
                 this.callParent();
+
+        /* Le metro occupe TOUT l'espace du content panel : on se cale sur
+         * la taille de son corps et on suit ses redimensionnements.
+         * Ce listener est attache apres celui du controleur (centerContent),
+         * il s'execute donc apres lui et neutralise son decalage tl+20px.
+         * Aucune autre vue n'est impactee. */
+        this.on('afterrender', function () {
+            var cp = Ext.getCmp('content-panel');
+            if (!cp) {
+                return;
+            }
+            var sync = function () {
+                if (!me.rendered || me.isDestroyed || !cp.body) {
+                    return;
+                }
+                me.setSize(cp.body.getWidth(true), cp.body.getHeight(true));
+                me.alignTo(cp.body, 'tl-tl', [0, 0]);
+            };
+            sync();
+            cp.on('resize', sync);
+            me.on('destroy', function () {
+                cp.un('resize', sync);
+            }, me, {single: true});
+        }, this, {single: true, delay: 50});
 
     }
 
