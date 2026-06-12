@@ -1,0 +1,144 @@
+/* ============================================================
+   Prestige Header — aligné sur le thème Navy de la navigation
+   (réutilise les variables :root définies dans navigation.css)
+   ============================================================ */
+
+/* ---- Barre du header : même palette navy que le menu ---- */
+#app-header {
+    background-image: linear-gradient(180deg, var(--nav-bg, #1e3a5f) 0%, var(--nav-header-bg, #152d4e) 100%) !important;
+    background-color: var(--nav-bg, #1e3a5f) !important;
+    border-bottom: 2px solid rgba(93, 173, 226, 0.45) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+/* Navigateurs sans gradient (fallback image du thème KitchenSink) */
+.x-nlg #app-header {
+    background-image: none !important;
+}
+
+/* ---- Titre PRESTIGE 2 ---- */
+#app-header-title {
+    text-shadow: none !important;
+}
+
+#app-header-title a {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    font-weight: 700;
+    letter-spacing: 1px;
+    transition: color 0.2s;
+}
+
+#app-header-title a:hover {
+    color: var(--nav-accent, #5dade2) !important;
+}
+
+/* ---- Texte de bienvenue (lisible sur fond navy) ---- */
+#app-header .liner .microsoft #bienvenu {
+    color: var(--nav-text, #d6eaf8) !important;
+}
+
+#app-header .liner .microsoft #officine {
+    color: var(--nav-accent-2, #48c9b0) !important;
+}
+
+/* ---- Cloche de notifications : pastille ronde + hover ---- */
+#app-header .hdr-bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    margin: 0 18px 0 8px; /* espace net entre la cloche et la photo */
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.08);
+    transition: background 0.2s, transform 0.2s;
+}
+
+#app-header .hdr-bell:hover {
+    background: rgba(93, 173, 226, 0.3);
+    transform: scale(1.06);
+}
+
+#app-header .hdr-bell .fa-bell {
+    font-size: 18px;
+    color: #ffffff;
+}
+
+#app-header .hdr-bell #notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #e74c3c;
+    color: #ffffff;
+    border-radius: 10px;
+    border: 2px solid var(--nav-header-bg, #152d4e);
+    padding: 1px 5px;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1.4;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+
+/* ---- Photo de profil : ronde, bordure accent, hover ---- */
+#app-header .hdr-avatar {
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 14px;
+    border: 2px solid rgba(93, 173, 226, 0.6);
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+#app-header .hdr-avatar:hover {
+    border-color: var(--nav-accent-2, #48c9b0);
+    transform: scale(1.05);
+}
+
+/* ---- Bouton utilisateur (nom + menu) : pilule translucide ---- */
+#app-header #commonsettingapp {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(93, 173, 226, 0.35) !important;
+    border-radius: 17px !important;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+#app-header #commonsettingapp:hover {
+    background: rgba(93, 173, 226, 0.22) !important;
+    border-color: var(--nav-accent, #5dade2) !important;
+}
+
+#app-header #commonsettingapp .x-btn-inner {
+    color: #eaf4fc !important;
+    font-family: 'Segoe UI', Tahoma, sans-serif !important;
+    font-weight: 600 !important;
+}
+
+/* ---- Bouton déconnexion : rond, rouge, bien visible ---- */
+#app-header .hdr-logout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    margin: 0 12px 0 10px;
+    cursor: pointer;
+    background: #e74c3c;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(231, 76, 60, 0.45);
+    transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+#app-header .hdr-logout .fa-power-off {
+    font-size: 16px;
+}
+
+#app-header .hdr-logout:hover {
+    background: #c0392b;
+    transform: scale(1.1);
+    box-shadow: 0 3px 14px rgba(231, 76, 60, 0.7);
+}

@@ -116,7 +116,7 @@ Ext.define('testextjs.view.Header', {
                 }, {
                     text: 'Aide',
                     handler: function () {
-                        alert("Pas implementé");
+                        alert("Veuillez Appeler le service D.IC.I au 0708080068");
                     }
                 }
                 , {
@@ -151,17 +151,24 @@ Ext.define('testextjs.view.Header', {
                     }, {
                 xtype: 'component',
                 id: 'notif-bell',
-                html: '<span style="position:relative; cursor:pointer; margin:0 12px; display:inline-block;" onclick="showNotificationCenter()" title="Notifications">'
-                        + '<i class="fa fa-bell" style="font-size:22px;color:#ffffff;"></i>'
-                        + '<span id="notif-badge" style="display:none; position:absolute; top:-9px; right:-11px; background:#e74c3c; color:#fff; border-radius:10px; padding:1px 6px; font-size:11px; font-weight:bold; line-height:1.4;">0</span>'
+                html: '<span class="hdr-bell" onclick="showNotificationCenter()" title="Notifications">'
+                        + '<i class="fa fa-bell"></i>'
+                        + '<span id="notif-badge" style="display:none;">0</span>'
                         + '</span>'
             }, {
                 xtype: 'component',
-                html: '<img src="' + str_PIC + '" style="cursor: pointer; width: 45px; height: 45px; border-radius: 5px; margin-right: 5px;" alt="photo_profile" id="photo_profile" onclick="changePicture()"/>'
+                html: '<img src="' + str_PIC + '" class="hdr-avatar" alt="photo_profile" id="photo_profile" onclick="changePicture()" title="Photo de profil"/>'
             },
                     {
                         xtype: 'themeSwitcher'
-                    }, lg_USER_ID, btnConfig
+                    }, lg_USER_ID, btnConfig,
+                    {
+                        xtype: 'component',
+                        id: 'hdr-logout-btn',
+                        html: '<span class="hdr-logout" onclick="prestigeHeaderLogout()" title="Se déconnecter">'
+                                + '<i class="fa fa-power-off"></i>'
+                                + '</span>'
+                    }
 
                     );
         }
@@ -215,6 +222,15 @@ Ext.define('testextjs.view.Header', {
 function changePicture() {
     alert("My picture");
     //testextjs.app.getController('App').onLoadNewComponent("updatepicture", "Mise a jour de la photo de profil", "");
+}
+
+// Deconnexion depuis le bouton rond du header (avec confirmation)
+function prestigeHeaderLogout() {
+    Ext.Msg.confirm('Déconnexion', 'Voulez-vous vraiment vous déconnecter ?', function (btn) {
+        if (btn === 'yes' && typeof Me_header !== 'undefined' && Me_header) {
+            Me_header.Deconnexion();
+        }
+    });
 }
 
 // ===================================================================
