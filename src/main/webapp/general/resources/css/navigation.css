@@ -350,8 +350,9 @@
 .prestige-flyout-menu .pft-item {
     background: transparent !important;
     border: none !important;
-    border-left: 3px solid transparent !important;
-    transition: background 0.15s;
+    border-left: 4px solid transparent !important;
+    transition: background-color 0.18s ease, transform 0.18s ease,
+                border-color 0.18s ease, box-shadow 0.18s ease !important;
 }
 
 .prestige-flyout-menu .x-menu-item-text {
@@ -362,17 +363,34 @@
     line-height: 1.5 !important;
 }
 
+/* Survol/selection clavier : fond nettement plus clair, liseré
+   turquoise, légère glissade à droite et halo — l'item sous la souris
+   se repère immédiatement */
 .prestige-flyout-menu .x-menu-item-active,
 .prestige-flyout-menu .x-menu-item:hover {
-    background: #1e3a5f !important;
-    border-left: 3px solid #48c9b0 !important;
-    border-radius: 0 5px 5px 0 !important;
+    background-color: #1a4880 !important;
+    background-image: linear-gradient(90deg, rgba(72, 201, 176, 0.22) 0%, rgba(93, 173, 226, 0.08) 55%, transparent 100%) !important;
+    border-left: 4px solid #48c9b0 !important;
+    border-radius: 0 6px 6px 0 !important;
+    transform: translateX(4px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(72, 201, 176, 0.2) !important;
 }
 
 .prestige-flyout-menu .x-menu-item-active .x-menu-item-text,
 .prestige-flyout-menu .x-menu-item:hover .x-menu-item-text {
     color: #ffffff !important;
     font-weight: 600 !important;
+}
+
+/* La petite flèche passe au turquoise et avance avec l'item */
+.prestige-flyout-menu .x-menu-item .fa-angle-right {
+    transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.prestige-flyout-menu .x-menu-item-active .fa-angle-right,
+.prestige-flyout-menu .x-menu-item:hover .fa-angle-right {
+    color: #48c9b0 !important;
+    transform: translateX(3px);
 }
 
 .prestige-flyout-menu .x-menu-item-icon,
