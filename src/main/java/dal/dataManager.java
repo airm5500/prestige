@@ -39,6 +39,28 @@ public class dataManager {
         return factory;
     }
 
+    /**
+     * Ferme la factory partagee. A appeler UNIQUEMENT a l'arret/undeploy de
+     * l'application (voir dal.AppContextListener) : sans cette fermeture, la
+     * session EclipseLink de l'ancien deploiement survit dans le registre du
+     * serveur et renvoie des entites chargees par l'ancien classloader, d'ou
+     * des ClassCastException (TSousMenu -> TSousMenu) apres un redeploiement
+     * a chaud.
+     */
+    public static void closeSharedEntityManagerFactory() {
+        synchronized (dataManager.class) {
+            EntityManagerFactory factory = SHARED_EMF;
+            SHARED_EMF = null;
+            if (factory != null && factory.isOpen()) {
+                try {
+                    factory.close();
+                } catch (RuntimeException e) {
+                    // Rien a faire : l'application s'arrete.
+                }
+            }
+        }
+    }
+
     private EntityTransaction Transaction;
     private boolean bTransactionGroupe = false;
     // début transaction

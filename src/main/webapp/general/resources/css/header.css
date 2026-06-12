@@ -43,11 +43,19 @@
 }
 
 /* ---- Nom de l'officine : titre fixe centré (remplace le marquee) ---- */
+/* Le composant ExtJS est flexible : on centre la pilule à l'intérieur */
+#app-header #hdr-officine {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+}
+
 #app-header .hdr-officine {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    max-width: 640px;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 6px 22px;
     border-radius: 19px;
     background: rgba(255, 255, 255, 0.06);
@@ -77,8 +85,12 @@
 #app-header .hdr-clock {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 7px;
-    margin-left: 18px;
+    width: 100%;
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
     padding: 5px 12px;
     border-radius: 15px;
     background: rgba(255, 255, 255, 0.06);
@@ -100,6 +112,7 @@
 }
 
 /* ---- Cloche de notifications : pastille ronde + hover ---- */
+/* L'espacement cloche/photo est gere par les marges ExtJS du composant */
 #app-header .hdr-bell {
     position: relative;
     display: inline-flex;
@@ -108,7 +121,6 @@
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    margin: 0 18px 0 8px; /* espace net entre la cloche et la photo */
     cursor: pointer;
     background: rgba(255, 255, 255, 0.08);
     transition: background 0.2s, transform 0.2s;
@@ -144,7 +156,8 @@
     display: inline-flex;
     align-items: center;
     gap: 9px;
-    margin-right: 12px;
+    width: 100%;
+    box-sizing: border-box;
     padding: 3px 12px 3px 4px;
     border-radius: 21px;
     cursor: default;
@@ -162,7 +175,8 @@
 }
 
 #app-header .hdr-user-info {
-    max-width: 160px;
+    flex: 1;
+    min-width: 0; /* permet l'ellipse du nom dans le flex */
     overflow: hidden;
     font-family: 'Segoe UI', Tahoma, sans-serif;
 }
@@ -214,7 +228,6 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    margin: 0 12px 0 10px;
     cursor: pointer;
     background: #e74c3c;
     color: #ffffff;

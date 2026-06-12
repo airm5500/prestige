@@ -83,38 +83,38 @@ Ext.define('testextjs.view.Header', {
 
 
 
+        /* NOTE anti-chevauchement : chaque element du header a une largeur
+         * FIXE cote ExtJS (le contenu charge en Ajax ne peut plus deborder
+         * sur ses voisins) ; seul le nom de l'officine est flexible et
+         * absorbe le manque de place sur les petits ecrans (ellipse CSS). */
         if (!Ext.getCmp('options-toolbar')) {
             this.items.push(
                     /* Horloge : date et heure du jour, a droite de PRESTIGE 2 */
                     {
                         xtype: 'component',
                         id: 'hdr-clock',
+                        width: 225,
+                        margin: '0 0 0 12',
                         html: '<div class="hdr-clock">'
                                 + '<i class="fa fa-clock-o"></i>'
                                 + '<span id="hdr-clock-text"></span>'
                                 + '</div>'
                     },
-                    /* Espaceur gauche : centre le nom de l'officine */
-                    {
-                        xtype: 'component',
-                        flex: 1
-                    },
-                    /* Nom de l'officine : titre fixe (remplace le marquee defilant) */
+                    /* Nom de l'officine : flexible, centre, ellipse si etroit */
                     {
                         xtype: 'component',
                         id: 'hdr-officine',
+                        flex: 1,
+                        minWidth: 0,
                         html: '<div class="hdr-officine" title="' + OFFICINE + '">'
                                 + '<i class="fa fa-medkit"></i>'
                                 + '<span id="officine">' + OFFICINE + '</span>'
                                 + '</div>'
-                    },
-                    /* Espaceur droit */
-                    {
-                        xtype: 'component',
-                        flex: 1
                     }, {
                 xtype: 'component',
                 id: 'notif-bell',
+                width: 38,
+                margin: '0 14 0 6',
                 html: '<span class="hdr-bell" onclick="showNotificationCenter()" title="Notifications">'
                         + '<i class="fa fa-bell"></i>'
                         + '<span id="notif-badge" style="display:none;">0</span>'
@@ -124,6 +124,8 @@ Ext.define('testextjs.view.Header', {
                     {
                         xtype: 'component',
                         id: 'hdr-user-card',
+                        width: 195,
+                        margin: '0 12 0 0',
                         html: '<div class="hdr-user">'
                                 + '<img src="' + str_PIC + '" class="hdr-avatar" alt="photo_profile" id="photo_profile"/>'
                                 + '<div class="hdr-user-info">'
@@ -138,6 +140,8 @@ Ext.define('testextjs.view.Header', {
                     {
                         xtype: 'component',
                         id: 'hdr-logout-btn',
+                        width: 36,
+                        margin: '0 12 0 10',
                         html: '<span class="hdr-logout" onclick="prestigeHeaderLogout()" title="Se déconnecter">'
                                 + '<i class="fa fa-power-off"></i>'
                                 + '</span>'
