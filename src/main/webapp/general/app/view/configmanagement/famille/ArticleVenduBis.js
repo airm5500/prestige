@@ -872,20 +872,30 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
             {
                 progress.hide();
                 const result = Ext.JSON.decode(response.responseText, true);
-                Ext.MessageBox.show({
-                    title: 'Message',
-                    width: 320,
-                    msg: 'Nombre de produits en compte : ' + result.count,
-                    buttons: Ext.MessageBox.OK,
-                    icon: Ext.MessageBox.INFO,
-                    fn: function (btn) {
-                        if (btn === 'ok') {
-                            testextjs.app.getController('App')
-                                    .onLoadNewComponent('inventaire', 'Gestion des inventaires', '');
+                if (result.count > 0) {
+                    Ext.MessageBox.show({
+                        title: 'Message',
+                        width: 320,
+                        msg: 'Nombre de produits en compte : ' + result.count,
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.INFO,
+                        fn: function (btn) {
+                            if (btn === 'ok') {
+                                testextjs.app.getController('App')
+                                        .onLoadNewComponent('inventaire', 'Gestion des inventaires', '');
+                            }
                         }
-                    }
 
-                });
+                    });
+                } else {
+                    Ext.MessageBox.show({
+                        title: 'Message',
+                        width: 320,
+                        msg: 'Aucun produit en compte : aucun inventaire cr&eacute;&eacute;',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.INFO
+                    });
+                }
 
 
             },
