@@ -152,14 +152,44 @@ Ext.define('testextjs.controller.VisualisationCtr', {
     doInitStore: function () {
         var me = this;
         me.getVisualisationGrid().getStore().addListener('metachange', this.doMetachange, this);
+        me.getVisualisercaissemanager().fitToContentPanel();
         me.doSearch();
 
     },
-   
+
+    // Nombre de lignes qui tiennent dans la hauteur visible de la grille, calcule au
+    // moment de la recherche afin qu'une page remplisse l'espace sans declencher de
+    // scroll vertical, sur grand ecran comme sur portable. Pas de rechargement auto.
+    computeFittingPageSize: function () {
+        var grid = this.getVisualisationGrid();
+        if (!grid || !grid.rendered) {
+            return null;
+        }
+        var view = grid.getView();
+        if (!view || !view.el) {
+            return null;
+        }
+        var rowHeight = 25;
+        var node = view.getNode ? view.getNode(0) : null;
+        if (node) {
+            var h = Ext.fly(node).getHeight();
+            if (h > 0) {
+                rowHeight = h;
+            }
+        }
+        var rows = Math.floor(view.el.getHeight() / rowHeight) - 1;
+        return Math.max(rows, 1);
+    },
+
     doSearch: function () {
         var me = this;
+        var store = me.getVisualisationGrid().getStore();
+        var size = me.computeFittingPageSize();
+        if (size) {
+            store.pageSize = size;
+        }
 
-        me.getVisualisationGrid().getStore().load({
+        store.load({
             params: {
                 user: me.getUserComboField().getValue(),
                 reglement: me.getReglementComboField().getValue(),
