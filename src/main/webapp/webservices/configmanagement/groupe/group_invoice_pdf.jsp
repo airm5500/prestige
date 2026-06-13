@@ -168,6 +168,12 @@
     parameters.put("P_CODEFACTUREFOOTER", "");
     parameters.put("lg_GROUPE", g.getLgGROUPEID());
     parameters.put("P_CODEGRPUPEFACTURE", CODEFACTURE);
+    // Ordre du recapitulatif aligne sur le tri choisi pour le groupe (cf. getGroupeInvoiceDetails).
+    String modeTriRecap = GroupeTierspayantController.normalizeModeTri(g.getStrMODETRIFACTURE());
+    String orderByRecap = GroupeTierspayantController.MODE_TRI_NUMERIQUE.equals(modeTriRecap)
+            ? "CAST(SUBSTRING_INDEX(`t_facture`.`str_CODE_FACTURE`, '_', -1) AS UNSIGNED) ASC, `t_tiers_payant`.`str_FULLNAME` ASC"
+            : "`t_tiers_payant`.`str_FULLNAME` ASC";
+    parameters.put("P_ORDER_BY", orderByRecap);
     parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
 
     parameters.put("P_TOTAL_INGROUPE_LETTERS", conversion.GetNumberTowords(Double.parseDouble(AMOUTGRP + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(AMOUTGRP + "")) + " FCFA)");
