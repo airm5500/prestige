@@ -25,6 +25,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     id: 'facturemanagerID',
     requires: [
         'Ext.selection.CellModel',
+        'Ext.selection.CheckboxModel',
         'Ext.grid.*',
         'Ext.window.Window',
         'Ext.data.*',
@@ -90,6 +91,13 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         _this.store = factureStore;
         _this.columns = _this.buildDetailsColumns();
         _this.dockedItems = _this.buildDocked();
+        // Selection multi-pages : pruneRemoved=false conserve les coches lors du
+        // changement de page; checkOnly=true n'active la coche que via la case.
+        _this.selModel = Ext.create('Ext.selection.CheckboxModel', {
+            mode: 'MULTI',
+            checkOnly: true,
+            pruneRemoved: false
+        });
         this.callParent();
 
 
@@ -106,6 +114,12 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         scope: this,
                         iconCls: 'addicon',
                         handler: this.onAddCreate
+                    }, '-', {
+                        text: 'Supprimer la s&eacute;lection',
+                        tooltip: 'Supprimer les factures coch&eacute;es',
+                        iconCls: 'cancelicon',
+                        scope: this,
+                        handler: this.onDeleteSelection
                     }, '-', {
                         xtype: 'datefield',
                         id: 'datedebut',
@@ -230,7 +244,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                         labelWidth: 5,
                         id: 'filtreImpayes',
                         store: Ext.create('Ext.data.ArrayStore', {
-                            data: [['', 'Tout'], ['impayes', 'Non réglées ou partiellement réglée'], ['payes', 'Factures réglées']],
+                            data: [['', 'Tout'], ['non_regle', 'Non réglées'], ['partiel', 'Partiellement réglées'], ['payes', 'Factures réglées']],
                             fields: [{name: 'id', type: 'string'}, {name: 'libelle', type: 'string'}]
                         }),
 
@@ -812,6 +826,89 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
         }
     },
+    onDeleteSelection: function () {
+        var me = this;
+        var selModel = me.getSelectionModel();
+        var selection = selModel.getSelection();
+
+        if (!selection || selection.length === 0) {
+            Ext.MessageBox.alert('Information', 'Aucune facture s&eacute;lectionn&eacute;e.');
+            return;
+        }
+
+        // On ne supprime que les factures autorisees et non soldees (meme regle que la
+        // suppression unitaire); les autres sont ignorees.
+        var deletable = [];
+        var ignored = 0;
+        Ext.each(selection, function (rec) {
+            if (rec.get('str_STATUT') !== 'paid' && rec.get('isALLOWED')) {
+                deletable.push(rec);
+            } else {
+                ignored++;
+            }
+        });
+
+        if (deletable.length === 0) {
+            Ext.MessageBox.alert('Information',
+                    'Aucune des factures s&eacute;lectionn&eacute;es n\'est supprimable (sold&eacute;es ou non autoris&eacute;es).');
+            return;
+        }
+
+        var msg = 'Confirmez la suppression de ' + deletable.length + ' facture(s)';
+        if (ignored > 0) {
+            msg += ' (' + ignored + ' ignor&eacute;e(s) : sold&eacute;es ou non autoris&eacute;es)';
+        }
+        msg += ' ?';
+
+        Ext.MessageBox.confirm('Message', msg, function (btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            myAppController.ShowWaitingProcess();
+            var done = 0, failed = 0, total = deletable.length;
+
+            // Suppression en cascade : une facture apres l'autre (sequentiel).
+            var deleteNext = function (index) {
+                if (index >= total) {
+                    myAppController.StopWaitingProcess();
+                    selModel.deselectAll();
+                    me.getStore().reload();
+                    Ext.MessageBox.show({
+                        title: 'R&eacute;sultat',
+                        width: 340,
+                        msg: done + ' facture(s) supprim&eacute;e(s)'
+                                + (failed > 0 ? ', ' + failed + ' &eacute;chec(s)' : '')
+                                + (ignored > 0 ? ', ' + ignored + ' ignor&eacute;e(s)' : ''),
+                        buttons: Ext.MessageBox.OK,
+                        icon: (failed > 0 ? Ext.MessageBox.WARNING : Ext.MessageBox.INFO)
+                    });
+                    return;
+                }
+                var rec = deletable[index];
+                Ext.Ajax.request({
+                    url: url_services_transaction_facturation + 'delete',
+                    params: {
+                        lg_FACTURE_ID: rec.get('lg_FACTURE_ID'),
+                        mode: 'delete'
+                    },
+                    callback: function (options, success, response) {
+                        if (success) {
+                            var object = Ext.JSON.decode(response.responseText, true);
+                            if (object && object.success === '1') {
+                                done++;
+                            } else {
+                                failed++;
+                            }
+                        } else {
+                            failed++;
+                        }
+                        deleteNext(index + 1);
+                    }
+                });
+            };
+            deleteNext(0);
+        });
+    },
     onEditClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
 
@@ -884,6 +981,12 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     onPrint: function () {
         let lg_customer_id = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),
                 dt_fin = Ext.getCmp('datefin').getSubmitValue(), dt_debut = Ext.getCmp('datedebut').getSubmitValue();
+        // Sans periode, le releve sort vierge : on exige la date debut et la date fin.
+        if (!dt_debut || !dt_fin) {
+            Ext.MessageBox.alert('Information',
+                    'Veuillez renseigner la p&eacute;riode (date d&eacute;but et date fin) avant d\'imprimer le relev&eacute; des factures.');
+            return;
+        }
         if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() === null) {
             lg_customer_id = "";
         }

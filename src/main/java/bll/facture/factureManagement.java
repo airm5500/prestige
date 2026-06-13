@@ -1916,38 +1916,40 @@ public class factureManagement extends bll.bllBase {
     public List<TFacture> getListFacture(String searchValue, String idFacture, String typeFactureId, Date dtDebut,
             Date dtFin, String strCUSTOMER, String code, String impayes, int start, int limit) {
 
-        String impayerClause = " AND t.dblMONTANTRESTANT >0 ";
-        if (StringUtils.isEmpty(impayes)) {
-            impayerClause = "";
-        } else {
-            if (impayes.equals("payes")) {
-                impayerClause = " AND t.dblMONTANTRESTANT = 0 ";
-            }
-        }
+        String impayerClause = buildImpayesClause(impayes);
         try {
             if ("".equals(searchValue)) {
                 searchValue = "%%";
             }
-
-            String query = "SELECT DISTINCT t FROM TFacture t,TTiersPayant p,TFactureDetail d,TPreenregistrementCompteClientTiersPayent pc,TPreenregistrement pr WHERE t.lgFACTUREID LIKE ?1 AND (t.strCODEFACTURE LIKE ?2  OR p.strFULLNAME LIKE ?2 OR p.strNAME LIKE ?2 OR d.strFIRSTNAMECUSTOMER LIKE ?2 OR d.strLASTNAMECUSTOMER LIKE ?2 OR d.strNUMEROSECURITESOCIAL LIKE ?2 OR pr.strREF LIKE ?2 OR pr.strREFTICKET LIKE ?2) AND (t.dtCREATED >= ?6 AND t.dtCREATED <= ?7) AND t.strCUSTOMER LIKE ?8 AND t.strCUSTOMER=p.lgTIERSPAYANTID  AND t.lgFACTUREID=d.lgFACTUREID.lgFACTUREID  AND pc.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=d.strREF AND pr.lgPREENREGISTREMENTID=pc.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  AND ( t.template <> TRUE OR t.template IS NULL) %s ORDER BY  t.dtCREATED DESC,t.strCODEFACTURE DESC";
 
             if (StringUtils.isNotEmpty(code)) {
                 return this.getOdataManager().getEm().createQuery(String.format(
                         "SELECT t FROM TFacture t WHERE t.strCODEFACTURE LIKE ?1 AND ( t.template <> TRUE OR t.template IS NULL) %s",
                         impayerClause)).setParameter(1, code + "%")
                         .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+            }
+
+            TypedQuery<TFacture> q;
+            // Sans recherche texte, on interroge TFacture seule : la jointure des 5 tables
+            // (utile uniquement pour rechercher par nom/patient/reference) est tres couteuse
+            // et inutile au demarrage comme lors d'une simple recherche par periode.
+            if ("%%".equals(searchValue)) {
+                String simple = "SELECT t FROM TFacture t WHERE t.lgFACTUREID LIKE ?1 AND (t.dtCREATED >= ?6 AND t.dtCREATED <= ?7) AND t.strCUSTOMER LIKE ?8 AND ( t.template <> TRUE OR t.template IS NULL) %s ORDER BY t.dtCREATED DESC, t.strCODEFACTURE DESC";
+                q = this.getOdataManager().getEm().createQuery(String.format(simple, impayerClause), TFacture.class)
+                        .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)
+                        .setParameter(1, idFacture).setParameter(6, dtDebut).setParameter(7, dtFin)
+                        .setParameter(8, strCUSTOMER);
             } else {
-                TypedQuery<TFacture> q = this.getOdataManager().getEm()
-                        .createQuery(String.format(query, impayerClause), TFacture.class)
+                String query = "SELECT DISTINCT t FROM TFacture t,TTiersPayant p,TFactureDetail d,TPreenregistrementCompteClientTiersPayent pc,TPreenregistrement pr WHERE t.lgFACTUREID LIKE ?1 AND (t.strCODEFACTURE LIKE ?2  OR p.strFULLNAME LIKE ?2 OR p.strNAME LIKE ?2 OR d.strFIRSTNAMECUSTOMER LIKE ?2 OR d.strLASTNAMECUSTOMER LIKE ?2 OR d.strNUMEROSECURITESOCIAL LIKE ?2 OR pr.strREF LIKE ?2 OR pr.strREFTICKET LIKE ?2) AND (t.dtCREATED >= ?6 AND t.dtCREATED <= ?7) AND t.strCUSTOMER LIKE ?8 AND t.strCUSTOMER=p.lgTIERSPAYANTID  AND t.lgFACTUREID=d.lgFACTUREID.lgFACTUREID  AND pc.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=d.strREF AND pr.lgPREENREGISTREMENTID=pc.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID  AND ( t.template <> TRUE OR t.template IS NULL) %s ORDER BY  t.dtCREATED DESC,t.strCODEFACTURE DESC";
+                q = this.getOdataManager().getEm().createQuery(String.format(query, impayerClause), TFacture.class)
                         .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS)
                         .setParameter(1, idFacture).setParameter(2, searchValue + "%").setParameter(6, dtDebut)
                         .setParameter(7, dtFin).setParameter(8, strCUSTOMER);
-                if (limit > 0) {
-                    q.setFirstResult(start).setMaxResults(limit);
-                }
-
-                return q.getResultList();
             }
+            if (limit > 0) {
+                q.setFirstResult(start).setMaxResults(limit);
+            }
+            return q.getResultList();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1957,13 +1959,33 @@ public class factureManagement extends bll.bllBase {
     }
     // fin liste des factures
 
+    /*
+     * Construit la clause JPQL du filtre de reglement.
+     * - non_regle : rien paye (restant > 0 et paye nul/0)
+     * - partiel : partiellement paye (restant > 0 et paye > 0)
+     * - payes : solde (restant = 0)
+     * - impayes : compat ancienne valeur (restant > 0)
+     */
+    private String buildImpayesClause(String impayes) {
+        if (StringUtils.isEmpty(impayes)) {
+            return "";
+        }
+        switch (impayes) {
+        case "payes":
+            return " AND t.dblMONTANTRESTANT = 0 ";
+        case "non_regle":
+            return " AND t.dblMONTANTRESTANT > 0 AND (t.dblMONTANTPAYE = 0 OR t.dblMONTANTPAYE IS NULL) ";
+        case "partiel":
+            return " AND t.dblMONTANTRESTANT > 0 AND t.dblMONTANTPAYE > 0 ";
+        default:
+            return " AND t.dblMONTANTRESTANT > 0 ";
+        }
+    }
+
     // liste des factures
     public int getListFacturesCount(String searchValue, String lg_FACTURE_ID, String lg_TYPE_FACTURE_ID, Date dt_debut,
             Date dt_fin, String str_CUSTOMER, String code, String impayes) {
-        String impayerClause = " AND t.dblMONTANTRESTANT >0 ";
-        if (StringUtils.isEmpty(impayes)) {
-            impayerClause = "";
-        }
+        String impayerClause = buildImpayesClause(impayes);
         Long count = 0l;
         try {
             if ("".equals(searchValue)) {
@@ -1973,6 +1995,11 @@ public class factureManagement extends bll.bllBase {
                 count = (Long) this.getOdataManager().getEm().createQuery(String.format(
                         "SELECT COUNT(t) FROM TFacture t WHERE t.strCODEFACTURE LIKE ?1 AND ( t.template <> TRUE OR t.template IS NULL) %s",
                         impayerClause)).setParameter(1, code + "%").getSingleResult();
+            } else if ("%%".equals(searchValue)) {
+                count = (Long) this.getOdataManager().getEm().createQuery(String.format(
+                        "SELECT COUNT(t) FROM TFacture t WHERE t.lgFACTUREID LIKE ?1 AND (t.dtCREATED >= ?6 AND t.dtCREATED <= ?7) AND t.strCUSTOMER LIKE ?8 AND ( t.template <> TRUE OR t.template IS NULL) %s",
+                        impayerClause)).setParameter(1, lg_FACTURE_ID).setParameter(6, dt_debut)
+                        .setParameter(7, dt_fin).setParameter(8, str_CUSTOMER).getSingleResult();
             } else {
                 count = (Long) this.getOdataManager().getEm().createQuery(String.format(
                         "SELECT COUNT(DISTINCT t) FROM TFacture t,TTiersPayant p,TFactureDetail d,TPreenregistrementCompteClientTiersPayent pc,TPreenregistrement pr WHERE t.lgFACTUREID LIKE ?1 AND (t.strCODEFACTURE LIKE ?2  OR p.strFULLNAME LIKE ?2 OR p.strNAME LIKE ?2 OR d.strFIRSTNAMECUSTOMER LIKE ?2 OR d.strLASTNAMECUSTOMER LIKE ?2 OR d.strNUMEROSECURITESOCIAL LIKE ?2 OR pr.strREF LIKE ?2 OR pr.strREFTICKET LIKE ?2) AND (t.dtCREATED >= ?6 AND t.dtCREATED <= ?7) AND t.strCUSTOMER LIKE ?8 AND t.strCUSTOMER=p.lgTIERSPAYANTID  AND t.lgFACTUREID=d.lgFACTUREID.lgFACTUREID  AND pc.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=d.strREF AND pr.lgPREENREGISTREMENTID=pc.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID AND ( t.template <> TRUE OR t.template IS NULL) %s",

@@ -574,10 +574,22 @@ public class FacturationServiceImpl implements FacturationService {
             predicates.add(cb.between(root.get(TFacture_.dtCREATED), dtStart, dtEnd));
             if (StringUtils.isNotBlank(invoiceFilter)) {
 
-                if ("impayes".equals(invoiceFilter)) {
-                    predicates.add(cb.greaterThan(root.get(TFacture_.dblMONTANTRESTANT), 0.0));
-                } else {
+                switch (invoiceFilter) {
+                case "payes":
                     predicates.add(cb.lessThanOrEqualTo(root.get(TFacture_.dblMONTANTRESTANT), 0.0));
+                    break;
+                case "non_regle":
+                    predicates.add(cb.greaterThan(root.get(TFacture_.dblMONTANTRESTANT), 0.0));
+                    predicates.add(cb.or(cb.isNull(root.get(TFacture_.dblMONTANTPAYE)),
+                            cb.equal(root.get(TFacture_.dblMONTANTPAYE), 0.0)));
+                    break;
+                case "partiel":
+                    predicates.add(cb.greaterThan(root.get(TFacture_.dblMONTANTRESTANT), 0.0));
+                    predicates.add(cb.greaterThan(root.get(TFacture_.dblMONTANTPAYE), 0.0));
+                    break;
+                default:
+                    predicates.add(cb.greaterThan(root.get(TFacture_.dblMONTANTRESTANT), 0.0));
+                    break;
                 }
             }
         }
