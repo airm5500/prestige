@@ -510,6 +510,14 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
 
         var win = Ext.create("Ext.window.Window", {
             title: "Ajout de nouveau groupe",
+            listeners: {
+                show: function () {
+                    var f = Ext.getCmp('str_LIBELLE_GR');
+                    if (f) {
+                        f.focus(false, 200);
+                    }
+                }
+            },
 
             width: 520,
             layout: {
@@ -546,9 +554,6 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                                     enableKeyEvents: true,
                                     listeners: {
 
-                                        afterrender: function (field) {
-                                            field.focus(false, 100);
-                                        },
                                         specialKey: function (field, e, options) {
                                             if (e.getKey() === e.ENTER)
                                             {
