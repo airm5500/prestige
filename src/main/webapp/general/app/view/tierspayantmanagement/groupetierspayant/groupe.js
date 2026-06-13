@@ -98,6 +98,12 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
 
                 },
                 {
+                    header: 'TRI',
+                    dataIndex: 'str_MODE_TRI_FACTURE',
+                    flex: 1
+
+                },
+                {
                     xtype: 'actioncolumn',
                     width: 30,
                     sortable: false,
