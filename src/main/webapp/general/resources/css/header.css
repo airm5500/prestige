@@ -136,6 +136,72 @@
     text-overflow: ellipsis;
 }
 
+/* ---- Animation moderne au survol du nom de l'officine ---- */
+#app-header .hdr-officine {
+    position: relative;
+    transition: transform .35s cubic-bezier(.2, .7, .3, 1),
+                box-shadow .35s ease,
+                border-color .35s ease,
+                background .35s ease;
+}
+
+/* Reflet lumineux qui balaie la pilule au survol */
+#app-header .hdr-officine::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -130%;
+    width: 70%;
+    height: 100%;
+    background: linear-gradient(120deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.22) 50%,
+        transparent 100%);
+    transform: skewX(-20deg);
+    transition: left .6s ease;
+    pointer-events: none;
+}
+
+#app-header .hdr-officine:hover {
+    transform: translateY(-2px) scale(1.03);
+    background: linear-gradient(135deg,
+        rgba(72, 201, 176, 0.18),
+        rgba(93, 173, 226, 0.18));
+    border-color: rgba(72, 201, 176, 0.65);
+    box-shadow: 0 6px 22px rgba(72, 201, 176, 0.35),
+                inset 0 0 0 1px rgba(93, 173, 226, 0.25);
+}
+
+#app-header .hdr-officine:hover::before {
+    left: 140%;
+}
+
+#app-header .hdr-officine .fa-medkit {
+    transition: color .35s ease;
+}
+
+#app-header .hdr-officine:hover .fa-medkit {
+    color: #5dade2;
+    animation: hdrMedkitBeat .7s ease;
+}
+
+#app-header .hdr-officine span {
+    transition: letter-spacing .35s ease, color .35s ease, text-shadow .35s ease;
+}
+
+#app-header .hdr-officine:hover span {
+    letter-spacing: 2.5px;
+    color: #eafaf5;
+    text-shadow: 0 0 16px rgba(72, 201, 176, 0.55);
+}
+
+@keyframes hdrMedkitBeat {
+    0%   { transform: scale(1) rotate(0); }
+    30%  { transform: scale(1.25) rotate(-8deg); }
+    55%  { transform: scale(0.92) rotate(6deg); }
+    100% { transform: scale(1) rotate(0); }
+}
+
 /* ---- Horloge : date + heure ---- */
 #app-header .hdr-clock {
     display: inline-flex;
