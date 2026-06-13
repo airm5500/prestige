@@ -546,6 +546,9 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                                     enableKeyEvents: true,
                                     listeners: {
 
+                                        afterrender: function (field) {
+                                            field.focus(false, 100);
+                                        },
                                         specialKey: function (field, e, options) {
                                             if (e.getKey() === e.ENTER)
                                             {
@@ -973,7 +976,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                     if (object.status === 1) {
                         grid.getStore().load();
                         Ext.MessageBox.alert('INFO', 'Groupe modifié');
-                        win.hide();
+                        win.destroy();
                     } else {
                         Ext.MessageBox.alert('ERROR', 'Erreur de modification');
 
@@ -988,7 +991,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                 failure: function (response)
                 {
 
-                    win.hide();
+                    win.destroy();
                 }
             });
 
