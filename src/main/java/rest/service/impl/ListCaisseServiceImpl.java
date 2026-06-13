@@ -10,6 +10,7 @@ import dal.TEmplacement_;
 import dal.TPreenregistrement;
 import dal.TPreenregistrement_;
 import dal.TTypeMvtCaisse;
+import dal.TTypeMvtCaisse_;
 import dal.TTypeReglement;
 import dal.TTypeReglement_;
 import dal.TUser;
@@ -17,13 +18,13 @@ import dal.TUser_;
 import dal.VenteReglement;
 import dal.VenteReglement_;
 import dal.enumeration.TypeTransaction;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -34,6 +35,7 @@ import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Subquery;
@@ -71,25 +73,10 @@ public class ListCaisseServiceImpl implements ListCaisseService {
 
     @Override
     public List<SumCaisseDTO> fetchSummary(CaisseParamsDTO caisseParams) {
-        List<SumCaisseDTO> summaries = new ArrayList<>();
-        caisseParams.setAll(true);
-        findAllTransaction(caisseParams).stream().map(this::buildSummaryFromMvtTransaction)
-                .flatMap(e -> e.getReglements().stream())
-                .collect(Collectors.groupingBy(VenteReglementDTO::getTypeReglement)).forEach((k, v) -> {
-                    SumCaisseDTO sumCaisse = new SumCaisseDTO();
-                    sumCaisse.setModeReglement(k);
-                    long montant = 0;
-                    long montantAnnulation = 0;
-                    for (VenteReglementDTO venteReglementDTO : v) {
-                        montant += venteReglementDTO.getMontant();
-
-                        montantAnnulation += venteReglementDTO.getMontantAnnulation();
-                    }
-                    sumCaisse.setAmount(montant);
-                    sumCaisse.setMontantAnnulation(montantAnnulation);
-
-                    summaries.add(sumCaisse);
-                });
+        Map<String, SumCaisseDTO> byMode = new LinkedHashMap<>();
+        accumulate(byMode, sumReglementsVentes(caisseParams));
+        accumulate(byMode, sumAutresMouvements(caisseParams));
+        List<SumCaisseDTO> summaries = new ArrayList<>(byMode.values());
         long annulation = summaries.stream().map(SumCaisseDTO::getMontantAnnulation).reduce(0l, Long::sum);
         if (annulation != 0) {
             SumCaisseDTO sumCaisse = new SumCaisseDTO();
@@ -99,6 +86,72 @@ public class ListCaisseServiceImpl implements ListCaisseService {
             summaries.add(sumCaisse);
         }
         return summaries;
+    }
+
+    private void accumulate(Map<String, SumCaisseDTO> byMode, List<Object[]> rows) {
+        for (Object[] row : rows) {
+            String mode = (String) row[0];
+            long montant = row[1] != null ? ((Number) row[1]).longValue() : 0l;
+            long montantAnnulation = row[2] != null ? ((Number) row[2]).longValue() : 0l;
+            SumCaisseDTO sumCaisse = byMode.computeIfAbsent(mode, k -> {
+                SumCaisseDTO dto = new SumCaisseDTO();
+                dto.setModeReglement(k);
+                return dto;
+            });
+            sumCaisse.setAmount(sumCaisse.getAmount() + montant);
+            sumCaisse.setMontantAnnulation(sumCaisse.getMontantAnnulation() + montantAnnulation);
+        }
+    }
+
+    /*
+     * Totaux par mode de reglement des ventes, agreges en base au lieu de charger toutes les transactions de la
+     * periode en memoire.
+     */
+    private List<Object[]> sumReglementsVentes(CaisseParamsDTO caisseParams) {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
+            Root<MvtTransaction> root = cq.from(MvtTransaction.class);
+            Root<VenteReglement> vr = cq.from(VenteReglement.class);
+            List<Predicate> predicates = predicates(caisseParams, cb, root, cq);
+            predicates.add(cb.equal(
+                    vr.get(VenteReglement_.preenregistrement).get(TPreenregistrement_.lgPREENREGISTREMENTID),
+                    root.get(MvtTransaction_.pkey)));
+            predicates.add(root.get(MvtTransaction_.typeTransaction).in(TypeTransaction.VENTE_COMPTANT,
+                    TypeTransaction.VENTE_CREDIT));
+            Expression<String> mode = vr.get(VenteReglement_.typeReglement).get(TTypeReglement_.strNAME);
+            Expression<Integer> annulation = cb.<Integer> selectCase()
+                    .when(cb.lt(vr.get(VenteReglement_.montant), 0), vr.get(VenteReglement_.montant)).otherwise(0);
+            cq.multiselect(mode, cb.sumAsLong(vr.get(VenteReglement_.montantAttentu)), cb.sumAsLong(annulation))
+                    .where(cb.and(predicates.toArray(Predicate[]::new))).groupBy(mode);
+            return getEntityManager().createQuery(cq).getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
+    }
+
+    /*
+     * Totaux des mouvements hors vente (entrees/sorties de caisse...), portes par le reglement de la transaction.
+     */
+    private List<Object[]> sumAutresMouvements(CaisseParamsDTO caisseParams) {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
+            Root<MvtTransaction> root = cq.from(MvtTransaction.class);
+            List<Predicate> predicates = predicates(caisseParams, cb, root, cq);
+            predicates.add(cb.not(root.get(MvtTransaction_.tTypeMvtCaisse).get(TTypeMvtCaisse_.lgTYPEMVTCAISSEID)
+                    .in(Constant.MVT_VENTE_VO, Constant.MVT_VENTE_VNO)));
+            Expression<String> mode = root.get(MvtTransaction_.reglement).get(TTypeReglement_.strNAME);
+            Expression<Integer> annulation = cb.<Integer> selectCase()
+                    .when(cb.lt(root.get(MvtTransaction_.montant), 0), root.get(MvtTransaction_.montant)).otherwise(0);
+            cq.multiselect(mode, cb.sumAsLong(root.get(MvtTransaction_.montant)), cb.sumAsLong(annulation))
+                    .where(cb.and(predicates.toArray(Predicate[]::new))).groupBy(mode);
+            return getEntityManager().createQuery(cq).getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
     }
 
     private List<Predicate> predicates(CaisseParamsDTO caisseParams, CriteriaBuilder cb, Root<MvtTransaction> root,
@@ -112,12 +165,11 @@ public class ListCaisseServiceImpl implements ListCaisseService {
             LocalDateTime debut = LocalDateTime.of(caisseParams.getStartDate(), caisseParams.getStartHour());
             LocalDateTime fin = LocalDateTime.of(caisseParams.getEnd(), caisseParams.getStartEnd());
 
-            predicates.add(cb.between(cb.function("TIMESTAMP", Timestamp.class, root.get(MvtTransaction_.createdAt)),
-                    java.sql.Timestamp.valueOf(debut), java.sql.Timestamp.valueOf(fin)));
+            predicates.add(cb.between(root.get(MvtTransaction_.createdAt), debut, fin));
         } else if (caisseParams.getStartHour() == null && caisseParams.getStartEnd() == null) {
 
-            predicates.add(cb.between(cb.function("DATE", Date.class, root.get(MvtTransaction_.mvtDate)),
-                    java.sql.Date.valueOf(caisseParams.getStartDate()), java.sql.Date.valueOf(caisseParams.getEnd())));
+            predicates.add(cb.between(root.get(MvtTransaction_.mvtDate), caisseParams.getStartDate(),
+                    caisseParams.getEnd()));
         }
         if (StringUtils.isNotEmpty(caisseParams.getTypeReglementId())) {
 
@@ -303,40 +355,6 @@ public class ListCaisseServiceImpl implements ListCaisseService {
 
         TTypeReglement tTypeReglement = venteReglement.getTypeReglement();
         return buildFromTypeReglement(tTypeReglement, venteReglement.getMontant(), venteReglement.getMontantAttentu());
-
-    }
-
-    private VisualisationCaisseDTO buildSummaryFromMvtTransaction(MvtTransaction m) {
-        TTypeReglement reglement = m.getReglement();
-        VisualisationCaisseDTO caisse = new VisualisationCaisseDTO();
-
-        List<VenteReglementDTO> reglements = new ArrayList<>();
-
-        if (m.getTypeTransaction() == TypeTransaction.VENTE_COMPTANT
-                || m.getTypeTransaction() == TypeTransaction.VENTE_CREDIT) {
-
-            TPreenregistrement p = findVenteByVenteId(m.getPkey());
-            List<VenteReglement> venteReglements = p.getVenteReglements();
-            if (CollectionUtils.isNotEmpty(venteReglements)) {
-                reglements = venteReglements.stream().map(this::buildFromVente).collect(Collectors.toList());
-            }
-        }
-        TTypeMvtCaisse mvt = m.gettTypeMvtCaisse();
-
-        switch (mvt.getLgTYPEMVTCAISSEID()) {
-        case Constant.MVT_VENTE_VO:
-        case Constant.MVT_VENTE_VNO:
-
-            break;
-        default:
-
-            reglements.add(buildFromTypeReglement(reglement, m.getMontant(), m.getMontant()));
-            break;
-
-        }
-        caisse.setReglements(reglements);
-
-        return caisse;
 
     }
 

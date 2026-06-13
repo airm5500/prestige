@@ -33,7 +33,9 @@ import javax.xml.bind.annotation.XmlRootElement;
         @Index(name = "indexMvtTranstype", columnList = "typeTransaction"),
         @Index(name = "indexMvtpkey", columnList = "pkey"), @Index(name = "indexMvtchecked", columnList = "checked"),
         @Index(name = "indexMvtcategorie", columnList = "categorie"),
-        @Index(name = "indexMvtRef", columnList = "reference")
+        @Index(name = "indexMvtRef", columnList = "reference"),
+        @Index(name = "indexMvtEmplCreatedAt", columnList = "lg_EMPLACEMENT_ID,createdAt"),
+        @Index(name = "indexMvtEmplMvtdate", columnList = "lg_EMPLACEMENT_ID,mvtdate")
 
 })
 @XmlRootElement
