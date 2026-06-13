@@ -832,7 +832,13 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                         width: 320,
                         msg: 'Nombre de produits en compte : ' + result.count,
                         buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.INFO
+                        icon: Ext.MessageBox.INFO,
+                        fn: function (btn) {
+                            if (btn === 'ok') {
+                                testextjs.app.getController('App')
+                                        .onLoadNewComponent('i_sugg_manager', 'Liste Suggestion', '');
+                            }
+                        }
 
                     });
                 }
@@ -871,7 +877,13 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                     width: 320,
                     msg: 'Nombre de produits en compte : ' + result.count,
                     buttons: Ext.MessageBox.OK,
-                    icon: Ext.MessageBox.INFO
+                    icon: Ext.MessageBox.INFO,
+                    fn: function (btn) {
+                        if (btn === 'ok') {
+                            testextjs.app.getController('App')
+                                    .onLoadNewComponent('inventaire', 'Gestion des inventaires', '');
+                        }
+                    }
 
                 });
 
