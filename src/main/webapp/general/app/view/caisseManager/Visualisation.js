@@ -17,10 +17,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
     height: Ext.getBody().getViewSize().height * 0.85,
     minHeight: 550,
     cls: 'custompanel',
-    layout: {
-        type: 'fit'
-
-    },
+    layout: 'anchor',
     fitToContentPanel: function () {
         var content = Ext.getCmp('content-panel');
         if (this.rendered && content && content.body) {
@@ -162,6 +159,7 @@ Ext.define('testextjs.view.caisseManager.Visualisation', {
             ],
             items: [{
                     xtype: 'visualisationGrid',
+                    anchor: '100% 100%',
                     plugins: [{
                             ptype: 'rowexpander',
                             rowBodyTpl: new Ext.XTemplate(
