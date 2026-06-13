@@ -32,6 +32,7 @@
     TUser user=OdataManager.getEm().find(TUser.class, OTUser.getLgUSERID());
     int lg_GROUPE_ID = 0, mode = 0;
     String str_LIBELLE = "", search_value = "%%", str_TELEPHONE = "", str_ADRESSE = "", CODEFACTURE = "", LGFACTURE = "";
+    String str_MODE_TRI_FACTURE = "ALPHABETIQUE";
     boolean isOK = false;
     Integer MONTANTRESTANT = 0;
     TGroupeTierspayant gtp = null;
@@ -68,6 +69,9 @@
     if (request.getParameter("str_TELEPHONE") != null && !"".equals(request.getParameter("str_TELEPHONE"))) {
         str_TELEPHONE = request.getParameter("str_TELEPHONE");
     }
+    if (request.getParameter("str_MODE_TRI_FACTURE") != null && !"".equals(request.getParameter("str_MODE_TRI_FACTURE"))) {
+        str_MODE_TRI_FACTURE = request.getParameter("str_MODE_TRI_FACTURE");
+    }
     GroupeTierspayantController groupeCtl = new GroupeTierspayantController(OdataManager.getEmf());
     JSONObject data = new JSONObject();
 
@@ -77,11 +81,12 @@
             gtp.setStrLIBELLE(str_LIBELLE);
             gtp.setStrADRESSE(str_ADRESSE);
             gtp.setStrTELEPHONE(str_TELEPHONE);
+            gtp.setStrMODETRIFACTURE(GroupeTierspayantController.normalizeModeTri(str_MODE_TRI_FACTURE));
             isOK = groupeCtl.create(gtp);
             data.put("status", (isOK) ? 1 : 0);
             break;
         case 1:
-            isOK = groupeCtl.edit(lg_GROUPE_ID, str_LIBELLE, str_ADRESSE, str_TELEPHONE);
+            isOK = groupeCtl.edit(lg_GROUPE_ID, str_LIBELLE, str_ADRESSE, str_TELEPHONE, str_MODE_TRI_FACTURE);
             data.put("status", (isOK) ? 1 : 0);
             break;
         case 2:

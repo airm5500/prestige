@@ -74,6 +74,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.text.DateFormat;
+import java.text.Normalizer;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -83,6 +84,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -181,8 +183,8 @@ public class GroupeTierspayantController implements Serializable {
         return isOk;
     }
 
-    public boolean edit(int idGroupe, String str_LIBELLE, String str_ADRESSE, String str_TELEPHONE)
-            throws NonexistentEntityException, Exception {
+    public boolean edit(int idGroupe, String str_LIBELLE, String str_ADRESSE, String str_TELEPHONE,
+            String str_MODE_TRI_FACTURE) throws NonexistentEntityException, Exception {
         EntityManager em = null;
         boolean isOk = false;
         try {
@@ -192,6 +194,7 @@ public class GroupeTierspayantController implements Serializable {
             persistentTGroupeTierspayant.setStrLIBELLE(str_LIBELLE);
             persistentTGroupeTierspayant.setStrADRESSE(str_ADRESSE);
             persistentTGroupeTierspayant.setStrTELEPHONE(str_TELEPHONE);
+            persistentTGroupeTierspayant.setStrMODETRIFACTURE(normalizeModeTri(str_MODE_TRI_FACTURE));
             em.merge(persistentTGroupeTierspayant);
 
             em.getTransaction().commit();
@@ -5142,11 +5145,89 @@ public class GroupeTierspayantController implements Serializable {
                     TFacture.class);
             tp.setParameter(1, groupeId);
             tp.setParameter(2, codeFacture);
-            return tp.getResultList();
+            List<TFacture> factures = new ArrayList<>(tp.getResultList());
+            String modeTri = null;
+            try {
+                TGroupeTierspayant groupe = getEntityManager().find(TGroupeTierspayant.class, groupeId);
+                if (groupe != null) {
+                    modeTri = groupe.getStrMODETRIFACTURE();
+                }
+            } catch (Exception ignore) {
+            }
+            factures.sort(comparatorTriFacture(modeTri));
+            return factures;
         } catch (Exception e) {
 
             return Collections.emptyList();
         }
 
+    }
+
+    /** Mode de tri par ordre alphabétique du nom de la sous-assurance / tiers payant. */
+    public static final String MODE_TRI_ALPHABETIQUE = "ALPHABETIQUE";
+    /** Mode de tri par ordre numérique du numéro de facture. */
+    public static final String MODE_TRI_NUMERIQUE = "NUMERIQUE";
+
+    /**
+     * Comparateur centralisé qui définit l'ordre d'édition des sous-factures d'une facture de groupe.
+     * Le récapitulatif et le détail des sous-factures doivent partager ce même ordre.
+     *
+     * @param modeTri valeur de t_groupe_tierspayant.str_MODE_TRI_FACTURE ; toute valeur autre que
+     *                {@link #MODE_TRI_NUMERIQUE} (y compris null) retombe sur le tri alphabétique.
+     */
+    public static Comparator<TFacture> comparatorTriFacture(String modeTri) {
+        if (MODE_TRI_NUMERIQUE.equalsIgnoreCase(modeTri)) {
+            // Tri numérique : numéro de facture, puis libellé en départage des non numériques.
+            return Comparator.comparingLong(GroupeTierspayantController::numeroFacture)
+                    .thenComparing(GroupeTierspayantController::libelleTiersPayant, String.CASE_INSENSITIVE_ORDER);
+        }
+        // Tri alphabétique (défaut) : nom complet sinon nom, puis numéro en départage.
+        return Comparator.comparing(GroupeTierspayantController::libelleTiersPayant, String.CASE_INSENSITIVE_ORDER)
+                .thenComparingLong(GroupeTierspayantController::numeroFacture);
+    }
+
+    /** Normalise une valeur de mode de tri vers {@link #MODE_TRI_NUMERIQUE} ou, par défaut, {@link #MODE_TRI_ALPHABETIQUE}. */
+    public static String normalizeModeTri(String modeTri) {
+        return MODE_TRI_NUMERIQUE.equalsIgnoreCase(modeTri != null ? modeTri.trim() : null) ? MODE_TRI_NUMERIQUE
+                : MODE_TRI_ALPHABETIQUE;
+    }
+
+    /** strFULLNAME si renseigné, sinon strNAME, normalisé (sans accents) pour un tri stable. */
+    private static String libelleTiersPayant(TFacture f) {
+        TTiersPayant tp = (f != null ? f.getTiersPayant() : null);
+        if (tp == null) {
+            return "";
+        }
+        String libelle = tp.getStrFULLNAME();
+        if (libelle == null || libelle.trim().isEmpty()) {
+            libelle = tp.getStrNAME();
+        }
+        if (libelle == null) {
+            return "";
+        }
+        return Normalizer.normalize(libelle.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+    }
+
+    /**
+     * Extrait la valeur numérique du numéro de facture. Gère le format annuel "yy_NNNN" en ne
+     * conservant que la partie après le dernier '_'. Tout code non numérique est renvoyé en fin de
+     * liste (Long.MAX_VALUE) puis départagé par libellé, sans jamais lever d'exception.
+     */
+    private static long numeroFacture(TFacture f) {
+        String code = (f != null ? f.getStrCODEFACTURE() : null);
+        if (code == null || code.trim().isEmpty()) {
+            return Long.MAX_VALUE;
+        }
+        String num = code.trim();
+        int idx = num.lastIndexOf('_');
+        if (idx >= 0) {
+            num = num.substring(idx + 1);
+        }
+        try {
+            return Long.parseLong(num.trim());
+        } catch (NumberFormatException e) {
+            return Long.MAX_VALUE;
+        }
     }
 }

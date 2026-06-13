@@ -47,6 +47,8 @@ public class TGroupeTierspayant implements Serializable {
     private String strADRESSE;
     @Column(name = "str_TELEPHONE")
     private String strTELEPHONE;
+    @Column(name = "str_MODE_TRI_FACTURE", length = 30)
+    private String strMODETRIFACTURE;
 
     @OneToMany(mappedBy = "lgGROUPEID")
     private List<TGroupeFactures> tGroupeFacturesList;
@@ -137,6 +139,14 @@ public class TGroupeTierspayant implements Serializable {
 
     public void setStrTELEPHONE(String strTELEPHONE) {
         this.strTELEPHONE = strTELEPHONE;
+    }
+
+    public String getStrMODETRIFACTURE() {
+        return strMODETRIFACTURE;
+    }
+
+    public void setStrMODETRIFACTURE(String strMODETRIFACTURE) {
+        this.strMODETRIFACTURE = strMODETRIFACTURE;
     }
 
 }

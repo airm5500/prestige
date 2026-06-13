@@ -21,8 +21,12 @@ Ext.define('testextjs.model.GroupeModel', {
     {
         name: 'str_ADRESSE',
         type: 'string'
+    },
+    {
+        name: 'str_MODE_TRI_FACTURE',
+        type: 'string'
     }
-   
-    
+
+
    ]
 });

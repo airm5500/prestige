@@ -46,6 +46,7 @@
     for (TGroupeTierspayant obj : list) {
         JSONObject json = new JSONObject();
         json.put("lg_GROUPE_ID", obj.getLgGROUPEID()).put("str_LIBELLE", obj.getStrLIBELLE()).put("str_ADRESSE", obj.getStrADRESSE()).put("str_TELEPHONE", obj.getStrTELEPHONE());
+        json.put("str_MODE_TRI_FACTURE", GroupeTierspayantController.normalizeModeTri(obj.getStrMODETRIFACTURE()));
         json.put("ACTION_REGLER_FACTURE", ACTION_REGLER_FACTURE);
         arrayObj.put(json);
 
