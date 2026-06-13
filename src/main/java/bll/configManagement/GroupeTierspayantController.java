@@ -5176,7 +5176,7 @@ public class GroupeTierspayantController implements Serializable {
      *                {@link #MODE_TRI_NUMERIQUE} (y compris null) retombe sur le tri alphabétique.
      */
     public static Comparator<TFacture> comparatorTriFacture(String modeTri) {
-        if (MODE_TRI_NUMERIQUE.equalsIgnoreCase(modeTri)) {
+        if (MODE_TRI_NUMERIQUE.equals(normalizeModeTri(modeTri))) {
             // Tri numérique : numéro de facture, puis libellé en départage des non numériques.
             return Comparator.comparingLong(GroupeTierspayantController::numeroFacture)
                     .thenComparing(GroupeTierspayantController::libelleTiersPayant, String.CASE_INSENSITIVE_ORDER);

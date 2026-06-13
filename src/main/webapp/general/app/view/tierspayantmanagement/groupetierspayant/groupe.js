@@ -117,7 +117,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                                     layout: {
                                         type: 'fit'
                                     },
-                                    height: 200,
+                                    height: 290,
                                     items: [{
                                             xtype: 'form',
                                             id: 'editform',
@@ -128,7 +128,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                                                 {
                                                     xtype: 'fieldset',
 
-                                                    height: 160,
+                                                    height: 250,
                                                     title: 'Modification du groupe',
                                                     layout: 'vbox',
                                                     defaults: {
@@ -200,6 +200,26 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
 
 
 
+                                                        },
+                                                        {
+                                                            xtype: 'combobox',
+                                                            fieldLabel: 'Tri édition facture',
+                                                            name: 'str_MODE_TRI_FACTURE',
+                                                            id: 'str_MODE_TRI_FACTURE_GR_edit',
+                                                            width: '100%',
+                                                            editable: false,
+                                                            queryMode: 'local',
+                                                            forceSelection: true,
+                                                            valueField: 'value',
+                                                            displayField: 'label',
+                                                            value: record.get('str_MODE_TRI_FACTURE') || 'ALPHABETIQUE',
+                                                            store: Ext.create('Ext.data.Store', {
+                                                                fields: ['value', 'label'],
+                                                                data: [
+                                                                    {value: 'ALPHABETIQUE', label: 'Alphabétique - nom assurance'},
+                                                                    {value: 'NUMERIQUE', label: 'Numérique - numéro facture'}
+                                                                ]
+                                                            })
                                                         },
                                                         {
                                                             xtype: 'textfield',
@@ -489,7 +509,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
             layout: {
                 type: 'fit'
             },
-            height: 200,
+            height: 290,
             items: [{
                     xtype: 'form',
                     id: 'newform',
@@ -500,7 +520,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                         {
                             xtype: 'fieldset',
 
-                            height: 160,
+                            height: 250,
                             title: 'Ajout de nouveau groupe',
                             layout: 'vbox',
                             defaults: {
@@ -682,7 +702,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
             layout: {
                 type: 'fit'
             },
-            height: 200,
+            height: 290,
             items: [{
                     xtype: 'form',
                     id: 'editform',
@@ -693,7 +713,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                         {
                             xtype: 'fieldset',
 
-                            height: 160,
+                            height: 250,
                             title: 'Modification du groupe',
                             layout: 'vbox',
                             defaults: {
