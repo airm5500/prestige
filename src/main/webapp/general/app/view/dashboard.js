@@ -16,6 +16,14 @@ Ext.define('testextjs.view.dashboard', {
 
     //bodyBorder: 'false',
     border: false,
+    // Ajuste la hauteur a la zone exacte du cadre parent (content-panel) pour ne pas
+    // declencher le scroll parasite du conteneur : seul l'iframe defile.
+    fitToContainer: function () {
+        var ct = this.ownerCt;
+        if (this.rendered && ct && ct.body) {
+            this.setHeight(ct.body.getViewSize().height);
+        }
+    },
     initComponent: function () {
         const url_order_component = "dashboard.html";
         this.items = [{
@@ -35,7 +43,12 @@ Ext.define('testextjs.view.dashboard', {
                 }
             }],
                 this.callParent();
-
+        var me = this;
+        me.on('afterrender', me.fitToContainer, me, {delay: 50});
+        Ext.EventManager.onWindowResize(me.fitToContainer, me, {buffer: 100});
+        me.on('destroy', function () {
+            Ext.EventManager.removeResizeListener(me.fitToContainer, me);
+        });
     }
 
 });
