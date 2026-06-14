@@ -157,6 +157,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             return {
                 xtype: 'panel',
                 title: titleText,
+                stockKey: key,
                 tabConfig: { cls: headCls },
                 bodyPadding: 12,
                 layout: { type: 'hbox', align: 'stretch' },
@@ -382,6 +383,11 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                     text: 'Imprimer', id: 'btn_print', disabled: true, minWidth: 120,
                     handler: function () {
                         var p = buildParamsFromUI();
+                        // typeStock selon l'onglet actif : 1=rayon, 2=reserve, 0=total
+                        var typeMap = { rayon: '1', reserve: '2', total: '0' };
+                        var at = Ext.getCmp('valo_tabs').getActiveTab();
+                        var key = (at && at.stockKey) ? at.stockKey : 'rayon';
+                        var typeStock = typeMap[key] || '1';
                         var linkUrl = '../SockServlet?mode=VALORISATION'
                             + '&dtStart=' + nn(p.dtStart)
                             + '&action=' + nn(p.mode)
@@ -389,7 +395,8 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                             + '&lgFAMILLEARTICLEID=' + nn(p.lgFAMILLEARTICLEID)
                             + '&lgZONEGEOID=' + nn(p.lgZONEGEOID)
                             + '&END=' + nn(p.END)
-                            + '&BEGIN=' + nn(p.BEGIN);
+                            + '&BEGIN=' + nn(p.BEGIN)
+                            + '&typeStock=' + typeStock;
                         window.open(linkUrl);
                     }
                 }

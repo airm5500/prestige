@@ -1607,12 +1607,31 @@ public class ProduitServiceImpl implements ProduitService {
 
     @Override
     public ValorisationDTO getValeurStockPdf(int mode, LocalDate dtStart, String lgGROSSISTEID,
-            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId,
+            String typeStock) {
         if (dtStart.equals(LocalDate.now())) {
+            // typeStock : "2" = reserve, "0" = total (rayon+reserve), sinon rayon (defaut, comportement existant).
             return valorisationCurrentStock(mode, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN,
-                    emplacementId);
+                    emplacementId, typeStock);
         }
+        // Historique detaille (PDF) : reste sur le rayon (lecture snapshot inchangee, hors perimetre reserve).
         return valorisation(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN, emplacementId);
+    }
+
+    /**
+     * Expression SQL de la quantite a valoriser selon typeStock. La reserve est lue via sous-requete correlee sur
+     * t_type_stock_famille (type=2) -> pas de jointure supplementaire, donc pas de fan-out. Defaut = rayon (existant).
+     */
+    private String qtyExpr(String typeStock) {
+        String reserve = "COALESCE((SELECT z.int_NUMBER FROM t_type_stock_famille z WHERE z.lg_FAMILLE_ID=o.lg_FAMILLE_ID"
+                + " AND z.lg_TYPE_STOCK_ID='2' AND z.str_STATUT='enable' AND z.lg_EMPLACEMENT_ID=s.lg_EMPLACEMENT_ID),0)";
+        if ("2".equals(typeStock) || "reserve".equalsIgnoreCase(typeStock)) {
+            return reserve;
+        }
+        if ("0".equals(typeStock) || "total".equalsIgnoreCase(typeStock)) {
+            return "(s.int_NUMBER_AVAILABLE + " + reserve + ")";
+        }
+        return "s.int_NUMBER_AVAILABLE";
     }
     // on obtient le stock ds produit qui n'ont pas subit de mvt à cette date
 
@@ -1999,15 +2018,18 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     private ValorisationDTO valorisationCurrentStock(final int mode, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
+            String lgZONEGEOID, String END, String BEGIN, String emplacementId, String typeStock) {
         try {
+            String qte = qtyExpr(typeStock);
             List<String> predicates = new ArrayList<>();
             List<ValorisationDTO> os = new ArrayList<>();
             ValorisationDTO valorisation = new ValorisationDTO();
             Map<String, Object> parasm = new HashMap<>();
             StringBuilder query = new StringBuilder();
             query.append(
-                    "SELECT SUM(o.int_PAF *s.int_NUMBER_AVAILABLE) AS montantFacture, SUM(o.int_PRICE *s.int_NUMBER_AVAILABLE) AS montantPu ,SUM(o.int_PAT *s.int_NUMBER_AVAILABLE) AS montantTarif , SUM(s.int_NUMBER_AVAILABLE) AS qty ,SUM(o.dbl_PRIX_MOYEN_PONDERE) AS pmp");
+                    "SELECT SUM(o.int_PAF *" + qte + ") AS montantFacture, SUM(o.int_PRICE *" + qte
+                            + ") AS montantPu ,SUM(o.int_PAT *" + qte + ") AS montantTarif , SUM(" + qte
+                            + ") AS qty ,SUM(o.dbl_PRIX_MOYEN_PONDERE) AS pmp");
             predicates.add(" s.lg_EMPLACEMENT_ID = :emplacementId");
             predicates.add(" o.str_STATUT = :statut");
             parasm.put("statut", DateConverter.STATUT_ENABLE);
@@ -2155,7 +2177,7 @@ public class ProduitServiceImpl implements ProduitService {
             valorisation.setMontantPu(montantPu);
             valorisation.setMontantPmd(pmp.intValue());
             ValorisationDTO tvas = valorisationCurrentStockTva(mode, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID,
-                    END, BEGIN, emplacementId);
+                    END, BEGIN, emplacementId, typeStock);
             valorisation.setTvas(tvas);
             return valorisation;
         } catch (Exception e) {
@@ -2165,15 +2187,18 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     private ValorisationDTO valorisationCurrentStockTva(final int mode, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
+            String lgZONEGEOID, String END, String BEGIN, String emplacementId, String typeStock) {
         try {
+            String qte = qtyExpr(typeStock);
             List<String> predicates = new ArrayList<>();
             List<ValorisationDTO> os = new ArrayList<>();
             ValorisationDTO valorisation = new ValorisationDTO();
             Map<String, Object> parasm = new HashMap<>();
             StringBuilder query = new StringBuilder();
             query.append(
-                    "SELECT SUM(o.int_PAF *s.int_NUMBER_AVAILABLE) AS montantFacture, SUM(o.int_PRICE *s.int_NUMBER_AVAILABLE) AS montantPu ,SUM(o.int_PAT *s.int_NUMBER_AVAILABLE) AS montantTarif , SUM(s.int_NUMBER_AVAILABLE) AS qty, SUM(o.dbl_PRIX_MOYEN_PONDERE) AS pmp ");
+                    "SELECT SUM(o.int_PAF *" + qte + ") AS montantFacture, SUM(o.int_PRICE *" + qte
+                            + ") AS montantPu ,SUM(o.int_PAT *" + qte + ") AS montantTarif , SUM(" + qte
+                            + ") AS qty, SUM(o.dbl_PRIX_MOYEN_PONDERE) AS pmp ");
             predicates.add(" s.lg_EMPLACEMENT_ID = :emplacementId");
             predicates.add(" o.str_STATUT = :statut");
             parasm.put("statut", DateConverter.STATUT_ENABLE);

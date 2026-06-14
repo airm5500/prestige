@@ -94,7 +94,7 @@ public interface ProduitService {
             String lgZONEGEOID, String end, String begin, String emplacementId);
 
     ValorisationDTO getValeurStockPdf(int mode, LocalDate dtStart, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId);
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock);
 
     JSONObject createProduit(CreationProduitDTO creationProduit);
 

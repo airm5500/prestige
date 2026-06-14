@@ -52,7 +52,7 @@ public class Stock {
     private SalesStatsService salesStatsService;
 
     public String valorisation(TUser tu, int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId) throws IOException {
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock) throws IOException {
 
         String scr_report_file = "rp_valorisation_stock_produit2";
         Map<String, Object> parameters = reportUtil.officineData(tu);
@@ -74,10 +74,18 @@ public class Stock {
             break;
         }
 
-        parameters.put("P_H_CLT_INFOS", P_SUBTITLE + P_PERIODE);
+        // Prefixe selon le type de stock imprime (rayon par defaut)
+        String stockLabel = "STOCK RAYON - ";
+        if ("2".equals(typeStock) || "reserve".equalsIgnoreCase(typeStock)) {
+            stockLabel = "STOCK RESERVE - ";
+        } else if ("0".equals(typeStock) || "total".equalsIgnoreCase(typeStock)) {
+            stockLabel = "STOCK TOTAL - ";
+        }
+
+        parameters.put("P_H_CLT_INFOS", stockLabel + P_SUBTITLE + P_PERIODE);
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         ValorisationDTO o = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID,
-                end, begin, emplacementId);
+                end, begin, emplacementId, typeStock);
 
         ValorisationDTO tva = o.getTvas();
         parameters.put("totalpa", o.getMontantFacture());

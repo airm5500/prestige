@@ -60,8 +60,9 @@ public class SockServlet extends HttpServlet {
             String lgZONEGEOID = request.getParameter("lgZONEGEOID");
 
             String lgFAMILLEARTICLEID = request.getParameter("lgFAMILLEARTICLEID");
+            String typeStock = request.getParameter("typeStock");
             file = stockService.valorisation(tUser, mode, LocalDate.parse(dtStart), lgGROSSISTEID, lgFAMILLEARTICLEID,
-                    lgZONEGEOID, end, begin, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+                    lgZONEGEOID, end, begin, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), typeStock);
             break;
 
         case RUPTURE_PHARMAML:
