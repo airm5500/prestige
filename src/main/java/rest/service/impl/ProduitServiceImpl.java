@@ -1614,8 +1614,32 @@ public class ProduitServiceImpl implements ProduitService {
             return valorisationCurrentStock(mode, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN,
                     emplacementId, typeStock);
         }
-        // Historique detaille (PDF) : reste sur le rayon (lecture snapshot inchangee, hors perimetre reserve).
-        return valorisation(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN, emplacementId);
+        // Historique detaille (PDF) : lecture depuis l'archive JSON, par type de stock (rayon/reserve/total).
+        return valorisation(mode, dtStart, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END, BEGIN, emplacementId,
+                typeStock);
+    }
+
+    /**
+     * Expression SQL de la quantite a valoriser cote JSON (historique) selon typeStock. Defaut = rayon.
+     */
+    private String qtyExprJson(String typeStock) {
+        if ("2".equals(typeStock) || "reserve".equalsIgnoreCase(typeStock)) {
+            return "jt.qtyReserve";
+        }
+        if ("0".equals(typeStock) || "total".equalsIgnoreCase(typeStock)) {
+            return "(jt.qty + jt.qtyReserve)";
+        }
+        return "jt.qty";
+    }
+
+    /**
+     * Fragment SQL JSON_TABLE (MariaDB 10.6+) exposant les colonnes du stock_journalier sous l'alias jt.
+     */
+    private String jsonTableExpr() {
+        return " JSON_TABLE(ss.stock_journalier, '$[*]' COLUMNS ("
+                + " stockOfDay INT PATH '$.stockOfDay', prixPaf INT PATH '$.prixPaf', prixUni INT PATH '$.prixUni',"
+                + " prixMoyentpondere INT PATH '$.prixMoyentpondere', qty INT PATH '$.qty',"
+                + " qtyReserve INT PATH '$.qtyReserve' DEFAULT '0' ON EMPTY DEFAULT '0' ON ERROR)) jt ";
     }
 
     /**
@@ -1719,24 +1743,27 @@ public class ProduitServiceImpl implements ProduitService {
 
     // les produits qui on subit un mvt à cette date
     private ValorisationDTO valorisation(final int mode, LocalDate date, String lgGROSSISTEID,
-            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId,
+            String typeStock) {
         try {
+            int dateInt = date.getYear() * 10000 + date.getMonthValue() * 100 + date.getDayOfMonth();
+            String qte = qtyExprJson(typeStock);
+            String jt = jsonTableExpr();
             List<String> predicates = new ArrayList<>();
             List<ValorisationDTO> os = new ArrayList<>();
             ValorisationDTO valorisation = new ValorisationDTO();
             Map<String, Object> parasm = new HashMap<>();
             StringBuilder query = new StringBuilder();
-            query.append(
-                    "SELECT SUM(o.prixPaf*o.qty) AS montantFacture, SUM(o.prixUni*o.qty) AS montantPu ,SUM(o.prixTarif*o.qty) AS montantTarif , SUM(o.qty) AS qty , SUM(o.prix_moyent_pondere) AS pmp  ");
-            predicates.add(" o.id = :operationDate");
-            predicates.add(" o.magasin = :emplacementId");
-            parasm.put("operationDate", date);
-            parasm.put("emplacementId", emplacementId);
+            query.append("SELECT SUM(jt.prixPaf*" + qte + ") AS montantFacture, SUM(jt.prixUni*" + qte
+                    + ") AS montantPu , 0 AS montantTarif , SUM(" + qte + ") AS qty , SUM(jt.prixMoyentpondere) AS pmp ");
+            predicates.add(" f.lg_FAMILLE_ID=ss.produit_id ");
+            predicates.add(" f.str_STATUT='enable' ");
+            predicates.add(" jt.stockOfDay = :dateInt ");
+            parasm.put("dateInt", dateInt);
             switch (mode) {
             case 3:
-                query.append(
-                        ",g.str_LIBELLE AS LIBELLE,g.str_CODE AS CODE FROM t_stock_snapshot o, t_famille f, t_grossiste g ");
-                predicates.add(" o.familleId=f.lg_FAMILLE_ID ");
+                query.append(",g.str_LIBELLE AS LIBELLE,g.str_CODE AS CODE FROM stock_snapshot ss, ").append(jt)
+                        .append(", t_famille f, t_grossiste g ");
                 predicates.add(" f.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
@@ -1762,9 +1789,8 @@ public class ProduitServiceImpl implements ProduitService {
                 query.append(" GROUP BY g.lg_GROSSISTE_ID ORDER BY g.str_CODE ASC ");
                 break;
             case 2:
-                query.append(
-                        ",g.str_LIBELLEE AS LIBELLE,g.str_CODE AS CODE FROM t_stock_snapshot o, t_famille f, t_zone_geographique g ");
-                predicates.add(" o.familleId=f.lg_FAMILLE_ID ");
+                query.append(",g.str_LIBELLEE AS LIBELLE,g.str_CODE AS CODE FROM stock_snapshot ss, ").append(jt)
+                        .append(", t_famille f, t_zone_geographique g ");
                 predicates.add(" f.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
@@ -1790,15 +1816,13 @@ public class ProduitServiceImpl implements ProduitService {
                 query.append(" GROUP BY g.lg_ZONE_GEO_ID ORDER BY g.str_CODE ASC ");
                 break;
             case 1:
-                query.append(
-                        ",g.str_LIBELLE AS LIBELLE,g.str_CODE_FAMILLE AS CODE FROM t_stock_snapshot o, t_famille f, t_famillearticle g");
-                predicates.add(" o.familleId=f.lg_FAMILLE_ID ");
+                query.append(",g.str_LIBELLE AS LIBELLE,g.str_CODE_FAMILLE AS CODE FROM stock_snapshot ss, ").append(jt)
+                        .append(", t_famille f, t_famillearticle g ");
                 predicates.add(" f.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
                     predicates.add(" f.lg_FAMILLEARTICLE_ID = :idParam ");
                     parasm.put("idParam", lgFAMILLEARTICLEID);
-
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE_FAMILLE >= :debut ");
@@ -1819,7 +1843,9 @@ public class ProduitServiceImpl implements ProduitService {
                 query.append(" GROUP BY g.lg_FAMILLEARTICLE_ID ORDER BY g.str_CODE_FAMILLE ASC ");
                 break;
             default:
-                query.append(",o.valeurTva AS tva FROM t_stock_snapshot o ");
+                query.append(",v.int_VALUE AS tva FROM stock_snapshot ss, ").append(jt)
+                        .append(", t_famille f, t_code_tva v ");
+                predicates.add(" v.lg_CODE_TVA_ID=f.lg_CODE_TVA_ID ");
                 query.append(" WHERE ");
                 for (int i = 0; i < predicates.size(); i++) {
                     if (i > 0) {
@@ -1827,14 +1853,12 @@ public class ProduitServiceImpl implements ProduitService {
                     }
                     query.append(predicates.get(i));
                 }
-                query.append(" GROUP BY o.valeurTva");
+                query.append(" GROUP BY v.int_VALUE");
                 break;
             }
 
             Query q = getEntityManager().createNativeQuery(query.toString());
-            parasm.forEach((k, v) -> {
-                q.setParameter(k, v);
-            });
+            parasm.forEach((k, v) -> q.setParameter(k, v));
             List<Object[]> result = q.getResultList();
             LongAdder _montantFacture = new LongAdder();
             LongAdder _montantPu = new LongAdder();
@@ -1842,6 +1866,10 @@ public class ProduitServiceImpl implements ProduitService {
             LongAdder _qty = new LongAdder();
             LongAdder pmp = new LongAdder();
             result.forEach((_item) -> {
+                Integer qty = Integer.valueOf(_item[3] + "");
+                if (qty == null || qty <= 0) {
+                    return; // on n'affiche pas les groupes sans stock/reserve
+                }
                 ValorisationDTO dTO = new ValorisationDTO();
                 Integer montantFacture = Integer.valueOf(_item[0] + "");
                 _montantFacture.add(montantFacture);
@@ -1852,7 +1880,6 @@ public class ProduitServiceImpl implements ProduitService {
                 Integer montantTarif = Integer.valueOf(_item[2] + "");
                 _montantTarif.add(montantTarif);
                 dTO.setMontantTarif(montantTarif);
-                Integer qty = Integer.valueOf(_item[3] + "");
                 _qty.add(qty);
                 int _pmp = Double.valueOf(_item[4] + "").intValue();
                 pmp.add(_pmp);
@@ -1872,7 +1899,7 @@ public class ProduitServiceImpl implements ProduitService {
             valorisation.setMontantPu(montantPu);
             valorisation.setMontantPmd(pmp.intValue());
             ValorisationDTO tvas = valorisationTva(mode, date, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, END,
-                    BEGIN, emplacementId);
+                    BEGIN, emplacementId, typeStock);
             valorisation.setTvas(tvas);
             return valorisation;
         } catch (Exception e) {
@@ -1882,23 +1909,29 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     private ValorisationDTO valorisationTva(final int mode, LocalDate date, String lgGROSSISTEID,
-            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String END, String BEGIN, String emplacementId,
+            String typeStock) {
         try {
+            int dateInt = date.getYear() * 10000 + date.getMonthValue() * 100 + date.getDayOfMonth();
+            String qte = qtyExprJson(typeStock);
+            String jt = jsonTableExpr();
             List<String> predicates = new ArrayList<>();
             List<ValorisationDTO> os = new ArrayList<>();
             ValorisationDTO valorisation = new ValorisationDTO();
             Map<String, Object> parasm = new HashMap<>();
             StringBuilder query = new StringBuilder();
-            query.append(
-                    "SELECT SUM(o.prixPaf*o.qty) AS montantFacture, SUM(o.prixUni*o.qty) AS montantPu ,SUM(o.prixTarif*o.qty) AS montantTarif , SUM(o.qty) AS qty,o.valeurTva AS tva,SUM(o.prix_moyent_pondere) AS pmp ");
-            predicates.add(" o.id = :operationDate");
-            predicates.add(" o.magasin = :emplacementId");
-            parasm.put("operationDate", date);
-            parasm.put("emplacementId", emplacementId);
+            query.append("SELECT SUM(jt.prixPaf*" + qte + ") AS montantFacture, SUM(jt.prixUni*" + qte
+                    + ") AS montantPu , 0 AS montantTarif , SUM(" + qte
+                    + ") AS qty, v.int_VALUE AS tva, SUM(jt.prixMoyentpondere) AS pmp ");
+            predicates.add(" f.lg_FAMILLE_ID=ss.produit_id ");
+            predicates.add(" f.str_STATUT='enable' ");
+            predicates.add(" jt.stockOfDay = :dateInt ");
+            predicates.add(" v.lg_CODE_TVA_ID=f.lg_CODE_TVA_ID ");
+            parasm.put("dateInt", dateInt);
             switch (mode) {
             case 3:
-                query.append(" FROM t_stock_snapshot o, t_famille f, t_grossiste g ");
-                predicates.add(" o.familleId=f.lg_FAMILLE_ID ");
+                query.append(" FROM stock_snapshot ss, ").append(jt)
+                        .append(", t_famille f, t_code_tva v, t_grossiste g ");
                 predicates.add(" f.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
@@ -1908,20 +1941,17 @@ public class ProduitServiceImpl implements ProduitService {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
                         parasm.put("debut", BEGIN);
-
                     }
                     if (END != null && !"".equals(END)) {
                         predicates.add(" g.str_CODE <= :fin ");
                         parasm.put("fin", END);
                     }
                 }
-
                 break;
             case 2:
-                query.append("  FROM t_stock_snapshot o, t_famille f, t_zone_geographique g ");
-                predicates.add(" o.familleId=f.lg_FAMILLE_ID ");
+                query.append(" FROM stock_snapshot ss, ").append(jt)
+                        .append(", t_famille f, t_code_tva v, t_zone_geographique g ");
                 predicates.add(" f.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
-
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
                     predicates.add(" f.lg_ZONE_GEO_ID = :idParam ");
@@ -1936,18 +1966,15 @@ public class ProduitServiceImpl implements ProduitService {
                         parasm.put("fin", END);
                     }
                 }
-
                 break;
-
             case 1:
-                query.append("  FROM t_stock_snapshot o, t_famille f, t_famillearticle g");
-                predicates.add(" o.familleId=f.lg_FAMILLE_ID ");
+                query.append(" FROM stock_snapshot ss, ").append(jt)
+                        .append(", t_famille f, t_code_tva v, t_famillearticle g ");
                 predicates.add(" f.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
                     predicates.add(" f.lg_FAMILLEARTICLE_ID = :idParam ");
                     parasm.put("idParam", lgFAMILLEARTICLEID);
-
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE_FAMILLE >= :debut ");
@@ -1958,13 +1985,10 @@ public class ProduitServiceImpl implements ProduitService {
                         parasm.put("fin", END);
                     }
                 }
-
                 break;
             default:
-                query.append("  FROM t_stock_snapshot o");
-
+                query.append(" FROM stock_snapshot ss, ").append(jt).append(", t_famille f, t_code_tva v ");
                 break;
-
             }
             query.append(" WHERE ");
             for (int i = 0; i < predicates.size(); i++) {
@@ -1973,11 +1997,9 @@ public class ProduitServiceImpl implements ProduitService {
                 }
                 query.append(predicates.get(i));
             }
-            query.append(" GROUP BY o.valeurTva");
+            query.append(" GROUP BY v.int_VALUE");
             Query q = getEntityManager().createNativeQuery(query.toString());
-            parasm.forEach((k, v) -> {
-                q.setParameter(k, v);
-            });
+            parasm.forEach((k, v) -> q.setParameter(k, v));
             List<Object[]> result = q.getResultList();
             LongAdder _montantFacture = new LongAdder();
             LongAdder _montantPu = new LongAdder();
@@ -1985,6 +2007,10 @@ public class ProduitServiceImpl implements ProduitService {
             LongAdder _qty = new LongAdder();
             LongAdder pmp = new LongAdder();
             result.forEach((_item) -> {
+                Integer qty = Integer.valueOf(_item[3] + "");
+                if (qty == null || qty <= 0) {
+                    return; // pas de ligne TVA sans stock/reserve
+                }
                 ValorisationDTO dTO = new ValorisationDTO();
                 Integer montantFacture = Integer.valueOf(_item[0] + "");
                 _montantFacture.add(montantFacture);
@@ -1995,7 +2021,6 @@ public class ProduitServiceImpl implements ProduitService {
                 Integer montantTarif = Integer.valueOf(_item[2] + "");
                 _montantTarif.add(montantTarif);
                 dTO.setMontantTarif(montantTarif);
-                Integer qty = Integer.valueOf(_item[3] + "");
                 Integer _pmp = Double.valueOf(_item[5] + "").intValue();
                 pmp.add(_pmp);
                 _qty.add(qty);
@@ -2147,6 +2172,10 @@ public class ProduitServiceImpl implements ProduitService {
             LongAdder _qty = new LongAdder();
             LongAdder pmp = new LongAdder();
             result.forEach((_item) -> {
+                Integer qty = Integer.valueOf(_item[3] + "");
+                if (qty == null || qty <= 0) {
+                    return; // on n'affiche pas les groupes sans stock/reserve
+                }
                 ValorisationDTO dTO = new ValorisationDTO();
                 Integer montantFacture = Integer.valueOf(_item[0] + "");
                 _montantFacture.add(montantFacture);
@@ -2157,7 +2186,6 @@ public class ProduitServiceImpl implements ProduitService {
                 Integer montantTarif = Integer.valueOf(_item[2] + "");
                 _montantTarif.add(montantTarif);
                 dTO.setMontantTarif(montantTarif);
-                Integer qty = Integer.valueOf(_item[3] + "");
                 Integer _pmp = Double.valueOf(_item[4] + "").intValue();
                 _qty.add(qty);
                 pmp.add(_pmp);
@@ -2295,6 +2323,10 @@ public class ProduitServiceImpl implements ProduitService {
             LongAdder pmp = new LongAdder();
             LongAdder qty0 = new LongAdder();
             result.forEach(item0 -> {
+                Integer qty = Integer.valueOf(item0[3] + "");
+                if (qty == null || qty <= 0) {
+                    return; // pas de ligne TVA sans stock/reserve
+                }
                 ValorisationDTO dTO = new ValorisationDTO();
                 Integer montantFacture = Integer.valueOf(item0[0] + "");
                 montantFacture0.add(montantFacture);
@@ -2305,7 +2337,6 @@ public class ProduitServiceImpl implements ProduitService {
                 Integer montantTarif = Integer.valueOf(item0[2] + "");
                 montantTarif0.add(montantTarif);
                 dTO.setMontantTarif(montantTarif);
-                Integer qty = Integer.valueOf(item0[3] + "");
                 qty0.add(qty);
                 int pmp0 = Double.valueOf(item0[4] + "").intValue();
                 pmp.add(pmp0);
