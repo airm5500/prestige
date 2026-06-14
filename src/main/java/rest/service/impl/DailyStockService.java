@@ -131,6 +131,9 @@ public class DailyStockService {
             }
 
             snapshot.setProduit(famille);
+            // On remplace l'entree du jour si elle existe deja (re-run/redemarrage) afin que qtyReserve soit pris en
+            // compte (le Set dedoublonne par stockOfDay : un simple add() conserverait l'ancienne entree sans reserve).
+            snapshot.getStocks().removeIf(v -> v.getStockOfDay() == dateAsInt);
             snapshot.getStocks()
                     .add(new StockSnapshotValue()
                             .prixMoyentpondere(prixMpd(Objects.requireNonNullElse(next.getIntNUMBERAVAILABLE(), 0),
@@ -226,10 +229,13 @@ public class DailyStockService {
             }
 
             snapshot.setProduit(famille);
+            int jour = Integer.parseInt(
+                    s.getTStockSnapshotPK().getId().format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+            // Remplace l'entree du jour si elle existe deja (sinon le Set conserverait l'ancienne sans qtyReserve).
+            snapshot.getStocks().removeIf(v -> v.getStockOfDay() == jour);
             snapshot.getStocks().add(new StockSnapshotValue().prixMoyentpondere(s.getPrixPaf()) // simplifié
                     .prixPaf(s.getPrixPaf()).prixUni(s.getPrixUni()).qty(s.getQty())
-                    .qtyReserve(reserveMap.getOrDefault(famille.getLgFAMILLEID(), 0)).stockOfDay(Integer.parseInt(
-                            s.getTStockSnapshotPK().getId().format(DateTimeFormatter.ofPattern("yyyyMMdd")))));
+                    .qtyReserve(reserveMap.getOrDefault(famille.getLgFAMILLEID(), 0)).stockOfDay(jour));
 
             em.merge(snapshot);
             em.remove(em.contains(s) ? s : em.merge(s));
