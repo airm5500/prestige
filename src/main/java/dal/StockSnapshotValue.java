@@ -18,6 +18,7 @@ public class StockSnapshotValue implements Serializable {
     private int prixPaf;
     private int prixUni;
     private int qty;
+    private int qtyReserve;
     private int prixMoyentpondere;
     private int stockOfDay;
 
@@ -63,6 +64,19 @@ public class StockSnapshotValue implements Serializable {
 
     public void setQty(Integer qty) {
         this.qty = qty;
+    }
+
+    public Integer getQtyReserve() {
+        return qtyReserve;
+    }
+
+    public void setQtyReserve(Integer qtyReserve) {
+        this.qtyReserve = qtyReserve == null ? 0 : qtyReserve;
+    }
+
+    public StockSnapshotValue qtyReserve(Integer qtyReserve) {
+        this.qtyReserve = qtyReserve == null ? 0 : qtyReserve;
+        return this;
     }
 
     public Integer getPrixMoyentpondere() {

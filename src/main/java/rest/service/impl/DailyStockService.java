@@ -115,6 +115,12 @@ public class DailyStockService {
                 .setParameter("lgEMPLACEMENTID", Constant.OFFICINE).setFirstResult(offset).setMaxResults(BATCH_SIZE)
                 .getResultList();
 
+        List<String> familleIds = new ArrayList<>();
+        for (TFamilleStock next : batch) {
+            familleIds.add(next.getLgFAMILLEID().getLgFAMILLEID());
+        }
+        Map<String, Integer> reserveMap = loadReserveMap(familleIds);
+
         for (TFamilleStock next : batch) {
 
             TFamille famille = next.getLgFAMILLEID();
@@ -130,7 +136,8 @@ public class DailyStockService {
                             .prixMoyentpondere(prixMpd(Objects.requireNonNullElse(next.getIntNUMBERAVAILABLE(), 0),
                                     Objects.requireNonNullElse(famille.getIntPAF(), 0)))
                             .prixPaf(famille.getIntPAF()).prixUni(famille.getIntPRICE())
-                            .qty(next.getIntNUMBERAVAILABLE()).stockOfDay(dateAsInt));
+                            .qty(next.getIntNUMBERAVAILABLE())
+                            .qtyReserve(reserveMap.getOrDefault(famille.getLgFAMILLEID(), 0)).stockOfDay(dateAsInt));
 
             em.merge(snapshot);
         }
@@ -138,6 +145,32 @@ public class DailyStockService {
         em.flush();
         em.clear();
         return batch.size();
+    }
+
+    /**
+     * Charge en masse la quantite de stock reserve (t_type_stock_famille, type=2) pour une liste de familles, sur
+     * l'emplacement officine. Reutilise la meme source que la gestion de reserve. Retourne une map familleId -> qte.
+     */
+    private Map<String, Integer> loadReserveMap(List<String> familleIds) {
+        Map<String, Integer> map = new HashMap<>();
+        if (familleIds == null || familleIds.isEmpty()) {
+            return map;
+        }
+        try {
+            List<Object[]> rows = em.createNativeQuery(
+                    "SELECT t.lg_FAMILLE_ID, t.int_NUMBER FROM t_type_stock_famille t "
+                            + "WHERE t.lg_TYPE_STOCK_ID='2' AND t.str_STATUT='enable' "
+                            + "AND t.lg_EMPLACEMENT_ID=:empl AND t.lg_FAMILLE_ID IN (:ids)")
+                    .setParameter("empl", Constant.OFFICINE).setParameter("ids", familleIds).getResultList();
+            for (Object[] r : rows) {
+                if (r[0] != null && r[1] != null) {
+                    map.put(r[0].toString(), ((Number) r[1]).intValue());
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "loadReserveMap error", e);
+        }
+        return map;
     }
 
     private int prixMpd(int stoc, int prixAchat) {
@@ -176,6 +209,12 @@ public class DailyStockService {
             return false;
         }
 
+        List<String> familleIds = new ArrayList<>();
+        for (TStockSnapshot s : list) {
+            familleIds.add(s.getTStockSnapshotPK().getFamilleId());
+        }
+        Map<String, Integer> reserveMap = loadReserveMap(familleIds);
+
         for (TStockSnapshot s : list) {
 
             TFamille famille = new TFamille(s.getTStockSnapshotPK().getFamilleId());
@@ -188,7 +227,8 @@ public class DailyStockService {
 
             snapshot.setProduit(famille);
             snapshot.getStocks().add(new StockSnapshotValue().prixMoyentpondere(s.getPrixPaf()) // simplifié
-                    .prixPaf(s.getPrixPaf()).prixUni(s.getPrixUni()).qty(s.getQty()).stockOfDay(Integer.parseInt(
+                    .prixPaf(s.getPrixPaf()).prixUni(s.getPrixUni()).qty(s.getQty())
+                    .qtyReserve(reserveMap.getOrDefault(famille.getLgFAMILLEID(), 0)).stockOfDay(Integer.parseInt(
                             s.getTStockSnapshotPK().getId().format(DateTimeFormatter.ofPattern("yyyyMMdd")))));
 
             em.merge(snapshot);

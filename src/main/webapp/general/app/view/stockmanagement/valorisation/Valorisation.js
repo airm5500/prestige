@@ -9,10 +9,33 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
     title: 'Valorisation du stock',
     bodyPadding: 10,
     layout: { type: 'vbox', align: 'stretch' },
-    width: 860,
+    width: 920,
 
     initComponent: function () {
         var me = this, itemsPerPage = 20;
+
+        // ===== Couleurs des onglets (entetes) =====
+        var ACCENT = { rayon: '#1e8e3e', reserve: '#e8830c', total: '#1457d6' };
+
+        // Injection CSS (entetes colorees + animation onglet actif)
+        (function injectCss() {
+            if (document.getElementById('valo-tab-css')) { return; }
+            var css = [
+                '.pl-tab-rayon .x-tab-inner{color:' + ACCENT.rayon + ' !important;font-weight:800;}',
+                '.pl-tab-reserve .x-tab-inner{color:' + ACCENT.reserve + ' !important;font-weight:800;}',
+                '.pl-tab-total .x-tab-inner{color:' + ACCENT.total + ' !important;font-weight:800;}',
+                '.x-tab-active.pl-tab-rayon{background:#e7f5ec;border-bottom:3px solid ' + ACCENT.rayon + ';}',
+                '.x-tab-active.pl-tab-reserve{background:#fdf0e1;border-bottom:3px solid ' + ACCENT.reserve + ';}',
+                '.x-tab-active.pl-tab-total{background:#e8f0fe;border-bottom:3px solid ' + ACCENT.total + ';}',
+                '.pl-tab-pulse{animation:plPulse .6s ease;}',
+                '@keyframes plPulse{0%{transform:scale(1);}50%{transform:scale(1.10);}100%{transform:scale(1);}}'
+            ].join('');
+            var style = document.createElement('style');
+            style.id = 'valo-tab-css';
+            style.type = 'text/css';
+            style.appendChild(document.createTextNode(css));
+            document.getElementsByTagName('head')[0].appendChild(style);
+        })();
 
         // ===== STORES =====
         var storeFamille = Ext.create('Ext.data.Store', {
@@ -51,6 +74,14 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
         var fmtMoney = fmt.numberRenderer('0,000.');
         function nn(v){ return (v === null || v === undefined) ? '' : v; }
 
+        // Donnees brutes par onglet
+        var raw = {
+            rayon:   { achat: 0, vente: 0 },
+            reserve: { achat: 0, vente: 0 },
+            total:   { achat: 0, vente: 0 }
+        };
+        var chartStores = {};
+
         function toggleCriteria(val) {
             var f = Ext.getCmp('lg_FAMILLEARTICLE_ID'),
                 z = Ext.getCmp('lg_ZONE_GEO_ID'),
@@ -68,12 +99,6 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             }
         }
 
-        // ===== CHART STORE =====
-        var chartStore = Ext.create('Ext.data.Store', {
-            fields: ['label','value'],
-            data: [{label:'Vente', value:0},{label:'Achat', value:0}]
-        });
-
         // ===== UI FIELDS =====
         var userField = Ext.create('Ext.form.field.Display', {
             id: 'str_NAME_USER', fieldLabel: 'Utilisateur',
@@ -87,27 +112,6 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             id: 'dt_periode', fieldLabel: 'Date',
             format: 'd/m/Y', submitFormat: 'Y-m-d', maxValue: new Date(), value: new Date()
         });
-
-        var kpiVente = Ext.create('Ext.form.field.Display', {
-            id: 'TOTAL_VENTE', fieldLabel: 'Valeur vente', value: fmtMoney(0),
-            fieldStyle: 'font-size:1.3em;font-weight:900;color:#0d6efd;'
-        });
-        var kpiAchat = Ext.create('Ext.form.field.Display', {
-            id: 'TOTAL_ACHAT', fieldLabel: 'Valeur achat', value: fmtMoney(0),
-            fieldStyle: 'font-size:1.3em;font-weight:900;color:#0d6efd;'
-        });
-
-        var dfEcart = Ext.create('Ext.form.field.Display', {
-            id: 'DF_ECART', fieldLabel: 'Écart', value: '0',
-            labelWidth: 80, cls: 'pl-green-strong'
-        });
-        var dfMarge = Ext.create('Ext.form.field.Display', {
-            id: 'DF_MARGE', fieldLabel: 'Marge', value: '0%',
-            labelWidth: 80, cls: 'pl-green-strong'
-        });
-
-        // Raw (non formatés) pour calculs
-        var hiddenRaw = { vente: 0, achat: 0 };
 
         var cbType = Ext.create('Ext.form.field.ComboBox', {
             id: 'str_TYPE_TRANSACTION', fieldLabel: 'Filtrer par',
@@ -143,24 +147,70 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             ]
         };
 
-        var chartPanel = Ext.create('Ext.chart.Chart', {
-            animate: true,
-            store: chartStore,
-            insetPadding: 10,
-            flex: 1,
-            series: [{
-                type: 'pie',
-                angleField: 'value',
-                label: { field: 'label', display: 'rotate' },
-                highlight: true,
-                donut: 20,
-                tips: {
-                    trackMouse: true,
-                    renderer: function (storeItem) {
-                        this.setTitle(storeItem.get('label') + ': ' + fmtMoney(storeItem.get('value')));
+        // ===== Construction d'un onglet KPI =====
+        function buildKpiTab(key, titleText, headCls, accent) {
+            var chartStore = Ext.create('Ext.data.Store', {
+                fields: ['label', 'value'],
+                data: [{ label: 'Vente', value: 0 }, { label: 'Achat', value: 0 }]
+            });
+            chartStores[key] = chartStore;
+            return {
+                xtype: 'panel',
+                title: titleText,
+                tabConfig: { cls: headCls },
+                bodyPadding: 12,
+                layout: { type: 'hbox', align: 'stretch' },
+                items: [
+                    {
+                        xtype: 'container', flex: 1, layout: 'anchor', defaults: { anchor: '100%' },
+                        items: [
+                            { xtype: 'displayfield', id: 'kpi_' + key + '_vente', fieldLabel: 'Valeur vente',
+                              value: fmtMoney(0), fieldStyle: 'font-size:1.35em;font-weight:900;color:' + accent + ';' },
+                            { xtype: 'displayfield', id: 'kpi_' + key + '_achat', fieldLabel: 'Valeur achat',
+                              value: fmtMoney(0), fieldStyle: 'font-size:1.35em;font-weight:900;color:' + accent + ';' },
+                            { xtype: 'component', height: 8 },
+                            { xtype: 'displayfield', id: 'kpi_' + key + '_ecart', fieldLabel: 'Écart', value: '0',
+                              labelWidth: 80, fieldStyle: 'font-weight:700;color:' + accent + ';' },
+                            { xtype: 'displayfield', id: 'kpi_' + key + '_marge', fieldLabel: 'Marge', value: '0%',
+                              labelWidth: 80, fieldStyle: 'font-weight:700;color:' + accent + ';' }
+                        ]
+                    },
+                    {
+                        xtype: 'container', flex: 1, layout: 'fit',
+                        items: [ Ext.create('Ext.chart.Chart', {
+                            animate: true, store: chartStore, insetPadding: 10,
+                            series: [{
+                                type: 'pie', angleField: 'value',
+                                label: { field: 'label', display: 'rotate' }, highlight: true, donut: 20,
+                                tips: { trackMouse: true, renderer: function (item) {
+                                    this.setTitle(item.get('label') + ': ' + fmtMoney(item.get('value')));
+                                } }
+                            }]
+                        }) ]
                     }
+                ]
+            };
+        }
+
+        function pulseActiveTab(tp) {
+            try {
+                var tab = tp.getActiveTab().tab;
+                if (tab && tab.el) {
+                    tab.el.removeCls('pl-tab-pulse');
+                    tab.el.dom.offsetWidth; // reflow pour rejouer l'animation
+                    tab.el.addCls('pl-tab-pulse');
                 }
-            }]
+            } catch (e) {}
+        }
+
+        var kpiTabs = Ext.create('Ext.tab.Panel', {
+            id: 'valo_tabs', flex: 1, height: 250, plain: true, activeTab: 0,
+            listeners: { tabchange: function (tp) { pulseActiveTab(tp); } },
+            items: [
+                buildKpiTab('rayon', 'Stock rayon', 'pl-tab-rayon', ACCENT.rayon),
+                buildKpiTab('reserve', 'Stock réserve', 'pl-tab-reserve', ACCENT.reserve),
+                buildKpiTab('total', 'Stock total', 'pl-tab-total', ACCENT.total)
+            ]
         });
 
         function buildParamsFromUI() {
@@ -182,30 +232,27 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             Ext.getCmp('mode_selected_mirror').setValue(rec ? rec.get('label') : '');
         }
 
+        function setTab(key, achat, vente) {
+            Ext.getCmp('kpi_' + key + '_vente').setValue(fmtMoney(vente));
+            Ext.getCmp('kpi_' + key + '_achat').setValue(fmtMoney(achat));
+            var ecart = vente - achat;
+            var margePct = vente ? ((ecart / vente) * 100) : 0;
+            Ext.getCmp('kpi_' + key + '_ecart').setValue(fmt.number(ecart, '0,000.'));
+            Ext.getCmp('kpi_' + key + '_marge').setValue(fmt.number(margePct, '0,0.00') + '%');
+            chartStores[key].loadData([{ label: 'Vente', value: vente }, { label: 'Achat', value: achat }]);
+        }
+
         function updateKPIs(data, meta) {
-            hiddenRaw.vente = Number(data.valueTwo || 0);
-            hiddenRaw.achat = Number(data.value || 0);
+            raw.rayon = { achat: Number(data.value || 0), vente: Number(data.valueTwo || 0) };
+            raw.reserve = { achat: Number(data.reserveValue || 0), vente: Number(data.reserveValueTwo || 0) };
+            raw.total = { achat: Number(data.totalValue || 0), vente: Number(data.totalValueTwo || 0) };
 
-            Ext.getCmp('TOTAL_VENTE').setValue(fmtMoney(hiddenRaw.vente));
-            Ext.getCmp('TOTAL_ACHAT').setValue(fmtMoney(hiddenRaw.achat));
+            setTab('rayon', raw.rayon.achat, raw.rayon.vente);
+            setTab('reserve', raw.reserve.achat, raw.reserve.vente);
+            setTab('total', raw.total.achat, raw.total.vente);
 
-            // Écart + Marge (verts, gras, sous "Date système")
-            var ecart = hiddenRaw.vente - hiddenRaw.achat;
-            var margePct = hiddenRaw.vente ? ((ecart / hiddenRaw.vente) * 100) : 0;
-            Ext.getCmp('DF_ECART').setValue(fmt.number(ecart, '0,000.'));
-            Ext.getCmp('DF_MARGE').setValue(fmt.number(margePct, '0,0.00') + '%');
-
-            // Chart
-            chartStore.loadData([
-                { label: 'Vente', value: hiddenRaw.vente },
-                { label: 'Achat', value: hiddenRaw.achat }
-            ]);
-
-            // Header infos
             Ext.getCmp('str_NAME_USER').setValue(meta.user || '');
             Ext.getCmp('dt_CREATED').setValue(meta.dtCREATED || '');
-
-            // Print ON
             Ext.getCmp('btn_print').setDisabled(false);
         }
 
@@ -233,20 +280,27 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             var p = buildParamsFromUI();
             var rec = storeType.findRecord('value', p.mode);
             var modeLabel = rec ? rec.get('label') : '';
-            var ecart = hiddenRaw.vente - hiddenRaw.achat;
-            var margePct = hiddenRaw.vente ? ((ecart / hiddenRaw.vente) * 100) : 0;
+
+            function line(label, d) {
+                var ecart = d.vente - d.achat;
+                var margePct = d.vente ? ((ecart / d.vente) * 100) : 0;
+                return [label, d.vente, d.achat, ecart, fmt.number(margePct, '0.00')];
+            }
 
             var rows = [];
-            rows.push(['Date', 'Mode', 'Famille', 'Emplacement', 'Grossiste', 'Intervalle De', 'Intervalle À',
-                       'Valeur Vente', 'Valeur Achat', 'Écart', 'Marge %']);
+            rows.push(['Date', 'Mode', 'Famille', 'Emplacement', 'Grossiste', 'Intervalle De', 'Intervalle À']);
             rows.push([
                 nn(p.dtStart), modeLabel,
                 nn(Ext.getCmp('lg_FAMILLEARTICLE_ID').getRawValue()),
                 nn(Ext.getCmp('lg_ZONE_GEO_ID').getRawValue()),
                 nn(Ext.getCmp('lg_GROSSISTE_ID').getRawValue()),
-                nn(p.BEGIN), nn(p.END),
-                hiddenRaw.vente, hiddenRaw.achat, ecart, Ext.util.Format.number(margePct, '0.00')
+                nn(p.BEGIN), nn(p.END)
             ]);
+            rows.push([]);
+            rows.push(['Stock', 'Valeur Vente', 'Valeur Achat', 'Écart', 'Marge %']);
+            rows.push(line('Rayon', raw.rayon));
+            rows.push(line('Réserve', raw.reserve));
+            rows.push(line('Total', raw.total));
 
             var csv = rows.map(function (r) {
                 return r.map(function (c) {
@@ -281,7 +335,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                         xtype: 'button', text: 'Actualiser', iconCls: 'refreshicon',
                         handler: function () {
                             Ext.getCmp('btn_print').setDisabled(true);
-                            callValorisation({ dtStart: Ext.getCmp('dt_periode').getSubmitValue(), mode: 0 });
+                            callValorisation(buildParamsFromUI());
                         }
                     },
                     { xtype: 'button', text: 'Export CSV', iconCls: 'excelicon', handler: exportCSV }
@@ -289,7 +343,6 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             }],
 
             items: [
-                // Header + KPIs + Graph + Infos
                 {
                     xtype: 'container',
                     layout: { type: 'hbox', align: 'stretch' },
@@ -297,32 +350,10 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                     items: [
                         {
                             xtype: 'container', cls: 'pl-card', flex: 1, layout: 'anchor',
-                            items: [
-                                userField,
-                                dateSystem
-                                
-                            ]
+                            items: [ userField, dateSystem ]
                         },
                         {
-                            xtype: 'container', cls: 'pl-card', flex: 1, layout: 'anchor',
-                            items: [ kpiVente,kpiAchat,
-                                { xtype: 'component', height: 6 },
-                                dfEcart,
-                                dfMarge ]
-                        }/*,
-                        {
-                            xtype: 'container', cls: 'pl-card', flex: 1, layout: 'anchor',
-                            items: [ kpiAchat ]
-                        }*/
-                    ]
-                },
-                {
-                    xtype: 'container',
-                    layout: { type: 'hbox', align: 'stretch' },
-                    height: 260,
-                    items: [
-                        {
-                            xtype: 'fieldset', title: 'Détails', flex: 1, style: 'margin-right:10px;border-radius: 10px;',
+                            xtype: 'fieldset', title: 'Détails', flex: 1, style: 'margin-right:10px;border-radius:10px;',
                             defaults: { anchor: '100%' },
                             items: [
                                 { xtype: 'displayfield', fieldLabel: 'Date sélectionnée', value: Ext.Date.format(new Date(), 'd/m/Y'), id: 'date_selected_mirror' },
@@ -330,17 +361,13 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                             ]
                         },
                         {
-                            xtype: 'fieldset', title: 'Critères', flex: 1.1, style: 'margin-right:10px;border-radius: 10px;',
+                            xtype: 'fieldset', title: 'Critères', flex: 1.1, style: 'border-radius:10px;',
                             defaults: { anchor: '100%' },
                             items: [ cbType, cbFamille, cbZone, cbGrossiste, fcIntervalle ]
-                        },
-                        {
-                            xtype: 'fieldset', title: 'Graphique', flex: 1.2,style: 'margin-right:10px;border-radius: 10px;',
-                            layout: 'fit',
-                            items: [ chartPanel ]
                         }
                     ]
-                }
+                },
+                kpiTabs
             ],
 
             buttons: [
