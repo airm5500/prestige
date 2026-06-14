@@ -33,6 +33,9 @@ public class StockDailyScheduler {
         if (!appConfig.isServerMode()) {
             return;
         }
+        // Genere le snapshot par produit (stock_snapshot.stock_journalier, avec qtyReserve) chaque jour, sans dependre
+        // d'un redemarrage du serveur. processAsync est garde par isEnabled() (KEY_VALORISATION_JOURNALIERE).
+        dailyStockService.processAsync(LocalDate.now());
         dailyStockService.updateStockDailyValueAsync();
     }
 
