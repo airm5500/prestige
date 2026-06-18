@@ -783,6 +783,7 @@ Ext.application({
         'FactureCtr',
         'FamilleArticleStatsCtr',
         'VingthManagerCtr',
+        'AbcManagerCtr',
         'peremptionManagerCtr',
         'MargeManagerCtr',
         'UnitesVenduesCtr',
