@@ -268,6 +268,26 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                     }]
                 },
                 {
+                    // Socle ABC (Lot 0) : localisation fine + classe ABC (lecture seule)
+                    xtype: 'fieldset',
+                    collapsible: true,
+                    title: 'Classification & Localisation',
+                    layout: 'vbox',
+                    defaultType: 'textfield',
+                    defaults: { anchor: '100%' },
+                    items: [{
+                        xtype: 'container',
+                        layout: 'hbox',
+                        defaultType: 'textfield',
+                        margin: '0 0 5 0',
+                        items: [
+                            { fieldLabel: 'Code Geo article', xtype: 'textfield', width: 400, labelWidth: 130, emptyText: 'Ex: A12-B03-C04', name: 'str_CODE_GEO_ARTICLE', itemId: 'str_CODE_GEO_ARTICLE' },
+                            { xtype: 'splitter' },
+                            { xtype: 'displayfield', fieldLabel: 'Classe ABC', labelWidth: 110, name: 'classe_abc_display', itemId: 'classe_abc_display', value: 'Non classe', fieldStyle: 'color:blue;font-weight:bold;' }
+                        ]
+                    }]
+                },
+                {
                     xtype: 'fieldset',
                     collapsible: true,
                     layout: 'vbox',
@@ -558,6 +578,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('int_PRICE').setValue(ds.int_PRICE);
             g('lg_FAMILLEARTICLE_ID').setValue(ds.lg_FAMILLEARTICLE_ID);
             g('lg_ZONE_GEO_ID').setValue(ds.lg_ZONE_GEO_ID);
+            // Socle ABC (Lot 0) : prefill code geo + affichage classe ABC (lecture seule)
+            if (g('str_CODE_GEO_ARTICLE')) { g('str_CODE_GEO_ARTICLE').setValue(ds.str_CODE_GEO_ARTICLE); }
+            if (g('classe_abc_display')) { g('classe_abc_display').setValue(ds.lg_CLASSE_ABC_ID ? ds.lg_CLASSE_ABC_ID : 'Non classe'); }
             g('str_DESCRIPTION').setValue(ds.str_DESCRIPTION);
             g('int_CIP').setValue(ds.int_CIP);
             g('int_NUMBERDETAIL').setValue(ds.int_NUMBERDETAIL);
@@ -887,6 +910,21 @@ Ext.Ajax.request({
                             Ext.MessageBox.show({ title: 'Message d\'erreur', width: 320, msg: object.errors, buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING });
                         }, 10);
                     } else {
+                        // Socle ABC (Lot 0) : persistance du Code Geo article via endpoint REST dedie.
+                        // N'impacte pas le flux create/update existant (familleManagement reste intact).
+                        try {
+                            var codeGeoFld = g('str_CODE_GEO_ARTICLE');
+                            var produitId = (Omode === 'update') ? ref : (object && object.ref);
+                            if (codeGeoFld && produitId) {
+                                Ext.Ajax.request({
+                                    url: '../api/v1/fichearticle/produit/update-lite-info',
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    params: Ext.JSON.encode({ id: produitId, codeGeoArticle: codeGeoFld.getValue() || '' }),
+                                    callback: function () { /* ignore */ }
+                                });
+                            }
+                        } catch (e) { /* noop */ }
                         win.close();
                         // Pas de popup de confirmation au succes : on garde le flux d'origine, fluide.
                         // (Supprime aussi la course hide()/show() du MessageBox singleton qui pouvait

@@ -1013,6 +1013,11 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             famille.setLgZONEGEOID(geographique);
             famille.setLgZONEGEOID(geographique);
         }
+        // Code Geo article (localisation fine - socle ABC Lot 0).
+        // != null : une chaine vide permet d'effacer la valeur existante.
+        if (updateProduit.getCodeGeoArticle() != null) {
+            famille.setStrCODEGEOARTICLE(updateProduit.getCodeGeoArticle().trim());
+        }
         em.merge(famille);
     }
 

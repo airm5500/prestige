@@ -108,6 +108,14 @@ Ext.define('testextjs.model.Famille', {
             type: 'string'
         },
         {
+            name: 'str_CODE_GEO_ARTICLE',
+            type: 'string'
+        },
+        {
+            name: 'lg_CLASSE_ABC_ID',
+            type: 'string'
+        },
+        {
             name: 'int_NUMBER_AVAILABLE',
             type: 'string'
         },

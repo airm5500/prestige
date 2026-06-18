@@ -149,6 +149,15 @@ public class TFamille implements Serializable {
     private Integer intSEUILRESERVE;
     @Column(name = "int_SEUIL_MINI_RAYON")
     private Integer intSEUILMINIRAYON;
+    // --- Classification ABC (socle Lot 0) : colonnes simples, sans relation ManyToOne
+    // afin de ne modifier aucun chargement/serialisation existant de TFamille ---
+    @Column(name = "lg_CLASSE_ABC_ID", length = 40)
+    private String lgCLASSEABCID;
+    @Column(name = "str_CODE_GEO_ARTICLE", length = 50)
+    private String strCODEGEOARTICLE;
+    @Column(name = "dt_UPDATED_CLASSE_ABC")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date dtUPDATEDCLASSEABC;
     @Column(name = "int_NOMBRE_VENTES")
     private Integer intNOMBREVENTES;
     @Column(name = "int_QTE_MANQUANTE")
@@ -542,6 +551,30 @@ public class TFamille implements Serializable {
 
     public void setIntSEUILMAX(Integer intSEUILMAX) {
         this.intSEUILMAX = intSEUILMAX;
+    }
+
+    public String getLgCLASSEABCID() {
+        return lgCLASSEABCID;
+    }
+
+    public void setLgCLASSEABCID(String lgCLASSEABCID) {
+        this.lgCLASSEABCID = lgCLASSEABCID;
+    }
+
+    public String getStrCODEGEOARTICLE() {
+        return strCODEGEOARTICLE;
+    }
+
+    public void setStrCODEGEOARTICLE(String strCODEGEOARTICLE) {
+        this.strCODEGEOARTICLE = strCODEGEOARTICLE;
+    }
+
+    public Date getDtUPDATEDCLASSEABC() {
+        return dtUPDATEDCLASSEABC;
+    }
+
+    public void setDtUPDATEDCLASSEABC(Date dtUPDATEDCLASSEABC) {
+        this.dtUPDATEDCLASSEABC = dtUPDATEDCLASSEABC;
     }
 
     public Integer getIntDAYHISTORY() {

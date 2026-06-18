@@ -662,6 +662,10 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             json.put("int_NUMBERDETAIL", t.getIntNUMBERDETAIL());
 
+            // Socle ABC (Lot 0) : code geo (editable) + classe ABC (lecture seule sur la fiche)
+            json.put("str_CODE_GEO_ARTICLE", t.getStrCODEGEOARTICLE() != null ? t.getStrCODEGEOARTICLE() : "");
+            json.put("lg_CLASSE_ABC_ID", t.getLgCLASSEABCID() != null ? t.getLgCLASSEABCID() : "");
+
             json.put("int_PRICE_TIPS", t.getIntPRICETIPS());
             json.put("int_TAUX_MARQUE", t.getIntTAUXMARQUE());
             try {
