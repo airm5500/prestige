@@ -65,6 +65,65 @@ public class AbcArticleRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    // ----------------------- Exports / Inventaire (Lot 2) -------------------
+    @GET
+    @Path("excel")
+    @Produces("application/vnd.ms-excel")
+    public Response excel(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("CA") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax) {
+        byte[] data = abcAnalysisService.buildExcel(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"classification_abc.xls\"")
+                .build();
+    }
+
+    @GET
+    @Path("csv")
+    @Produces("text/csv")
+    public Response csv(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("CA") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax) {
+        byte[] data = abcAnalysisService.buildCsv(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"classification_abc.csv\"")
+                .build();
+    }
+
+    @GET
+    @Path("print")
+    @Produces("application/pdf")
+    public Response print(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("CA") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax) {
+        byte[] data = abcAnalysisService.buildPdf(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        return Response.ok(data).header("Content-Disposition", "inline; filename=\"classification_abc.pdf\"").build();
+    }
+
+    @POST
+    @Path("inventaire")
+    @Consumes(MediaType.WILDCARD)
+    public Response inventaire(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("CA") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax) {
+        JSONObject json = abcAnalysisService.createInventaire(dtStart, dtEnd, type, classe, search, codeFamille,
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     // ----------------------- Configuration des classes ABC ------------------
     @GET
     @Path("classes")

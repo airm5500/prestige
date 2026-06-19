@@ -126,7 +126,12 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {text: 'Recalculer classification', itemId: 'recalculer', iconCls: 'suggestionreapro', tooltip: 'Recalcule la classification ABC sur la période'},
                         {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
                         {xtype: 'tbseparator'},
-                        {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'}
+                        {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'},
+                        '->',
+                        {text: 'Imprimer', itemId: 'imprimer', iconCls: 'printable', tooltip: 'Imprimer le résultat filtré (PDF)'},
+                        {text: 'Exporter Excel', itemId: 'exportExcel', iconCls: 'export_excel_icon', tooltip: 'Exporter le résultat filtré en Excel'},
+                        {text: 'Exporter CSV', itemId: 'exportCsv', iconCls: 'export_csv_icon', tooltip: 'Exporter le résultat filtré en CSV'},
+                        {text: 'Créer inventaire', itemId: 'creerInventaire', iconCls: 'inventaire_icon', tooltip: 'Créer un inventaire à partir du résultat filtré'}
                     ]
                 },
                 {

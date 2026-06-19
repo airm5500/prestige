@@ -2,14 +2,27 @@ package rest.service.impl;
 
 import commonTasks.dto.AbcProduitDTO;
 import dal.TClasseAbc;
+import com.lowagie.text.Document;
+import com.lowagie.text.Element;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.PageSize;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -19,10 +32,14 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.ss.usermodel.Row;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.AbcAnalysisService;
+import rest.service.InventaireService;
 import rest.service.SessionHelperService;
+import rest.service.utils.CsvExportService;
+import rest.service.utils.ReportExcelExportService;
 
 @Stateless
 public class AbcAnalysisServiceImpl implements AbcAnalysisService {
@@ -34,6 +51,15 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
 
     @EJB
     private SessionHelperService sessionHelperService;
+
+    @EJB
+    private ReportExcelExportService reportExcelExportService;
+
+    @EJB
+    private CsvExportService csvExportService;
+
+    @EJB
+    private InventaireService inventaireService;
 
     private String procedureName(String type) {
         if (type == null) {
@@ -370,5 +396,194 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         c.setDtUPDATED(new Date());
         em.merge(c);
         return new JSONObject().put("success", true);
+    }
+
+    // ----------------------- Exports / Inventaire (Lot 2) -------------------
+
+    /** Resultat filtre complet (recherche + stock + classe), sans pagination. */
+    private List<AbcProduitDTO> filteredList(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax) {
+        List<AbcProduitDTO> rows = classify(dtStart, dtEnd, type, codeFamille, codeRayon, codeGrossiste).stream()
+                .filter(d -> matchSearch(d, search))
+                .filter(d -> matchStock(d, stockFilter, stockMin, stockMax))
+                .collect(Collectors.toList());
+        if (StringUtils.isNotBlank(classe) && !"ALL".equalsIgnoreCase(classe)) {
+            if ("NONE".equalsIgnoreCase(classe)) {
+                return new ArrayList<>();
+            }
+            final String c = classe.trim();
+            rows = rows.stream().filter(d -> c.equalsIgnoreCase(d.getClasse())).collect(Collectors.toList());
+        }
+        return rows;
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
+    }
+
+    private String reportTitle(String type, String classe, String dtStart, String dtEnd) {
+        String cls = (StringUtils.isBlank(classe) || "ALL".equalsIgnoreCase(classe)) ? "toutes classes"
+                : ("classe " + classe);
+        return "Classification ABC (" + (StringUtils.isBlank(type) ? "CA" : type) + " - " + cls + ") du " + dtStart
+                + " au " + dtEnd;
+    }
+
+    private static final String[] EXPORT_HEADERS = { "CIP", "EAN", "Libellé", "Classe", "Famille", "Rayon",
+            "Code Geo", "Stock", "Seuil", "Qté réappro", "Qté vendue", "CA", "Marge", "Part %", "Cumul %", "Q1", "Q2",
+            "Q3", "Unité" };
+
+    @Override
+    public byte[] buildExcel(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        if (rows.isEmpty()) {
+            return new byte[0];
+        }
+        try {
+            return reportExcelExportService.createExcelReport(reportTitle(type, classe, dtStart, dtEnd), EXPORT_HEADERS,
+                    rows, (Row row, AbcProduitDTO d) -> {
+                        int col = 0;
+                        row.createCell(col++).setCellValue(nz(d.getCip()));
+                        row.createCell(col++).setCellValue(nz(d.getEan()));
+                        row.createCell(col++).setCellValue(nz(d.getLibelle()));
+                        row.createCell(col++).setCellValue(nz(d.getClasse()));
+                        row.createCell(col++).setCellValue(nz(d.getFamille()));
+                        row.createCell(col++).setCellValue(nz(d.getRayon()));
+                        row.createCell(col++).setCellValue(nz(d.getCodeGeoArticle()));
+                        row.createCell(col++).setCellValue(d.getStockDisponible());
+                        row.createCell(col++).setCellValue(d.getSeuilMini());
+                        row.createCell(col++).setCellValue(d.getQuantiteReappro());
+                        row.createCell(col++).setCellValue(d.getQuantiteVendue());
+                        row.createCell(col++).setCellValue(d.getChiffreAffaires());
+                        row.createCell(col++).setCellValue(d.getMarge());
+                        row.createCell(col++).setCellValue(d.getPartPourcentage());
+                        row.createCell(col++).setCellValue(d.getCumulPourcentage());
+                        row.createCell(col++).setCellValue(d.getQ1() != null ? d.getQ1() : 0);
+                        row.createCell(col++).setCellValue(d.getQ2() != null ? d.getQ2() : 0);
+                        row.createCell(col++).setCellValue(d.getQ3() != null ? d.getQ3() : 0);
+                        row.createCell(col++).setCellValue(nz(d.getUniteCalcul()));
+                    });
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Export Excel ABC impossible", e);
+            return new byte[0];
+        }
+    }
+
+    @Override
+    public byte[] buildCsv(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
+            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        if (rows.isEmpty()) {
+            return new byte[0];
+        }
+        try {
+            byte[] raw = csvExportService.createCsvReport(reportTitle(type, classe, dtStart, dtEnd), EXPORT_HEADERS,
+                    rows, d -> new String[] { nz(d.getCip()), nz(d.getEan()), nz(d.getLibelle()), nz(d.getClasse()),
+                            nz(d.getFamille()), nz(d.getRayon()), nz(d.getCodeGeoArticle()),
+                            String.valueOf(d.getStockDisponible()), String.valueOf(d.getSeuilMini()),
+                            String.valueOf(d.getQuantiteReappro()), String.valueOf(d.getQuantiteVendue()),
+                            String.valueOf(d.getChiffreAffaires()), String.valueOf(d.getMarge()),
+                            String.valueOf(d.getPartPourcentage()), String.valueOf(d.getCumulPourcentage()),
+                            String.valueOf(d.getQ1() != null ? d.getQ1() : 0),
+                            String.valueOf(d.getQ2() != null ? d.getQ2() : 0),
+                            String.valueOf(d.getQ3() != null ? d.getQ3() : 0), nz(d.getUniteCalcul()) });
+            return csvExportService.addUtf8Bom(raw);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Export CSV ABC impossible", e);
+            return new byte[0];
+        }
+    }
+
+    @Override
+    public byte[] buildPdf(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
+            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+
+        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock", "Seuil", "Qté vend.", "CA",
+                "Marge", "Part %", "Cumul %" };
+        float[] widths = { 7f, 20f, 4f, 13f, 12f, 6f, 6f, 7f, 9f, 8f, 6f, 6f };
+
+        Document document = new Document(PageSize.A4.rotate(), 20, 20, 20, 20);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+            Font headFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7);
+            Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
+
+            Paragraph title = new Paragraph(reportTitle(type, classe, dtStart, dtEnd), titleFont);
+            title.setSpacingAfter(8f);
+            document.add(title);
+
+            PdfPTable table = new PdfPTable(headers.length);
+            table.setWidthPercentage(100);
+            table.setWidths(widths);
+            table.setHeaderRows(1);
+
+            for (String h : headers) {
+                PdfPCell cell = new PdfPCell(new Phrase(h, headFont));
+                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                cell.setGrayFill(0.85f);
+                table.addCell(cell);
+            }
+
+            for (AbcProduitDTO d : rows) {
+                table.addCell(new PdfPCell(new Phrase(nz(d.getCip()), cellFont)));
+                table.addCell(new PdfPCell(new Phrase(nz(d.getLibelle()), cellFont)));
+                PdfPCell cl = new PdfPCell(new Phrase(nz(d.getClasse()), cellFont));
+                cl.setHorizontalAlignment(Element.ALIGN_CENTER);
+                table.addCell(cl);
+                table.addCell(new PdfPCell(new Phrase(nz(d.getFamille()), cellFont)));
+                table.addCell(new PdfPCell(new Phrase(nz(d.getRayon()), cellFont)));
+                table.addCell(rightCell(String.valueOf(d.getStockDisponible()), cellFont));
+                table.addCell(rightCell(String.valueOf(d.getSeuilMini()), cellFont));
+                table.addCell(rightCell(String.valueOf(d.getQuantiteVendue()), cellFont));
+                table.addCell(rightCell(String.valueOf(d.getChiffreAffaires()), cellFont));
+                table.addCell(rightCell(String.valueOf(d.getMarge()), cellFont));
+                table.addCell(rightCell(String.format(java.util.Locale.US, "%.2f", d.getPartPourcentage()), cellFont));
+                table.addCell(rightCell(String.format(java.util.Locale.US, "%.2f", d.getCumulPourcentage()), cellFont));
+            }
+
+            document.add(table);
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Impression PDF ABC impossible", e);
+            if (document.isOpen()) {
+                document.close();
+            }
+            return new byte[0];
+        }
+    }
+
+    private PdfPCell rightCell(String text, Font font) {
+        PdfPCell cell = new PdfPCell(new Phrase(text, font));
+        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        return cell;
+    }
+
+    @Override
+    public JSONObject createInventaire(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        if (rows.isEmpty()) {
+            return new JSONObject().put("success", true).put("count", 0);
+        }
+        Set<String> ids = rows.stream().map(AbcProduitDTO::getProduitId).filter(StringUtils::isNotBlank)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        String cls = (StringUtils.isBlank(classe) || "ALL".equalsIgnoreCase(classe)) ? "toutes classes"
+                : ("classe " + classe);
+        String title = "Inventaire ABC (" + cls + ") du " + dtStart + " au " + dtEnd;
+        int count = inventaireService.create(ids, title);
+        return new JSONObject().put("success", true).put("count", count);
     }
 }

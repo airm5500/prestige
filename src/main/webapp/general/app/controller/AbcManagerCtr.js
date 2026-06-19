@@ -25,8 +25,71 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
             'abcmanager #searchField': {specialkey: this.onSearchKey},
             'abcmanager #recalculer': {click: this.onRecalculer},
             'abcmanager #appliquer': {click: this.onAppliquer},
-            'abcmanager #parametrerClasses': {click: this.onParametrerClasses}
+            'abcmanager #parametrerClasses': {click: this.onParametrerClasses},
+            'abcmanager #imprimer': {click: this.onImprimer},
+            'abcmanager #exportExcel': {click: this.onExportExcel},
+            'abcmanager #exportCsv': {click: this.onExportCsv},
+            'abcmanager #creerInventaire': {click: this.onCreerInventaire}
         });
+    },
+
+    // Tous les filtres courants (utilises par exports / inventaire)
+    buildExportParams: function () {
+        const me = this, abc = me.getAbc();
+        const v = function (id) {
+            const c = abc.down('#' + id);
+            return c && c.getValue() ? c.getValue() : '';
+        };
+        return {
+            dtStart: abc.down('#dtStart').getSubmitValue(),
+            dtEnd: abc.down('#dtEnd').getSubmitValue(),
+            type: v('comboType') || 'CA',
+            classe: v('comboClasse') || 'ALL',
+            stockFilter: v('comboStock') || 'ALL',
+            search: v('searchField'),
+            codeFamille: v('codeFamile'),
+            codeRayon: v('rayons'),
+            codeGrossiste: v('grossiste')
+        };
+    },
+
+    onImprimer: function () {
+        window.open('../api/v1/articles/abc/print?' + Ext.Object.toQueryString(this.buildExportParams()));
+    },
+
+    onExportExcel: function () {
+        window.open('../api/v1/articles/abc/excel?' + Ext.Object.toQueryString(this.buildExportParams()));
+    },
+
+    onExportCsv: function () {
+        window.open('../api/v1/articles/abc/csv?' + Ext.Object.toQueryString(this.buildExportParams()));
+    },
+
+    onCreerInventaire: function () {
+        const me = this;
+        Ext.MessageBox.confirm('Confirmation',
+                'Créer un inventaire à partir du résultat ABC filtré ?',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Création de l\'inventaire');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/articles/abc/inventaire?' + Ext.Object.toQueryString(me.buildExportParams()),
+                        timeout: 2400000,
+                        success: function (response) {
+                            progress.hide();
+                            const r = Ext.JSON.decode(response.responseText, true) || {};
+                            Ext.Msg.alert('Inventaire ABC',
+                                    'Inventaire créé avec ' + (r.count || 0) + ' produits.');
+                        },
+                        failure: function (response) {
+                            progress.hide();
+                            Ext.Msg.alert('Erreur', 'Échec de la création. Code HTTP : ' + response.status);
+                        }
+                    });
+                });
     },
 
     doInitStore: function () {

@@ -54,4 +54,21 @@ public interface AbcAnalysisService {
      */
     JSONObject updateClasse(String id, Integer q1, Integer q2, Integer q3, String unite, Double seuilMin,
             Double seuilMax, String statut);
+
+    /** Export Excel du resultat filtre courant (memes filtres que la grille, sans pagination). */
+    byte[] buildExcel(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
+            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax);
+
+    /** Export CSV du resultat filtre courant. */
+    byte[] buildCsv(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
+            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax);
+
+    /** Impression PDF (tableau) du resultat filtre courant. */
+    byte[] buildPdf(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
+            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax);
+
+    /** Cree un inventaire a partir de TOUT le resultat filtre courant. */
+    JSONObject createInventaire(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax);
 }
