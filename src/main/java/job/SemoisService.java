@@ -481,8 +481,8 @@ public class SemoisService {
             int chunk = 1000;
             for (int i = 0; i < produitIds.size(); i += chunk) {
                 List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
-                userTransaction.begin();
                 try {
+                    userTransaction.begin();
                     for (String produitId : sub) {
                         Map<String, Double> perMonth = conso.get(produitId);
                         if (perMonth == null) {
