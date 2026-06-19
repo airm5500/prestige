@@ -10,10 +10,25 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
     minHeight: 570,
     cls: 'custompanel',
     layout: 'fit',
-    requires: ['testextjs.model.AbcProduit'],
+    requires: ['testextjs.model.AbcProduit', 'Ext.tip.ToolTip'],
 
     initComponent: function () {
         const me = this;
+
+        // Explication "terre a terre" affichee au survol des colonnes Part %/Cumul %.
+        const metricInfo = function (store) {
+            const cmp = me.down('#comboType');
+            const type = (cmp && cmp.getValue()) || 'CA';
+            const field = type === 'QTY' ? 'quantiteVendue' : (type === 'MARGE' ? 'marge' : 'chiffreAffaires');
+            const label = type === 'QTY' ? 'quantité vendue' : (type === 'MARGE' ? 'marge' : 'CA');
+            let total = 0;
+            try {
+                const s = store.getProxy().getReader().rawData.summary;
+                total = (s.A[field] || 0) + (s.B[field] || 0) + (s.C[field] || 0);
+            } catch (e) { total = 0; }
+            return {field: field, label: label, total: total};
+        };
+        const nf = function (n) { return Ext.util.Format.number(n, '0,000.'); };
 
         const moneyRenderer = function (v) {
             return Ext.util.Format.number(v, '0,000.');
@@ -166,15 +181,62 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {header: 'Qté vendue', dataIndex: 'quantiteVendue', width: 80, align: 'right', renderer: moneyRenderer},
                         {header: "Chiffre d'Affaires", dataIndex: 'chiffreAffaires', flex: 1, align: 'right', renderer: moneyRenderer},
                         {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right', renderer: moneyRenderer},
-                        {header: 'Part %', dataIndex: 'partPourcentage', width: 70, align: 'right', renderer: function (v) { return Ext.util.Format.number(v, '0.00'); }},
-                        {header: 'Cumul %', dataIndex: 'cumulPourcentage', width: 75, align: 'right', renderer: function (v) { return Ext.util.Format.number(v, '0.00'); }},
+                        {header: 'Part %', dataIndex: 'partPourcentage', width: 70, align: 'right',
+                            renderer: function (v, meta, rec, ri, ci, store) {
+                                const val = Ext.util.Format.number(v, '0.00');
+                                const mi = metricInfo(store);
+                                const valProd = nf(rec.get(mi.field));
+                                const totalTxt = mi.total ? (' (' + nf(mi.total) + ')') : '';
+                                const html = "<span style='color:#0000ff'>"
+                                        + "Part % = poids de ce produit dans le total de la periode (" + mi.label + ").<br>"
+                                        + "Calcul : " + mi.label + " du produit (" + valProd + ") divise par le total"
+                                        + totalTxt + " puis x 100.<br>"
+                                        + "Resultat : <span style='color:red;font-weight:bold'>" + val + " %</span></span>";
+                                meta.tdAttr = 'data-abctip="' + html + '"';
+                                return val;
+                            }},
+                        {header: 'Cumul %', dataIndex: 'cumulPourcentage', width: 75, align: 'right',
+                            renderer: function (v, meta, rec) {
+                                const val = Ext.util.Format.number(v, '0.00');
+                                const part = Ext.util.Format.number(rec.get('partPourcentage'), '0.00');
+                                const html = "<span style='color:#0000ff'>"
+                                        + "Cumul % = somme des Part % en cumulant du plus gros au plus petit.<br>"
+                                        + "Calcul : Part % de ce produit (" + part + " %) + Cumul % du produit precedent.<br>"
+                                        + "Resultat : <span style='color:red;font-weight:bold'>" + val + " %</span>.<br>"
+                                        + "Sert a placer le produit en classe A, B ou C selon les bornes."
+                                        + "</span>";
+                                meta.tdAttr = 'data-abctip="' + html + '"';
+                                return val;
+                            }},
                         {header: 'Q1', dataIndex: 'q1', width: 45, align: 'right', hidden: true},
                         {header: 'Q2', dataIndex: 'q2', width: 45, align: 'right', hidden: true},
                         {header: 'Q3', dataIndex: 'q3', width: 45, align: 'right', hidden: true},
                         {header: 'Unité', dataIndex: 'uniteCalcul', width: 80, hidden: true}
                     ],
                     selModel: {selType: 'cellmodel'},
-                    bbar: {xtype: 'pagingtoolbar', store: data, dock: 'bottom', displayInfo: true}
+                    bbar: {xtype: 'pagingtoolbar', store: data, dock: 'bottom', displayInfo: true},
+                    listeners: {
+                        afterrender: function (grid) {
+                            const view = grid.getView();
+                            grid._abcTip = Ext.create('Ext.tip.ToolTip', {
+                                target: view.getEl(),
+                                delegate: 'td[data-abctip]',
+                                dismissDelay: 0,   // reste affiche jusqu'a la sortie de la souris
+                                trackMouse: false,
+                                anchorToTarget: true,
+                                listeners: {
+                                    beforeshow: function (tip) {
+                                        const el = tip.triggerElement;
+                                        const html = el ? el.getAttribute('data-abctip') : null;
+                                        if (!html) {
+                                            return false;
+                                        }
+                                        tip.update(html);
+                                    }
+                                }
+                            });
+                        }
+                    }
                 }
             ]
         });
