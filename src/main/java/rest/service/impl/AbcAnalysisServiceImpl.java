@@ -308,4 +308,67 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         }
         return new JSONObject().put("success", true).put("count", count);
     }
+
+    @Override
+    public JSONObject listClasses() {
+        JSONArray arr = new JSONArray();
+        try {
+            List<TClasseAbc> classes = em.createNamedQuery("TClasseAbc.findAll", TClasseAbc.class).getResultList();
+            classes.sort(Comparator.comparing(TClasseAbc::getStrCODE));
+            for (TClasseAbc c : classes) {
+                arr.put(new JSONObject()
+                        .put("id", c.getLgCLASSEABCID())
+                        .put("code", c.getStrCODE())
+                        .put("libelle", c.getStrLIBELLE())
+                        .put("q1", c.getIntQ1())
+                        .put("q2", c.getIntQ2())
+                        .put("q3", c.getIntQ3())
+                        .put("unite", c.getStrUNITECALCUL())
+                        .put("seuilMin", c.getDblSEUILCUMULMIN())
+                        .put("seuilMax", c.getDblSEUILCUMULMAX())
+                        .put("statut", c.getStrSTATUT()));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Lecture des classes ABC impossible", e);
+            return new JSONObject().put("success", false).put("data", arr);
+        }
+        return new JSONObject().put("success", true).put("data", arr);
+    }
+
+    @Override
+    public JSONObject updateClasse(String id, Integer q1, Integer q2, Integer q3, String unite, Double seuilMin,
+            Double seuilMax, String statut) {
+        if (StringUtils.isBlank(id)) {
+            return new JSONObject().put("success", false).put("message", "Identifiant de classe manquant");
+        }
+        TClasseAbc c = em.find(TClasseAbc.class, id);
+        if (c == null) {
+            return new JSONObject().put("success", false).put("message", "Classe introuvable");
+        }
+        if (q1 != null) {
+            c.setIntQ1(q1);
+        }
+        if (q2 != null) {
+            c.setIntQ2(q2);
+        }
+        if (q3 != null) {
+            c.setIntQ3(q3);
+        }
+        if (StringUtils.isNotBlank(unite)) {
+            String u = unite.trim().toUpperCase();
+            c.setStrUNITECALCUL("JOUR".equals(u) ? "JOUR" : "SEMAINE");
+        }
+        if (seuilMin != null) {
+            c.setDblSEUILCUMULMIN(seuilMin);
+        }
+        if (seuilMax != null) {
+            c.setDblSEUILCUMULMAX(seuilMax);
+        }
+        if (StringUtils.isNotBlank(statut)) {
+            c.setStrSTATUT(statut.trim());
+        }
+        c.setDtUPDATED(new Date());
+        em.merge(c);
+        return new JSONObject().put("success", true);
+    }
 }

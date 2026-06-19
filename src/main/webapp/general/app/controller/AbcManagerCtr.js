@@ -24,7 +24,8 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
             'abcmanager #comboStock': {select: this.doSearch},
             'abcmanager #searchField': {specialkey: this.onSearchKey},
             'abcmanager #recalculer': {click: this.onRecalculer},
-            'abcmanager #appliquer': {click: this.onAppliquer}
+            'abcmanager #appliquer': {click: this.onAppliquer},
+            'abcmanager #parametrerClasses': {click: this.onParametrerClasses}
         });
     },
 
@@ -64,8 +65,8 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Recalcul de la classification ABC');
         Ext.Ajax.request({
             method: 'POST',
-            url: '../api/v1/articles/abc/recalculate',
-            params: me.buildParams(),
+            // parametres en query string (le endpoint lit des @QueryParam -> evite le 415)
+            url: '../api/v1/articles/abc/recalculate?' + Ext.Object.toQueryString(me.buildParams()),
             timeout: 2400000,
             success: function (response) {
                 progress.hide();
@@ -98,8 +99,7 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
                     const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Application aux fiches articles');
                     Ext.Ajax.request({
                         method: 'POST',
-                        url: '../api/v1/articles/abc/apply',
-                        params: me.buildParams(),
+                        url: '../api/v1/articles/abc/apply?' + Ext.Object.toQueryString(me.buildParams()),
                         timeout: 2400000,
                         success: function (response) {
                             progress.hide();
@@ -114,5 +114,110 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
                         }
                     });
                 });
+    },
+
+    onParametrerClasses: function () {
+        const me = this;
+
+        const store = Ext.create('Ext.data.Store', {
+            fields: [
+                {name: 'id', type: 'string'},
+                {name: 'code', type: 'string'},
+                {name: 'libelle', type: 'string'},
+                {name: 'q1', type: 'int'},
+                {name: 'q2', type: 'int'},
+                {name: 'q3', type: 'int'},
+                {name: 'unite', type: 'string'},
+                {name: 'seuilMin', type: 'number'},
+                {name: 'seuilMax', type: 'number'},
+                {name: 'statut', type: 'string'}
+            ],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/articles/abc/classes',
+                reader: {type: 'json', root: 'data'}
+            }
+        });
+
+        const uniteStore = Ext.create('Ext.data.Store', {
+            fields: ['id'],
+            data: [{id: 'SEMAINE'}, {id: 'JOUR'}]
+        });
+        const statutStore = Ext.create('Ext.data.Store', {
+            fields: ['id', 'libelle'],
+            data: [{id: 'enable', libelle: 'Actif'}, {id: 'disable', libelle: 'Inactif'}]
+        });
+
+        const cellEditing = Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1});
+
+        const saveRow = function (rec) {
+            Ext.Ajax.request({
+                method: 'POST',
+                url: '../api/v1/articles/abc/classes/update?' + Ext.Object.toQueryString({
+                    id: rec.get('id'),
+                    q1: rec.get('q1'),
+                    q2: rec.get('q2'),
+                    q3: rec.get('q3'),
+                    unite: rec.get('unite'),
+                    seuilMin: rec.get('seuilMin'),
+                    seuilMax: rec.get('seuilMax'),
+                    statut: rec.get('statut')
+                }),
+                success: function (response) {
+                    const r = Ext.JSON.decode(response.responseText, true) || {};
+                    if (r.success) {
+                        rec.commit();
+                    } else {
+                        Ext.Msg.alert('Erreur', r.message || 'Mise à jour impossible');
+                        rec.reject();
+                    }
+                },
+                failure: function (response) {
+                    Ext.Msg.alert('Erreur', 'Échec de la mise à jour. Code HTTP : ' + response.status);
+                    rec.reject();
+                }
+            });
+        };
+
+        Ext.create('Ext.window.Window', {
+            title: 'Paramétrage des classes ABC',
+            modal: true,
+            width: 760,
+            height: 260,
+            layout: 'fit',
+            plain: true,
+            items: [{
+                xtype: 'gridpanel',
+                store: store,
+                plugins: [cellEditing],
+                viewConfig: {columnLines: true},
+                columns: [
+                    {header: 'Code', dataIndex: 'code', width: 60, align: 'center'},
+                    {header: 'Libellé', dataIndex: 'libelle', flex: 1},
+                    {header: 'Q1', dataIndex: 'q1', width: 60, align: 'right', editor: {xtype: 'numberfield', minValue: 0, allowBlank: false}},
+                    {header: 'Q2', dataIndex: 'q2', width: 60, align: 'right', editor: {xtype: 'numberfield', minValue: 0, allowBlank: false}},
+                    {header: 'Q3 (mois)', dataIndex: 'q3', width: 80, align: 'right', editor: {xtype: 'numberfield', minValue: 1, allowBlank: false}},
+                    {header: 'Unité Q1/Q2', dataIndex: 'unite', width: 110, editor: {xtype: 'combobox', store: uniteStore, valueField: 'id', displayField: 'id', editable: false, forceSelection: true}},
+                    {header: 'Cumul min %', dataIndex: 'seuilMin', width: 95, align: 'right', editor: {xtype: 'numberfield', minValue: 0, maxValue: 100}},
+                    {header: 'Cumul max %', dataIndex: 'seuilMax', width: 95, align: 'right', editor: {xtype: 'numberfield', minValue: 0, maxValue: 100}},
+                    {header: 'Statut', dataIndex: 'statut', width: 80, renderer: function (v) { return v === 'enable' ? 'Actif' : 'Inactif'; }, editor: {xtype: 'combobox', store: statutStore, valueField: 'id', displayField: 'libelle', editable: false, forceSelection: true}}
+                ],
+                listeners: {
+                    edit: function (editor, e) {
+                        saveRow(e.record);
+                    }
+                }
+            }],
+            buttons: [
+                {text: 'Fermer', handler: function (b) {
+                    b.up('window').close();
+                    // recharge la grille ABC pour refleter d'eventuels changements de bornes
+                    if (me.getGrid()) {
+                        me.doSearch();
+                    }
+                }}
+            ]
+        }).show();
     }
 });

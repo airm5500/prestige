@@ -124,7 +124,9 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
                         {xtype: 'tbseparator'},
                         {text: 'Recalculer classification', itemId: 'recalculer', iconCls: 'suggestionreapro', tooltip: 'Recalcule la classification ABC sur la période'},
-                        {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'}
+                        {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
+                        {xtype: 'tbseparator'},
+                        {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'}
                     ]
                 },
                 {

@@ -44,4 +44,14 @@ public interface AbcAnalysisService {
      */
     JSONObject apply(String dtStart, String dtEnd, String type, String codeFamille, String codeRayon,
             String codeGrossiste);
+
+    /** Liste les classes ABC parametrables (A/B/C) pour l'ecran de configuration. */
+    JSONObject listClasses();
+
+    /**
+     * Met a jour les parametres d'une classe ABC (Q1, Q2, Q3, unite, bornes de
+     * cumul, statut). Les valeurs nulles ne sont pas modifiees.
+     */
+    JSONObject updateClasse(String id, Integer q1, Integer q2, Integer q3, String unite, Double seuilMin,
+            Double seuilMax, String statut);
 }
