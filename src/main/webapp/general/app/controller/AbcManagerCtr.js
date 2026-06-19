@@ -25,6 +25,7 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
             'abcmanager #searchField': {specialkey: this.onSearchKey},
             'abcmanager #recalculer': {click: this.onRecalculer},
             'abcmanager #appliquer': {click: this.onAppliquer},
+            'abcmanager #evolution': {click: this.onEvolution},
             'abcmanager #parametrerClasses': {click: this.onParametrerClasses},
             'abcmanager #imprimer': {click: this.onImprimer},
             'abcmanager #btnExporter': {click: this.onExportExcel},
@@ -210,6 +211,74 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
                         }
                     });
                 });
+    },
+
+    onEvolution: function () {
+        const me = this;
+        const baseParams = me.buildExportParams();
+
+        const store = Ext.create('Ext.data.Store', {
+            fields: ['month', {name: 'A', type: 'number'}, {name: 'B', type: 'number'}, {name: 'C', type: 'number'}],
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/articles/abc/evolution',
+                extraParams: Ext.apply({indicator: 'CA'}, baseParams),
+                reader: {type: 'json', root: 'months'}
+            },
+            autoLoad: true
+        });
+
+        const lineSerie = function (field, title, color) {
+            return {
+                type: 'line', axis: 'left', xField: 'month', yField: field, title: title,
+                style: {stroke: color, 'stroke-width': 2}, markerConfig: {type: 'circle', size: 4, fill: color},
+                tips: {trackMouse: true, width: 180, height: 28,
+                    renderer: function (rec, item) {
+                        this.setTitle(title + ' - ' + rec.get('month') + ' : ' + Ext.util.Format.number(rec.get(field), '0,000.'));
+                    }}
+            };
+        };
+
+        Ext.create('Ext.window.Window', {
+            title: 'Évolution mensuelle des classes ABC',
+            modal: true, width: 820, height: 480, layout: 'fit', plain: true,
+            tbar: [
+                'Indicateur :',
+                {
+                    xtype: 'combo', width: 220, editable: false, value: 'CA', queryMode: 'local',
+                    valueField: 'id', displayField: 'libelle',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['id', 'libelle'],
+                        data: [
+                            {id: 'CA', libelle: "Chiffre d'affaires"},
+                            {id: 'QTY', libelle: 'Quantité vendue'},
+                            {id: 'MARGE', libelle: 'Marge'},
+                            {id: 'COUNT', libelle: 'Nombre de produits'}
+                        ]
+                    }),
+                    listeners: {
+                        select: function (combo, records) {
+                            const v = (records && records[0]) ? records[0].get('id') : combo.getValue();
+                            store.getProxy().setExtraParam('indicator', v);
+                            store.load();
+                        }
+                    }
+                }
+            ],
+            items: [{
+                xtype: 'chart', animate: true, shadow: true, store: store, style: 'background:#fff',
+                legend: {position: 'bottom'},
+                axes: [
+                    {type: 'Numeric', position: 'left', fields: ['A', 'B', 'C'], minimum: 0, grid: true},
+                    {type: 'Category', position: 'bottom', fields: ['month']}
+                ],
+                series: [
+                    lineSerie('A', 'Classe A', '#1a7e1a'),
+                    lineSerie('B', 'Classe B', '#e67e00'),
+                    lineSerie('C', 'Classe C', '#d10000')
+                ]
+            }]
+        }).show();
     },
 
     onParametrerClasses: function () {

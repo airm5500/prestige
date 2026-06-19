@@ -145,6 +145,19 @@ public class AbcArticleRessource {
         return Response.ok().entity(abcAnalysisService.produitConso(produitId, months).toString()).build();
     }
 
+    @GET
+    @Path("evolution")
+    public Response evolution(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("CA") @QueryParam("type") String type, @DefaultValue("CA") @QueryParam("indicator") String indicator,
+            @QueryParam("classe") String classe, @QueryParam("search") String search,
+            @QueryParam("codeFamille") String codeFamille, @QueryParam("codeRayon") String codeRayon,
+            @QueryParam("codeGrossiste") String codeGrossiste, @QueryParam("stockFilter") String stockFilter,
+            @QueryParam("stockMin") Integer stockMin, @QueryParam("stockMax") Integer stockMax) {
+        JSONObject json = abcAnalysisService.evolution(dtStart, dtEnd, type, indicator, classe, search, codeFamille,
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     // ----------------------- Configuration des classes ABC ------------------
     @GET
     @Path("classes")

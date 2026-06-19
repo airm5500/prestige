@@ -10,7 +10,8 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
     minHeight: 570,
     cls: 'custompanel',
     layout: 'fit',
-    requires: ['testextjs.model.AbcProduit', 'Ext.tip.ToolTip'],
+    requires: ['testextjs.model.AbcProduit', 'Ext.tip.ToolTip',
+        'Ext.chart.Chart', 'Ext.chart.series.Line', 'Ext.chart.axis.Numeric', 'Ext.chart.axis.Category'],
 
     initComponent: function () {
         const me = this;
@@ -140,6 +141,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {xtype: 'tbseparator'},
                         {text: 'Recalculer classification', itemId: 'recalculer', iconCls: 'suggestionreapro', tooltip: 'Recalcule la classification ABC sur la période'},
                         {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
+                        {text: 'Courbe évolution', itemId: 'evolution', iconCls: 'charticon', tooltip: 'Évolution mensuelle des classes sur la période'},
                         {xtype: 'tbseparator'},
                         {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'}
                     ]

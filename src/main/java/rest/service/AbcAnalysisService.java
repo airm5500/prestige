@@ -82,4 +82,13 @@ public interface AbcAnalysisService {
      * courant + N-1 mois precedents, consolide detail -> parent.
      */
     JSONObject produitConso(String produitId, int months);
+
+    /**
+     * Evolution mensuelle des classes (mode FIXED) sur la periode : classes
+     * figees sur toute la periode, puis indicateur (CA/QTY/MARGE/COUNT) agrege
+     * par mois et par classe.
+     */
+    JSONObject evolution(String dtStart, String dtEnd, String type, String indicator, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax);
 }

@@ -822,4 +822,101 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         return new JSONObject().put("success", true).put("produitId", produitId).put("cip", cip)
                 .put("libelle", libelle).put("total", total).put("data", data);
     }
+
+    // ----------------------- Evolution mensuelle des classes ----------------
+
+    /** Metriques mensuelles consolidees par produit effectif sur la periode : id -> (ym -> [CA, QTE, MARGE]). */
+    private Map<String, Map<String, double[]>> monthlyMetrics(String dtStart, String dtEnd) {
+        String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        String sql = "SELECT t.eff_id, t.ym, SUM(t.ca), SUM(t.qty_equiv), SUM(t.marge) FROM ("
+                + "SELECT CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' "
+                + "THEN f.lg_FAMILLE_PARENT_ID ELSE f.lg_FAMILLE_ID END AS eff_id, "
+                + "DATE_FORMAT(p.dt_UPDATED,'%Y-%m') AS ym, pd.int_PRICE AS ca, "
+                + "CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' "
+                + "THEN pd.int_QUANTITY/COALESCE(NULLIF(parent.int_NUMBERDETAIL,0),1) ELSE pd.int_QUANTITY END AS qty_equiv, "
+                + "((pd.int_PRICE - pd.int_PRICE_REMISE - pd.montantTva) - (pd.prixAchat*pd.int_QUANTITY)) AS marge "
+                + "FROM t_preenregistrement p "
+                + "JOIN t_user u ON p.lg_USER_ID=u.lg_USER_ID "
+                + "JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID "
+                + "JOIN t_famille f ON pd.lg_FAMILLE_ID=f.lg_FAMILLE_ID "
+                + "LEFT JOIN t_famille parent ON parent.lg_FAMILLE_ID=f.lg_FAMILLE_PARENT_ID "
+                + "WHERE p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5' "
+                + "AND u.lg_EMPLACEMENT_ID=? AND DATE(p.dt_UPDATED) BETWEEN ? AND ? "
+                + ") t GROUP BY t.eff_id, t.ym";
+        Map<String, Map<String, double[]>> map = new HashMap<>();
+        try {
+            Query q = em.createNativeQuery(sql);
+            q.setParameter(1, emplacement);
+            q.setParameter(2, dtStart);
+            q.setParameter(3, dtEnd);
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = q.getResultList();
+            for (Object[] r : rows) {
+                String id = asStr(r[0]);
+                String ym = asStr(r[1]);
+                map.computeIfAbsent(id, k -> new HashMap<>()).put(ym,
+                        new double[] { asDouble(r[2]), asDouble(r[3]), asDouble(r[4]) });
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Calcul evolution ABC impossible", e);
+        }
+        return map;
+    }
+
+    @Override
+    public JSONObject evolution(String dtStart, String dtEnd, String type, String indicator, String classe,
+            String search, String codeFamille, String codeRayon, String codeGrossiste, String stockFilter,
+            Integer stockMin, Integer stockMax) {
+        // Classes FIGEES sur toute la periode (mode FIXED), en respectant les filtres de la grille.
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        Map<String, String> produitClasse = new HashMap<>();
+        for (AbcProduitDTO d : rows) {
+            produitClasse.put(d.getProduitId(), d.getClasse());
+        }
+
+        String ind = (indicator == null) ? "CA" : indicator.trim().toUpperCase();
+        int metricIdx = "QTY".equals(ind) ? 1 : ("MARGE".equals(ind) ? 2 : 0); // COUNT gere a part
+
+        Map<String, Map<String, double[]>> metrics = monthlyMetrics(dtStart, dtEnd);
+
+        // Liste des mois de la periode (annee-mois)
+        List<String> moisList = new ArrayList<>();
+        try {
+            java.time.YearMonth start = java.time.YearMonth.from(java.time.LocalDate.parse(dtStart));
+            java.time.YearMonth end = java.time.YearMonth.from(java.time.LocalDate.parse(dtEnd));
+            for (java.time.YearMonth ym = start; !ym.isAfter(end); ym = ym.plusMonths(1)) {
+                moisList.add(ym.toString()); // format yyyy-MM
+            }
+        } catch (Exception e) {
+            // periode invalide -> aucun mois
+        }
+
+        JSONArray months = new JSONArray();
+        for (String ym : moisList) {
+            double a = 0, b = 0, c = 0;
+            for (Map.Entry<String, String> e : produitClasse.entrySet()) {
+                Map<String, double[]> perMonth = metrics.get(e.getKey());
+                if (perMonth == null) {
+                    continue;
+                }
+                double[] m = perMonth.get(ym);
+                if (m == null) {
+                    continue;
+                }
+                double val = "COUNT".equals(ind) ? 1 : m[metricIdx];
+                switch (e.getValue()) {
+                case "A": a += val; break;
+                case "B": b += val; break;
+                case "C": c += val; break;
+                default: break;
+                }
+            }
+            String[] p = ym.split("-");
+            String label = (p.length == 2) ? (p[1] + "/" + p[0]) : ym;
+            months.put(new JSONObject().put("month", label).put("A", Math.round(a)).put("B", Math.round(b))
+                    .put("C", Math.round(c)));
+        }
+        return new JSONObject().put("success", true).put("indicator", ind).put("months", months);
+    }
 }
