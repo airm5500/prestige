@@ -71,4 +71,9 @@ public interface AbcAnalysisService {
     JSONObject createInventaire(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
             Integer stockMax);
+
+    /** Cree des suggestions de commande (groupees par grossiste) a partir du resultat filtre. */
+    JSONObject createSuggestion(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax);
 }

@@ -124,6 +124,20 @@ public class AbcArticleRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    @POST
+    @Path("suggestion")
+    @Consumes(MediaType.WILDCARD)
+    public Response suggestion(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("CA") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax) {
+        JSONObject json = abcAnalysisService.createSuggestion(dtStart, dtEnd, type, classe, search, codeFamille,
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     // ----------------------- Configuration des classes ABC ------------------
     @GET
     @Path("classes")

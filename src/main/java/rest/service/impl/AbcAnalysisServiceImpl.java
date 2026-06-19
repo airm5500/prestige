@@ -42,8 +42,10 @@ import org.json.JSONObject;
 import rest.service.AbcAnalysisService;
 import rest.service.InventaireService;
 import rest.service.SessionHelperService;
+import rest.service.SuggestionService;
 import rest.service.utils.CsvExportService;
 import rest.service.utils.ReportExcelExportService;
+import commonTasks.dto.VenteDetailsDTO;
 
 @Stateless
 public class AbcAnalysisServiceImpl implements AbcAnalysisService {
@@ -64,6 +66,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
 
     @EJB
     private InventaireService inventaireService;
+
+    @EJB
+    private SuggestionService suggestionService;
 
     private String procedureName(String type) {
         if (type == null) {
@@ -508,9 +513,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
                 codeGrossiste, stockFilter, stockMin, stockMax);
 
-        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock", "Seuil", "Qté vend.", "CA",
+        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock", "Seuil", "Qté", "CA",
                 "Marge", "Part %", "Cumul %" };
-        float[] widths = { 7f, 20f, 4f, 13f, 12f, 6f, 6f, 7f, 9f, 8f, 6f, 6f };
+        // Libelle elargi ; Stock / Qte / Marge reduits pour que le nom tienne sur 1 ligne.
+        float[] widths = { 6f, 27f, 3.5f, 12f, 11f, 5f, 5f, 5f, 8f, 6f, 5f, 5f };
 
         Document document = new Document(PageSize.A4.rotate(), 20, 20, 20, 20);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -639,5 +645,36 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         String title = "Inventaire ABC (" + cls + ") du " + dtStart + " au " + dtEnd;
         int count = inventaireService.create(ids, title);
         return new JSONObject().put("success", true).put("count", count);
+    }
+
+    @Override
+    public JSONObject createSuggestion(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax);
+        // On ne suggère que les produits ayant un grossiste (regroupement par grossiste,
+        // comme la suggestion du 20/80).
+        List<VenteDetailsDTO> datas = new ArrayList<>();
+        for (AbcProduitDTO d : rows) {
+            if (StringUtils.isBlank(d.getGrossisteId())) {
+                continue;
+            }
+            VenteDetailsDTO v = new VenteDetailsDTO();
+            v.setLgFAMILLEID(d.getProduitId());
+            v.setGrossisteId(d.getGrossisteId());
+            v.setTypeVente(d.getGrossisteId());
+            v.setIntQUANTITY((int) d.getQuantiteVendue());
+            datas.add(v);
+        }
+        if (datas.isEmpty()) {
+            return new JSONObject().put("success", true).put("count", 0);
+        }
+        try {
+            return suggestionService.makeSuggestion(datas);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Creation suggestion ABC impossible", e);
+            return new JSONObject().put("success", false).put("count", 0);
+        }
     }
 }

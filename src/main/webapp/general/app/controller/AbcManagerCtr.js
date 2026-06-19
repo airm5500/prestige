@@ -29,6 +29,7 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
             'abcmanager #imprimer': {click: this.onImprimer},
             'abcmanager #exportExcel': {click: this.onExportExcel},
             'abcmanager #exportCsv': {click: this.onExportCsv},
+            'abcmanager #creerSuggestion': {click: this.onCreerSuggestion},
             'abcmanager #creerInventaire': {click: this.onCreerInventaire}
         });
     },
@@ -63,6 +64,37 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
 
     onExportCsv: function () {
         window.open('../api/v1/articles/abc/csv?' + Ext.Object.toQueryString(this.buildExportParams()));
+    },
+
+    onCreerSuggestion: function () {
+        const me = this;
+        Ext.MessageBox.confirm('Confirmation',
+                'Créer des suggestions de commande à partir du résultat ABC filtré ?',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Création des suggestions');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/articles/abc/suggestion?' + Ext.Object.toQueryString(me.buildExportParams()),
+                        timeout: 2400000,
+                        success: function (response) {
+                            progress.hide();
+                            const r = Ext.JSON.decode(response.responseText, true) || {};
+                            if (r.success) {
+                                Ext.Msg.alert('Suggestion ABC',
+                                        'Suggestions créées pour ' + (r.count || 0) + ' produits.');
+                            } else {
+                                Ext.Msg.alert('Suggestion ABC', 'Aucune suggestion créée.');
+                            }
+                        },
+                        failure: function (response) {
+                            progress.hide();
+                            Ext.Msg.alert('Erreur', 'Échec de la création. Code HTTP : ' + response.status);
+                        }
+                    });
+                });
     },
 
     onCreerInventaire: function () {

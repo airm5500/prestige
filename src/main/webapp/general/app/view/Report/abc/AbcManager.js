@@ -138,7 +138,8 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {text: 'Imprimer', itemId: 'imprimer', iconCls: 'printable', tooltip: 'Imprimer le résultat filtré (PDF)'},
                         {text: 'Exporter Excel', itemId: 'exportExcel', iconCls: 'export_excel_icon', tooltip: 'Exporter le résultat filtré en Excel'},
                         {text: 'Exporter CSV', itemId: 'exportCsv', iconCls: 'export_csv_icon', tooltip: 'Exporter le résultat filtré en CSV'},
-                        {text: 'Créer inventaire', itemId: 'creerInventaire', iconCls: 'inventaire_icon', tooltip: 'Créer un inventaire à partir du résultat filtré'}
+                        {text: 'Créer suggestion', itemId: 'creerSuggestion', iconCls: 'suggestionreapro', tooltip: 'Créer des suggestions de commande à partir du résultat filtré'},
+                        {text: 'Créer inventaire', itemId: 'creerInventaire', iconCls: 'addicon', tooltip: 'Créer un inventaire à partir du résultat filtré'}
                     ]
                 }
             ],
