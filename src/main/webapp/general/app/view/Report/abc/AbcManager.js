@@ -166,10 +166,10 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right', renderer: moneyRenderer},
                         {header: 'Part %', dataIndex: 'partPourcentage', width: 70, align: 'right', renderer: function (v) { return Ext.util.Format.number(v, '0.00'); }},
                         {header: 'Cumul %', dataIndex: 'cumulPourcentage', width: 75, align: 'right', renderer: function (v) { return Ext.util.Format.number(v, '0.00'); }},
-                        {header: 'Q1', dataIndex: 'q1', width: 45, align: 'right'},
-                        {header: 'Q2', dataIndex: 'q2', width: 45, align: 'right'},
-                        {header: 'Q3', dataIndex: 'q3', width: 45, align: 'right'},
-                        {header: 'Unité', dataIndex: 'uniteCalcul', width: 80}
+                        {header: 'Q1', dataIndex: 'q1', width: 45, align: 'right', hidden: true},
+                        {header: 'Q2', dataIndex: 'q2', width: 45, align: 'right', hidden: true},
+                        {header: 'Q3', dataIndex: 'q3', width: 45, align: 'right', hidden: true},
+                        {header: 'Unité', dataIndex: 'uniteCalcul', width: 80, hidden: true}
                     ],
                     selModel: {selType: 'cellmodel'},
                     bbar: {xtype: 'pagingtoolbar', store: data, dock: 'bottom', displayInfo: true}
@@ -200,8 +200,13 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
             return;
         }
         const fmt = function (c) {
+            const colorMap = {A: '#1a7e1a', B: '#e67e00', C: '#d10000'};
             const s = summary[c] || {};
-            return c + ': ' + (s.nbProduits || 0) + ' prod / CA ' + Ext.util.Format.number(s.chiffreAffaires || 0, '0,000.');
+            const nb = s.nbProduits || 0;
+            const ca = Ext.util.Format.number(s.chiffreAffaires || 0, '0,000.');
+            return '<span style="color:' + colorMap[c] + ';font-weight:bold">Classe ' + c + ':</span> '
+                    + '<span style="color:#8B4513;font-weight:bold">' + nb + '</span> -&gt; '
+                    + '<span style="color:#0000ff;font-weight:bold">CA ' + ca + ' F.CFA</span>';
         };
         lbl.setText(fmt('A') + '  |  ' + fmt('B') + '  |  ' + fmt('C'));
     }

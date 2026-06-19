@@ -2,6 +2,7 @@ package rest.service.impl;
 
 import commonTasks.dto.AbcProduitDTO;
 import dal.TClasseAbc;
+import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
 import com.lowagie.text.Font;
@@ -12,7 +13,10 @@ import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -519,8 +523,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
 
             Paragraph title = new Paragraph(reportTitle(type, classe, dtStart, dtEnd), titleFont);
-            title.setSpacingAfter(8f);
+            title.setSpacingAfter(6f);
             document.add(title);
+
+            document.add(buildPdfSummaryLine(rows));
 
             PdfPTable table = new PdfPTable(headers.length);
             table.setWidthPercentage(100);
@@ -567,6 +573,54 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         PdfPCell cell = new PdfPCell(new Phrase(text, font));
         cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
         return cell;
+    }
+
+    /** Formatte un montant avec separateur de milliers '.' (ex: 37190 -> 37.190). */
+    private static String formatFcfa(long value) {
+        DecimalFormatSymbols sym = new DecimalFormatSymbols();
+        sym.setGroupingSeparator('.');
+        return new DecimalFormat("#,##0", sym).format(value);
+    }
+
+    /** Ligne de resume coloree (memes codes couleur que la grille) pour le PDF. */
+    private Paragraph buildPdfSummaryLine(List<AbcProduitDTO> rows) {
+        Map<String, long[]> agg = new LinkedHashMap<>();
+        agg.put("A", new long[2]);
+        agg.put("B", new long[2]);
+        agg.put("C", new long[2]);
+        for (AbcProduitDTO d : rows) {
+            long[] a = agg.get(d.getClasse());
+            if (a != null) {
+                a[0] += 1;
+                a[1] += d.getChiffreAffaires();
+            }
+        }
+        Color green = new Color(26, 126, 26);
+        Color orange = new Color(230, 126, 0);
+        Color red = new Color(209, 0, 0);
+        Color brown = new Color(139, 69, 19);
+        Color blue = new Color(0, 0, 255);
+        Map<String, Color> classColor = new HashMap<>();
+        classColor.put("A", green);
+        classColor.put("B", orange);
+        classColor.put("C", red);
+
+        Paragraph p = new Paragraph();
+        p.setSpacingAfter(8f);
+        String[] order = { "A", "B", "C" };
+        for (int i = 0; i < order.length; i++) {
+            String c = order[i];
+            long[] a = agg.get(c);
+            p.add(new Chunk("Classe " + c + ": ",
+                    FontFactory.getFont(FontFactory.HELVETICA, 8, Font.BOLD, classColor.get(c))));
+            p.add(new Chunk(a[0] + " ", FontFactory.getFont(FontFactory.HELVETICA, 8, Font.BOLD, brown)));
+            p.add(new Chunk("-> CA " + formatFcfa(a[1]) + " F.CFA",
+                    FontFactory.getFont(FontFactory.HELVETICA, 8, Font.BOLD, blue)));
+            if (i < order.length - 1) {
+                p.add(new Chunk("    |    ", FontFactory.getFont(FontFactory.HELVETICA, 8, Font.BOLD)));
+            }
+        }
+        return p;
     }
 
     @Override
