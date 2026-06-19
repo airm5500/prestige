@@ -737,23 +737,26 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 .append("JOIN t_famille f ON pd.lg_FAMILLE_ID=f.lg_FAMILLE_ID ")
                 .append("LEFT JOIN t_famille parent ON parent.lg_FAMILLE_ID=f.lg_FAMILLE_PARENT_ID ")
                 .append("WHERE p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5' ")
-                .append("AND u.lg_EMPLACEMENT_ID=?1 ")
-                .append("AND p.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ?2 MONTH),'%Y-%m-01')")
-                .append(") t WHERE t.m_index BETWEEN 0 AND ?3");
+                .append("AND u.lg_EMPLACEMENT_ID=? ")
+                .append("AND p.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ? MONTH),'%Y-%m-01')");
+        // Perf : pour un seul produit, on filtre DES L'INTERIEUR (parent + ses detournements detail)
+        // au lieu de scanner toutes les ventes de la periode.
         if (produitId != null) {
-            sql.append(" AND t.eff_id = ?4");
+            sql.append(" AND (f.lg_FAMILLE_ID=? OR f.lg_FAMILLE_PARENT_ID=?)");
         }
-        sql.append(" GROUP BY t.eff_id, t.m_index");
+        sql.append(") t WHERE t.m_index BETWEEN 0 AND ? GROUP BY t.eff_id, t.m_index");
 
         Map<String, long[]> map = new HashMap<>();
         try {
             Query q = em.createNativeQuery(sql.toString());
-            q.setParameter(1, emplacement);
-            q.setParameter(2, monthsBack);
-            q.setParameter(3, monthsBack);
+            int p = 1;
+            q.setParameter(p++, emplacement);
+            q.setParameter(p++, monthsBack);
             if (produitId != null) {
-                q.setParameter(4, produitId);
+                q.setParameter(p++, produitId);
+                q.setParameter(p++, produitId);
             }
+            q.setParameter(p++, monthsBack);
             @SuppressWarnings("unchecked")
             List<Object[]> rows = q.getResultList();
             final int m = months;
@@ -793,22 +796,30 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             return new JSONObject().put("success", false);
         }
         String libelle = "";
+        String cip = "";
         try {
             TFamille f = em.find(TFamille.class, produitId);
             if (f != null) {
                 libelle = nz(f.getStrNAME());
+                cip = nz(f.getIntCIP());
             }
         } catch (Exception e) {
             // ignore
         }
+        final String[] MOIS = { "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août",
+                "Septembre", "Octobre", "Novembre", "Décembre" };
         Map<String, long[]> map = monthlyConso(produitId, months);
         long[] arr = map.getOrDefault(produitId, new long[months]);
+        java.time.LocalDate now = java.time.LocalDate.now();
         JSONArray data = new JSONArray();
+        long total = 0;
         for (int i = 0; i < months; i++) {
-            String label = (i == 0) ? "Mois courant (M)" : ("M-" + i);
+            java.time.LocalDate d = now.minusMonths(i);
+            String label = MOIS[d.getMonthValue() - 1];
             data.put(new JSONObject().put("mois", label).put("conso", arr[i]));
+            total += arr[i];
         }
-        return new JSONObject().put("success", true).put("produitId", produitId).put("libelle", libelle)
-                .put("data", data);
+        return new JSONObject().put("success", true).put("produitId", produitId).put("cip", cip)
+                .put("libelle", libelle).put("total", total).put("data", data);
     }
 }

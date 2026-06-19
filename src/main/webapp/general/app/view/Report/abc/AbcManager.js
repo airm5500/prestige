@@ -304,29 +304,60 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
 
     showProduitDetail: function (rec) {
         const produitId = rec.get('produitId');
+        const cip = rec.get('cip');
         const libelle = rec.get('libelle');
-        const store = Ext.create('Ext.data.Store', {
-            fields: [{name: 'mois', type: 'string'}, {name: 'conso', type: 'number'}],
-            autoLoad: true,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/articles/abc/produit/conso',
-                extraParams: {produitId: produitId, months: 7},
-                reader: {type: 'json', root: 'data'}
+        const title = 'Consommation mensuelle - ' + (cip ? '[' + cip + '] ' : '') + libelle;
+
+        const mask = Ext.MessageBox.wait('Chargement de la consommation...', 'Veuillez patienter');
+        Ext.Ajax.request({
+            url: '../api/v1/articles/abc/produit/conso',
+            method: 'GET',
+            params: {produitId: produitId, months: 7},
+            success: function (response) {
+                mask.hide();
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                const arr = r.data || [];
+                const moneyR = function (v) { return Ext.util.Format.number(v, '0,000.'); };
+
+                const fields = [];
+                const columns = [];
+                const recData = {};
+                let totalWidth = 0;
+                Ext.each(arr, function (item, i) {
+                    const fname = 'm' + i;
+                    const header = item.mois || ('M-' + i);
+                    const w = Math.max(70, header.length * 9 + 24); // largeur proportionnelle au nom du mois
+                    fields.push({name: fname, type: 'number'});
+                    recData[fname] = item.conso;
+                    totalWidth += w;
+                    columns.push({header: header, dataIndex: fname, width: w, align: 'right', renderer: moneyR});
+                });
+                // Colonne Total en rouge
+                fields.push({name: 'total', type: 'number'});
+                recData.total = (r.total != null) ? r.total : 0;
+                totalWidth += 100;
+                columns.push({
+                    header: 'Total', dataIndex: 'total', width: 100, align: 'right',
+                    renderer: function (v) {
+                        return '<span style="color:red;font-weight:bold">' + moneyR(v) + '</span>';
+                    }
+                });
+
+                const store = Ext.create('Ext.data.Store', {fields: fields, data: [recData]});
+                Ext.create('Ext.window.Window', {
+                    title: title, modal: true, autoShow: true, plain: true, layout: 'fit',
+                    width: Math.min(960, totalWidth + 40), height: 150,
+                    items: [{
+                        xtype: 'gridpanel', store: store, disableSelection: true,
+                        viewConfig: {columnLines: true}, columns: columns
+                    }],
+                    buttons: [{text: 'Fermer', handler: function (b) { b.up('window').close(); }}]
+                });
+            },
+            failure: function (response) {
+                mask.hide();
+                Ext.Msg.alert('Erreur', 'Chargement impossible. Code HTTP : ' + response.status);
             }
         });
-        Ext.create('Ext.window.Window', {
-            title: 'Consommation mensuelle - ' + libelle,
-            modal: true, width: 420, height: 320, layout: 'fit', plain: true,
-            items: [{
-                xtype: 'gridpanel', store: store, viewConfig: {columnLines: true},
-                columns: [
-                    {header: 'Mois', dataIndex: 'mois', flex: 1},
-                    {header: 'Conso (équiv. boîte)', dataIndex: 'conso', width: 160, align: 'right',
-                        renderer: function (v) { return Ext.util.Format.number(v, '0,000.'); }}
-                ]
-            }],
-            buttons: [{text: 'Fermer', handler: function (b) { b.up('window').close(); }}]
-        }).show();
     }
 });
