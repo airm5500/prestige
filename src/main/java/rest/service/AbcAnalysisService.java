@@ -76,4 +76,10 @@ public interface AbcAnalysisService {
     JSONObject createSuggestion(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
             Integer stockMax);
+
+    /**
+     * Detail de consommation mensuelle d'un produit (equivalent boite) : mois
+     * courant + N-1 mois precedents, consolide detail -> parent.
+     */
+    JSONObject produitConso(String produitId, int months);
 }

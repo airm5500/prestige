@@ -2,6 +2,7 @@ package rest.service.impl;
 
 import commonTasks.dto.AbcProduitDTO;
 import dal.TClasseAbc;
+import dal.TFamille;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
@@ -438,9 +439,16 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 + " au " + dtEnd;
     }
 
+    private static final int EXPORT_MONTHS = 7;
+
     private static final String[] EXPORT_HEADERS = { "CIP", "EAN", "Libellé", "Classe", "Famille", "Rayon",
             "Code Geo", "Stock", "Seuil", "Qté réappro", "Qté vendue", "CA", "Marge", "Part %", "Cumul %", "Q1", "Q2",
-            "Q3", "Unité" };
+            "Q3", "Unité", "Conso M", "Conso M-1", "Conso M-2", "Conso M-3", "Conso M-4", "Conso M-5", "Conso M-6" };
+
+    private static long consoAt(AbcProduitDTO d, int i) {
+        long[] c = d.getConsoMois();
+        return (c != null && i < c.length) ? c[i] : 0L;
+    }
 
     @Override
     public byte[] buildExcel(String dtStart, String dtEnd, String type, String classe, String search,
@@ -451,6 +459,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         if (rows.isEmpty()) {
             return new byte[0];
         }
+        enrichWithConso(rows, EXPORT_MONTHS);
         try {
             return reportExcelExportService.createExcelReport(reportTitle(type, classe, dtStart, dtEnd), EXPORT_HEADERS,
                     rows, (Row row, AbcProduitDTO d) -> {
@@ -474,6 +483,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                         row.createCell(col++).setCellValue(d.getQ2() != null ? d.getQ2() : 0);
                         row.createCell(col++).setCellValue(d.getQ3() != null ? d.getQ3() : 0);
                         row.createCell(col++).setCellValue(nz(d.getUniteCalcul()));
+                        for (int i = 0; i < EXPORT_MONTHS; i++) {
+                            row.createCell(col++).setCellValue(consoAt(d, i));
+                        }
                     });
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Export Excel ABC impossible", e);
@@ -489,17 +501,35 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         if (rows.isEmpty()) {
             return new byte[0];
         }
+        enrichWithConso(rows, EXPORT_MONTHS);
         try {
             byte[] raw = csvExportService.createCsvReport(reportTitle(type, classe, dtStart, dtEnd), EXPORT_HEADERS,
-                    rows, d -> new String[] { nz(d.getCip()), nz(d.getEan()), nz(d.getLibelle()), nz(d.getClasse()),
-                            nz(d.getFamille()), nz(d.getRayon()), nz(d.getCodeGeoArticle()),
-                            String.valueOf(d.getStockDisponible()), String.valueOf(d.getSeuilMini()),
-                            String.valueOf(d.getQuantiteReappro()), String.valueOf(d.getQuantiteVendue()),
-                            String.valueOf(d.getChiffreAffaires()), String.valueOf(d.getMarge()),
-                            String.valueOf(d.getPartPourcentage()), String.valueOf(d.getCumulPourcentage()),
-                            String.valueOf(d.getQ1() != null ? d.getQ1() : 0),
-                            String.valueOf(d.getQ2() != null ? d.getQ2() : 0),
-                            String.valueOf(d.getQ3() != null ? d.getQ3() : 0), nz(d.getUniteCalcul()) });
+                    rows, d -> {
+                        List<String> v = new ArrayList<>();
+                        v.add(nz(d.getCip()));
+                        v.add(nz(d.getEan()));
+                        v.add(nz(d.getLibelle()));
+                        v.add(nz(d.getClasse()));
+                        v.add(nz(d.getFamille()));
+                        v.add(nz(d.getRayon()));
+                        v.add(nz(d.getCodeGeoArticle()));
+                        v.add(String.valueOf(d.getStockDisponible()));
+                        v.add(String.valueOf(d.getSeuilMini()));
+                        v.add(String.valueOf(d.getQuantiteReappro()));
+                        v.add(String.valueOf(d.getQuantiteVendue()));
+                        v.add(String.valueOf(d.getChiffreAffaires()));
+                        v.add(String.valueOf(d.getMarge()));
+                        v.add(String.valueOf(d.getPartPourcentage()));
+                        v.add(String.valueOf(d.getCumulPourcentage()));
+                        v.add(String.valueOf(d.getQ1() != null ? d.getQ1() : 0));
+                        v.add(String.valueOf(d.getQ2() != null ? d.getQ2() : 0));
+                        v.add(String.valueOf(d.getQ3() != null ? d.getQ3() : 0));
+                        v.add(nz(d.getUniteCalcul()));
+                        for (int i = 0; i < EXPORT_MONTHS; i++) {
+                            v.add(String.valueOf(consoAt(d, i)));
+                        }
+                        return v.toArray(new String[0]);
+                    });
             return csvExportService.addUtf8Bom(raw);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Export CSV ABC impossible", e);
@@ -512,21 +542,23 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
                 codeGrossiste, stockFilter, stockMin, stockMax);
+        enrichWithConso(rows, EXPORT_MONTHS);
 
-        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock", "Seuil", "Qté", "CA",
-                "Marge", "Part %", "Cumul %" };
-        // Libelle elargi ; Stock / Qte / Marge reduits pour que le nom tienne sur 1 ligne.
-        float[] widths = { 6f, 27f, 3.5f, 12f, 11f, 5f, 5f, 5f, 8f, 6f, 5f, 5f };
+        String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock", "Seuil", "Q.réa", "M", "M-1",
+                "M-2", "M-3", "CA", "Marge", "Part %", "Cumul %" };
+        // Libelle large (nom sur 1 ligne) ; CA/Marge/Stock/Seuil/Part/Cumul reduits
+        // pour loger Qte reappro + conso M..M-3.
+        float[] widths = { 5f, 18f, 3f, 9f, 8f, 4f, 4f, 4.5f, 4f, 4f, 4f, 4f, 6.5f, 5.5f, 4.5f, 4.5f };
 
-        Document document = new Document(PageSize.A4.rotate(), 20, 20, 20, 20);
+        Document document = new Document(PageSize.A4.rotate(), 18, 18, 18, 18);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             PdfWriter.getInstance(document, baos);
             document.open();
 
             Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-            Font headFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7);
-            Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 7);
+            Font headFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f);
+            Font cellFont = FontFactory.getFont(FontFactory.HELVETICA, 6.5f);
 
             Paragraph title = new Paragraph(reportTitle(type, classe, dtStart, dtEnd), titleFont);
             title.setSpacingAfter(6f);
@@ -556,9 +588,13 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 table.addCell(new PdfPCell(new Phrase(nz(d.getRayon()), cellFont)));
                 table.addCell(rightCell(String.valueOf(d.getStockDisponible()), cellFont));
                 table.addCell(rightCell(String.valueOf(d.getSeuilMini()), cellFont));
-                table.addCell(rightCell(String.valueOf(d.getQuantiteVendue()), cellFont));
-                table.addCell(rightCell(String.valueOf(d.getChiffreAffaires()), cellFont));
-                table.addCell(rightCell(String.valueOf(d.getMarge()), cellFont));
+                table.addCell(rightCell(String.valueOf(d.getQuantiteReappro()), cellFont));
+                table.addCell(rightCell(String.valueOf(consoAt(d, 0)), cellFont));
+                table.addCell(rightCell(String.valueOf(consoAt(d, 1)), cellFont));
+                table.addCell(rightCell(String.valueOf(consoAt(d, 2)), cellFont));
+                table.addCell(rightCell(String.valueOf(consoAt(d, 3)), cellFont));
+                table.addCell(rightCell(formatFcfa(d.getChiffreAffaires()), cellFont));
+                table.addCell(rightCell(formatFcfa(d.getMarge()), cellFont));
                 table.addCell(rightCell(String.format(java.util.Locale.US, "%.2f", d.getPartPourcentage()), cellFont));
                 table.addCell(rightCell(String.format(java.util.Locale.US, "%.2f", d.getCumulPourcentage()), cellFont));
             }
@@ -676,5 +712,103 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             LOG.log(Level.SEVERE, "Creation suggestion ABC impossible", e);
             return new JSONObject().put("success", false).put("count", 0);
         }
+    }
+
+    // ----------------------- Consommation mensuelle (M .. M-n) --------------
+
+    /**
+     * Conso mensuelle consolidee (equivalent boite) par produit effectif.
+     * Cle = id produit (parent), valeur = tableau [mois courant, M-1, ... M-(months-1)].
+     * Si produitId != null, restreint a ce produit.
+     */
+    private Map<String, long[]> monthlyConso(String produitId, int months) {
+        int monthsBack = Math.max(0, months - 1);
+        String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        StringBuilder sql = new StringBuilder()
+                .append("SELECT t.eff_id, t.m_index, SUM(t.qty_equiv) FROM (")
+                .append("SELECT CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' ")
+                .append("THEN f.lg_FAMILLE_PARENT_ID ELSE f.lg_FAMILLE_ID END AS eff_id, ")
+                .append("((YEAR(CURDATE())*12+MONTH(CURDATE())) - (YEAR(p.dt_UPDATED)*12+MONTH(p.dt_UPDATED))) AS m_index, ")
+                .append("CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' ")
+                .append("THEN pd.int_QUANTITY/COALESCE(NULLIF(parent.int_NUMBERDETAIL,0),1) ELSE pd.int_QUANTITY END AS qty_equiv ")
+                .append("FROM t_preenregistrement p ")
+                .append("JOIN t_user u ON p.lg_USER_ID=u.lg_USER_ID ")
+                .append("JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID ")
+                .append("JOIN t_famille f ON pd.lg_FAMILLE_ID=f.lg_FAMILLE_ID ")
+                .append("LEFT JOIN t_famille parent ON parent.lg_FAMILLE_ID=f.lg_FAMILLE_PARENT_ID ")
+                .append("WHERE p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5' ")
+                .append("AND u.lg_EMPLACEMENT_ID=?1 ")
+                .append("AND p.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ?2 MONTH),'%Y-%m-01')")
+                .append(") t WHERE t.m_index BETWEEN 0 AND ?3");
+        if (produitId != null) {
+            sql.append(" AND t.eff_id = ?4");
+        }
+        sql.append(" GROUP BY t.eff_id, t.m_index");
+
+        Map<String, long[]> map = new HashMap<>();
+        try {
+            Query q = em.createNativeQuery(sql.toString());
+            q.setParameter(1, emplacement);
+            q.setParameter(2, monthsBack);
+            q.setParameter(3, monthsBack);
+            if (produitId != null) {
+                q.setParameter(4, produitId);
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = q.getResultList();
+            final int m = months;
+            for (Object[] r : rows) {
+                String id = asStr(r[0]);
+                int idx = asInt(r[1]);
+                if (idx < 0 || idx >= m) {
+                    continue;
+                }
+                long[] arr = map.computeIfAbsent(id, k -> new long[m]);
+                arr[idx] = Math.round(asDouble(r[2]));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Calcul conso mensuelle ABC impossible", e);
+        }
+        return map;
+    }
+
+    /** Renseigne consoMois sur chaque ligne (un seul appel SQL pour tout le lot). */
+    private void enrichWithConso(List<AbcProduitDTO> rows, int months) {
+        if (rows == null || rows.isEmpty()) {
+            return;
+        }
+        Map<String, long[]> map = monthlyConso(null, months);
+        for (AbcProduitDTO d : rows) {
+            long[] arr = map.get(d.getProduitId());
+            d.setConsoMois(arr != null ? arr : new long[months]);
+        }
+    }
+
+    @Override
+    public JSONObject produitConso(String produitId, int months) {
+        if (months <= 0) {
+            months = 7;
+        }
+        if (StringUtils.isBlank(produitId)) {
+            return new JSONObject().put("success", false);
+        }
+        String libelle = "";
+        try {
+            TFamille f = em.find(TFamille.class, produitId);
+            if (f != null) {
+                libelle = nz(f.getStrNAME());
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        Map<String, long[]> map = monthlyConso(produitId, months);
+        long[] arr = map.getOrDefault(produitId, new long[months]);
+        JSONArray data = new JSONArray();
+        for (int i = 0; i < months; i++) {
+            String label = (i == 0) ? "Mois courant (M)" : ("M-" + i);
+            data.put(new JSONObject().put("mois", label).put("conso", arr[i]));
+        }
+        return new JSONObject().put("success", true).put("produitId", produitId).put("libelle", libelle)
+                .put("data", data);
     }
 }

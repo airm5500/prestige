@@ -29,6 +29,8 @@ public class AbcProduitDTO {
     private Integer q2;
     private Integer q3;
     private String uniteCalcul;
+    /** Consommation (equivalent boite) par mois : index 0 = mois courant, 1 = M-1, ... */
+    private long[] consoMois;
 
     public String getProduitId() {
         return produitId;
@@ -196,5 +198,13 @@ public class AbcProduitDTO {
 
     public void setUniteCalcul(String uniteCalcul) {
         this.uniteCalcul = uniteCalcul;
+    }
+
+    public long[] getConsoMois() {
+        return consoMois;
+    }
+
+    public void setConsoMois(long[] consoMois) {
+        this.consoMois = consoMois;
     }
 }

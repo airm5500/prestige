@@ -138,6 +138,13 @@ public class AbcArticleRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    @GET
+    @Path("produit/conso")
+    public Response produitConso(@QueryParam("produitId") String produitId,
+            @DefaultValue("7") @QueryParam("months") int months) {
+        return Response.ok().entity(abcAnalysisService.produitConso(produitId, months).toString()).build();
+    }
+
     // ----------------------- Configuration des classes ABC ------------------
     @GET
     @Path("classes")
