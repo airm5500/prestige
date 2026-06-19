@@ -25,11 +25,11 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
             'abcmanager #searchField': {specialkey: this.onSearchKey},
             'abcmanager #recalculer': {click: this.onRecalculer},
             'abcmanager #appliquer': {click: this.onAppliquer},
-            'abcmanager #detailProduit': {click: this.onDetailProduit},
             'abcmanager #parametrerClasses': {click: this.onParametrerClasses},
             'abcmanager #imprimer': {click: this.onImprimer},
-            'abcmanager #exportExcel': {click: this.onExportExcel},
-            'abcmanager #exportCsv': {click: this.onExportCsv},
+            'abcmanager #btnExporter': {click: this.onExportExcel},
+            'abcmanager #exporterExcel': {click: this.onExportExcel},
+            'abcmanager #exporterCsv': {click: this.onExportCsv},
             'abcmanager #creerSuggestion': {click: this.onCreerSuggestion},
             'abcmanager #creerInventaire': {click: this.onCreerInventaire}
         });
@@ -210,49 +210,6 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
                         }
                     });
                 });
-    },
-
-    onDetailProduit: function () {
-        const me = this;
-        const sel = me.getGrid().getSelectionModel().getSelection();
-        if (!sel || sel.length === 0) {
-            Ext.Msg.alert('Détail produit', 'Veuillez sélectionner un produit dans la grille.');
-            return;
-        }
-        const rec = sel[0];
-        const produitId = rec.get('produitId');
-        const libelle = rec.get('libelle');
-
-        const store = Ext.create('Ext.data.Store', {
-            fields: [{name: 'mois', type: 'string'}, {name: 'conso', type: 'number'}],
-            autoLoad: true,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/articles/abc/produit/conso',
-                extraParams: {produitId: produitId, months: 7},
-                reader: {type: 'json', root: 'data'}
-            }
-        });
-
-        Ext.create('Ext.window.Window', {
-            title: 'Consommation mensuelle - ' + libelle,
-            modal: true,
-            width: 420,
-            height: 320,
-            layout: 'fit',
-            plain: true,
-            items: [{
-                xtype: 'gridpanel',
-                store: store,
-                viewConfig: {columnLines: true},
-                columns: [
-                    {header: 'Mois', dataIndex: 'mois', flex: 1},
-                    {header: 'Conso (équiv. boîte)', dataIndex: 'conso', width: 160, align: 'right',
-                        renderer: function (v) { return Ext.util.Format.number(v, '0,000.'); }}
-                ]
-            }],
-            buttons: [{text: 'Fermer', handler: function (b) { b.up('window').close(); }}]
-        }).show();
     },
 
     onParametrerClasses: function () {

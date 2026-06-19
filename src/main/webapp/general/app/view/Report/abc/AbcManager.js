@@ -141,7 +141,6 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {text: 'Recalculer classification', itemId: 'recalculer', iconCls: 'suggestionreapro', tooltip: 'Recalcule la classification ABC sur la période'},
                         {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
                         {xtype: 'tbseparator'},
-                        {text: 'Détail produit', itemId: 'detailProduit', iconCls: 'charticon', tooltip: 'Consommation mensuelle (M à M-6) du produit sélectionné'},
                         {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'}
                     ]
                 },
@@ -152,8 +151,14 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {xtype: 'tbtext', itemId: 'summaryLabel', text: 'A: -, B: -, C: -'},
                         '->',
                         {text: 'Imprimer', itemId: 'imprimer', iconCls: 'printable', tooltip: 'Imprimer le résultat filtré (PDF)'},
-                        {text: 'Exporter Excel', itemId: 'exportExcel', iconCls: 'export_excel_icon', tooltip: 'Exporter le résultat filtré en Excel'},
-                        {text: 'Exporter CSV', itemId: 'exportCsv', iconCls: 'export_csv_icon', tooltip: 'Exporter le résultat filtré en CSV'},
+                        {
+                            xtype: 'splitbutton', text: 'Exporter', itemId: 'btnExporter', iconCls: 'export_excel_icon',
+                            tooltip: 'Exporter le résultat filtré',
+                            menu: [
+                                {text: 'Exporter Excel', itemId: 'exporterExcel', iconCls: 'export_excel_icon'},
+                                {text: 'Exporter CSV', itemId: 'exporterCsv', iconCls: 'export_csv_icon'}
+                            ]
+                        },
                         {text: 'Créer suggestion', itemId: 'creerSuggestion', iconCls: 'suggestionreapro', tooltip: 'Créer des suggestions de commande à partir du résultat filtré'},
                         {text: 'Créer inventaire', itemId: 'creerInventaire', iconCls: 'addicon', tooltip: 'Créer un inventaire à partir du résultat filtré'}
                     ]
@@ -211,7 +216,21 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {header: 'Q1', dataIndex: 'q1', width: 45, align: 'right', hidden: true},
                         {header: 'Q2', dataIndex: 'q2', width: 45, align: 'right', hidden: true},
                         {header: 'Q3', dataIndex: 'q3', width: 45, align: 'right', hidden: true},
-                        {header: 'Unité', dataIndex: 'uniteCalcul', width: 80, hidden: true}
+                        {header: 'Unité', dataIndex: 'uniteCalcul', width: 80, hidden: true},
+                        {
+                            xtype: 'actioncolumn', header: 'Détail', width: 55, align: 'center',
+                            sortable: false, menuDisabled: true,
+                            items: [{
+                                iconCls: 'charticon',
+                                tooltip: 'Détail consommation mensuelle (M à M-6)',
+                                handler: function (view, rowIndex) {
+                                    const rec = me.gridStore.getAt(rowIndex);
+                                    if (rec) {
+                                        me.showProduitDetail(rec);
+                                    }
+                                }
+                            }]
+                        }
                     ],
                     selModel: {selType: 'cellmodel'},
                     bbar: {xtype: 'pagingtoolbar', store: data, dock: 'bottom', displayInfo: true},
@@ -272,6 +291,42 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     + '<span style="color:#8B4513;font-weight:bold">' + nb + '</span> -&gt; '
                     + '<span style="color:#0000ff;font-weight:bold">CA ' + ca + ' F.CFA</span>';
         };
-        lbl.setText(fmt('A') + '  |  ' + fmt('B') + '  |  ' + fmt('C'));
+        const sumField = function (f) {
+            return ((summary.A && summary.A[f]) || 0) + ((summary.B && summary.B[f]) || 0)
+                    + ((summary.C && summary.C[f]) || 0);
+        };
+        const totalNb = sumField('nbProduits');
+        const totalCa = Ext.util.Format.number(sumField('chiffreAffaires'), '0,000.');
+        const totalTxt = ' <span style="color:#222;font-weight:bold">( ' + totalNb
+                + ' produits -&gt; CA Total = ' + totalCa + ' F.CFA )</span>';
+        lbl.setText(fmt('A') + '  |  ' + fmt('B') + '  |  ' + fmt('C') + totalTxt);
+    },
+
+    showProduitDetail: function (rec) {
+        const produitId = rec.get('produitId');
+        const libelle = rec.get('libelle');
+        const store = Ext.create('Ext.data.Store', {
+            fields: [{name: 'mois', type: 'string'}, {name: 'conso', type: 'number'}],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/articles/abc/produit/conso',
+                extraParams: {produitId: produitId, months: 7},
+                reader: {type: 'json', root: 'data'}
+            }
+        });
+        Ext.create('Ext.window.Window', {
+            title: 'Consommation mensuelle - ' + libelle,
+            modal: true, width: 420, height: 320, layout: 'fit', plain: true,
+            items: [{
+                xtype: 'gridpanel', store: store, viewConfig: {columnLines: true},
+                columns: [
+                    {header: 'Mois', dataIndex: 'mois', flex: 1},
+                    {header: 'Conso (équiv. boîte)', dataIndex: 'conso', width: 160, align: 'right',
+                        renderer: function (v) { return Ext.util.Format.number(v, '0,000.'); }}
+                ]
+            }],
+            buttons: [{text: 'Fermer', handler: function (b) { b.up('window').close(); }}]
+        }).show();
     }
 });
