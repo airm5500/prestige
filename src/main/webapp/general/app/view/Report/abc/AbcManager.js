@@ -52,7 +52,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     proxy.setExtraParam('codeFamille', v('codeFamile'));
                 },
                 load: function (store, records, success, operation) {
-                    me.updateSummary(operation);
+                    me.updateSummary(store);
                 }
             }
         });
@@ -180,7 +180,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
         me.callParent(arguments);
     },
 
-    updateSummary: function (operation) {
+    updateSummary: function (store) {
         const me = this;
         const lbl = me.down('#summaryLabel');
         if (!lbl) {
@@ -188,11 +188,10 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
         }
         let summary = null;
         try {
-            const resp = operation && operation.getResponse ? operation.getResponse() : (operation ? operation.response : null);
-            if (resp && resp.responseText) {
-                const obj = Ext.JSON.decode(resp.responseText, true);
-                summary = obj ? obj.summary : null;
-            }
+            // Le JSON complet (avec "summary") est conserve par le reader du store.
+            const reader = store && store.getProxy ? store.getProxy().getReader() : null;
+            const raw = reader ? (reader.rawData || reader.jsonData) : null;
+            summary = raw ? raw.summary : null;
         } catch (e) {
             summary = null;
         }
