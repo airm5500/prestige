@@ -3,6 +3,7 @@ package rest.service.impl;
 import commonTasks.dto.AbcProduitDTO;
 import dal.TClasseAbc;
 import dal.TFamille;
+import dal.TParameters;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Document;
 import com.lowagie.text.Element;
@@ -113,13 +114,27 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @Override
     public List<AbcProduitDTO> classify(String dtStart, String dtEnd, String type, String codeFamille, String codeRayon,
             String codeGrossiste) {
+        String emplacement;
+        try {
+            emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        } catch (Exception e) {
+            emplacement = "";
+        }
+        return classifyForEmplacement(emplacement, dtStart, dtEnd, type, codeFamille, codeRayon, codeGrossiste);
+    }
+
+    /**
+     * Classification pour un emplacement donne. emplacement vide/null = toute la
+     * pharmacie (procedures adaptees pour ignorer le filtre emplacement).
+     */
+    private List<AbcProduitDTO> classifyForEmplacement(String emplacement, String dtStart, String dtEnd, String type,
+            String codeFamille, String codeRayon, String codeGrossiste) {
         List<AbcProduitDTO> list = new ArrayList<>();
         try {
-            String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             Query query = em.createNativeQuery("CALL " + procedureName(type) + "(?, ?, ?, ?, ?, ?)");
             query.setParameter(1, dtStart);
             query.setParameter(2, dtEnd);
-            query.setParameter(3, emplacement);
+            query.setParameter(3, emplacement == null ? "" : emplacement);
             query.setParameter(4, norm(codeFamille));
             query.setParameter(5, norm(codeRayon));
             query.setParameter(6, norm(codeGrossiste));
@@ -301,10 +316,15 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     public JSONObject apply(String dtStart, String dtEnd, String type, String codeFamille, String codeRayon,
             String codeGrossiste) {
         List<AbcProduitDTO> all = classify(dtStart, dtEnd, type, codeFamille, codeRayon, codeGrossiste);
-        if (all.isEmpty()) {
-            return new JSONObject().put("success", true).put("count", 0);
-        }
+        int count = applyClassification(all);
+        return new JSONObject().put("success", true).put("count", count);
+    }
 
+    /** Ecrit la classe (lg_CLASSE_ABC_ID + date) sur t_famille pour la liste classee. Renvoie le nb mis a jour. */
+    private int applyClassification(List<AbcProduitDTO> all) {
+        if (all == null || all.isEmpty()) {
+            return 0;
+        }
         // Code classe -> id technique
         Map<String, String> codeToId = new HashMap<>();
         try {
@@ -314,7 +334,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Lecture t_classe_abc impossible", e);
-            return new JSONObject().put("success", false).put("count", 0);
+            return 0;
         }
 
         // Regroupe les produits par classe puis applique par lots
@@ -342,7 +362,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 count += updated;
             }
         }
-        return new JSONObject().put("success", true).put("count", count);
+        return count;
     }
 
     @Override
@@ -918,5 +938,74 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                     .put("C", Math.round(c)));
         }
         return new JSONObject().put("success", true).put("indicator", ind).put("months", months);
+    }
+
+    // ----------------------- Reclassification automatique -------------------
+
+    private String readParam(String key, String def) {
+        try {
+            TParameters p = em.find(TParameters.class, key);
+            return (p != null && p.getStrVALUE() != null) ? p.getStrVALUE() : def;
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
+    private void writeParam(String key, String value) {
+        try {
+            TParameters p = em.find(TParameters.class, key);
+            if (p == null) {
+                p = new TParameters(key);
+                p.setStrVALUE(value);
+                p.setStrSTATUT("enable");
+                p.setDtCREATED(new Date());
+                em.persist(p);
+            } else {
+                p.setStrVALUE(value);
+                p.setDtUPDATED(new Date());
+                em.merge(p);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Ecriture parametre " + key + " impossible", e);
+        }
+    }
+
+    @Override
+    public JSONObject autoReclassifyIfDue() {
+        // Activation
+        if (!"1".equals(readParam("ABC_AUTO_RECLASS", "1").trim())) {
+            return new JSONObject().put("success", true).put("skipped", "disabled");
+        }
+        java.time.LocalDate today = java.time.LocalDate.now();
+        // Deja fait ce mois ?
+        String last = readParam("ABC_LAST_RECLASS_DATE", "");
+        try {
+            if (StringUtils.isNotBlank(last)) {
+                java.time.LocalDate d = java.time.LocalDate.parse(last.trim());
+                if (d.getYear() == today.getYear() && d.getMonthValue() == today.getMonthValue()) {
+                    return new JSONObject().put("success", true).put("skipped", "already-done");
+                }
+            }
+        } catch (Exception e) {
+            // date invalide -> on recalcule
+        }
+
+        int nbMois;
+        try {
+            nbMois = Integer.parseInt(readParam("ABC_RECLASS_NB_MOIS", "12").trim());
+        } catch (Exception e) {
+            nbMois = 12;
+        }
+        if (nbMois <= 0) {
+            nbMois = 12;
+        }
+        String dtEnd = today.toString();
+        String dtStart = today.minusMonths(nbMois).withDayOfMonth(1).toString();
+
+        // Pharmacie entiere (emplacement vide), critere standard CA
+        List<AbcProduitDTO> all = classifyForEmplacement("", dtStart, dtEnd, "CA", "", "", "");
+        int count = applyClassification(all);
+        writeParam("ABC_LAST_RECLASS_DATE", today.toString());
+        return new JSONObject().put("success", true).put("count", count).put("dtStart", dtStart).put("dtEnd", dtEnd);
     }
 }

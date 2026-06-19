@@ -158,6 +158,14 @@ public class AbcArticleRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Declenche la reclassification automatique (respecte le verrou mensuel ABC_LAST_RECLASS_DATE). */
+    @POST
+    @Path("auto-reclassify")
+    @Consumes(MediaType.WILDCARD)
+    public Response autoReclassify() {
+        return Response.ok().entity(abcAnalysisService.autoReclassifyIfDue().toString()).build();
+    }
+
     // ----------------------- Configuration des classes ABC ------------------
     @GET
     @Path("classes")

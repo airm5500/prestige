@@ -91,4 +91,12 @@ public interface AbcAnalysisService {
     JSONObject evolution(String dtStart, String dtEnd, String type, String indicator, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
             Integer stockMax);
+
+    /**
+     * Reclassification automatique mensuelle : si activee (ABC_AUTO_RECLASS=1) et
+     * non deja faite ce mois (parametre ABC_LAST_RECLASS_DATE), classe la pharmacie
+     * entiere sur les N derniers mois (ABC_RECLASS_NB_MOIS) puis applique aux fiches.
+     * Idempotent : ne fait rien si deja execute le mois courant.
+     */
+    JSONObject autoReclassifyIfDue();
 }
