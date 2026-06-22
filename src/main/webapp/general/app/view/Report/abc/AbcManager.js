@@ -59,9 +59,10 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     };
                     proxy.setExtraParam('dtStart', me.down('#dtStart').getSubmitValue());
                     proxy.setExtraParam('dtEnd', me.down('#dtEnd').getSubmitValue());
-                    proxy.setExtraParam('type', v('comboType') || 'CA');
+                    proxy.setExtraParam('type', v('comboType') || 'QTY');
                     proxy.setExtraParam('classe', v('comboClasse') || 'ALL');
                     proxy.setExtraParam('stockFilter', v('comboStock') || 'ALL');
+                    proxy.setExtraParam('stockMin', v('stockValue'));
                     proxy.setExtraParam('search', v('searchField'));
                     proxy.setExtraParam('codeRayon', v('rayons'));
                     proxy.setExtraParam('codeGrossiste', v('grossiste'));
@@ -90,9 +91,9 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
         const filtreType = new Ext.data.Store({
             fields: ['id', 'libelle'],
             data: [
-                {id: 'CA', libelle: "Chiffre d'Affaires"},
                 {id: 'QTY', libelle: "Quantité"},
-                {id: 'MARGE', libelle: "Marge"}
+                {id: 'MARGE', libelle: "Marge"},
+                {id: 'CA', libelle: "Chiffre d'Affaires"}
             ]
         });
         const filtreClasse = new Ext.data.Store({
@@ -108,13 +109,19 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
             fields: ['id', 'libelle'],
             data: [
                 {id: 'ALL', libelle: 'Tous les stocks'},
-                {id: 'SUP0', libelle: 'Stock > 0'},
-                {id: 'EGAL0', libelle: 'Stock = 0'},
+                {id: 'SUP', libelle: 'Stock >'},
+                {id: 'SUPEQ', libelle: 'Stock >='},
+                {id: 'INF', libelle: 'Stock <'},
+                {id: 'INFEQ', libelle: 'Stock <='},
+                {id: 'EGAL', libelle: 'Stock ='},
                 {id: 'INF_SEUIL', libelle: 'Stock < seuil'},
-                {id: 'INF_EGAL_SEUIL', libelle: 'Stock <= seuil'},
-                {id: 'NEGATIF', libelle: 'Stock négatif'}
+                {id: 'INF_EGAL_SEUIL', libelle: 'Stock <= seuil'}
             ]
         });
+        // Opérateurs nécessitant une valeur saisie
+        const stockNeedsValue = function (op) {
+            return op === 'SUP' || op === 'SUPEQ' || op === 'INF' || op === 'INFEQ' || op === 'EGAL';
+        };
 
         Ext.applyIf(me, {
             dockedItems: [
@@ -133,9 +140,37 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     xtype: 'toolbar',
                     dock: 'top',
                     items: [
-                        {xtype: 'combo', value: 'CA', flex: 1, itemId: 'comboType', labelWidth: 1, editable: false, store: filtreType, valueField: 'id', displayField: 'libelle'},
+                        {xtype: 'combo', value: 'QTY', flex: 1, itemId: 'comboType', labelWidth: 1, editable: false, store: filtreType, valueField: 'id', displayField: 'libelle'},
                         {xtype: 'combo', value: 'ALL', flex: 1, itemId: 'comboClasse', labelWidth: 1, editable: false, store: filtreClasse, valueField: 'id', displayField: 'libelle'},
-                        {xtype: 'combo', value: 'ALL', flex: 1, itemId: 'comboStock', labelWidth: 1, editable: false, store: filtreStock, valueField: 'id', displayField: 'libelle'},
+                        {
+                            xtype: 'combo', value: 'ALL', flex: 1, itemId: 'comboStock', labelWidth: 1, editable: false,
+                            store: filtreStock, valueField: 'id', displayField: 'libelle',
+                            listeners: {
+                                select: function (combo, recs) {
+                                    const op = (recs && recs[0]) ? recs[0].get('id') : combo.getValue();
+                                    const champ = me.down('#stockValue');
+                                    if (stockNeedsValue(op)) {
+                                        champ.show();
+                                        champ.focus(true, 50); // focus automatique
+                                    } else {
+                                        champ.hide();
+                                        champ.setValue(null);
+                                        me.gridStore.loadPage(1); // pas de valeur a saisir -> recherche immediate
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            xtype: 'numberfield', itemId: 'stockValue', width: 90, hidden: true, hideLabel: true,
+                            emptyText: 'valeur', minValue: 0, allowDecimals: false,
+                            listeners: {
+                                specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        me.gridStore.loadPage(1);
+                                    }
+                                }
+                            }
+                        },
                         {xtype: 'textfield', flex: 1, itemId: 'searchField', emptyText: 'CIP, libellé, EAN, code Geo'},
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
                         {xtype: 'tbseparator'},

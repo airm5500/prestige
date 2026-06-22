@@ -189,15 +189,29 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             return true;
         }
         int stock = d.getStockDisponible();
+        int val = (min != null) ? min : 0; // valeur libre saisie par l'utilisateur
         switch (stockFilter.trim().toUpperCase()) {
-        case "SUP0":
-            return stock > 0;
-        case "EGAL0":
-            return stock == 0;
+        // Operateurs avec valeur libre
+        case "SUP":
+            return stock > val;
+        case "SUPEQ":
+            return stock >= val;
+        case "INF":
+            return stock < val;
+        case "INFEQ":
+            return stock <= val;
+        case "EGAL":
+            return stock == val;
+        // Operateurs sur le seuil du produit
         case "INF_SEUIL":
             return stock < d.getSeuilMini();
         case "INF_EGAL_SEUIL":
             return stock <= d.getSeuilMini();
+        // Anciens codes conserves (compatibilite)
+        case "SUP0":
+            return stock > 0;
+        case "EGAL0":
+            return stock == 0;
         case "NEGATIF":
             return stock < 0;
         case "ENTRE":
@@ -759,10 +773,11 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 .append("WHERE p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5' ")
                 .append("AND u.lg_EMPLACEMENT_ID=? ")
                 .append("AND p.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ? MONTH),'%Y-%m-01')");
-        // Perf : pour un seul produit, on filtre DES L'INTERIEUR (parent + ses detournements detail)
-        // au lieu de scanner toutes les ventes de la periode.
+        // Perf : pour un seul produit, on filtre sur pd.lg_FAMILLE_ID (indexe) via le jeu
+        // { produit + ses details }, ce qui evite de balayer toutes les ventes de la periode.
         if (produitId != null) {
-            sql.append(" AND (f.lg_FAMILLE_ID=? OR f.lg_FAMILLE_PARENT_ID=?)");
+            sql.append(" AND pd.lg_FAMILLE_ID IN (SELECT cf.lg_FAMILLE_ID FROM t_famille cf "
+                    + "WHERE cf.lg_FAMILLE_ID=? OR cf.lg_FAMILLE_PARENT_ID=?)");
         }
         sql.append(") t WHERE t.m_index BETWEEN 0 AND ? GROUP BY t.eff_id, t.m_index");
 
@@ -861,7 +876,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 + "JOIN t_famille f ON pd.lg_FAMILLE_ID=f.lg_FAMILLE_ID "
                 + "LEFT JOIN t_famille parent ON parent.lg_FAMILLE_ID=f.lg_FAMILLE_PARENT_ID "
                 + "WHERE p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5' "
-                + "AND u.lg_EMPLACEMENT_ID=? AND DATE(p.dt_UPDATED) BETWEEN ? AND ? "
+                + "AND u.lg_EMPLACEMENT_ID=? AND p.dt_UPDATED >= ? AND p.dt_UPDATED < DATE_ADD(?, INTERVAL 1 DAY) "
                 + ") t GROUP BY t.eff_id, t.ym";
         Map<String, Map<String, double[]>> map = new HashMap<>();
         try {
