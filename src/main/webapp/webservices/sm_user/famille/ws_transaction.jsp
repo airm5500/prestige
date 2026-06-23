@@ -264,19 +264,16 @@
 
             if (bool_DECONDITIONNE == 1) {
                 if (!OfamilleManagement.isDeconditionExist(int_CIP)) {
-                    OFamille = OfamilleManagement.createProduct(str_DESCRIPTION, str_DESCRIPTION, int_PRICE, int_PRICE_TIPS, int_TAUX_MARQUE, int_PAF, int_PAT, int_S, int_T, int_CIP, int_EAN13, lg_GROSSISTE_ID, lg_FAMILLEARTICLE_ID, lg_CODE_ACTE_ID, lg_CODE_GESTION_ID, str_CODE_REMISE, str_CODE_TAUX_REMBOURSEMENT, lg_ZONE_GEO_ID, int_NUMBER_AVAILABLE, int_QTEDETAIL, lg_FORME_ARTICLE_ID, lg_FABRIQUANT_ID, bool_DECONDITIONNE, lg_TYPEETIQUETTE_ID, lg_REMISE_ID, lg_CODE_TVA_ID, bool_RESERVE, int_SEUIL_RESERVE, "", int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT, int_QUANTITY_STOCK, dt_Peremtion, gammeId, laboratoireId, cmuPrice, int_SEUIL_MINI_RAYON);
+                    OFamille = OfamilleManagement.createProduct(str_DESCRIPTION, str_DESCRIPTION, int_PRICE, int_PRICE_TIPS, int_TAUX_MARQUE, int_PAF, int_PAT, int_S, int_T, int_CIP, int_EAN13, lg_GROSSISTE_ID, lg_FAMILLEARTICLE_ID, lg_CODE_ACTE_ID, lg_CODE_GESTION_ID, str_CODE_REMISE, str_CODE_TAUX_REMBOURSEMENT, lg_ZONE_GEO_ID, int_NUMBER_AVAILABLE, int_QTEDETAIL, lg_FORME_ARTICLE_ID, lg_FABRIQUANT_ID, bool_DECONDITIONNE, lg_TYPEETIQUETTE_ID, lg_REMISE_ID, lg_CODE_TVA_ID, bool_RESERVE, int_SEUIL_RESERVE, "", int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT, int_QUANTITY_STOCK, dt_Peremtion, gammeId, laboratoireId, cmuPrice, int_SEUIL_MINI_RAYON, bool_CALCUL_SEUIL, bool_SUGGERABLE, bool_REMISE, q1_seuil_reappro, q2_qte_reappro);
                 }
             } else {
-                OFamille = OfamilleManagement.createProduct(str_DESCRIPTION, str_DESCRIPTION, int_PRICE, int_PRICE_TIPS, int_TAUX_MARQUE, int_PAF, int_PAT, int_S, int_T, int_CIP, int_EAN13, lg_GROSSISTE_ID, lg_FAMILLEARTICLE_ID, lg_CODE_ACTE_ID, lg_CODE_GESTION_ID, str_CODE_REMISE, str_CODE_TAUX_REMBOURSEMENT, lg_ZONE_GEO_ID, int_NUMBER_AVAILABLE, int_QTEDETAIL, lg_FORME_ARTICLE_ID, lg_FABRIQUANT_ID, bool_DECONDITIONNE, lg_TYPEETIQUETTE_ID, lg_REMISE_ID, lg_CODE_TVA_ID, bool_RESERVE, int_SEUIL_RESERVE, "", int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT, int_QUANTITY_STOCK, dt_Peremtion, gammeId, laboratoireId, cmuPrice, int_SEUIL_MINI_RAYON);
+                OFamille = OfamilleManagement.createProduct(str_DESCRIPTION, str_DESCRIPTION, int_PRICE, int_PRICE_TIPS, int_TAUX_MARQUE, int_PAF, int_PAT, int_S, int_T, int_CIP, int_EAN13, lg_GROSSISTE_ID, lg_FAMILLEARTICLE_ID, lg_CODE_ACTE_ID, lg_CODE_GESTION_ID, str_CODE_REMISE, str_CODE_TAUX_REMBOURSEMENT, lg_ZONE_GEO_ID, int_NUMBER_AVAILABLE, int_QTEDETAIL, lg_FORME_ARTICLE_ID, lg_FABRIQUANT_ID, bool_DECONDITIONNE, lg_TYPEETIQUETTE_ID, lg_REMISE_ID, lg_CODE_TVA_ID, bool_RESERVE, int_SEUIL_RESERVE, "", int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT, int_QUANTITY_STOCK, dt_Peremtion, gammeId, laboratoireId, cmuPrice, int_SEUIL_MINI_RAYON, bool_CALCUL_SEUIL, bool_SUGGERABLE, bool_REMISE, q1_seuil_reappro, q2_qte_reappro);
             }
 
             try {
                 lg_FAMILLE_ID = OFamille.getLgFAMILLEID();
             } catch (Exception e) {
 
-            }
-            if (lg_FAMILLE_ID != null && !"".equals(lg_FAMILLE_ID)) {
-                OfamilleManagement.updateReapproConfig(lg_FAMILLE_ID, bool_CALCUL_SEUIL, bool_SUGGERABLE, bool_REMISE, q1_seuil_reappro, q2_qte_reappro);
             }
             ObllBase.setMessage(OfamilleManagement.getMessage());
             ObllBase.setDetailmessage(OfamilleManagement.getDetailmessage());
@@ -286,10 +283,7 @@
             int_CIP3 = "";
             int_CIP4 = "";
 
-            OfamilleManagement.update(lg_FAMILLE_ID, str_DESCRIPTION, int_CIP2, int_CIP3, int_CIP4, str_DESCRIPTION, int_PRICE, int_PRICE_TIPS, int_TAUX_MARQUE, int_PAF, int_PAT, int_S, int_T, int_CIP, int_EAN13, lg_GROSSISTE_ID, lg_FAMILLEARTICLE_ID, lg_CODE_ACTE_ID, lg_CODE_GESTION_ID, str_CODE_REMISE, str_CODE_TAUX_REMBOURSEMENT, lg_ZONE_GEO_ID, int_QTEDETAIL, int_PRICE_DETAIL, lg_TYPEETIQUETTE_ID, lg_REMISE_ID, lg_CODE_TVA_ID, bool_RESERVE, int_SEUIL_RESERVE, int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT, dt_Peremtion, gammeId, laboratoireId, cmuPrice, int_SEUIL_MINI_RAYON);
-            if (lg_FAMILLE_ID != null && !"".equals(lg_FAMILLE_ID)) {
-                OfamilleManagement.updateReapproConfig(lg_FAMILLE_ID, bool_CALCUL_SEUIL, bool_SUGGERABLE, bool_REMISE, q1_seuil_reappro, q2_qte_reappro);
-            }
+            OfamilleManagement.update(lg_FAMILLE_ID, str_DESCRIPTION, int_CIP2, int_CIP3, int_CIP4, str_DESCRIPTION, int_PRICE, int_PRICE_TIPS, int_TAUX_MARQUE, int_PAF, int_PAT, int_S, int_T, int_CIP, int_EAN13, lg_GROSSISTE_ID, lg_FAMILLEARTICLE_ID, lg_CODE_ACTE_ID, lg_CODE_GESTION_ID, str_CODE_REMISE, str_CODE_TAUX_REMBOURSEMENT, lg_ZONE_GEO_ID, int_QTEDETAIL, int_PRICE_DETAIL, lg_TYPEETIQUETTE_ID, lg_REMISE_ID, lg_CODE_TVA_ID, bool_RESERVE, int_SEUIL_RESERVE, int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT, dt_Peremtion, gammeId, laboratoireId, cmuPrice, int_SEUIL_MINI_RAYON, bool_CALCUL_SEUIL, bool_SUGGERABLE, bool_REMISE, q1_seuil_reappro, q2_qte_reappro);
             ObllBase.setDetailmessage(OfamilleManagement.getDetailmessage());
             ObllBase.setMessage(OfamilleManagement.getMessage());
 

@@ -1018,32 +1018,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         if (updateProduit.getCodeGeoArticle() != null) {
             famille.setStrCODEGEOARTICLE(updateProduit.getCodeGeoArticle().trim());
         }
-        // Config reappro/suggestion de la fiche (Phase A) : persistee ici (meme entite/merge
-        // que le code geo) pour eviter tout conflit avec d'autres chemins de sauvegarde.
-        if (updateProduit.getBoolCalculSeuil() != null) {
-            famille.setBoolCALCULSEUIL(updateProduit.getBoolCalculSeuil());
-        }
-        if (updateProduit.getBoolSuggerable() != null) {
-            famille.setBoolSUGGERABLE(updateProduit.getBoolSuggerable());
-        }
-        if (updateProduit.getBoolRemise() != null) {
-            famille.setBoolREMISE(updateProduit.getBoolRemise());
-        }
-        // Q1/Q2 stockes en semaines ; nuls => parametres globaux Q1/Q2 (init par defaut)
-        famille.setIntQ1SEUILREAPPRO(
-                updateProduit.getQ1SeuilReappro() != null ? updateProduit.getQ1SeuilReappro() : ficheGlobalParamInt("Q1", 4));
-        famille.setIntQ2QTEREAPPRO(
-                updateProduit.getQ2QteReappro() != null ? updateProduit.getQ2QteReappro() : ficheGlobalParamInt("Q2", 2));
         em.merge(famille);
-    }
-
-    private int ficheGlobalParamInt(String key, int def) {
-        try {
-            dal.TParameters p = em.find(dal.TParameters.class, key);
-            return (p != null && p.getStrVALUE() != null) ? Integer.parseInt(p.getStrVALUE().trim()) : def;
-        } catch (Exception e) {
-            return def;
-        }
     }
 
     private long produitPerimesCount(String query, int nbreMois, String dtStart, String dtEnd, String codeFamille,

@@ -367,55 +367,6 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
     }
 
-    /**
-     * Persiste les champs de configuration reappro/suggestion de la fiche article
-     * (additif - n'impacte pas create/update existants). Appele apres create/update.
-     * UPDATE JPQL direct en transaction gardee (robuste quel que soit l'etat du
-     * contexte de persistance apres create/update). Q1/Q2 nuls => params globaux.
-     */
-    public void updateReapproConfig(String lg_FAMILLE_ID, Boolean boolCalculSeuil, Boolean boolSuggerable,
-            Boolean boolRemise, Integer q1, Integer q2) {
-        if (lg_FAMILLE_ID == null || lg_FAMILLE_ID.isEmpty()) {
-            return;
-        }
-        EntityManager em = this.getOdataManager().getEm();
-        boolean owns = false;
-        try {
-            boolean cs = (boolCalculSeuil != null) ? boolCalculSeuil : true;
-            boolean su = (boolSuggerable != null) ? boolSuggerable : true;
-            boolean re = (boolRemise != null) ? boolRemise : true;
-            int q1v = (q1 != null) ? q1 : globalParamInt("Q1", 4);
-            int q2v = (q2 != null) ? q2 : globalParamInt("Q2", 2);
-            if (!em.getTransaction().isActive()) {
-                em.getTransaction().begin();
-                owns = true;
-            }
-            em.createQuery("UPDATE TFamille f SET f.boolCALCULSEUIL = :cs, f.boolSUGGERABLE = :su, "
-                    + "f.boolREMISE = :re, f.intQ1SEUILREAPPRO = :q1, f.intQ2QTEREAPPRO = :q2 "
-                    + "WHERE f.lgFAMILLEID = :id")
-                    .setParameter("cs", cs).setParameter("su", su).setParameter("re", re)
-                    .setParameter("q1", q1v).setParameter("q2", q2v).setParameter("id", lg_FAMILLE_ID)
-                    .executeUpdate();
-            if (owns) {
-                em.getTransaction().commit();
-            }
-            try {
-                em.getEntityManagerFactory().getCache().evict(TFamille.class, lg_FAMILLE_ID);
-            } catch (Exception ignore) {
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            if (owns) {
-                try {
-                    if (em.getTransaction().isActive()) {
-                        em.getTransaction().rollback();
-                    }
-                } catch (Exception ignore) {
-                }
-            }
-        }
-    }
-
     private int globalParamInt(String key, int def) {
         try {
             TParameters p = this.getOdataManager().getEm().find(TParameters.class, key);
@@ -3914,7 +3865,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             String str_CODE_TAUX_REMBOURSEMENT, String lg_ZONE_GEO_ID, int int_QTEDETAIL, int int_PRICE_DETAIL,
             String lg_TYPEETIQUETTE_ID, String lg_REMISE_ID, String lg_CODE_TVA_ID, boolean bool_RESERVE,
             int int_SEUIL_RESERVE, int int_STOCK_REAPROVISONEMENT, int int_QTE_REAPPROVISIONNEMENT, String dt_Peremtion,
-            String gammeId, String laboratoireId, Integer cmuPrice, Integer int_SEUIL_MINI_RAYON) {
+            String gammeId, String laboratoireId, Integer cmuPrice, Integer int_SEUIL_MINI_RAYON, Boolean boolCalculSeuil, Boolean boolSuggerable,
+            Boolean boolRemise, Integer q1SeuilReappro, Integer q2QteReappro) {
         String lg_TYPE_STOCK_RESERVE_ID = "2";
         int int_PRICE_OLD = 0, int_PAT_OLD = 0, int_PAF_OLD = 0, int_TAUX = 0;
 
@@ -4082,6 +4034,12 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             if (int_SEUIL_MINI_RAYON != null) {
                 OTFamille.setIntSEUILMINIRAYON(int_SEUIL_MINI_RAYON);
             }
+            // Config reappro/suggestion de la fiche (Phase A) - meme entite/merge que les autres champs
+            OTFamille.setBoolCALCULSEUIL(boolCalculSeuil != null ? boolCalculSeuil : Boolean.TRUE);
+            OTFamille.setBoolSUGGERABLE(boolSuggerable != null ? boolSuggerable : Boolean.TRUE);
+            OTFamille.setBoolREMISE(boolRemise != null ? boolRemise : Boolean.TRUE);
+            OTFamille.setIntQ1SEUILREAPPRO(q1SeuilReappro != null ? q1SeuilReappro : globalParamInt("Q1", 4));
+            OTFamille.setIntQ2QTEREAPPRO(q2QteReappro != null ? q2QteReappro : globalParamInt("Q2", 2));
             // OTFamille.setIntPRICEDETAIL(int_PRICE_DETAIL);
             OTFamille.setStrSTATUT(commonparameter.statut_enable);
             OTFamille.setDtUPDATED(new Date());
@@ -6509,7 +6467,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             String lg_TYPEETIQUETTE_ID, String lg_REMISE_ID, String lg_CODE_TVA_ID, boolean bool_RESERVE,
             int int_SEUIL_RESERVE, String lg_FAMILLE_PARENT_ID, int int_STOCK_REAPROVISONEMENT,
             int int_QTE_REAPPROVISIONNEMENT, int int_QUANTITY_STOCK, String dt_Peremtion, String gammeId,
-            String laboratoireId, Integer cmuPrice, Integer int_SEUIL_MINI_RAYON) {
+            String laboratoireId, Integer cmuPrice, Integer int_SEUIL_MINI_RAYON, Boolean boolCalculSeuil, Boolean boolSuggerable,
+            Boolean boolRemise, Integer q1SeuilReappro, Integer q2QteReappro) {
         TFamille OTFamille = null;
         TParameters OParameters, OParametersPerime;
         String lg_TYPE_STOCK_RESERVE_ID = "2";
@@ -6616,6 +6575,12 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             if (int_SEUIL_MINI_RAYON != null) {
                 OTFamille.setIntSEUILMINIRAYON(int_SEUIL_MINI_RAYON);
             }
+            // Config reappro/suggestion de la fiche (Phase A) - meme entite/merge que les autres champs
+            OTFamille.setBoolCALCULSEUIL(boolCalculSeuil != null ? boolCalculSeuil : Boolean.TRUE);
+            OTFamille.setBoolSUGGERABLE(boolSuggerable != null ? boolSuggerable : Boolean.TRUE);
+            OTFamille.setBoolREMISE(boolRemise != null ? boolRemise : Boolean.TRUE);
+            OTFamille.setIntQ1SEUILREAPPRO(q1SeuilReappro != null ? q1SeuilReappro : globalParamInt("Q1", 4));
+            OTFamille.setIntQ2QTEREAPPRO(q2QteReappro != null ? q2QteReappro : globalParamInt("Q2", 2));
             OTFamille.setBoolACCOUNT(true);
             OTFamille.setIntPAF(int_PAF);
             OTFamille.setIntPAT(int_PAT);

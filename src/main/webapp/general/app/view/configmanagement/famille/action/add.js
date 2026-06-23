@@ -989,15 +989,7 @@ Ext.Ajax.request({
                                     url: '../api/v1/fichearticle/produit/update-lite-info',
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    params: Ext.JSON.encode({
-                                        id: produitId,
-                                        codeGeoArticle: codeGeoFld.getValue() || '',
-                                        boolCalculSeuil: g('bool_CALCUL_SEUIL') ? g('bool_CALCUL_SEUIL').getValue() : true,
-                                        boolSuggerable: g('bool_SUGGERABLE') ? g('bool_SUGGERABLE').getValue() : true,
-                                        boolRemise: g('bool_REMISE') ? g('bool_REMISE').getValue() : true,
-                                        q1SeuilReappro: (function () { var v = semoisQToWeeks('int_Q1_SEUIL_REAPPRO'); return v === '' ? null : v; })(),
-                                        q2QteReappro: (function () { var v = semoisQToWeeks('int_Q2_QTE_REAPPRO'); return v === '' ? null : v; })()
-                                    }),
+                                    params: Ext.JSON.encode({ id: produitId, codeGeoArticle: codeGeoFld.getValue() || '' }),
                                     callback: function () { /* ignore */ }
                                 });
                             }
