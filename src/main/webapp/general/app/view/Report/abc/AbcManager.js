@@ -63,6 +63,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     proxy.setExtraParam('classe', v('comboClasse') || 'ALL');
                     proxy.setExtraParam('stockFilter', v('comboStock') || 'ALL');
                     proxy.setExtraParam('stockMin', v('stockValue'));
+                    proxy.setExtraParam('topN', v('topN'));
                     proxy.setExtraParam('search', v('searchField'));
                     proxy.setExtraParam('codeRayon', v('rayons'));
                     proxy.setExtraParam('codeGrossiste', v('grossiste'));
@@ -133,7 +134,9 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {xtype: 'datefield', fieldLabel: 'Au', itemId: 'dtEnd', labelWidth: 20, flex: 1, maxValue: new Date(), value: new Date(), margin: '0 9 0 0', submitFormat: 'Y-m-d', format: 'd/m/Y'},
                         {xtype: 'combobox', flex: 1, margin: '0 5 0 0', labelWidth: 5, itemId: 'rayons', store: rayons, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'remote', minChars: 2, emptyText: 'Emplacement / rayon'},
                         {xtype: 'combobox', flex: 1, margin: '0 5 0 0', labelWidth: 5, itemId: 'grossiste', store: grossiste, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'remote', minChars: 2, emptyText: 'Grossiste'},
-                        {xtype: 'combobox', flex: 1, margin: '0 5 0 0', labelWidth: 5, itemId: 'codeFamile', store: familles, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'remote', minChars: 2, emptyText: 'Famille'}
+                        {xtype: 'combobox', flex: 1, margin: '0 5 0 0', labelWidth: 5, itemId: 'codeFamile', store: familles, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'remote', minChars: 2, emptyText: 'Famille'},
+                        {xtype: 'numberfield', itemId: 'topN', width: 90, minValue: 1, allowDecimals: false, emptyText: 'Top N', margin: '0 5 0 0',
+                            listeners: {specialkey: function (f, e) { if (e.getKey() === e.ENTER) { me.gridStore.loadPage(1); } }}}
                     ]
                 },
                 {
@@ -185,7 +188,30 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
                         {text: 'Courbe évolution', itemId: 'evolution', iconCls: 'charticon', tooltip: 'Évolution mensuelle des classes sur la période'},
                         {xtype: 'tbseparator'},
-                        {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'}
+                        {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'},
+                        {
+                            xtype: 'checkbox', itemId: 'logSemois', margin: '0 0 0 10',
+                            listeners: {
+                                afterrender: function (cb) {
+                                    cb.getEl().set({'data-qtip': 'Journaliser les calculs SEMOIS ABC (JSON dans ~/Documents/abc_logs)'});
+                                    Ext.Ajax.request({
+                                        url: '../api/v1/articles/abc/semois-log', method: 'GET',
+                                        success: function (resp) {
+                                            const o = Ext.JSON.decode(resp.responseText, true) || {};
+                                            cb.suspendEvents();
+                                            cb.setValue(!!o.enabled);
+                                            cb.resumeEvents();
+                                        }
+                                    });
+                                },
+                                change: function (cb, val) {
+                                    Ext.Ajax.request({
+                                        url: '../api/v1/articles/abc/semois-log?enabled=' + (val ? 'true' : 'false'),
+                                        method: 'POST'
+                                    });
+                                }
+                            }
+                        }
                     ]
                 },
                 {

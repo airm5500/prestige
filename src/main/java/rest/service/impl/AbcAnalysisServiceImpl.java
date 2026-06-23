@@ -72,6 +72,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @EJB
     private SuggestionService suggestionService;
 
+    @EJB
+    private AbcReclassWriter abcReclassWriter;
+
     private String procedureName(String type) {
         if (type == null) {
             return "analyse_abc_par_ca";
@@ -276,7 +279,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @Override
     public JSONObject grid(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
             String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax, int start,
-            int limit, String sort, String dir) {
+            int limit, String sort, String dir, Integer topN) {
 
         List<AbcProduitDTO> all = classify(dtStart, dtEnd, type, codeFamille, codeRayon, codeGrossiste);
 
@@ -304,6 +307,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         if (cmp != null) {
             rows.sort(cmp);
         }
+
+        // Top N : on ne garde que les N premiers (les plus importants selon le critere)
+        rows = applyTopN(rows, topN);
 
         int total = rows.size();
 
@@ -444,10 +450,18 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
 
     // ----------------------- Exports / Inventaire (Lot 2) -------------------
 
-    /** Resultat filtre complet (recherche + stock + classe), sans pagination. */
+    /** Limite la liste aux N premiers (les plus importants selon l'ordre courant). topN null/<=0 = tous. */
+    private List<AbcProduitDTO> applyTopN(List<AbcProduitDTO> rows, Integer topN) {
+        if (topN != null && topN > 0 && rows.size() > topN) {
+            return new ArrayList<>(rows.subList(0, topN));
+        }
+        return rows;
+    }
+
+    /** Resultat filtre complet (recherche + stock + classe + Top N), sans pagination. */
     private List<AbcProduitDTO> filteredList(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax) {
+            Integer stockMax, Integer topN) {
         List<AbcProduitDTO> rows = classify(dtStart, dtEnd, type, codeFamille, codeRayon, codeGrossiste).stream()
                 .filter(d -> matchSearch(d, search))
                 .filter(d -> matchStock(d, stockFilter, stockMin, stockMax))
@@ -459,7 +473,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             final String c = classe.trim();
             rows = rows.stream().filter(d -> c.equalsIgnoreCase(d.getClasse())).collect(Collectors.toList());
         }
-        return rows;
+        return applyTopN(rows, topN);
     }
 
     private static String nz(String s) {
@@ -487,9 +501,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @Override
     public byte[] buildExcel(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax) {
+            Integer stockMax, Integer topN) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         if (rows.isEmpty()) {
             return new byte[0];
         }
@@ -529,9 +543,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
 
     @Override
     public byte[] buildCsv(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
-            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax) {
+            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax,
+            Integer topN) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         if (rows.isEmpty()) {
             return new byte[0];
         }
@@ -573,9 +588,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
 
     @Override
     public byte[] buildPdf(String dtStart, String dtEnd, String type, String classe, String search, String codeFamille,
-            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax) {
+            String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax,
+            Integer topN) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         enrichWithConso(rows, EXPORT_MONTHS);
 
         String[] headers = { "CIP", "Libellé", "Cl.", "Famille", "Rayon", "Stock", "Seuil", "Q.réa", "M", "M-1",
@@ -702,9 +718,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @Override
     public JSONObject createInventaire(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax) {
+            Integer stockMax, Integer topN) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         if (rows.isEmpty()) {
             return new JSONObject().put("success", true).put("count", 0);
         }
@@ -720,9 +736,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @Override
     public JSONObject createSuggestion(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax) {
+            Integer stockMax, Integer topN) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         // On ne suggère que les produits ayant un grossiste (regroupement par grossiste,
         // comme la suggestion du 20/80).
         List<VenteDetailsDTO> datas = new ArrayList<>();
@@ -903,8 +919,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             String search, String codeFamille, String codeRayon, String codeGrossiste, String stockFilter,
             Integer stockMin, Integer stockMax) {
         // Classes FIGEES sur toute la periode (mode FIXED), en respectant les filtres de la grille.
+        // (le Top N ne s'applique pas a la courbe)
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, null);
         Map<String, String> produitClasse = new HashMap<>();
         for (AbcProduitDTO d : rows) {
             produitClasse.put(d.getProduitId(), d.getClasse());
@@ -1017,10 +1034,82 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         String dtEnd = today.toString();
         String dtStart = today.minusMonths(nbMois).withDayOfMonth(1).toString();
 
-        // Pharmacie entiere (emplacement vide), critere standard CA
-        List<AbcProduitDTO> all = classifyForEmplacement("", dtStart, dtEnd, "CA", "", "", "");
-        int count = applyClassification(all);
-        writeParam("ABC_LAST_RECLASS_DATE", today.toString());
-        return new JSONObject().put("success", true).put("count", count).put("dtStart", dtStart).put("dtEnd", dtEnd);
+        // Pharmacie entiere (emplacement vide), critere standard QUANTITE
+        List<AbcProduitDTO> all = classifyForEmplacement("", dtStart, dtEnd, "QTY", "", "", "");
+        int total = all.size();
+
+        // Code classe -> id technique
+        Map<String, String> codeToId = new HashMap<>();
+        try {
+            for (TClasseAbc c : em.createNamedQuery("TClasseAbc.findAll", TClasseAbc.class).getResultList()) {
+                codeToId.put(c.getStrCODE(), c.getLgCLASSEABCID());
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Lecture t_classe_abc impossible", e);
+            return new JSONObject().put("success", false).put("message", "Lecture des classes impossible");
+        }
+
+        // Regroupe par classe
+        Map<String, List<String>> idsByClasse = new LinkedHashMap<>();
+        long nbA = 0, nbB = 0, nbC = 0;
+        for (AbcProduitDTO d : all) {
+            if (StringUtils.isBlank(d.getProduitId()) || codeToId.get(d.getClasse()) == null) {
+                continue;
+            }
+            idsByClasse.computeIfAbsent(d.getClasse(), k -> new ArrayList<>()).add(d.getProduitId());
+            if ("A".equals(d.getClasse())) {
+                nbA++;
+            } else if ("B".equals(d.getClasse())) {
+                nbB++;
+            } else if ("C".equals(d.getClasse())) {
+                nbC++;
+            }
+        }
+
+        // Application PAR PAQUET (commit independant via REQUIRES_NEW) -> libere les verrous au fur et a mesure
+        Date now = new Date();
+        int applied = 0;
+        boolean partial = false;
+        final int CHUNK = 500;
+        for (Map.Entry<String, List<String>> e : idsByClasse.entrySet()) {
+            String classeId = codeToId.get(e.getKey());
+            List<String> ids = e.getValue();
+            for (int i = 0; i < ids.size(); i += CHUNK) {
+                List<String> sub = ids.subList(i, Math.min(ids.size(), i + CHUNK));
+                try {
+                    applied += abcReclassWriter.applyChunk(classeId, sub, now);
+                } catch (Exception ex) {
+                    partial = true;
+                    LOG.log(Level.SEVERE, "Echec d'un paquet de reclassification ABC", ex);
+                }
+            }
+        }
+
+        boolean complete = !partial && applied >= total;
+        String statut = complete ? "OK" : "PARTIEL";
+        String info = "date=" + today + ", total=" + total + ", appliques=" + applied
+                + ", A=" + nbA + ", B=" + nbB + ", C=" + nbC + ", statut=" + statut;
+        writeParam("ABC_LAST_RECLASS_INFO", info);
+        // On ne pose la date (= "fait ce mois") QUE si c'est complet -> sinon rattrapage au prochain passage
+        if (complete) {
+            writeParam("ABC_LAST_RECLASS_DATE", today.toString());
+        }
+        LOG.log(Level.INFO, "[ABC] Reclassification automatique: {0}", info);
+
+        return new JSONObject().put("success", true).put("statut", statut).put("total", total)
+                .put("count", applied).put("A", nbA).put("B", nbB).put("C", nbC)
+                .put("dtStart", dtStart).put("dtEnd", dtEnd);
+    }
+
+    @Override
+    public JSONObject getSemoisLog() {
+        return new JSONObject().put("success", true)
+                .put("enabled", "1".equals(readParam("SEMOIS_ABC_LOG", "0").trim()));
+    }
+
+    @Override
+    public JSONObject setSemoisLog(boolean enabled) {
+        writeParam("SEMOIS_ABC_LOG", enabled ? "1" : "0");
+        return new JSONObject().put("success", true).put("enabled", enabled);
     }
 }

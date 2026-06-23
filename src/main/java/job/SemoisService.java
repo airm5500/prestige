@@ -476,6 +476,10 @@ public class SemoisService {
             Map<String, Map<String, Double>> conso = loadMonthlyConsoAbc(firstMonth, lastMonthEnd);
             Map<String, String> produitClasse = loadProduitClasseAbc();
 
+            // Journalisation optionnelle (case a cocher du menu -> parametre SEMOIS_ABC_LOG)
+            final boolean doLog = isSemoisAbcLog();
+            final org.json.JSONArray logArr = doLog ? new org.json.JSONArray() : null;
+
             // 4) Calcul + mise a jour par lots
             List<String> produitIds = new ArrayList<>(conso.keySet());
             int chunk = 1000;
@@ -529,6 +533,25 @@ public class SemoisService {
                         int seuil = (int) Math.ceil(q4 * q1);
                         int qte = (int) Math.ceil(q4 * q2);
                         updateProduitSeuilAndQtyReappro(produitId, seuil, qte);
+
+                        if (doLog) {
+                            TFamille fam = em.find(TFamille.class, produitId);
+                            org.json.JSONObject o = new org.json.JSONObject();
+                            o.put("produitId", produitId);
+                            o.put("cip", (fam != null && fam.getIntCIP() != null) ? fam.getIntCIP() : "");
+                            o.put("libelle", (fam != null && fam.getStrNAME() != null) ? fam.getStrNAME() : "");
+                            o.put("classe", cls != null ? cls.getStrCODE() : "(sans classe)");
+                            o.put("unite", jour ? "JOUR" : "SEMAINE");
+                            o.put("q1", q1);
+                            o.put("q2", q2);
+                            o.put("q3Mois", q3w);
+                            o.put("consoTotale", consoTotale);
+                            o.put(jour ? "nombreJours" : "nombreSemaines", jour ? nbJours : (q3w * 4));
+                            o.put("conso", q4);
+                            o.put("seuilMini", seuil);
+                            o.put("quantiteReappro", qte);
+                            logArr.put(o);
+                        }
                     }
                     userTransaction.commit();
                 } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
@@ -543,8 +566,42 @@ public class SemoisService {
                     }
                 }
             }
+
+            if (doLog) {
+                writeSemoisLog(logArr);
+            }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
+        }
+    }
+
+    private boolean isSemoisAbcLog() {
+        try {
+            TParameters p = em.find(TParameters.class, "SEMOIS_ABC_LOG");
+            return p != null && Integer.parseInt(p.getStrVALUE().trim()) == 1;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Ecrit le detail des calculs SEMOIS ABC (produit par produit) en JSON dans ~/Documents/abc_logs/. */
+    private void writeSemoisLog(org.json.JSONArray arr) {
+        try {
+            String dir = System.getProperty("user.home") + java.io.File.separator + "Documents"
+                    + java.io.File.separator + "abc_logs";
+            java.io.File d = new java.io.File(dir);
+            if (!d.exists()) {
+                d.mkdirs();
+            }
+            String file = dir + java.io.File.separator + "semois_abc_" + LocalDate.now() + ".json";
+            try (java.io.Writer w = new java.io.OutputStreamWriter(new java.io.FileOutputStream(file),
+                    java.nio.charset.StandardCharsets.UTF_8)) {
+                w.write(arr.toString(2));
+            }
+            LOG.log(Level.INFO, "[SEMOIS ABC] Log ecrit: {0} ({1} produits)",
+                    new Object[] { file, arr.length() });
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Ecriture du log SEMOIS ABC impossible", e);
         }
     }
 }

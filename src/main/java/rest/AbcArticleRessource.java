@@ -34,10 +34,10 @@ public class AbcArticleRessource {
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
             @QueryParam("stockMax") Integer stockMax, @DefaultValue("0") @QueryParam("start") int start,
             @DefaultValue("50") @QueryParam("limit") int limit, @QueryParam("sort") String sort,
-            @QueryParam("dir") String dir) {
+            @QueryParam("dir") String dir, @QueryParam("topN") Integer topN) {
 
         JSONObject json = abcAnalysisService.grid(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax, start, limit, sort, dir);
+                codeGrossiste, stockFilter, stockMin, stockMax, start, limit, sort, dir, topN);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -74,9 +74,9 @@ public class AbcArticleRessource {
             @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
-            @QueryParam("stockMax") Integer stockMax) {
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
         byte[] data = abcAnalysisService.buildExcel(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"classification_abc.xls\"")
                 .build();
     }
@@ -89,9 +89,9 @@ public class AbcArticleRessource {
             @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
-            @QueryParam("stockMax") Integer stockMax) {
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
         byte[] data = abcAnalysisService.buildCsv(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"classification_abc.csv\"")
                 .build();
     }
@@ -104,9 +104,9 @@ public class AbcArticleRessource {
             @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
-            @QueryParam("stockMax") Integer stockMax) {
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
         byte[] data = abcAnalysisService.buildPdf(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
-                codeGrossiste, stockFilter, stockMin, stockMax);
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
         return Response.ok(data).header("Content-Disposition", "inline; filename=\"classification_abc.pdf\"").build();
     }
 
@@ -118,9 +118,9 @@ public class AbcArticleRessource {
             @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
-            @QueryParam("stockMax") Integer stockMax) {
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
         JSONObject json = abcAnalysisService.createInventaire(dtStart, dtEnd, type, classe, search, codeFamille,
-                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax);
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -132,9 +132,9 @@ public class AbcArticleRessource {
             @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
-            @QueryParam("stockMax") Integer stockMax) {
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
         JSONObject json = abcAnalysisService.createSuggestion(dtStart, dtEnd, type, classe, search, codeFamille,
-                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax);
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -164,6 +164,21 @@ public class AbcArticleRessource {
     @Consumes(MediaType.WILDCARD)
     public Response autoReclassify() {
         return Response.ok().entity(abcAnalysisService.autoReclassifyIfDue().toString()).build();
+    }
+
+    /** Etat de la journalisation JSON des calculs SEMOIS ABC. */
+    @GET
+    @Path("semois-log")
+    public Response getSemoisLog() {
+        return Response.ok().entity(abcAnalysisService.getSemoisLog().toString()).build();
+    }
+
+    /** Active/desactive la journalisation JSON des calculs SEMOIS ABC. */
+    @POST
+    @Path("semois-log")
+    @Consumes(MediaType.WILDCARD)
+    public Response setSemoisLog(@QueryParam("enabled") boolean enabled) {
+        return Response.ok().entity(abcAnalysisService.setSemoisLog(enabled).toString()).build();
     }
 
     // ----------------------- Configuration des classes ABC ------------------

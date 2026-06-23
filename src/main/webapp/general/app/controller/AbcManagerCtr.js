@@ -49,6 +49,7 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
             classe: v('comboClasse') || 'ALL',
             stockFilter: v('comboStock') || 'ALL',
             stockMin: v('stockValue'),
+            topN: v('topN'),
             search: v('searchField'),
             codeFamille: v('codeFamile'),
             codeRayon: v('rayons'),
