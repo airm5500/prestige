@@ -166,20 +166,6 @@ public class AbcArticleRessource {
         return Response.ok().entity(abcAnalysisService.autoReclassifyIfDue().toString()).build();
     }
 
-    /** Etat de la journalisation JSON des calculs SEMOIS ABC. */
-    @GET
-    @Path("semois-log")
-    public Response getSemoisLog() {
-        return Response.ok().entity(abcAnalysisService.getSemoisLog().toString()).build();
-    }
-
-    /** Active/desactive la journalisation JSON des calculs SEMOIS ABC. */
-    @POST
-    @Path("semois-log")
-    @Consumes(MediaType.WILDCARD)
-    public Response setSemoisLog(@QueryParam("enabled") boolean enabled) {
-        return Response.ok().entity(abcAnalysisService.setSemoisLog(enabled).toString()).build();
-    }
 
     // ----------------------- Configuration des classes ABC ------------------
     @GET

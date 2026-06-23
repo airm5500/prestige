@@ -1101,15 +1101,4 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 .put("dtStart", dtStart).put("dtEnd", dtEnd);
     }
 
-    @Override
-    public JSONObject getSemoisLog() {
-        return new JSONObject().put("success", true)
-                .put("enabled", "1".equals(readParam("SEMOIS_ABC_LOG", "0").trim()));
-    }
-
-    @Override
-    public JSONObject setSemoisLog(boolean enabled) {
-        writeParam("SEMOIS_ABC_LOG", enabled ? "1" : "0");
-        return new JSONObject().put("success", true).put("enabled", enabled);
-    }
 }

@@ -188,30 +188,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {text: 'Appliquer aux fiches', itemId: 'appliquer', iconCls: 'printable', tooltip: 'Écrit la classe ABC calculée sur les fiches articles'},
                         {text: 'Courbe évolution', itemId: 'evolution', iconCls: 'charticon', tooltip: 'Évolution mensuelle des classes sur la période'},
                         {xtype: 'tbseparator'},
-                        {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'},
-                        {
-                            xtype: 'checkbox', itemId: 'logSemois', margin: '0 0 0 10',
-                            listeners: {
-                                afterrender: function (cb) {
-                                    cb.getEl().set({'data-qtip': 'Journaliser les calculs SEMOIS ABC (JSON dans ~/Documents/abc_logs)'});
-                                    Ext.Ajax.request({
-                                        url: '../api/v1/articles/abc/semois-log', method: 'GET',
-                                        success: function (resp) {
-                                            const o = Ext.JSON.decode(resp.responseText, true) || {};
-                                            cb.suspendEvents();
-                                            cb.setValue(!!o.enabled);
-                                            cb.resumeEvents();
-                                        }
-                                    });
-                                },
-                                change: function (cb, val) {
-                                    Ext.Ajax.request({
-                                        url: '../api/v1/articles/abc/semois-log?enabled=' + (val ? 'true' : 'false'),
-                                        method: 'POST'
-                                    });
-                                }
-                            }
-                        }
+                        {text: 'Paramétrer les classes', itemId: 'parametrerClasses', iconCls: 'configuration', tooltip: 'Modifier Q1, Q2, Q3, unité et bornes des classes A/B/C'}
                     ]
                 },
                 {

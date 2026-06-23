@@ -102,10 +102,4 @@ public interface AbcAnalysisService {
      * Idempotent : ne fait rien si deja execute le mois courant.
      */
     JSONObject autoReclassifyIfDue();
-
-    /** Etat de la journalisation JSON des calculs SEMOIS ABC (parametre SEMOIS_ABC_LOG). */
-    JSONObject getSemoisLog();
-
-    /** Active/desactive la journalisation JSON des calculs SEMOIS ABC. */
-    JSONObject setSemoisLog(boolean enabled);
 }

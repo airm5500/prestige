@@ -62,6 +62,8 @@ public class StockReapproServiceImpl implements StockReapproService {
     }
 
     private void compute() {
+        // Journal de calcul (toujours actif) -> ~/Documents/reappro_logs/seuil_default_<date>.json
+        final org.json.JSONArray defaultLog = new org.json.JSONArray();
         try {
 
             final int dayStock = getDayStock();
@@ -86,6 +88,7 @@ public class StockReapproServiceImpl implements StockReapproService {
                 if (StringUtils.isEmpty(parentId) && (hasChild == 0)) {
                     Reappro reappro = compute(consommation, dayStock, delayReappro);
                     updateTFamille(id, reappro, now);
+                    defaultLog.put(defaultEntry(id, "simple", consommation, dayStock, delayReappro, reappro));
                 } else {// boite CH
                     if (hasChild == 1 && StringUtils.isEmpty(parentId)) {
                         boiteCh.add(new Produit(id, consommation, itemQuantity));
@@ -96,8 +99,8 @@ public class StockReapproServiceImpl implements StockReapproService {
                 }
             }
 
-            computeBoiteCh(boiteCh, deconditiones, dayStock, delayReappro, now);
-            computeInvendus(lastMonth, threeMonthAgo, deconditiones, dayStock, delayReappro, now);
+            computeBoiteCh(boiteCh, deconditiones, dayStock, delayReappro, now, defaultLog);
+            computeInvendus(lastMonth, threeMonthAgo, deconditiones, dayStock, delayReappro, now, defaultLog);
             TParameters p = getParameters("KEY_DAY_SEUIL_REAPPRO");
             if (p != null) {
                 p.setStrVALUE(LocalDate.now().toString());
@@ -105,6 +108,8 @@ public class StockReapproServiceImpl implements StockReapproService {
                 this.em.merge(p);
             }
             userTransaction.commit();
+            // Apres commit (donnees persistees) : on ecrit le journal de calcul
+            job.ReapproLogWriter.write(em, "seuil_default", defaultLog);
 
         } catch (Exception e) {
 
@@ -123,7 +128,7 @@ public class StockReapproServiceImpl implements StockReapproService {
     }
 
     private void computeBoiteCh(List<Produit> boiteCh, Map<String, Integer> deconditiones, final int dayStock,
-            final int delayReappro, Date now) {
+            final int delayReappro, Date now, org.json.JSONArray log) {
         boiteCh.forEach((produit) -> {
             int conso = produit.getConsommation();
             int itemQty = produit.getItemQuantity();
@@ -133,7 +138,9 @@ public class StockReapproServiceImpl implements StockReapproService {
                 conso += itemConso;
             }
 
-            updateTFamille(produit.getProduitId(), compute(conso, dayStock, delayReappro), now);
+            Reappro reappro = compute(conso, dayStock, delayReappro);
+            updateTFamille(produit.getProduitId(), reappro, now);
+            log.put(defaultEntry(produit.getProduitId(), "boite", conso, dayStock, delayReappro, reappro));
         });
     }
 
@@ -142,19 +149,32 @@ public class StockReapproServiceImpl implements StockReapproService {
     }
 
     private void computeInvendus(LocalDate lastMonth, LocalDate threeMonthAgo, Map<String, Integer> deconditiones,
-            final int dayStock, final int delayReappro, Date now) {
+            final int dayStock, final int delayReappro, Date now, org.json.JSONArray log) {
 
         produitsInvendus(threeMonthAgo, lastMonth).forEach((tuple) -> {
             String produitId = tuple.get("id", String.class);
             Integer itemQty = deconditiones.remove(produitId);
             if (itemQty != null) {
                 int conso = computeItemConso(itemQty, tuple.get("itemQuantity", Integer.class));
-                updateTFamille(produitId, compute(conso, dayStock, delayReappro), now);
+                Reappro reappro = compute(conso, dayStock, delayReappro);
+                updateTFamille(produitId, reappro, now);
+                log.put(defaultEntry(produitId, "detail-invendu", conso, dayStock, delayReappro, reappro));
             } else {
                 updateTFamilleInvendus(tuple.get("id", String.class), now);
+                log.put(defaultEntry(produitId, "invendu", 0, dayStock, delayReappro, new Reappro(0, 0, 0)));
             }
         });
 
+    }
+
+    /** Construit une entree de journal pour le calcul du mode par defaut. */
+    private org.json.JSONObject defaultEntry(String produitId, String type, int conso, int dayStock,
+            int delayReappro, Reappro r) {
+        double consoMoyenneJour = conso / 84.0d;
+        return new org.json.JSONObject().put("produitId", produitId).put("type", type).put("conso", conso)
+                .put("consoMoyenneJour", consoMoyenneJour).put("dayStock", dayStock).put("delayReappro", delayReappro)
+                .put("seuilMin", r.getSeuilMin()).put("seuilMax", r.getSeuilMax())
+                .put("quantiteReappro", r.getQuantity());
     }
 
     private List<Tuple> fetchConsommationProduit(LocalDate threeMonthAgo, LocalDate lastMonth) {
