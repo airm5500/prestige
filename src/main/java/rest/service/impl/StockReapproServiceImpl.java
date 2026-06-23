@@ -216,7 +216,10 @@ public class StockReapproServiceImpl implements StockReapproService {
         update.set(TFamille_.INT_QT_ER_EA_PP_RO_VI_SI_ON_NE_ME_NT, reappro.getQuantity());
         update.set(TFamille_.DT_UP_DA_TE_D, now);
         update.set(TFamille_.DT_LA_ST_UP_DA_TE_SE_UI_LR_EA_PP_RO, now);
-        update.where(cb.equal(root.get(TFamille_.lgFAMILLEID), produitId));
+        // bool_CALCUL_SEUIL = false -> produit saute (aucune mise a jour, valeurs intactes)
+        update.where(cb.and(cb.equal(root.get(TFamille_.lgFAMILLEID), produitId),
+                cb.or(cb.isNull(root.<Boolean>get("boolCALCULSEUIL")),
+                        cb.isTrue(root.<Boolean>get("boolCALCULSEUIL")))));
         this.em.createQuery(update).executeUpdate();
     }
 
@@ -230,7 +233,10 @@ public class StockReapproServiceImpl implements StockReapproService {
         update.set(TFamille_.INT_QT_ER_EA_PP_RO_VI_SI_ON_NE_ME_NT, 0);
         update.set(TFamille_.DT_UP_DA_TE_D, now);
         update.set(TFamille_.DT_LA_ST_UP_DA_TE_SE_UI_LR_EA_PP_RO, now);
-        update.where(cb.equal(root.get(TFamille_.lgFAMILLEID), produitId));
+        // bool_CALCUL_SEUIL = false -> produit saute (aucune mise a jour, valeurs intactes)
+        update.where(cb.and(cb.equal(root.get(TFamille_.lgFAMILLEID), produitId),
+                cb.or(cb.isNull(root.<Boolean>get("boolCALCULSEUIL")),
+                        cb.isTrue(root.<Boolean>get("boolCALCULSEUIL")))));
         this.em.createQuery(update).executeUpdate();
     }
 

@@ -375,7 +375,10 @@ public class SemoisService {
             q.set(root.get(TFamille_.intSEUILMIN), seuiCalule);
             q.set(root.get(TFamille_.intSTOCKREAPROVISONEMENT), seuiCalule);
             q.set(root.get(TFamille_.intQTEREAPPROVISIONNEMENT), qteCalule);
-            q.where(cb.equal(root.get(TFamille_.lgFAMILLEID), produitId));
+            // bool_CALCUL_SEUIL = false -> on saute le produit (aucune ligne mise a jour, valeurs intactes)
+            q.where(cb.and(cb.equal(root.get(TFamille_.lgFAMILLEID), produitId),
+                    cb.or(cb.isNull(root.<Boolean>get("boolCALCULSEUIL")),
+                            cb.isTrue(root.<Boolean>get("boolCALCULSEUIL")))));
             em.createQuery(q).executeUpdate();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, e.getLocalizedMessage());

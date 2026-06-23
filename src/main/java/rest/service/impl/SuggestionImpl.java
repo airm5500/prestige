@@ -389,6 +389,10 @@ public class SuggestionImpl implements SuggestionService {
         if (famille.getBoolDECONDITIONNE() == 1 || !STATUT_ENABLE.equals(famille.getStrSTATUT())) {
             return;
         }
+        // bool_SUGGERABLE = false -> jamais suggere meme si le seuil est atteint
+        if (famille.getBoolSUGGERABLE() != null && !famille.getBoolSUGGERABLE()) {
+            return;
+        }
 
         if (Objects.nonNull(famille.getIntSEUILMIN()) && checkQteSeuilCondition(oFamilleStock, famille)) {
 
