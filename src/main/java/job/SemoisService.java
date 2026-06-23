@@ -113,6 +113,16 @@ public class SemoisService {
         }
     }
 
+    /** SEMOIS PAR PRODUIT actif : on calcule seuil/qte avec Q1/Q2 de la fiche article. */
+    private boolean isSemoisParProduit() {
+        try {
+            TParameters p = em.find(TParameters.class, "SEMOIS_PAR_PRODUIT");
+            return (p != null && Integer.parseInt(p.getStrVALUE().trim()) == 1);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public void execute() {
         try {
             TParameters p = em.find(TParameters.class, "KEY_DAY_SEUIL_REAPPRO");// derniere date de mise a jour stock
@@ -200,6 +210,10 @@ public class SemoisService {
         // Sinon, le calcul standard ci-dessous reste strictement inchange.
         if (isSemoisAbc()) {
             computeReapproAbc();
+            return;
+        }
+        if (isSemoisParProduit()) {
+            computeReapproParProduit();
             return;
         }
         // Journal de calcul (toujours actif) -> ~/Documents/reappro_logs/semois_normal_<date>.json
@@ -451,6 +465,26 @@ public class SemoisService {
         return map;
     }
 
+    /** produitId -> [q1, q2] depuis la fiche article (mode SEMOIS_PAR_PRODUIT). */
+    private Map<String, int[]> loadProduitReapproPP() {
+        Map<String, int[]> map = new HashMap<>();
+        try {
+            Query q = em.createNativeQuery(
+                    "SELECT lg_FAMILLE_ID, int_Q1_SEUIL_REAPPRO, int_Q2_QTE_REAPPRO FROM t_famille WHERE str_STATUT='enable'");
+            for (Object[] r : (List<Object[]>) q.getResultList()) {
+                if (r[0] == null) {
+                    continue;
+                }
+                int q1 = (r[1] instanceof Number) ? ((Number) r[1]).intValue() : 0;
+                int q2 = (r[2] instanceof Number) ? ((Number) r[2]).intValue() : 0;
+                map.put(r[0].toString(), new int[] { q1, q2 });
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return map;
+    }
+
     private int globalParam(String key, int def) {
         TParameters p = findParameters(key);
         if (p != null) {
@@ -582,6 +616,91 @@ public class SemoisService {
             }
 
             ReapproLogWriter.write(em, "semois_abc", logArr);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+    }
+
+    // SEMOIS PAR PRODUIT : seuil/qte calcules avec Q1/Q2 de la fiche article (fallback
+    // parametres globaux Q1/Q2 si non renseignes) et la fenetre du parametre Q3 (semaines).
+    private void computeReapproParProduit() {
+        try {
+            int gq1 = globalParam(Constant.Q1, 4);
+            int gq2 = globalParam(Constant.Q2, 2);
+            int gq3 = globalParam(Constant.Q3, 3);
+            if (gq3 <= 0) {
+                gq3 = 3;
+            }
+
+            List<LocalDate> moisAsc = nombreMoisPleinsConsommation(gq3).stream().sorted()
+                    .collect(Collectors.toList());
+            if (moisAsc.isEmpty()) {
+                return;
+            }
+            LocalDate firstMonth = moisAsc.get(0);
+            LocalDate last = moisAsc.get(moisAsc.size() - 1);
+            LocalDate lastMonthEnd = LocalDate.of(last.getYear(), last.getMonth(), last.lengthOfMonth());
+
+            Map<String, Map<String, Double>> conso = loadMonthlyConsoAbc(firstMonth, lastMonthEnd);
+            Map<String, int[]> ppConfig = loadProduitReapproPP();
+
+            // Journal de calcul -> ~/Documents/reappro_logs/semois_par_produit_<date>.json
+            final org.json.JSONArray logArr = new org.json.JSONArray();
+            final double diviseur = gq3 * 4d;
+
+            List<String> produitIds = new ArrayList<>(conso.keySet());
+            int chunk = 1000;
+            for (int i = 0; i < produitIds.size(); i += chunk) {
+                List<String> sub = produitIds.subList(i, Math.min(produitIds.size(), i + chunk));
+                try {
+                    userTransaction.begin();
+                    for (String produitId : sub) {
+                        Map<String, Double> perMonth = conso.get(produitId);
+                        if (perMonth == null) {
+                            continue;
+                        }
+                        int[] cfg = ppConfig.get(produitId);
+                        int q1 = (cfg != null && cfg[0] > 0) ? cfg[0] : gq1;
+                        int q2 = (cfg != null && cfg[1] > 0) ? cfg[1] : gq2;
+
+                        double consoTotale = 0d;
+                        for (LocalDate m : moisAsc) {
+                            Double v = perMonth.get(ymKey(m));
+                            if (v != null) {
+                                consoTotale += v;
+                            }
+                        }
+                        double q4 = (diviseur > 0) ? (consoTotale / diviseur) : 0d;
+                        int seuil = (int) Math.ceil(q4 * q1);
+                        int qte = (int) Math.ceil(q4 * q2);
+                        updateProduitSeuilAndQtyReappro(produitId, seuil, qte);
+
+                        org.json.JSONObject o = new org.json.JSONObject();
+                        o.put("produitId", produitId);
+                        o.put("q1", q1);
+                        o.put("q2", q2);
+                        o.put("q3Mois", gq3);
+                        o.put("consoTotale", consoTotale);
+                        o.put("nombreSemaines", gq3 * 4);
+                        o.put("conso", q4);
+                        o.put("seuilMini", seuil);
+                        o.put("quantiteReappro", qte);
+                        logArr.put(o);
+                    }
+                    userTransaction.commit();
+                } catch (NotSupportedException | SystemException | RollbackException | HeuristicMixedException
+                        | HeuristicRollbackException | SecurityException | IllegalStateException ex) {
+                    try {
+                        if (userTransaction.getStatus() == Status.STATUS_ACTIVE
+                                || userTransaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+                            userTransaction.rollback();
+                        }
+                    } catch (SystemException ex1) {
+                        LOG.log(Level.SEVERE, null, ex1);
+                    }
+                }
+            }
+            ReapproLogWriter.write(em, "semois_par_produit", logArr);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
