@@ -2629,7 +2629,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                             OTFamille.getIntNUMBERDETAIL(), 0, tabString[9].trim(), "", tabString[17].trim(),
                             OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(),
                             OTFamille.getIntSTOCKREAPROVISONEMENT(), OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "",
-                            "", null, null)) {
+                            "", null, null, OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(),
+                            OTFamille.getBoolREMISE(), OTFamille.getIntQ1SEUILREAPPRO(), OTFamille.getIntQ2QTEREAPPRO())) {
                         count++;
                         if (updateStock) {
                             OTFamilleStock = OtellerManagement.getTProductItemStock(OTFamille.getLgFAMILLEID());
@@ -2734,7 +2735,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                             "", (OTFamille.getLgCODETVAID() != null ? OTFamille.getLgCODETVAID().getLgCODETVAID() : ""),
                             OTFamille.getBoolRESERVE(), OTFamille.getIntSEUILRESERVE(),
                             OTFamille.getIntSTOCKREAPROVISONEMENT(), OTFamille.getIntQTEREAPPROVISIONNEMENT(), "", "",
-                            "", null, null)) {
+                            "", null, null, OTFamille.getBoolCALCULSEUIL(), OTFamille.getBoolSUGGERABLE(),
+                            OTFamille.getBoolREMISE(), OTFamille.getIntQ1SEUILREAPPRO(), OTFamille.getIntQ2QTEREAPPRO())) {
 
                         OTFamilleStock = OtellerManagement.getTProductItemStock(OTFamille.getLgFAMILLEID());
                         OTTypeStockFamille = OStockManager.getTTypeStockFamilleByTypestock("1",
