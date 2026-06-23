@@ -298,9 +298,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         margin: '0 0 5 0',
                         defaultType: 'checkbox',
                         items: [
-                            { boxLabel: 'Calcul seuil/qte reappro', name: 'bool_CALCUL_SEUIL', itemId: 'bool_CALCUL_SEUIL', checked: true, width: 220 },
-                            { boxLabel: 'Suggerer', name: 'bool_SUGGERABLE', itemId: 'bool_SUGGERABLE', checked: true, width: 130 },
-                            { boxLabel: 'Article Remise', name: 'bool_REMISE', itemId: 'bool_REMISE', checked: true, width: 160 }
+                            { boxLabel: 'Calcul seuil/qte reappro', name: 'bool_CALCUL_SEUIL', itemId: 'bool_CALCUL_SEUIL', checked: true, width: 200 },
+                            { boxLabel: 'Suggerer', name: 'bool_SUGGERABLE', itemId: 'bool_SUGGERABLE', checked: true, width: 110 },
+                            { boxLabel: 'Article Remisable', name: 'bool_REMISE', itemId: 'bool_REMISE', checked: true, width: 150 }
                         ]
                     }, {
                         xtype: 'container',
@@ -308,9 +308,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         margin: '0 0 5 0',
                         defaultType: 'numberfield',
                         items: [
-                            { fieldLabel: 'Q1 seuil reappro', labelWidth: 130, width: 250, minValue: 0, allowDecimals: false, name: 'int_Q1_SEUIL_REAPPRO', itemId: 'int_Q1_SEUIL_REAPPRO' },
+                            { fieldLabel: 'Semois_Q1_seuil_reappro', labelWidth: 180, width: 300, minValue: 0, allowDecimals: false, name: 'int_Q1_SEUIL_REAPPRO', itemId: 'int_Q1_SEUIL_REAPPRO' },
                             { xtype: 'splitter' },
-                            { fieldLabel: 'Q2 qte reappro', labelWidth: 120, width: 250, minValue: 0, allowDecimals: false, name: 'int_Q2_QTE_REAPPRO', itemId: 'int_Q2_QTE_REAPPRO' }
+                            { fieldLabel: 'Semois_Q2_qte_reappro', labelWidth: 180, width: 300, minValue: 0, allowDecimals: false, name: 'int_Q2_QTE_REAPPRO', itemId: 'int_Q2_QTE_REAPPRO' }
                         ]
                     }]
                 },

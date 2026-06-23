@@ -99,7 +99,24 @@ Ext.define('testextjs.view.sm_user.parameter.action.add', {
 
     },
     onbtnsave: function () {
-
+        var me = this;
+        var val = (Ext.getCmp('str_VALUE').getValue() || '').toString().trim();
+        // Exclusivite SEMOIS_ABC / SEMOIS_PAR_PRODUIT : information + confirmation avant activation
+        if ((ref === 'SEMOIS_ABC' || ref === 'SEMOIS_PAR_PRODUIT') && val === '1') {
+            var autre = (ref === 'SEMOIS_ABC') ? 'SEMOIS_PAR_PRODUIT' : 'SEMOIS_ABC';
+            Ext.MessageBox.confirm('Modes SEMOIS exclusifs',
+                    "Les modes <b>SEMOIS_ABC</b> et <b>SEMOIS_PAR_PRODUIT</b> ne peuvent pas etre actifs en meme temps : c'est l'un OU l'autre.<br><br>"
+                    + "En activant <b>" + ref + "</b>, le mode <b>" + autre + "</b> sera automatiquement remis a 0 s'il etait actif.<br><br>Voulez-vous continuer ?",
+                    function (btn) {
+                        if (btn === 'yes') {
+                            me.doSaveParameter();
+                        }
+                    });
+            return;
+        }
+        this.doSaveParameter();
+    },
+    doSaveParameter: function () {
         var internal_url = "";
 
         if (Omode === "update") {
