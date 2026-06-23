@@ -227,7 +227,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                             }},
                         {header: 'Famille', dataIndex: 'famille', flex: 1},
                         {header: 'Rayon', dataIndex: 'rayon', flex: 1},
-                        {header: 'Code Geo', dataIndex: 'codeGeoArticle', width: 100},
+                        {header: 'Code Geo', dataIndex: 'codeGeoArticle', width: 100, hidden: true},
                         {header: 'Stock', dataIndex: 'stockDisponible', width: 70, align: 'right', renderer: moneyRenderer},
                         {header: 'Seuil', dataIndex: 'seuilMini', width: 70, align: 'right', renderer: moneyRenderer},
                         {header: 'Qté réappro', dataIndex: 'quantiteReappro', width: 80, align: 'right', renderer: moneyRenderer},
