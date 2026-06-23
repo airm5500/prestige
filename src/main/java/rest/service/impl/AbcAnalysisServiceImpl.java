@@ -748,6 +748,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             }
             VenteDetailsDTO v = new VenteDetailsDTO();
             v.setLgFAMILLEID(d.getProduitId());
+            // equals/hashCode de VenteDetailsDTO reposent sur lgPREENREGISTREMENTDETAILID :
+            // on l'initialise avec l'id produit (unique) sinon le Set de suggererQteReappro
+            // fusionnerait tous les produits en un seul.
+            v.setLgPREENREGISTREMENTDETAILID(d.getProduitId());
             v.setGrossisteId(d.getGrossisteId());
             v.setTypeVente(d.getGrossisteId());
             v.setIntQUANTITY((int) d.getQuantiteVendue());
