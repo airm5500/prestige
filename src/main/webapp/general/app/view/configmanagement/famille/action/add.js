@@ -306,33 +306,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         xtype: 'container',
                         layout: 'hbox',
                         margin: '0 0 5 0',
+                        defaultType: 'numberfield',
                         items: [
-                            { xtype: 'numberfield', fieldLabel: 'Semois_Q1_seuil_reappro', labelWidth: 180, width: 300, minValue: 0, allowDecimals: false, name: 'int_Q1_SEUIL_REAPPRO', itemId: 'int_Q1_SEUIL_REAPPRO' },
+                            { fieldLabel: 'Semois_Q1_seuil_reappro', labelWidth: 180, width: 300, minValue: 0, allowDecimals: false, name: 'int_Q1_SEUIL_REAPPRO', itemId: 'int_Q1_SEUIL_REAPPRO' },
                             { xtype: 'splitter' },
-                            { xtype: 'numberfield', fieldLabel: 'Semois_Q2_qte_reappro', labelWidth: 180, width: 300, minValue: 0, allowDecimals: false, name: 'int_Q2_QTE_REAPPRO', itemId: 'int_Q2_QTE_REAPPRO' },
-                            { xtype: 'splitter' },
-                            {
-                                xtype: 'combobox', fieldLabel: 'Unité', labelWidth: 45, width: 150, itemId: 'unite_reappro',
-                                value: 'SEMAINE', editable: false, forceSelection: true, queryMode: 'local', store: ['SEMAINE', 'JOUR'],
-                                // Conversion d'affichage uniquement (1 semaine = 7 jours) ; stockage toujours en semaines.
-                                listeners: {
-                                    change: function (cmb, nv, ov) {
-                                        if (!ov || nv === ov) { return; }
-                                        var ct = cmb.up('container'),
-                                                q1 = ct.down('#int_Q1_SEUIL_REAPPRO'),
-                                                q2 = ct.down('#int_Q2_QTE_REAPPRO');
-                                        if (!q1 || !q2) { return; }
-                                        var v1 = q1.getValue() || 0, v2 = q2.getValue() || 0;
-                                        if (nv === 'JOUR' && ov === 'SEMAINE') {
-                                            q1.setValue(v1 * 7);
-                                            q2.setValue(v2 * 7);
-                                        } else if (nv === 'SEMAINE' && ov === 'JOUR') {
-                                            q1.setValue(Math.max(1, Math.round(v1 / 7)));
-                                            q2.setValue(Math.max(1, Math.round(v2 / 7)));
-                                        }
-                                    }
-                                }
-                            }
+                            { fieldLabel: 'Semois_Q2_qte_reappro', labelWidth: 180, width: 300, minValue: 0, allowDecimals: false, name: 'int_Q2_QTE_REAPPRO', itemId: 'int_Q2_QTE_REAPPRO' }
                         ]
                     }]
                 },
@@ -813,15 +791,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             }
 
             // sinon : flux normal (create/update)
-            // Reconvertit Q1/Q2 en SEMAINE (unite de stockage) si l'utilisateur affiche en JOUR
-            var semoisQToWeeks = function (qid) {
-                var f = g(qid);
-                if (!f) { return ''; }
-                var v = f.getValue();
-                if (v === null || v === '' || v === undefined) { return ''; }
-                var u = g('unite_reappro');
-                return (u && u.getValue() === 'JOUR') ? Math.max(1, Math.round(v / 7)) : v;
-            };
             var params = {
                 int_NUMBER_AVAILABLE: g('int_NUMBER_AVAILABLE').getValue(),
                 lg_CODE_GESTION_ID: g('lg_CODE_GESTION_ID').getValue(),
@@ -852,9 +821,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 bool_CALCUL_SEUIL: g('bool_CALCUL_SEUIL') ? g('bool_CALCUL_SEUIL').getValue() : true,
                 bool_SUGGERABLE: g('bool_SUGGERABLE') ? g('bool_SUGGERABLE').getValue() : true,
                 bool_REMISE: g('bool_REMISE') ? g('bool_REMISE').getValue() : true,
-                // Q1/Q2 stockes en SEMAINE : si l'unite affichee est JOUR, on reconvertit (/7) avant envoi
-                int_Q1_SEUIL_REAPPRO: semoisQToWeeks('int_Q1_SEUIL_REAPPRO'),
-                int_Q2_QTE_REAPPRO: semoisQToWeeks('int_Q2_QTE_REAPPRO'),
+                int_Q1_SEUIL_REAPPRO: g('int_Q1_SEUIL_REAPPRO') ? g('int_Q1_SEUIL_REAPPRO').getValue() : '',
+                int_Q2_QTE_REAPPRO: g('int_Q2_QTE_REAPPRO') ? g('int_Q2_QTE_REAPPRO').getValue() : '',
                 laboratoireId: g('laboratoireId').getValue(),
                 gammeId: g('gammeId').getValue(),
                 // en update : reflète l’état existant ; sinon 0
