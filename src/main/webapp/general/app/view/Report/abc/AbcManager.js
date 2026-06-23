@@ -140,7 +140,14 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                     xtype: 'toolbar',
                     dock: 'top',
                     items: [
-                        {xtype: 'combo', value: 'QTY', flex: 1, itemId: 'comboType', labelWidth: 1, editable: false, store: filtreType, valueField: 'id', displayField: 'libelle'},
+                        {xtype: 'combo', value: 'QTY', flex: 1, itemId: 'comboType', labelWidth: 1, editable: false, store: filtreType, valueField: 'id', displayField: 'libelle',
+                            fieldStyle: 'color:#d10000;font-weight:bold',
+                            listeners: {
+                                select: function (cmb) {
+                                    const t = cmb.getValue();
+                                    cmb.setFieldStyle('color:' + (t === 'MARGE' ? '#0000ff' : '#d10000') + ';font-weight:bold');
+                                }
+                            }},
                         {xtype: 'combo', value: 'ALL', flex: 1, itemId: 'comboClasse', labelWidth: 1, editable: false, store: filtreClasse, valueField: 'id', displayField: 'libelle'},
                         {
                             xtype: 'combo', value: 'ALL', flex: 1, itemId: 'comboStock', labelWidth: 1, editable: false,
@@ -213,14 +220,25 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {header: 'CIP', dataIndex: 'cip', width: 80},
                         {header: 'EAN', dataIndex: 'ean', width: 100, hidden: true},
                         {header: 'Libellé', dataIndex: 'libelle', flex: 1.6},
-                        {header: 'Classe', dataIndex: 'classe', width: 60, align: 'center'},
+                        {header: 'Classe', dataIndex: 'classe', width: 60, align: 'center',
+                            renderer: function (v) {
+                                const map = {A: '#1a7e1a', B: '#e67e00', C: '#d10000'};
+                                return '<span style="color:' + (map[v] || '#000') + ';font-weight:bold">' + (v || '') + '</span>';
+                            }},
                         {header: 'Famille', dataIndex: 'famille', flex: 1},
                         {header: 'Rayon', dataIndex: 'rayon', flex: 1},
                         {header: 'Code Geo', dataIndex: 'codeGeoArticle', width: 100},
                         {header: 'Stock', dataIndex: 'stockDisponible', width: 70, align: 'right', renderer: moneyRenderer},
                         {header: 'Seuil', dataIndex: 'seuilMini', width: 70, align: 'right', renderer: moneyRenderer},
                         {header: 'Qté réappro', dataIndex: 'quantiteReappro', width: 80, align: 'right', renderer: moneyRenderer},
-                        {header: 'Qté vendue', dataIndex: 'quantiteVendue', width: 80, align: 'right', renderer: moneyRenderer},
+                        {header: 'Qté vendue', dataIndex: 'quantiteVendue', width: 80, align: 'right',
+                            renderer: function (v) {
+                                const cmp = me.down('#comboType');
+                                const t = (cmp && cmp.getValue()) || 'QTY';
+                                // QTY -> rouge, CA -> vert, MARGE -> bleu
+                                const c = (t === 'MARGE') ? '#0000ff' : (t === 'CA') ? '#1a7e1a' : '#d10000';
+                                return '<span style="color:' + c + ';font-weight:bold">' + Ext.util.Format.number(v, '0,000.') + '</span>';
+                            }},
                         {header: "Chiffre d'Affaires", dataIndex: 'chiffreAffaires', flex: 1, align: 'right', renderer: moneyRenderer},
                         {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right', renderer: moneyRenderer},
                         {header: 'Part %', dataIndex: 'partPourcentage', width: 70, align: 'right',
@@ -235,20 +253,23 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                                         + totalTxt + " puis x 100.<br>"
                                         + "Resultat : <span style='color:red;font-weight:bold'>" + val + " %</span></span>";
                                 meta.tdAttr = 'data-abctip="' + html + '"';
-                                return val;
+                                return '<span style="color:#000000;font-weight:bold">' + val + '</span>';
                             }},
                         {header: 'Cumul %', dataIndex: 'cumulPourcentage', width: 75, align: 'right',
                             renderer: function (v, meta, rec) {
                                 const val = Ext.util.Format.number(v, '0.00');
-                                const part = Ext.util.Format.number(rec.get('partPourcentage'), '0.00');
+                                const partNum = rec.get('partPourcentage') || 0;
+                                const cumNum = rec.get('cumulPourcentage') || 0;
+                                const part = Ext.util.Format.number(partNum, '0.00');
+                                const prev = Ext.util.Format.number(cumNum - partNum, '0.00'); // cumul du produit precedent
                                 const html = "<span style='color:#0000ff'>"
                                         + "Cumul % = somme des Part % en cumulant du plus gros au plus petit.<br>"
-                                        + "Calcul : Part % de ce produit (" + part + " %) + Cumul % du produit precedent.<br>"
+                                        + "Calcul : Part % de ce produit (" + part + " %) + Cumul % du produit precedent (" + prev + " %).<br>"
                                         + "Resultat : <span style='color:red;font-weight:bold'>" + val + " %</span>.<br>"
                                         + "Sert a placer le produit en classe A, B ou C selon les bornes."
                                         + "</span>";
                                 meta.tdAttr = 'data-abctip="' + html + '"';
-                                return val;
+                                return '<span style="color:#191970;font-weight:bold">' + val + '</span>';
                             }},
                         {header: 'Q1', dataIndex: 'q1', width: 45, align: 'right', hidden: true},
                         {header: 'Q2', dataIndex: 'q2', width: 45, align: 'right', hidden: true},
