@@ -13,6 +13,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Response;
 import rest.service.StockReapproService;
+import job.SemoisService;
+import config.AppConfig;
 import toolkits.parameters.commonparameter;
 
 /**
@@ -30,6 +32,10 @@ public class BatchUpdateRessource {
     private HttpServletRequest servletRequest;
     @EJB
     private StockReapproService stockReapproService;
+    @EJB
+    private SemoisService semoisService;
+    @EJB
+    private AppConfig appConfig;
 
     @GET
     @Path("/compute-reappro")
@@ -40,7 +46,13 @@ public class BatchUpdateRessource {
             return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter"))
                     .build();
         }
-        mes.submit(stockReapproService::computeReappro);
+        // Recalcul immediat selon le MODE ACTIF (sans attendre la fin du mois) :
+        // mode "semois" -> SEMOIS (normal / ABC / par-produit selon les parametres) ; sinon mode defaut.
+        if (appConfig != null && appConfig.isSemoisReapproMode()) {
+            mes.submit(semoisService::computeReapproSemois);
+        } else {
+            mes.submit(stockReapproService::computeReappro);
+        }
         return Response.ok().entity(ResultFactory.getFailResult("Traitement en cours")).build();
     }
 

@@ -694,6 +694,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         },
                         '-',
                         {
+                            text: 'Recalculer seuils',
+                            tooltip: 'Recalculer les seuils/quantités de réappro maintenant, selon le mode actif (sans attendre la fin du mois)',
+                            id: 'btn_recalc_seuils',
+                            iconCls: 'suggestionreapro',
+                            scope: this,
+                            handler: this.onRecalculerSeuils
+                        },
+                        '-',
+                        {
                             text: 'Verifier l\'importation',
                             tooltip: 'Verifier l\'importation',
                             id: 'btn_checkimport',
@@ -1022,6 +1031,26 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
     onStoreLoad: function () {
 
+    },
+
+    onRecalculerSeuils: function () {
+        Ext.MessageBox.confirm('Recalcul des seuils',
+                'Lancer le recalcul des seuils et quantités de réappro selon le mode actif ?<br>'
+                + 'Le traitement se fait en arrière-plan et peut prendre quelques minutes.',
+                function (btn) {
+                    if (btn !== 'yes') { return; }
+                    Ext.Ajax.request({
+                        url: '../api/v1/update/compute-reappro',
+                        method: 'GET',
+                        success: function () {
+                            Ext.Msg.alert('Recalcul des seuils',
+                                    'Le recalcul a été lancé en arrière-plan. Les seuils seront mis à jour dans quelques minutes.');
+                        },
+                        failure: function (r) {
+                            Ext.Msg.alert('Erreur', 'Échec du lancement. Code HTTP : ' + r.status);
+                        }
+                    });
+                });
     },
 
     onAddClick: function () {
