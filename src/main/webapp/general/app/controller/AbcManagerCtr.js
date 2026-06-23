@@ -354,6 +354,15 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
 
         const cellEditing = Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1});
 
+        // Validation immediate de la cellule sur Entree (champs numeriques)
+        const enterCompletes = {
+            specialkey: function (f, e) {
+                if (e.getKey() === e.ENTER) {
+                    cellEditing.completeEdit();
+                }
+            }
+        };
+
         // Q3 (mois) -> nombre reel de jours des Q3 derniers mois clotures (longueurs reelles)
         const q3Days = function (q3) {
             const n = parseInt(q3, 10) || 0;
@@ -409,15 +418,15 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
                 columns: [
                     {header: 'Code', dataIndex: 'code', width: 60, align: 'center'},
                     {header: 'Libellé', dataIndex: 'libelle', flex: 1},
-                    {header: 'Q1', dataIndex: 'q1', width: 60, align: 'right', editor: {xtype: 'numberfield', minValue: 0, allowBlank: false}},
-                    {header: 'Q2', dataIndex: 'q2', width: 60, align: 'right', editor: {xtype: 'numberfield', minValue: 0, allowBlank: false}},
-                    {header: 'Q3 (mois)', dataIndex: 'q3', width: 80, align: 'right', editor: {xtype: 'numberfield', minValue: 1, allowBlank: false}},
+                    {header: 'Q1', dataIndex: 'q1', width: 60, align: 'right', editor: {xtype: 'numberfield', minValue: 0, allowBlank: false, listeners: enterCompletes}},
+                    {header: 'Q2', dataIndex: 'q2', width: 60, align: 'right', editor: {xtype: 'numberfield', minValue: 0, allowBlank: false, listeners: enterCompletes}},
+                    {header: 'Q3 (mois)', dataIndex: 'q3', width: 80, align: 'right', editor: {xtype: 'numberfield', minValue: 1, allowBlank: false, listeners: enterCompletes}},
                     {header: 'Q3 (≈ j)', dataIndex: 'q3', width: 70, align: 'right', sortable: false,
                         renderer: function (v) { return q3Days(v) + ' j'; }},
                     {header: 'Unité Q1/Q2', dataIndex: 'unite', width: 110, editor: {xtype: 'combobox', store: uniteStore, valueField: 'id', displayField: 'id', editable: false, forceSelection: true,
                         listeners: {select: function () { cellEditing.completeEdit(); }}}},
-                    {header: 'Cumul min %', dataIndex: 'seuilMin', width: 95, align: 'right', editor: {xtype: 'numberfield', minValue: 0, maxValue: 100}},
-                    {header: 'Cumul max %', dataIndex: 'seuilMax', width: 95, align: 'right', editor: {xtype: 'numberfield', minValue: 0, maxValue: 100}},
+                    {header: 'Cumul min %', dataIndex: 'seuilMin', width: 95, align: 'right', editor: {xtype: 'numberfield', minValue: 0, maxValue: 100, listeners: enterCompletes}},
+                    {header: 'Cumul max %', dataIndex: 'seuilMax', width: 95, align: 'right', editor: {xtype: 'numberfield', minValue: 0, maxValue: 100, listeners: enterCompletes}},
                     {header: 'Statut', dataIndex: 'statut', width: 80, renderer: function (v) { return v === 'enable' ? 'Actif' : 'Inactif'; }, editor: {xtype: 'combobox', store: statutStore, valueField: 'id', displayField: 'libelle', editable: false, forceSelection: true,
                         listeners: {select: function () { cellEditing.completeEdit(); }}}}
                 ],
