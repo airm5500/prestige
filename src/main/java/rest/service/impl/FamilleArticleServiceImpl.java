@@ -307,7 +307,8 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType) {
+            String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType,
+            Integer topN) {
         List<VenteDetailsDTO> list = new ArrayList<>();
         try {
             String procedureName;
@@ -363,6 +364,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
                 list.add(dto);
             }
+            // Top N : la liste est deja triee DESC par le critere (CA/QTY/MARGE) dans la procedure,
+            // on ne garde donc que les N premiers (les plus importants). topN null/<=0 = tous.
+            if (topN != null && topN > 0 && list.size() > topN) {
+                return new ArrayList<>(list.subList(0, topN));
+            }
             return list;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -373,9 +379,9 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType) {
+            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) {
         List<VenteDetailsDTO> data = geVingtQuatreVingt(dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, start,
-                limit, false, vingtQuatreVingtType);
+                limit, false, vingtQuatreVingtType, topN);
         int total = data.size();
 
         return new JSONObject().put("total", total).put("data", new JSONArray(data));
@@ -1087,9 +1093,9 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public byte[] buildVingtQuatreVingtExcel(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException {
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException {
         List<VenteDetailsDTO> datas = geVingtQuatreVingt(dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, 0, 0,
-                true, vingtQuatreVingtType);
+                true, vingtQuatreVingtType, topN);
         if (datas.isEmpty()) {
             return new byte[0];
         }
@@ -1117,9 +1123,9 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public byte[] buildVingtQuatreVingtCsv(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException {
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException {
         List<VenteDetailsDTO> datas = geVingtQuatreVingt(dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste, 0, 0,
-                true, vingtQuatreVingtType);
+                true, vingtQuatreVingtType, topN);
         if (datas.isEmpty()) {
             return new byte[0];
         }
@@ -1141,11 +1147,12 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
     @Override
     public JSONObject createInventaireVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile,
-            String codeRayon, String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException {
+            String codeRayon, String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN)
+            throws JSONException {
 
-        // Récupère TOUT le 20/80 correspondant aux filtres
+        // Récupère le 20/80 correspondant aux filtres (limité au Top N si demandé)
         List<VenteDetailsDTO> data = geVingtQuatreVingt(dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, 0, 0,
-                true, vingtQuatreVingtType);
+                true, vingtQuatreVingtType, topN);
 
         if (data.isEmpty()) {
             return new JSONObject().put("count", 0);

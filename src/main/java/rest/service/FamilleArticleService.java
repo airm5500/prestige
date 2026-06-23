@@ -29,10 +29,11 @@ public interface FamilleArticleService {
             String codeRayon, String codeGrossiste) throws JSONException;
 
     List<VenteDetailsDTO> geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType);
+            String codeGrossiste, int start, int limit, boolean all, VingtQuatreVingtType vingtQuatreVingtType,
+            Integer topN);
 
     JSONObject geVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType);
+            String codeGrossiste, int start, int limit, VingtQuatreVingtType vingtQuatreVingtType, Integer topN);
 
     Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> statistiqueParRayons(String dtStart, String dtEnd,
             String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
@@ -53,12 +54,12 @@ public interface FamilleArticleService {
             String dtEnd, String codeFamile, String query, TUser u, String codeRayon, String codeGrossiste);
 
     byte[] buildVingtQuatreVingtExcel(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException;
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException;
 
     byte[] buildVingtQuatreVingtCsv(String dtStart, String dtEnd, String codeFamille, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException;
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException;
 
     JSONObject createInventaireVingtQuatreVingt(String dtStart, String dtEnd, String codeFamile, String codeRayon,
-            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType) throws JSONException;
+            String codeGrossiste, VingtQuatreVingtType vingtQuatreVingtType, Integer topN) throws JSONException;
 
 }

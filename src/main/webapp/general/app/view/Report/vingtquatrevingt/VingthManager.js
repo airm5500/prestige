@@ -232,6 +232,25 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                             displayField: 'libelle'
                         },
                         {
+                            xtype: 'numberfield',
+                            itemId: 'topN',
+                            width: 90,
+                            minValue: 1,
+                            allowDecimals: false,
+                            margin: '0 5 0 0',
+                            emptyText: 'Top N',
+                            listeners: {
+                                specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        const btn = f.up('toolbar').down('#rechercher');
+                                        if (btn) {
+                                            btn.fireEvent('click', btn);
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             itemId: 'rechercher',
@@ -422,7 +441,8 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
                 rayonsCmp = me.down('#rayons'),
                 grossisteCmp = me.down('#grossiste'),
                 familleCmp = me.down('#codeFamile'),
-                comboVingtCmp = me.down('#comboVingt');
+                comboVingtCmp = me.down('#comboVingt'),
+                topNCmp = me.down('#topN');
 
         return {
             dtStart: dtStartCmp ? dtStartCmp.getSubmitValue() : null,
@@ -431,7 +451,8 @@ Ext.define('testextjs.view.Report.vingtquatrevingt.VingthManager', {
             codeRayon: (rayonsCmp && rayonsCmp.getValue()) ? rayonsCmp.getValue() : '',
             codeGrossiste: (grossisteCmp && grossisteCmp.getValue()) ? grossisteCmp.getValue() : '',
             // true si "Quantite", false si "Chiffre d'Affaires"
-            vingtType: comboVingtCmp.getValue()
+            vingtType: comboVingtCmp.getValue(),
+            topN: (topNCmp && topNCmp.getValue()) ? topNCmp.getValue() : ''
         };
     },
 

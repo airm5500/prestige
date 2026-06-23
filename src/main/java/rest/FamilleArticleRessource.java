@@ -65,10 +65,11 @@ public class FamilleArticleRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamillle") String codeFamillle,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
             @QueryParam(value = "codeRayon") String codeRayon,
-            @QueryParam(value = "codeGrossiste") String codeGrossiste) throws JSONException {
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN)
+            throws JSONException {
 
         JSONObject jsono = familleArticleService.geVingtQuatreVingt(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, 0, 0, vingtQuatreVingtType);
+                codeGrossiste, 0, 0, vingtQuatreVingtType, topN);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -78,10 +79,11 @@ public class FamilleArticleRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamillle") String codeFamillle,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
             @QueryParam(value = "codeRayon") String codeRayon,
-            @QueryParam(value = "codeGrossiste") String codeGrossiste) throws JSONException {
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN)
+            throws JSONException {
 
         List<VenteDetailsDTO> datas = familleArticleService.geVingtQuatreVingt(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, 0, 0, true, vingtQuatreVingtType);
+                codeGrossiste, 0, 0, true, vingtQuatreVingtType, topN);
         JSONObject jsono = suggestionService.makeSuggestion(datas);
         return Response.ok().entity(jsono.toString()).build();
     }
@@ -143,11 +145,11 @@ public class FamilleArticleRessource {
     public Response exportVingtQuatreVingtExcel(@QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("codeFamillle") String codeFamillle,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
-            @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType)
-            throws JSONException {
+            @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
+            @QueryParam(value = "topN") Integer topN) throws JSONException {
 
         byte[] data = familleArticleService.buildVingtQuatreVingtExcel(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, vingtQuatreVingtType);
+                codeGrossiste, vingtQuatreVingtType, topN);
 
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"vingtQuatreVingt.xls\"").build();
     }
@@ -158,11 +160,11 @@ public class FamilleArticleRessource {
     public Response exportVingtQuatreVingtCsv(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("codeFamillle") String codeFamillle, @QueryParam("codeRayon") String codeRayon,
             @QueryParam("codeGrossiste") String codeGrossiste,
-            @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType)
-            throws JSONException {
+            @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
+            @QueryParam(value = "topN") Integer topN) throws JSONException {
 
         byte[] data = familleArticleService.buildVingtQuatreVingtCsv(dtStart, dtEnd, codeFamillle, codeRayon,
-                codeGrossiste, vingtQuatreVingtType);
+                codeGrossiste, vingtQuatreVingtType, topN);
 
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"vingtQuatreVingt.csv\"").build();
     }
@@ -173,10 +175,11 @@ public class FamilleArticleRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamillle") String codeFamillle,
             @DefaultValue("CA") @QueryParam(value = "vingtType") VingtQuatreVingtType vingtQuatreVingtType,
             @QueryParam(value = "codeRayon") String codeRayon,
-            @QueryParam(value = "codeGrossiste") String codeGrossiste) throws JSONException {
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "topN") Integer topN)
+            throws JSONException {
 
         JSONObject jsono = familleArticleService.createInventaireVingtQuatreVingt(dtStart, dtEnd, codeFamillle,
-                codeRayon, codeGrossiste, vingtQuatreVingtType);
+                codeRayon, codeGrossiste, vingtQuatreVingtType, topN);
 
         return Response.ok().entity(jsono.toString()).build();
     }

@@ -43,6 +43,10 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
         {
             ref: 'comboVingt',
             selector: 'vingtquatrevingt #comboVingt'
+        },
+        {
+            ref: 'topNField',
+            selector: 'vingtquatrevingt #topN'
         }
 
 
@@ -146,6 +150,11 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
         myProxy.setExtraParam('vingtType', comboVingt);
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
+        myProxy.setExtraParam('topN', me.getTopN());
+    },
+    getTopN: function () {
+        const f = this.getTopNField();
+        return (f && f.getValue()) ? f.getValue() : '';
     },
     doInitStore: function () {
         const me = this;
@@ -171,7 +180,8 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
             codeFamile: codeFamile,
             codeRayon: codeRayon,
             codeGrossiste: codeGrossiste,
-            vingtType: comboVingt
+            vingtType: comboVingt,
+            topN: me.getTopN()
 
         };
     },
@@ -195,7 +205,7 @@ Ext.define('testextjs.controller.VingthManagerCtr', {
         }
         return  '&dtStart=' + me.getDtStart().getSubmitValue() + '&dtEnd=' + me.getDtEnd().getSubmitValue()
                 + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&codeFamile=' + codeFamile
-                + '&vingtType=' + comboVingt;
+                + '&vingtType=' + comboVingt + '&topN=' + me.getTopN();
 
     }
 
