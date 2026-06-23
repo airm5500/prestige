@@ -109,13 +109,13 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
             fields: ['id', 'libelle'],
             data: [
                 {id: 'ALL', libelle: 'Tous les stocks'},
-                {id: 'SUP', libelle: 'Stock >'},
-                {id: 'SUPEQ', libelle: 'Stock >='},
-                {id: 'INF', libelle: 'Stock <'},
-                {id: 'INFEQ', libelle: 'Stock <='},
-                {id: 'EGAL', libelle: 'Stock ='},
-                {id: 'INF_SEUIL', libelle: 'Stock < seuil'},
-                {id: 'INF_EGAL_SEUIL', libelle: 'Stock <= seuil'}
+                {id: 'SUP', libelle: 'Stock supérieur à'},
+                {id: 'SUPEQ', libelle: 'Stock supérieur ou égal à'},
+                {id: 'INF', libelle: 'Stock inférieur à'},
+                {id: 'INFEQ', libelle: 'Stock inférieur ou égal à'},
+                {id: 'EGAL', libelle: 'Stock égal à'},
+                {id: 'INF_SEUIL', libelle: 'Stock inférieur au seuil'},
+                {id: 'INF_EGAL_SEUIL', libelle: 'Stock inférieur ou égal au seuil'}
             ]
         });
         // Opérateurs nécessitant une valeur saisie
