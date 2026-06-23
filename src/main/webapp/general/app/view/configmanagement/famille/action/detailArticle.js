@@ -1,5 +1,12 @@
 /* global Ext */
 
+// Affiche uniquement la lettre de la classe ABC (ex: "ABC_CLASSE_C" -> "C").
+function abcClasseLetterDetail(id) {
+    if (!id) { return 'Non classe'; }
+    var parts = String(id).split('_');
+    return parts[parts.length - 1] || 'Non classe';
+}
+
 var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 var url_services_data_codeacte_famille = '../webservices/configmanagement/codeacte/ws_data.jsp';
 var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
@@ -411,6 +418,43 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     id: 'int_NUMBER_AVAILABLE',
                                     fieldStyle: "color:brown;font-weight:bold;font-size:1.5em;font-size: 20px",
 //                                    margin: '0 12 0 0',
+                                    width: 400,
+                                    value: 0
+                                }
+                            ]
+                        },
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            defaultType: 'displayfield', margin: '0 0 5 0',
+                            items: [
+                                {
+                                    xtype: 'displayfield',
+                                    fieldLabel: 'Classe ABC',
+                                    labelStyle: 'color: brown;font-size: 20px',
+                                    name: 'classe_abc_detail',
+                                    id: 'classe_abc_detail',
+                                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em;font-size: 20px",
+                                    width: 400,
+                                    value: 'Non classe'
+                                },
+                                {
+                                    xtype: 'displayfield',
+                                    fieldLabel: 'Stock reserve',
+                                    labelStyle: 'color: brown;font-size: 20px',
+                                    name: 'int_STOCK_RESERVE_DETAIL',
+                                    id: 'int_STOCK_RESERVE_DETAIL',
+                                    fieldStyle: "color:brown;font-weight:bold;font-size:1.5em;font-size: 20px",
+                                    width: 400,
+                                    value: 0
+                                },
+                                {
+                                    xtype: 'displayfield',
+                                    fieldLabel: 'Stock total',
+                                    labelStyle: 'color: brown;font-size: 20px',
+                                    name: 'int_STOCK_TOTAL_DETAIL',
+                                    id: 'int_STOCK_TOTAL_DETAIL',
+                                    fieldStyle: "color:green;font-weight:bold;font-size:1.5em;font-size: 20px",
                                     width: 400,
                                     value: 0
                                 }
@@ -1017,6 +1061,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
 
     updateCmp: function (rec) {
         Ext.getCmp('int_NUMBER_AVAILABLE').setValue(rec.int_NUMBER_AVAILABLE);
+        // Classe ABC (lettre), stock reserve et stock total (= stock + reserve)
+        Ext.getCmp('classe_abc_detail').setValue(abcClasseLetterDetail(rec.lg_CLASSE_ABC_ID));
+        const stockDispo = parseInt(rec.int_NUMBER_AVAILABLE, 10) || 0;
+        const stockReserve = parseInt(rec.int_STOCK_RESERVE, 10) || 0;
+        Ext.getCmp('int_STOCK_RESERVE_DETAIL').setValue(stockReserve);
+        Ext.getCmp('int_STOCK_TOTAL_DETAIL').setValue(stockDispo + stockReserve);
         Ext.getCmp('lg_CODE_GESTION_ID').setValue(rec.lg_CODE_GESTION_ID);
         Ext.getCmp('int_STOCK_REAPROVISONEMENT').setValue(rec.int_STOCK_REAPROVISONEMENT);
         Ext.getCmp('int_QTE_REAPPROVISIONNEMENT').setValue(rec.int_QTE_REAPPROVISIONNEMENT);

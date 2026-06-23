@@ -1,5 +1,12 @@
 /* global Ext */
 
+// Affiche uniquement la lettre de la classe ABC (ex: "ABC_CLASSE_C" -> "C").
+function abcClasseLetter(id) {
+    if (!id) { return 'Non classe'; }
+    var parts = String(id).split('_');
+    return parts[parts.length - 1] || 'Non classe';
+}
+
 var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 var url_services_data_codeacte_famille = '../webservices/configmanagement/codeacte/ws_data.jsp';
 var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
@@ -580,7 +587,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('lg_ZONE_GEO_ID').setValue(ds.lg_ZONE_GEO_ID);
             // Socle ABC (Lot 0) : prefill code geo + affichage classe ABC (lecture seule)
             if (g('str_CODE_GEO_ARTICLE')) { g('str_CODE_GEO_ARTICLE').setValue(ds.str_CODE_GEO_ARTICLE); }
-            if (g('classe_abc_display')) { g('classe_abc_display').setValue(ds.lg_CLASSE_ABC_ID ? ds.lg_CLASSE_ABC_ID : 'Non classe'); }
+            if (g('classe_abc_display')) { g('classe_abc_display').setValue(abcClasseLetter(ds.lg_CLASSE_ABC_ID)); }
             g('str_DESCRIPTION').setValue(ds.str_DESCRIPTION);
             g('int_CIP').setValue(ds.int_CIP);
             g('int_NUMBERDETAIL').setValue(ds.int_NUMBERDETAIL);
