@@ -239,8 +239,28 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                                 const c = (t === 'MARGE') ? '#0000ff' : (t === 'CA') ? '#1a7e1a' : '#d10000';
                                 return '<span style="color:' + c + ';font-weight:bold">' + Ext.util.Format.number(v, '0,000.') + '</span>';
                             }},
-                        {header: "Chiffre d'Affaires", dataIndex: 'chiffreAffaires', flex: 1, align: 'right', renderer: moneyRenderer},
-                        {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right', renderer: moneyRenderer},
+                        {header: "Chiffre d'Affaires", dataIndex: 'chiffreAffaires', flex: 1, align: 'right',
+                            renderer: function (v, meta, rec) {
+                                const ca = v || 0;
+                                const qte = rec.get('quantiteVendue') || 0;
+                                const pu = qte ? Math.round(ca / qte) : 0;
+                                const html = "<span style='color:#0000ff'>"
+                                        + "Chiffre d'affaires = total des ventes du produit sur la periode.<br>"
+                                        + "Calcul : quantite vendue (" + nf(qte) + ") x prix de vente (~" + nf(pu) + ").<br>"
+                                        + "Resultat : <span style='color:red;font-weight:bold'>" + nf(ca) + " F.CFA</span></span>";
+                                meta.tdAttr = 'data-abctip="' + html + '"';
+                                return nf(ca);
+                            }},
+                        {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right',
+                            renderer: function (v, meta) {
+                                const marge = v || 0;
+                                const html = "<span style='color:#0000ff'>"
+                                        + "Marge = benefice du produit sur la periode.<br>"
+                                        + "Formule : (prix de vente - remise - TVA) - (prix d'achat x quantite), cumule.<br>"
+                                        + "Resultat : <span style='color:red;font-weight:bold'>" + nf(marge) + " F.CFA</span></span>";
+                                meta.tdAttr = 'data-abctip="' + html + '"';
+                                return nf(marge);
+                            }},
                         {header: 'Part %', dataIndex: 'partPourcentage', width: 70, align: 'right',
                             renderer: function (v, meta, rec, ri, ci, store) {
                                 const val = Ext.util.Format.number(v, '0.00');
