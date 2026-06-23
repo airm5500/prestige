@@ -155,6 +155,17 @@ public class TFamille implements Serializable {
     private String lgCLASSEABCID;
     @Column(name = "str_CODE_GEO_ARTICLE", length = 50)
     private String strCODEGEOARTICLE;
+    // --- Reappro par produit (SEMOIS_PAR_PRODUIT) + flags de gestion (additif) ---
+    @Column(name = "bool_CALCUL_SEUIL")
+    private Boolean boolCALCULSEUIL;
+    @Column(name = "bool_SUGGERABLE")
+    private Boolean boolSUGGERABLE;
+    @Column(name = "bool_REMISE")
+    private Boolean boolREMISE;
+    @Column(name = "int_Q1_SEUIL_REAPPRO")
+    private Integer intQ1SEUILREAPPRO;
+    @Column(name = "int_Q2_QTE_REAPPRO")
+    private Integer intQ2QTEREAPPRO;
     @Column(name = "dt_UPDATED_CLASSE_ABC")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtUPDATEDCLASSEABC;
@@ -567,6 +578,46 @@ public class TFamille implements Serializable {
 
     public void setStrCODEGEOARTICLE(String strCODEGEOARTICLE) {
         this.strCODEGEOARTICLE = strCODEGEOARTICLE;
+    }
+
+    public Boolean getBoolCALCULSEUIL() {
+        return boolCALCULSEUIL;
+    }
+
+    public void setBoolCALCULSEUIL(Boolean boolCALCULSEUIL) {
+        this.boolCALCULSEUIL = boolCALCULSEUIL;
+    }
+
+    public Boolean getBoolSUGGERABLE() {
+        return boolSUGGERABLE;
+    }
+
+    public void setBoolSUGGERABLE(Boolean boolSUGGERABLE) {
+        this.boolSUGGERABLE = boolSUGGERABLE;
+    }
+
+    public Boolean getBoolREMISE() {
+        return boolREMISE;
+    }
+
+    public void setBoolREMISE(Boolean boolREMISE) {
+        this.boolREMISE = boolREMISE;
+    }
+
+    public Integer getIntQ1SEUILREAPPRO() {
+        return intQ1SEUILREAPPRO;
+    }
+
+    public void setIntQ1SEUILREAPPRO(Integer intQ1SEUILREAPPRO) {
+        this.intQ1SEUILREAPPRO = intQ1SEUILREAPPRO;
+    }
+
+    public Integer getIntQ2QTEREAPPRO() {
+        return intQ2QTEREAPPRO;
+    }
+
+    public void setIntQ2QTEREAPPRO(Integer intQ2QTEREAPPRO) {
+        this.intQ2QTEREAPPRO = intQ2QTEREAPPRO;
     }
 
     public Date getDtUPDATEDCLASSEABC() {

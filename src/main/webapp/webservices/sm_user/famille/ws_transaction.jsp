@@ -240,6 +240,24 @@
     ObllBase.setDetailmessage("PAS D'ACTION");
     familleManagement OfamilleManagement = new familleManagement(OdataManager, user);
     OfamilleManagement.setUsersPrivileges((List<TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE));
+    // Phase A : config reappro/suggestion de la fiche (additif). null => defaut (true / Q1-Q2 globaux)
+    Boolean bool_CALCUL_SEUIL = null, bool_SUGGERABLE = null, bool_REMISE = null;
+    Integer q1_seuil_reappro = null, q2_qte_reappro = null;
+    if (request.getParameter("bool_CALCUL_SEUIL") != null && !"".equals(request.getParameter("bool_CALCUL_SEUIL"))) {
+        bool_CALCUL_SEUIL = Boolean.parseBoolean(request.getParameter("bool_CALCUL_SEUIL"));
+    }
+    if (request.getParameter("bool_SUGGERABLE") != null && !"".equals(request.getParameter("bool_SUGGERABLE"))) {
+        bool_SUGGERABLE = Boolean.parseBoolean(request.getParameter("bool_SUGGERABLE"));
+    }
+    if (request.getParameter("bool_REMISE") != null && !"".equals(request.getParameter("bool_REMISE"))) {
+        bool_REMISE = Boolean.parseBoolean(request.getParameter("bool_REMISE"));
+    }
+    if (request.getParameter("int_Q1_SEUIL_REAPPRO") != null && !"".equals(request.getParameter("int_Q1_SEUIL_REAPPRO"))) {
+        try { q1_seuil_reappro = Integer.valueOf(request.getParameter("int_Q1_SEUIL_REAPPRO").trim()); } catch (Exception e) {}
+    }
+    if (request.getParameter("int_Q2_QTE_REAPPRO") != null && !"".equals(request.getParameter("int_Q2_QTE_REAPPRO"))) {
+        try { q2_qte_reappro = Integer.valueOf(request.getParameter("int_Q2_QTE_REAPPRO").trim()); } catch (Exception e) {}
+    }
     if (request.getParameter("mode") != null) {
 
         if (request.getParameter("mode").equals("create")) {
@@ -257,6 +275,9 @@
             } catch (Exception e) {
 
             }
+            if (lg_FAMILLE_ID != null && !"".equals(lg_FAMILLE_ID)) {
+                OfamilleManagement.updateReapproConfig(lg_FAMILLE_ID, bool_CALCUL_SEUIL, bool_SUGGERABLE, bool_REMISE, q1_seuil_reappro, q2_qte_reappro);
+            }
             ObllBase.setMessage(OfamilleManagement.getMessage());
             ObllBase.setDetailmessage(OfamilleManagement.getDetailmessage());
 
@@ -266,6 +287,9 @@
             int_CIP4 = "";
 
             OfamilleManagement.update(lg_FAMILLE_ID, str_DESCRIPTION, int_CIP2, int_CIP3, int_CIP4, str_DESCRIPTION, int_PRICE, int_PRICE_TIPS, int_TAUX_MARQUE, int_PAF, int_PAT, int_S, int_T, int_CIP, int_EAN13, lg_GROSSISTE_ID, lg_FAMILLEARTICLE_ID, lg_CODE_ACTE_ID, lg_CODE_GESTION_ID, str_CODE_REMISE, str_CODE_TAUX_REMBOURSEMENT, lg_ZONE_GEO_ID, int_QTEDETAIL, int_PRICE_DETAIL, lg_TYPEETIQUETTE_ID, lg_REMISE_ID, lg_CODE_TVA_ID, bool_RESERVE, int_SEUIL_RESERVE, int_STOCK_REAPROVISONEMENT, int_QTE_REAPPROVISIONNEMENT, dt_Peremtion, gammeId, laboratoireId, cmuPrice, int_SEUIL_MINI_RAYON);
+            if (lg_FAMILLE_ID != null && !"".equals(lg_FAMILLE_ID)) {
+                OfamilleManagement.updateReapproConfig(lg_FAMILLE_ID, bool_CALCUL_SEUIL, bool_SUGGERABLE, bool_REMISE, q1_seuil_reappro, q2_qte_reappro);
+            }
             ObllBase.setDetailmessage(OfamilleManagement.getDetailmessage());
             ObllBase.setMessage(OfamilleManagement.getMessage());
 

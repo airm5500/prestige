@@ -48,7 +48,16 @@
         } else if (request.getParameter("mode").toString().equals("update")) {
 
             OTparameterManager.updateParameter(str_KEY, str_VALUE, str_DESCRIPTION);
-               
+            // Exclusivite SEMOIS_ABC / SEMOIS_PAR_PRODUIT : si l'un passe a 1, l'autre est force a 0
+            String _v = str_VALUE != null ? str_VALUE.trim() : "";
+            if ("SEMOIS_ABC".equals(str_KEY) && "1".equals(_v)) {
+                dal.TParameters _other = OTparameterManager.getParameter("SEMOIS_PAR_PRODUIT");
+                if (_other != null) { OTparameterManager.updateParameter("SEMOIS_PAR_PRODUIT", "0", _other.getStrDESCRIPTION()); }
+            } else if ("SEMOIS_PAR_PRODUIT".equals(str_KEY) && "1".equals(_v)) {
+                dal.TParameters _other = OTparameterManager.getParameter("SEMOIS_ABC");
+                if (_other != null) { OTparameterManager.updateParameter("SEMOIS_ABC", "0", _other.getStrDESCRIPTION()); }
+            }
+
         } else if (request.getParameter("mode").toString().equals("delete")) {
 
             } else {

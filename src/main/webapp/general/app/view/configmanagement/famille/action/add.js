@@ -292,6 +292,26 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             { xtype: 'splitter' },
                             { xtype: 'displayfield', fieldLabel: 'Classe ABC', labelWidth: 110, name: 'classe_abc_display', itemId: 'classe_abc_display', value: 'Non classe', fieldStyle: 'color:blue;font-weight:bold;' }
                         ]
+                    }, {
+                        xtype: 'container',
+                        layout: 'hbox',
+                        margin: '0 0 5 0',
+                        defaultType: 'checkbox',
+                        items: [
+                            { boxLabel: 'Calcul seuil/qte reappro', name: 'bool_CALCUL_SEUIL', itemId: 'bool_CALCUL_SEUIL', checked: true, width: 220 },
+                            { boxLabel: 'Suggerer', name: 'bool_SUGGERABLE', itemId: 'bool_SUGGERABLE', checked: true, width: 130 },
+                            { boxLabel: 'Article Remise', name: 'bool_REMISE', itemId: 'bool_REMISE', checked: true, width: 160 }
+                        ]
+                    }, {
+                        xtype: 'container',
+                        layout: 'hbox',
+                        margin: '0 0 5 0',
+                        defaultType: 'numberfield',
+                        items: [
+                            { fieldLabel: 'Q1 seuil reappro', labelWidth: 130, width: 250, minValue: 0, allowDecimals: false, name: 'int_Q1_SEUIL_REAPPRO', itemId: 'int_Q1_SEUIL_REAPPRO' },
+                            { xtype: 'splitter' },
+                            { fieldLabel: 'Q2 qte reappro', labelWidth: 120, width: 250, minValue: 0, allowDecimals: false, name: 'int_Q2_QTE_REAPPRO', itemId: 'int_Q2_QTE_REAPPRO' }
+                        ]
                     }]
                 },
                 {
@@ -594,6 +614,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('lg_CODE_TVA_ID').setValue(ds.lg_CODE_TVA_ID);
             g('int_EAN13').setValue(ds.int_EAN13);
             g('bool_RESERVE').setValue(ds.bool_RESERVE);
+            if (g('bool_CALCUL_SEUIL')) { g('bool_CALCUL_SEUIL').setValue(ds.bool_CALCUL_SEUIL === undefined ? true : ds.bool_CALCUL_SEUIL); }
+            if (g('bool_SUGGERABLE')) { g('bool_SUGGERABLE').setValue(ds.bool_SUGGERABLE === undefined ? true : ds.bool_SUGGERABLE); }
+            if (g('bool_REMISE')) { g('bool_REMISE').setValue(ds.bool_REMISE === undefined ? true : ds.bool_REMISE); }
+            if (g('int_Q1_SEUIL_REAPPRO')) { g('int_Q1_SEUIL_REAPPRO').setValue(ds.int_Q1_SEUIL_REAPPRO); }
+            if (g('int_Q2_QTE_REAPPRO')) { g('int_Q2_QTE_REAPPRO').setValue(ds.int_Q2_QTE_REAPPRO); }
             g('dt_Peremtion_new').setValue(ds.dt_Peremtion);
 
             if (ds.bool_RESERVE) {
@@ -793,6 +818,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 int_SEUIL_RESERVE: (function(){ var s=form.down('#int_SEUIL_RESERVE'); return s ? s.getValue() : 0; })(),
                 int_SEUIL_MINI_RAYON: form.down('#int_SEUIL_MINI_RAYON') ? form.down('#int_SEUIL_MINI_RAYON').getValue() : null,
                 bool_RESERVE: g('bool_RESERVE').getValue(),
+                bool_CALCUL_SEUIL: g('bool_CALCUL_SEUIL') ? g('bool_CALCUL_SEUIL').getValue() : true,
+                bool_SUGGERABLE: g('bool_SUGGERABLE') ? g('bool_SUGGERABLE').getValue() : true,
+                bool_REMISE: g('bool_REMISE') ? g('bool_REMISE').getValue() : true,
+                int_Q1_SEUIL_REAPPRO: g('int_Q1_SEUIL_REAPPRO') ? g('int_Q1_SEUIL_REAPPRO').getValue() : '',
+                int_Q2_QTE_REAPPRO: g('int_Q2_QTE_REAPPRO') ? g('int_Q2_QTE_REAPPRO').getValue() : '',
                 laboratoireId: g('laboratoireId').getValue(),
                 gammeId: g('gammeId').getValue(),
                 // en update : reflète l’état existant ; sinon 0

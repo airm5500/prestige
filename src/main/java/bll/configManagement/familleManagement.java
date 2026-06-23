@@ -367,6 +367,38 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
     }
 
+    /**
+     * Persiste les champs de configuration reappro/suggestion de la fiche article
+     * (additif - n'impacte pas create/update existants). Appele apres create/update.
+     * Q1/Q2 nuls => valeurs des parametres globaux Q1/Q2 (init par defaut).
+     */
+    public void updateReapproConfig(String lg_FAMILLE_ID, Boolean boolCalculSeuil, Boolean boolSuggerable,
+            Boolean boolRemise, Integer q1, Integer q2) {
+        try {
+            TFamille f = this.getOdataManager().getEm().find(TFamille.class, lg_FAMILLE_ID);
+            if (f == null) {
+                return;
+            }
+            f.setBoolCALCULSEUIL(boolCalculSeuil != null ? boolCalculSeuil : Boolean.TRUE);
+            f.setBoolSUGGERABLE(boolSuggerable != null ? boolSuggerable : Boolean.TRUE);
+            f.setBoolREMISE(boolRemise != null ? boolRemise : Boolean.TRUE);
+            f.setIntQ1SEUILREAPPRO(q1 != null ? q1 : globalParamInt("Q1", 4));
+            f.setIntQ2QTEREAPPRO(q2 != null ? q2 : globalParamInt("Q2", 2));
+            this.merge(f);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private int globalParamInt(String key, int def) {
+        try {
+            TParameters p = this.getOdataManager().getEm().find(TParameters.class, key);
+            return (p != null && p.getStrVALUE() != null) ? Integer.parseInt(p.getStrVALUE().trim()) : def;
+        } catch (Exception e) {
+            return def;
+        }
+    }
+
     // mise a jour famille depuis inventaire
     public boolean update(String lg_FAMILLE_ID, int int_NUMBER, Date dt_LAST_INVENTAIRE, TTypeStock OTypeStock) {
 

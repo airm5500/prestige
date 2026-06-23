@@ -665,6 +665,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             // Socle ABC (Lot 0) : code geo (editable) + classe ABC (lecture seule sur la fiche)
             json.put("str_CODE_GEO_ARTICLE", t.getStrCODEGEOARTICLE() != null ? t.getStrCODEGEOARTICLE() : "");
             json.put("lg_CLASSE_ABC_ID", t.getLgCLASSEABCID() != null ? t.getLgCLASSEABCID() : "");
+            // Reappro par produit + flags (Phase A). NULL -> true / valeur vide cote front.
+            json.put("bool_CALCUL_SEUIL", t.getBoolCALCULSEUIL() == null ? true : t.getBoolCALCULSEUIL());
+            json.put("bool_SUGGERABLE", t.getBoolSUGGERABLE() == null ? true : t.getBoolSUGGERABLE());
+            json.put("bool_REMISE", t.getBoolREMISE() == null ? true : t.getBoolREMISE());
+            json.put("int_Q1_SEUIL_REAPPRO", t.getIntQ1SEUILREAPPRO() != null ? t.getIntQ1SEUILREAPPRO() : "");
+            json.put("int_Q2_QTE_REAPPRO", t.getIntQ2QTEREAPPRO() != null ? t.getIntQ2QTEREAPPRO() : "");
 
             json.put("int_PRICE_TIPS", t.getIntPRICETIPS());
             json.put("int_TAUX_MARQUE", t.getIntTAUXMARQUE());
