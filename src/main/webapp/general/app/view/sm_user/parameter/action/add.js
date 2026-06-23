@@ -101,18 +101,26 @@ Ext.define('testextjs.view.sm_user.parameter.action.add', {
     onbtnsave: function () {
         var me = this;
         var val = (Ext.getCmp('str_VALUE').getValue() || '').toString().trim();
-        // Exclusivite SEMOIS_ABC / SEMOIS_PAR_PRODUIT : information + confirmation avant activation
+        // Exclusivite SEMOIS_ABC / SEMOIS_PAR_PRODUIT : on ne previent QUE si l'autre est deja actif (=1)
         if ((ref === 'SEMOIS_ABC' || ref === 'SEMOIS_PAR_PRODUIT') && val === '1') {
             var autre = (ref === 'SEMOIS_ABC') ? 'SEMOIS_PAR_PRODUIT' : 'SEMOIS_ABC';
-            Ext.MessageBox.confirm('Modes SEMOIS exclusifs',
-                    "Les modes <b>SEMOIS_ABC</b> et <b>SEMOIS_PAR_PRODUIT</b> ne peuvent pas etre actifs en meme temps : c'est l'un OU l'autre.<br><br>"
-                    + "En activant <b>" + ref + "</b>, le mode <b>" + autre + "</b> sera automatiquement remis a 0 s'il etait actif.<br><br>Voulez-vous continuer ?",
-                    function (btn) {
-                        if (btn === 'yes') {
-                            me.doSaveParameter();
-                        }
-                    });
-            return;
+            var autreActif = false;
+            try {
+                var rec = Oview && Oview.getStore() ? Oview.getStore().findRecord('str_KEY', autre) : null;
+                autreActif = !!(rec && (rec.get('str_VALUE') || '').toString().trim() === '1');
+            } catch (e) { autreActif = false; }
+            if (autreActif) {
+                Ext.MessageBox.confirm('Modes SEMOIS exclusifs',
+                        "Le mode <b>" + autre + "</b> est actuellement actif.<br><br>"
+                        + "Les deux modes ne peuvent pas etre actifs en meme temps : c'est l'un OU l'autre.<br>"
+                        + "Si vous continuez, <b>" + autre + "</b> sera automatiquement remis a 0 et <b>" + ref + "</b> active.<br><br>Voulez-vous continuer ?",
+                        function (btn) {
+                            if (btn === 'yes') {
+                                me.doSaveParameter();
+                            }
+                        });
+                return;
+            }
         }
         this.doSaveParameter();
     },
