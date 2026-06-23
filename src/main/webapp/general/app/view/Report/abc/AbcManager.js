@@ -136,6 +136,7 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                         {xtype: 'combobox', flex: 1, margin: '0 5 0 0', labelWidth: 5, itemId: 'grossiste', store: grossiste, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'remote', minChars: 2, emptyText: 'Grossiste'},
                         {xtype: 'combobox', flex: 1, margin: '0 5 0 0', labelWidth: 5, itemId: 'codeFamile', store: familles, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'remote', minChars: 2, emptyText: 'Famille'},
                         {xtype: 'numberfield', itemId: 'topN', width: 90, minValue: 1, allowDecimals: false, emptyText: 'Top N', margin: '0 5 0 0',
+                            fieldStyle: 'background-color:#FFA500;color:#000;font-weight:bold;',
                             listeners: {specialkey: function (f, e) { if (e.getKey() === e.ENTER) { me.gridStore.loadPage(1); } }}}
                     ]
                 },
@@ -181,7 +182,8 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                                 }
                             }
                         },
-                        {xtype: 'textfield', flex: 1, itemId: 'searchField', emptyText: 'CIP, libellé, EAN, code Geo'},
+                        {xtype: 'textfield', flex: 1, itemId: 'searchField', emptyText: 'CIP, libellé, EAN, code Geo',
+                            fieldStyle: 'border:2px solid #1565C0;'},
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
                         {xtype: 'tbseparator'},
                         {text: 'Recalculer classification', itemId: 'recalculer', iconCls: 'suggestionreapro', tooltip: 'Recalcule la classification ABC sur la période'},
@@ -206,7 +208,16 @@ Ext.define('testextjs.view.Report.abc.AbcManager', {
                                 {text: 'Exporter CSV', itemId: 'exporterCsv', iconCls: 'export_csv_icon'}
                             ]
                         },
-                        {text: 'Créer suggestion', itemId: 'creerSuggestion', iconCls: 'suggestionreapro', tooltip: 'Créer des suggestions de commande à partir du résultat filtré'},
+                        {
+                            xtype: 'splitbutton', text: 'Créer suggestion', itemId: 'creerSuggestion',
+                            iconCls: 'suggestionreapro',
+                            tooltip: 'Créer des suggestions de commande à partir du résultat filtré',
+                            handler: function (b) { b.showMenu(); },
+                            menu: [
+                                {text: 'Suggérer les quantités de réappro', itemId: 'suggReappro', iconCls: 'suggestionreapro'},
+                                {text: 'Suggérer les quantités vendues', itemId: 'suggVendues', iconCls: 'suggestionreapro'}
+                            ]
+                        },
                         {text: 'Créer inventaire', itemId: 'creerInventaire', iconCls: 'addicon', tooltip: 'Créer un inventaire à partir du résultat filtré'}
                     ]
                 }

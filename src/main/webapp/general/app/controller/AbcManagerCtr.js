@@ -30,7 +30,8 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
             'abcmanager #btnExporter': {click: this.onExportExcel},
             'abcmanager #exporterExcel': {click: this.onExportExcel},
             'abcmanager #exporterCsv': {click: this.onExportCsv},
-            'abcmanager #creerSuggestion': {click: this.onCreerSuggestion},
+            'abcmanager #suggReappro': {click: this.onSuggReappro},
+            'abcmanager #suggVendues': {click: this.onSuggVendues},
             'abcmanager #creerInventaire': {click: this.onCreerInventaire}
         });
     },
@@ -86,11 +87,18 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
         window.open('../api/v1/articles/abc/csv?' + Ext.Object.toQueryString(this.buildExportParams()));
     },
 
-    onCreerSuggestion: function () {
+    onSuggReappro: function () { this.onCreerSuggestion(true); },
+    onSuggVendues: function () { this.onCreerSuggestion(false); },
+
+    onCreerSuggestion: function (isReappro) {
         const me = this;
         if (!me.guardEmpty()) { return; }
+        const reappro = isReappro === true;
+        const params = Ext.apply({}, me.buildExportParams());
+        params.isReappro = reappro;
+        const libelle = reappro ? 'quantités de réappro' : 'quantités vendues';
         Ext.MessageBox.confirm('Confirmation',
-                'Créer des suggestions de commande à partir du résultat ABC filtré ?',
+                'Créer des suggestions (' + libelle + ') à partir du résultat ABC filtré ?',
                 function (btn) {
                     if (btn !== 'yes') {
                         return;
@@ -98,7 +106,7 @@ Ext.define('testextjs.controller.AbcManagerCtr', {
                     const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Création des suggestions');
                     Ext.Ajax.request({
                         method: 'POST',
-                        url: '../api/v1/articles/abc/suggestion?' + Ext.Object.toQueryString(me.buildExportParams()),
+                        url: '../api/v1/articles/abc/suggestion?' + Ext.Object.toQueryString(params),
                         timeout: 2400000,
                         success: function (response) {
                             progress.hide();

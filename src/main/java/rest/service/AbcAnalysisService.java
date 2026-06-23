@@ -78,7 +78,7 @@ public interface AbcAnalysisService {
     /** Cree des suggestions de commande (groupees par grossiste) a partir du resultat filtre. */
     JSONObject createSuggestion(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax, Integer topN);
+            Integer stockMax, Integer topN, boolean isReappro);
 
     /**
      * Detail de consommation mensuelle d'un produit (equivalent boite) : mois

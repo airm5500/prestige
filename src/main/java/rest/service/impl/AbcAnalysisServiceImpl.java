@@ -736,7 +736,7 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @Override
     public JSONObject createSuggestion(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax, Integer topN) {
+            Integer stockMax, Integer topN, boolean isReappro) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
                 codeGrossiste, stockFilter, stockMin, stockMax, topN);
         // On ne suggère que les produits ayant un grossiste (regroupement par grossiste,
@@ -757,6 +757,11 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             return new JSONObject().put("success", true).put("count", 0);
         }
         try {
+            // isReappro : on suggere la quantite de reappro de la fiche (int_QTE_REAPPROVISIONNEMENT),
+            // sinon la quantite vendue sur la periode (meme logique que le menu articles vendus).
+            if (isReappro) {
+                return suggestionService.suggererQteReappro(new LinkedHashSet<>(datas));
+            }
             return suggestionService.makeSuggestion(datas);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Creation suggestion ABC impossible", e);

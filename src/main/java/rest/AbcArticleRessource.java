@@ -132,9 +132,10 @@ public class AbcArticleRessource {
             @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
-            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN,
+            @DefaultValue("false") @QueryParam("isReappro") boolean isReappro) {
         JSONObject json = abcAnalysisService.createSuggestion(dtStart, dtEnd, type, classe, search, codeFamille,
-                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN);
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN, isReappro);
         return Response.ok().entity(json.toString()).build();
     }
 
