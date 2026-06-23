@@ -9,6 +9,18 @@ var url_services_article_generate_pdf = '../webservices/sm_user/famille/ws_gener
 var lg_EMPLACEMENT_ID = "";
 var Me_Workflow;
 
+// Champ "neutre" renvoye quand un composant filtre est introuvable (ex: id global
+// clobbere par la fermeture d'une fenetre detail qui reutilise le meme id) : evite
+// les plantages du type "Ext.getCmp(...) is undefined" sur les actions de la fiche.
+var FM_NULL_FIELD = {
+    getValue: function () { return ''; },
+    getRawValue: function () { return ''; },
+    setValue: function () {},
+    clearValue: function () {},
+    focus: function () {},
+    getStore: function () { return {loadPage: function () {}, reload: function () {}}; }
+};
+
 
 Ext.util.Format.decimalSeparator = ',';
 Ext.util.Format.thousandSeparator = '.';
@@ -67,12 +79,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 beforeload: function (store, operation) {
                     const proxy = store.getProxy();
 
-                    const searchCmp = Ext.getCmp('rechecher');
-                    const typeCmp = Ext.getCmp('str_TYPE_TRANSACTION');
-                    const dciCmp = Ext.getCmp('lg_DCI_PRINCIPAL_ID');
-                    const zoneCmp = Ext.getCmp('lg_ZONE_GEO_ID');
-                    const stockOpCmp = Ext.getCmp('stock_operator');
-                    const stockValCmp = Ext.getCmp('stock_value');
+                    const searchCmp = Me_Workflow.fmField('rechecher');
+                    const typeCmp = Me_Workflow.fmField('str_TYPE_TRANSACTION');
+                    const dciCmp = Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID');
+                    const zoneCmp = Me_Workflow.fmField('lg_ZONE_GEO_ID');
+                    const stockOpCmp = Me_Workflow.fmField('stock_operator');
+                    const stockValCmp = Me_Workflow.fmField('stock_value');
 
                     proxy.setExtraParam('search_value', searchCmp ? (searchCmp.getValue() || '') : '');
                     proxy.setExtraParam('str_TYPE_TRANSACTION', typeCmp ? (typeCmp.getValue() || '') : '');
@@ -704,7 +716,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             listeners: {
                                 select: function () {
                                     // Au choix d'un operateur : envoyer le focus sur la quantite.
-                                    const qte = Ext.getCmp('stock_value');
+                                    const qte = Me_Workflow.fmField('stock_value');
                                     if (qte) {
                                         qte.focus(true, 100);
                                     }
@@ -732,8 +744,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             iconCls: 'cancelicon',
                             scope: this,
                             handler: function () {
-                                Ext.getCmp('stock_operator').clearValue();
-                                Ext.getCmp('stock_value').setValue('');
+                                Me_Workflow.fmField('stock_operator').clearValue();
+                                Me_Workflow.fmField('stock_value').setValue('');
                                 Me_Workflow.onRechClick();
                             }
                         },
@@ -810,12 +822,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             style: 'background-color:#add8e6; border-color:#add8e6;',
                             scope: this,
                             handler: function () {
-                                Ext.getCmp('rechecher').setValue('');
-                                Ext.getCmp('str_TYPE_TRANSACTION').clearValue();
-                                Ext.getCmp('lg_DCI_PRINCIPAL_ID').clearValue();
-                                Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
-                                Ext.getCmp('stock_operator').clearValue();
-                                Ext.getCmp('stock_value').setValue('');
+                                Me_Workflow.fmField('rechecher').setValue('');
+                                Me_Workflow.fmField('str_TYPE_TRANSACTION').clearValue();
+                                Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').clearValue();
+                                Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
+                                Me_Workflow.fmField('stock_operator').clearValue();
+                                Me_Workflow.fmField('stock_value').setValue('');
                                 Me_Workflow.onRechClick();
                             }
                         },
@@ -922,7 +934,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             iconCls: 'cancelicon',
                             scope: this,
                             handler: function () {
-                                Ext.getCmp('lg_ZONE_GEO_ID').clearValue();
+                                Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
                                 Me_Workflow.onRechClick();
                             }
                         }
@@ -939,12 +951,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     beforechange: function (page, currentPage) {
                         const myProxy = this.store.getProxy();
 
-                        const lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
-                        const str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
-                        const search_value = Ext.getCmp('rechecher').getValue();
-                        const lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
-                        const stock_operator = Ext.getCmp('stock_operator').getValue();
-                        const stock_value = Ext.getCmp('stock_value').getValue();
+                        const lg_DCI_PRINCIPAL_ID = Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue();
+                        const str_TYPE_TRANSACTION = Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue();
+                        const search_value = Me_Workflow.fmField('rechecher').getValue();
+                        const lg_ZONE_GEO_ID = Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue();
+                        const stock_operator = Me_Workflow.fmField('stock_operator').getValue();
+                        const stock_value = Me_Workflow.fmField('stock_value').getValue();
 
                         myProxy.setExtraParam('str_TYPE_TRANSACTION', str_TYPE_TRANSACTION || '');
                         myProxy.setExtraParam('lg_DCI_ID', lg_DCI_PRINCIPAL_ID || '');
@@ -958,7 +970,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             },
             listeners: {
                 afterrender: function () { // a decommenter apres les tests
-                    Ext.getCmp('rechecher').focus();
+                    Me_Workflow.fmField('rechecher').focus();
                     if (lg_EMPLACEMENT_ID == "1") {
                         Ext.getCmp('btn_add').show();
                         Ext.getCmp('btn_import').show();
@@ -1049,25 +1061,25 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
     onbtnexportCsv: function () {
         var lg_DCI_PRINCIPAL_ID = "", str_TYPE_TRANSACTION = "";
-        if (Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() != null) {
-            lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
+        if (Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() != null) {
+            lg_DCI_PRINCIPAL_ID = Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue();
         }
-        if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() != null) {
-            str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
+        if (Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue() != null) {
+            str_TYPE_TRANSACTION = Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue();
         }
-        var liste_param = "search_value:" + Ext.getCmp('rechecher').getValue() + ";str_TYPE_TRANSACTION:" + str_TYPE_TRANSACTION + ";lg_DCI_ID:" + lg_DCI_PRINCIPAL_ID;
+        var liste_param = "search_value:" + Me_Workflow.fmField('rechecher').getValue() + ";str_TYPE_TRANSACTION:" + str_TYPE_TRANSACTION + ";lg_DCI_ID:" + lg_DCI_PRINCIPAL_ID;
         var extension = "csv";
         window.location = '../MigrationServlet?table_name=TABLE_FAMILLE' + "&extension=" + extension + "&liste_param=" + liste_param;
     },
     onbtnexportExcel: function () {
         var lg_DCI_PRINCIPAL_ID = "", str_TYPE_TRANSACTION = "";
-        if (Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() != null) {
-            lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
+        if (Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() != null) {
+            lg_DCI_PRINCIPAL_ID = Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue();
         }
-        if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() != null) {
-            str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
+        if (Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue() != null) {
+            str_TYPE_TRANSACTION = Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue();
         }
-        var liste_param = "search_value:" + Ext.getCmp('rechecher').getValue() + ";str_TYPE_TRANSACTION:" + str_TYPE_TRANSACTION + ";lg_DCI_ID:" + lg_DCI_PRINCIPAL_ID;
+        var liste_param = "search_value:" + Me_Workflow.fmField('rechecher').getValue() + ";str_TYPE_TRANSACTION:" + str_TYPE_TRANSACTION + ";lg_DCI_ID:" + lg_DCI_PRINCIPAL_ID;
         var extension = "xls";
         window.location = '../MigrationServlet?table_name=TABLE_FAMILLE' + "&extension=" + extension + "&liste_param=" + liste_param;
     },
@@ -1078,28 +1090,28 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             stock_operator = "",
             stock_value = "";
 
-    if (Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() != null) {
-        lg_DCI_PRINCIPAL_ID = Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue();
+    if (Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() != null) {
+        lg_DCI_PRINCIPAL_ID = Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue();
     }
 
-    if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() != null) {
-        str_TYPE_TRANSACTION = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
+    if (Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue() != null) {
+        str_TYPE_TRANSACTION = Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue();
     }
 
-    if (Ext.getCmp('lg_ZONE_GEO_ID').getValue() != null) {
-        lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
+    if (Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue() != null) {
+        lg_ZONE_GEO_ID = Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue();
     }
 
-    if (Ext.getCmp('stock_operator').getValue() != null) {
-        stock_operator = Ext.getCmp('stock_operator').getValue();
+    if (Me_Workflow.fmField('stock_operator').getValue() != null) {
+        stock_operator = Me_Workflow.fmField('stock_operator').getValue();
     }
 
-    if (Ext.getCmp('stock_value').getValue() != null) {
-        stock_value = Ext.getCmp('stock_value').getValue();
+    if (Me_Workflow.fmField('stock_value').getValue() != null) {
+        stock_value = Me_Workflow.fmField('stock_value').getValue();
     }
 
-    const rayonLabel = Ext.getCmp('lg_ZONE_GEO_ID').getRawValue();
-    const search_value = Ext.getCmp('rechecher').getValue();
+    const rayonLabel = Me_Workflow.fmField('lg_ZONE_GEO_ID').getRawValue();
+    const search_value = Me_Workflow.fmField('rechecher').getValue();
     const opSymbols = {LESS: '<', MORE: '>', EQUAL: '=', LESSOREQUAL: '<=', MOREOREQUAL: '>='};
     const filtreParts = [];
     if (lg_ZONE_GEO_ID && rayonLabel) {
@@ -1120,7 +1132,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             + '&stock_operator=' + stock_operator
             + '&stock_value=' + stock_value
             + '&titre_filtre=' + encodeURIComponent(titre_filtre)
-            + '&search_value=' + Ext.getCmp('rechecher').getValue();
+            + '&search_value=' + Me_Workflow.fmField('rechecher').getValue();
 
     window.open(linkUrl);
 },
@@ -1187,11 +1199,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     
                     listeners: {
                         close: function() {
-                            Ext.getCmp('rechecher').focus(true, 100, function() {
+                            Me_Workflow.fmField('rechecher').focus(true, 100, function() {
                             });
                         },
                         afterSave: function() {
-                            Ext.getCmp('rechecher').focus(true, 100);
+                            Me_Workflow.fmField('rechecher').focus(true, 100);
                         }
                     }
                 });
@@ -1199,7 +1211,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             },
             failure: function(response, options) {
                 // En cas d'erreur, redonner quand même le focus
-                Ext.getCmp('rechecher').focus(true, 100);
+                Me_Workflow.fmField('rechecher').focus(true, 100);
                 Ext.Msg.alert("Erreur", "Impossible de charger les données du produit");
             }
         });
@@ -1214,11 +1226,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             
             listeners: {
                 close: function() {
-                    Ext.getCmp('rechecher').focus(true, 100);
+                    Me_Workflow.fmField('rechecher').focus(true, 100);
                 },
                 
                 afterSave: function() {
-                    Ext.getCmp('rechecher').focus(true, 100);
+                    Me_Workflow.fmField('rechecher').focus(true, 100);
                 }
             }
         });
@@ -1256,14 +1268,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     if (rec.get('bool_DECONDITIONNE') == "1") {
         Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionne', function() {
             // Donner le focus après fermeture de l'alerte
-            Ext.getCmp('rechecher').focus(true, 100);
+            Me_Workflow.fmField('rechecher').focus(true, 100);
         });
         
     } else {
         if (rec.get('bool_DECONDITIONNE_EXIST') == "1") {
             Ext.MessageBox.alert('Alerte Message', 'La version deconditionne existe deja', function() {
                 // Donner le focus après fermeture de l'alerte
-                Ext.getCmp('rechecher').focus(true, 100);
+                Me_Workflow.fmField('rechecher').focus(true, 100);
             });
             
         } else {
@@ -1286,17 +1298,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         // Ajouter des listeners pour le focus
                         listeners: {
                             close: function() {
-                                Ext.getCmp('rechecher').focus(true, 100);
+                                Me_Workflow.fmField('rechecher').focus(true, 100);
                             },
                             
                             // Si votre composant a un événement après création
                             afterSave: function() {
-                                Ext.getCmp('rechecher').focus(true, 100);
+                                Me_Workflow.fmField('rechecher').focus(true, 100);
                                 grid.getStore().reload();
                             },
                             
                             created: function() {
-                                Ext.getCmp('rechecher').focus(true, 100);
+                                Me_Workflow.fmField('rechecher').focus(true, 100);
                                 grid.getStore().reload();
                             }
                         }
@@ -1306,7 +1318,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 failure: function(response, options) {
                     // En cas d'erreur Ajax, donner le focus
                     Ext.MessageBox.alert('Erreur', 'Erreur lors du chargement des données', function() {
-                        Ext.getCmp('rechecher').focus(true, 100);
+                        Me_Workflow.fmField('rechecher').focus(true, 100);
                     });
                 }
             });
@@ -1319,19 +1331,19 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     if (rec.get('bool_DECONDITIONNE') == "1") {
         Ext.MessageBox.alert('Alerte Message', 'Ceci est un article deconditionné. Il ne peut pas etre deconditionné');
         // Donner le focus après l'alerte
-        Ext.getCmp('rechecher').focus(true, 100);
+        Me_Workflow.fmField('rechecher').focus(true, 100);
         
     } else {
         if (rec.get('bool_DECONDITIONNE_EXIST') == "0") {
             Ext.MessageBox.alert('Alerte Message', 'Aucun détail existant pour ce produit');
             // Donner le focus après l'alerte
-            Ext.getCmp('rechecher').focus(true, 100);
+            Me_Workflow.fmField('rechecher').focus(true, 100);
             
         } else {
             if (rec.get('int_NUMBER_AVAILABLE') <= 0) {
                 Ext.MessageBox.alert('Alerte Message', 'Stock insuffisant');
                 // Donner le focus après l'alerte
-                Ext.getCmp('rechecher').focus(true, 100);
+                Me_Workflow.fmField('rechecher').focus(true, 100);
                 
             } else {
                 // Créer la fenêtre de déconditionnement
@@ -1345,17 +1357,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     // Ajouter des listeners pour gérer le focus
                     listeners: {
                         close: function() {
-                            Ext.getCmp('rechecher').focus(true, 100);
+                            Me_Workflow.fmField('rechecher').focus(true, 100);
                         },
                         
                         // Si votre composant a un événement après déconditionnement
                         afterDecondition: function() {
-                            Ext.getCmp('rechecher').focus(true, 100);
+                            Me_Workflow.fmField('rechecher').focus(true, 100);
                             grid.getStore().reload();
                         },
                         
                         saved: function() {
-                            Ext.getCmp('rechecher').focus(true, 100);
+                            Me_Workflow.fmField('rechecher').focus(true, 100);
                             grid.getStore().reload();
                         }
                     }
@@ -1365,21 +1377,28 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         }
     }
 },
-    onRechClick: function () {
-        const val = Ext.getCmp('rechecher');
+    // Recherche SCOPED d'un champ filtre dans la grille (immunise contre les id
+    // globaux dupliques des fenetres detail). Renvoie un champ neutre si absent.
+    fmField: function (itemId) {
+        const c = Me_Workflow ? Me_Workflow.down('#' + itemId) : null;
+        return c || FM_NULL_FIELD;
+    },
 
-        Ext.getCmp('GridArticleID').getStore().loadPage(1, {
+    onRechClick: function () {
+        const val = Me_Workflow.fmField('rechecher');
+
+        Me_Workflow.getStore().loadPage(1, {
             params: {
                 search_value: val.getValue() || '',
-                str_TYPE_TRANSACTION: Ext.getCmp('str_TYPE_TRANSACTION').getValue() || '',
-                lg_DCI_ID: Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() || '',
-                lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue() || '',
-                stock_operator: Ext.getCmp('stock_operator').getValue() || '',
-                stock_value: Ext.getCmp('stock_value').getValue() || ''
+                str_TYPE_TRANSACTION: Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue() || '',
+                lg_DCI_ID: Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() || '',
+                lg_ZONE_GEO_ID: Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue() || '',
+                stock_operator: Me_Workflow.fmField('stock_operator').getValue() || '',
+                stock_value: Me_Workflow.fmField('stock_value').getValue() || ''
             }
         });
 
-        Ext.getCmp('rechecher').focus(true, 100, function () {
+        Me_Workflow.fmField('rechecher').focus(true, 100, function () {
         });
     },
 
@@ -1391,8 +1410,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             DECONDITIONNE: 'deconditionnes',
             SANSEMPLACEMENT: 'sansemplacement'
         };
-        const typeVal = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
-        const rayonCmp = Ext.getCmp('lg_ZONE_GEO_ID');
+        const typeVal = Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue();
+        const rayonCmp = Me_Workflow.fmField('lg_ZONE_GEO_ID');
         const parts = [];
         if (typeVal && typeVal !== 'ALL' && typeLabels[typeVal]) {
             parts.push(typeLabels[typeVal]);
@@ -1450,12 +1469,12 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     doCreateInventaire: function (mode, name) {
         const params = {
-            search_value: Ext.getCmp('rechecher').getValue() || '',
-            str_TYPE_TRANSACTION: Ext.getCmp('str_TYPE_TRANSACTION').getValue() || '',
-            lg_DCI_ID: Ext.getCmp('lg_DCI_PRINCIPAL_ID').getValue() || '',
-            lg_ZONE_GEO_ID: Ext.getCmp('lg_ZONE_GEO_ID').getValue() || '',
-            stock_operator: Ext.getCmp('stock_operator').getValue() || '',
-            stock_value: Ext.getCmp('stock_value').getValue() || '',
+            search_value: Me_Workflow.fmField('rechecher').getValue() || '',
+            str_TYPE_TRANSACTION: Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue() || '',
+            lg_DCI_ID: Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() || '',
+            lg_ZONE_GEO_ID: Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue() || '',
+            stock_operator: Me_Workflow.fmField('stock_operator').getValue() || '',
+            stock_value: Me_Workflow.fmField('stock_value').getValue() || '',
             mode: mode,
             name: name
         };
@@ -1647,7 +1666,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             success: function (formulaire, action) {
 
                 if (action.result.statut === 1) {
-                    const grid = Ext.getCmp('GridArticleID');
+                    const grid = Me_Workflow;
                     Ext.MessageBox.alert('Confirmation', action.result.success);
                     grid.getStore().reload();
                 } else {
@@ -1681,8 +1700,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 var result = Ext.JSON.decode(response.responseText, true);
                                 if (result.success) {
                                     grid.getStore().reload();
-                                    Ext.getCmp('rechecher').focus(true, 100, function () {
-//                                                      Ext.getCmp('rechecher').selectText(0, 1);
+                                    Me_Workflow.fmField('rechecher').focus(true, 100, function () {
+//                                                      Me_Workflow.fmField('rechecher').selectText(0, 1);
                                     });
                                 } else {
                                     Ext.MessageBox.show({
@@ -1986,7 +2005,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 }],
             listeners: {
                 close: function () {
-                    Ext.getCmp('rechecher').focus(true, 100);
+                    Me_Workflow.fmField('rechecher').focus(true, 100);
                 }
             }
         });
@@ -2008,10 +2027,10 @@ addPeremptiondate: function (grid, rowIndex) {
         // Ajouter listener pour le bouton X
         listeners: {
             close: function() {
-                Ext.getCmp('rechecher').focus(true, 100);
+                Me_Workflow.fmField('rechecher').focus(true, 100);
             },
             destroy: function() {
-                Ext.getCmp('rechecher').focus(true, 100);
+                Me_Workflow.fmField('rechecher').focus(true, 100);
             }
             
         },
@@ -2157,13 +2176,13 @@ addPeremptiondate: function (grid, rowIndex) {
                                     progress.hide();
                                     win.close();
                                     grid.getStore().reload();
-                                    Ext.getCmp('rechecher').focus(true, 100);
+                                    Me_Workflow.fmField('rechecher').focus(true, 100);
                                 },
                                 failure: function (response) {
                                     progress.hide();
                                     Ext.MessageBox.alert('Error Message', response.responseText);
                                     // Donner le focus au champ recherche même en cas d'erreur
-                                    Ext.getCmp('rechecher').focus(true, 100);
+                                    Me_Workflow.fmField('rechecher').focus(true, 100);
                                 }
                             });
                         }
