@@ -48,12 +48,17 @@ public class BatchUpdateRessource {
         }
         // Recalcul immediat selon le MODE ACTIF (sans attendre la fin du mois) :
         // mode "semois" -> SEMOIS (normal / ABC / par-produit selon les parametres) ; sinon mode defaut.
-        if (appConfig != null && appConfig.isSemoisReapproMode()) {
-            mes.submit(semoisService::computeReapproSemois);
-        } else {
-            mes.submit(stockReapproService::computeReappro);
+        // Execution SYNCHRONE : on rend la main une fois le recalcul termine (l'IHM en informe l'utilisateur).
+        try {
+            if (appConfig != null && appConfig.isSemoisReapproMode()) {
+                semoisService.computeReapproSemois();
+            } else {
+                stockReapproService.computeReappro();
+            }
+            return Response.ok().entity("{\"success\":true,\"message\":\"Recalcul des seuils termine\"}").build();
+        } catch (Exception e) {
+            return Response.ok().entity("{\"success\":false,\"message\":\"Echec du recalcul des seuils\"}").build();
         }
-        return Response.ok().entity(ResultFactory.getFailResult("Traitement en cours")).build();
     }
 
 }

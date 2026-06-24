@@ -1036,18 +1036,37 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     onRecalculerSeuils: function () {
         Ext.MessageBox.confirm('Recalcul des seuils',
                 'Lancer le recalcul des seuils et quantités de réappro selon le mode actif ?<br>'
-                + 'Le traitement se fait en arrière-plan et peut prendre quelques minutes.',
+                + 'Le traitement peut prendre quelques minutes ; un message confirmera la fin.',
                 function (btn) {
                     if (btn !== 'yes') { return; }
+                    const progress = Ext.MessageBox.wait(
+                            'Recalcul des seuils en cours, veuillez patienter . . .', 'Traitement');
                     Ext.Ajax.request({
                         url: '../api/v1/update/compute-reappro',
                         method: 'GET',
-                        success: function () {
-                            Ext.Msg.alert('Recalcul des seuils',
-                                    'Le recalcul a été lancé en arrière-plan. Les seuils seront mis à jour dans quelques minutes.');
+                        timeout: 1800000, // 30 min : traitement potentiellement long
+                        success: function (resp) {
+                            progress.hide();
+                            const r = Ext.JSON.decode(resp.responseText, true) || {};
+                            Ext.MessageBox.show({
+                                title: 'Recalcul des seuils',
+                                width: 460,
+                                msg: (r.success === false)
+                                        ? 'Le recalcul a échoué. Veuillez consulter les logs du serveur.'
+                                        : 'Recalcul des seuils terminé. Les seuils et quantités de réappro ont été mis à jour.',
+                                buttons: Ext.MessageBox.OK,
+                                icon: (r.success === false) ? Ext.MessageBox.ERROR : Ext.MessageBox.INFO
+                            });
                         },
                         failure: function (r) {
-                            Ext.Msg.alert('Erreur', 'Échec du lancement. Code HTTP : ' + r.status);
+                            progress.hide();
+                            Ext.MessageBox.show({
+                                title: 'Erreur',
+                                width: 460,
+                                msg: 'Échec du recalcul. Code HTTP : ' + r.status,
+                                buttons: Ext.MessageBox.OK,
+                                icon: Ext.MessageBox.ERROR
+                            });
                         }
                     });
                 });
