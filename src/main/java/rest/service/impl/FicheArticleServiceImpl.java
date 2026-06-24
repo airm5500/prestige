@@ -1021,6 +1021,110 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         em.merge(famille);
     }
 
+    // ----------------------- MAJ SEUIL groupee (Q1/Q2 par produit) -----------------------
+
+    /** Construit la clause WHERE (famille OU emplacement + recherche) commune liste/ids. */
+    private String majSeuilWhere(String codeFamille, String zoneGeoId, String search) {
+        StringBuilder w = new StringBuilder(" WHERE f.str_STATUT='enable' ");
+        if (StringUtils.isNotBlank(codeFamille)) {
+            w.append(" AND f.lg_FAMILLEARTICLE_ID = :fam ");
+        }
+        if (StringUtils.isNotBlank(zoneGeoId)) {
+            w.append(" AND f.lg_ZONE_GEO_ID = :zone ");
+        }
+        if (StringUtils.isNotBlank(search)) {
+            w.append(" AND (f.int_CIP LIKE :s OR f.str_NAME LIKE :s) ");
+        }
+        return w.toString();
+    }
+
+    private void majSeuilParams(Query q, String codeFamille, String zoneGeoId, String search) {
+        if (StringUtils.isNotBlank(codeFamille)) {
+            q.setParameter("fam", codeFamille);
+        }
+        if (StringUtils.isNotBlank(zoneGeoId)) {
+            q.setParameter("zone", zoneGeoId);
+        }
+        if (StringUtils.isNotBlank(search)) {
+            q.setParameter("s", "%" + search.trim() + "%");
+        }
+    }
+
+    @Override
+    public JSONObject majSeuilList(String codeFamille, String zoneGeoId, String search, int start, int limit) {
+        JSONObject data = new JSONObject();
+        JSONArray arr = new JSONArray();
+        try {
+            String where = majSeuilWhere(codeFamille, zoneGeoId, search);
+            Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, "
+                    + "f.int_Q1_SEUIL_REAPPRO, f.int_Q2_QTE_REAPPRO FROM t_famille f " + where
+                    + " ORDER BY f.str_NAME ASC");
+            majSeuilParams(q, codeFamille, zoneGeoId, search);
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start));
+                q.setMaxResults(limit);
+            }
+            for (Object[] r : (List<Object[]>) q.getResultList()) {
+                arr.put(new JSONObject()
+                        .put("lg_FAMILLE_ID", r[0] != null ? r[0].toString() : "")
+                        .put("int_CIP", r[1] != null ? r[1] : "")
+                        .put("str_NAME", r[2] != null ? r[2] : "")
+                        .put("int_Q1_SEUIL_REAPPRO", r[3] != null ? r[3] : "")
+                        .put("int_Q2_QTE_REAPPRO", r[4] != null ? r[4] : ""));
+            }
+            Query qc = em.createNativeQuery("SELECT COUNT(*) FROM t_famille f " + where);
+            majSeuilParams(qc, codeFamille, zoneGeoId, search);
+            long total = ((Number) qc.getSingleResult()).longValue();
+            data.put("total", total).put("data", arr);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "majSeuilList", e);
+            data.put("total", 0).put("data", arr);
+        }
+        return data;
+    }
+
+    @Override
+    public JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search,
+            List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2) {
+        JSONObject res = new JSONObject();
+        try {
+            List<String> targets;
+            if ("ALL".equalsIgnoreCase(mode)) {
+                String where = majSeuilWhere(codeFamille, zoneGeoId, search);
+                Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID FROM t_famille f " + where);
+                majSeuilParams(q, codeFamille, zoneGeoId, search);
+                targets = new java.util.ArrayList<>();
+                for (Object o : q.getResultList()) {
+                    if (o != null) {
+                        targets.add(o.toString());
+                    }
+                }
+                if (uncheckedIds != null && !uncheckedIds.isEmpty()) {
+                    targets.removeAll(uncheckedIds);
+                }
+            } else {
+                targets = (ids != null) ? new java.util.ArrayList<>(ids) : new java.util.ArrayList<>();
+            }
+            int count = 0;
+            int chunk = 1000;
+            for (int i = 0; i < targets.size(); i += chunk) {
+                List<String> sub = targets.subList(i, Math.min(targets.size(), i + chunk));
+                if (sub.isEmpty()) {
+                    continue;
+                }
+                count += em.createQuery("UPDATE TFamille f SET f.intQ1SEUILREAPPRO = :q1, "
+                        + "f.intQ2QTEREAPPRO = :q2 WHERE f.lgFAMILLEID IN :ids")
+                        .setParameter("q1", q1).setParameter("q2", q2).setParameter("ids", sub)
+                        .executeUpdate();
+            }
+            res.put("success", true).put("count", count);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "majSeuilApply", e);
+            res.put("success", false).put("count", 0);
+        }
+        return res;
+    }
+
     private long produitPerimesCount(String query, int nbreMois, String dtStart, String dtEnd, String codeFamille,
             String codeRayon, String codeGrossiste, TEmplacement emp) {
 

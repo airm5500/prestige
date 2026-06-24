@@ -278,6 +278,49 @@ public class FicheArticleRessource {
         return Response.accepted().build();
     }
 
+    // ----------------------- MAJ SEUIL groupee (Q1/Q2 par produit) -----------------------
+    @GET
+    @Path("maj-seuil/list")
+    public Response majSeuilList(@QueryParam("codeFamille") String codeFamille,
+            @QueryParam("zoneGeoId") String zoneGeoId, @QueryParam("search") String search,
+            @QueryParam("start") int start, @QueryParam("limit") int limit) {
+        int lim = (limit > 0) ? limit : 15;
+        return Response.ok()
+                .entity(ficheArticleService.majSeuilList(codeFamille, zoneGeoId, search, start, lim).toString())
+                .build();
+    }
+
+    @POST
+    @Path("maj-seuil/apply")
+    public Response majSeuilApply(String body) {
+        JSONObject in = new JSONObject(body);
+        String mode = in.optString("mode", "SELECTED");
+        String codeFamille = in.optString("codeFamille", "");
+        String zoneGeoId = in.optString("zoneGeoId", "");
+        String search = in.optString("search", "");
+        Integer q1 = (in.has("q1") && !in.isNull("q1")) ? in.getInt("q1") : null;
+        Integer q2 = (in.has("q2") && !in.isNull("q2")) ? in.getInt("q2") : null;
+        List<String> ids = jsonArrToList(in.optJSONArray("ids"));
+        List<String> unchecked = jsonArrToList(in.optJSONArray("uncheckedIds"));
+        return Response.ok()
+                .entity(ficheArticleService.majSeuilApply(mode, codeFamille, zoneGeoId, search, ids, unchecked, q1, q2)
+                        .toString())
+                .build();
+    }
+
+    private static List<String> jsonArrToList(org.json.JSONArray a) {
+        List<String> l = new java.util.ArrayList<>();
+        if (a != null) {
+            for (int i = 0; i < a.length(); i++) {
+                String s = a.optString(i, null);
+                if (s != null && !s.isEmpty()) {
+                    l.add(s);
+                }
+            }
+        }
+        return l;
+    }
+
     @GET
     @Path("comparaison/csv")
     @Produces("text/csv")

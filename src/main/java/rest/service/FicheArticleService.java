@@ -85,6 +85,13 @@ public interface FicheArticleService {
 
     void updateProduitLiteInfo(UpdateProduit updateProduit);
 
+    /** Liste paginee des produits pour l'ecran MAJ SEUIL (filtre famille OU emplacement + recherche). */
+    JSONObject majSeuilList(String codeFamille, String zoneGeoId, String search, int start, int limit);
+
+    /** MAJ groupee de Q1/Q2 par produit : mode SELECTED (ids) ou ALL (filtre moins uncheckedIds). */
+    JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search,
+            List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2);
+
     byte[] buildComparaisonExcel(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil, String codeFamile,
             String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException;
 

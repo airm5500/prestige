@@ -43,6 +43,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         'Ext.JSON.*',
         'testextjs.model.Famille',
         'testextjs.view.configmanagement.famille.action.add',
+        'testextjs.view.configmanagement.famille.action.maj_seuil',
         'testextjs.view.configmanagement.famille.action.infogenerale',
         'testextjs.view.configmanagement.famille.action.comptabilite',
         'testextjs.view.configmanagement.famille.action.autreinfos',
@@ -703,6 +704,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         },
                         '-',
                         {
+                            text: 'MAJ SEUIL',
+                            tooltip: 'Mise à jour groupée de Q1/Q2 (seuil/qté réappro) par famille ou emplacement',
+                            id: 'btn_maj_seuil',
+                            iconCls: 'configuration',
+                            scope: this,
+                            handler: this.onMajSeuil
+                        },
+                        '-',
+                        {
                             text: 'Verifier l\'importation',
                             tooltip: 'Verifier l\'importation',
                             id: 'btn_checkimport',
@@ -1031,6 +1041,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
     onStoreLoad: function () {
 
+    },
+
+    onMajSeuil: function () {
+        new testextjs.view.configmanagement.famille.action.maj_seuil({
+            parentview: this,
+            titre: 'MAJ SEUIL groupée (Q1/Q2 réappro)'
+        });
     },
 
     onRecalculerSeuils: function () {
