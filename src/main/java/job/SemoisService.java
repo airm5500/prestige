@@ -166,11 +166,38 @@ public class SemoisService {
             if (isActive) {
                 LOG.log(Level.INFO, "*****************  DEBUT TRAITEMENT  SEMOIS A {0}", LocalDateTime.now());
                 computeReappro();
+                // MAJ de la date de dernier calcul (utile pour le recalcul manuel ; en debut de mois
+                // execute() la repositionne aussi a la meme valeur -> aucun effet de bord)
+                markReapproDate();
                 LOG.log(Level.INFO, "*****************  FIN TRAITEMENT  SEMOIS A {0}", LocalDateTime.now());
             }
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
+        }
+    }
+
+    /** Positionne KEY_DAY_SEUIL_REAPPRO a aujourd'hui (date de dernier calcul des seuils). */
+    private void markReapproDate() {
+        try {
+            TParameters key = em.find(TParameters.class, "KEY_DAY_SEUIL_REAPPRO");
+            if (key == null) {
+                return;
+            }
+            userTransaction.begin();
+            key.setStrVALUE(LocalDate.now().toString());
+            key.setDtUPDATED(new Date());
+            em.merge(key);
+            userTransaction.commit();
+        } catch (Exception e) {
+            try {
+                if (userTransaction.getStatus() == Status.STATUS_ACTIVE
+                        || userTransaction.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+                    userTransaction.rollback();
+                }
+            } catch (SystemException ex) {
+                LOG.log(Level.SEVERE, null, ex);
+            }
         }
     }
 
