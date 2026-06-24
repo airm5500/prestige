@@ -268,6 +268,25 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             plugins: [this.cellEditing],
                             store: store_details_sugg,
                             height: 370,
+                            dockedItems: [{
+                                    xtype: 'toolbar',
+                                    dock: 'top',
+                                    items: [{
+                                            xtype: 'tbtext',
+                                            id: 'suggInfoBar',
+                                            text: "Cliquez la colonne QTE d'un produit pour afficher ses informations d'aide à la décision."
+                                        }]
+                                }],
+                            listeners: {
+                                cellclick: function (view, td, cellIndex, record) {
+                                    var cols = view.getGridColumns();
+                                    var col = cols && cols[cellIndex];
+                                    if (!col || col.dataIndex !== 'int_NUMBER') {
+                                        return;
+                                    }
+                                    Me_Window.showProduitInfos(record);
+                                }
+                            },
                             columns: [
                                 {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
                                 {text: 'LIBELLE', flex: 2.5, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
@@ -779,6 +798,42 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 close: function() {
                     Me_Window.restoreLastFocus();
                 }
+            }
+        });
+    },
+
+    // Aide a la decision : affiche les infos du produit (colonne QTE) dans le bandeau au-dessus des entetes
+    showProduitInfos: function (record) {
+        var bar = Ext.getCmp('suggInfoBar');
+        if (!bar || !record) {
+            return;
+        }
+        var v1 = Number(record.get('int_VALUE1')) || 0,
+                v2 = Number(record.get('int_VALUE2')) || 0,
+                v3 = Number(record.get('int_VALUE3')) || 0;
+        var moy = Math.round((v1 + v2 + v3) / 3);
+        var venteHebdo = Math.round((moy / 4) * 100) / 100;
+        var nom = record.get('str_FAMILLE_NAME') || '';
+        bar.setText('Chargement des infos . . .');
+        Ext.Ajax.request({
+            url: '../api/v1/commande/produit/reappro-infos/' + record.get('lg_FAMILLE_ID'),
+            method: 'GET',
+            success: function (resp) {
+                var d = Ext.JSON.decode(resp.responseText, true) || {};
+                var sr = Number(d.stockReserve) || 0;
+                var srColor = sr > 0 ? 'green' : 'red';
+                var moyAchat = Math.round((Number(d.moyenneAchatMois) || 0) * 100) / 100;
+                var html = '<b>' + Ext.String.htmlEncode(nom) + '</b> &nbsp;|&nbsp; '
+                        + "Dernière entrée : <b>" + (d.derniereEntreeDate || '-') + '</b> (qté ' + (d.derniereEntreeQte || 0) + ') &nbsp;|&nbsp; '
+                        + "Fréquence d'achat (mois) : <b>" + (d.frequenceAchatMois || 0) + '</b> &nbsp;|&nbsp; '
+                        + 'Qté entrée (mois) : <b>' + (d.qteEntreeMois || 0) + '</b> &nbsp;|&nbsp; '
+                        + 'Stock réservé : <span style="color:' + srColor + ';font-weight:bold;">' + sr + '</span> &nbsp;|&nbsp; '
+                        + 'Vente hebdo (MOY/4) : <span style="color:red;font-weight:bold;">' + venteHebdo + '</span> &nbsp;|&nbsp; '
+                        + "Moyenne d'achat/mois : <span style=\"color:red;font-weight:bold;\">" + moyAchat + '</span>';
+                bar.setText(html, false);
+            },
+            failure: function () {
+                bar.setText('Infos produit indisponibles.');
             }
         });
     },

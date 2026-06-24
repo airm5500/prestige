@@ -130,6 +130,10 @@ public interface OrderService {
     JSONObject getListBonsDetailsByProduits(String produits, String search, String dtStart, String dtEnd, int start,
             int limit, String grossisteId);
 
+    /** Indicateurs d'aide a la decision pour un produit (mois courant) : frequence d'achat (nb BL distincts),
+     * quantite totale entree, derniere entree (date + qte), stock reserve. */
+    JSONObject produitReapproInfos(String produitId, String empl);
+
     List<TBonLivraisonDetail> getBonItems(String bonId);
 
     void addCheckedQuantity(AddCheckedQuantity addCheckedQuantity);

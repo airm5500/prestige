@@ -2465,6 +2465,68 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public JSONObject produitReapproInfos(String produitId, String empl) {
+        JSONObject o = new JSONObject();
+        try {
+            java.time.LocalDate first = java.time.LocalDate.now().withDayOfMonth(1);
+            java.util.Date startD = java.sql.Timestamp.valueOf(first.atStartOfDay());
+            java.util.Date endD = java.sql.Timestamp.valueOf(first.plusMonths(1).atStartOfDay());
+
+            // Frequence d'achat (nb de BL distincts) + quantite totale entree, mois courant
+            Object[] agg = (Object[]) getEmg().createQuery(
+                    "SELECT COUNT(DISTINCT bld.lgBONLIVRAISONID.lgBONLIVRAISONID), COALESCE(SUM(bld.intQTERECUE),0) "
+                    + "FROM TBonLivraisonDetail bld WHERE bld.lgFAMILLEID.lgFAMILLEID = :id "
+                    + "AND bld.lgBONLIVRAISONID.dtUPDATED >= :start AND bld.lgBONLIVRAISONID.dtUPDATED < :end")
+                    .setParameter("id", produitId)
+                    .setParameter("start", startD, javax.persistence.TemporalType.TIMESTAMP)
+                    .setParameter("end", endD, javax.persistence.TemporalType.TIMESTAMP)
+                    .getSingleResult();
+            long freq = (agg != null && agg[0] != null) ? ((Number) agg[0]).longValue() : 0;
+            long qteMois = (agg != null && agg[1] != null) ? ((Number) agg[1]).longValue() : 0;
+
+            // Derniere entree (date + quantite recue)
+            String derniereDate = "";
+            long derniereQte = 0;
+            List<Object[]> last = getEmg().createQuery(
+                    "SELECT bld.lgBONLIVRAISONID.dtUPDATED, bld.intQTERECUE FROM TBonLivraisonDetail bld "
+                    + "WHERE bld.lgFAMILLEID.lgFAMILLEID = :id ORDER BY bld.lgBONLIVRAISONID.dtUPDATED DESC")
+                    .setParameter("id", produitId).setMaxResults(1).getResultList();
+            if (!last.isEmpty()) {
+                Object[] r = last.get(0);
+                if (r[0] != null) {
+                    derniereDate = DateUtil.convertDateToDD_MM_YYYY_HH_mm((java.util.Date) r[0]);
+                }
+                if (r[1] != null) {
+                    derniereQte = ((Number) r[1]).longValue();
+                }
+            }
+
+            // Stock reserve (type stock '2') pour l'emplacement courant
+            int stockReserve = 0;
+            try {
+                Query qr = getEmg().createNativeQuery("SELECT tsf.int_NUMBER FROM t_type_stock_famille tsf "
+                        + "WHERE tsf.lg_TYPE_STOCK_ID='2' AND tsf.lg_FAMILLE_ID=?1 AND tsf.lg_EMPLACEMENT_ID=?2");
+                qr.setParameter(1, produitId).setParameter(2, empl != null ? empl : "");
+                qr.setMaxResults(1);
+                Object rr = qr.getSingleResult();
+                if (rr != null) {
+                    stockReserve = ((Number) rr).intValue();
+                }
+            } catch (Exception ex) {
+                stockReserve = 0;
+            }
+
+            double moyenneAchat = (freq > 0) ? ((double) qteMois / freq) : 0d;
+            o.put("derniereEntreeDate", derniereDate).put("derniereEntreeQte", derniereQte)
+                    .put("frequenceAchatMois", freq).put("qteEntreeMois", qteMois)
+                    .put("stockReserve", stockReserve).put("moyenneAchatMois", moyenneAchat);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitReapproInfos", e);
+        }
+        return o;
+    }
+
+    @Override
     public JSONObject addFreeQty(AddLot lot) {
         if (lot.getFreeQty() < 0) {
             return new JSONObject().put("success", false);

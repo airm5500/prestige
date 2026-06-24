@@ -352,6 +352,16 @@ public class CommandeRessource {
                 .build();
     }
 
+    @GET
+    @Path("produit/reappro-infos/{id}")
+    public Response produitReapproInfos(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        String empl = (tu != null && tu.getLgEMPLACEMENTID() != null)
+                ? tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID() : "";
+        return Response.ok().entity(orderService.produitReapproInfos(id, empl).toString()).build();
+    }
+
     @POST
     @Path("add-free-qty")
     public Response addFreeQty(AddLot addLot) {
