@@ -2484,6 +2484,19 @@ public class OrderServiceImpl implements OrderService {
             long freq = (agg != null && agg[0] != null) ? ((Number) agg[0]).longValue() : 0;
             long qteMois = (agg != null && agg[1] != null) ? ((Number) agg[1]).longValue() : 0;
 
+            // Moyenne d'achat des 3 derniers mois FERMES : somme des quantites recues / 3
+            java.util.Date start3D = java.sql.Timestamp.valueOf(first.minusMonths(3).atStartOfDay());
+            Object s3 = getEmg().createQuery(
+                    "SELECT COALESCE(SUM(bld.intQTERECUE),0) FROM TBonLivraisonDetail bld "
+                    + "WHERE bld.lgFAMILLEID.lgFAMILLEID = :id "
+                    + "AND bld.lgBONLIVRAISONID.dtUPDATED >= :start AND bld.lgBONLIVRAISONID.dtUPDATED < :end")
+                    .setParameter("id", produitId)
+                    .setParameter("start", start3D, javax.persistence.TemporalType.TIMESTAMP)
+                    .setParameter("end", startD, javax.persistence.TemporalType.TIMESTAMP)
+                    .getSingleResult();
+            long achat3Mois = (s3 != null) ? ((Number) s3).longValue() : 0;
+            double moyenneAchat3Mois = achat3Mois / 3.0;
+
             // Derniere entree (date + quantite recue)
             String derniereDate = "";
             long derniereQte = 0;
@@ -2519,7 +2532,8 @@ public class OrderServiceImpl implements OrderService {
             double moyenneAchat = (freq > 0) ? ((double) qteMois / freq) : 0d;
             o.put("derniereEntreeDate", derniereDate).put("derniereEntreeQte", derniereQte)
                     .put("frequenceAchatMois", freq).put("qteEntreeMois", qteMois)
-                    .put("stockReserve", stockReserve).put("moyenneAchatMois", moyenneAchat);
+                    .put("stockReserve", stockReserve).put("moyenneAchatMois", moyenneAchat)
+                    .put("moyenneAchat3Mois", moyenneAchat3Mois);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "produitReapproInfos", e);
         }

@@ -821,6 +821,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 var d = Ext.JSON.decode(resp.responseText, true) || {};
                 var sr = Number(d.stockReserve) || 0;
                 var srColor = sr > 0 ? 'green' : 'red';
+                // Moyenne d'achat 3 mois = quantites RECUES (achats) des 3 derniers mois fermes / 3 (backend)
+                var moyAchat3 = Math.round((Number(d.moyenneAchat3Mois) || 0) * 100) / 100;
                 var html = '<b style="color:blue;">' + Ext.String.htmlEncode(nom) + '</b> &nbsp;|&nbsp; '
                         + 'Date dernière entrée : <span style="color:red;font-weight:bold;">' + (d.derniereEntreeDate || '-') + '</span> '
                         + '(qté <span style="color:red;font-weight:bold;">' + (d.derniereEntreeQte || 0) + '</span>) &nbsp;|&nbsp; '
@@ -828,7 +830,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                         + 'Qté total entrée (' + mois + ') : <span style="color:orange;font-weight:bold;">' + (d.qteEntreeMois || 0) + '</span> &nbsp;|&nbsp; '
                         + 'Stock Reserve : <span style="color:' + srColor + ';font-weight:bold;">' + sr + '</span> &nbsp;|&nbsp; '
                         + 'Vente hebdo (MOY/4) : <span style="color:red;font-weight:bold;">' + venteHebdo + '</span> &nbsp;|&nbsp; '
-                        + "Moyenne d'achat 3mois : <span style=\"color:red;font-weight:bold;\">" + moy3 + '</span>';
+                        + "Moyenne d'achat 3mois : <span style=\"color:red;font-weight:bold;\">" + moyAchat3 + '</span>';
                 bar.setText(html, false);
             },
             failure: function () {
