@@ -1,0 +1,176 @@
+package rest.service.impl;
+
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.ejb.EJB;
+import javax.ejb.Stateless;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import rest.service.SmsAdminService;
+import rest.service.SmsService;
+import util.AppParameters;
+import util.OrangeSmsResult;
+
+/**
+ * Implémentation des appels d'administration Orange (solde, statistiques,
+ * achats, souscriptions Delivery Receipt). Réutilise le token géré par
+ * {@link SmsService} et normalise les réponses (succès/erreur) via
+ * {@link OrangeSmsResult}.
+ *
+ * @author koben
+ */
+@Stateless
+public class SmsAdminServiceImpl implements SmsAdminService {
+
+    private static final Logger LOG = Logger.getLogger(SmsAdminServiceImpl.class.getName());
+    private final AppParameters sp = AppParameters.getInstance();
+    @EJB
+    private SmsService smsService;
+
+    @Override
+    public JSONObject getContracts() {
+        return doGet(sp.pathsmsapiadminbaseurl + "/contracts", "contrats");
+    }
+
+    @Override
+    public JSONObject getStatistics() {
+        return doGet(sp.pathsmsapiadminbaseurl + "/statistics", "statistiques");
+    }
+
+    @Override
+    public JSONObject getPurchaseOrders() {
+        return doGet(sp.pathsmsapiadminbaseurl + "/purchaseorders", "bons d'achat");
+    }
+
+    @Override
+    public JSONObject getDeliveryReceiptSubscriptions() {
+        return doGet(sp.pathsmsapisubscriptionurl, "souscriptions DR");
+    }
+
+    @Override
+    public JSONObject createDeliveryReceiptSubscription() {
+        if (StringUtils.isBlank(sp.smsdrcallbackurl)) {
+            return error("L'URL de callback DR (smsdrcallbackurl) n'est pas configurée", 0, null);
+        }
+        String token = smsService.getValidAccessToken();
+        if (StringUtils.isBlank(token)) {
+            return error("Token Orange indisponible", 0, null);
+        }
+        Client client = ClientBuilder.newClient();
+        try {
+            JSONObject callbackReference = new JSONObject()
+                    .put("notifyURL", sp.smsdrcallbackurl);
+            JSONObject subscription = new JSONObject()
+                    .put("callbackReference", callbackReference)
+                    .put("filterCriteria", "DR");
+            JSONObject body = new JSONObject()
+                    .put("deliveryReceiptSubscription", subscription);
+
+            WebTarget target = client.target(sp.pathsmsapisubscriptionurl);
+            Response response = target.request(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer ".concat(token))
+                    .post(Entity.entity(body.toString(), MediaType.APPLICATION_JSON_TYPE));
+            return normalize(response, "création souscription DR");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Echec création souscription DR", e);
+            return error(e.getMessage(), 0, null);
+        } finally {
+            client.close();
+        }
+    }
+
+    @Override
+    public JSONObject deleteDeliveryReceiptSubscription(String subscriptionId) {
+        if (StringUtils.isBlank(subscriptionId)) {
+            return error("Identifiant de souscription manquant", 0, null);
+        }
+        String token = smsService.getValidAccessToken();
+        if (StringUtils.isBlank(token)) {
+            return error("Token Orange indisponible", 0, null);
+        }
+        Client client = ClientBuilder.newClient();
+        try {
+            WebTarget target = client.target(sp.pathsmsapisubscriptionurl + "/" + subscriptionId);
+            Response response = target.request(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer ".concat(token))
+                    .delete();
+            return normalize(response, "suppression souscription DR");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Echec suppression souscription DR", e);
+            return error(e.getMessage(), 0, null);
+        } finally {
+            client.close();
+        }
+    }
+
+    /** GET générique sur un endpoint admin Orange. */
+    private JSONObject doGet(String url, String libelle) {
+        String token = smsService.getValidAccessToken();
+        if (StringUtils.isBlank(token)) {
+            return error("Token Orange indisponible", 0, null);
+        }
+        Client client = ClientBuilder.newClient();
+        try {
+            WebTarget target = client.target(url);
+            Response response = target.request(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer ".concat(token))
+                    .get();
+            return normalize(response, libelle);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Echec consultation " + libelle, e);
+            return error(e.getMessage(), 0, null);
+        } finally {
+            client.close();
+        }
+    }
+
+    /** Transforme une réponse Orange en {success, httpStatus, data|code|msg}. */
+    private JSONObject normalize(Response response, String libelle) {
+        int status = response.getStatus();
+        String body = response.hasEntity() ? response.readEntity(String.class) : null;
+        LOG.log(Level.INFO, "SMS admin [{0}] >>> http={1}, body={2}",
+                new Object[] { libelle, status, body });
+        if (status >= 200 && status < 300) {
+            JSONObject result = new JSONObject().put("success", true).put("httpStatus", status);
+            result.put("data", toJson(body));
+            return result;
+        }
+        OrangeSmsResult parsed = OrangeSmsResult.parse(status, body);
+        return error(parsed.getErrorMessage(), status, parsed.getErrorCode());
+    }
+
+    private JSONObject error(String msg, int httpStatus, String code) {
+        JSONObject result = new JSONObject()
+                .put("success", false)
+                .put("httpStatus", httpStatus)
+                .put("msg", msg != null ? msg : "Erreur inconnue");
+        if (code != null) {
+            result.put("code", code);
+        }
+        return result;
+    }
+
+    /** Parse le corps en JSONObject/JSONArray si possible, sinon renvoie la chaîne. */
+    private Object toJson(String body) {
+        if (StringUtils.isBlank(body)) {
+            return JSONObject.NULL;
+        }
+        String trimmed = body.trim();
+        try {
+            if (trimmed.startsWith("[")) {
+                return new JSONArray(trimmed);
+            }
+            return new JSONObject(trimmed);
+        } catch (Exception e) {
+            return body;
+        }
+    }
+
+}

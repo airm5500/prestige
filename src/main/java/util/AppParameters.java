@@ -35,6 +35,12 @@ public final class AppParameters {
     public String pathsmsapitokenendpoint = "https://api.orange.com/oauth/v2/token";
     public String pathsmsapisendmessageurl = "https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B225000000/requests";
     public String senderAddress = "tel:+225000000";
+    // Consultation solde / contrats / statistiques (API Orange SMS admin).
+    public String pathsmsapiadminbaseurl = "https://api.orange.com/sms/admin/v1";
+    // Souscription aux Delivery Receipts (DR).
+    public String pathsmsapisubscriptionurl = "https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B225000000/subscriptions";
+    // URL publique du callback DR de Prestige (à renseigner pour activer les DR).
+    public String smsdrcallbackurl = "";
     public String accesstoken = "kqJ1LJkaFgeBCzsy2NCeiKPF95Mb", expiresin = "7776000";
     public String mobile = "", smtpHost = "smtp.gmail.com", protocol = "smtps";
     public String mailOfficine = "";
@@ -69,6 +75,18 @@ public final class AppParameters {
             pathsmsapitokenendpoint = prop.getProperty("pathsmsapitokenendpoint");
             pathsmsapisendmessageurl = prop.getProperty("pathsmsapisendmessageurl");
             senderAddress = prop.getProperty("senderAddress");
+            String adminBase = prop.getProperty("pathsmsapiadminbaseurl");
+            if (StringUtils.isNotEmpty(adminBase)) {
+                pathsmsapiadminbaseurl = adminBase;
+            }
+            String subscriptionUrl = prop.getProperty("pathsmsapisubscriptionurl");
+            if (StringUtils.isNotEmpty(subscriptionUrl)) {
+                pathsmsapisubscriptionurl = subscriptionUrl;
+            }
+            String drCallback = prop.getProperty("smsdrcallbackurl");
+            if (StringUtils.isNotEmpty(drCallback)) {
+                smsdrcallbackurl = drCallback;
+            }
             accesstoken = prop.getProperty("accesstoken");
             expiresin = prop.getProperty("expiresin");
             email = prop.getProperty("email");
@@ -120,6 +138,9 @@ public final class AppParameters {
             prop.setProperty("pathsmsapitokenendpoint", pathsmsapitokenendpoint);
             prop.setProperty("pathsmsapisendmessageurl", pathsmsapisendmessageurl);
             prop.setProperty("senderAddress", senderAddress);
+            prop.setProperty("pathsmsapiadminbaseurl", pathsmsapiadminbaseurl);
+            prop.setProperty("pathsmsapisubscriptionurl", pathsmsapisubscriptionurl);
+            prop.setProperty("smsdrcallbackurl", smsdrcallbackurl);
             prop.setProperty("expiresin", expiresin);
             prop.setProperty("accesstoken", accesstoken);
             prop.setProperty("mobile", mobile);
