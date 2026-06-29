@@ -37,10 +37,13 @@ public interface SmsService {
 
     /**
      * Renvoi manuel forcé d'une notification (même si déjà SENT), pour les tests
-     * et les corrections. Retourne le statut résultant ("SENT", "NOT_SEND",
-     * "LOCK") ou null si la notification est introuvable.
+     * et les corrections.
+     *
+     * @return un JSON {@code {success, statut, code, orangeMessage, userMessage}}.
+     *         {@code success=false} et {@code statut=null} si la notification est
+     *         introuvable. {@code userMessage} est un message d'action lisible.
      */
-    String resendSMSById(String notificationId);
+    JSONObject resendSMSById(String notificationId);
 
     /** Retourne un token d'accès Orange valide (rafraîchi si expiré), ou null. */
     String getValidAccessToken();

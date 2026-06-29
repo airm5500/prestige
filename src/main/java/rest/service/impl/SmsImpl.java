@@ -39,6 +39,7 @@ import util.AppParameters;
 import util.OrangeSmsClient;
 import util.OrangeSmsResult;
 import util.SmsDeliveryStatus;
+import util.SmsUserMessage;
 
 /**
  *
@@ -242,15 +243,44 @@ public class SmsImpl implements SmsService {
     }
 
     @Override
-    public String resendSMSById(String notificationId) {
+    public JSONObject resendSMSById(String notificationId) {
         Notification notification = em.find(Notification.class, notificationId);
         if (notification == null) {
             LOG.log(Level.WARNING, "Renvoi manuel ignore : notification introuvable {0}", notificationId);
-            return null;
+            return new JSONObject().put("success", false).put("statut", JSONObject.NULL)
+                    .put("userMessage", "Notification introuvable.");
         }
         // Renvoi forcé : on ne court-circuite pas sur le statut SENT.
         sendSMS(notification);
-        return notification.getStatut() != null ? notification.getStatut().name() : null;
+        return buildResendResult(notification);
+    }
+
+    /** Construit le compte rendu du renvoi à partir de l'état des destinataires. */
+    private JSONObject buildResendResult(Notification notification) {
+        boolean accepted = notification.getStatut() == Statut.SENT;
+        String statut = notification.getStatut() != null ? notification.getStatut().name() : null;
+        String code = null;
+        String orangeMessage = null;
+        if (!accepted) {
+            for (NotificationClient c : notification.getNotificationClients()) {
+                boolean clientOk = SmsDeliveryStatus.ACCEPTED_BY_ORANGE.equals(c.getDeliveryStatus())
+                        || c.getStatut() == Statut.SENT;
+                if (!clientOk && StringUtils.isNotBlank(c.getErrorMessage())) {
+                    code = c.getErrorCode();
+                    orangeMessage = c.getErrorMessage();
+                    break;
+                }
+            }
+        }
+        String userMessage = accepted
+                ? "SMS envoyé avec succès (accepté par Orange)."
+                : SmsUserMessage.friendly(code, orangeMessage);
+        return new JSONObject()
+                .put("success", accepted)
+                .put("statut", statut != null ? statut : JSONObject.NULL)
+                .put("code", code != null ? code : JSONObject.NULL)
+                .put("orangeMessage", orangeMessage != null ? orangeMessage : JSONObject.NULL)
+                .put("userMessage", userMessage);
     }
 
     @Override

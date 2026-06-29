@@ -64,16 +64,9 @@ public class NotificationResource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        String statut = smsService.resendSMSById(id);
-        if (statut == null) {
-            return Response.ok().entity(ResultFactory.getFailResult("Notification introuvable")).build();
-        }
-        boolean accepted = "SENT".equals(statut);
-        JSONObject result = new JSONObject()
-                .put("success", accepted)
-                .put("statut", statut)
-                .put("msg", accepted ? "SMS accepté par Orange (201)"
-                        : "Non accepté par Orange - statut: " + statut + ". Voir les logs serveur pour le code d'erreur.");
+        JSONObject result = smsService.resendSMSById(id);
+        // On expose le message d'action au front via "msg".
+        result.put("msg", result.optString("userMessage", "Renvoi traité."));
         return Response.ok().entity(result.toString()).build();
     }
 
