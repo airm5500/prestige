@@ -35,6 +35,13 @@ public interface SmsService {
      */
     void sendSMSById(String notificationId);
 
+    /**
+     * Renvoi manuel forcé d'une notification (même si déjà SENT), pour les tests
+     * et les corrections. Retourne le statut résultant ("SENT", "NOT_SEND",
+     * "LOCK") ou null si la notification est introuvable.
+     */
+    String resendSMSById(String notificationId);
+
     /** Retourne un token d'accès Orange valide (rafraîchi si expiré), ou null. */
     String getValidAccessToken();
 

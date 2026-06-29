@@ -270,6 +270,20 @@ Ext.define('testextjs.view.notification.Notification', {
 
                         },
                         {
+                            header: 'Statut',
+                            dataIndex: 'statut',
+                            flex: 0.3,
+                            renderer: function (v) {
+                                if (v === 'Envoyé') {
+                                    return '<span style="color:green;font-weight:bold;">' + v + '</span>';
+                                } else if (v) {
+                                    return '<span style="color:#e69500;font-weight:bold;">' + v + '</span>';
+                                }
+                                return v;
+                            }
+
+                        },
+                        {
                             header: 'Destinataire',
                             flex: 1,
                             dataIndex: 'userTo',
@@ -291,24 +305,24 @@ Ext.define('testextjs.view.notification.Notification', {
 
                             }
 
-                        }
+                        },
+                        {
+                            xtype: 'actioncolumn',
+                            header: 'Renvoyer',
+                            width: 70,
+                            align: 'center',
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/rss_go.png',
+                                    tooltip: 'Renvoyer le SMS',
+                                    menuDisabled: true,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('renvoyer', view, rowIndex, colIndex, item, e, record, row);
+                                    }
 
-                        /* , {
-                         xtype: 'actioncolumn',
-                         width: 30,
-                         sortable: false,
-                         menuDisabled: true,
-                         
-                         items: [{
-                         icon: 'resources/images/icons/fam/rss_go.png',
-                         tooltip: 'Renvoyer',
-                         menuDisabled: true,
-                         handler: function (view, rowIndex, colIndex, item, e, record, row) {
-                         this.fireEvent('editer', view, rowIndex, colIndex, item, e, record, row);
-                         }
-                         
-                         }]
-                         }*/
+                                }]
+                        }
                     ],
                     selModel: {
                         selType: 'cellmodel'

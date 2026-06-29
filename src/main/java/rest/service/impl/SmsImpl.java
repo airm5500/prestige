@@ -242,6 +242,18 @@ public class SmsImpl implements SmsService {
     }
 
     @Override
+    public String resendSMSById(String notificationId) {
+        Notification notification = em.find(Notification.class, notificationId);
+        if (notification == null) {
+            LOG.log(Level.WARNING, "Renvoi manuel ignore : notification introuvable {0}", notificationId);
+            return null;
+        }
+        // Renvoi forcé : on ne court-circuite pas sur le statut SENT.
+        sendSMS(notification);
+        return notification.getStatut() != null ? notification.getStatut().name() : null;
+    }
+
+    @Override
     public String getValidAccessToken() {
         SmsToken smsToken = getOrupdateSmsToken();
         return smsToken != null ? smsToken.getAccessToken() : null;

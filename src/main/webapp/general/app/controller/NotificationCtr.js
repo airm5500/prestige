@@ -83,7 +83,8 @@ Ext.define('testextjs.controller.NotificationCtr', {
              
              */
             "menunotification gridpanel actioncolumn": {
-                editer: this.toItem
+                editer: this.toItem,
+                renvoyer: this.onRenvoyer
 
             },
             'menunotification #addBtn': {
@@ -102,6 +103,41 @@ Ext.define('testextjs.controller.NotificationCtr', {
 
         Ext.create('testextjs.view.notification.NotificationForm', {data: record, grid: view}).show();
 
+    },
+
+    onRenvoyer: function (view, rowIndex, colIndex, item, e, record) {
+        const me = this;
+        const id = record.get('id');
+        Ext.Msg.confirm('Renvoi SMS', 'Renvoyer ce SMS maintenant ?', function (btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            const grid = me.getMenunotificationGrid();
+            grid.setLoading('Renvoi en cours...');
+            Ext.Ajax.request({
+                url: '../api/v1/notifications/' + encodeURIComponent(id) + '/resend',
+                method: 'POST',
+                success: function (response) {
+                    grid.setLoading(false);
+                    let res = {};
+                    try {
+                        res = Ext.decode(response.responseText);
+                    } catch (ex) {
+                        res = {};
+                    }
+                    if (res.success) {
+                        Ext.Msg.alert('Renvoi SMS', res.msg || 'SMS accepté par Orange (201)');
+                    } else {
+                        Ext.Msg.alert('Renvoi SMS', res.msg || 'Le renvoi a échoué.');
+                    }
+                    grid.getStore().reload();
+                },
+                failure: function () {
+                    grid.setLoading(false);
+                    Ext.Msg.alert('Renvoi SMS', 'Erreur lors de la communication avec le serveur.');
+                }
+            });
+        });
     },
 
     doBeforechange: function (page, currentPage) {
