@@ -229,6 +229,34 @@ Ext.define('testextjs.view.notification.Notification', {
                             iconCls: 'searchicon'
                         }
                     ]
+                },
+                {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    style: 'background:#eef6ff;',
+                    items: [
+                        {
+                            xtype: 'tbtext',
+                            text: '<b>Solde SMS :</b>'
+                        },
+                        {
+                            xtype: 'tbtext',
+                            itemId: 'smsSoldeLabel',
+                            text: 'cliquez sur Rafraîchir'
+                        },
+                        '->',
+                        {
+                            text: 'Rafraîchir le solde',
+                            itemId: 'refreshSolde',
+                            iconCls: 'searchicon'
+                        },
+                        {xtype: 'tbseparator'},
+                        {
+                            text: 'Accusés de réception (DR)',
+                            itemId: 'drBtn',
+                            tooltip: 'Gérer les accusés de réception Orange (Delivery Receipts)'
+                        }
+                    ]
                 }
 
             ],
@@ -293,10 +321,20 @@ Ext.define('testextjs.view.notification.Notification', {
 
                                 if (user !== '') {
                                     return user;
-                                } else if (data.clients.length > 0) {
+                                } else if (data.clients && data.clients.length > 0) {
 
                                     Ext.each(data.clients, function (us) {
-                                        user += us.firstName + " " + us.lastName + " au " + us.clientPhone + "<br>";
+                                        let dr = '';
+                                        if (us.deliveryStatus === 'DELIVERED_TO_TERMINAL') {
+                                            dr = ' <span style="color:green;">[Reçu]</span>';
+                                        } else if (us.deliveryStatus === 'DELIVERY_IMPOSSIBLE') {
+                                            dr = ' <span style="color:red;">[Non remis]</span>';
+                                        } else if (us.deliveryStatus === 'ACCEPTED_BY_ORANGE') {
+                                            dr = ' <span style="color:#0066cc;">[Accepté Orange]</span>';
+                                        } else if (us.deliveryStatus) {
+                                            dr = ' <span style="color:#e69500;">[' + us.deliveryStatus + ']</span>';
+                                        }
+                                        user += us.firstName + " " + us.lastName + " au " + us.clientPhone + dr + "<br>";
 
                                     });
                                 }

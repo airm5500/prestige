@@ -40,6 +40,73 @@ public class SmsAdminServiceImpl implements SmsAdminService {
     }
 
     @Override
+    public JSONObject getBalanceSummary() {
+        JSONObject contracts = getContracts();
+        if (!contracts.optBoolean("success", false)) {
+            return contracts; // propage l'erreur (token, http, code Orange...)
+        }
+        JSONArray items = new JSONArray();
+        long[] total = { 0L };
+        boolean[] found = { false };
+        collectUnits(contracts.opt("data"), items, total, found);
+
+        JSONObject result = new JSONObject()
+                .put("success", true)
+                .put("found", found[0])
+                .put("totalUnits", total[0])
+                .put("items", items);
+        if (!found[0]) {
+            // Format inattendu : on renvoie le brut pour diagnostic.
+            result.put("raw", contracts.opt("data"));
+        }
+        return result;
+    }
+
+    /** Parcourt récursivement la réponse contrats pour additionner les unités. */
+    private void collectUnits(Object node, JSONArray items, long[] total, boolean[] found) {
+        if (node instanceof JSONObject) {
+            JSONObject obj = (JSONObject) node;
+            Long units = extractUnits(obj);
+            if (units != null) {
+                found[0] = true;
+                total[0] += units;
+                items.put(new JSONObject()
+                        .put("units", units)
+                        .put("country", obj.optString("country", ""))
+                        .put("service", obj.optString("service", ""))
+                        .put("expiration", obj.has("expirationDate") ? obj.optString("expirationDate", "")
+                                : obj.optString("expiration", "")));
+            }
+            for (String key : obj.keySet()) {
+                collectUnits(obj.opt(key), items, total, found);
+            }
+        } else if (node instanceof JSONArray) {
+            JSONArray arr = (JSONArray) node;
+            for (int i = 0; i < arr.length(); i++) {
+                collectUnits(arr.opt(i), items, total, found);
+            }
+        }
+    }
+
+    private Long extractUnits(JSONObject obj) {
+        String[] keys = { "availableUnits", "remainingUnits", "remaining", "units", "availableUnit" };
+        for (String k : keys) {
+            if (obj.has(k)) {
+                try {
+                    return obj.getLong(k);
+                } catch (Exception e) {
+                    try {
+                        return (long) Double.parseDouble(obj.getString(k));
+                    } catch (Exception ignore) {
+                        // clé présente mais non numérique : on continue
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    @Override
     public JSONObject getStatistics() {
         return doGet(sp.pathsmsapiadminbaseurl + "/statistics", "statistiques");
     }
@@ -68,8 +135,7 @@ public class SmsAdminServiceImpl implements SmsAdminService {
             JSONObject callbackReference = new JSONObject()
                     .put("notifyURL", sp.smsdrcallbackurl);
             JSONObject subscription = new JSONObject()
-                    .put("callbackReference", callbackReference)
-                    .put("filterCriteria", "DR");
+                    .put("callbackReference", callbackReference);
             JSONObject body = new JSONObject()
                     .put("deliveryReceiptSubscription", subscription);
 

@@ -24,6 +24,15 @@ public class NotificationClientDTO implements Serializable {
     private String email;
     private String userId;
     private String clientId;
+    private String deliveryStatus;
+
+    public String getDeliveryStatus() {
+        return deliveryStatus;
+    }
+
+    public void setDeliveryStatus(String deliveryStatus) {
+        this.deliveryStatus = deliveryStatus;
+    }
 
     public String getFullName() {
         return fullName;
@@ -91,6 +100,7 @@ public class NotificationClientDTO implements Serializable {
         this.lastName = client.getStrLASTNAME();
         this.firstName = client.getStrFIRSTNAME();
         this.clientId = client.getLgCLIENTID();
+        this.deliveryStatus = notificationClient.getDeliveryStatus();
     }
 
     public String getEmail() {

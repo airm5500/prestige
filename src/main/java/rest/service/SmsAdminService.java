@@ -18,6 +18,12 @@ public interface SmsAdminService {
     /** Contrats SMS (solde restant, date d'expiration des bundles). */
     JSONObject getContracts();
 
+    /**
+     * Résumé du solde SMS, prêt à afficher :
+     * {@code {success, totalUnits, found, items:[{units, country, service, expiration}]}}.
+     */
+    JSONObject getBalanceSummary();
+
     /** Statistiques d'utilisation SMS. */
     JSONObject getStatistics();
 

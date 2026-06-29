@@ -49,6 +49,10 @@ Ext.define('testextjs.controller.NotificationCtr', {
         {
             ref: 'dtEnd',
             selector: 'menunotification #dtEnd'
+        },
+        {
+            ref: 'smsSoldeLabel',
+            selector: 'menunotification #smsSoldeLabel'
         }
 
     ],
@@ -89,8 +93,130 @@ Ext.define('testextjs.controller.NotificationCtr', {
             },
             'menunotification #addBtn': {
                 click: this.onAddClick
+            },
+            'menunotification #refreshSolde': {
+                click: this.loadSolde
+            },
+            'menunotification #drBtn': {
+                click: this.onDrClick
             }
 
+        });
+    },
+
+    loadSolde: function () {
+        const me = this;
+        const label = me.getSmsSoldeLabel();
+        if (label) {
+            label.setText('chargement...');
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/sms/solde',
+            method: 'GET',
+            success: function (response) {
+                let res = {};
+                try {
+                    res = Ext.decode(response.responseText);
+                } catch (ex) {
+                    res = {};
+                }
+                if (!label) {
+                    return;
+                }
+                if (res.success && res.found) {
+                    const total = res.totalUnits;
+                    const color = (total <= 0) ? 'red' : (total < 50 ? '#e69500' : 'green');
+                    let txt = '<span style="color:' + color + ';font-weight:bold;">' + total + ' unité(s)</span>';
+                    if (total <= 0) {
+                        txt += ' <span style="color:red;">- rechargez votre bundle SMS</span>';
+                    }
+                    label.setText(txt);
+                } else if (res.success && !res.found) {
+                    label.setText('<span style="color:#e69500;">solde indisponible (format Orange inattendu)</span>');
+                } else {
+                    label.setText('<span style="color:red;">' + (res.msg || res.userMessage || 'indisponible') + '</span>');
+                }
+            },
+            failure: function () {
+                if (label) {
+                    label.setText('<span style="color:red;">erreur serveur</span>');
+                }
+            }
+        });
+    },
+
+    onDrClick: function () {
+        const me = this;
+        const win = Ext.create('Ext.window.Window', {
+            title: 'Accusés de réception SMS (Delivery Receipts)',
+            modal: true,
+            width: 640,
+            height: 440,
+            layout: 'fit',
+            bodyPadding: 10,
+            items: [{
+                    xtype: 'textarea',
+                    itemId: 'drOutput',
+                    readOnly: true,
+                    value: 'Utilisez les boutons ci-dessous.\n\n'
+                            + '- "Créer la souscription" active l\'envoi des accusés vers Prestige '
+                            + '(nécessite que l\'URL de callback publique soit configurée côté serveur : smsdrcallbackurl).\n'
+                            + '- "Lister" affiche les souscriptions existantes.\n'
+                            + '- "Supprimer" retire une souscription via son identifiant.'
+                }],
+            buttons: [
+                {
+                    text: 'Créer la souscription',
+                    iconCls: 'addicon',
+                    handler: function () {
+                        me.drRequest(win, 'POST', '../api/v1/sms/dr-subscriptions', 'Création de la souscription DR');
+                    }
+                },
+                {
+                    text: 'Lister',
+                    iconCls: 'searchicon',
+                    handler: function () {
+                        me.drRequest(win, 'GET', '../api/v1/sms/dr-subscriptions', 'Souscriptions DR');
+                    }
+                },
+                {
+                    text: 'Supprimer...',
+                    handler: function () {
+                        Ext.Msg.prompt('Supprimer une souscription', 'Identifiant de la souscription :', function (btn, id) {
+                            if (btn === 'ok' && id) {
+                                me.drRequest(win, 'DELETE', '../api/v1/sms/dr-subscriptions/' + encodeURIComponent(id),
+                                        'Suppression de la souscription DR');
+                            }
+                        });
+                    }
+                },
+                {
+                    text: 'Fermer',
+                    handler: function () {
+                        win.close();
+                    }
+                }
+            ]
+        });
+        win.show();
+    },
+
+    drRequest: function (win, method, url, label) {
+        const output = win.down('#drOutput');
+        win.setLoading('Traitement...');
+        Ext.Ajax.request({
+            url: url,
+            method: method,
+            callback: function (options, success, response) {
+                win.setLoading(false);
+                let pretty = response.responseText;
+                try {
+                    pretty = JSON.stringify(Ext.decode(response.responseText), null, 2);
+                } catch (ex) {
+                    // on garde le texte brut
+                }
+                output.setValue(label + ' (HTTP ' + response.status + ') :\n\n' + pretty);
+            }
         });
     },
 
@@ -163,6 +289,7 @@ Ext.define('testextjs.controller.NotificationCtr', {
     doInitStore: function () {
         const me = this;
         me.doSearch();
+        me.loadSolde();
 
     },
     onReady: function () {

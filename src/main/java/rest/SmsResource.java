@@ -32,11 +32,18 @@ public class SmsResource {
     @EJB
     private SmsService smsService;
 
-    /** Solde / contrats SMS (bundle restant, expiration). */
+    /** Solde / contrats SMS (bundle restant, expiration) - réponse Orange brute. */
     @GET
     @Path("balance")
     public Response balance() {
         return Response.ok(smsAdminService.getContracts().toString()).build();
+    }
+
+    /** Solde SMS résumé et prêt à afficher (total d'unités + détail par contrat). */
+    @GET
+    @Path("solde")
+    public Response solde() {
+        return Response.ok(smsAdminService.getBalanceSummary().toString()).build();
     }
 
     /** Statistiques d'utilisation SMS. */
