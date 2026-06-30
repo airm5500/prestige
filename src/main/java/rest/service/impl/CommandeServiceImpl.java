@@ -41,6 +41,7 @@ import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -96,6 +97,7 @@ import rest.service.MvtProduitService;
 import rest.service.NotificationService;
 import rest.service.OrderService;
 import rest.service.SessionHelperService;
+import rest.service.SmsService;
 import rest.service.TransactionService;
 import util.Constant;
 import util.DateCommonUtils;
@@ -129,6 +131,8 @@ public class CommandeServiceImpl implements CommandeService {
     private EntityManager em;
     @EJB
     private NotificationService notificationService;
+    @EJB
+    private SmsService smsService;
     @EJB
     private SessionHelperService sessionHelperService;
     @EJB
@@ -326,6 +330,8 @@ public class CommandeServiceImpl implements CommandeService {
             Map<TClient, List<TPreenregistrementDetail>> map = avoirs0.stream()
                     .filter(e -> Objects.nonNull(e.getLgPREENREGISTREMENTID().getClient()))
                     .collect(Collectors.groupingBy(e -> e.getLgPREENREGISTREMENTID().getClient()));
+            List<String> avoirNotificationIds = new ArrayList<>();
+            boolean immediateAvoirSms = isImmediateAvoirSmsEnabled();
             map.forEach((k, v) -> {
                 if (k != null) {
                     StringBuilder sb = new StringBuilder();
@@ -349,12 +355,28 @@ public class CommandeServiceImpl implements CommandeService {
                             user.getStrFIRSTNAME() + " " + user.getStrLASTNAME());
                     donneesMap.put(NotificationUtils.MVT_DATE.getId(), DateCommonUtils.formatCurrentDate());
 
-                    createNotification(sb.toString(), TypeNotification.AVOIR_PRODUIT, user, donneesMap,
-                            bonLivraison.getLgBONLIVRAISONID(), k);
+                    Notification avoirNotification = createNotification(sb.toString(), TypeNotification.AVOIR_PRODUIT,
+                            user, donneesMap, bonLivraison.getLgBONLIVRAISONID(), k);
+                    if (avoirNotification != null) {
+                        avoirNotificationIds.add(avoirNotification.getId());
+                    }
                 }
 
             });
             userTransaction.commit();
+
+            // Envoi immédiat des SMS d'avoir (après commit pour que la notification
+            // soit persistée). Asynchrone : n'impacte pas la réponse de l'entrée en
+            // stock. Le job planifié reste le filet de rattrapage en cas d'échec.
+            if (immediateAvoirSms) {
+                for (String avoirNotificationId : avoirNotificationIds) {
+                    try {
+                        smsService.sendSMSByNotificationIdAsync(avoirNotificationId);
+                    } catch (Exception e) {
+                        LOG.log(Level.SEVERE, "Echec declenchement envoi immediat avoir " + avoirNotificationId, e);
+                    }
+                }
+            }
 
         } catch (IllegalStateException | NumberFormatException | SecurityException | HeuristicMixedException
                 | HeuristicRollbackException | NotSupportedException | RollbackException | SystemException
@@ -1090,7 +1112,7 @@ public class CommandeServiceImpl implements CommandeService {
         }
     }
 
-    private void createNotification(String msg, TypeNotification typeNotification, TUser user,
+    private Notification createNotification(String msg, TypeNotification typeNotification, TUser user,
             Map<String, Object> donneesMap, String entityRef, TClient client) {
         try {
 
@@ -1103,10 +1125,22 @@ public class CommandeServiceImpl implements CommandeService {
                 notification.addNotificationClients(notificationClient);
             }
             notificationService.save(notification);
+            return notification;
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
         }
+        return null;
 
+    }
+
+    /** Vrai si l'envoi immédiat des SMS d'avoir est activé (param KEY_SMS_AVOIR_IMMEDIAT). */
+    private boolean isImmediateAvoirSmsEnabled() {
+        try {
+            TParameters p = em.find(TParameters.class, Constant.KEY_SMS_AVOIR_IMMEDIAT);
+            return p != null && "1".equals(p.getStrVALUE().trim());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private List<TLot> getLot(String idProduit, String bonRef) {

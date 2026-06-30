@@ -29,7 +29,8 @@ import javax.persistence.Table;
 @Entity
 @Table(name = "notification_client")
 @NamedQueries({
-        @NamedQuery(name = "NotificationClient.findByNotificationId", query = "SELECT o FROM NotificationClient o WHERE o.notification.id=:notificationId")
+        @NamedQuery(name = "NotificationClient.findByNotificationId", query = "SELECT o FROM NotificationClient o WHERE o.notification.id=:notificationId"),
+        @NamedQuery(name = "NotificationClient.findByResourceUrl", query = "SELECT o FROM NotificationClient o WHERE o.resourceUrl=:resourceUrl")
 
 })
 public class NotificationClient implements Serializable {
@@ -50,6 +51,24 @@ public class NotificationClient implements Serializable {
     private Statut statut = Statut.NOT_SEND;
     @Column(name = "sent_at")
     private LocalDateTime sentAt;
+    /** URL de la ressource SMS retournée par Orange (suivi / Delivery Receipt). */
+    @Column(name = "resource_url", length = 500)
+    private String resourceUrl;
+    /**
+     * Statut de livraison Orange : ACCEPTED_BY_ORANGE, DELIVERED_TO_TERMINAL,
+     * DELIVERY_IMPOSSIBLE, DELIVERY_UNCERTAIN, MESSAGE_WAITING...
+     */
+    @Column(name = "delivery_status", length = 40)
+    private String deliveryStatus;
+    /** Code d'erreur Orange (messageId : SVCxxxx / POLxxxx) ou HTTP_xxx. */
+    @Column(name = "error_code", length = 60)
+    private String errorCode;
+    /** Libellé d'erreur lisible. */
+    @Column(name = "error_message", length = 500)
+    private String errorMessage;
+    /** Dernier code HTTP renvoyé par Orange pour ce destinataire. */
+    @Column(name = "last_http_status")
+    private Integer lastHttpStatus;
 
     public Statut getStatut() {
         return statut;
@@ -65,6 +84,46 @@ public class NotificationClient implements Serializable {
 
     public void setSentAt(LocalDateTime sentAt) {
         this.sentAt = sentAt;
+    }
+
+    public String getResourceUrl() {
+        return resourceUrl;
+    }
+
+    public void setResourceUrl(String resourceUrl) {
+        this.resourceUrl = resourceUrl;
+    }
+
+    public String getDeliveryStatus() {
+        return deliveryStatus;
+    }
+
+    public void setDeliveryStatus(String deliveryStatus) {
+        this.deliveryStatus = deliveryStatus;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+
+    public void setErrorCode(String errorCode) {
+        this.errorCode = errorCode;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+
+    public Integer getLastHttpStatus() {
+        return lastHttpStatus;
+    }
+
+    public void setLastHttpStatus(Integer lastHttpStatus) {
+        this.lastHttpStatus = lastHttpStatus;
     }
 
     public TClient getClient() {

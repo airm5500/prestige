@@ -22,4 +22,39 @@ public interface SmsService {
 
     void sendSMS(String content);
 
+    /**
+     * Envoi immédiat et asynchrone d'une notification SMS à partir de son
+     * identifiant (rechargée dans une transaction dédiée). Utilisé pour ne plus
+     * attendre le job planifié (ex. SMS de disponibilité d'avoir).
+     */
+    void sendSMSByNotificationIdAsync(String notificationId);
+
+    /**
+     * Envoi synchrone d'une notification SMS par identifiant (rechargée puis
+     * envoyée à tous ses destinataires). Utilisé par le job planifié.
+     */
+    void sendSMSById(String notificationId);
+
+    /**
+     * Renvoi manuel forcé d'une notification (même si déjà SENT), pour les tests
+     * et les corrections.
+     *
+     * @return un JSON {@code {success, statut, code, orangeMessage, userMessage}}.
+     *         {@code success=false} et {@code statut=null} si la notification est
+     *         introuvable. {@code userMessage} est un message d'action lisible.
+     */
+    JSONObject resendSMSById(String notificationId);
+
+    /** Retourne un token d'accès Orange valide (rafraîchi si expiré), ou null. */
+    String getValidAccessToken();
+
+    /**
+     * Traite un Delivery Receipt Orange (callback) et met à jour le statut de
+     * livraison du destinataire concerné.
+     *
+     * @param rawPayload corps JSON reçu d'Orange
+     * @return true si un destinataire a été mis à jour
+     */
+    boolean handleDeliveryReceipt(String rawPayload);
+
 }

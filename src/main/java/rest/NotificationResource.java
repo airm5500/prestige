@@ -16,6 +16,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.CacheControl;
@@ -53,6 +54,20 @@ public class NotificationResource {
         }
         this.smsService.sendSMS(notificationService.buildNotification(notification, tu));
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
+    }
+
+    @POST
+    @Path("{id}/resend")
+    public Response resendSmsNotification(@PathParam("id") String id) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject result = smsService.resendSMSById(id);
+        // On expose le message d'action au front via "msg".
+        result.put("msg", result.optString("userMessage", "Renvoi traité."));
+        return Response.ok().entity(result.toString()).build();
     }
 
     @GET
