@@ -33,6 +33,15 @@ public interface SmsAdminService {
     /** Crée une souscription aux Delivery Receipts (nécessite l'URL de callback). */
     JSONObject createDeliveryReceiptSubscription();
 
+    /**
+     * URL de callback DR actuellement utilisée et sa source :
+     * {@code {url, source}} où source = "parametre" (base) ou "fichier".
+     */
+    JSONObject getCallbackUrlInfo();
+
+    /** Enregistre l'URL de callback DR dans les paramètres (base). */
+    JSONObject saveCallbackUrl(String url);
+
     /** Liste les souscriptions DR existantes. */
     JSONObject getDeliveryReceiptSubscriptions();
 

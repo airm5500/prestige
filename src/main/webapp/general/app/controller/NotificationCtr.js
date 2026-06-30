@@ -150,20 +150,80 @@ Ext.define('testextjs.controller.NotificationCtr', {
         const win = Ext.create('Ext.window.Window', {
             title: 'Accusés de réception SMS (Delivery Receipts)',
             modal: true,
-            width: 640,
-            height: 440,
-            layout: 'fit',
+            width: 680,
+            height: 480,
+            layout: 'anchor',
             bodyPadding: 10,
-            items: [{
+            items: [
+                {
+                    xtype: 'fieldcontainer',
+                    layout: 'hbox',
+                    anchor: '100%',
+                    items: [
+                        {
+                            xtype: 'textfield',
+                            itemId: 'drUrl',
+                            fieldLabel: 'URL callback',
+                            labelWidth: 80,
+                            flex: 1,
+                            emptyText: 'https://votre-domaine/prestige/api/v1/sms/dr-callback'
+                        },
+                        {
+                            xtype: 'button',
+                            text: 'Enregistrer l\'URL',
+                            margin: '0 0 0 6',
+                            handler: function () {
+                                const url = win.down('#drUrl').getValue();
+                                win.setLoading('Enregistrement...');
+                                Ext.Ajax.request({
+                                    url: '../api/v1/sms/dr-callback-url',
+                                    method: 'POST',
+                                    jsonData: {url: url},
+                                    callback: function (o, s, response) {
+                                        win.setLoading(false);
+                                        let r = {};
+                                        try {
+                                            r = Ext.decode(response.responseText);
+                                        } catch (ex) {
+                                            r = {};
+                                        }
+                                        Ext.Msg.alert('URL callback DR', r.msg || (r.success ? 'Enregistré.' : 'Echec.'));
+                                    }
+                                });
+                            }
+                        }
+                    ]
+                },
+                {
                     xtype: 'textarea',
                     itemId: 'drOutput',
+                    anchor: '100% -34',
                     readOnly: true,
-                    value: 'Utilisez les boutons ci-dessous.\n\n'
-                            + '- "Créer la souscription" active l\'envoi des accusés vers Prestige '
-                            + '(nécessite que l\'URL de callback publique soit configurée côté serveur : smsdrcallbackurl).\n'
+                    value: 'Renseignez l\'URL publique de callback ci-dessus puis "Enregistrer l\'URL".\n\n'
+                            + '- "Créer la souscription" active l\'envoi des accusés Orange vers Prestige.\n'
                             + '- "Lister" affiche les souscriptions existantes.\n'
                             + '- "Supprimer" retire une souscription via son identifiant.'
-                }],
+                }
+            ],
+            listeners: {
+                afterrender: function () {
+                    Ext.Ajax.request({
+                        url: '../api/v1/sms/dr-callback-url',
+                        method: 'GET',
+                        success: function (response) {
+                            let r = {};
+                            try {
+                                r = Ext.decode(response.responseText);
+                            } catch (ex) {
+                                r = {};
+                            }
+                            if (r.url) {
+                                win.down('#drUrl').setValue(r.url);
+                            }
+                        }
+                    });
+                }
+            },
             buttons: [
                 {
                     text: 'Créer la souscription',

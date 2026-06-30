@@ -74,6 +74,26 @@ public class SmsResource {
         return Response.ok(smsAdminService.createDeliveryReceiptSubscription().toString()).build();
     }
 
+    /** URL de callback DR actuelle (et sa source : paramètre base ou fichier). */
+    @GET
+    @Path("dr-callback-url")
+    public Response getDrCallbackUrl() {
+        return Response.ok(smsAdminService.getCallbackUrlInfo().toString()).build();
+    }
+
+    /** Enregistre l'URL de callback DR dans les paramètres (base). */
+    @POST
+    @Path("dr-callback-url")
+    public Response saveDrCallbackUrl(String body) {
+        String url = "";
+        try {
+            url = new org.json.JSONObject(body).optString("url", "");
+        } catch (Exception ignore) {
+            // corps vide ou invalide
+        }
+        return Response.ok(smsAdminService.saveCallbackUrl(url).toString()).build();
+    }
+
     /** Supprime une souscription Delivery Receipt. */
     @DELETE
     @Path("dr-subscriptions/{id}")

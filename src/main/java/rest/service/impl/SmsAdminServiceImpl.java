@@ -1,9 +1,13 @@
 package rest.service.impl;
 
+import dal.TParameters;
+import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -31,8 +35,75 @@ public class SmsAdminServiceImpl implements SmsAdminService {
 
     private static final Logger LOG = Logger.getLogger(SmsAdminServiceImpl.class.getName());
     private final AppParameters sp = AppParameters.getInstance();
+    @PersistenceContext(unitName = "JTA_UNIT")
+    private EntityManager em;
     @EJB
     private SmsService smsService;
+
+    /**
+     * URL de callback DR effective : paramètre en base si renseigné, sinon
+     * valeur du fichier dicisms.properties.
+     */
+    private String resolveCallbackUrl() {
+        String fromDb = readCallbackUrlParam();
+        if (StringUtils.isNotBlank(fromDb)) {
+            return fromDb.trim();
+        }
+        return sp.smsdrcallbackurl;
+    }
+
+    private String readCallbackUrlParam() {
+        try {
+            TParameters p = em.find(TParameters.class, util.Constant.KEY_SMS_DR_CALLBACK_URL);
+            return p != null ? p.getStrVALUE() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @Override
+    public JSONObject getCallbackUrlInfo() {
+        String fromDb = readCallbackUrlParam();
+        String url;
+        String source;
+        if (StringUtils.isNotBlank(fromDb)) {
+            url = fromDb.trim();
+            source = "parametre";
+        } else {
+            url = sp.smsdrcallbackurl;
+            source = "fichier";
+        }
+        return new JSONObject()
+                .put("success", true)
+                .put("url", url != null ? url : "")
+                .put("source", source);
+    }
+
+    @Override
+    public JSONObject saveCallbackUrl(String url) {
+        try {
+            String value = StringUtils.trimToEmpty(url);
+            TParameters p = em.find(TParameters.class, util.Constant.KEY_SMS_DR_CALLBACK_URL);
+            if (p == null) {
+                p = new TParameters(util.Constant.KEY_SMS_DR_CALLBACK_URL);
+                p.setStrDESCRIPTION("URL publique appelee par Orange pour les accuses de reception SMS");
+                p.setStrTYPE("SYSTEM");
+                p.setStrSTATUT("enable");
+                p.setDtCREATED(new Date());
+                p.setStrVALUE(value);
+                em.persist(p);
+            } else {
+                p.setStrVALUE(value);
+                p.setDtUPDATED(new Date());
+                em.merge(p);
+            }
+            return new JSONObject().put("success", true).put("url", value)
+                    .put("msg", "URL de callback DR enregistrée.");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Echec enregistrement URL callback DR", e);
+            return new JSONObject().put("success", false).put("msg", "Echec de l'enregistrement de l'URL.");
+        }
+    }
 
     @Override
     public JSONObject getContracts() {
@@ -123,8 +194,10 @@ public class SmsAdminServiceImpl implements SmsAdminService {
 
     @Override
     public JSONObject createDeliveryReceiptSubscription() {
-        if (StringUtils.isBlank(sp.smsdrcallbackurl)) {
-            return error("L'URL de callback DR (smsdrcallbackurl) n'est pas configurée", 0, null);
+        String callbackUrl = resolveCallbackUrl();
+        if (StringUtils.isBlank(callbackUrl)) {
+            return error("L'URL de callback DR n'est pas configurée (paramètre KEY_SMS_DR_CALLBACK_URL "
+                    + "ou smsdrcallbackurl dans dicisms.properties)", 0, null);
         }
         String token = smsService.getValidAccessToken();
         if (StringUtils.isBlank(token)) {
@@ -133,7 +206,7 @@ public class SmsAdminServiceImpl implements SmsAdminService {
         Client client = ClientBuilder.newClient();
         try {
             JSONObject callbackReference = new JSONObject()
-                    .put("notifyURL", sp.smsdrcallbackurl);
+                    .put("notifyURL", callbackUrl);
             JSONObject subscription = new JSONObject()
                     .put("callbackReference", callbackReference);
             JSONObject body = new JSONObject()
