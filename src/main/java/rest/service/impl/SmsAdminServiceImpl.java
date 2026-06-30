@@ -1,6 +1,8 @@
 package rest.service.impl;
 
 import dal.TParameters;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -53,8 +55,16 @@ public class SmsAdminServiceImpl implements SmsAdminService {
     }
 
     private String readCallbackUrlParam() {
+        return readParam(util.Constant.KEY_SMS_DR_CALLBACK_URL);
+    }
+
+    private String readCallbackSecret() {
+        return readParam(util.Constant.KEY_SMS_DR_CALLBACK_SECRET);
+    }
+
+    private String readParam(String key) {
         try {
-            TParameters p = em.find(TParameters.class, util.Constant.KEY_SMS_DR_CALLBACK_URL);
+            TParameters p = em.find(TParameters.class, key);
             return p != null ? p.getStrVALUE() : null;
         } catch (Exception e) {
             return null;
@@ -73,36 +83,66 @@ public class SmsAdminServiceImpl implements SmsAdminService {
             url = sp.smsdrcallbackurl;
             source = "fichier";
         }
+        String secret = StringUtils.trimToEmpty(readCallbackSecret());
         return new JSONObject()
                 .put("success", true)
                 .put("url", url != null ? url : "")
-                .put("source", source);
+                .put("source", source)
+                .put("secret", secret)
+                .put("protected", StringUtils.isNotBlank(secret));
     }
 
     @Override
-    public JSONObject saveCallbackUrl(String url) {
+    public JSONObject saveCallbackConfig(String url, String secret) {
         try {
-            String value = StringUtils.trimToEmpty(url);
-            TParameters p = em.find(TParameters.class, util.Constant.KEY_SMS_DR_CALLBACK_URL);
-            if (p == null) {
-                p = new TParameters(util.Constant.KEY_SMS_DR_CALLBACK_URL);
-                p.setStrDESCRIPTION("URL publique appelee par Orange pour les accuses de reception SMS");
-                p.setStrTYPE("SYSTEM");
-                p.setStrSTATUT("enable");
-                p.setDtCREATED(new Date());
-                p.setStrVALUE(value);
-                em.persist(p);
-            } else {
-                p.setStrVALUE(value);
-                p.setDtUPDATED(new Date());
-                em.merge(p);
+            if (url != null) {
+                upsertParam(util.Constant.KEY_SMS_DR_CALLBACK_URL, StringUtils.trimToEmpty(url),
+                        "URL publique appelee par Orange pour les accuses de reception SMS");
             }
-            return new JSONObject().put("success", true).put("url", value)
-                    .put("msg", "URL de callback DR enregistrée.");
+            if (secret != null) {
+                upsertParam(util.Constant.KEY_SMS_DR_CALLBACK_SECRET, StringUtils.trimToEmpty(secret),
+                        "Jeton secret du callback DR (parametre ?key=)");
+            }
+            return new JSONObject().put("success", true).put("msg", "Configuration du callback DR enregistrée.");
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "Echec enregistrement URL callback DR", e);
-            return new JSONObject().put("success", false).put("msg", "Echec de l'enregistrement de l'URL.");
+            LOG.log(Level.SEVERE, "Echec enregistrement configuration callback DR", e);
+            return new JSONObject().put("success", false).put("msg", "Echec de l'enregistrement.");
         }
+    }
+
+    private void upsertParam(String key, String value, String description) {
+        TParameters p = em.find(TParameters.class, key);
+        if (p == null) {
+            p = new TParameters(key);
+            p.setStrDESCRIPTION(description);
+            p.setStrTYPE("SYSTEM");
+            p.setStrSTATUT("enable");
+            p.setDtCREATED(new Date());
+            p.setStrVALUE(value);
+            em.persist(p);
+        } else {
+            p.setStrVALUE(value);
+            p.setDtUPDATED(new Date());
+            em.merge(p);
+        }
+    }
+
+    /** Ajoute ?key=secret (ou &key=) à l'URL de callback si un secret est défini. */
+    private String appendSecret(String url, String secret) {
+        if (StringUtils.isBlank(secret)) {
+            return url;
+        }
+        String encoded = URLEncoder.encode(secret.trim(), StandardCharsets.UTF_8);
+        return url + (url.contains("?") ? "&" : "?") + "key=" + encoded;
+    }
+
+    @Override
+    public boolean isCallbackKeyValid(String providedKey) {
+        String secret = StringUtils.trimToEmpty(readCallbackSecret());
+        if (StringUtils.isBlank(secret)) {
+            return true; // protection désactivée
+        }
+        return secret.equals(StringUtils.trimToEmpty(providedKey));
     }
 
     @Override
@@ -206,7 +246,7 @@ public class SmsAdminServiceImpl implements SmsAdminService {
         Client client = ClientBuilder.newClient();
         try {
             JSONObject callbackReference = new JSONObject()
-                    .put("notifyURL", callbackUrl);
+                    .put("notifyURL", appendSecret(callbackUrl, readCallbackSecret()));
             JSONObject subscription = new JSONObject()
                     .put("callbackReference", callbackReference);
             JSONObject body = new JSONObject()

@@ -156,29 +156,38 @@ Ext.define('testextjs.controller.NotificationCtr', {
             bodyPadding: 10,
             items: [
                 {
+                    xtype: 'textfield',
+                    itemId: 'drUrl',
+                    fieldLabel: 'URL callback',
+                    labelWidth: 90,
+                    anchor: '100%',
+                    emptyText: 'https://votre-domaine/prestige/api/v1/sms/dr-callback'
+                },
+                {
                     xtype: 'fieldcontainer',
                     layout: 'hbox',
                     anchor: '100%',
                     items: [
                         {
                             xtype: 'textfield',
-                            itemId: 'drUrl',
-                            fieldLabel: 'URL callback',
-                            labelWidth: 80,
+                            itemId: 'drSecret',
+                            fieldLabel: 'Clé secrète',
+                            labelWidth: 90,
                             flex: 1,
-                            emptyText: 'https://votre-domaine/prestige/api/v1/sms/dr-callback'
+                            emptyText: 'laisser vide = protection désactivée'
                         },
                         {
                             xtype: 'button',
-                            text: 'Enregistrer l\'URL',
+                            text: 'Enregistrer URL + clé',
                             margin: '0 0 0 6',
                             handler: function () {
                                 const url = win.down('#drUrl').getValue();
+                                const secret = win.down('#drSecret').getValue();
                                 win.setLoading('Enregistrement...');
                                 Ext.Ajax.request({
                                     url: '../api/v1/sms/dr-callback-url',
                                     method: 'POST',
-                                    jsonData: {url: url},
+                                    jsonData: {url: url, secret: secret},
                                     callback: function (o, s, response) {
                                         win.setLoading(false);
                                         let r = {};
@@ -187,7 +196,7 @@ Ext.define('testextjs.controller.NotificationCtr', {
                                         } catch (ex) {
                                             r = {};
                                         }
-                                        Ext.Msg.alert('URL callback DR', r.msg || (r.success ? 'Enregistré.' : 'Echec.'));
+                                        Ext.Msg.alert('Callback DR', r.msg || (r.success ? 'Enregistré.' : 'Echec.'));
                                     }
                                 });
                             }
@@ -197,12 +206,14 @@ Ext.define('testextjs.controller.NotificationCtr', {
                 {
                     xtype: 'textarea',
                     itemId: 'drOutput',
-                    anchor: '100% -34',
+                    anchor: '100% -60',
                     readOnly: true,
-                    value: 'Renseignez l\'URL publique de callback ci-dessus puis "Enregistrer l\'URL".\n\n'
-                            + '- "Créer la souscription" active l\'envoi des accusés Orange vers Prestige.\n'
+                    value: 'Renseignez l\'URL publique et (optionnel) une clé secrète, puis "Enregistrer URL + clé".\n\n'
+                            + '- Si une clé est définie, Orange appellera /dr-callback?key=... et tout appel sans la bonne clé sera refusé.\n'
+                            + '- "Créer la souscription" active l\'envoi des accusés Orange vers Prestige (avec la clé).\n'
                             + '- "Lister" affiche les souscriptions existantes.\n'
-                            + '- "Supprimer" retire une souscription via son identifiant.'
+                            + '- "Supprimer" retire une souscription via son identifiant.\n\n'
+                            + 'Important : apres avoir change l\'URL ou la cle, recreez la souscription.'
                 }
             ],
             listeners: {
@@ -219,6 +230,9 @@ Ext.define('testextjs.controller.NotificationCtr', {
                             }
                             if (r.url) {
                                 win.down('#drUrl').setValue(r.url);
+                            }
+                            if (r.secret) {
+                                win.down('#drSecret').setValue(r.secret);
                             }
                         }
                     });

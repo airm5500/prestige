@@ -104,6 +104,7 @@ public final class Constant {
     public static final String KEY_SMS_CLOTURE_CAISSE = "KEY_SMS_CLOTURE_CAISSE";
     public static final String KEY_SMS_AVOIR_IMMEDIAT = "KEY_SMS_AVOIR_IMMEDIAT";
     public static final String KEY_SMS_DR_CALLBACK_URL = "KEY_SMS_DR_CALLBACK_URL";
+    public static final String KEY_SMS_DR_CALLBACK_SECRET = "KEY_SMS_DR_CALLBACK_SECRET";
     public static final String KEY_SMS_MODIF_PRIX_VENTE = "KEY_SMS_MODIF_PRIX_VENTE";
     public static final String KEY_MAIL_CLOTURE_CAISSE = "KEY_MAIL_CLOTURE_CAISSE";
     public static final String KEY_HEURE_EMAIL = "KEY_HEURE_EMAIL";

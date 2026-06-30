@@ -34,13 +34,22 @@ public interface SmsAdminService {
     JSONObject createDeliveryReceiptSubscription();
 
     /**
-     * URL de callback DR actuellement utilisée et sa source :
-     * {@code {url, source}} où source = "parametre" (base) ou "fichier".
+     * URL de callback DR et configuration de protection :
+     * {@code {url, source, secret, protected}}.
      */
     JSONObject getCallbackUrlInfo();
 
-    /** Enregistre l'URL de callback DR dans les paramètres (base). */
-    JSONObject saveCallbackUrl(String url);
+    /**
+     * Enregistre l'URL et/ou le jeton secret du callback DR dans les paramètres.
+     * Un argument {@code null} laisse le paramètre correspondant inchangé.
+     */
+    JSONObject saveCallbackConfig(String url, String secret);
+
+    /**
+     * Vérifie le jeton fourni par l'appelant du callback. Retourne true si aucun
+     * secret n'est configuré (protection désactivée) ou si le jeton correspond.
+     */
+    boolean isCallbackKeyValid(String providedKey);
 
     /** Liste les souscriptions DR existantes. */
     JSONObject getDeliveryReceiptSubscriptions();
