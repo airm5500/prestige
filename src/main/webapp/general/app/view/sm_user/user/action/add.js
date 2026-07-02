@@ -121,6 +121,7 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
                             fieldLabel: 'Indice de Securite',
                             name: 'str_IDS',
                             id: 'str_IDS',
+                            hidden: Omode === 'create',
                             store: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
                             valueField: 'str_IDS',
                             displayField: 'str_IDS',
@@ -162,6 +163,7 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
                             fieldLabel: 'Language',
                             name: 'lg_Language_ID',
                             id: 'lg_Language_ID',
+                            hidden: Omode === 'create',
                             store: storelanguage,
                             valueField: 'lg_Language_ID',
                             displayField: 'str_Description',
@@ -214,6 +216,11 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
 
 
         //Initialisation des valeur
+        if (Omode === "create") {
+            // indice de securite et langue (francais) imposes a la creation
+            Ext.getCmp('str_IDS').setValue('1');
+            Ext.getCmp('lg_Language_ID').setValue('1');
+        }
         if (Omode === "update") {
 
             ref = this.getOdatasource().lg_USER_ID;

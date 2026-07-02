@@ -40,6 +40,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     frame: true,
     width: "98%",
     height: 580,
+    viewConfig: {
+        trackOver: true,
+        overItemCls: 'facture-row-over'
+    },
     listeners: {
         render: function (grid) {
             this.onRechClick();

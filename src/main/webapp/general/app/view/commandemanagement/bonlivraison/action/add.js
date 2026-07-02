@@ -567,6 +567,7 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
         return;
     }
 
+    var confirmerEntreeStock = function () {
     Ext.Msg.show({
         title: 'Message',
         msg: "Confirmer l'entrée en stock",
@@ -638,6 +639,21 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                 });
             } else {
                 testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
+            }
+        }
+    });
+    };
+
+    // premiere confirmation : s'assurer que les unites gratuites ont ete renseignees
+    Ext.Msg.show({
+        title: 'Confirmation',
+        msg: '<span style="color:red;font-weight:bold;">AVEZ-VOUS RENSEIGNÉ LES UNITÉS GRATUITES ?</span>',
+        buttons: Ext.Msg.YESNO,
+        icon: Ext.Msg.QUESTION,
+        cls: 'custom-messagebox',
+        fn: function (btn) {
+            if (btn === 'yes') {
+                confirmerEntreeStock();
             }
         }
     });

@@ -1,0 +1,6 @@
+/* Styles specifiques aux grilles de l'application */
+
+/* Facturation : mise en evidence de la ligne survolee */
+.facture-row-over .x-grid-cell {
+    background-color: #fff3cd !important;
+}

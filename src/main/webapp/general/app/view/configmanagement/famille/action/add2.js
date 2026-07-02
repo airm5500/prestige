@@ -455,9 +455,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
         
         var str_DESCRIPTION = Ext.getCmp('str_DESCRIPTION').getValue();
 
-        Ext.Ajax.request({
-            url: internal_url,
-            params: {
+        var requestParams = {
                 lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTE_QUICK_ID').getValue(),
                 int_PAT: int_PAT,
                 int_PAF: pafValue,
@@ -469,7 +467,15 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                 lg_CODE_TVA_ID: Ext.getCmp('lg_CODE_TVA_ID').getValue(),
                 int_T: Ext.getCmp('int_T').getValue(),
                 int_EAN13: Ext.getCmp('EAN').getValue()
-            },
+        };
+        if (Omode === "create") {
+            // code remise par defaut pour les produits crees depuis la vue commande
+            requestParams.str_CODE_REMISE = '0';
+        }
+
+        Ext.Ajax.request({
+            url: internal_url,
+            params: requestParams,
             success: function (response) {
                 button.enable();
                 var object = Ext.JSON.decode(response.responseText, false);

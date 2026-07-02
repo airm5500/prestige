@@ -65,6 +65,8 @@
         <!-- Header moderne (theme navy aligne sur la navigation) :
              charge APRES bootstrap.css pour primer sur le theme KitchenSink -->
         <link rel="stylesheet" type="text/css" href="resources/css/header.css" />
+        <!-- Styles specifiques des grilles (hover facturation, ...) -->
+        <link rel="stylesheet" type="text/css" href="resources/css/grids.css" />
         <script src="ext/ext-all.js"></script>
 
         <script src="bootstrap.js"></script>

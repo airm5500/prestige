@@ -173,6 +173,7 @@ Ext.define('testextjs.view.vente.form.VenteDateForm', {
                                     fieldLabel: 'Date',
                                     name: 'date',
                                     allowBlank: false,
+                                    maxValue: new Date(),
                                     submitFormat: 'Y-m-d'
 
                                 }, {
