@@ -1799,10 +1799,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 if (Objects.nonNull(b.getMontantRestant()) && b.getMontantRestant() > 0) {
                     ticket.setDiffere(ticket.getDiffere() + b.getMontantRestant());
                 }
-                List<VenteReglement> venteReglements = this.venteReglementService.getByVenteId(b.getPkey());
-                if (CollectionUtils.isNotEmpty(venteReglements) && venteReglements.size() > 1) {
-                    updateTicket(ticket, venteReglements);
-                } else {
+                if (!applyVenteReglementDetails(ticket, b)) {
                     ticket.setTotalEsp(ticket.getTotalEsp() + b.getMontantRegle());
                 }
 
@@ -1820,19 +1817,29 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
                 break;
             case DateConverter.MODE_MOOV:
-                ticket.setMontantMoov(b.getMontantRegle() + ticket.getMontantMoov());
+                if (!applyVenteReglementDetails(ticket, b)) {
+                    ticket.setMontantMoov(b.getMontantRegle() + ticket.getMontantMoov());
+                }
                 break;
             case DateConverter.MODE_MTN:
-                ticket.setMontantMtn(b.getMontantRegle() + ticket.getMontantMtn());
+                if (!applyVenteReglementDetails(ticket, b)) {
+                    ticket.setMontantMtn(b.getMontantRegle() + ticket.getMontantMtn());
+                }
                 break;
             case DateConverter.TYPE_REGLEMENT_ORANGE:
-                ticket.setMontantOrange(b.getMontantRegle() + ticket.getMontantOrange());
+                if (!applyVenteReglementDetails(ticket, b)) {
+                    ticket.setMontantOrange(b.getMontantRegle() + ticket.getMontantOrange());
+                }
                 break;
             case DateConverter.MODE_WAVE:
-                ticket.setMontantWave(b.getMontantRegle() + ticket.getMontantWave());
+                if (!applyVenteReglementDetails(ticket, b)) {
+                    ticket.setMontantWave(b.getMontantRegle() + ticket.getMontantWave());
+                }
                 break;
             case DateConverter.MODE_DJAMO:
-                ticket.setMontantDjamo(b.getMontantRegle() + ticket.getMontantDjamo());
+                if (!applyVenteReglementDetails(ticket, b)) {
+                    ticket.setMontantDjamo(b.getMontantRegle() + ticket.getMontantDjamo());
+                }
                 break;
             case DateConverter.MODE_REGL_DIFFERE:
                 ticket.setDiffere(b.getMontantRestant() + ticket.getDiffere());
@@ -1842,6 +1849,21 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
         }
 
+    }
+
+    /**
+     * Vente réglée avec plusieurs modes (ex. espèces + mobile, mobile + mobile) : on ventile chaque part sur son mode à
+     * partir des règlements détaillés au lieu d'imputer tout le montant au mode principal de la transaction.
+     *
+     * @return true si la vente était multi-règlements et a été ventilée
+     */
+    private boolean applyVenteReglementDetails(TicketZDTO ticket, MvtTransaction b) {
+        List<VenteReglement> venteReglements = this.venteReglementService.getByVenteId(b.getPkey());
+        if (CollectionUtils.isNotEmpty(venteReglements) && venteReglements.size() > 1) {
+            updateTicket(ticket, venteReglements);
+            return true;
+        }
+        return false;
     }
 
     private boolean mvtIsReglement(TTypeMvtCaisse mvtCaisse) {
