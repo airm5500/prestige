@@ -49,86 +49,63 @@
         <link rel="stylesheet" type="text/css" href="../../resources/boostrap/bb/css/bootstrap.css"/>
         <link rel="stylesheet" type="text/css" href="../../resources/boostrap/bb/css/bootstrap-theme.min.css"/>
         <link href="../../resources/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
-        <link href="assets/css/animate.min.css" rel="stylesheet" type="text/css"/>
         <!-- END CORE CSS FRAMEWORK -->
         <!-- BEGIN CSS TEMPLATE -->
         <link href="assets/css/style.css" rel="stylesheet" type="text/css"/>
-        <link href="assets/css/responsive.css" rel="stylesheet" type="text/css"/>
         <link href="assets/css/custom-icon-set.css" rel="stylesheet" type="text/css"/>
-        <link href="assets/css/magic_space.css" rel="stylesheet" type="text/css"/>
-        <link href="assets/css/tiles_responsive.css" rel="stylesheet" type="text/css"/>
         <!-- END CSS TEMPLATE -->
-        <!-- WINDOWS 8 TILES STYLE -->
-        <link rel="stylesheet" href="assets/css/metro-styles.css" />
-        <!-- Design moderne du menu metro (charge en dernier pour primer) -->
-        <link rel="stylesheet" href="assets/css/metro-modern.css" />
+        <!-- Design "Cockpit Officine" du menu central (charge en dernier pour primer) -->
+        <link rel="stylesheet" href="assets/css/cockpit.css" />
         <!-- Icones de secours pour les menus sans icone en base -->
         <script src="assets/js/metro-icons.js" type="text/javascript"></script>
 
     </head>
-    <body class="body-bg pm-body">
+    <body class="ck-body">
 
-        <div class="demo-wrapper" id="metro-sub-menu">
-
-            <!-- SOUS-MENUS STYLE METRO -->
-            <div class="pm-wrap">
-                <div class="pm-head">
-                    <span class="pm-head-ico"><i class="fa fa-folder-open"></i></span>
-                    <div>
-                        <div class="pm-head-title">Sous-menus</div>
-                        <div class="pm-head-sub">Cliquez sur Menu g&eacute;n&eacute;ral pour revenir &agrave; l'accueil</div>
-                    </div>
-                </div>
-
-                <div class="pm-grid">
-                    <!-- Tuile retour : navy comme le header/navigation -->
-                    <div class="pm-tile pm-back" onClick="ReloadIframe();" title="Retour au menu g&eacute;n&eacute;ral">
-                        <span class="pm-ico"><i class="fa fa-home"></i></span>
-                        <span class="pm-label">MENU GENERAL</span>
-                        <i class="fa fa-chevron-right pm-arrow"></i>
-                    </div>
-
-                    <%  for (int i = 0; i < sousmenudata.size(); i++) { %>
-                    <div class="pm-tile pm-c<%=(i % 8) + 1%>"
-                         onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');"
-                         title="<%=sousmenudata.get(i).getStr_value1()%>">
-                        <span class="pm-ico"><i class="<%=sousmenudata.get(i).getStr_value2()%>"></i></span>
-                        <span class="pm-label"><%=sousmenudata.get(i).getStr_value1()%></span>
-                        <i class="fa fa-chevron-right pm-arrow"></i>
-                    </div>
-                    <%  } %>
-                </div>
-            </div>
-
+        <!-- SOUS-MENUS (injecte en Ajax dans #metro-sub-menu de index.jsp) -->
+        <div class="ck-subbar">
+            <button type="button" class="ck-backbtn" onClick="ReloadIframe();" title="Retour au menu g&eacute;n&eacute;ral">
+                <i class="fa fa-arrow-left"></i> MENU G&Eacute;N&Eacute;RAL
+            </button>
+            <div class="ck-subtitle"><i class="fa fa-folder-open"></i> Sous-menus</div>
         </div>
 
+        <div class="pm-grid">
+            <%  for (int i = 0; i < sousmenudata.size(); i++) { %>
+            <div class="pm-tile ck-a<%=(i % 8) + 1%>"
+                 onClick="Call_OpenView_getView('<%=sousmenudata.get(i).getStr_value3()%>');"
+                 data-view="<%=sousmenudata.get(i).getStr_value3()%>"
+                 data-label="<%=sousmenudata.get(i).getStr_value1()%>"
+                 title="<%=sousmenudata.get(i).getStr_value1()%>">
+                <span class="pm-ico"><i class="<%=sousmenudata.get(i).getStr_value2()%>"></i></span>
+                <span class="pm-label"><%=sousmenudata.get(i).getStr_value1()%></span>
+                <i class="fa fa-chevron-right pm-arrow"></i>
+            </div>
+            <%  } %>
+        </div>
+        <div class="ck-empty" style="display:none">Aucun sous-menu ne correspond &agrave; votre recherche.</div>
 
 
 
-        <!-- WINDOWS 8 TILES -->
-        <!-- CHARGEMENT DU SOUS MENU STYLE METRO -->
+
         <script type="text/javascript">
 
 
-            function AppelerGestionClientele() {
-
-                $("#metro-sub-menu").load("view/menu-gestion-clientele.jsp");
-            }
             function ReloadIframe() {
 
                 window.location.reload();
 
             }
-             function Call_OpenView_getView(view) {
-        window.parent.getSousMenuView(view,"");
-    }
+            function Call_OpenView_getView(view) {
+                window.parent.getSousMenuView(view, "");
+            }
 
             // Badge reserve : injecte le nombre d'articles a reassortir sur le tile reservemanager
             $(function () {
                 $.getJSON("${pageContext.request.contextPath}/api/v1/reserve/suggestions?start=0&limit=1", function (data) {
                     var total = data && data.total ? parseInt(data.total, 10) : 0;
                     if (total > 0) {
-                        var tile = $("[onclick*='reservemanager']").first();
+                        var tile = $(".pm-tile[data-view*='reservemanager']").first();
                         if (tile.length) {
                             tile.find('.pm-label').append(
                                 ' <span class="pm-badge" style="background:#e74c3c;color:#fff;border-radius:10px;padding:2px 7px;font-size:11px;font-weight:bold;vertical-align:middle;">' + total + '</span>'
