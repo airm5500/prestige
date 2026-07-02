@@ -877,9 +877,17 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     selectOnFocus: true
 
                                 },
-                                
-                                
-                                
+
+                                {
+                                    xtype: 'button',
+                                    itemId: 'btnExtraMode',
+                                    text: '+ Autre mode',
+                                    tooltip: 'Payer avec deux modes de règlement',
+                                    hidden: true,
+                                    height: 44,
+                                    margin: '0 30 0 0'
+                                },
+
                                  {
                                     xtype: 'numberfield',
                                     hideTrigger: true,

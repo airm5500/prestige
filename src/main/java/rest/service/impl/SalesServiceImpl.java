@@ -1913,6 +1913,12 @@ public class SalesServiceImpl implements SalesService {
             List<VenteReglementDTO> reglementsList = reglements.stream()
                     .sorted(Comparator.comparing(VenteReglementDTO::getMontant, Comparator.reverseOrder()))
                     .collect(Collectors.toList());
+            if (reglementsList.size() > 2) {
+                // Seuls deux règlements sont persistés (first/last) : au-delà, un
+                // règlement serait silencieusement perdu. On refuse la clôture.
+                throw new IllegalArgumentException(
+                        "Nombre de modes de règlement non supporté: " + reglementsList.size() + " (maximum 2)");
+            }
 
             if (reglements.size() > 1) {
                 VenteReglementDTO first = reglementsList.get(0);

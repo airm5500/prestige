@@ -35,6 +35,17 @@ Ext.define('testextjs.view.vente.ReglementGrid', {
                     totalProperty: 'total'
                 }
 
+            },
+            listeners: {
+                // Un même mode ne doit pas être utilisé deux fois sur la vente :
+                // on retire le mode principal déjà sélectionné
+                load: function (store) {
+                    if (me.excludeModeId) {
+                        store.filterBy(function (rec) {
+                            return rec.get('id') !== me.excludeModeId;
+                        });
+                    }
+                }
             }
         });
 

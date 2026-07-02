@@ -74,6 +74,9 @@ Ext.define('testextjs.controller.VenteCtr', {
     suspectInputThreshold: 200000, // confirmation au clic "Terminer" si montant élevé
 
     maxChangeAllowed: 9500, // monnaie à rendre max avant alerte (anti scan)
+
+    // === Modes de règlement mobile money (cf. typeReglementSelectEvent) ===
+    mobileModeIds: ['7', '8', '9', '10', '19', '80', '70'],
     models: [
         'testextjs.model.caisse.Nature',
         'testextjs.model.caisse.Reglement',
@@ -299,6 +302,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         {
             ref: 'montantExtra',
             selector: 'doventemanager #contenu #montantExtra'
+        },
+        {
+            ref: 'btnExtraMode',
+            selector: 'doventemanager #contenu #btnExtraMode'
         },
 
         {
@@ -574,6 +581,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                         change: this.montantRecuChangeListener,
                         specialkey: this.onMontantRecuVnoKey,
                         focus: this.montantRecuFocus
+                    },
+                    'doventemanager #contenu #btnExtraMode': {
+                        click: this.onBtnExtraModeClick
                     },
                     'doventemanager #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
                         click: this.removeItemVno
@@ -1711,6 +1721,29 @@ Ext.define('testextjs.controller.VenteCtr', {
                 me.handleExtraModePayment(netTopay);
 
                 return false;
+            } else if (me.isMobileMode(typeRegleId) && me.getExtraModeReglementId()) {
+                // Fractionnement mobile + mobile : la somme des deux parts doit
+                // couvrir exactement le net à payer (pas de monnaie sur du mobile)
+                const partPrincipale = parseInt(me.getMontantRecu().getValue()) || 0;
+                if (montantExtra === 0 && partPrincipale === parseInt(netTopay)) {
+                    // Le mode principal couvre finalement tout : retour au mono-règlement
+                    me.resetExtraModeCmp();
+                } else if (partPrincipale <= 0 || montantExtra <= 0
+                        || (partPrincipale + montantExtra) !== parseInt(netTopay)) {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'La somme des deux modes de règlement doit être égale au net à payer de <span style="color: black; font-size: 1rem;font-weight: 900;">' + Ext.util.Format.number(netTopay, '0,000.') + '</span>',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.getMontantRecu().focus(true, 50);
+                            }
+                        }
+                    });
+                    return false;
+                }
             } else if (typeRegleId === '6' || typeRegleId === '3' || typeRegleId === '2') {
                 montantRecu = netTopay;
             }
@@ -1847,6 +1880,33 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.getMontantRecu().setValue(me.getNetAmountToPay().montantNet);
         }
         me.getMontantRecu().setReadOnly(true);
+        // Paiement fractionné mobile + mobile : uniquement pour la vente comptant
+        const typeVenteCmp = me.getTypeVenteCombo && me.getTypeVenteCombo();
+        if (typeVenteCmp && typeVenteCmp.getValue() === '1') {
+            me.getBtnExtraMode()?.show();
+        }
+    },
+
+    isMobileMode: function (typeRegleId) {
+        return this.mobileModeIds.indexOf(typeRegleId) !== -1;
+    },
+
+    onBtnExtraModeClick: function () {
+        const me = this;
+        if (!me.getNetAmountToPay()) {
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: 'Veuillez ajouter des produits à la vente avant de fractionner le règlement',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING
+            });
+            return;
+        }
+        const typeRegle = me.getVnotypeReglement().getValue();
+        Ext.create('testextjs.view.vente.ReglementGrid', {
+            excludeModeId: typeRegle
+        }).show();
     },
     showAndHideCbInfos: function (v) {
         const me = this;
@@ -1926,7 +1986,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.showAndHideInfosStandardClient(true);
             me.getMontantRecu().setReadOnly(false);
             me.getCbContainer().hide();
-        } else if (value === '7' || value === '8' || value === '9' || value === '10' || value === '19' || value === '80' || value === '70') {
+        } else if (me.isMobileMode(value)) {
             me.handleMobileMoney();
         } else {
             if (value === '2' || value === '3' || value === '6') {
@@ -5483,6 +5543,13 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.onBtnCancelModeReglement();
         montantExtra.labelWidth = modeRegelement.libelle.length + 2;
         montantExtra.setFieldLabel(modeRegelement.libelle.toUpperCase());
+        if (me.isMobileMode(me.getVnotypeReglement().getValue())) {
+            // Fractionnement mobile + mobile : on déverrouille la saisie de la part
+            // du mode principal, le complément se calcule dans montantExtra
+            const montantRecu = me.getMontantRecu();
+            montantRecu.setReadOnly(false);
+            montantRecu.setValue(0);
+        }
         me.handleExtraAmountInputValue();
         me.getMontantRecu().focus(true, 50);
     },
@@ -5494,6 +5561,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantExtra.setValue(null);
         montantExtra.hide();
         me.extraModeReglementId = null;
+        me.getBtnExtraMode()?.hide();
         me.getMontantRecu().focus(true, 50);
     },
 
@@ -5561,6 +5629,25 @@ Ext.define('testextjs.controller.VenteCtr', {
                 );
 
             }
+        } else if (me.isMobileMode(typeReglement) && !Ext.isEmpty(me.getExtraModeReglementId())
+                && me.getMontantExtra()?.getValue() && me.getTypeVenteCombo().getValue() === '1') {
+            // Fractionnement mobile + mobile (vente comptant uniquement) :
+            // part du mode principal saisie + complément sur le mode extra
+            const extraModeId = me.getExtraModeReglementId();
+            const montantExtra = me.getMontantExtra().getValue();
+            const montantPrincipal = me.getMontantRecu().getValue();
+            reglements.push(
+                    {
+                        "typeReglement": extraModeId,
+                        "montant": montantExtra,
+                        "montantAttentu": montantExtra
+                    },
+                    {
+                        "typeReglement": typeReglement,
+                        "montant": montantPrincipal,
+                        "montantAttentu": montantPrincipal
+                    }
+            );
         } else {
             reglements.push(
                     {
