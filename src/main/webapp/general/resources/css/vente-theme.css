@@ -101,26 +101,28 @@
     border-color: #156B58;
 }
 
-/* Champ montant reçu : déjà 44px via styles inline ; on renforce le contour */
-.vp-vente #montantRecu input.x-form-field {
+/* Champ montant reçu : déjà 44px via styles inline ; on renforce le contour
+ * (ciblage par cls composant, l'itemId ExtJS n'est pas l'id DOM) */
+.vp-vente .vp-field-recu input.x-form-field {
     border: 2px solid #1B2420;
     border-radius: 8px;
     font-weight: 700;
     font-size: 1.25em;
 }
-.vp-vente #montantRecu input.x-form-field[readonly] {
+.vp-vente .vp-field-recu input.x-form-field[readonly] {
     border-style: dashed;
     border-color: #9DB0A7;
     background: #F4F6F4;
 }
 
 /* Bouton "+ Autre mode" : appel discret en pointillé accent */
-.vp-vente #btnExtraMode {
+.vp-vente .vp-btn-extra {
     border: 1.5px dashed #156B58;
     border-radius: 7px;
     background: #FFFFFF;
+    background-image: none;
 }
-.vp-vente #btnExtraMode .x-btn-inner {
+.vp-vente .vp-btn-extra .x-btn-inner {
     color: #0E4A3D;
     font-weight: 700;
 }
@@ -144,14 +146,13 @@
     letter-spacing: .03em;
 }
 
-.vp-vente .vp-actions #btnCloture,
-.vp-vente .vp-actions #btnClosePrevente {
+.vp-vente .vp-actions .x-btn.btn-primary {
     background: #156B58;
+    background-image: none;
     border-color: #0E4A3D;
 }
 
-.vp-vente .vp-actions #btnCloture .x-btn-inner,
-.vp-vente .vp-actions #btnClosePrevente .x-btn-inner {
+.vp-vente .vp-actions .x-btn.btn-primary .x-btn-inner {
     color: #FFFFFF;
     font-size: 13px;
 }

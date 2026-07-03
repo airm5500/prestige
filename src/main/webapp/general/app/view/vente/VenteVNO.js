@@ -900,12 +900,13 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             f.labelEl && f.labelEl.addCls('pc-label-cash');
                                                         }
                                                     },
-                                                    labelStyle: 'height:44px;line-height:44px', // label plus haut
+                                                    labelStyle: 'height:44px;line-height:44px;white-space:nowrap', // label plus haut
                                                     fieldStyle: 'height:44px;line-height:44px;padding:8px 10px', // input plus haut
                                                     inputAttrTpl: 'style="height:44px"',
                                                     emptyText: 'Montant reçu',
+                                                    cls: 'vp-field-recu',
                                                     height: 50,
-                                                    labelWidth: 130,
+                                                    labelWidth: 175,
                                                     regex: /[0-9.]/,
                                                     margin: '0 0 4 0',
                                                     minValue: 0,
@@ -922,6 +923,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     text: '+ Autre mode',
                                                     tooltip: 'Payer avec deux modes de règlement',
                                                     hidden: true,
+                                                    cls: 'vp-btn-extra',
                                                     height: 32,
                                                     margin: '0 0 4 0'
                                                 },
