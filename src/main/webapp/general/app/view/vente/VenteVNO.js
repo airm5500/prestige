@@ -12,7 +12,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
     xtype: 'ventevno',
 //    frame: true,
     border: 0,
-    width: '97%',
+    width: '100%',
     height: 'auto',
     minHeight: 570,
     cls: 'custompanel vp-vente',
@@ -157,6 +157,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     itemId: 'assureCmp',
                                     margin: '0 5 0 0',
                                     flex: 1.2,
+                                    height: 138,
                                     layout: {
                                         type: 'hbox', pack: 'start',
                                         align: 'middle'
@@ -221,15 +222,18 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     title: '<span style="color:blue;">INFOS AYANT DROIT</span>',
                                     itemId: 'ayantDroyCmp',
                                     flex: 1.2,
+                                    height: 138,
 //                                    hidden: true,
-                                    layout: {type: 'hbox'},
+                                    layout: {
+                                        type: 'hbox', pack: 'start',
+                                        align: 'middle'
+                                    },
                                     items: [
                                         {
                                             xtype: 'container',
 
                                             flex: 1.5,
-                                            layout: {type: 'vbox', pack: 'start',
-                                                align: 'middle'},
+                                            layout: {type: 'vbox', align: 'stretch'},
                                             items: [
 
                                                 {

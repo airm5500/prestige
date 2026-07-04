@@ -760,9 +760,9 @@ Ext.define('testextjs.controller.VenteCtr', {
     showAssureContainer: function (typevente) {
         const me = this;
         let assureContainer = me.getAssureContainer(), ayantDroyCmp = me.getAyantDroyCmp(),
-                montantTp = me.getMontantTp(), sansBon = me.getSansBon();
+                montantTp = me.getMontantTp();
         montantTp.show();
-        sansBon.show();
+        // "Vente sans bon" retiré de l'écran (le paramètre reste à false)
         me.updateAssurerResetCmp();
         me.updateAyantDroitResetCmp();
         if (typevente === "2") {
