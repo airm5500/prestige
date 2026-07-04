@@ -30,20 +30,6 @@ body.x-body,
     background: #ECF1F6 !important;
 }
 
-/* La bande de titre du conteneur global est vide sur l'écran de vente
- * (elle porte le nom de l'écran ailleurs) : on la masque UNIQUEMENT ici,
- * pour coller VENTE AU COMPTANT à l'en-tête de l'application */
-#content-panel:has(.vp-shell) > .x-panel-header {
-    display: none !important;
-}
-
-/* Repli (navigateurs sans :has) : la bande reste mais devient invisible */
-#content-panel > .x-panel-header {
-    background: #ECF1F6 !important;
-    background-image: none !important;
-    border: 0 !important;
-}
-
 /* ================= ENVELOPPE (doventemanager) ================= */
 
 /* Cadre du panel : plus de liseré vert, le panel se fond dans le conteneur */
