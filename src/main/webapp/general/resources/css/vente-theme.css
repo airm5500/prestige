@@ -208,17 +208,31 @@ body.x-body,
     border-radius: 3px;
 }
 
-/* Champ actif : turquoise historique de l'application (repère fort pour la
- * caissière) + anneau lumineux qui tourne autour du champ qui a le curseur */
-@property --vp-ring-angle {
-    syntax: '<angle>';
-    initial-value: 0deg;
-    inherits: false;
-}
-
-@keyframes vp-focus-ring {
-    to {
-        --vp-ring-angle: 360deg;
+/* Champ actif : turquoise historique + battement de cœur ACCENTUÉ,
+ * visible de loin. Le halo extérieur est souvent rogné par les
+ * conteneurs ExtJS : c'est donc tout l'intérieur du champ qui flashe
+ * en clair à chaque pulsation (ombre interne, insensible au rognage),
+ * en plus du halo extérieur quand la place le permet. */
+@keyframes vp-focus-beat {
+    0% {
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0),
+                    0 0 0 0 rgba(13, 233, 202, .95);
+    }
+    18% {
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, .60),
+                    0 0 0 9px rgba(13, 233, 202, .50);
+    }
+    32% {
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0),
+                    0 0 0 3px rgba(13, 233, 202, .90);
+    }
+    52% {
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, .60),
+                    0 0 0 14px rgba(13, 233, 202, 0);
+    }
+    100% {
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0),
+                    0 0 0 0 rgba(13, 233, 202, 0);
     }
 }
 
@@ -226,39 +240,13 @@ body.x-body,
     background: #0de9ca !important;
     border: 1px solid #7FC6BC !important;
     font-weight: 700;
-}
-
-.vp-shell .x-form-item-body {
-    position: relative;
-}
-
-/* Seul le conteneur le plus proche du champ dessine l'anneau (un
- * fieldcontainer parent matcherait aussi :focus-within et créerait un
- * second anneau décalé). Liseré navy : contraste sur le fond turquoise. */
-.vp-shell .x-form-item-body:focus-within:not(:has(.x-form-item-body))::after {
-    content: '';
-    position: absolute;
-    /* au ras du champ : les conteneurs ExtJS rognent tout débordement */
-    inset: 0;
-    border-radius: 8px;
-    padding: 3px;
-    pointer-events: none;
-    z-index: 1;
-    background: conic-gradient(from var(--vp-ring-angle),
-        #152d4e 0 12%, transparent 18% 45%,
-        #152d4e 50% 62%, transparent 68% 95%, #152d4e 100%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: vp-focus-ring 1.3s linear infinite;
+    animation: vp-focus-beat 1.4s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .vp-shell .x-form-item-body:focus-within::after {
-        animation: none;
-    }
     .vp-shell .x-form-field:not(.x-form-checkbox):focus {
-        box-shadow: 0 0 0 3px rgba(13, 233, 202, .45);
+        animation: none;
+        box-shadow: 0 0 0 4px rgba(13, 233, 202, .55);
     }
 }
 
