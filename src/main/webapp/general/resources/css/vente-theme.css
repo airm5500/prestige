@@ -209,13 +209,20 @@ body.x-body,
 }
 
 /* Champ actif : turquoise historique de l'application (repère fort pour la
- * caissière) + halo animé sur le champ qui a le curseur */
-@keyframes vp-focus-pulse {
+ * caissière) + "battement de cœur" autour du champ qui a le curseur :
+ * deux pulsations rapides puis une pause */
+@keyframes vp-focus-beat {
     0% {
         box-shadow: 0 0 0 0 rgba(13, 233, 202, .55);
     }
-    70% {
-        box-shadow: 0 0 0 7px rgba(13, 233, 202, 0);
+    18% {
+        box-shadow: 0 0 0 6px rgba(13, 233, 202, .28);
+    }
+    32% {
+        box-shadow: 0 0 0 2px rgba(13, 233, 202, .55);
+    }
+    52% {
+        box-shadow: 0 0 0 9px rgba(13, 233, 202, 0);
     }
     100% {
         box-shadow: 0 0 0 0 rgba(13, 233, 202, 0);
@@ -226,7 +233,7 @@ body.x-body,
     background: #0de9ca !important;
     border: 1px solid #7FC6BC !important;
     font-weight: 700;
-    animation: vp-focus-pulse 1.5s ease-out infinite;
+    animation: vp-focus-beat 1.6s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
