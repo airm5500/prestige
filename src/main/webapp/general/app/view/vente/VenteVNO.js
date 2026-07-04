@@ -124,7 +124,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                         {
                             xtype: 'container',
                             bodyStyle: 'background:#F0F8FF !important;',
-                            layout: {type: 'hbox', align: 'stretch'},
+                            layout: {type: 'hbox', align: 'top'},
 
                             flex: 1,
                             items: [
@@ -134,6 +134,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     itemId: 'clientSearchBox',
                                     title: '<span style="color:blue;">RECHERCHER LE CLIENT</span>',
                                     flex: 0.6,
+                                    height: 138,
                                     margin: '0 10 0 0',
                                     layout: {type: 'anchor', align: 'middle'},
 

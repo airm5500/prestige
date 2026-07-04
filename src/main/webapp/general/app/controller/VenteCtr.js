@@ -2092,6 +2092,18 @@ Ext.define('testextjs.controller.VenteCtr', {
             return me.montantRecuChangeCore(field, value, options);
         }
 
+        // Fractionnement mobile : plafond ABSOLU au net à payer, appliqué avant
+        // toute autre voie (anti-scan, confirmations...) — pas de monnaie sur
+        // mobile, seul un retour en espèces permet de dépasser
+        if (me.getExtraModeReglementId() && me.isMobileMode(me.getVnotypeReglement().getValue())) {
+            const dataSplit = me.getNetAmountToPay ? me.getNetAmountToPay() : null;
+            const netSplit = dataSplit && dataSplit.montantNet != null ? parseInt(dataSplit.montantNet, 10) : 0;
+            if (netSplit > 0 && (parseInt(raw, 10) || 0) > netSplit) {
+                field.setValue(netSplit); // re-déclenche le change avec la valeur plafonnée
+                return;
+            }
+        }
+
         // Si l'utilisateur a cliqué "Annuler" sur une alerte de sécurité,
         // on ne relance aucune popup tant que la valeur n'a pas changé.
         if (field._blockedSecurityValue && String(field._blockedSecurityValue) === raw) {
