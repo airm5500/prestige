@@ -213,34 +213,41 @@ body.x-body,
  * conteneurs ExtJS : c'est donc tout l'intérieur du champ qui flashe
  * en clair à chaque pulsation (ombre interne, insensible au rognage),
  * en plus du halo extérieur quand la place le permet. */
-/* Le contour battant est un liseré INTERNE (inset) : dessiné à
- * l'intérieur du champ, il ne peut pas être rogné par les conteneurs
- * ExtJS et se ressent donc sur les QUATRE bordures. Le halo externe
- * reste en bonus là où la place le permet. */
+/* Le halo extérieur doit se voir sur les QUATRE bordures : on lève le
+ * rognage (overflow hidden) de toute la chaîne de conteneurs ExtJS
+ * autour des champs — box layouts, fieldsets, colonnes. L'en-tête et
+ * la vue de la grille sont exclus (leur rendu repose sur le rognage),
+ * le défilement du panneau central (x-panel-body auto) est préservé. */
+.vp-vente .x-box-inner,
+.vp-vente .x-form-item-body,
+.vp-vente .x-fieldset-body,
+.vp-vente fieldset.x-fieldset,
+.vp-vente .x-box-layout-ct:not(.x-grid-header-ct) {
+    overflow: visible !important;
+}
+
+/* L'input lui-même est en overflow:clip chez Neptune : sans effet sur le
+ * box-shadow, mais on le garde tel quel (le texte doit rester rogné) */
+
 @keyframes vp-focus-beat {
     0% {
-        box-shadow: inset 0 0 0 2px rgba(21, 45, 78, .85),
-                    inset 0 0 0 999px rgba(255, 255, 255, 0),
-                    0 0 0 0 rgba(13, 233, 202, .85);
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0),
+                    0 0 0 0 rgba(13, 233, 202, .95);
     }
     18% {
-        box-shadow: inset 0 0 0 5px rgba(21, 45, 78, .95),
-                    inset 0 0 0 999px rgba(255, 255, 255, .60),
-                    0 0 0 8px rgba(13, 233, 202, .45);
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, .60),
+                    0 0 0 9px rgba(13, 233, 202, .50);
     }
     32% {
-        box-shadow: inset 0 0 0 2px rgba(21, 45, 78, .85),
-                    inset 0 0 0 999px rgba(255, 255, 255, 0),
-                    0 0 0 2px rgba(13, 233, 202, .80);
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0),
+                    0 0 0 3px rgba(13, 233, 202, .90);
     }
     52% {
-        box-shadow: inset 0 0 0 5px rgba(21, 45, 78, .95),
-                    inset 0 0 0 999px rgba(255, 255, 255, .60),
-                    0 0 0 12px rgba(13, 233, 202, 0);
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, .60),
+                    0 0 0 14px rgba(13, 233, 202, 0);
     }
     100% {
-        box-shadow: inset 0 0 0 2px rgba(21, 45, 78, .85),
-                    inset 0 0 0 999px rgba(255, 255, 255, 0),
+        box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0),
                     0 0 0 0 rgba(13, 233, 202, 0);
     }
 }
@@ -255,7 +262,7 @@ body.x-body,
 @media (prefers-reduced-motion: reduce) {
     .vp-shell .x-form-field:not(.x-form-checkbox):focus {
         animation: none;
-        box-shadow: inset 0 0 0 3px rgba(21, 45, 78, .85);
+        box-shadow: 0 0 0 4px rgba(13, 233, 202, .55);
     }
 }
 
