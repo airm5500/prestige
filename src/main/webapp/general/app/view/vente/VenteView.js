@@ -13,7 +13,7 @@ Ext.define('testextjs.view.vente.VenteView', {
     width: '97%',
     height: 'auto',
     minHeight: 570,
-    cls: 'custompanel',
+    cls: 'custompanel vp-shell',
     
     title: 'VENTE AU COMPTANT',
     

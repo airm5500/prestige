@@ -602,7 +602,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 },
                                                 {
                                                     xtype: 'actioncolumn',
-                                                    width: 30,
+                                                    width: 42,
                                                     sortable: false,
                                                     menuDisabled: true,
                                                     items: [{
@@ -920,8 +920,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     xtype: 'button',
                                                     itemId: 'btnExtraMode',
-                                                    text: '+ Autre mode',
-                                                    tooltip: 'Payer avec deux modes de règlement',
+                                                    text: '+ Autre mode mobile',
+                                                    tooltip: 'Répartir le paiement entre deux modes mobiles',
                                                     hidden: true,
                                                     cls: 'vp-btn-extra',
                                                     height: 32,

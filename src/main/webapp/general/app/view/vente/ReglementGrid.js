@@ -38,11 +38,16 @@ Ext.define('testextjs.view.vente.ReglementGrid', {
             },
             listeners: {
                 // Un même mode ne doit pas être utilisé deux fois sur la vente :
-                // on retire le mode principal déjà sélectionné
+                // on retire le mode principal déjà sélectionné. En fractionnement
+                // mobile, la liste est en plus restreinte aux modes mobiles.
                 load: function (store) {
-                    if (me.excludeModeId) {
+                    if (me.excludeModeId || me.onlyModeIds) {
                         store.filterBy(function (rec) {
-                            return rec.get('id') !== me.excludeModeId;
+                            const id = rec.get('id');
+                            if (me.excludeModeId && id === me.excludeModeId) {
+                                return false;
+                            }
+                            return !me.onlyModeIds || me.onlyModeIds.indexOf(id) !== -1;
                         });
                     }
                 }

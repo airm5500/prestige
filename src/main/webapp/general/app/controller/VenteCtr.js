@@ -1905,7 +1905,9 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
         const typeRegle = me.getVnotypeReglement().getValue();
         Ext.create('testextjs.view.vente.ReglementGrid', {
-            excludeModeId: typeRegle
+            title: 'AJOUTEZ UN AUTRE MODE MOBILE',
+            excludeModeId: typeRegle,
+            onlyModeIds: me.mobileModeIds
         }).show();
     },
     showAndHideCbInfos: function (v) {
@@ -2178,6 +2180,15 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this, typeRegle = me.getVnotypeReglement().getValue();
         const montantRecu = parseInt(field.getValue());
         const data = me.getNetAmountToPay();
+        // Fractionnement mobile : pas de monnaie possible, la saisie est
+        // plafonnée au net à payer (on répartit entre 2 modes, sans dépasser)
+        if (me.getExtraModeReglementId() && me.isMobileMode(typeRegle) && data) {
+            const netTopay = parseInt(data.montantNet);
+            if (montantRecu > netTopay) {
+                field.setValue(netTopay); // re-déclenche le change avec la valeur plafonnée
+                return;
+            }
+        }
         if (me.getExtraModeReglementId()) {
             me.handleExtraAmountInputValue();
             const montantExtra = me.getMontantExtra();
