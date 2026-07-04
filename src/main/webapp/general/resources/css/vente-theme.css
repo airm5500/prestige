@@ -209,23 +209,16 @@ body.x-body,
 }
 
 /* Champ actif : turquoise historique de l'application (repère fort pour la
- * caissière) + "battement de cœur" autour du champ qui a le curseur :
- * deux pulsations rapides puis une pause */
-@keyframes vp-focus-beat {
-    0% {
-        box-shadow: 0 0 0 0 rgba(13, 233, 202, .55);
-    }
-    18% {
-        box-shadow: 0 0 0 6px rgba(13, 233, 202, .28);
-    }
-    32% {
-        box-shadow: 0 0 0 2px rgba(13, 233, 202, .55);
-    }
-    52% {
-        box-shadow: 0 0 0 9px rgba(13, 233, 202, 0);
-    }
-    100% {
-        box-shadow: 0 0 0 0 rgba(13, 233, 202, 0);
+ * caissière) + anneau lumineux qui tourne autour du champ qui a le curseur */
+@property --vp-ring-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+}
+
+@keyframes vp-focus-ring {
+    to {
+        --vp-ring-angle: 360deg;
     }
 }
 
@@ -233,12 +226,38 @@ body.x-body,
     background: #0de9ca !important;
     border: 1px solid #7FC6BC !important;
     font-weight: 700;
-    animation: vp-focus-beat 1.6s ease-out infinite;
+}
+
+.vp-shell .x-form-item-body {
+    position: relative;
+}
+
+/* Seul le conteneur le plus proche du champ dessine l'anneau (un
+ * fieldcontainer parent matcherait aussi :focus-within et créerait un
+ * second anneau décalé). Liseré navy : contraste sur le fond turquoise. */
+.vp-shell .x-form-item-body:focus-within:not(:has(.x-form-item-body))::after {
+    content: '';
+    position: absolute;
+    /* au ras du champ : les conteneurs ExtJS rognent tout débordement */
+    inset: 0;
+    border-radius: 8px;
+    padding: 3px;
+    pointer-events: none;
+    z-index: 1;
+    background: conic-gradient(from var(--vp-ring-angle),
+        #152d4e 0 12%, transparent 18% 45%,
+        #152d4e 50% 62%, transparent 68% 95%, #152d4e 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: vp-focus-ring 1.3s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .vp-shell .x-form-field:not(.x-form-checkbox):focus {
+    .vp-shell .x-form-item-body:focus-within::after {
         animation: none;
+    }
+    .vp-shell .x-form-field:not(.x-form-checkbox):focus {
         box-shadow: 0 0 0 3px rgba(13, 233, 202, .45);
     }
 }
