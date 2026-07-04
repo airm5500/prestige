@@ -15,6 +15,27 @@
  *  net = rouge, remise = vert, monnaie = bleu (styles inline conservés)
  */
 
+/* ================= CHROME APPLICATIF ================= */
+
+/* Fond plat autour du contenu : plus d'image de fond visible sur les bords,
+ * ni en haut, ni à gauche, ni dans les coins */
+body,
+body.x-body,
+.x-border-layout-ct {
+    background-image: none !important;
+    background-color: #ECF1F6 !important;
+}
+
+#content-panel-body {
+    background: #ECF1F6 !important;
+}
+
+#content-panel > .x-panel-header {
+    background: #ECF1F6 !important;
+    background-image: none !important;
+    border: 0 !important;
+}
+
 /* ================= ENVELOPPE (doventemanager) ================= */
 
 /* Cadre du panel : plus de liseré vert, le panel se fond dans le conteneur */

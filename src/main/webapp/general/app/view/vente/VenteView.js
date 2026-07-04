@@ -10,7 +10,9 @@ Ext.define('testextjs.view.vente.VenteView', {
         data: null
     },
     frame: true,
-    width: '100%',
+    /* 99% : évite le scroll horizontal quand l'ascenseur vertical apparaît ;
+     * le fond plat unifié rend l'écart invisible */
+    width: '99%',
     height: 'auto',
     minHeight: 570,
     cls: 'custompanel vp-shell',

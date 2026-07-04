@@ -326,6 +326,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                             itemId: 'venteColLeft',
                             cls: 'vp-col-left',
                             flex: 1,
+                            padding: '0 2 0 2',
                             layout: {type: 'vbox', align: 'stretch'},
                             items: [
                                 {
@@ -343,20 +344,20 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         {
                                             xtype: 'fieldcontainer',
                                             layout: 'hbox',
-                                            height: 40,
+                                            height: 46,
                                             defaultType: 'textfield',
                                             fieldLabel: 'PRODUIT',
                                             items: [
                                                 {
                                                     xtype: 'combobox',
                                                     height: 30,
+                                                    margin: '3 10 3 0',
                                                     itemId: 'produit',
                                                     store: produit,
                                                     pageSize: 10,
                                                     valueField: 'lgFAMILLEID',
                                                     displayField: 'strNAME',
                                                     flex: 2,
-                                                    margin: '0 10 0 0',
                                                     queryMode: 'remote',
                                                     autoSelect: true,
                                                     typeAhead: false,
@@ -382,6 +383,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     fieldLabel: 'QD:',
                                                     flex: 1,
                                                     height: 30,
+                                                    margin: '3 0 3 0',
                                                     labelWidth: 30,
                                                     emptyText: 'Quantité',
                                                     selectOnFocus: true,
@@ -408,9 +410,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         {
                                             xtype: 'container',
                                             layout: 'hbox',
-                                            height: 30,
+                                            height: 38,
                                             defaultType: 'textfield',
-                                            margin: '0 0 10 0',
+                                            margin: '0 0 6 0',
                                             items: [
                                                 {
                                                     xtype: 'displayfield',
@@ -436,7 +438,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'typeRemise',
                                                     store: typeremise,
                                                     editable: false,
-                                                    margin: '0 10 0 0',
+                                                    margin: '2 10 2 0',
                                                     hidden: true,
                                                     pageSize: null,
                                                     valueField: 'lgTYPEREMISEID',
@@ -457,6 +459,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'remise',
                                                     store: remise,
                                                     editable: false,
+                                                    margin: '2 0 2 0',
                                                     pageSize: null,
                                                     valueField: 'lgREMISEID',
                                                     displayField: 'strNAME',
