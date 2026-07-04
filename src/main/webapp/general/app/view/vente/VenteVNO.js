@@ -15,7 +15,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
     width: '100%',
     height: 'auto',
     minHeight: 570,
-    cls: 'custompanel vp-vente',
+    cls: 'custompanel vp-vente vp-focus-zone',
     layout: {
         type: 'vbox',
         align: 'stretch'

@@ -57,6 +57,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     maximizable: true,
     closable: false,
     frame: true,
+    /* battement du champ actif (vp-focus-beat) : activé sur cet écran */
+    cls: 'vp-focus-zone',
     initComponent: function () {
         Me_Workflow = this;
         lg_EMPLACEMENT_ID = loadEmplacement();

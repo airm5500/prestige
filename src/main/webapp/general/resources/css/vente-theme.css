@@ -213,16 +213,24 @@ body.x-body,
  * conteneurs ExtJS : c'est donc tout l'intérieur du champ qui flashe
  * en clair à chaque pulsation (ombre interne, insensible au rognage),
  * en plus du halo extérieur quand la place le permet. */
+/* ============================================================
+ * BATTEMENT DU CHAMP ACTIF — effet réutilisable « vp-focus-beat »
+ * Pour l'activer sur un écran : ajouter la classe  vp-focus-zone
+ * au composant racine de l'écran (config cls). Actuellement actif
+ * sur : écran de vente (VenteView/VenteVNO), fiche article
+ * (FamilleManager).
+ * ============================================================ */
+
 /* Le halo extérieur doit se voir sur les QUATRE bordures : on lève le
  * rognage (overflow hidden) de toute la chaîne de conteneurs ExtJS
  * autour des champs — box layouts, fieldsets, colonnes. L'en-tête et
  * la vue de la grille sont exclus (leur rendu repose sur le rognage),
  * le défilement du panneau central (x-panel-body auto) est préservé. */
-.vp-vente .x-box-inner,
-.vp-vente .x-form-item-body,
-.vp-vente .x-fieldset-body,
-.vp-vente fieldset.x-fieldset,
-.vp-vente .x-box-layout-ct:not(.x-grid-header-ct) {
+.vp-focus-zone .x-box-inner,
+.vp-focus-zone .x-form-item-body,
+.vp-focus-zone .x-fieldset-body,
+.vp-focus-zone fieldset.x-fieldset,
+.vp-focus-zone .x-box-layout-ct:not(.x-grid-header-ct) {
     overflow: visible !important;
 }
 
@@ -252,7 +260,7 @@ body.x-body,
     }
 }
 
-.vp-shell .x-form-field:not(.x-form-checkbox):focus {
+.vp-focus-zone .x-form-field:not(.x-form-checkbox):focus {
     background: #0de9ca !important;
     border: 1px solid #7FC6BC !important;
     font-weight: 700;
@@ -260,7 +268,7 @@ body.x-body,
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .vp-shell .x-form-field:not(.x-form-checkbox):focus {
+    .vp-focus-zone .x-form-field:not(.x-form-checkbox):focus {
         animation: none;
         box-shadow: 0 0 0 4px rgba(13, 233, 202, .55);
     }
