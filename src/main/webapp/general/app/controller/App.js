@@ -630,6 +630,13 @@ Ext.define('testextjs.controller.App', {
             return;
         }
 
+        // L'ecran de vente (doventemanager) se colle en haut a gauche du
+        // corps, sans centrage ni decalage : son bandeau VENTE AU COMPTANT
+        // touche directement la barre de titre "Ventes" du panneau central.
+        if (item && item.isXType && item.isXType('doventemanager')) {
+            return;
+        }
+
         if (item) {
             overflowX = (body.getWidth() < (item.getWidth() + 40));
             overflowY = (body.getHeight() < (item.getHeight() + 40));
