@@ -218,7 +218,8 @@ body.x-body,
  * Pour l'activer sur un écran : ajouter la classe  vp-focus-zone
  * au composant racine de l'écran (config cls). Actuellement actif
  * sur : écran de vente (VenteView/VenteVNO), fiche article
- * (FamilleManager).
+ * (FamilleManager), saisie de commande (commandemanagement/order/
+ * action/add).
  * ============================================================ */
 
 /* Le halo extérieur doit se voir sur les QUATRE bordures : on lève le

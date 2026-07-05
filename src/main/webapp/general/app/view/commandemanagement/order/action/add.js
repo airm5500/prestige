@@ -49,6 +49,8 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
     title: 'Modifier les informations de la commande',
     bodyStyle: 'background-color: #E5E9EC;',
+    /* battement du champ actif (vp-focus-beat) : activé sur cet écran */
+    cls: 'vp-focus-zone',
     bodyPadding: 5,
     layout: 'column',
     width: '97%',
