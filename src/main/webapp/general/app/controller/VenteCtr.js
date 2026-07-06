@@ -726,8 +726,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 });
     },
 
-    onReady: function () {
+    onReady: function (view) {
         const me = this;
+        me.markVenteContentPanel(true, view);
         me.goToVenteView();
         me.cheickCaisse();
         me.checkModificationPrixU();
@@ -736,6 +737,26 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.checkSansBon();
         me.checkParamImpressionTicketCaisse();
 
+    },
+    /*
+     * Marque le panneau central quand l'écran de vente est actif : la classe
+     * vp-vente-mode neutralise (en CSS) la photo de fond du thème UNIQUEMENT
+     * ici. Retirée au destroy de la vue pour que les autres écrans gardent
+     * leur fond décoratif (pas de régression globale).
+     */
+    markVenteContentPanel: function (active, view) {
+        const cp = Ext.getCmp('content-panel');
+        if (cp && cp.getEl()) {
+            cp.getEl()[active ? 'addCls' : 'removeCls']('vp-vente-mode');
+        }
+        if (active && view && view.on) {
+            view.on('destroy', function () {
+                const p = Ext.getCmp('content-panel');
+                if (p && p.getEl()) {
+                    p.getEl().removeCls('vp-vente-mode');
+                }
+            }, null, {single: true});
+        }
     },
     cheickCaisse: function () {
         const me = this;

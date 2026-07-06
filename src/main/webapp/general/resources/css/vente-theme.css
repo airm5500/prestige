@@ -31,11 +31,11 @@ body.x-body,
 }
 
 /* Le thème KitchenSink pose une photo (dd/background.png) sur le conteneur
- * EXTERNE du panneau central (#content-panel-outerCt), qui recouvre le fond
- * plat du body. En vente comptant, l'écran est plus court que le panneau et
- * cette photo (pharmacie) apparaissait sous le contenu. On neutralise l'image :
- * le fond plat #ECF1F6 du body reste visible dessous, sur tous les écrans. */
-#content-panel-outerCt {
+ * EXTERNE du panneau central (#content-panel-outerCt) — fond décoratif de
+ * TOUTE l'application. On ne la neutralise QUE sur l'écran de vente (classe
+ * vp-vente-mode posée par le contrôleur au render, retirée au destroy) : le
+ * fond plat #ECF1F6 y remplace la photo. Les autres écrans la conservent. */
+#content-panel.vp-vente-mode #content-panel-outerCt {
     background-image: none !important;
 }
 
