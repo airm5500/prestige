@@ -1690,6 +1690,62 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
         });
     },
+    /*
+     * Calcul silencieux du net à payer (vente assurance/carnet) : même appel
+     * que AFFICHER NET mais sans popup, sans message ni vol de focus. Les
+     * contrôles bloquants (n° de bon, tiers-payant) restent portés par le
+     * bouton et la clôture : ici on passe simplement si la vente n'est pas
+     * prête (pas de tiers-payant).
+     */
+    autoComputeNetAssurance: function (onDone) {
+        const me = this, vente = me.getCurrent();
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if ((typeVente !== '2' && typeVente !== '3') || !vente) {
+            return;
+        }
+        const tierspayants = me.buildAssuranceData();
+        if (!tierspayants || tierspayants.length === 0) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/net/assurance',
+            params: Ext.JSON.encode({"remiseId": me.getVnoremise().getValue(),
+                "venteId": vente.lgPREENREGISTREMENTID, "tierspayants": tierspayants}),
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success) {
+                    me.netAmountToPay = result.data;
+                    me.toRecalculate = false;
+                    const montantNet = me.getNetAmountToPay().montantNet;
+                    me.getMontantNet().setValue(montantNet);
+                    me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
+                    me.getMontantTp().setValue(me.getNetAmountToPay().montantTp);
+                    me.handleMontantField(montantNet);
+                    if (Ext.isFunction(onDone)) {
+                        onDone();
+                    }
+                }
+            },
+            failure: function () {
+                // silencieux : le bouton AFFICHER NET A PAYER reste disponible
+            }
+        });
+    },
+    /*
+     * Recalcul du net après une modification de la vente dans la grille
+     * (prix, quantité, suppression) — dispatch selon le type de vente.
+     */
+    autoComputeNetAfterChange: function () {
+        const me = this;
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (typeVente === '1') {
+            me.autoComputeNetVno();
+        } else if (typeVente === '2' || typeVente === '3') {
+            me.autoComputeNetAssurance();
+        }
+    },
     showNetPaidVno: function () {
         const me = this;
         let vente = me.getCurrent(), remiseId = me.getVnoremise().getValue();
@@ -2064,18 +2120,52 @@ Ext.define('testextjs.controller.VenteCtr', {
     ,
     typeReglementSelectEvent: function (field) {
         const me = this;
-        me.resetExtraModeCmp();
         const value = field.getValue().trim();
-        // Comptant : si le net n'est pas encore calculé (produits ajoutés sans
-        // passer par AFFICHER NET), on le calcule automatiquement puis on
-        // réapplique le mode choisi — évite un montant reçu verrouillé à 0
-        if (me.getSafeComboValue('getTypeVenteCombo', '1') === '1' && me.getCurrent()
-                && (me.toRecalculate || !me.netAmountToPay)) {
-            me.autoComputeNetVno(function () {
-                me.typeReglementSelectEvent(field);
+        // Garde-fou : aucun produit dans la vente → on refuse le choix du
+        // mode et on revient à la valeur précédente (évite tout plantage)
+        if (!me.getCurrent() && value !== '1') {
+            field.setValue(me._appliedTypeReglement || '1');
+            Ext.MessageBox.show({
+                title: 'Message',
+                width: 550,
+                msg: 'Veuillez ajouter des produits à la vente avant de choisir le mode de règlement',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getVnoproduitCombo().focus(true, 100);
+                    }
+                }
             });
             return;
         }
+        me.resetExtraModeCmp();
+        // Si le net n'est pas encore calculé (produits ajoutés sans passer
+        // par AFFICHER NET), on le calcule automatiquement puis on réapplique
+        // le mode choisi — comptant ET assurance/carnet. _skipAutoNet évite
+        // de boucler à la ré-entrée si le calcul est impossible.
+        const typeVenteCourant = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (me.getCurrent() && (me.toRecalculate || !me.netAmountToPay) && !me._skipAutoNet) {
+            const reApply = function () {
+                me._skipAutoNet = true;
+                me.typeReglementSelectEvent(field);
+                me._skipAutoNet = false;
+            };
+            if (typeVenteCourant === '1') {
+                me.autoComputeNetVno(reApply);
+                return;
+            }
+            if (typeVenteCourant === '2' || typeVenteCourant === '3') {
+                me.autoComputeNetAssurance(reApply);
+                return;
+            }
+        }
+        // Mode en place avant cette sélection : point de retour du rollback
+        me._previousTypeReglement = me._appliedTypeReglement || '1';
+        // Cette sélection va-t-elle ouvrir la fenêtre « client lié » ? Si oui
+        // et que l'utilisateur clique Annuler, on défera tout (rollback).
+        me._pendingModeNeedsClient = Ext.isEmpty(me.getClient())
+                && (value === '4' || value === '2' || value === '3' || value === '6' || me.isMobileMode(value));
         if (value === '1') {
             me.getMontantRecu().enable();
             me.getMontantRecu().setReadOnly(false);
@@ -2104,6 +2194,9 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
 
         }
+        // Mode réellement appliqué : sert de point de retour au garde-fou
+        // « sans produit » et au rollback du bouton Annuler (fenêtre client)
+        me._appliedTypeReglement = value;
     }
     ,
     // Utilitaire: focus + sélection du texte sur Montant Reçu
@@ -2496,6 +2589,14 @@ Ext.define('testextjs.controller.VenteCtr', {
         const queryField = win.down('#queryClientLambda');
         if (queryField) {
             queryField.focus(false, 150);
+            // Ceinture et bretelles : certains enchaînements asynchrones
+            // (calcul du net, listeners du mode) peuvent reprendre le focus
+            // après coup — on le réaffirme une fois la poussière retombée.
+            Ext.defer(function () {
+                if (!queryField.destroyed && !queryField.hasFocus) {
+                    queryField.focus();
+                }
+            }, 450);
         }
     },
     /*
@@ -2527,10 +2628,42 @@ Ext.define('testextjs.controller.VenteCtr', {
     onCancelClientLambda: function () {
         const me = this;
         me.closeClientLambdaWindow();
+        if (me._pendingModeNeedsClient && Ext.isEmpty(me.getClient())) {
+            // Annuler pendant un choix de mode nécessitant un client :
+            // on défait tout, comme si le mode n'avait jamais été choisi
+            me._pendingModeNeedsClient = false;
+            me.rollbackModeSelection();
+            return;
+        }
         me.focusAfterClientAction();
+    },
+    /*
+     * Retour complet à l'état d'avant la sélection du mode de règlement :
+     * combo sur le mode précédent, champ complément mobile masqué et
+     * reverrouillé, bloc chèque/CB masqué, bloc client masqué si aucun
+     * client, montant reçu déverrouillé.
+     */
+    rollbackModeSelection: function () {
+        const me = this;
+        const previous = me._previousTypeReglement || '1';
+        const combo = me.getVnotypeReglement();
+        combo.suspendEvents(false);
+        combo.setValue(previous);
+        combo.resumeEvents();
+        me._appliedTypeReglement = previous;
+        me.resetExtraModeCmp();
+        me.getCbContainer().hide();
+        me.showAndHideInfosStandardClient(false);
+        const recu = me.getMontantRecu();
+        recu.enable();
+        if (previous === '1' || previous === '4' || previous === '6') {
+            recu.setReadOnly(false);
+        }
+        recu.focus(true, 100);
     },
     updateClientStandard: function (record) {
         const me = this;
+        me._pendingModeNeedsClient = false; // un client est choisi : plus de rollback
         me.client = record;
         me.getNomClient().setValue(record.get('strFIRSTNAME'));
         me.getPrenomClient().setValue(record.get('strLASTNAME'));
@@ -2616,6 +2749,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     const result = Ext.JSON.decode(response.responseText, true);
                     if (result.success) {
                         let clientData = result.data;
+                        me._pendingModeNeedsClient = false; // client créé : plus de rollback
                         me.client = new testextjs.model.caisse.ClientLambda(clientData);
                         me.updateClientLambdInfos();
                         me.closeClientLambdaWindow();
@@ -2710,6 +2844,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                                         }
                                                     }
                                                     me.refresh();
+                                                    me.autoComputeNetAfterChange();
                                                 }
                                             },
                                             failure: function (response, options) {
@@ -2800,6 +2935,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                             }
                         }
                         me.refresh();
+                        me.autoComputeNetAfterChange();
 
                     }
                 },
@@ -2910,6 +3046,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                         return;
                     }
                     cmp.setValue(_typeReglementId);
+                    me._appliedTypeReglement = _typeReglementId;
+                    // setValue ne déclenche pas l'événement select : on
+                    // réapplique l'état d'écran du mode restauré (montant
+                    // forcé/verrouillé, bloc chèque/CB, bouton mobile...)
+                    if (_typeReglementId !== '1' && me.getCurrent()) {
+                        me.typeReglementSelectEvent(cmp);
+                    }
                 }
             });
         }
@@ -3061,7 +3204,14 @@ Ext.define('testextjs.controller.VenteCtr', {
                     };
                     me.netAmountToPay = null;
                     me.ayantDroit = ayantDroit;
-                    me.updateComboxFields(lgTYPEVENTEID, lgNATUREVENTEID, lgUSERVENDEURID, me.getTypeReglementToDisplay(reglements), lgREMISEID);
+                    // Vente en attente : pas encore de règlements en base, on
+                    // restaure le mode mémorisé à la mise en attente
+                    let typeReglementARestaurer = me.getTypeReglementToDisplay(reglements);
+                    if ((!reglements || reglements.length === 0) && typeReglementARestaurer === '1') {
+                        typeReglementARestaurer = me.getRememberedPreventeMode(record.lgPREENREGISTREMENTID)
+                                || typeReglementARestaurer;
+                    }
+                    me.updateComboxFields(lgTYPEVENTEID, lgNATUREVENTEID, lgUSERVENDEURID, typeReglementARestaurer, lgREMISEID);
                     me.updateAmountFields((parseInt(intPRICE) - parseInt(intPRICEREMISE)), intPRICEREMISE, intPRICE);
                     if (lgTYPEVENTEID === '2' || lgTYPEVENTEID === '3') {
                         me.loadClientAssurance(client, lgTYPEVENTEID, ayantDroit);
@@ -3267,6 +3417,8 @@ Ext.define('testextjs.controller.VenteCtr', {
     resetAll: function (montantRemis) {
         const me = this;
         me.current = null;
+        me._pendingModeNeedsClient = false;
+        me._appliedTypeReglement = '1';
         me.resetExtraModeCmp();
         if (montantRemis !== undefined) {
             me.getDernierMonnaie().setValue(montantRemis);
@@ -5609,9 +5761,44 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     putToStandBy: function () {
         const me = this;
+        me.rememberPreventeMode();
         me.resetAll();
         me.getVnoproduitCombo().focus(false, 100, function () {
         });
+    },
+    /*
+     * Le mode de règlement d'une vente mise en attente n'est stocké en base
+     * qu'à la clôture (vente_reglement) : on le mémorise donc côté poste
+     * (localStorage) pour le restaurer au rappel. Taille bornée à 30 entrées,
+     * espèces (défaut) non mémorisé.
+     */
+    rememberPreventeMode: function () {
+        const me = this, vente = me.getCurrent();
+        if (!vente) {
+            return;
+        }
+        const mode = me.getVnotypeReglement().getValue();
+        if (!mode || mode === '1') {
+            return;
+        }
+        try {
+            const map = Ext.JSON.decode(window.localStorage.getItem('prestigeModesAttente') || '{}', true) || {};
+            map[vente.lgPREENREGISTREMENTID] = mode;
+            const keys = Object.keys(map);
+            while (keys.length > 30) {
+                delete map[keys.shift()];
+            }
+            window.localStorage.setItem('prestigeModesAttente', Ext.JSON.encode(map));
+        } catch (e) {
+        }
+    },
+    getRememberedPreventeMode: function (venteId) {
+        try {
+            const map = Ext.JSON.decode(window.localStorage.getItem('prestigeModesAttente') || '{}', true) || {};
+            return map[venteId] || null;
+        } catch (e) {
+            return null;
+        }
     },
     oncheckUg: function () {
         const me = this;
@@ -5751,7 +5938,11 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.extraModeReglementId = null;
         me.extraModeManualAmount = false;
         me.getBtnExtraMode()?.hide();
-        me.getMontantRecu().focus(true, 50);
+        // Ne pas voler le focus si la fenêtre « client lié » est ouverte
+        // (son champ de recherche doit garder la main)
+        if (!Ext.ComponentQuery.query('clientLambda').length) {
+            me.getMontantRecu().focus(true, 50);
+        }
     },
 
     handleExtraAmountInputValue: function () {
