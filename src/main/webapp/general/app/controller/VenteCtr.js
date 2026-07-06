@@ -5793,12 +5793,16 @@ Ext.define('testextjs.controller.VenteCtr', {
                         {
                             "typeReglement": extraModeId,
                             "montant": montantExtra,
-                            "montantAttentu": montantExtra
+                            "montantAttentu": montantExtra,
+                            "montantVerse": montantExtra
                         },
                         {
                             "typeReglement": typeReglement,
                             "montant": partEspeces,
-                            "montantAttentu": partEspeces
+                            "montantAttentu": partEspeces,
+                            // Montant réellement tendu par le client : c'est lui
+                            // qui s'imprime sur le ticket (la monnaie figure en bas).
+                            "montantVerse": montantRecu
                         }
                 );
             } else {
@@ -5822,12 +5826,14 @@ Ext.define('testextjs.controller.VenteCtr', {
                     {
                         "typeReglement": extraModeId,
                         "montant": montantExtra,
-                        "montantAttentu": montantExtra
+                        "montantAttentu": montantExtra,
+                        "montantVerse": montantExtra
                     },
                     {
                         "typeReglement": typeReglement,
                         "montant": montantPrincipal,
-                        "montantAttentu": montantPrincipal
+                        "montantAttentu": montantPrincipal,
+                        "montantVerse": montantPrincipal
                     }
             );
         } else {

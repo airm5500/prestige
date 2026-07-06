@@ -90,7 +90,9 @@ public class VenteReglementServiceImpl implements VenteReglementService {
         venteReglement.setMontantAttentu(p.getMontantAttentu());
         venteReglement.setUgAmount(p.getMontantTttcug());
         venteReglement.setUgNetAmount(p.getMontantnetug());
-        venteReglement.setMontantVerse(p.getMontant());
+        // Versé = montant tendu par le client (peut dépasser le montant encaissé
+        // si une monnaie est rendue). Repli sur montant pour les anciens fronts.
+        venteReglement.setMontantVerse(p.getMontantVerse() > 0 ? p.getMontantVerse() : p.getMontant());
         this.createNew(venteReglement);
     }
 

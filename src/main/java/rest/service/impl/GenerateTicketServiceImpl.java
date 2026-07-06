@@ -529,8 +529,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         datas.add("Net à payer: ;     " + DateConverter.amountFormat(venteNet) + "; F CFA;1");
         if (venteReglements.size() > 1) {
             for (VenteReglement vers : venteReglements) {
+                // On imprime le montant tendu par le client (montantVerse) : la
+                // monnaie est portée par la ligne Monnaie en bas du ticket. Repli
+                // sur montant pour les règlements anciens (montantVerse null/0).
+                Integer verse = vers.getMontantVerse();
+                int montantAffiche = (Objects.nonNull(verse) && verse > 0) ? verse : vers.getMontant();
                 datas.add(vers.getTypeReglement().getStrNAME() + ": ;     "
-                        + NumberUtils.formatIntToString(vers.getMontant()) + "; ;0");
+                        + NumberUtils.formatIntToString(montantAffiche) + "; ;0");
             }
 
         } else {

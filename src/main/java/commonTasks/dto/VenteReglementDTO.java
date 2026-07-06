@@ -13,6 +13,9 @@ public class VenteReglementDTO {
     private int montantTttcug;
     private int amountNonCa;
     private int montantAnnulation;
+    // Montant réellement tendu par le client pour ce mode (>= montant encaissé
+    // quand une monnaie est rendue). 0 si le front ne l'envoie pas.
+    private int montantVerse;
 
     public String getTypeReglement() {
         return typeReglement;
@@ -87,6 +90,14 @@ public class VenteReglementDTO {
 
     public int getAmountNonCa() {
         return amountNonCa;
+    }
+
+    public int getMontantVerse() {
+        return montantVerse;
+    }
+
+    public void setMontantVerse(int montantVerse) {
+        this.montantVerse = montantVerse;
     }
 
     public void setAmountNonCa(int amountNonCa) {
