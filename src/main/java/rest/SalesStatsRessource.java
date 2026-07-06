@@ -287,6 +287,30 @@ public class SalesStatsRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /*
+     * Avoirs non clôturés SANS borne de période (préparé pour la cloche de notifications) : le drapeau b_IS_AVOIR
+     * suffit, un avoir ouvert ancien reste à signaler. Réutilise le pipeline getVenteTerminees avec une fenêtre très
+     * large pour garantir la même forme de réponse.
+     */
+    @GET
+    @Path("avoirs-ouverts")
+    public Response openAvoirs(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit)
+            throws JSONException {
+        SalesStatsParams body = buildParams(start, limit > 0 ? limit : 50, "", "2000-01-01",
+                java.time.LocalDate.now().toString(), null, null, false, true, "", null, null, null, null);
+        body.setAvoirStatut("EN_COURS");
+        JSONObject jsono = salesService.getVenteTerminees(body);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /* Compteur ultra-léger des avoirs non clôturés (badge 60 s de la cloche) */
+    @GET
+    @Path("avoirs-ouverts/count")
+    public Response openAvoirsCount() {
+        JSONObject jsono = salesService.getOpenAvoirsCount();
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
     @GET
     @Path("ticket/vno/{id}")
     public Response getTicket(@PathParam("id") String id) throws JSONException {

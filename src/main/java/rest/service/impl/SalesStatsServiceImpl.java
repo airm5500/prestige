@@ -136,6 +136,12 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     private static final String VENTE_SQL_COUNT = "SELECT COUNT({distinct} p.lg_PREENREGISTREMENT_ID)  from {select_placeholder} INNER JOIN t_user caissier ON caissier.lg_USER_ID=p.lg_USER_CAISSIER_ID LEFT  JOIN  t_client c ON p.lg_CLIENT_ID=c.lg_CLIENT_ID "
             + " LEFT JOIN t_emplacement em ON em.lg_EMPLACEMENT_ID=p.PK_BRAND {produit_join} where p.dt_UPDATED >=:dtStart and p.dt_UPDATED <=:dtEnd and p.str_STATUT=:status";
 
+    /*
+     * Compteur des avoirs non clôturés SANS borne de période : destiné au badge de la cloche (rafraîchi toutes les 60
+     * s). Le drapeau b_IS_AVOIR suffit — un avoir ouvert reste à signaler quel que soit son âge.
+     */
+    private static final String OPEN_AVOIRS_COUNT_SQL = "SELECT COUNT(p.lg_PREENREGISTREMENT_ID) FROM t_preenregistrement p WHERE p.str_STATUT=:status AND p.b_IS_AVOIR=TRUE";
+
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private final SimpleDateFormat heureFormat = new SimpleDateFormat("HH:mm");
 
@@ -2367,6 +2373,26 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
 
         return query;
+    }
+
+    @Override
+    public JSONObject getOpenAvoirsCount() {
+        JSONObject json = new JSONObject();
+        try {
+            Query q = getEntityManager().createNativeQuery(OPEN_AVOIRS_COUNT_SQL);
+            q.setParameter("status", Constant.STATUT_IS_CLOSED);
+            int total = ((Number) q.getSingleResult()).intValue();
+            json.put("total", total);
+            json.put("data", new JSONArray());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            try {
+                json.put("total", 0);
+                json.put("data", new JSONArray());
+            } catch (JSONException ex) {
+            }
+        }
+        return json;
     }
 
     @Override

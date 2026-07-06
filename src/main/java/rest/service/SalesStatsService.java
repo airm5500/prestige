@@ -136,6 +136,8 @@ public interface SalesStatsService {
 
     JSONObject getPreVentes(SalesStatsParams params);
 
+    JSONObject getOpenAvoirsCount();
+
     JSONObject getVenteTerminees(SalesStatsParams params);
 
     List<VenteDTO> getListTerminees(SalesStatsParams params);

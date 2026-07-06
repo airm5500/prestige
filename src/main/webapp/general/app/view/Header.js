@@ -400,8 +400,11 @@ var PrestigeNotif = (function () {
         providers.push(provider);
     }
 
-    // Charge tous les providers ; appelle done(totalGlobal) a la fin
-    function loadAll(done) {
+    // Charge tous les providers ; appelle done(totalGlobal) a la fin.
+    // full=false (badge 60s) : si un provider expose countUrl, seul son
+    // compteur leger est appele ; full=true (ouverture du panneau) : les
+    // listes completes sont chargees pour l'affichage.
+    function loadAll(done, full) {
         var pending = providers.length;
         if (pending === 0) {
             cache = {};
@@ -413,8 +416,10 @@ var PrestigeNotif = (function () {
         var newCache = {};
         Ext.each(providers, function (p) {
             var limit = p.limit || 50;
+            var useCount = !full && p.countUrl;
             Ext.Ajax.request({
-                url: p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'start=0&limit=' + limit,
+                url: useCount ? p.countUrl
+                        : p.url + (p.url.indexOf('?') >= 0 ? '&' : '?') + 'start=0&limit=' + limit,
                 method: 'GET',
                 callback: function (opts, success, response) {
                     var results = [], total = 0;
@@ -496,10 +501,11 @@ function refreshNotificationBadge() {
 }
 
 function showNotificationCenter() {
+    // full=true : le panneau a besoin des listes completes
     PrestigeNotif.loadAll(function (total) {
         PrestigeNotif.updateBadge(total);
         buildNotificationWindow();
-    });
+    }, true);
 }
 
 function buildNotificationWindow() {
@@ -696,14 +702,27 @@ function prestigeAvoirPeriode() {
 
 // Categorie AVOIRS : ventes ayant un avoir en cours (non cloture)
 (function () {
+    /*
+     * INTERRUPTEUR (prepare, inactif) — passer a true pour basculer sur les
+     * endpoints "avoirs ouverts" SANS periode :
+     *  - badge 60s : ../ventestats/avoirs-ouverts/count (compteur ultra-leger)
+     *  - ouverture du panneau : ../ventestats/avoirs-ouverts (liste complete)
+     * Avantages : plus de fenetre d'un mois qui masque les vieux avoirs
+     * ouverts, et plus de requete lourde toutes les 60 s.
+     */
+    var AVOIRS_SANS_PERIODE = false;
+
     var p = prestigeAvoirPeriode();
     PrestigeNotif.register({
         key: 'avoirs',
         label: 'Ventes en avoir',
         icon: 'fa-reply-all',
         color: '#e67e22',
-        url: '../api/v1/ventestats?onlyAvoir=true&sansBon=false&typeVenteId=&avoirStatut=EN_COURS'
+        url: AVOIRS_SANS_PERIODE
+                ? '../api/v1/ventestats/avoirs-ouverts'
+                : '../api/v1/ventestats?onlyAvoir=true&sansBon=false&typeVenteId=&avoirStatut=EN_COURS'
                 + '&dtStart=' + p.dtStart + '&dtEnd=' + p.dtEnd,
+        countUrl: AVOIRS_SANS_PERIODE ? '../api/v1/ventestats/avoirs-ouverts/count' : null,
         limit: 50,
         renderItem: function (v) {
             // Produits uniquement en avoir, avec leur quantite en avoir
