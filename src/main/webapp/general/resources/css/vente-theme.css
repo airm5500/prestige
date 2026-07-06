@@ -314,6 +314,24 @@ body.x-body,
     background: #F2F5F8;
 }
 
+/* Champ du second mode (mobile associé) : même cadre arrondi que MONTANT
+ * RECU, intérieur orange clair = part mobile saisissable */
+.vp-vente .vp-field-extra input.x-form-field {
+    border: 2px solid #152d4e;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 1.1em;
+    background: #FFE3B3;
+}
+
+/* Verrouillé (fractionné mobile + mobile) : aspect estompé, non saisissable */
+.vp-vente .vp-field-extra input.x-form-field[readonly] {
+    border-style: dashed;
+    border-color: #A9BACB;
+    background: #F2F5F8;
+    font-weight: 400;
+}
+
 /* Bouton "Associer un autre paiement mobile" : appel discret en pointillé
  * navy ; à son apparition, trois pulsations douces signalent qu'il vient
  * de s'activer, puis il se stabilise. Le survol garde l'invitation. */

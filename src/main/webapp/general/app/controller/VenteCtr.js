@@ -594,7 +594,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         select: this.typeReglementSelectEvent
                     },
                     'clientLambda #btnCancelLambda': {
-                        click: this.closeClientLambdaWindow
+                        click: this.onCancelClientLambda
                     },
                     'clientLambda #btnAddNewLambda': {
                         click: this.addClientForm
@@ -1929,9 +1929,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     } else if (codeError === 2) {
 
                         me.getInfosClientStandard().show();
-                        const win = Ext.create('testextjs.view.vente.user.ClientLambda');
-                        win.add(me.buildLambdaClientGrid());
-                        win.show();
+                        me.openClientLambdaSearchWindow();
 
 
                     } else {
@@ -2024,10 +2022,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (showOrHide) {
             me.getInfosClientStandard().show();
             if (!me.getClient()) {
-                const win = Ext.create('testextjs.view.vente.user.ClientLambda');
-                win.add(me.buildLambdaClientGrid());
-                win.show();
-
+                me.openClientLambdaSearchWindow();
             }
 
         } else {
@@ -2488,6 +2483,52 @@ Ext.define('testextjs.controller.VenteCtr', {
         };
 
     },
+    /*
+     * Ouvre la fenêtre « client lié » en mode recherche avec le focus
+     * directement dans le champ de saisie : la caissière tape le nom
+     * sans avoir à cliquer dans le champ.
+     */
+    openClientLambdaSearchWindow: function () {
+        const me = this;
+        const win = Ext.create('testextjs.view.vente.user.ClientLambda');
+        win.add(me.buildLambdaClientGrid());
+        win.show();
+        const queryField = win.down('#queryClientLambda');
+        if (queryField) {
+            queryField.focus(false, 150);
+        }
+    },
+    /*
+     * Focus sur la zone d'encaissement : le champ du second mode s'il est
+     * saisissable (flux espèces + mobile), sinon le montant reçu.
+     */
+    focusEncaissement: function () {
+        const me = this;
+        const extra = me.getMontantExtra();
+        if (extra && extra.isVisible() && !extra.readOnly) {
+            extra.focus(true, 100);
+            return;
+        }
+        me.getMontantRecu().focus(true, 100);
+    },
+    /*
+     * Après une action sur le client (sélection, création, annulation de la
+     * fenêtre) : si un second mode de règlement est engagé on revient à
+     * l'encaissement, sinon comportement historique (champ produit).
+     */
+    focusAfterClientAction: function () {
+        const me = this;
+        if (me.getExtraModeReglementId()) {
+            me.focusEncaissement();
+        } else {
+            me.getVnoproduitCombo().focus(true, 100);
+        }
+    },
+    onCancelClientLambda: function () {
+        const me = this;
+        me.closeClientLambdaWindow();
+        me.focusAfterClientAction();
+    },
     updateClientStandard: function (record) {
         const me = this;
         me.client = record;
@@ -2533,7 +2574,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 progress.hide();
                 const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
-                    me.getVnoproduitCombo().focus(true, 100);
+                    // Retour contextuel : encaissement si un second mode de
+                    // règlement est engagé, sinon champ produit (historique)
+                    me.focusAfterClientAction();
 
                 } else {
 
@@ -2542,7 +2585,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                         width: 550,
                         msg: result.msg,
                         buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.ERROR
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.focusAfterClientAction();
+                            }
+                        }
 
                     });
                 }
@@ -5443,9 +5491,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                             icon: Ext.MessageBox.INFO,
                             fn: function (buttonId) {
                                 if (buttonId === "ok") {
-                                    const win = Ext.create('testextjs.view.vente.user.ClientLambda');
-                                    win.add(me.buildLambdaClientGrid());
-                                    win.show();
+                                    me.openClientLambdaSearchWindow();
                                 }
                             }
                         });
@@ -5505,9 +5551,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                 icon: Ext.MessageBox.INFO,
                                 fn: function (buttonId) {
                                     if (buttonId === "ok") {
-                                        const win = Ext.create('testextjs.view.vente.user.ClientLambda');
-                                        win.add(me.buildLambdaClientGrid());
-                                        win.show();
+                                        me.openClientLambdaSearchWindow();
                                     }
                                 }
                             });
@@ -5685,7 +5729,14 @@ Ext.define('testextjs.controller.VenteCtr', {
             montantExtra.setReadOnly(false);
         }
         me.handleExtraAmountInputValue();
-        me.getMontantRecu().focus(true, 50);
+        if (Ext.isEmpty(me.getClient())) {
+            // La fenêtre « client lié » vient de s'ouvrir : le focus est dans
+            // son champ de recherche ; il reviendra à l'encaissement après le
+            // choix du client (focusAfterClientAction). Ne pas voler le focus
+            // sous la fenêtre modale.
+            return;
+        }
+        me.focusEncaissement();
     },
 
     resetExtraModeCmp: function () {
