@@ -541,6 +541,14 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
     ],
     init: function () {
+        const me = this;
+        // Recalcul de la hauteur de la grille au redimensionnement de la
+        // fenêtre (portable <-> écran externe). Bufferisé, sans effet hors
+        // vente comptant plein écran.
+        me._onWinResizeFill = Ext.Function.createBuffered(function () {
+            me.refreshGridFill();
+        }, 150);
+        Ext.on('resize', me._onWinResizeFill);
         this.control(
                 {
 
@@ -614,7 +622,8 @@ Ext.define('testextjs.controller.VenteCtr', {
 
                     },
                     'doventemanager #contenu [xtype=gridpanel]': {
-                        edit: this.onGridEdit
+                        edit: this.onGridEdit,
+                        afterrender: this.onVenteGridAfterRender
                     },
                     'doventemanager #contenu [xtype=toolbar] #btnGoBack': {
                         click: this.goBack
@@ -761,15 +770,58 @@ Ext.define('testextjs.controller.VenteCtr', {
         sansBon.hide();
         me.setGridFillHeight(true);
     },
-    /* Comptant : la grille s'étire (440) pour que l'écran garde la même
-     * hauteur qu'en assurance/carnet où le bandeau assuré occupe la place
-     * (la grille repasse alors à 250). */
+    /* Comptant : la grille s'étire jusqu'au bas du panneau (plein écran, pour
+     * occuper toute la hauteur quel que soit l'écran). En assurance/carnet le
+     * bandeau assuré occupe la place : la grille repasse à 250. */
     setGridFillHeight: function (fill) {
         const me = this, grid = me.getVnogrid && me.getVnogrid();
         if (grid) {
-            grid.minHeight = fill ? 440 : 250;
+            me._gridFillMode = !!fill;
+            grid.minHeight = fill ? me.computeGridFillHeight(grid) : 250;
             grid.updateLayout();
         }
+    },
+    /* Hauteur cible de la grille pour remplir jusqu'au bas du panneau central.
+     * gridTop est stable (contenu au-dessus figé), seul le bas du panneau varie
+     * selon l'écran. RESERVE = marge basse naturelle (identique au format
+     * portable). Plancher 440 : au format portable la valeur retombe à 440
+     * (aucun changement). */
+    computeGridFillHeight: function (grid) {
+        const FLOOR = 440, RESERVE = 18;
+        try {
+            const cp = Ext.getCmp('content-panel');
+            const gEl = grid && grid.getEl && grid.getEl();
+            if (!cp || !cp.body || !gEl) {
+                return FLOOR;
+            }
+            const bottom = cp.body.getRegion().bottom;
+            const gridTop = gEl.getRegion().top;
+            const target = bottom - gridTop - RESERVE;
+            return Math.max(FLOOR, Math.round(target));
+        } catch (e) {
+            return FLOOR;
+        }
+    },
+    /* À l'affichage de la grille (vente comptant par défaut) : on l'étire pour
+     * remplir la hauteur. Différé pour laisser le layout se poser. */
+    onVenteGridAfterRender: function () {
+        const me = this;
+        Ext.defer(function () {
+            if (me.getSafeComboValue('getTypeVenteCombo', '1') === '1') {
+                me.setGridFillHeight(true);
+            }
+        }, 60);
+    },
+    /* Recalcul de la hauteur de la grille au redimensionnement de la fenêtre
+     * (passage portable <-> écran externe, maximisation). Ne fait rien hors du
+     * mode plein écran comptant. */
+    refreshGridFill: function () {
+        const me = this, grid = me.getVnogrid && me.getVnogrid();
+        if (!me._gridFillMode || !grid || !grid.rendered) {
+            return;
+        }
+        grid.minHeight = me.computeGridFillHeight(grid);
+        grid.updateLayout();
     },
     showAssureContainer: function (typevente) {
         const me = this;
