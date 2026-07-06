@@ -314,17 +314,47 @@ body.x-body,
     background: #F2F5F8;
 }
 
-/* Bouton "+ Autre mode mobile" : appel discret en pointillé navy */
+/* Bouton "Associer un autre paiement mobile" : appel discret en pointillé
+ * navy ; à son apparition, trois pulsations douces signalent qu'il vient
+ * de s'activer, puis il se stabilise. Le survol garde l'invitation. */
+@keyframes vp-btn-intro {
+    0% {
+        background-color: #FFFFFF;
+        box-shadow: 0 0 0 0 rgba(13, 233, 202, .45);
+    }
+    45% {
+        background-color: #DDFAF4;
+        box-shadow: 0 0 0 5px rgba(13, 233, 202, 0);
+    }
+    100% {
+        background-color: #FFFFFF;
+        box-shadow: 0 0 0 0 rgba(13, 233, 202, 0);
+    }
+}
+
 .vp-vente .vp-btn-extra {
     border: 1.5px dashed #1e3a5f !important;
     border-radius: 7px !important;
-    background: #FFFFFF !important;
+    /* pas de !important : les keyframes de l'intro doivent pouvoir animer le fond */
+    background: #FFFFFF;
     box-shadow: none;
+    animation: vp-btn-intro 1.1s ease-out 3;
+}
+
+.vp-vente .vp-btn-extra:hover {
+    background: #E4FBF6;
+    border-color: #0F6B56 !important;
 }
 
 .vp-vente .vp-btn-extra .x-btn-inner {
     color: #1e3a5f;
     font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vp-vente .vp-btn-extra {
+        animation: none;
+    }
 }
 
 /* ================= PILE D'ACTIONS DU RAIL ================= */

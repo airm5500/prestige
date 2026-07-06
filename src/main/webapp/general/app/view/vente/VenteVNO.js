@@ -925,7 +925,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     height: 50,
                                                     labelWidth: 175,
                                                     regex: /[0-9.]/,
-                                                    margin: '0 0 4 0',
+                                                    /* marge sous le champ : le halo du battement ne doit pas
+                                                     * chevaucher le bouton mobile ni la ligne MONNAIE */
+                                                    margin: '0 0 14 0',
                                                     minValue: 0,
                                                     value: 0,
 //                                    readOnly: true,
@@ -937,7 +939,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     xtype: 'button',
                                                     itemId: 'btnExtraMode',
-                                                    text: '+ Autre mode mobile',
+                                                    text: 'Associer un autre paiement mobile',
                                                     tooltip: 'Répartir le paiement entre deux modes mobiles',
                                                     hidden: true,
                                                     cls: 'vp-btn-extra',
@@ -965,7 +967,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     xtype: 'displayfield',
                                                     labelWidth: 130,
-                                                    margin: '0 0 2 0',
+                                                    margin: '10 0 2 0',
                                                     fieldLabel: 'MONNAIE:',
                                                     itemId: 'montantRemis',
                                                     renderer: function (v) {
@@ -1029,6 +1031,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'btnStandBy',
                                                     iconCls: 'attente',
                                                     scope: this,
+                                                    height: 38,
                                                     cls: 'btn-primarya'
                                                 },
                                                 {
@@ -1036,6 +1039,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'netBtn',
                                                     iconCls: 'afficheur_caisse',
                                                     scope: this,
+                                                    height: 38,
                                                     cls: 'btn-primarya'
 
                                                 },
@@ -1044,6 +1048,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     itemId: 'btnGoBack',
                                                     iconCls: 'retour',
                                                     scope: this,
+                                                    height: 38,
                                                     cls: 'btn-secondary'
                                                 }
                                             ]

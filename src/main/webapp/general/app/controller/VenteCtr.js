@@ -1584,6 +1584,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                     comboxProduit.focus(true, 100, function () {
                     });
                     me.refresh();
+                    // comptant : net à payer recalculé automatiquement à chaque ajout
+                    me.autoComputeNetVno();
                 } else {
                     Ext.MessageBox.show({
                         title: 'Message d\'erreur',
@@ -1640,6 +1642,50 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (typeRegle !== '1' && typeRegle !== '4') {
             me.getMontantRecu().setValue(montantNet);
         }
+    },
+    /*
+     * Calcul silencieux du net à payer (vente comptant uniquement) : même
+     * appel que le bouton AFFICHER NET mais sans popup d'attente ni vol de
+     * focus, pour ne pas ralentir la vente au scan. Réapplique ensuite le
+     * mode de règlement courant (montant forcé / complément du fractionné).
+     */
+    autoComputeNetVno: function (onDone) {
+        const me = this, vente = me.getCurrent();
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        if (typeVente !== '1' || !vente) {
+            return;
+        }
+        const data = {"remiseId": me.getVnoremise().getValue(), "venteId": vente.lgPREENREGISTREMENTID,
+            "checkUg": me.getCheckUg()};
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/net/vno',
+            params: Ext.JSON.encode(data),
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true);
+                if (result && result.success) {
+                    me.netAmountToPay = result.data;
+                    me.toRecalculate = false;
+                    const montantNet = me.getNetAmountToPay().montantNet;
+                    me.getMontantNet().setValue(montantNet);
+                    me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
+                    if (me.getExtraModeReglementId()) {
+                        // fractionné en cours : on recalcule le complément sans
+                        // écraser la part principale saisie
+                        me.handleExtraAmountInputValue();
+                    } else {
+                        me.handleMontantField(montantNet);
+                    }
+                    if (Ext.isFunction(onDone)) {
+                        onDone();
+                    }
+                }
+            },
+            failure: function () {
+                // silencieux : le bouton AFFICHER NET A PAYER reste disponible
+            }
+        });
     },
     showNetPaidVno: function () {
         const me = this;
@@ -1911,7 +1957,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                 width: 550,
                 msg: 'Veuillez ajouter des produits à la vente avant de fractionner le règlement',
                 buttons: Ext.MessageBox.OK,
-                icon: Ext.MessageBox.WARNING
+                icon: Ext.MessageBox.WARNING,
+                fn: function (buttonId) {
+                    if (buttonId === "ok") {
+                        me.getVnoproduitCombo().focus(true, 100);
+                    }
+                }
             });
             return;
         }
@@ -1990,6 +2041,16 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         me.resetExtraModeCmp();
         const value = field.getValue().trim();
+        // Comptant : si le net n'est pas encore calculé (produits ajoutés sans
+        // passer par AFFICHER NET), on le calcule automatiquement puis on
+        // réapplique le mode choisi — évite un montant reçu verrouillé à 0
+        if (me.getSafeComboValue('getTypeVenteCombo', '1') === '1' && me.getCurrent()
+                && (me.toRecalculate || !me.netAmountToPay)) {
+            me.autoComputeNetVno(function () {
+                me.typeReglementSelectEvent(field);
+            });
+            return;
+        }
         if (value === '1') {
             me.getMontantRecu().enable();
             me.getMontantRecu().setReadOnly(false);
