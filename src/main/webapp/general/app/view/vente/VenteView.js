@@ -27,6 +27,22 @@ Ext.define('testextjs.view.vente.VenteView', {
             emptyText: 'N° ticket / scan',
             width: 220,
             enableKeyEvents: true,
+            /* contenu présélectionné quand on revient dans le champ
+             * (clic ou F3) : la nouvelle saisie écrase l'ancienne */
+            selectOnFocus: true,
+            listeners: {
+                afterrender: function (f) {
+                    f.inputEl.on('mouseup', function () {
+                        // différé : le mouseup natif replace le curseur et
+                        // annulerait une sélection immédiate
+                        Ext.defer(function () {
+                            if (!f.destroyed) {
+                                f.selectText();
+                            }
+                        }, 10);
+                    });
+                }
+            },
             margin: '0 5 0 0'
         }, /*{
             xtype: 'button',

@@ -342,7 +342,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     collapsible: false,
                                     defaultType: 'textfield',
                                     layout: 'anchor',
-                                    cls: 'background_gray',
+                                    /* section fusionnée (produit + infos) : fond légèrement teinté */
+                                    cls: 'background_gray vp-produit-card',
                                     defaults: {
                                         anchor: '100%'
                                     },
@@ -398,84 +399,34 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 }
 
                                             ]
-                                        }
-                                    ]
-                                },
-                                {
-                                    xtype: 'fieldset',
-                                    title: '<span style="color:blue;">INFOS PRODUITS</span>',
-                                    collapsible: false,
-                                    defaultType: 'textfield',
-                                    layout: 'anchor',
-                                    cls: 'background_gray',
-                                    itemId: 'infoscontainer',
-                                    defaults: {
-                                        anchor: '100%'
-                                    },
-                                    items: [
+                                        },
                                         {
+                                            /* infos produit sous la zone de choix : Stock + Rayon en gras
+                                             * (ex-section INFOS PRODUITS fusionnée ici, remise déplacée
+                                             * dans la barre de la grille) */
                                             xtype: 'container',
                                             layout: 'hbox',
-                                            height: 38,
-                                            defaultType: 'textfield',
-                                            margin: '0 0 6 0',
+                                            height: 26,
+                                            margin: '2 0 0 105',
                                             items: [
                                                 {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'STOCK REEL :',
-                                                    labelWidth: 100,
+                                                    fieldLabel: 'Stock',
+                                                    labelWidth: 50,
+                                                    labelStyle: 'font-weight:bold;',
                                                     itemId: 'stockField',
-                                                    fieldStyle: "color:blue;",
+                                                    fieldStyle: "color:#0D47A1;font-weight:bold;",
                                                     flex: 0.7
 
                                                 },
                                                 {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'EMPLACEMENT :',
-                                                    labelWidth: 110,
+                                                    fieldLabel: 'Rayon',
+                                                    labelWidth: 55,
+                                                    labelStyle: 'font-weight:bold;',
                                                     itemId: 'emplacementId',
-                                                    fieldStyle: "color:blue;",
+                                                    fieldStyle: "color:#0D47A1;font-weight:bold;",
                                                     flex: 1.4
-                                                },
-                                                {
-                                                    xtype: 'combobox',
-                                                    height: 30,
-                                                    fieldLabel: 'TYPE REMISE ',
-                                                    itemId: 'typeRemise',
-                                                    store: typeremise,
-                                                    editable: false,
-                                                    margin: '2 10 2 0',
-                                                    hidden: true,
-                                                    pageSize: null,
-                                                    valueField: 'lgTYPEREMISEID',
-                                                    displayField: 'strDESCRIPTION',
-                                                    typeAhead: false,
-                                                    flex: 0.8,
-                                                    queryMode: 'remote',
-                                                    enableKeyEvents: true,
-                                                    minChars: 3,
-                                                    emptyText: 'Choisir un type remise...',
-                                                    triggerAction: 'all'
-
-                                                },
-                                                {
-                                                    xtype: 'combobox',
-                                                    height: 30,
-                                                    fieldLabel: 'REMISE ',
-                                                    itemId: 'remise',
-                                                    store: remise,
-                                                    editable: false,
-                                                    margin: '2 0 2 0',
-                                                    pageSize: null,
-                                                    valueField: 'lgREMISEID',
-                                                    displayField: 'strNAME',
-                                                    typeAhead: false,
-                                                    flex: 0.8,
-                                                    queryMode: 'remote',
-                                                    labelWidth: 60,
-                                                    enableKeyEvents: true,
-                                                    emptyText: 'Choisir une remise...'
-
                                                 }
                                             ]
                                         }
@@ -543,6 +494,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     dataIndex: 'intQUANTITY',
                                                     format: '0,000.',
                                                     align: 'right',
+                                                    tdCls: 'vp-col-qd',
                                                     flex: 1,
                                                     editor: {
                                                         xtype: 'numberfield',
@@ -645,7 +597,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             xtype: 'textfield',
                                                             itemId: 'query',
                                                             emptyText: 'Recherche d\'un produit',
-                                                            width: '30%',
+                                                            width: '24%',
                                                             height: 35,
                                                             enableKeyEvents: true
                                                         }, '-', {
@@ -656,6 +608,57 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             cls: 'btn-primarya',
                                                             iconCls: 'searchicon'
 
+                                                        }, '-',
+                                                        {
+                                                            xtype: 'combobox',
+                                                            height: 30,
+                                                            fieldLabel: 'TYPE REMISE ',
+                                                            itemId: 'typeRemise',
+                                                            store: typeremise,
+                                                            editable: false,
+                                                            hidden: true,
+                                                            pageSize: null,
+                                                            valueField: 'lgTYPEREMISEID',
+                                                            displayField: 'strDESCRIPTION',
+                                                            typeAhead: false,
+                                                            width: 200,
+                                                            queryMode: 'remote',
+                                                            enableKeyEvents: true,
+                                                            minChars: 3,
+                                                            emptyText: 'Choisir un type remise...',
+                                                            triggerAction: 'all'
+
+                                                        },
+                                                        {
+                                                            xtype: 'combobox',
+                                                            height: 30,
+                                                            fieldLabel: 'REMISE',
+                                                            itemId: 'remise',
+                                                            store: remise,
+                                                            editable: false,
+                                                            pageSize: null,
+                                                            valueField: 'lgREMISEID',
+                                                            displayField: 'strNAME',
+                                                            typeAhead: false,
+                                                            width: 250,
+                                                            queryMode: 'remote',
+                                                            labelWidth: 55,
+                                                            enableKeyEvents: true,
+                                                            emptyText: 'Choisir une remise...'
+
+                                                        }, '-',
+                                                        {
+                                                            xtype: 'displayfield',
+                                                            fieldLabel: 'TOTAL',
+                                                            itemId: 'totalField',
+                                                            flex: 1,
+                                                            labelWidth: 52,
+                                                            labelStyle: 'font-weight:bold;',
+                                                            cls: 'vp-total-badge',
+                                                            renderer: function (v) {
+                                                                return Ext.util.Format.number(v, '0,000.') + ' CFA';
+                                                            },
+                                                            value: 0
                                                         }
                                                     ]
                                                 },
@@ -672,21 +675,6 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             pageSize: 10,
                                                             store: venteDetails
 
-                                                        },
-                                                        {
-                                                            xtype: 'tbseparator'
-                                                        }, {
-                                                            xtype: 'displayfield',
-                                                            fieldLabel: 'TOTAL VENTE :',
-                                                            itemId: 'totalField',
-                                                            flex: 1,
-                                                            labelWidth: 120,
-                                                            renderer: function (v) {
-                                                                return Ext.util.Format.number(v, '0,000.') + ' CFA';
-                                                            },
-                                                            fieldStyle: "color:blue;font-weight: bold;font-size: 1.3em",
-                                                            margin: '0 15 0 0',
-                                                            value: 0
                                                         }]
                                                 }
                                             ]

@@ -181,6 +181,19 @@ body.x-body,
     padding-bottom: 8px;
 }
 
+/* Survol des entêtes : fond navy éclairci, texte toujours blanc (le thème
+ * KitchenSink passait le fond en blanc → texte illisible) */
+.vp-vente .x-column-header-over,
+.vp-vente .x-column-header-open {
+    background: #2C4D78 !important;
+    background-image: none !important;
+}
+
+.vp-vente .x-column-header-over .x-column-header-text,
+.vp-vente .x-column-header-open .x-column-header-text {
+    color: #FFFFFF !important;
+}
+
 .vp-vente .x-column-header-text {
     font-size: 10.5px;
     font-weight: 800;
@@ -330,6 +343,47 @@ body.x-body,
     border-color: #A9BACB;
     background: #F2F5F8;
     font-weight: 400;
+}
+
+/* Section produit fusionnée (recherche + stock/rayon) : teinte légère
+ * dans la gamme du thème */
+.vp-vente .vp-produit-card {
+    background: #EAF1F8 !important;
+}
+
+.vp-vente .vp-produit-card .x-fieldset-body {
+    background: transparent !important;
+}
+
+/* Badge TOTAL dans la barre de la grille : montant sur fond navy */
+.vp-vente .vp-total-badge .x-form-display-field {
+    background: #152D4E;
+    color: #FFFFFF !important;
+    padding: 3px 14px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 1.35em;
+    line-height: 1.25;
+    display: inline-block;
+}
+
+/* Lignes de la grille des articles : texte gras, police et hauteur
+ * légèrement réduites (pagination inchangée : 10 lignes par page) */
+.vp-vente .x-grid-cell {
+    font-weight: 700;
+}
+
+.vp-vente .x-grid-cell-inner {
+    padding-top: 3px;
+    padding-bottom: 3px;
+    font-size: 0.95em;
+}
+
+/* Colonne QD : bleu + gras pour sauter aux yeux */
+.vp-vente .x-grid-cell.vp-col-qd,
+.vp-vente .x-grid-cell.vp-col-qd .x-grid-cell-inner {
+    color: #0D47A1 !important;
+    font-weight: 800 !important;
 }
 
 /* Bouton "Associer un autre paiement mobile" : appel discret en pointillé
