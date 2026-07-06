@@ -375,16 +375,30 @@ body.x-body,
     line-height: 27px;
 }
 
-/* Lignes de la grille des articles : texte gras, police et hauteur
- * légèrement réduites (pagination inchangée : 10 lignes par page) */
+/* Lignes de la grille des articles : texte gras, hauteur nettement
+ * réduite. Le thème impose font:13px/15px + padding 5/4 sur la cellule :
+ * on force line-height et padding (!important) pour compacter réellement.
+ * Pagination inchangée : 10 lignes par page. */
 .vp-vente .x-grid-cell {
     font-weight: 700;
+    line-height: 16px !important;
+    /* le thème pose 7px de padding vertical sur le <td> : c'est lui qui
+     * gonflait la ligne (padding cellule + contenu ≈ 39px) */
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
 }
 
 .vp-vente .x-grid-cell-inner {
-    padding-top: 1px;
-    padding-bottom: 1px;
-    font-size: 0.92em;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    line-height: 16px !important;
+    font-size: 0.9em;
+}
+
+/* Icône de suppression : évite qu'elle réimpose une hauteur de ligne */
+.vp-vente .x-grid-cell-inner-action-col {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
 }
 
 /* Colonne QD : bleu + gras pour sauter aux yeux */
