@@ -132,9 +132,10 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     xtype: 'fieldset',
                                     style: 'background-color:#F0F8FF !important;',
                                     itemId: 'clientSearchBox',
+                                    cls: 'vp-assur-card',
                                     title: '<span style="color:blue;">RECHERCHER LE CLIENT</span>',
                                     flex: 0.6,
-                                    height: 138,
+                                    height: 118,
                                     margin: '0 10 0 0',
                                     layout: {type: 'anchor', align: 'middle'},
 
@@ -156,9 +157,10 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     style: 'background-color:#F0F8FF !important;',
                                     title: '<span style="color:blue;">INFOS ASSURE</span>',
                                     itemId: 'assureCmp',
+                                    cls: 'vp-assur-card',
                                     margin: '0 5 0 0',
                                     flex: 1.2,
-                                    height: 138,
+                                    height: 118,
                                     layout: {
                                         type: 'hbox', pack: 'start',
                                         align: 'middle'
@@ -207,6 +209,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     text: 'Modifier Infos ',
                                                     itemId: 'btnModifierInfo',
+                                                    icon: 'resources/images/icons/fam/user_edit.png',
 //                                                    margin: '5 10 0 0',
                                                     xtype: 'button'
 
@@ -222,8 +225,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     style: 'background-color:#F0F8FF !important;',
                                     title: '<span style="color:blue;">INFOS AYANT DROIT</span>',
                                     itemId: 'ayantDroyCmp',
+                                    cls: 'vp-assur-card',
                                     flex: 1.2,
-                                    height: 138,
+                                    height: 118,
 //                                    hidden: true,
                                     layout: {
                                         type: 'hbox', pack: 'start',
@@ -273,6 +277,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     text: 'Autre ayant droit',
                                                     itemId: 'btnModifierAyant',
+                                                    icon: 'resources/images/icons/fam/user_add.png',
                                                     margin: '20 0 0 0',
                                                     xtype: 'button'
 
@@ -290,6 +295,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                             xtype: 'fieldset',
                             title: '<span style="color:blue;">INFOS TIERS PAYANTS</span>',
                             itemId: 'tpContainer',
+                            cls: 'vp-tp-card',
                             layout: {type: 'fit'},
                             bodyStyle: 'background:#F0F8FF !important;',
                             flex: 1,
@@ -504,7 +510,10 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                             margin: '0 0 5 0',
                                             store: venteDetails,
                                             height: 'auto',
-                                            minHeight: 250,
+                                            /* comptant : la grille s'étire pour que l'écran ait la même
+                                             * hauteur qu'en assurance (le contrôleur passe à 250 quand le
+                                             * bandeau assurance est affiché) */
+                                            minHeight: 440,
                                             columns: [
                                                 {
                                                     text: '#',
@@ -796,7 +805,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     xtype: 'displayfield',
                                                     fieldLabel: 'NET A PAYER :',
-                                                    labelWidth: 130,
+                                                    labelWidth: 165,
                                                     value: 0,
                                                     renderer: function (v) {
                                                         return Ext.util.Format.number(v, '0,000.') + ' CFA';
@@ -810,7 +819,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     xtype: 'displayfield',
                                                     fieldLabel: 'MONTANT REMISE :',
-                                                    labelWidth: 130,
+                                                    labelWidth: 165,
                                                     itemId: 'montantRemise',
                                                     value: 0,
                                                     fieldStyle: "color:green;font-size:1.5em;font-weight: bold;",
@@ -822,7 +831,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     xtype: 'displayfield',
                                                     fieldLabel: 'PART TIERS-PAYANT:',
-                                                    labelWidth: 130,
+                                                    labelWidth: 165,
                                                     itemId: 'montantTp',
                                                     hidden: true,
                                                     value: 0,
@@ -835,7 +844,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
 
                                                 {
                                                     xtype: 'combobox',
-                                                    labelWidth: 130,
+                                                    labelWidth: 165,
                                                     fieldLabel: 'TYPE R&Egrave;GLEMENT',
                                                     itemId: 'typeReglement',
                                                     store: store_typereglement,

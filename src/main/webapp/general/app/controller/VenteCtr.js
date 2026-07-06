@@ -756,6 +756,17 @@ Ext.define('testextjs.controller.VenteCtr', {
         sansBon.setValue(false);
         montantTp.hide();
         sansBon.hide();
+        me.setGridFillHeight(true);
+    },
+    /* Comptant : la grille s'étire (440) pour que l'écran garde la même
+     * hauteur qu'en assurance/carnet où le bandeau assuré occupe la place
+     * (la grille repasse alors à 250). */
+    setGridFillHeight: function (fill) {
+        const me = this, grid = me.getVnogrid && me.getVnogrid();
+        if (grid) {
+            grid.minHeight = fill ? 440 : 250;
+            grid.updateLayout();
+        }
     },
     showAssureContainer: function (typevente) {
         const me = this;
@@ -763,6 +774,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 montantTp = me.getMontantTp();
         montantTp.show();
         // "Vente sans bon" retiré de l'écran (le paramètre reste à false)
+        me.setGridFillHeight(false);
         me.updateAssurerResetCmp();
         me.updateAyantDroitResetCmp();
         if (typevente === "2") {
@@ -4168,7 +4180,8 @@ Ext.define('testextjs.controller.VenteCtr', {
 
                 const btnAddTp = {
                     xtype: 'button',
-                    text: 'Autre tiers-payant',
+                    text: 'Ajouter une Assurance complémentaire',
+                    icon: 'resources/images/icons/fam/add.png',
                     margin: '35 5 5 5',
                     style: 'background-color:green !important;border-color:green !important; background:green !important;',
                     handler: function (btn) {
@@ -4356,7 +4369,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                             fieldLabel: 'TP' + record.order,
                             flex: 1.5,
                             labelWidth: 30,
-                            fieldStyle: "color:blue;",
+                            fieldStyle: "color:blue;font-weight:bold;",
                             value: record.tpFullName,
                             margin: '0 10 0 0'
                         },
@@ -4367,7 +4380,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                             labelWidth: 30,
                             name: 'taux' + record.order,
                             itemId: 'taux' + record.order,
-                            fieldStyle: "color:blue;",
+                            fieldStyle: "color:blue;font-weight:bold;",
                             value: record.taux + '%',
                             margin: '0 10 0 0'
                         }]
@@ -4378,9 +4391,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     layout: {type: 'hbox', align: 'stretch'},
                     items: [{
                             xtype: 'textfield',
-                            fieldLabel: 'Ref.Bon:',
+                            fieldLabel: 'Numéro de bon:',
                             allowBlank: true,
-                            labelWidth: 50,
+                            labelWidth: 100,
                             name: 'refBon' + record.order,
                             itemId: 'refBon' + record.order,
                             flex: 1,
@@ -4396,6 +4409,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         {
                             xtype: 'button',
                             text: 'Retirer',
+                            icon: 'resources/images/icons/fam/delete.png',
                             margin: '0 10 0 0',
                             handler: function (btn) {
                                 const cp = btn.up('fieldcontainer');
