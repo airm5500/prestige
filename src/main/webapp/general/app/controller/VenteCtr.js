@@ -585,6 +585,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     'doventemanager #contenu #btnExtraMode': {
                         click: this.onBtnExtraModeClick
                     },
+                    'doventemanager #contenu #montantExtra': {
+                        change: this.montantExtraChangeListener
+                    },
                     'doventemanager #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
                         click: this.removeItemVno
                     }, 'doventemanager #contenu #typeReglement': {
@@ -1776,8 +1779,35 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
             montantRecu += montantExtra;
             if (typeRegleId === '1' && parseInt(montantRecu) < parseInt(netTopay)) {
+                if (me.getExtraModeReglementId()) {
+                    // un second mode est déjà choisi : le total saisi ne couvre pas le net
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Le total espèces + mode mobile est inférieur au net à payer de <span style="color: black; font-size: 1rem;font-weight: 900;">' + Ext.util.Format.number(netTopay, '0,000.') + '</span>',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.getMontantRecu().focus(true, 50);
+                            }
+                        }
+                    });
+                    return false;
+                }
                 me.handleExtraModePayment(netTopay);
 
+                return false;
+            } else if (typeRegleId === '1' && me.getExtraModeReglementId()
+                    && montantExtra > parseInt(netTopay)) {
+                // défensif : jamais de monnaie sur la part mobile
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 550,
+                    msg: 'Le montant du mode mobile ne peut pas dépasser le net à payer',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR
+                });
                 return false;
             } else if (me.isMobileMode(typeRegleId) && me.getExtraModeReglementId()) {
                 // Fractionnement mobile + mobile : la somme des deux parts doit
@@ -5647,6 +5677,12 @@ Ext.define('testextjs.controller.VenteCtr', {
             const montantRecu = me.getMontantRecu();
             montantRecu.setReadOnly(false);
             montantRecu.setValue(0);
+        } else if (me.getVnotypeReglement().getValue() === '1'
+                && me.getSafeComboValue('getTypeVenteCombo', '1') === '1') {
+            // Espèces + mobile (comptant) : le montant mobile devient saisissable
+            // (pré-rempli avec le complément). Permet le cas « espèces tendues
+            // supérieures à la part due » : la monnaie se rend sur les espèces.
+            montantExtra.setReadOnly(false);
         }
         me.handleExtraAmountInputValue();
         me.getMontantRecu().focus(true, 50);
@@ -5656,9 +5692,13 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         const montantExtra = me.getMontantExtra();
         montantExtra.setFieldLabel('');
+        me._extraAutoSetting = true;
         montantExtra.setValue(null);
+        me._extraAutoSetting = false;
+        montantExtra.setReadOnly(true); // re-verrouille (saisissable seulement en espèces comptant)
         montantExtra.hide();
         me.extraModeReglementId = null;
+        me.extraModeManualAmount = false;
         me.getBtnExtraMode()?.hide();
         me.getMontantRecu().focus(true, 50);
     },
@@ -5669,8 +5709,17 @@ Ext.define('testextjs.controller.VenteCtr', {
             const data = me.getNetAmountToPay();
             const netTopay = data.montantNet;
             const montantRecu = me.getMontantRecu().getValue();
+            // Montant mobile fixé à la main (flux espèces comptant) : on ne
+            // l'écrase plus, on rafraîchit seulement la monnaie affichée
+            if (me.extraModeManualAmount) {
+                const totalSaisie = (parseInt(montantRecu, 10) || 0)
+                        + (parseInt(me.getMontantExtra().getValue(), 10) || 0);
+                me.montantRecuHandler(me, me.getVnotypeReglement().getValue(), totalSaisie, data);
+                return;
+            }
             const montantExtraValue = netTopay - montantRecu;
             const montantExtra = me.getMontantExtra();
+            me._extraAutoSetting = true;
             if (montantExtraValue <= 0) {
                 montantExtra.setValue(0);
                 montantExtra.hide();
@@ -5681,9 +5730,39 @@ Ext.define('testextjs.controller.VenteCtr', {
                 montantExtra.setValue(montantExtraValue);
 
             }
+            me._extraAutoSetting = false;
 
         }
 
+    },
+    /*
+     * Saisie manuelle du montant du second mode (espèces + mobile, comptant) :
+     * le client fixe sa part mobile ; les espèces tendues peuvent dépasser la
+     * part due, la monnaie (total - net) se rend en espèces. Le montant mobile
+     * est plafonné au net (pas de monnaie sur du mobile).
+     */
+    montantExtraChangeListener: function (field) {
+        const me = this;
+        if (me._extraAutoSetting) {
+            return; // écriture programmatique (complément automatique)
+        }
+        if (!me.getExtraModeReglementId() || me.getVnotypeReglement().getValue() !== '1') {
+            return; // saisissable uniquement dans le flux espèces
+        }
+        const data = me.getNetAmountToPay();
+        if (!data) {
+            return;
+        }
+        const netTopay = parseInt(data.montantNet, 10) || 0;
+        const saisie = parseInt(field.getValue(), 10) || 0;
+        if (netTopay > 0 && saisie > netTopay) {
+            field.setValue(netTopay); // re-déclenche le change avec la valeur plafonnée
+            return;
+        }
+        me.extraModeManualAmount = true;
+        // met à jour la monnaie affichée : total saisi (espèces + mobile) vs net
+        const totalSaisie = (parseInt(me.getMontantRecu().getValue(), 10) || 0) + saisie;
+        me.montantRecuHandler(me, '1', totalSaisie, data);
     },
     onBtnCancelModeReglement: function () {
         const me = this;
@@ -5704,6 +5783,11 @@ Ext.define('testextjs.controller.VenteCtr', {
             const montantRecu = me.getMontantRecu().getValue();
             const montantExtra = me.getMontantExtra()?.getValue();
             if (!Ext.isEmpty(extraModeId) && montantExtra) {
+                // Part espèces réellement due = net - part mobile : si les espèces
+                // tendues dépassent (monnaie à rendre), on n'enregistre que la part
+                // due — la monnaie est portée par montantRecu/montantRemis.
+                // Cas exact (total = net) : partEspeces = montantRecu, comme avant.
+                const partEspeces = Math.min(montantRecu, netToPay - montantExtra);
 
                 reglements.push(
                         {
@@ -5713,8 +5797,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                         },
                         {
                             "typeReglement": typeReglement,
-                            "montant": montantRecu,
-                            "montantAttentu": montantRecu
+                            "montant": partEspeces,
+                            "montantAttentu": partEspeces
                         }
                 );
             } else {
