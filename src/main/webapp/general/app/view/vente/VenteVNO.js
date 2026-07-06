@@ -351,7 +351,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         {
                                             xtype: 'fieldcontainer',
                                             layout: 'hbox',
-                                            height: 46,
+                                            height: 38,
                                             defaultType: 'textfield',
                                             fieldLabel: 'PRODUIT',
                                             items: [
@@ -401,32 +401,34 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                             ]
                                         },
                                         {
-                                            /* infos produit sous la zone de choix : Stock + Rayon en gras
+                                            /* infos produit sous la zone de choix : Stock + Rayon en gras,
+                                             * rapprochés (largeurs fixes) pour garder la section basse
                                              * (ex-section INFOS PRODUITS fusionnée ici, remise déplacée
                                              * dans la barre de la grille) */
                                             xtype: 'container',
                                             layout: 'hbox',
-                                            height: 26,
-                                            margin: '2 0 0 105',
+                                            height: 22,
+                                            margin: '0 0 0 105',
                                             items: [
                                                 {
                                                     xtype: 'displayfield',
                                                     fieldLabel: 'Stock',
-                                                    labelWidth: 50,
+                                                    labelWidth: 45,
                                                     labelStyle: 'font-weight:bold;',
                                                     itemId: 'stockField',
                                                     fieldStyle: "color:#0D47A1;font-weight:bold;",
-                                                    flex: 0.7
+                                                    width: 130
 
                                                 },
                                                 {
                                                     xtype: 'displayfield',
                                                     fieldLabel: 'Rayon',
-                                                    labelWidth: 55,
+                                                    labelWidth: 50,
                                                     labelStyle: 'font-weight:bold;',
                                                     itemId: 'emplacementId',
                                                     fieldStyle: "color:#0D47A1;font-weight:bold;",
-                                                    flex: 1.4
+                                                    margin: '0 0 0 20',
+                                                    flex: 1
                                                 }
                                             ]
                                         }

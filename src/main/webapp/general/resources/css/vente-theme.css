@@ -353,9 +353,12 @@ body.x-body,
 
 .vp-vente .vp-produit-card .x-fieldset-body {
     background: transparent !important;
+    /* section compacte : la zone produit doit rester basse */
+    padding: 4px 10px 4px 10px !important;
 }
 
-/* Badge TOTAL dans la barre de la grille : montant sur fond navy */
+/* Badge TOTAL dans la barre de la grille : montant sur fond navy,
+ * centré dans le badge, badge aligné verticalement sur son libellé */
 .vp-vente .vp-total-badge .x-form-display-field {
     background: #152D4E;
     color: #FFFFFF !important;
@@ -364,7 +367,12 @@ body.x-body,
     font-weight: 700;
     font-size: 1.35em;
     line-height: 1.25;
-    display: inline-block;
+    display: block;
+    text-align: center;
+}
+
+.vp-vente .vp-total-badge .x-form-item-label {
+    line-height: 27px;
 }
 
 /* Lignes de la grille des articles : texte gras, police et hauteur
@@ -374,9 +382,9 @@ body.x-body,
 }
 
 .vp-vente .x-grid-cell-inner {
-    padding-top: 3px;
-    padding-bottom: 3px;
-    font-size: 0.95em;
+    padding-top: 1px;
+    padding-bottom: 1px;
+    font-size: 0.92em;
 }
 
 /* Colonne QD : bleu + gras pour sauter aux yeux */
