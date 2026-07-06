@@ -796,40 +796,64 @@ Ext.define('testextjs.controller.VenteCtr', {
      * bandeau assuré occupe la place : la grille repasse à 250. */
     setGridFillHeight: function (fill) {
         const me = this, grid = me.getVnogrid && me.getVnogrid();
-        if (grid) {
-            me._gridFillMode = !!fill;
-            grid.minHeight = fill ? me.computeGridFillHeight(grid) : 250;
-            grid.updateLayout();
+        if (!grid) {
+            return;
         }
+        me._gridFillMode = !!fill;
+        if (!fill) {
+            grid.minHeight = 250;
+            grid.updateLayout();
+            return;
+        }
+        me.fitGridToPanel(grid);
     },
-    /* Hauteur cible de la grille pour remplir jusqu'au bas du panneau central.
-     * gridTop est stable (contenu au-dessus figé), seul le bas du panneau varie
-     * selon l'écran. RESERVE = marge basse naturelle (identique au format
-     * portable). Plancher 440 : au format portable la valeur retombe à 440
-     * (aucun changement). */
-    computeGridFillHeight: function (grid) {
-        const FLOOR = 440, RESERVE = 18;
+    /* Ajuste la hauteur de la grille pour que le bas de l'écran de vente
+     * s'aligne juste au-dessus de la zone visible du panneau central : pas de
+     * barre de défilement (sinon elle rogne le bouton VENTES EN ATTENTE et les
+     * bords), et l'espace est occupé jusqu'en bas.
+     *
+     * spare = (bas de la zone visible) - (bas réel de l'écran vente). On ajoute
+     * spare - RESERVE à la hauteur courante de la grille : si l'écran est trop
+     * petit (spare < 0) la grille RÉTRÉCIT (plus de scrollbar) ; s'il reste de
+     * la place la grille GRANDIT. getViewRegion exclut la scrollbar → calcul
+     * stable. Plancher 250 (comme l'assurance). Idempotent (converge). */
+    fitGridToPanel: function (grid) {
+        const me = this, FLOOR = 250, RESERVE = 10;
         try {
             const cp = Ext.getCmp('content-panel');
-            const gEl = grid && grid.getEl && grid.getEl();
-            if (!cp || !cp.body || !gEl) {
-                return FLOOR;
+            const view = me.getDoventemanager && me.getDoventemanager();
+            if (!cp || !cp.body || !grid.rendered || !view || !view.getEl()) {
+                return;
             }
-            const bottom = cp.body.getRegion().bottom;
-            const gridTop = gEl.getRegion().top;
-            const target = bottom - gridTop - RESERVE;
-            return Math.max(FLOOR, Math.round(target));
+            // On aligne le bas de l'écran vente juste au-dessus de la zone
+            // visible : la grille GRANDIT s'il reste de la place (grand écran),
+            // RÉTRÉCIT vers 250 si l'écran est petit. getViewRegion exclut la
+            // scrollbar → calcul stable, idempotent.
+            const bviewBottom = cp.body.getViewRegion().bottom;
+            const shellBottom = view.getEl().getRegion().bottom;
+            const target = grid.getHeight() + (bviewBottom - shellBottom) - RESERVE;
+            const next = Math.max(FLOOR, Math.round(target));
+            if (Math.abs(next - grid.minHeight) > 1) {
+                grid.minHeight = next;
+                grid.updateLayout();
+            }
         } catch (e) {
-            return FLOOR;
         }
     },
     /* À l'affichage de la grille (vente comptant par défaut) : on l'étire pour
      * remplir la hauteur. Différé pour laisser le layout se poser. */
     onVenteGridAfterRender: function () {
         const me = this;
+        // deux passes : la 1re peut faire (dis)paraître la scrollbar, la 2nde
+        // stabilise (le calcul est idempotent, il converge)
         Ext.defer(function () {
             if (me.getSafeComboValue('getTypeVenteCombo', '1') === '1') {
                 me.setGridFillHeight(true);
+                Ext.defer(function () {
+                    if (me._gridFillMode) {
+                        me.fitGridToPanel(me.getVnogrid());
+                    }
+                }, 80);
             }
         }, 60);
     },
@@ -841,8 +865,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (!me._gridFillMode || !grid || !grid.rendered) {
             return;
         }
-        grid.minHeight = me.computeGridFillHeight(grid);
-        grid.updateLayout();
+        me.fitGridToPanel(grid);
     },
     showAssureContainer: function (typevente) {
         const me = this;

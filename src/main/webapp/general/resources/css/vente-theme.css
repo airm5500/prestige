@@ -41,15 +41,19 @@ body.x-body,
 
 /* ================= ENVELOPPE (doventemanager) ================= */
 
-/* Cadre du panel : plus de liseré vert, le panel se fond dans le conteneur */
+/* Cadre du panel : plus de liseré vert, le panel se fond dans le conteneur.
+ * Petite marge pour que les coins arrondis se voient contre le fond, et coins
+ * arrondis sur les 4 angles. */
 .vp-shell.x-panel-default-framed,
 .vp-shell.x-panel-default {
     background: #ECF1F6 !important;
     border-color: #ECF1F6 !important;
     padding: 0 !important;
+    margin: 6px 8px 0 8px !important;
+    border-radius: 12px !important;
 }
 
-/* Bandeau de titre : navy du header de l'application */
+/* Bandeau de titre : navy du header de l'application, coins HAUT arrondis */
 .vp-shell > .x-panel-header,
 .vp-shell > .x-panel-header-default,
 .vp-shell > .x-panel-header-default-framed {
@@ -57,6 +61,24 @@ body.x-body,
     border-color: #152d4e !important;
     padding-top: 9px;
     padding-bottom: 9px;
+    padding-right: 14px;
+    border-top-left-radius: 12px !important;
+    border-top-right-radius: 12px !important;
+}
+
+/* Le bandeau navy peut masquer les coins arrondis du header (fond opaque) :
+ * on arrondit aussi son conteneur interne */
+.vp-shell > .x-panel-header .x-box-inner {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+/* Bouton VENTES EN ATTENTE : marge à droite pour ne jamais toucher le bord
+ * (dernier bouton du bandeau ; itemId ExtJS != id DOM, on cible le dernier
+ * bouton du header) */
+.vp-shell > .x-panel-header .x-toolbar-item:last-child,
+.vp-shell > .x-panel-header .x-box-item:last-child {
+    margin-right: 6px !important;
 }
 
 .vp-shell > .x-panel-header .x-panel-header-text,
