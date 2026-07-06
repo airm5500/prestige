@@ -110,7 +110,14 @@ import util.Constant;
 public class SalesStatsServiceImpl implements SalesStatsService {
 
     private static final Logger LOG = Logger.getLogger(SalesStatsServiceImpl.class.getName());
-    private static final String PREVENTE_SQL = "SELECT DISTINCT p.lg_PREENREGISTREMENT_ID AS id, p.str_REF AS ref,p.int_PRICE AS montant,DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y') AS dateVente,DATE_FORMAT(p.dt_UPDATED, '%H:%i:%s') AS heureVente, p.str_TYPE_VENTE AS typeVente,CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeur,p.int_PRICE_REMISE AS  discount,p.remise AS remiseId,p.str_REF_TICKET AS transactionNumber,p.lg_TYPE_VENTE_ID AS typeVenteId,p.str_STATUT AS statut FROM  t_preenregistrement p JOIN t_preenregistrement_detail dd ON dd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID {user_join} WHERE p.str_STATUT IN(?1) AND p.lg_NATURE_VENTE_ID <> '3' AND DATE(p.dt_UPDATED)=DATE(NOW()) ";
+    /*
+     * Optimisation liste des préventes (affichage qui prenait ~13 s) : - dt_UPDATED >= CURDATE() AND < CURDATE()+1 jour
+     * au lieu de DATE(dt_UPDATED)=DATE(NOW()) : la fonction sur la colonne empêchait MySQL d'utiliser un index et
+     * forçait le balayage complet de la table - EXISTS sur t_preenregistrement_detail au lieu d'un JOIN + DISTINCT :
+     * même filtre « au moins un article » sans multiplier puis dédoublonner Sémantique inchangée : préventes du jour,
+     * statut demandé, nature <> 3, ayant au moins une ligne d'article.
+     */
+    private static final String PREVENTE_SQL = "SELECT p.lg_PREENREGISTREMENT_ID AS id, p.str_REF AS ref,p.int_PRICE AS montant,DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y') AS dateVente,DATE_FORMAT(p.dt_UPDATED, '%H:%i:%s') AS heureVente, p.str_TYPE_VENTE AS typeVente,CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeur,p.int_PRICE_REMISE AS  discount,p.remise AS remiseId,p.str_REF_TICKET AS transactionNumber,p.lg_TYPE_VENTE_ID AS typeVenteId,p.str_STATUT AS statut FROM  t_preenregistrement p JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID {user_join} WHERE p.str_STATUT IN(?1) AND p.lg_NATURE_VENTE_ID <> '3' AND p.dt_UPDATED >= CURDATE() AND p.dt_UPDATED < CURDATE() + INTERVAL 1 DAY AND EXISTS (SELECT 1 FROM t_preenregistrement_detail dd WHERE dd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID) ";
     private static final String USER_CLOSE = " AND p.lg_USER_ID='%s' ";
     private static final String SEARCH_CLOSE = " AND ((p.lg_PREENREGISTREMENT_ID  IN (SELECT d.lg_PREENREGISTREMENT_ID FROM  t_preenregistrement_detail d JOIN t_famille f ON d.lg_FAMILLE_ID=f.lg_FAMILLE_ID WHERE f.int_CIP LIKE '%s' OR f.str_NAME LIKE '%s' )) OR p.str_REF LIKE '%s' )";
     private static final String NATURE_CLOSE = " AND p.str_TYPE_VENTE='%s' ";
