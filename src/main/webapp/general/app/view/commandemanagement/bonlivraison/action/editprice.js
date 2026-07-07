@@ -318,7 +318,16 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.editprice', {
                 Ext.getCmp('int_MHT').setValue(object.amountMHT);
                 Ext.getCmp('int_TTC').setValue(object.amountMTTC);
 
-                OviewItem.getStore().reload();
+                OviewItem.getStore().reload({
+                    callback: function () {
+                        // apres modification du produit, redonner le focus au champ
+                        // de recherche pour enchainer directement une nouvelle saisie
+                        const champ = Ext.getCmp('rechercherDetail');
+                        if (champ) {
+                            champ.focus(false, 50);
+                        }
+                    }
+                });
 
             },
             failure: function (response)

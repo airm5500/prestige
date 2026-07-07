@@ -378,7 +378,15 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
     onRechClick: function () {
         const val = Ext.getCmp('rechercherDetail');
         Ext.getCmp('gridpanelID').getStore().load({
-            params: {query: val.getValue(), filtre: str_TYPE_TRANSACTION}
+            params: {query: val.getValue(), filtre: str_TYPE_TRANSACTION},
+            callback: function () {
+                // apres rechargement, garder le focus dans le champ de recherche
+                // pour pouvoir enchainer une nouvelle saisie sans recliquer
+                const champ = Ext.getCmp('rechercherDetail');
+                if (champ) {
+                    champ.focus(false, 50);
+                }
+            }
         });
     },
     checkParamGestionLot: function () {
