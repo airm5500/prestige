@@ -2250,6 +2250,19 @@ public class SalesServiceImpl implements SalesService {
         try {
             TPreenregistrement preenregistrement = emg.find(TPreenregistrement.class, venteId);
             CriteriaBuilder cb = emg.getCriteriaBuilder();
+
+            // 1) Historise la quantite mise en avoir AVANT de remettre int_AVOIR a zero,
+            // afin de pouvoir reafficher les produits dans l'onglet "Avoir cloture".
+            CriteriaUpdate<TPreenregistrementDetail> preserve = cb
+                    .createCriteriaUpdate(TPreenregistrementDetail.class);
+            Root<TPreenregistrementDetail> rp = preserve.from(TPreenregistrementDetail.class);
+            preserve.set(rp.get(TPreenregistrementDetail_.intAVOIRINITIAL), rp.get(TPreenregistrementDetail_.intAVOIR))
+                    .where(cb.and(cb.equal(rp.get(TPreenregistrementDetail_.bISAVOIR), true),
+                            cb.equal(rp.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID)
+                                    .get(TPreenregistrement_.lgPREENREGISTREMENTID), venteId)));
+            emg.createQuery(preserve).executeUpdate();
+
+            // 2) Cloture : reinitialise les marqueurs d'avoir courant (comportement existant)
             CriteriaUpdate<TPreenregistrementDetail> cq = cb.createCriteriaUpdate(TPreenregistrementDetail.class);
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
             cq.set(root.get(TPreenregistrementDetail_.bISAVOIR), false)
@@ -2262,8 +2275,15 @@ public class SalesServiceImpl implements SalesService {
                             cb.equal(root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID)
                                     .get(TPreenregistrement_.lgPREENREGISTREMENTID), venteId)));
             emg.createQuery(cq).executeUpdate();
+
+            // 3) Trace d'historique sur l'entete + utilisateur ayant valide l'avoir
             preenregistrement.setCompletionDate(new Date());
             preenregistrement.setBISAVOIR(false);
+            preenregistrement.setBHASAVOIR(true);
+            preenregistrement.setDtCLOTUREAVOIR(new Date());
+            if (tUser != null) {
+                preenregistrement.setLgUSERID(tUser);
+            }
             emg.merge(preenregistrement);
             json.put("success", true).put("msg", "Opération effectuée avec success");
         } catch (Exception e) {
