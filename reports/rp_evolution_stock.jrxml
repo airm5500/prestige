@@ -87,47 +87,24 @@
         <band height="18">
             <textField isBlankWhenNull="true">
                 <reportElement x="0" y="0" width="185" height="18"/>
-                <box><pen lineWidth="0.5"/><leftPadding value="4"/></box>
+                <box leftPadding="4"><pen lineWidth="0.5"/></box>
                 <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{date}]]></textFieldExpression>
             </textField>
             <textField pattern="#,##0" isBlankWhenNull="true">
                 <reportElement x="185" y="0" width="185" height="18"/>
-                <box><pen lineWidth="0.5"/><rightPadding value="6"/></box>
+                <box rightPadding="6"><pen lineWidth="0.5"/></box>
                 <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{valeurAchat}]]></textFieldExpression>
             </textField>
             <textField pattern="#,##0" isBlankWhenNull="true">
                 <reportElement x="370" y="0" width="185" height="18"/>
-                <box><pen lineWidth="0.5"/><rightPadding value="6"/></box>
+                <box rightPadding="6"><pen lineWidth="0.5"/></box>
                 <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{valeurVente}]]></textFieldExpression>
             </textField>
         </band>
     </detail>
-
-    <summary>
-        <band height="26">
-            <staticText>
-                <reportElement mode="Opaque" x="0" y="0" width="185" height="22" backcolor="#F0F0F0"/>
-                <box><pen lineWidth="0.5"/><leftPadding value="4"/></box>
-                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
-                <text><![CDATA[TOTAL]]></text>
-            </staticText>
-            <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement mode="Opaque" x="185" y="0" width="185" height="22" backcolor="#F0F0F0"/>
-                <box><pen lineWidth="0.5"/><rightPadding value="6"/></box>
-                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA[$V{totAchat}]]></textFieldExpression>
-            </textField>
-            <textField pattern="#,##0" isBlankWhenNull="true">
-                <reportElement mode="Opaque" x="370" y="0" width="185" height="22" backcolor="#F0F0F0"/>
-                <box><pen lineWidth="0.5"/><rightPadding value="6"/></box>
-                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA[$V{totVente}]]></textFieldExpression>
-            </textField>
-        </band>
-    </summary>
 
     <pageFooter>
         <band height="20">
@@ -146,4 +123,27 @@
             </textField>
         </band>
     </pageFooter>
+
+    <summary>
+        <band height="26">
+            <staticText>
+                <reportElement mode="Opaque" x="0" y="0" width="185" height="22" backcolor="#F0F0F0"/>
+                <box leftPadding="4"><pen lineWidth="0.5"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <text><![CDATA[TOTAL]]></text>
+            </staticText>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement mode="Opaque" x="185" y="0" width="185" height="22" backcolor="#F0F0F0"/>
+                <box rightPadding="6"><pen lineWidth="0.5"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$V{totAchat}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement mode="Opaque" x="370" y="0" width="185" height="22" backcolor="#F0F0F0"/>
+                <box rightPadding="6"><pen lineWidth="0.5"/></box>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$V{totVente}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
 </jasperReport>

@@ -87,13 +87,13 @@
         <band height="26">
             <textField isBlankWhenNull="true">
                 <reportElement x="0" y="0" width="70" height="26"/>
-                <box><pen lineWidth="0.5"/><leftPadding value="4"/></box>
+                <box leftPadding="4"><pen lineWidth="0.5"/></box>
                 <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{code}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
                 <reportElement x="70" y="0" width="245" height="26"/>
-                <box><pen lineWidth="0.5"/><leftPadding value="4"/></box>
+                <box leftPadding="4"><pen lineWidth="0.5"/></box>
                 <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
             </textField>
