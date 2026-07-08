@@ -15,3 +15,6 @@ nb-configuration.xml
 *.properties
 src/main/resources/build.properties
 *.md
+
+# Rapports Jasper compiles (regeneres depuis les .jrxml)
+reports/*.jasper
