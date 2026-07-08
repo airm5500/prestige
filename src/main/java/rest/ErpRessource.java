@@ -77,7 +77,9 @@ public class ErpRessource {
         Map<String, Object> params = reportUtil.officineData(tu);
         params.put("P_H_CLT_INFOS", "EVOLUTION DU STOCK - PERIODE DU " + formatDate(dtStart) + " AU " + formatDate(dtEnd));
         List<StockDailyValueDTO> data = erpService.valorisationAll(dtStart, dtEnd);
-        String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "rp_evolution_stock", data);
+        // Page(s) 1 : tableau (portrait) puis page suivante : courbe (paysage), dans un seul PDF
+        String url = servletRequest.getContextPath() + reportUtil.buildReportMulti(params,
+                java.util.Arrays.asList("rp_evolution_stock", "rp_evolution_stock_chart"), data);
         return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
     }
 

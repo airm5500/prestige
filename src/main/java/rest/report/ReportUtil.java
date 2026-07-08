@@ -417,6 +417,27 @@ public class ReportUtil {
         return "/data/reports/pdf/" + fileName;
     }
 
+    // Concatene plusieurs rapports (memes parametres, meme collection) dans un seul PDF.
+    // Chaque rapport garde sa taille/orientation : ex. page(s) portrait (tableau) + page(s) paysage (graphique).
+    public String buildReportMulti(Map<String, Object> parameters, List<String> reportNames, List<?> datas) {
+        String fileName = getFileNames(reportNames.get(0));
+        try {
+            List<JasperPrint> prints = new java.util.ArrayList<>();
+            for (String reportName : reportNames) {
+                JasperReport jasperReport = getReport(reportName, jdom.scr_report_file);
+                JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
+                prints.add(JasperFillManager.fillReport(jasperReport, parameters, dataSource));
+            }
+            net.sf.jasperreports.engine.export.JRPdfExporter exporter = new net.sf.jasperreports.engine.export.JRPdfExporter();
+            exporter.setExporterInput(SimpleExporterInput.getInstance(prints));
+            exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(this.getReportDirectory(fileName)));
+            exporter.exportReport();
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, null, ex);
+        }
+        return "/data/reports/pdf/" + fileName;
+    }
+
     public void exportToxlsx(HttpServletResponse response, File filetoExport) {
         OutputStream out = null;
         FileInputStream inStream = null;

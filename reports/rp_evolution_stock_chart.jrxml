@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 2e rapport (PAYSAGE) : courbe d'evolution de la valorisation du stock sur la periode.
+     Concatene apres rp_evolution_stock (tableau, portrait) dans un seul PDF.
+     Source : collection de StockDailyValueDTO (date, valeurAchat, valeurVente). -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_evolution_stock_chart" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="date" class="java.lang.String"/>
+    <field name="valeurAchat" class="java.lang.Long"/>
+    <field name="valeurVente" class="java.lang.Long"/>
+
+    <title>
+        <band height="40">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="802" height="18"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="18" width="802" height="16"/>
+                <textElement textAlignment="Center"><font size="10" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <summary>
+        <band height="500">
+            <lineChart>
+                <chart>
+                    <reportElement x="0" y="0" width="802" height="500"/>
+                    <chartTitle><titleExpression><![CDATA["Courbe d'evolution de la valorisation du stock"]]></titleExpression></chartTitle>
+                    <chartLegend/>
+                </chart>
+                <categoryDataset>
+                    <categorySeries>
+                        <seriesExpression><![CDATA["Valeur d'achat"]]></seriesExpression>
+                        <categoryExpression><![CDATA[$F{date}]]></categoryExpression>
+                        <valueExpression><![CDATA[$F{valeurAchat}]]></valueExpression>
+                    </categorySeries>
+                    <categorySeries>
+                        <seriesExpression><![CDATA["Valeur de vente"]]></seriesExpression>
+                        <categoryExpression><![CDATA[$F{date}]]></categoryExpression>
+                        <valueExpression><![CDATA[$F{valeurVente}]]></valueExpression>
+                    </categorySeries>
+                </categoryDataset>
+                <linePlot>
+                    <plot/>
+                    <categoryAxisLabelExpression><![CDATA["Date"]]></categoryAxisLabelExpression>
+                    <valueAxisLabelExpression><![CDATA["Montant (FCFA)"]]></valueAxisLabelExpression>
+                </linePlot>
+            </lineChart>
+        </band>
+    </summary>
+</jasperReport>
