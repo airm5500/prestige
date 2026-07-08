@@ -111,7 +111,7 @@ public interface ProduitService {
     JSONObject updateCodeCip(String familleId, UpdateCipDTO dto);
 
     // Suivi des unites gratuites : produits ayant du stock UG (intUG > 0) pour l'emplacement de l'utilisateur
-    JSONObject suiviUg(TUser user, String query) throws JSONException;
+    JSONObject suiviUg(TUser user, String query, int start, int limit) throws JSONException;
 
     List<ArticleDTO> suiviUgArticles(TUser user, String query);
 }

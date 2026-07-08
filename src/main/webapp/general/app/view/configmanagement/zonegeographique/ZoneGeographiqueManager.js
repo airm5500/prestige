@@ -463,7 +463,13 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
                 success: function (response) {
                     var obj;
                     try {
-                        obj = Ext.decode(response.responseText.replace(/^\(|\)$/g, ''));
+                        // La reponse est encapsulee dans ({...}) et peut contenir des espaces/retours a la ligne :
+                        // on extrait le contenu entre la 1re '(' et la derniere ')'.
+                        var txt = response.responseText;
+                        var deb = txt.indexOf('(');
+                        var fin = txt.lastIndexOf(')');
+                        var json = (deb !== -1 && fin !== -1 && fin > deb) ? txt.substring(deb + 1, fin) : txt;
+                        obj = Ext.decode(json);
                     } catch (e) {
                         obj = {results: [], total: 0};
                     }

@@ -352,13 +352,14 @@ public class ProduitRessource {
     // Suivi UG : produits ayant du stock d'unites gratuites (intUG > 0)
     @GET
     @Path("suivi-ug")
-    public Response suiviUg(@QueryParam(value = "query") String query) throws JSONException {
+    public Response suiviUg(@QueryParam(value = "query") String query, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return Response.ok().entity(produitService.suiviUg(tu, query).toString()).build();
+        return Response.ok().entity(produitService.suiviUg(tu, query, start, limit).toString()).build();
     }
 
     // Suivi UG : generer une suggestion a partir des produits a UG

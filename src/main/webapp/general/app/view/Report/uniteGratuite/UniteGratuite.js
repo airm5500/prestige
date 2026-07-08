@@ -575,6 +575,7 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteSuivi', {
                 {name: 'stockUg', type: 'int'}
             ],
             autoLoad: false,
+            pageSize: 25,
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/produit/suivi-ug',
@@ -646,7 +647,13 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteSuivi', {
                     iconCls: 'inventaireicon',
                     handler: ugCreerInventaire
                 }
-            ]
+            ],
+            bbar: {
+                xtype: 'pagingtoolbar',
+                store: store,
+                dock: 'bottom',
+                displayInfo: true
+            }
         });
 
         me.callParent();
@@ -656,50 +663,70 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteSuivi', {
     doSearch: function () {
         var me = this;
         var champ = me.down('#ugSuiviSearch');
-        me.suiviStore.load({
-            params: {query: champ ? champ.getValue() : ''}
+        me.suiviStore.getProxy().setExtraParam('query', champ ? champ.getValue() : '');
+        me.suiviStore.loadPage(1);
+    },
+    // Recupere TOUTES les lignes (sans pagination) pour l'impression / l'export
+    fetchAll: function (callback) {
+        var me = this;
+        var champ = me.down('#ugSuiviSearch');
+        Ext.Ajax.request({
+            url: '../api/v1/produit/suivi-ug',
+            method: 'GET',
+            params: {query: champ ? champ.getValue() : ''},
+            timeout: 2400000,
+            success: function (resp) {
+                var r = Ext.JSON.decode(resp.responseText, true);
+                callback((r && r.data) ? r.data : []);
+            },
+            failure: function () {
+                callback([]);
+            }
         });
     },
     doPrint: function () {
         var me = this;
-        var rows = '';
-        me.suiviStore.each(function (r) {
-            rows += '<tr>'
-                    + '<td>' + Ext.String.htmlEncode(r.get('code') || '') + '</td>'
-                    + '<td>' + Ext.String.htmlEncode(r.get('libelle') || '') + '</td>'
-                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('prixAchat') || 0, '0,000.') + '</td>'
-                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('prixVente') || 0, '0,000.') + '</td>'
-                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('stock') || 0, '0,000.') + '</td>'
-                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('stockUg') || 0, '0,000.') + '</td>'
-                    + '</tr>';
+        me.fetchAll(function (datas) {
+            var rows = '';
+            Ext.each(datas, function (r) {
+                rows += '<tr>'
+                        + '<td>' + Ext.String.htmlEncode(r.code || '') + '</td>'
+                        + '<td>' + Ext.String.htmlEncode(r.libelle || '') + '</td>'
+                        + '<td style="text-align:right">' + Ext.util.Format.number(r.prixAchat || 0, '0,000.') + '</td>'
+                        + '<td style="text-align:right">' + Ext.util.Format.number(r.prixVente || 0, '0,000.') + '</td>'
+                        + '<td style="text-align:right">' + Ext.util.Format.number(r.stock || 0, '0,000.') + '</td>'
+                        + '<td style="text-align:right">' + Ext.util.Format.number(r.stockUg || 0, '0,000.') + '</td>'
+                        + '</tr>';
+            });
+            var html = '<html><head><title>Suivi des unites gratuites</title>'
+                    + '<style>body{font-family:Arial,sans-serif;font-size:12px;}h2{text-align:center;}'
+                    + 'table{width:100%;border-collapse:collapse;}th,td{border:1px solid #000;padding:5px 6px;}th{background:#eee;text-align:left;}</style>'
+                    + '</head><body><h2>Suivi des unites gratuites (' + datas.length + ' produit(s))</h2>'
+                    + '<table><thead><tr><th>CIP</th><th>NOM</th><th style="text-align:right">PRIX ACHAT</th>'
+                    + '<th style="text-align:right">PRIX VENTE</th><th style="text-align:right">STOCK</th><th style="text-align:right">STOCK UG</th>'
+                    + '</tr></thead><tbody>' + rows + '</tbody></table></body></html>';
+            var win = window.open('', '_blank');
+            if (!win) {
+                Ext.MessageBox.alert('Impression', 'Veuillez autoriser les fenetres pop-up.');
+                return;
+            }
+            win.document.open();
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            win.print();
         });
-        var html = '<html><head><title>Suivi des unites gratuites</title>'
-                + '<style>body{font-family:Arial,sans-serif;font-size:12px;}h2{text-align:center;}'
-                + 'table{width:100%;border-collapse:collapse;}th,td{border:1px solid #000;padding:5px 6px;}th{background:#eee;text-align:left;}</style>'
-                + '</head><body><h2>Suivi des unites gratuites</h2>'
-                + '<table><thead><tr><th>CIP</th><th>NOM</th><th style="text-align:right">PRIX ACHAT</th>'
-                + '<th style="text-align:right">PRIX VENTE</th><th style="text-align:right">STOCK</th><th style="text-align:right">STOCK UG</th>'
-                + '</tr></thead><tbody>' + rows + '</tbody></table></body></html>';
-        var win = window.open('', '_blank');
-        if (!win) {
-            Ext.MessageBox.alert('Impression', 'Veuillez autoriser les fenetres pop-up.');
-            return;
-        }
-        win.document.open();
-        win.document.write(html);
-        win.document.close();
-        win.focus();
-        win.print();
     },
     doExport: function (isExcel) {
         var me = this;
+        me.fetchAll(function (datas) {
         var sep = ';';
         var lines = ['CIP' + sep + 'NOM' + sep + 'PRIX ACHAT' + sep + 'PRIX VENTE' + sep + 'STOCK' + sep + 'STOCK UG'];
-        me.suiviStore.each(function (r) {
-            var nom = (r.get('libelle') || '').toString().replace(/;/g, ',');
+        Ext.each(datas, function (r) {
+            var nom = (r.libelle || '').toString().replace(/;/g, ',');
             lines.push([
-                r.get('code') || '', nom, r.get('prixAchat') || 0, r.get('prixVente') || 0,
-                r.get('stock') || 0, r.get('stockUg') || 0
+                r.code || '', nom, r.prixAchat || 0, r.prixVente || 0,
+                r.stock || 0, r.stockUg || 0
             ].join(sep));
         });
         var content = lines.join('\r\n');
@@ -715,6 +742,7 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteSuivi', {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
+        });
     }
 });
 
@@ -723,7 +751,6 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuite', {
     extend: 'Ext.tab.Panel',
     xtype: 'ugmanager',
     id: 'ugmanagerID',
-    title: 'Unités gratuites',
     frame: true,
     width: '98%',
     minHeight: 600,

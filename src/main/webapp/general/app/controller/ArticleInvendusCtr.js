@@ -91,6 +91,8 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
                 specialkey: this.onQuery
             }, 'stockmort #stock': {
                 specialkey: this.onQuery
+            }, 'stockmort #nombreMois': {
+                specialkey: this.onQuery
             },
             'stockmort #stockFiltre': {
                 select: this.onFilterSelect
@@ -223,6 +225,15 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
     },
     doSearch: function () {
         var me = this;
+        var nombreMois = me.getNombreMois().getValue() || 0;
+        // Si un nombre de mois est saisi, il pilote la periode : on veut les produits
+        // non vendus dont la derniere entree remonte a N mois (ou plus) jusqu'a aujourd'hui.
+        if (nombreMois > 0) {
+            var auj = new Date();
+            var debut = Ext.Date.add(auj, Ext.Date.MONTH, -nombreMois);
+            me.getDtStart().setValue(debut);
+            me.getDtEnd().setValue(auj);
+        }
         var codeRayon = me.getRayons().getValue();
         var codeGrossiste = me.getGrossiste().getValue();
         var query = me.getQuery().getValue(),
@@ -244,7 +255,7 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
                 stockFiltre: stockFiltre,
                 stock: stock,
                 codeFamile: codeFamile,
-                nombreMois: me.getNombreMois().getValue() || 0
+                nombreMois: nombreMois
 
             }
         });

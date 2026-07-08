@@ -2924,8 +2924,16 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     @Override
-    public JSONObject suiviUg(TUser user, String query) throws JSONException {
+    public JSONObject suiviUg(TUser user, String query, int start, int limit) throws JSONException {
         List<ArticleDTO> datas = suiviUgArticles(user, query);
-        return new JSONObject().put("total", datas.size()).put("data", new JSONArray(datas));
+        int total = datas.size();
+        List<ArticleDTO> page = datas;
+        // Pagination cote serveur uniquement si limit > 0 (sinon on renvoie tout : cas suggestion / inventaire)
+        if (limit > 0) {
+            int from = Math.max(0, start);
+            int to = Math.min(total, from + limit);
+            page = (from < to) ? new ArrayList<>(datas.subList(from, to)) : new ArrayList<>();
+        }
+        return new JSONObject().put("total", total).put("data", new JSONArray(page));
     }
 }
