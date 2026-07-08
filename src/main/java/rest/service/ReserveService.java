@@ -82,4 +82,10 @@ public interface ReserveService {
      * optionnel place dans str_DESCRIPTION. Nom : "Inventaire reserve du jj/MM/aaaa HH:mm".
      */
     JSONObject createInventaireFromSelection(TUser user, java.util.Set<String> ids, String commentaire);
+
+    /**
+     * Variante permettant d'imposer le nom (titre) de l'inventaire cree (ex. "Inventaire unites gratuites du ...").
+     * Si titre est vide/null, on retombe sur le nom par defaut "Inventaire reserve du ...".
+     */
+    JSONObject createInventaireFromSelection(TUser user, java.util.Set<String> ids, String commentaire, String titre);
 }

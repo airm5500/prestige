@@ -495,57 +495,34 @@ function ugGenererSuggestion() {
 
 function ugCreerInventaire() {
     var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Creation de l\'inventaire');
-    // On recupere d'abord la liste des produits a UG, puis on cree l'inventaire par selection
+    // L'inventaire est cree cote serveur a partir des produits a UG et nomme "Inventaire unites gratuites du ..."
     Ext.Ajax.request({
-        url: '../api/v1/produit/suivi-ug',
+        url: '../api/v1/produit/suivi-ug/create-inventaire',
         method: 'GET',
         timeout: 2400000,
         success: function (response) {
-            var result = Ext.JSON.decode(response.responseText, true);
-            var ids = [];
-            if (result && result.data) {
-                Ext.each(result.data, function (r) {
-                    if (r.id) {
-                        ids.push(r.id);
+            progress.hide();
+            var res = Ext.JSON.decode(response.responseText, true);
+            if (res && res.count > 0) {
+                Ext.MessageBox.show({
+                    title: 'Message',
+                    width: 320,
+                    msg: (res.message ? res.message : 'Inventaire cree') + ' (' + res.count + ' produit(s)).',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.INFO,
+                    fn: function (btn) {
+                        if (btn === 'ok') {
+                            testextjs.app.getController('App').onLoadNewComponent('inventaire', 'Gestion des inventaires', '');
+                        }
                     }
                 });
+            } else {
+                Ext.MessageBox.alert('Message', (res && res.message) ? res.message : 'Aucun produit a UG a inventorier.');
             }
-            if (ids.length === 0) {
-                progress.hide();
-                Ext.MessageBox.alert('Message', 'Aucun produit a UG a inventorier.');
-                return;
-            }
-            Ext.Ajax.request({
-                url: '../api/v1/reserve/create-inventaire-selection',
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                jsonData: {ids: ids, description: 'Inventaire UG'},
-                timeout: 2400000,
-                success: function (resp2) {
-                    progress.hide();
-                    var res2 = Ext.JSON.decode(resp2.responseText, true);
-                    Ext.MessageBox.show({
-                        title: 'Message',
-                        width: 320,
-                        msg: 'Inventaire cree (' + (res2 && res2.count ? res2.count : ids.length) + ' produit(s)).',
-                        buttons: Ext.MessageBox.OK,
-                        icon: Ext.MessageBox.INFO,
-                        fn: function (btn) {
-                            if (btn === 'ok') {
-                                testextjs.app.getController('App').onLoadNewComponent('inventaire', 'Gestion des inventaires', '');
-                            }
-                        }
-                    });
-                },
-                failure: function () {
-                    progress.hide();
-                    Ext.MessageBox.alert('Message d\'erreur', "La creation de l'inventaire n'a pas abouti.");
-                }
-            });
         },
         failure: function () {
             progress.hide();
-            Ext.MessageBox.alert('Message d\'erreur', "Impossible de recuperer les produits a UG.");
+            Ext.MessageBox.alert('Message d\'erreur', "La creation de l'inventaire n'a pas abouti.");
         }
     });
 }
@@ -575,7 +552,7 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteSuivi', {
                 {name: 'stockUg', type: 'int'}
             ],
             autoLoad: false,
-            pageSize: 25,
+            pageSize: 12,
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/produit/suivi-ug',

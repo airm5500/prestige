@@ -410,9 +410,11 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
         var progress = Ext.MessageBox.wait('Preparation de l\'impression . . .', 'Veuillez patienter');
 
         var buildAndPrint = function () {
-            var htmlRows = '';
+            var htmlRows = '', i = 0;
             Ext.each(rows, function (r) {
+                i++;
                 htmlRows += '<tr>'
+                        + '<td class="num">' + i + '</td>'
                         + '<td>' + Ext.String.htmlEncode(r.str_CODE || '') + '</td>'
                         + '<td>' + Ext.String.htmlEncode(r.str_LIBELLEE || '') + '</td>'
                         + '<td class="cpt"></td>'
@@ -420,24 +422,30 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
                         + '</tr>';
             });
             var now = Ext.Date.format(new Date(), 'd/m/Y H:i');
-            var html = '<html><head><title>Feuille de comptage des emplacements</title>'
+            var html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
+                    + '<title>Feuille de comptage des emplacements</title>'
                     + '<style>'
-                    + '@page { size: portrait; margin: 12mm; }'
-                    + 'body { font-family: Arial, sans-serif; font-size: 12px; color:#000; }'
-                    + 'h2 { text-align:center; margin:0 0 4px 0; }'
-                    + '.sub { text-align:center; font-size:11px; margin-bottom:10px; }'
-                    + 'table { width:100%; border-collapse:collapse; }'
-                    + 'th, td { border:1px solid #000; padding:5px 6px; text-align:left; }'
-                    + 'th { background:#eee; }'
-                    + 'td.cpt { width:22%; height:22px; }'
-                    + '</style></head><body>'
+                    + '@page { size: A4 portrait; margin: 12mm; }'
+                    + '* { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }'
+                    + 'body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color:#000; margin:0; }'
+                    + 'h2 { text-align:center; margin:0 0 2px 0; font-size:16px; }'
+                    + '.sub { text-align:center; font-size:11px; color:#333; margin-bottom:10px; }'
+                    + 'table { width:100%; border-collapse:collapse; table-layout:fixed; }'
+                    + 'thead { display: table-header-group; }'
+                    + 'th { background:#e8e8e8; border:1px solid #444; padding:6px; text-align:left; }'
+                    + 'td { border:1px solid #444; padding:6px; vertical-align:top; word-wrap:break-word; overflow:hidden; }'
+                    + 'tbody tr { page-break-inside: avoid; }'
+                    + 'tbody tr:nth-child(even) { background:#f7f7f7; }'
+                    + 'td.num { text-align:center; color:#555; }'
+                    + 'td.cpt { height:26px; }'
+                    + '</style></head>'
+                    + '<body onload="window.focus(); window.print();">'
                     + '<h2>Feuille de comptage des emplacements</h2>'
-                    + '<div class="sub">Edite le ' + now + ' - ' + rows.length + ' emplacement(s)</div>'
-                    + '<table><thead><tr>'
-                    + '<th style="width:20%">Code</th>'
-                    + '<th style="width:36%">Libelle</th>'
-                    + '<th style="width:22%">Comptage 1</th>'
-                    + '<th style="width:22%">Comptage 2</th>'
+                    + '<div class="sub">Edite le ' + now + ' &bull; ' + rows.length + ' emplacement(s)</div>'
+                    + '<table>'
+                    + '<colgroup><col style="width:7%"><col style="width:18%"><col style="width:35%"><col style="width:20%"><col style="width:20%"></colgroup>'
+                    + '<thead><tr>'
+                    + '<th>N&deg;</th><th>Code</th><th>Libelle</th><th>Comptage 1</th><th>Comptage 2</th>'
                     + '</tr></thead><tbody>' + htmlRows + '</tbody></table>'
                     + '</body></html>';
             var win = window.open('', '_blank');
@@ -448,8 +456,6 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
             win.document.open();
             win.document.write(html);
             win.document.close();
-            win.focus();
-            win.print();
         };
 
         var fetchPage = function (start) {

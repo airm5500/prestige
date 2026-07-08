@@ -499,10 +499,16 @@ public class ReserveServiceImpl implements ReserveService {
 
     @Override
     public JSONObject createInventaireFromSelection(TUser user, java.util.Set<String> ids, String commentaire) {
+        return createInventaireFromSelection(user, ids, commentaire, null);
+    }
+
+    @Override
+    public JSONObject createInventaireFromSelection(TUser user, java.util.Set<String> ids, String commentaire,
+            String titre) {
         if (ids == null || ids.isEmpty()) {
             return new JSONObject().put("count", 0).put("message", "Aucun produit selectionne.");
         }
-        String title = buildInventaireName();
+        String title = (titre != null && !titre.trim().isEmpty()) ? titre.trim() : buildInventaireName();
         String description = (commentaire != null && !commentaire.trim().isEmpty()) ? commentaire.trim() : title;
         int count = inventaireService.createReserveInventaire(ids, title, description);
         return new JSONObject().put("count", count).put("message", title);
