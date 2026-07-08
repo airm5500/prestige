@@ -37,7 +37,8 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
                 {name: 'prixAchat', type: 'number'},
                 {name: 'prixVente', type: 'number'},
                 {name: 'lastDate', type: 'string'},
-                {name: 'lastHour', type: 'string'}
+                {name: 'lastHour', type: 'string'},
+                {name: 'dateEntree', type: 'string'}
 
             ],
             pageSize: 15,
@@ -291,6 +292,16 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
                             emptyText: 'Stock'
 
                         }, {
+                            xtype: 'tbseparator'
+                        }, {
+                            xtype: 'numberfield',
+                            itemId: 'nombreMois',
+                            flex: 0.7,
+                            minValue: 0,
+                            allowDecimals: false,
+                            emptyText: 'Invendus depuis (mois)'
+
+                        }, {
                             text: 'suggestion',
                             itemId: 'suggestion',
                             iconCls: 'suggestionreapro',
@@ -378,6 +389,10 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
                         }, {
                             header: 'Heure.dernière.vente',
                             dataIndex: 'lastHour',
+                            flex: 1
+                        }, {
+                            header: 'Date.dernière.entrée',
+                            dataIndex: 'dateEntree',
                             flex: 1
                         }
                     ],

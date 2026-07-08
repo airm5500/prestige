@@ -47,6 +47,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
+import javax.persistence.criteria.AbstractQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Join;
@@ -54,6 +55,8 @@ import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Subquery;
+import dal.TWarehouse;
+import java.util.Calendar;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONArray;
@@ -628,6 +631,13 @@ public class DataReporingServiceImpl implements DataReporingService {
     public List<ArticleDTO> statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
             TUser u, String codeRayon, String codeGrossiste, final int stock, MargeEnum stockFiltre, int start,
             int limit, boolean all) {
+        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
+                stockFiltre, start, limit, all, 0);
+    }
+
+    public List<ArticleDTO> statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
+            TUser u, String codeRayon, String codeGrossiste, final int stock, MargeEnum stockFiltre, int start,
+            int limit, boolean all, int nombreMois) {
         try {
             String empId = u.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -668,17 +678,18 @@ public class DataReporingServiceImpl implements DataReporingService {
             List<Predicate> predicates = statsArticlesInvendusPredicats(cb, root, fa, query, codeFamile, codeRayon,
                     codeGrossiste, empId, stockFiltre, stock);
             predicates.add(cb.not(cb.in(root.get(TFamille_.lgFAMILLEID)).value(sub)));
+            addMoisDerniereEntreePredicate(cq, cb, root, empId, nombreMois, predicates);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<ArticleDTO> q = getEntityManager().createQuery(cq);
             if (!all) {
                 q.setFirstResult(start);
                 q.setMaxResults(limit);
                 return q.getResultList().stream()
-                        .map(x -> x.lastDate(dateDerniereVente(x.getId(), empId)).stock(stockProduit(x.getId(), empId)))
+                        .map(x -> x.lastDate(dateDerniereVente(x.getId(), empId)).stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
                         .collect(Collectors.toList());
             } else {
                 return q.getResultList().stream()
-                        .map(x -> x.lastDate(dateDerniereVente(x.getId(), empId)).stock(stockProduit(x.getId(), empId)))
+                        .map(x -> x.lastDate(dateDerniereVente(x.getId(), empId)).stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
                         .collect(Collectors.toList());
             }
 
@@ -692,13 +703,21 @@ public class DataReporingServiceImpl implements DataReporingService {
     public JSONObject statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
             String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit)
             throws JSONException {
+        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock, stockFiltre,
+                start, limit, 0);
+    }
+
+    @Override
+    public JSONObject statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit,
+            int nombreMois) throws JSONException {
         long total = statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
-                stockFiltre);
+                stockFiltre, nombreMois);
         if (total == 0) {
             return new JSONObject().put("total", total).put("data", new JSONArray());
         }
         List<ArticleDTO> datas = statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste,
-                stock, stockFiltre, start, limit, false);
+                stock, stockFiltre, start, limit, false, nombreMois);
         return new JSONObject().put("total", total).put("data", new JSONArray(datas));
     }
 
@@ -790,8 +809,45 @@ public class DataReporingServiceImpl implements DataReporingService {
         }
     }
 
+    // Date de la derniere entree en stock d'un produit pour l'emplacement de l'utilisateur
+    private Date dateDerniereEntree(String idProduit, String empl) {
+        try {
+            Query q = getEntityManager().createQuery(
+                    "SELECT t.dtCREATED FROM TWarehouse t WHERE t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = ?1 AND t.lgFAMILLEID.lgFAMILLEID = ?2 ORDER BY t.dtCREATED DESC");
+            q.setMaxResults(1);
+            q.setParameter(1, empl);
+            q.setParameter(2, idProduit);
+            return (Date) q.getSingleResult();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    // Filtre "invendus depuis N mois depuis leur derniere entree" : on exclut les produits
+    // ayant recu une entree en stock durant les N derniers mois.
+    private void addMoisDerniereEntreePredicate(AbstractQuery<?> cq, CriteriaBuilder cb, Root<TFamille> root,
+            String empId, int nombreMois, List<Predicate> predicates) {
+        if (nombreMois > 0) {
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.MONTH, -nombreMois);
+            Date seuil = cal.getTime();
+            Subquery<String> subEntree = cq.subquery(String.class);
+            Root<TWarehouse> wr = subEntree.from(TWarehouse.class);
+            subEntree.select(wr.<TFamille>get("lgFAMILLEID").<String>get("lgFAMILLEID"));
+            subEntree.where(cb.equal(wr.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), empId),
+                    cb.greaterThan(wr.<Date>get("dtCREATED"), seuil));
+            predicates.add(cb.not(cb.in(root.get(TFamille_.lgFAMILLEID)).value(subEntree)));
+        }
+    }
+
     public Long statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
             String codeRayon, String codeGrossiste, final int stock, MargeEnum stockFiltre) {
+        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
+                stockFiltre, 0);
+    }
+
+    public Long statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, final int stock, MargeEnum stockFiltre, int nombreMois) {
         try {
             String empId = u.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
@@ -808,6 +864,7 @@ public class DataReporingServiceImpl implements DataReporingService {
             List<Predicate> predicates = statsArticlesInvendusPredicats(cb, root, fa, query, codeFamile, codeRayon,
                     codeGrossiste, empId, stockFiltre, stock);
             predicates.add(cb.not(cb.in(root.get(TFamille_.lgFAMILLEID)).value(sub)));
+            addMoisDerniereEntreePredicate(cq, cb, root, empId, nombreMois, predicates);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             return (q.getSingleResult() != null ? (Long) q.getSingleResult() : 0);

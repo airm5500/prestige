@@ -127,7 +127,8 @@ public class DataReporingRessource {
             @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
             @QueryParam(value = "stockFiltre") MargeEnum filtre, @QueryParam(value = "start") int start,
-            @QueryParam(value = "limit") int limit) throws JSONException {
+            @QueryParam(value = "limit") int limit, @QueryParam(value = "nombreMois") int nombreMois)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -135,7 +136,7 @@ public class DataReporingRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject jsono = dataReporingService.statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, tu, codeRayon,
-                codeGrossiste, stock, filtre, start, limit);
+                codeGrossiste, stock, filtre, start, limit, nombreMois);
         return Response.ok().entity(jsono.toString()).build();
     }
 

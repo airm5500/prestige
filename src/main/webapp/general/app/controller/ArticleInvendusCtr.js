@@ -49,6 +49,10 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
         {
             ref: 'stockFiltre',
             selector: 'stockmort #stockFiltre'
+        },
+        {
+            ref: 'nombreMois',
+            selector: 'stockmort #nombreMois'
         }
 
 
@@ -189,7 +193,8 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
             codeRayon: null,
             codeFamile: null,
             stock: 0,
-            stockFiltre: null
+            stockFiltre: null,
+            nombreMois: 0
 
         };
         var codeRayon = me.getRayons().getValue();
@@ -206,6 +211,7 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
         myProxy.setExtraParam('query', query);
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
+        myProxy.setExtraParam('nombreMois', me.getNombreMois().getValue() || 0);
     },
     doInitStore: function () {
         var me = this;
@@ -237,7 +243,8 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
                 codeGrossiste: codeGrossiste,
                 stockFiltre: stockFiltre,
                 stock: stock,
-                codeFamile: codeFamile
+                codeFamile: codeFamile,
+                nombreMois: me.getNombreMois().getValue() || 0
 
             }
         });

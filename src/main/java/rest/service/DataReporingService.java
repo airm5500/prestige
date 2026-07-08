@@ -59,6 +59,10 @@ public interface DataReporingService {
             String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit)
             throws JSONException;
 
+    JSONObject statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit,
+            int nombreMois) throws JSONException;
+
     byte[] exportArticlesInvendusCsv(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
             String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException, JSONException;
 
