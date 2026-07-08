@@ -3261,6 +3261,11 @@ Ext.define('testextjs.controller.VenteCtr', {
                 me.updateAyantDroitCmp();
             }
         }
+        // Le tiers-payant du client vient d'être chargé : si des produits sont
+        // déjà présents (reprise d'une vente en attente), on calcule le net
+        // tout de suite. Sur une vente neuve (pas encore de produit) le calcul
+        // se saute (garde sur me.current) et se fera au 1er ajout de produit.
+        me.autoComputeNetAfterChange();
 
     },
     getTypeReglementToDisplay: function (reglements) {
