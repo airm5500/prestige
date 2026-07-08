@@ -50,7 +50,8 @@ public class grossisteManagement extends bllBase {
             String str_CODE_POSTAL, String str_BUREAU_DISTRIBUTEUR, String str_MOBILE, String str_TELEPHONE,
             int int_DELAI_REGLEMENT_AUTORISE, String lg_TYPE_REGLEMENT_ID, String lg_VILLE_ID,
             Double dbl_CHIFFRE_DAFFAIRE, String str_CODE, int int_DELAI_REAPPROVISIONNEMENT, int int_COEF_SECURITY,
-            int int_DATE_BUTOIR_ARTICLE, String groupeId, String idrepartiteur) {
+            int int_DATE_BUTOIR_ARTICLE, String groupeId, String idrepartiteur, String str_URL_PHARMAML,
+            String str_CODE_RECEPTEUR_PHARMA, String str_ID_RECEPTEUR_PHARMA, String str_OFFICINE_ID) {
 
         try {
 
@@ -77,6 +78,11 @@ public class grossisteManagement extends bllBase {
             OTGrossiste.setIntDELAIREAPPROVISIONNEMENT(int_DELAI_REAPPROVISIONNEMENT);
             OTGrossiste.setGroupeId(findDefault(groupeId));
             OTGrossiste.setIdRepartiteur(idrepartiteur);
+            // champs pharmaML / officine (defaut chaine vide car colonnes non nulles en base)
+            OTGrossiste.setStrURLPHARMAML(str_URL_PHARMAML == null ? "" : str_URL_PHARMAML);
+            OTGrossiste.setStrCODERECEPTEURPHARMA(str_CODE_RECEPTEUR_PHARMA == null ? "" : str_CODE_RECEPTEUR_PHARMA);
+            OTGrossiste.setStrIDRECEPTEURPHARMA(str_ID_RECEPTEUR_PHARMA == null ? "" : str_ID_RECEPTEUR_PHARMA);
+            OTGrossiste.setStrOFFICINEID(str_OFFICINE_ID == null ? "" : str_OFFICINE_ID);
 
             // lg_VILLE_ID
             TVille OTVille = getOdataManager().getEm().find(TVille.class, lg_VILLE_ID);
@@ -109,7 +115,8 @@ public class grossisteManagement extends bllBase {
             String str_ADRESSE_RUE_2, String str_CODE_POSTAL, String str_BUREAU_DISTRIBUTEUR, String str_MOBILE,
             String str_TELEPHONE, int int_DELAI_REGLEMENT_AUTORISE, String lg_TYPE_REGLEMENT_ID, String lg_VILLE_ID,
             String str_CODE, int int_DELAI_REAPPROVISIONNEMENT, int int_COEF_SECURITY, int int_DATE_BUTOIR_ARTICLE,
-            String groupeId, String idrepartiteur) {
+            String groupeId, String idrepartiteur, String str_URL_PHARMAML, String str_CODE_RECEPTEUR_PHARMA,
+            String str_ID_RECEPTEUR_PHARMA, String str_OFFICINE_ID) {
 
         try {
 
@@ -159,6 +166,20 @@ public class grossisteManagement extends bllBase {
             OTGrossiste.setDtUPDATED(new Date());
             OTGrossiste.setGroupeId(findDefault(groupeId));
             OTGrossiste.setIdRepartiteur(idrepartiteur);
+            // champs pharmaML / officine : uniquement s'ils sont transmis (le formulaire les envoie,
+            // l'edition inline de la grille ne les envoie pas et ne doit donc pas les ecraser)
+            if (str_URL_PHARMAML != null) {
+                OTGrossiste.setStrURLPHARMAML(str_URL_PHARMAML);
+            }
+            if (str_CODE_RECEPTEUR_PHARMA != null) {
+                OTGrossiste.setStrCODERECEPTEURPHARMA(str_CODE_RECEPTEUR_PHARMA);
+            }
+            if (str_ID_RECEPTEUR_PHARMA != null) {
+                OTGrossiste.setStrIDRECEPTEURPHARMA(str_ID_RECEPTEUR_PHARMA);
+            }
+            if (str_OFFICINE_ID != null) {
+                OTGrossiste.setStrOFFICINEID(str_OFFICINE_ID);
+            }
             this.persiste(OTGrossiste);
             this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
         } catch (Exception e) {

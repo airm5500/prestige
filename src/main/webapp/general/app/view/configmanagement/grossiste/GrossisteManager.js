@@ -64,39 +64,32 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
 
                 },
                 {
-                    header: 'Code',
-                    dataIndex: 'str_CODE',
-                    flex: 1
-
-                },
-                {
-                    header: 'Nom',
+                    header: 'Nom du grossiste',
                     dataIndex: 'str_LIBELLE',
                     flex: 1
 
                 },
                 {
-                    header: 'Description',
-                    dataIndex: 'str_DESCRIPTION',
+                    header: 'Code Agence',
+                    dataIndex: 'idrepartiteur',
                     flex: 1
-                }, {
-                    header: 'Adresse Rue 1',
-                    dataIndex: 'str_ADRESSE_RUE_1',
-                    hidden: false,
-                    flex: 1,
-                    editor: {
-                        allowBlank: false
-                    }
                 },
-             
                 {
-                    header: 'Mobile',
-                    dataIndex: 'str_MOBILE',
-                    flex: 1,
-                    editor: {
-                        allowBlank: false
-                    }
-                }, {
+                    header: 'Lien PharmaML',
+                    dataIndex: 'str_URL_PHARMAML',
+                    flex: 1
+                },
+                {
+                    header: 'Code Recepteur',
+                    dataIndex: 'str_CODE_RECEPTEUR_PHARMA',
+                    flex: 1
+                },
+                {
+                    header: 'Code Client',
+                    dataIndex: 'str_ID_RECEPTEUR_PHARMA',
+                    flex: 1
+                },
+                {
                     header: 'Telephone',
                     dataIndex: 'str_TELEPHONE',
                     flex: 1,
@@ -104,7 +97,6 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                         allowBlank: false
                     }
                 },
-               
                 {
                     header: 'Ville',
                     dataIndex: 'lg_VILLE_ID',
