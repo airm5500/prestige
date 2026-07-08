@@ -82,6 +82,14 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                     op.params = op.params || {};
                     op.params.sort = 'lg_FAMILLE_NAME';
                     op.params.dir = 'ASC';
+                },
+                load: function () {
+                    // Apres chaque rechargement (recherche, modification produit...),
+                    // le focus revient dans le champ de recherche du tableau produits.
+                    var champRech = Ext.getCmp('rechercherDetail');
+                    if (champRech && champRech.rendered) {
+                        champRech.focus(true, 150);
+                    }
                 }
             }
         });
@@ -567,7 +575,19 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
         return;
     }
 
+    // Rappel prealable : les unites gratuites doivent avoir ete renseignees
     Ext.Msg.show({
+        title: 'Message',
+        msg: '<span style="color:red;font-weight:bold;">AVEZ-VOUS RENSEIGNÉ LES UNITÉS GRATUITES ?</span>',
+        buttons: Ext.Msg.YESNO,
+        icon: Ext.Msg.QUESTION,
+        cls: 'custom-messagebox',
+        fn: function (btnUG) {
+            if (btnUG !== 'yes') {
+                return; // Non : on reste sur la vue pour renseigner les UG
+            }
+            // Oui : on poursuit vers la confirmation existante d'entree en stock
+            Ext.Msg.show({
         title: 'Message',
         msg: "Confirmer l'entrée en stock",
         buttons: Ext.Msg.YESNO,
@@ -639,6 +659,8 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
             } else {
                 testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
             }
+        }
+            });
         }
     });
 }
