@@ -40,6 +40,11 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
     frame: true,
     width: "98%",
     height: 580,
+    // Mise en evidence de la ligne survolee (uniquement cette grille)
+    viewConfig: {
+        trackOver: true,
+        overItemCls: 'facture-row-over'
+    },
     listeners: {
         render: function (grid) {
             this.onRechClick();

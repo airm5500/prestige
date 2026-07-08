@@ -468,7 +468,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
                 int_CIP: Ext.getCmp('int_CIP').getValue(),
                 lg_CODE_TVA_ID: Ext.getCmp('lg_CODE_TVA_ID').getValue(),
                 int_T: Ext.getCmp('int_T').getValue(),
-                int_EAN13: Ext.getCmp('EAN').getValue()
+                int_EAN13: Ext.getCmp('EAN').getValue(),
+                // Creation rapide de produit : code remise fixe a 0 par defaut
+                str_CODE_REMISE: 0
             },
             success: function (response) {
                 button.enable();

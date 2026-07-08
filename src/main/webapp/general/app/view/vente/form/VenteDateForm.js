@@ -173,6 +173,8 @@ Ext.define('testextjs.view.vente.form.VenteDateForm', {
                                     fieldLabel: 'Date',
                                     name: 'date',
                                     allowBlank: false,
+                                    maxValue: new Date(),
+                                    invalidText: 'La date ne doit pas dépasser la date du jour',
                                     submitFormat: 'Y-m-d'
 
                                 }, {

@@ -518,3 +518,8 @@ body.x-body,
     color: #FFFFFF !important;
     font-weight: 800;
 }
+
+/* Facturation : mise en evidence de la ligne survolee (grille facturemanager) */
+.facture-row-over .x-grid-cell {
+    background-color: #fff3cd !important;
+}

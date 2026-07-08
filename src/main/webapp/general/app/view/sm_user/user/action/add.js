@@ -233,6 +233,18 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
 
         }
 
+        //A la creation : indice de securite et langue non demandes a l'utilisateur.
+        //On masque les champs et on force str_IDS=1 (numerique) et langue francaise lg_Language_ID=1
+        if (Omode === "create") {
+            var champIDS = Ext.getCmp('str_IDS');
+            champIDS.setValue('1');
+            champIDS.hide();
+
+            var champLangue = Ext.getCmp('lg_Language_ID');
+            champLangue.setValue(1);
+            champLangue.hide();
+        }
+
 
 
         var win = new Ext.window.Window({

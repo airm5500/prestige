@@ -24,7 +24,7 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
         'Ext.ux.grid.Printer'
 
     ],
-    title: 'Gestion Utilisateur',
+    title: 'Gestion des Utilisateurs',
     closable: false,
     frame: true,
     initComponent: function() {

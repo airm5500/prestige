@@ -203,6 +203,12 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
                     iconCls: 'pills',
                     scope: this,
                     handler: this.onbasculer
+                }, '-', {
+                    text: 'Imprimer',
+                    tooltip: 'Imprimer la feuille de comptage (portrait)',
+                    iconCls: 'printable',
+                    scope: this,
+                    handler: this.onPrintClick
                 }
 
 
@@ -394,5 +400,95 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
             parentview: this,
             titre: "Gestion des emplacements"
         });
+    },
+    // Impression portrait : feuille de comptage des emplacements.
+    // Colonnes : Code, Libelle, Comptage 1 et Comptage 2 (vierges pour saisie manuelle).
+    // Les donnees sont recuperees en parcourant toutes les pages du webservice.
+    onPrintClick: function () {
+        var search_value = Ext.getCmp('rechecher') ? Ext.getCmp('rechecher').getValue() : '';
+        var rows = [];
+        var progress = Ext.MessageBox.wait('Preparation de l\'impression . . .', 'Veuillez patienter');
+
+        var buildAndPrint = function () {
+            var htmlRows = '';
+            Ext.each(rows, function (r) {
+                htmlRows += '<tr>'
+                        + '<td>' + Ext.String.htmlEncode(r.str_CODE || '') + '</td>'
+                        + '<td>' + Ext.String.htmlEncode(r.str_LIBELLEE || '') + '</td>'
+                        + '<td class="cpt"></td>'
+                        + '<td class="cpt"></td>'
+                        + '</tr>';
+            });
+            var now = Ext.Date.format(new Date(), 'd/m/Y H:i');
+            var html = '<html><head><title>Feuille de comptage des emplacements</title>'
+                    + '<style>'
+                    + '@page { size: portrait; margin: 12mm; }'
+                    + 'body { font-family: Arial, sans-serif; font-size: 12px; color:#000; }'
+                    + 'h2 { text-align:center; margin:0 0 4px 0; }'
+                    + '.sub { text-align:center; font-size:11px; margin-bottom:10px; }'
+                    + 'table { width:100%; border-collapse:collapse; }'
+                    + 'th, td { border:1px solid #000; padding:5px 6px; text-align:left; }'
+                    + 'th { background:#eee; }'
+                    + 'td.cpt { width:22%; height:22px; }'
+                    + '</style></head><body>'
+                    + '<h2>Feuille de comptage des emplacements</h2>'
+                    + '<div class="sub">Edite le ' + now + ' - ' + rows.length + ' emplacement(s)</div>'
+                    + '<table><thead><tr>'
+                    + '<th style="width:20%">Code</th>'
+                    + '<th style="width:36%">Libelle</th>'
+                    + '<th style="width:22%">Comptage 1</th>'
+                    + '<th style="width:22%">Comptage 2</th>'
+                    + '</tr></thead><tbody>' + htmlRows + '</tbody></table>'
+                    + '</body></html>';
+            var win = window.open('', '_blank');
+            if (!win) {
+                Ext.MessageBox.alert('Impression', 'Veuillez autoriser les fenetres pop-up pour imprimer.');
+                return;
+            }
+            win.document.open();
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            win.print();
+        };
+
+        var fetchPage = function (start) {
+            Ext.Ajax.request({
+                url: url_services_data_zonegeographique,
+                method: 'GET',
+                params: {
+                    search_value: search_value,
+                    start: start
+                },
+                success: function (response) {
+                    var obj;
+                    try {
+                        obj = Ext.decode(response.responseText.replace(/^\(|\)$/g, ''));
+                    } catch (e) {
+                        obj = {results: [], total: 0};
+                    }
+                    var results = obj.results || [];
+                    var total = parseInt(obj.total, 10) || rows.length + results.length;
+                    rows = rows.concat(results);
+                    // Page suivante tant qu'il reste des lignes et que la page n'est pas vide (securite anti-boucle)
+                    if (results.length > 0 && rows.length < total && start < 100000) {
+                        fetchPage(rows.length);
+                    } else {
+                        progress.hide();
+                        buildAndPrint();
+                    }
+                },
+                failure: function () {
+                    progress.hide();
+                    if (rows.length > 0) {
+                        buildAndPrint();
+                    } else {
+                        Ext.MessageBox.alert('Impression', 'Impossible de recuperer les emplacements.');
+                    }
+                }
+            });
+        };
+
+        fetchPage(0);
     }
 });
