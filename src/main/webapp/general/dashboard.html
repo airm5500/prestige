@@ -136,7 +136,16 @@
     .kpi-achat { --accent: var(--prestige-purple); }
     .kpi-panier { --accent: var(--prestige-teal); }
     .kpi-marge { --accent: var(--prestige-danger); }
-    .kpi-valo { --accent: #16a34a; }
+
+    /* Bloc valorisation du stock (achat + vente) */
+    .valo-block { display: flex; flex-direction: column; gap: 12px; padding: 6px 2px; }
+    .valo-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border, #e5e7eb); background: #fbfdff; }
+    .valo-row .valo-label { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #475569; font-size: 13px; }
+    .valo-row .valo-value { font-weight: 800; font-size: 20px; letter-spacing: .2px; }
+    .valo-achat { border-left: 4px solid var(--prestige-primary, #0f766e); }
+    .valo-achat .valo-value, .valo-achat .valo-label i { color: var(--prestige-primary, #0f766e); }
+    .valo-vente { border-left: 4px solid #16a34a; }
+    .valo-vente .valo-value, .valo-vente .valo-label i { color: #16a34a; }
 
     .content-grid { margin-left: -8px; margin-right: -8px; }
     .content-grid > [class*="col-"] { padding-left: 8px; padding-right: 8px; }
@@ -350,19 +359,6 @@
           </div>
         </div>
       </div>
-
-      <div class="col-sm-6 col-md-3">
-        <div class="kpi-card kpi-valo" data-toggle="tooltip" title="Valorisation totale du stock (prix d'achat) au jour">
-          <div class="kpi-head">
-            <i class="fa fa-cubes kpi-icon"></i>
-            <div class="kpi-meta">
-              <div class="kpi-label">Valorisation stock</div>
-              <div class="kpi-value" id="idVALOSTOCK">—</div>
-              <div class="kpi-secondary">Valeur d'achat du jour</div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Vue principale -->
@@ -387,7 +383,7 @@
 
     <!-- Analyses secondaires -->
     <div class="row content-grid">
-      <div class="col-sm-12 col-md-6">
+      <div class="col-sm-12 col-md-4">
         <div class="panel panel-modern">
           <div class="panel-heading heading-green">
             <span class="title-wrap"><i class="fa fa-trophy"></i> Top 5 du Chiffre d'Affaires</span>
@@ -397,13 +393,33 @@
         </div>
       </div>
 
-      <div class="col-sm-12 col-md-6">
+      <div class="col-sm-12 col-md-4">
         <div class="panel panel-modern">
           <div class="panel-heading heading-purple">
             <span class="title-wrap"><i class="fa fa-cubes"></i> Top 5 des quantités d'articles</span>
             <a href="#" id="moretop5" class="see-more" style="display:none">Voir plus <i class="fa fa-angle-right"></i></a>
           </div>
           <div class="panel-body"><div id="idtopCount"></div></div>
+        </div>
+      </div>
+
+      <div class="col-sm-12 col-md-4">
+        <div class="panel panel-modern">
+          <div class="panel-heading heading-teal">
+            <span class="title-wrap"><i class="fa fa-cubes"></i> Valorisation du stock</span>
+          </div>
+          <div class="panel-body">
+            <div class="valo-block">
+              <div class="valo-row valo-achat">
+                <span class="valo-label"><i class="fa fa-shopping-cart"></i> Valeur d'achat</span>
+                <span class="valo-value" id="idVALOACHAT">—</span>
+              </div>
+              <div class="valo-row valo-vente">
+                <span class="valo-label"><i class="fa fa-tags"></i> Valeur de vente</span>
+                <span class="valo-value" id="idVALOVENTE">—</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -680,7 +696,7 @@
       if (dashboardRefreshRunning) return;
       setRefreshButtonLoading(true);
       updateDashboardTimestamps();
-      var requests = [loadDailyMetrics(), loadValorisationStock()];
+      var requests = [loadDailyMetrics(), loadValorisation(), loadPharmacien()];
       if (options.stagger) {
         requests.push(runLater(function(){ return loadWithMask($('#idtopCount').closest('.panel-modern'), 'Mise à jour des quantités...', drawTOP5Chart); }, 150));
         requests.push(runLater(function(){ return loadWithMask($('#idtopCA').closest('.panel-modern'), 'Mise à jour du top CA...', drawTOP5CAChart); }, 300));
@@ -800,17 +816,29 @@
       return d.getFullYear() + '-' + m + '-' + day;
     }
 
-    // Valorisation totale du stock du jour + nom du pharmacien (a la place de "Tableau de bord")
-    function loadValorisationStock(){
+    // Valorisation totale du stock du jour : valeur d'achat + valeur de vente
+    function loadValorisation(){
       return requestJson({
         url: '../api/v1/produit/valorisation',
         data: { mode: 0, dtStart: todayISODate() },
         success: function (resp) {
           var d = (resp && resp.data) ? resp.data : {};
-          setTextSafe('#idVALOSTOCK', d.totalValue || 0, true);
-          if (resp && resp.user) {
+          setTextSafe('#idVALOACHAT', d.totalValue || 0, true);
+          setTextSafe('#idVALOVENTE', d.totalValueTwo || 0, true);
+        }
+      });
+    }
+
+    // Nom du pharmacien (officine) affiche a la place de "Tableau de bord"
+    function loadPharmacien(){
+      return requestJson({
+        url: '../api/v1/officine',
+        success: function (resp) {
+          var off = (resp && resp.length) ? resp[0] : (resp || {});
+          var nom = off.fullName || off.nomComplet;
+          if (nom) {
             var titre = document.getElementById('dashboardTitle');
-            if (titre) { titre.textContent = resp.user; }
+            if (titre) { titre.textContent = nom; }
           }
         }
       });
