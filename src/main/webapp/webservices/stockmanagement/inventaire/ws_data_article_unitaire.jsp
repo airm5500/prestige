@@ -141,13 +141,10 @@
 
 <%    JSONArray arrayObj = new JSONArray();
     for (int i = pgInt; i < pgInt_Last; i++) {
-        try {
-            OdataManager.getEm().refresh(lstTInventaireFamille.get(i));
-            OdataManager.getEm().refresh(lstTInventaireFamille.get(i).getLgFAMILLEID());
-        } catch (Exception er) {
-        }
-
-       
+        // Optimisation : suppression des em.refresh() par ligne (2 requetes SQL redondantes
+        // par produit affiche). Les entites sont deja chargees par la requete de liste et les
+        // associations sont initialisees paresseusement a l'acces, ce qui donne le meme resultat
+        // en supprimant ~40 requetes par page.
 
         JSONObject json = new JSONObject();
        json.put("lg_INVENTAIRE_FAMILLE_ID", lstTInventaireFamille.get(i).getLgINVENTAIREFAMILLEID());
