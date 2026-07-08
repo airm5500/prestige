@@ -392,6 +392,7 @@ Ext.application({
         'testextjs.model.FamilleStock',
         'testextjs.view.stockmanagement.etatstock.EtatStockManager',
         'testextjs.view.stockmanagement.etatstock.action.add',
+        'testextjs.view.stockmanagement.evolutionstock.EvolutionStock',
         'testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManager',
         'testextjs.view.stockmanagement.perime.PerimeManager',
         'testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenneManager',

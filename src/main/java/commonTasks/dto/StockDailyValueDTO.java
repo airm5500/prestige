@@ -16,6 +16,7 @@ public class StockDailyValueDTO implements Serializable {
     private static final long serialVersionUID = 1L;
     private long valeurAchat;
     private long valeurVente;
+    private String date;
 
     public long getValeurAchat() {
         return valeurAchat;
@@ -33,9 +34,22 @@ public class StockDailyValueDTO implements Serializable {
         this.valeurVente = valeurVente;
     }
 
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
     public StockDailyValueDTO(StockDailyValue sdv) {
         this.valeurAchat = sdv.getValeurAchat();
         this.valeurVente = sdv.getValeurVente();
+        // L'id de StockDailyValue est la date au format numerique yyyyMMdd
+        String s = String.valueOf(sdv.getId());
+        if (s.length() == 8) {
+            this.date = s.substring(0, 4) + "-" + s.substring(4, 6) + "-" + s.substring(6, 8);
+        }
     }
 
     public StockDailyValueDTO() {
