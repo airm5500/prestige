@@ -5,6 +5,7 @@
  */
 package rest.service;
 
+import commonTasks.dto.ArticleDTO;
 import commonTasks.dto.MvtArticleParams;
 import commonTasks.dto.MvtProduitDTO;
 import commonTasks.dto.Params;
@@ -108,4 +109,9 @@ public interface ProduitService {
             TGrossiste grossiste);
 
     JSONObject updateCodeCip(String familleId, UpdateCipDTO dto);
+
+    // Suivi des unites gratuites : produits ayant du stock UG (intUG > 0) pour l'emplacement de l'utilisateur
+    JSONObject suiviUg(TUser user, String query) throws JSONException;
+
+    List<ArticleDTO> suiviUgArticles(TUser user, String query);
 }

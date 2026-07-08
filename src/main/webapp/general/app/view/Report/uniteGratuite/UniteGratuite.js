@@ -10,10 +10,11 @@ function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
 
-Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuite', {
+// Onglet 1 : suivi des UG par bon de livraison / periode (ecran historique)
+Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteGrid', {
     extend: 'Ext.grid.Panel',
-    xtype: 'ugmanager',
-    id: 'ugmanagerID',
+    xtype: 'ugmanagergrid',
+    id: 'ugmanagergridID',
     title: 'Unités gratuites',
     requires: [
         'Ext.selection.CellModel',
@@ -450,5 +451,308 @@ Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuite', {
 
 
 
+    }
+});
+
+/*
+ * Fonctions partagees par les deux onglets :
+ *   - generer une suggestion a partir des produits a UG,
+ *   - creer un inventaire a partir des produits a UG.
+ * Ces actions s'appuient sur les produits ayant du stock UG (endpoint suivi-ug cote serveur).
+ */
+function ugGenererSuggestion() {
+    var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Generation de la suggestion');
+    Ext.Ajax.request({
+        url: '../api/v1/produit/suivi-ug/suggestion',
+        method: 'GET',
+        timeout: 2400000,
+        success: function (response) {
+            progress.hide();
+            var result = Ext.JSON.decode(response.responseText, true);
+            if (result && result.success) {
+                Ext.MessageBox.show({
+                    title: 'Message',
+                    width: 320,
+                    msg: 'Nombre de produits en compte : ' + result.count,
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.INFO,
+                    fn: function (btn) {
+                        if (btn === 'ok') {
+                            testextjs.app.getController('App').onLoadNewComponent('i_sugg_manager', 'Liste Suggestion', '');
+                        }
+                    }
+                });
+            } else {
+                Ext.MessageBox.alert('Message', "La generation de la suggestion n'a pas abouti.");
+            }
+        },
+        failure: function () {
+            progress.hide();
+            Ext.MessageBox.alert('Message d\'erreur', "L'operation n'a pas abouti.");
+        }
+    });
+}
+
+function ugCreerInventaire() {
+    var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Creation de l\'inventaire');
+    // On recupere d'abord la liste des produits a UG, puis on cree l'inventaire par selection
+    Ext.Ajax.request({
+        url: '../api/v1/produit/suivi-ug',
+        method: 'GET',
+        timeout: 2400000,
+        success: function (response) {
+            var result = Ext.JSON.decode(response.responseText, true);
+            var ids = [];
+            if (result && result.data) {
+                Ext.each(result.data, function (r) {
+                    if (r.id) {
+                        ids.push(r.id);
+                    }
+                });
+            }
+            if (ids.length === 0) {
+                progress.hide();
+                Ext.MessageBox.alert('Message', 'Aucun produit a UG a inventorier.');
+                return;
+            }
+            Ext.Ajax.request({
+                url: '../api/v1/reserve/create-inventaire-selection',
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                jsonData: {ids: ids, description: 'Inventaire UG'},
+                timeout: 2400000,
+                success: function (resp2) {
+                    progress.hide();
+                    var res2 = Ext.JSON.decode(resp2.responseText, true);
+                    Ext.MessageBox.show({
+                        title: 'Message',
+                        width: 320,
+                        msg: 'Inventaire cree (' + (res2 && res2.count ? res2.count : ids.length) + ' produit(s)).',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.INFO,
+                        fn: function (btn) {
+                            if (btn === 'ok') {
+                                testextjs.app.getController('App').onLoadNewComponent('inventaire', 'Gestion des inventaires', '');
+                            }
+                        }
+                    });
+                },
+                failure: function () {
+                    progress.hide();
+                    Ext.MessageBox.alert('Message d\'erreur', "La creation de l'inventaire n'a pas abouti.");
+                }
+            });
+        },
+        failure: function () {
+            progress.hide();
+            Ext.MessageBox.alert('Message d\'erreur', "Impossible de recuperer les produits a UG.");
+        }
+    });
+}
+
+// Onglet 2 : Suivi UG - produits a UG avec stock actuel et quantite UG restante
+Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuiteSuivi', {
+    extend: 'Ext.grid.Panel',
+    xtype: 'ugsuivi',
+    id: 'ugsuiviID',
+    title: 'Suivi UG',
+    frame: true,
+    requires: [
+        'Ext.grid.*',
+        'Ext.data.*',
+        'Ext.util.*'
+    ],
+    initComponent: function () {
+        var me = this;
+        var store = new Ext.data.Store({
+            fields: [
+                {name: 'id', type: 'string'},
+                {name: 'code', type: 'string'},
+                {name: 'libelle', type: 'string'},
+                {name: 'prixAchat', type: 'float'},
+                {name: 'prixVente', type: 'float'},
+                {name: 'stock', type: 'int'},
+                {name: 'stockUg', type: 'int'}
+            ],
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/produit/suivi-ug',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'},
+                timeout: 2400000
+            }
+        });
+        me.suiviStore = store;
+
+        Ext.apply(me, {
+            width: '98%',
+            store: store,
+            columns: [
+                {header: 'CIP', dataIndex: 'code', flex: 1},
+                {header: 'NOM', dataIndex: 'libelle', flex: 2},
+                {header: 'PRIX ACHAT', dataIndex: 'prixAchat', align: 'right', flex: 1, renderer: amountformat},
+                {header: 'PRIX VENTE', dataIndex: 'prixVente', align: 'right', flex: 1, renderer: amountformat},
+                {header: 'STOCK', dataIndex: 'stock', align: 'right', flex: 1, renderer: amountformat},
+                {
+                    header: 'STOCK UG', dataIndex: 'stockUg', align: 'right', flex: 1,
+                    renderer: function (v) {
+                        return '<span style="font-weight:bold;color:blue;">' + Ext.util.Format.number(v, '0,000.') + '</span>';
+                    }
+                }
+            ],
+            tbar: [
+                {
+                    xtype: 'textfield',
+                    itemId: 'ugSuiviSearch',
+                    width: 180,
+                    emptyText: 'Rech (CIP / nom)',
+                    listeners: {
+                        specialkey: function (field, e) {
+                            if (e.getKey() === e.ENTER) {
+                                me.doSearch();
+                            }
+                        }
+                    }
+                }, {
+                    text: 'Rechercher',
+                    iconCls: 'searchicon',
+                    scope: me,
+                    handler: me.doSearch
+                }, '-', {
+                    text: 'Imprimer',
+                    iconCls: 'printable',
+                    scope: me,
+                    handler: me.doPrint
+                }, {
+                    text: 'Export CSV',
+                    iconCls: 'export_csv_icon',
+                    scope: me,
+                    handler: function () {
+                        me.doExport(false);
+                    }
+                }, {
+                    text: 'Export EXCEL',
+                    iconCls: 'xls',
+                    scope: me,
+                    handler: function () {
+                        me.doExport(true);
+                    }
+                }, '-', {
+                    text: 'Generer suggestion',
+                    iconCls: 'suggestionreapro',
+                    handler: ugGenererSuggestion
+                }, {
+                    text: 'Creer inventaire',
+                    iconCls: 'inventaireicon',
+                    handler: ugCreerInventaire
+                }
+            ]
+        });
+
+        me.callParent();
+
+        me.on('afterlayout', me.doSearch, me, {delay: 1, single: true});
+    },
+    doSearch: function () {
+        var me = this;
+        var champ = me.down('#ugSuiviSearch');
+        me.suiviStore.load({
+            params: {query: champ ? champ.getValue() : ''}
+        });
+    },
+    doPrint: function () {
+        var me = this;
+        var rows = '';
+        me.suiviStore.each(function (r) {
+            rows += '<tr>'
+                    + '<td>' + Ext.String.htmlEncode(r.get('code') || '') + '</td>'
+                    + '<td>' + Ext.String.htmlEncode(r.get('libelle') || '') + '</td>'
+                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('prixAchat') || 0, '0,000.') + '</td>'
+                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('prixVente') || 0, '0,000.') + '</td>'
+                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('stock') || 0, '0,000.') + '</td>'
+                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('stockUg') || 0, '0,000.') + '</td>'
+                    + '</tr>';
+        });
+        var html = '<html><head><title>Suivi des unites gratuites</title>'
+                + '<style>body{font-family:Arial,sans-serif;font-size:12px;}h2{text-align:center;}'
+                + 'table{width:100%;border-collapse:collapse;}th,td{border:1px solid #000;padding:5px 6px;}th{background:#eee;text-align:left;}</style>'
+                + '</head><body><h2>Suivi des unites gratuites</h2>'
+                + '<table><thead><tr><th>CIP</th><th>NOM</th><th style="text-align:right">PRIX ACHAT</th>'
+                + '<th style="text-align:right">PRIX VENTE</th><th style="text-align:right">STOCK</th><th style="text-align:right">STOCK UG</th>'
+                + '</tr></thead><tbody>' + rows + '</tbody></table></body></html>';
+        var win = window.open('', '_blank');
+        if (!win) {
+            Ext.MessageBox.alert('Impression', 'Veuillez autoriser les fenetres pop-up.');
+            return;
+        }
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        win.print();
+    },
+    doExport: function (isExcel) {
+        var me = this;
+        var sep = ';';
+        var lines = ['CIP' + sep + 'NOM' + sep + 'PRIX ACHAT' + sep + 'PRIX VENTE' + sep + 'STOCK' + sep + 'STOCK UG'];
+        me.suiviStore.each(function (r) {
+            var nom = (r.get('libelle') || '').toString().replace(/;/g, ',');
+            lines.push([
+                r.get('code') || '', nom, r.get('prixAchat') || 0, r.get('prixVente') || 0,
+                r.get('stock') || 0, r.get('stockUg') || 0
+            ].join(sep));
+        });
+        var content = lines.join('\r\n');
+        // BOM pour une bonne prise en charge des accents dans Excel
+        var mime = isExcel ? 'application/vnd.ms-excel' : 'text/csv';
+        var ext = isExcel ? 'xls' : 'csv';
+        var blob = new Blob(['﻿' + content], {type: mime + ';charset=utf-8;'});
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'suivi_ug.' + ext;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    }
+});
+
+// Ecran principal Unites gratuites : deux onglets (xtype 'ugmanager', charge par le menu)
+Ext.define('testextjs.view.Report.uniteGratuite.UniteGratuite', {
+    extend: 'Ext.tab.Panel',
+    xtype: 'ugmanager',
+    id: 'ugmanagerID',
+    title: 'Unités gratuites',
+    frame: true,
+    width: '98%',
+    minHeight: 600,
+    initComponent: function () {
+        var me = this;
+        Ext.apply(me, {
+            items: [
+                {
+                    xtype: 'ugmanagergrid',
+                    title: 'Unités gratuites',
+                    // Suggestion / creation d'inventaire disponibles aussi sur cet onglet
+                    listeners: {
+                        afterrender: function (grid) {
+                            var tb = grid.getDockedItems('toolbar[dock="top"]')[0];
+                            if (tb && !grid._ugActionsAdded) {
+                                grid._ugActionsAdded = true;
+                                tb.add('-');
+                                tb.add({text: 'Generer suggestion', iconCls: 'suggestionreapro', handler: ugGenererSuggestion});
+                                tb.add({text: 'Creer inventaire', iconCls: 'inventaireicon', handler: ugCreerInventaire});
+                            }
+                        }
+                    }
+                },
+                {
+                    xtype: 'ugsuivi',
+                    title: 'Suivi UG'
+                }
+            ]
+        });
+        me.callParent();
     }
 });

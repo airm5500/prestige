@@ -31,6 +31,7 @@ public class ArticleDTO implements Serializable {
             valeurVente, stockMoyen, seuiRappro, qteReappro, stockDetail, consommationsOne, moyen3Mois,
             consommationsTwo, cumulConso, consommationsThree, consommationUn, consommationsFour, consommationsFive,
             consommationsSix;
+    private int stockUg;
     private double coefficient;
     private String codeEan, datePeremption, rayonLibelle, codeEtiquette, tva, dateEntree, dateBon, familleLibelle,
             dateInventaire, lastDateVente;
@@ -333,6 +334,19 @@ public class ArticleDTO implements Serializable {
 
     public ArticleDTO stock(int stock) {
         this.stock = stock;
+        return this;
+    }
+
+    public int getStockUg() {
+        return stockUg;
+    }
+
+    public void setStockUg(int stockUg) {
+        this.stockUg = stockUg;
+    }
+
+    public ArticleDTO stockUg(int stockUg) {
+        this.stockUg = stockUg;
         return this;
     }
 

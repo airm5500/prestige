@@ -19,6 +19,7 @@ import commonTasks.dto.VenteDetailsDTO;
 import dal.CategorieNotification;
 import dal.GammeProduit;
 import dal.HMvtProduit;
+import commonTasks.dto.ArticleDTO;
 import dal.HMvtProduit_;
 import dal.Laboratoire;
 import dal.Notification;
@@ -2877,5 +2878,54 @@ public class ProduitServiceImpl implements ProduitService {
         }
 
         return json.put("success", true);
+    }
+
+    // Suivi UG : liste des produits ayant du stock d'unites gratuites (intUG > 0) pour l'emplacement de l'utilisateur
+    @Override
+    public List<ArticleDTO> suiviUgArticles(TUser user, String query) {
+        List<ArticleDTO> result = new ArrayList<>();
+        try {
+            String empId = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            StringBuilder jpql = new StringBuilder(
+                    "SELECT s FROM TFamilleStock s WHERE s.intUG > 0 AND s.lgEMPLACEMENTID.lgEMPLACEMENTID = :empId AND s.strSTATUT = 'enable'");
+            boolean hasQuery = query != null && !query.trim().isEmpty();
+            if (hasQuery) {
+                jpql.append(" AND (s.lgFAMILLEID.strNAME LIKE :q OR s.lgFAMILLEID.intCIP LIKE :q)");
+            }
+            jpql.append(" ORDER BY s.lgFAMILLEID.strNAME ASC");
+            javax.persistence.TypedQuery<TFamilleStock> q = getEntityManager().createQuery(jpql.toString(),
+                    TFamilleStock.class);
+            q.setParameter("empId", empId);
+            if (hasQuery) {
+                q.setParameter("q", query.trim() + "%");
+            }
+            for (TFamilleStock s : q.getResultList()) {
+                TFamille f = s.getLgFAMILLEID();
+                if (f == null) {
+                    continue;
+                }
+                ArticleDTO dto = new ArticleDTO();
+                dto.setId(f.getLgFAMILLEID());
+                dto.setCode(f.getIntCIP());
+                dto.setLibelle(f.getStrNAME());
+                dto.setPrixAchat(f.getIntPAF() != null ? f.getIntPAF() : 0);
+                dto.setPrixVente(f.getIntPRICE() != null ? f.getIntPRICE() : 0);
+                dto.setStock(s.getIntNUMBERAVAILABLE() != null ? s.getIntNUMBERAVAILABLE() : 0);
+                dto.setStockUg(s.getIntUG() != null ? s.getIntUG() : 0);
+                if (f.getLgGROSSISTEID() != null) {
+                    dto.setGrossisteId(f.getLgGROSSISTEID().getLgGROSSISTEID());
+                }
+                result.add(dto);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+
+    @Override
+    public JSONObject suiviUg(TUser user, String query) throws JSONException {
+        List<ArticleDTO> datas = suiviUgArticles(user, query);
+        return new JSONObject().put("total", datas.size()).put("data", new JSONArray(datas));
     }
 }
