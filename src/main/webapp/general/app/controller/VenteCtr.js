@@ -5513,6 +5513,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                     progress.hide();
                     const result = Ext.JSON.decode(response.responseText, true);
                     if (result.success) {
+                        // le retrait du tiers-payant change la répartition :
+                        // recalcul du net avant de rendre la main au produit
+                        me.toRecalculate = true;
+                        me.autoComputeNetAfterChange();
                         me.getVnoproduitCombo().focus(true, 100);
                     } else {
                         Ext.Msg.alert("Message", 'Le tiers-payant n\'est pas supprimé');
@@ -5542,6 +5546,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                     const result = Ext.JSON.decode(response.responseText, true);
                     if (!result.success) {
                         Ext.Msg.alert("Message", 'Le tiers-payant n\'a pas été ajouté');
+                    } else {
+                        // le tiers-payant change la répartition : recalcul du net
+                        me.toRecalculate = true;
+                        me.autoComputeNetAfterChange();
                     }
 
                 },
