@@ -701,11 +701,13 @@ public class ErpServiceImpl implements ErpService {
     }
 
     @Override
-    public List<EmplacementReportDTO> emplacementsComptage() {
+    public List<EmplacementReportDTO> emplacementsComptage(String tri) {
         try {
+            // Tri controle (liste blanche) : par nom (libelle) ou par code d'emplacement (defaut)
+            String orderBy = "nom".equalsIgnoreCase(tri) ? "t.strLIBELLEE" : "t.strCODE";
             return getEntityManager().createQuery(
                     "SELECT new commonTasks.dto.EmplacementReportDTO(t.strCODE, t.strLIBELLEE) "
-                            + "FROM TZoneGeographique t WHERE t.strSTATUT = :st ORDER BY t.strCODE",
+                            + "FROM TZoneGeographique t WHERE t.strSTATUT = :st ORDER BY " + orderBy,
                     EmplacementReportDTO.class).setParameter("st", "enable").getResultList();
         } catch (Exception e) {
             return java.util.Collections.emptyList();

@@ -59,6 +59,6 @@ public interface ErpService {
 
     List<WsCaAchatVente> getCaAchatVente(String dtStart, String dtEnd);
 
-    List<EmplacementReportDTO> emplacementsComptage();
+    List<EmplacementReportDTO> emplacementsComptage(String tri);
 
 }

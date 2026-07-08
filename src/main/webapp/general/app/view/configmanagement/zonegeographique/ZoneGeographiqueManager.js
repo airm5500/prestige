@@ -401,13 +401,31 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
             titre: "Gestion des emplacements"
         });
     },
-    // Edition PDF (JasperReports rp_emplacements_comptage.jrxml) : feuille de comptage
-    // Colonnes : Code, Libelle, Comptage 1 et Comptage 2 (vierges pour saisie manuelle).
+    // Edition PDF (JasperReports rp_emplacements_comptage.jrxml) : feuille de comptage.
+    // Au clic, on demande le tri souhaite : par Code ou par Nom d'emplacement.
     onPrintClick: function () {
+        var me = this;
+        Ext.Msg.show({
+            title: 'Impression - Choix du tri',
+            msg: 'Trier la liste des emplacements par :',
+            buttons: Ext.Msg.YESNOCANCEL,
+            buttonText: {yes: 'Code', no: 'Nom', cancel: 'Annuler'},
+            icon: Ext.Msg.QUESTION,
+            fn: function (btn) {
+                if (btn === 'yes') {
+                    me.genererPdfEmplacements('code');
+                } else if (btn === 'no') {
+                    me.genererPdfEmplacements('nom');
+                }
+            }
+        });
+    },
+    genererPdfEmplacements: function (tri) {
         var progress = Ext.MessageBox.wait('Generation du PDF . . .', 'Veuillez patienter');
         Ext.Ajax.request({
             url: '../api/v1/emplacements/pdf',
             method: 'GET',
+            params: {tri: tri},
             timeout: 2400000,
             success: function (resp) {
                 progress.hide();

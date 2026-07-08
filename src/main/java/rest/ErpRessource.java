@@ -84,11 +84,12 @@ public class ErpRessource {
     // Edition PDF (JasperReports) de la feuille de comptage des emplacements : rp_emplacements_comptage.jrxml
     @GET
     @Path("emplacements/pdf")
-    public Response emplacementsPdf() throws JSONException {
+    public Response emplacementsPdf(@QueryParam(value = "tri") String tri) throws JSONException {
         TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
         Map<String, Object> params = reportUtil.officineData(tu);
-        params.put("P_H_CLT_INFOS", "FEUILLE DE COMPTAGE DES EMPLACEMENTS");
-        List<EmplacementReportDTO> data = erpService.emplacementsComptage();
+        String libTri = "nom".equalsIgnoreCase(tri) ? "NOM" : "CODE";
+        params.put("P_H_CLT_INFOS", "FEUILLE DE COMPTAGE DES EMPLACEMENTS (TRI PAR " + libTri + ")");
+        List<EmplacementReportDTO> data = erpService.emplacementsComptage(tri);
         String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "rp_emplacements_comptage", data);
         return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
     }
