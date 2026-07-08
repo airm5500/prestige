@@ -263,48 +263,38 @@ Ext.define('testextjs.view.stockmanagement.evolutionstock.EvolutionStock', {
             }
         });
     },
+    // Edition PDF via JasperReports (rp_evolution_stock.jrxml)
     doPrint: function () {
         var me = this;
         var p = me.getPeriode();
-        var dtStart = p.dtStart.getValue();
-        var dtEnd = p.dtEnd.getValue();
-        var periode = (dtStart ? Ext.Date.format(dtStart, 'd/m/Y') : '?') + ' au '
-                + (dtEnd ? Ext.Date.format(dtEnd, 'd/m/Y') : '?');
-
-        var htmlRows = '';
-        me.evolutionStore.each(function (r) {
-            htmlRows += '<tr>'
-                    + '<td>' + Ext.String.htmlEncode(r.get('date') || '') + '</td>'
-                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('valeurAchat') || 0, '0,000.') + '</td>'
-                    + '<td style="text-align:right">' + Ext.util.Format.number(r.get('valeurVente') || 0, '0,000.') + '</td>'
-                    + '</tr>';
-        });
-
-        var html = '<html><head><title>Evolution du stock</title>'
-                + '<style>'
-                + 'body { font-family: Arial, sans-serif; font-size: 12px; color:#000; }'
-                + 'h2 { text-align:center; margin:0 0 4px 0; }'
-                + '.sub { text-align:center; font-size:11px; margin-bottom:10px; }'
-                + 'table { width:100%; border-collapse:collapse; }'
-                + 'th, td { border:1px solid #000; padding:5px 6px; }'
-                + 'th { background:#eee; text-align:left; }'
-                + '</style></head><body>'
-                + '<h2>Evolution de la valorisation du stock</h2>'
-                + '<div class="sub">Periode : ' + periode + '</div>'
-                + '<table><thead><tr>'
-                + '<th>Date</th><th style="text-align:right">Valeur d\'achat</th><th style="text-align:right">Valeur de vente</th>'
-                + '</tr></thead><tbody>' + htmlRows + '</tbody></table>'
-                + '</body></html>';
-
-        var win = window.open('', '_blank');
-        if (!win) {
-            Ext.MessageBox.alert('Impression', 'Veuillez autoriser les fenetres pop-up pour imprimer.');
+        var dtStartField = p.dtStart;
+        var dtEndField = p.dtEnd;
+        if (Ext.isEmpty(dtStartField.getValue()) || Ext.isEmpty(dtEndField.getValue())) {
+            Ext.MessageBox.alert('Information', 'Veuillez renseigner les deux dates.');
             return;
         }
-        win.document.open();
-        win.document.write(html);
-        win.document.close();
-        win.focus();
-        win.print();
+        var progress = Ext.MessageBox.wait('Generation du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            url: '../api/v1/valorisation/all/pdf',
+            method: 'GET',
+            params: {
+                dtStart: dtStartField.getSubmitValue(),
+                dtEnd: dtEndField.getSubmitValue()
+            },
+            timeout: 2400000,
+            success: function (resp) {
+                progress.hide();
+                var r = Ext.JSON.decode(resp.responseText, true);
+                if (r && r.success && r.url) {
+                    window.open(r.url);
+                } else {
+                    Ext.MessageBox.alert('Impression', "La generation du PDF n'a pas abouti.");
+                }
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.alert('Impression', "La generation du PDF a echoue.");
+            }
+        });
     }
 });

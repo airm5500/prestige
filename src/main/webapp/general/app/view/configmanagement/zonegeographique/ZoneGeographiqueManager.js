@@ -401,106 +401,27 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
             titre: "Gestion des emplacements"
         });
     },
-    // Impression portrait : feuille de comptage des emplacements.
+    // Edition PDF (JasperReports rp_emplacements_comptage.jrxml) : feuille de comptage
     // Colonnes : Code, Libelle, Comptage 1 et Comptage 2 (vierges pour saisie manuelle).
-    // Les donnees sont recuperees en parcourant toutes les pages du webservice.
     onPrintClick: function () {
-        var search_value = Ext.getCmp('rechecher') ? Ext.getCmp('rechecher').getValue() : '';
-        var rows = [];
-        var progress = Ext.MessageBox.wait('Preparation de l\'impression . . .', 'Veuillez patienter');
-
-        var buildAndPrint = function () {
-            var htmlRows = '', i = 0;
-            Ext.each(rows, function (r) {
-                i++;
-                htmlRows += '<tr>'
-                        + '<td class="num">' + i + '</td>'
-                        + '<td>' + Ext.String.htmlEncode(r.str_CODE || '') + '</td>'
-                        + '<td>' + Ext.String.htmlEncode(r.str_LIBELLEE || '') + '</td>'
-                        + '<td class="cpt"></td>'
-                        + '<td class="cpt"></td>'
-                        + '</tr>';
-            });
-            var now = Ext.Date.format(new Date(), 'd/m/Y H:i');
-            var html = '<!DOCTYPE html><html><head><meta charset="utf-8">'
-                    + '<title>Feuille de comptage des emplacements</title>'
-                    + '<style>'
-                    + '@page { size: A4 portrait; margin: 12mm; }'
-                    + '* { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }'
-                    + 'body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color:#000; margin:0; }'
-                    + 'h2 { text-align:center; margin:0 0 2px 0; font-size:16px; }'
-                    + '.sub { text-align:center; font-size:11px; color:#333; margin-bottom:10px; }'
-                    + 'table { width:100%; border-collapse:collapse; table-layout:fixed; }'
-                    + 'thead { display: table-header-group; }'
-                    + 'th { background:#e8e8e8; border:1px solid #444; padding:6px; text-align:left; }'
-                    + 'td { border:1px solid #444; padding:6px; vertical-align:top; word-wrap:break-word; overflow:hidden; }'
-                    + 'tbody tr { page-break-inside: avoid; }'
-                    + 'tbody tr:nth-child(even) { background:#f7f7f7; }'
-                    + 'td.num { text-align:center; color:#555; }'
-                    + 'td.cpt { height:26px; }'
-                    + '</style></head>'
-                    + '<body onload="window.focus(); window.print();">'
-                    + '<h2>Feuille de comptage des emplacements</h2>'
-                    + '<div class="sub">Edite le ' + now + ' &bull; ' + rows.length + ' emplacement(s)</div>'
-                    + '<table>'
-                    + '<colgroup><col style="width:7%"><col style="width:18%"><col style="width:35%"><col style="width:20%"><col style="width:20%"></colgroup>'
-                    + '<thead><tr>'
-                    + '<th>N&deg;</th><th>Code</th><th>Libelle</th><th>Comptage 1</th><th>Comptage 2</th>'
-                    + '</tr></thead><tbody>' + htmlRows + '</tbody></table>'
-                    + '</body></html>';
-            var win = window.open('', '_blank');
-            if (!win) {
-                Ext.MessageBox.alert('Impression', 'Veuillez autoriser les fenetres pop-up pour imprimer.');
-                return;
-            }
-            win.document.open();
-            win.document.write(html);
-            win.document.close();
-        };
-
-        var fetchPage = function (start) {
-            Ext.Ajax.request({
-                url: url_services_data_zonegeographique,
-                method: 'GET',
-                params: {
-                    search_value: search_value,
-                    start: start
-                },
-                success: function (response) {
-                    var obj;
-                    try {
-                        // La reponse est encapsulee dans ({...}) et peut contenir des espaces/retours a la ligne :
-                        // on extrait le contenu entre la 1re '(' et la derniere ')'.
-                        var txt = response.responseText;
-                        var deb = txt.indexOf('(');
-                        var fin = txt.lastIndexOf(')');
-                        var json = (deb !== -1 && fin !== -1 && fin > deb) ? txt.substring(deb + 1, fin) : txt;
-                        obj = Ext.decode(json);
-                    } catch (e) {
-                        obj = {results: [], total: 0};
-                    }
-                    var results = obj.results || [];
-                    var total = parseInt(obj.total, 10) || rows.length + results.length;
-                    rows = rows.concat(results);
-                    // Page suivante tant qu'il reste des lignes et que la page n'est pas vide (securite anti-boucle)
-                    if (results.length > 0 && rows.length < total && start < 100000) {
-                        fetchPage(rows.length);
-                    } else {
-                        progress.hide();
-                        buildAndPrint();
-                    }
-                },
-                failure: function () {
-                    progress.hide();
-                    if (rows.length > 0) {
-                        buildAndPrint();
-                    } else {
-                        Ext.MessageBox.alert('Impression', 'Impossible de recuperer les emplacements.');
-                    }
+        var progress = Ext.MessageBox.wait('Generation du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            url: '../api/v1/emplacements/pdf',
+            method: 'GET',
+            timeout: 2400000,
+            success: function (resp) {
+                progress.hide();
+                var r = Ext.JSON.decode(resp.responseText, true);
+                if (r && r.success && r.url) {
+                    window.open(r.url);
+                } else {
+                    Ext.MessageBox.alert('Impression', "La generation du PDF n'a pas abouti.");
                 }
-            });
-        };
-
-        fetchPage(0);
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.alert('Impression', "La generation du PDF a echoue.");
+            }
+        });
     }
 });

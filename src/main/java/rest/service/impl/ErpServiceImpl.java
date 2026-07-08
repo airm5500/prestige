@@ -5,6 +5,7 @@
  */
 package rest.service.impl;
 
+import commonTasks.dto.EmplacementReportDTO;
 import commonTasks.dto.ErProduitDTO;
 import commonTasks.dto.ErpAchatFournisseurDTO;
 import commonTasks.dto.ErpCaComptant;
@@ -697,5 +698,17 @@ public class ErpServiceImpl implements ErpService {
     private WsCaAchatVenteDTO buildFromTupleAchat(Tuple t) {
         return new WsCaAchatVenteDTO("Achat", LocalDate.parse(t.get("mvtDay").toString()),
                 t.get("montant", BigDecimal.class));
+    }
+
+    @Override
+    public List<EmplacementReportDTO> emplacementsComptage() {
+        try {
+            return getEntityManager().createQuery(
+                    "SELECT new commonTasks.dto.EmplacementReportDTO(t.strCODE, t.strLIBELLEE) "
+                            + "FROM TZoneGeographique t WHERE t.strSTATUT = :st ORDER BY t.strCODE",
+                    EmplacementReportDTO.class).setParameter("st", "enable").getResultList();
+        } catch (Exception e) {
+            return java.util.Collections.emptyList();
+        }
     }
 }

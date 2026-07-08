@@ -5,7 +5,16 @@
  */
 package rest;
 
+import commonTasks.dto.EmplacementReportDTO;
+import commonTasks.dto.StockDailyValueDTO;
+import dal.TUser;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
 import javax.ejb.EJB;
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -14,11 +23,15 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
+import org.json.JSONException;
+import org.json.JSONObject;
+import rest.report.ReportUtil;
 import rest.service.ErpService;
 import rest.service.InventaireService;
 import rest.service.RetourFournisseurService;
 import rest.service.impl.DataExportService;
 import rest.service.inventaire.dto.UpdateInventaireDetailDTO;
+import util.Constant;
 
 /**
  *
@@ -37,6 +50,10 @@ public class ErpRessource {
     private DataExportService dataExportService;
     @EJB
     private InventaireService inventaireService;
+    @EJB
+    private ReportUtil reportUtil;
+    @Inject
+    private HttpServletRequest servletRequest;
 
     @GET
     @Path("valorisation")
@@ -49,6 +66,39 @@ public class ErpRessource {
     public Response valorisationAll(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd) {
         return Response.ok().entity(erpService.valorisationAll(dtStart, dtEnd)).build();
+    }
+
+    // Edition PDF (JasperReports) de l'evolution du stock : rp_evolution_stock.jrxml
+    @GET
+    @Path("valorisation/all/pdf")
+    public Response valorisationAllPdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        Map<String, Object> params = reportUtil.officineData(tu);
+        params.put("P_H_CLT_INFOS", "EVOLUTION DU STOCK - PERIODE DU " + formatDate(dtStart) + " AU " + formatDate(dtEnd));
+        List<StockDailyValueDTO> data = erpService.valorisationAll(dtStart, dtEnd);
+        String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "rp_evolution_stock", data);
+        return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
+    }
+
+    // Edition PDF (JasperReports) de la feuille de comptage des emplacements : rp_emplacements_comptage.jrxml
+    @GET
+    @Path("emplacements/pdf")
+    public Response emplacementsPdf() throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        Map<String, Object> params = reportUtil.officineData(tu);
+        params.put("P_H_CLT_INFOS", "FEUILLE DE COMPTAGE DES EMPLACEMENTS");
+        List<EmplacementReportDTO> data = erpService.emplacementsComptage();
+        String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "rp_emplacements_comptage", data);
+        return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
+    }
+
+    private String formatDate(String d) {
+        try {
+            return LocalDate.parse(d).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        } catch (Exception e) {
+            return d;
+        }
     }
 
     @GET

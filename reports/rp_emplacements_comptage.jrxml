@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Rapport "Feuille de comptage des emplacements" - source : collection de EmplacementReportDTO (code, libelle).
+     Colonnes Comptage 1 / Comptage 2 volontairement vides (a remplir a la main).
+     A deposer dans D:\CONF\LABOREX\REPORTS (comme les autres reports). -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_emplacements_comptage" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+    <parameter name="P_H_LOGO" class="java.lang.String"/>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="code" class="java.lang.String"/>
+    <field name="libelle" class="java.lang.String"/>
+
+    <variable name="ligne" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[$F{code}]]></variableExpression>
+    </variable>
+
+    <title>
+        <band height="100">
+            <image onErrorType="Blank" hAlign="Left" vAlign="Middle">
+                <reportElement x="0" y="0" width="90" height="55"/>
+                <imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+            </image>
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="0" width="455" height="18"/>
+                <textElement textAlignment="Left"><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="18" width="455" height="30"/>
+                <textElement textAlignment="Left"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="58" width="555" height="1"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="64" width="555" height="20"/>
+                <textElement textAlignment="Center"><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="86" width="555" height="12"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Edite par :" + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY})]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="22">
+            <staticText>
+                <reportElement mode="Opaque" x="0" y="0" width="70" height="22" backcolor="#E8E8E8"/>
+                <box><pen lineWidth="0.5"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <text><![CDATA[Code]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="70" y="0" width="245" height="22" backcolor="#E8E8E8"/>
+                <box><pen lineWidth="0.5"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <text><![CDATA[Libelle]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="315" y="0" width="120" height="22" backcolor="#E8E8E8"/>
+                <box><pen lineWidth="0.5"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <text><![CDATA[Comptage 1]]></text>
+            </staticText>
+            <staticText>
+                <reportElement mode="Opaque" x="435" y="0" width="120" height="22" backcolor="#E8E8E8"/>
+                <box><pen lineWidth="0.5"/></box>
+                <textElement textAlignment="Center" verticalAlignment="Middle"><font size="9" isBold="true"/></textElement>
+                <text><![CDATA[Comptage 2]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="26">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="70" height="26"/>
+                <box><pen lineWidth="0.5"/><leftPadding value="4"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{code}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="70" y="0" width="245" height="26"/>
+                <box><pen lineWidth="0.5"/><leftPadding value="4"/></box>
+                <textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="315" y="0" width="120" height="26"/>
+                <box><pen lineWidth="0.5"/></box>
+                <text><![CDATA[]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="435" y="0" width="120" height="26"/>
+                <box><pen lineWidth="0.5"/></box>
+                <text><![CDATA[]]></text>
+            </staticText>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="20">
+            <line>
+                <reportElement x="0" y="0" width="555" height="1"/>
+            </line>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="3" width="400" height="14"/>
+                <textElement textAlignment="Left"><font size="6"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="440" y="3" width="115" height="14"/>
+                <textElement textAlignment="Right"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>

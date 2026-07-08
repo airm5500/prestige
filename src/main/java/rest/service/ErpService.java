@@ -5,6 +5,7 @@
  */
 package rest.service;
 
+import commonTasks.dto.EmplacementReportDTO;
 import commonTasks.dto.ErProduitDTO;
 import commonTasks.dto.ErpAchatFournisseurDTO;
 import commonTasks.dto.ErpCaComptant;
@@ -57,5 +58,7 @@ public interface ErpService {
     List<CustomerDTO> allWsClients();
 
     List<WsCaAchatVente> getCaAchatVente(String dtStart, String dtEnd);
+
+    List<EmplacementReportDTO> emplacementsComptage();
 
 }
