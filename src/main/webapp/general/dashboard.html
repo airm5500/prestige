@@ -373,10 +373,21 @@
       </div>
       <div class="col-sm-12 col-lg-4">
         <div class="panel panel-modern feature-card">
-          <div class="panel-heading heading-orange">
-            <span class="title-wrap"><i class="fa fa-pie-chart"></i> Type de vente</span>
+          <div class="panel-heading heading-teal">
+            <span class="title-wrap"><i class="fa fa-cubes"></i> Valorisation du stock</span>
           </div>
-          <div class="panel-body"><div id="idtypevente"></div></div>
+          <div class="panel-body">
+            <div class="valo-block">
+              <div class="valo-row valo-achat">
+                <span class="valo-label"><i class="fa fa-shopping-cart"></i> Valeur d'achat</span>
+                <span class="valo-value" id="idVALOACHAT">—</span>
+              </div>
+              <div class="valo-row valo-vente">
+                <span class="valo-label"><i class="fa fa-tags"></i> Valeur de vente</span>
+                <span class="valo-value" id="idVALOVENTE">—</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -405,21 +416,10 @@
 
       <div class="col-sm-12 col-md-4">
         <div class="panel panel-modern">
-          <div class="panel-heading heading-teal">
-            <span class="title-wrap"><i class="fa fa-cubes"></i> Valorisation du stock</span>
+          <div class="panel-heading heading-orange">
+            <span class="title-wrap"><i class="fa fa-pie-chart"></i> Type de vente</span>
           </div>
-          <div class="panel-body">
-            <div class="valo-block">
-              <div class="valo-row valo-achat">
-                <span class="valo-label"><i class="fa fa-shopping-cart"></i> Valeur d'achat</span>
-                <span class="valo-value" id="idVALOACHAT">—</span>
-              </div>
-              <div class="valo-row valo-vente">
-                <span class="valo-label"><i class="fa fa-tags"></i> Valeur de vente</span>
-                <span class="valo-value" id="idVALOVENTE">—</span>
-              </div>
-            </div>
-          </div>
+          <div class="panel-body"><div id="idtypevente"></div></div>
         </div>
       </div>
     </div>
