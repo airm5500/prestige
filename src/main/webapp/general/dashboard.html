@@ -136,6 +136,7 @@
     .kpi-achat { --accent: var(--prestige-purple); }
     .kpi-panier { --accent: var(--prestige-teal); }
     .kpi-marge { --accent: var(--prestige-danger); }
+    .kpi-valo { --accent: #16a34a; }
 
     .content-grid { margin-left: -8px; margin-right: -8px; }
     .content-grid > [class*="col-"] { padding-left: 8px; padding-right: 8px; }
@@ -285,7 +286,7 @@
       <div class="prestige-hero-content">
         <div>
           <p class="eyebrow">Prestige</p>
-          <h1>Tableau de bord</h1>
+          <h1 id="dashboardTitle">Tableau de bord</h1>
           <p class="subtitle">Vue d'ensemble de l'activité du jour : ventes, achats, marge,panier moyen et mouvements de caisse....</p>
         </div>
         <div class="hero-actions">
@@ -345,6 +346,19 @@
               <div class="kpi-label">Marge nette</div>
               <div class="kpi-value" id="MAGERNET">—</div>
               <div class="kpi-secondary">Performance du jour</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-md-3">
+        <div class="kpi-card kpi-valo" data-toggle="tooltip" title="Valorisation totale du stock (prix d'achat) au jour">
+          <div class="kpi-head">
+            <i class="fa fa-cubes kpi-icon"></i>
+            <div class="kpi-meta">
+              <div class="kpi-label">Valorisation stock</div>
+              <div class="kpi-value" id="idVALOSTOCK">—</div>
+              <div class="kpi-secondary">Valeur d'achat du jour</div>
             </div>
           </div>
         </div>
@@ -666,7 +680,7 @@
       if (dashboardRefreshRunning) return;
       setRefreshButtonLoading(true);
       updateDashboardTimestamps();
-      var requests = [loadDailyMetrics()];
+      var requests = [loadDailyMetrics(), loadValorisationStock()];
       if (options.stagger) {
         requests.push(runLater(function(){ return loadWithMask($('#idtopCount').closest('.panel-modern'), 'Mise à jour des quantités...', drawTOP5Chart); }, 150));
         requests.push(runLater(function(){ return loadWithMask($('#idtopCA').closest('.panel-modern'), 'Mise à jour du top CA...', drawTOP5CAChart); }, 300));
@@ -775,6 +789,29 @@
           var vno = parseLocaleNumber(data.MONTANTVNO);
           var depo = parseLocaleNumber(data.MONTANTDEPO);
           drawPieTypeVenteChart(vo || 0, vno || 0, depo || 0);
+        }
+      });
+    }
+
+    function todayISODate(){
+      var d = new Date();
+      var m = ('0' + (d.getMonth() + 1)).slice(-2);
+      var day = ('0' + d.getDate()).slice(-2);
+      return d.getFullYear() + '-' + m + '-' + day;
+    }
+
+    // Valorisation totale du stock du jour + nom du pharmacien (a la place de "Tableau de bord")
+    function loadValorisationStock(){
+      return requestJson({
+        url: '../api/v1/produit/valorisation',
+        data: { mode: 0, dtStart: todayISODate() },
+        success: function (resp) {
+          var d = (resp && resp.data) ? resp.data : {};
+          setTextSafe('#idVALOSTOCK', d.totalValue || 0, true);
+          if (resp && resp.user) {
+            var titre = document.getElementById('dashboardTitle');
+            if (titre) { titre.textContent = resp.user; }
+          }
         }
       });
     }

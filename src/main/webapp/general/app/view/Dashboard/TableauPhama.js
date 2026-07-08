@@ -231,18 +231,6 @@ Ext.define('testextjs.view.Dashboard.TableauPhama', {
                             fieldStyle: "color:blue;font-weight:800;",
                             itemId: 'ratioAV'
 
-                        },
-                        {
-                            xtype: 'displayfield',
-                            flex: 1,
-                            fieldLabel: 'VALO STOCK',
-                            labelWidth: 80,
-                            itemId: 'valorisationStock',
-                            renderer: function (v) {
-                                return Ext.util.Format.number(v, '0,000.');
-                            },
-                            fieldStyle: "color:green;font-weight:800;",
-                            value: 0
                         }
                     ]
                 }

@@ -63,9 +63,6 @@ Ext.define('testextjs.controller.TableauBoardCtr', {
         }, {
             ref: 'montantRemise',
             selector: 'tableauPhama #montantRemise'
-        }, {
-            ref: 'valorisationStock',
-            selector: 'tableauPhama #valorisationStock'
         }
 
 
@@ -161,40 +158,6 @@ Ext.define('testextjs.controller.TableauBoardCtr', {
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 monthly: monthly
 
-            }
-        });
-        me.loadValorisation();
-    },
-    // Valorisation totale du stock du jour + nom du pharmacien (affiche a la place de "Tableau de bord")
-    loadValorisation: function () {
-        var me = this;
-        var dtStart = me.getDtStart().getSubmitValue();
-        if (Ext.isEmpty(dtStart)) {
-            return;
-        }
-        Ext.Ajax.request({
-            method: 'GET',
-            url: '../api/v1/produit/valorisation',
-            params: {
-                mode: 0,
-                dtStart: dtStart
-            },
-            timeout: 2400000,
-            success: function (response) {
-                var result = Ext.JSON.decode(response.responseText, true);
-                if (!result) {
-                    return;
-                }
-                var d = result.data || {};
-                if (me.getValorisationStock()) {
-                    me.getValorisationStock().setValue(d.totalValue || 0);
-                }
-                // Nom du pharmacien a la place de "Tableau de Bord du Pharmacien"
-                if (result.user && me.getTableauBoardGrid()) {
-                    me.getTableauBoardGrid().setTitle(result.user);
-                }
-            },
-            failure: function () {
             }
         });
     },
