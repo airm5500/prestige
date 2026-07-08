@@ -22,7 +22,8 @@
 <%    String lg_GROSSISTE_ID = "", str_LIBELLE = "", str_DESCRIPTION = "",
             str_ADRESSE_RUE_1 = "", str_ADRESSE_RUE_2 = "", str_CODE_POSTAL = "",
             str_BUREAU_DISTRIBUTEUR = "", str_MOBILE = "", str_TELEPHONE = "",
-            lg_TYPE_REGLEMENT_ID = "", lg_VILLE_ID = "", str_CODE = "", groupeId = null, idrepartiteur = null;
+            lg_TYPE_REGLEMENT_ID = "", lg_VILLE_ID = "", str_CODE = "", groupeId = null, idrepartiteur = null,
+            str_URL_PHARMAML = "", str_CODE_RECEPTEUR_PHARMA = "", str_ID_RECEPTEUR_PHARMA = "", str_OFFICINE_ID = "";
 
     int int_DELAI_REGLEMENT_AUTORISE = 0, int_DELAI_REAPPROVISIONNEMENT = 0, int_COEF_SECURITY = 0, int_DATE_BUTOIR_ARTICLE = 0;
 
@@ -38,6 +39,18 @@
     }
     if (request.getParameter("idrepartiteur") != null) {
         idrepartiteur = request.getParameter("idrepartiteur");
+    }
+    if (request.getParameter("str_URL_PHARMAML") != null) {
+        str_URL_PHARMAML = request.getParameter("str_URL_PHARMAML");
+    }
+    if (request.getParameter("str_CODE_RECEPTEUR_PHARMA") != null) {
+        str_CODE_RECEPTEUR_PHARMA = request.getParameter("str_CODE_RECEPTEUR_PHARMA");
+    }
+    if (request.getParameter("str_ID_RECEPTEUR_PHARMA") != null) {
+        str_ID_RECEPTEUR_PHARMA = request.getParameter("str_ID_RECEPTEUR_PHARMA");
+    }
+    if (request.getParameter("str_OFFICINE_ID") != null) {
+        str_OFFICINE_ID = request.getParameter("str_OFFICINE_ID");
     }
     if (request.getParameter("groupeId") != null) {
         groupeId = request.getParameter("groupeId");
@@ -127,12 +140,12 @@
         if (request.getParameter("mode").equals("create")) {
             new logger().oCategory.info("Creation");
 
-            OgrossisteManagement.create(str_LIBELLE, str_DESCRIPTION, str_ADRESSE_RUE_1, str_ADRESSE_RUE_2, str_CODE_POSTAL, str_BUREAU_DISTRIBUTEUR, str_MOBILE, str_TELEPHONE, int_DELAI_REGLEMENT_AUTORISE, lg_TYPE_REGLEMENT_ID, lg_VILLE_ID, dbl_CHIFFRE_DAFFAIRE, str_CODE, int_DELAI_REAPPROVISIONNEMENT, int_COEF_SECURITY, int_DATE_BUTOIR_ARTICLE, groupeId,  idrepartiteur);
+            OgrossisteManagement.create(str_LIBELLE, str_DESCRIPTION, str_ADRESSE_RUE_1, str_ADRESSE_RUE_2, str_CODE_POSTAL, str_BUREAU_DISTRIBUTEUR, str_MOBILE, str_TELEPHONE, int_DELAI_REGLEMENT_AUTORISE, lg_TYPE_REGLEMENT_ID, lg_VILLE_ID, dbl_CHIFFRE_DAFFAIRE, str_CODE, int_DELAI_REAPPROVISIONNEMENT, int_COEF_SECURITY, int_DATE_BUTOIR_ARTICLE, groupeId,  idrepartiteur, str_URL_PHARMAML, str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, str_OFFICINE_ID);
             ObllBase.setMessage(OgrossisteManagement.getMessage());
             ObllBase.setDetailmessage(OgrossisteManagement.getDetailmessage());
 
         } else if (request.getParameter("mode").equals("update")) {
-            OgrossisteManagement.update(lg_GROSSISTE_ID, str_LIBELLE, str_DESCRIPTION, str_ADRESSE_RUE_1, str_ADRESSE_RUE_2, str_CODE_POSTAL, str_BUREAU_DISTRIBUTEUR, str_MOBILE, str_TELEPHONE, int_DELAI_REGLEMENT_AUTORISE, lg_TYPE_REGLEMENT_ID, lg_VILLE_ID, str_CODE, int_DELAI_REAPPROVISIONNEMENT, int_COEF_SECURITY, int_DATE_BUTOIR_ARTICLE, groupeId,  idrepartiteur);
+            OgrossisteManagement.update(lg_GROSSISTE_ID, str_LIBELLE, str_DESCRIPTION, str_ADRESSE_RUE_1, str_ADRESSE_RUE_2, str_CODE_POSTAL, str_BUREAU_DISTRIBUTEUR, str_MOBILE, str_TELEPHONE, int_DELAI_REGLEMENT_AUTORISE, lg_TYPE_REGLEMENT_ID, lg_VILLE_ID, str_CODE, int_DELAI_REAPPROVISIONNEMENT, int_COEF_SECURITY, int_DATE_BUTOIR_ARTICLE, groupeId,  idrepartiteur, str_URL_PHARMAML, str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, str_OFFICINE_ID);
             ObllBase.setMessage(OgrossisteManagement.getMessage());
             ObllBase.setDetailmessage(OgrossisteManagement.getDetailmessage());
 

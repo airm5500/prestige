@@ -157,6 +157,10 @@
         }
        
         json.put("idrepartiteur", lstTGrossiste.get(i).getIdRepartiteur());
+        json.put("str_URL_PHARMAML", lstTGrossiste.get(i).getStrURLPHARMAML());
+        json.put("str_CODE_RECEPTEUR_PHARMA", lstTGrossiste.get(i).getStrCODERECEPTEURPHARMA());
+        json.put("str_ID_RECEPTEUR_PHARMA", lstTGrossiste.get(i).getStrIDRECEPTEURPHARMA());
+        json.put("str_OFFICINE_ID", lstTGrossiste.get(i).getStrOFFICINEID());
         json.put("dbl_CHIFFRE_DAFFAIRE", lstTGrossiste.get(i).getDblCHIFFREDAFFAIRE());
 
         json.put("lg_CUSTOMER_ID", lstTGrossiste.get(i).getLgGROSSISTEID());

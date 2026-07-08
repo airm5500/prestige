@@ -271,8 +271,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 {
                                     name: 'idrepartiteur',
                                     id: 'idrepartiteur',
-                                    fieldLabel: 'Identifiant repartiteur',
-                                    emptyText: '',
+                                    fieldLabel: 'code Agence',
+                                    emptyText: 'code Agence',
                                     flex: 1
                                 },
 
@@ -348,6 +348,42 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                                 }
 
                             ]
+                        },
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            defaultType: 'textfield',
+                            margin: '0 0 5 0',
+                            items: [
+                                {
+                                    name: 'str_URL_PHARMAML',
+                                    id: 'str_URL_PHARMAML',
+                                    fieldLabel: 'lien pharmaML',
+                                    emptyText: 'lien pharmaML',
+                                    flex: 1
+                                },
+                                {
+                                    name: 'str_CODE_RECEPTEUR_PHARMA',
+                                    id: 'str_CODE_RECEPTEUR_PHARMA',
+                                    fieldLabel: 'Code recepteur',
+                                    emptyText: 'Code recepteur',
+                                    flex: 1
+                                },
+                                {
+                                    name: 'str_ID_RECEPTEUR_PHARMA',
+                                    id: 'str_ID_RECEPTEUR_PHARMA',
+                                    fieldLabel: 'Code Client',
+                                    emptyText: 'Code Client',
+                                    flex: 1
+                                },
+                                {
+                                    name: 'str_OFFICINE_ID',
+                                    id: 'str_OFFICINE_ID',
+                                    fieldLabel: 'Identifiant Officine',
+                                    emptyText: 'Identifiant Officine',
+                                    flex: 1
+                                }
+                            ]
                         }
 
                     ]
@@ -411,6 +447,10 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
 
                 }});
             Ext.getCmp('idrepartiteur').setValue(this.getOdatasource().idrepartiteur);
+            Ext.getCmp('str_URL_PHARMAML').setValue(this.getOdatasource().str_URL_PHARMAML);
+            Ext.getCmp('str_CODE_RECEPTEUR_PHARMA').setValue(this.getOdatasource().str_CODE_RECEPTEUR_PHARMA);
+            Ext.getCmp('str_ID_RECEPTEUR_PHARMA').setValue(this.getOdatasource().str_ID_RECEPTEUR_PHARMA);
+            Ext.getCmp('str_OFFICINE_ID').setValue(this.getOdatasource().str_OFFICINE_ID);
 
         }
 
@@ -473,7 +513,11 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                     int_COEF_SECURITY: Ext.getCmp('int_COEF_SECURITY').getValue(),
                     int_DATE_BUTOIR_ARTICLE: Ext.getCmp('int_DATE_BUTOIR_ARTICLE').getValue(),
                     groupeId: Ext.getCmp('groupeId').getValue(),
-                    idrepartiteur: Ext.getCmp('idrepartiteur').getValue()
+                    idrepartiteur: Ext.getCmp('idrepartiteur').getValue(),
+                    str_URL_PHARMAML: Ext.getCmp('str_URL_PHARMAML').getValue(),
+                    str_CODE_RECEPTEUR_PHARMA: Ext.getCmp('str_CODE_RECEPTEUR_PHARMA').getValue(),
+                    str_ID_RECEPTEUR_PHARMA: Ext.getCmp('str_ID_RECEPTEUR_PHARMA').getValue(),
+                    str_OFFICINE_ID: Ext.getCmp('str_OFFICINE_ID').getValue()
 
                 },
                 success: function (response)

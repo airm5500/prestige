@@ -86,8 +86,24 @@ Ext.define('testextjs.model.Grossiste', {
         name: 'idrepartiteur',
         type: 'string'
     },
-    
-    
+    {
+        name: 'str_URL_PHARMAML',
+        type: 'string'
+    },
+    {
+        name: 'str_CODE_RECEPTEUR_PHARMA',
+        type: 'string'
+    },
+    {
+        name: 'str_ID_RECEPTEUR_PHARMA',
+        type: 'string'
+    },
+    {
+        name: 'str_OFFICINE_ID',
+        type: 'string'
+    },
+
+
     {
         name: 'int_DATE_BUTOIR_ARTICLE',
         type: 'int'

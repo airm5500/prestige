@@ -64,39 +64,32 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
 
                 },
                 {
-                    header: 'Code',
-                    dataIndex: 'str_CODE',
-                    flex: 1
-
-                },
-                {
                     header: 'Nom',
                     dataIndex: 'str_LIBELLE',
                     flex: 1
 
                 },
                 {
-                    header: 'Description',
-                    dataIndex: 'str_DESCRIPTION',
+                    header: 'ID Repartiteur',
+                    dataIndex: 'idrepartiteur',
                     flex: 1
-                }, {
-                    header: 'Adresse Rue 1',
-                    dataIndex: 'str_ADRESSE_RUE_1',
-                    hidden: false,
-                    flex: 1,
-                    editor: {
-                        allowBlank: false
-                    }
                 },
-             
                 {
-                    header: 'Mobile',
-                    dataIndex: 'str_MOBILE',
-                    flex: 1,
-                    editor: {
-                        allowBlank: false
-                    }
-                }, {
+                    header: 'URL_PharmaML',
+                    dataIndex: 'str_URL_PHARMAML',
+                    flex: 1
+                },
+                {
+                    header: 'Code Recepteur Pharmacie',
+                    dataIndex: 'str_CODE_RECEPTEUR_PHARMA',
+                    flex: 1
+                },
+                {
+                    header: 'ID Recepteur Pharmacie',
+                    dataIndex: 'str_ID_RECEPTEUR_PHARMA',
+                    flex: 1
+                },
+                {
                     header: 'Telephone',
                     dataIndex: 'str_TELEPHONE',
                     flex: 1,
@@ -104,10 +97,40 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                         allowBlank: false
                     }
                 },
-               
                 {
                     header: 'Ville',
                     dataIndex: 'lg_VILLE_ID',
+                    flex: 1,
+                    editor: {
+                        allowBlank: false
+                    }
+                },
+                // Colonnes conservees mais masquees (compatibilite / edition inline)
+                {
+                    header: 'Code',
+                    dataIndex: 'str_CODE',
+                    hidden: true,
+                    flex: 1
+                },
+                {
+                    header: 'Description',
+                    dataIndex: 'str_DESCRIPTION',
+                    hidden: true,
+                    flex: 1
+                },
+                {
+                    header: 'Adresse Rue 1',
+                    dataIndex: 'str_ADRESSE_RUE_1',
+                    hidden: true,
+                    flex: 1,
+                    editor: {
+                        allowBlank: false
+                    }
+                },
+                {
+                    header: 'Mobile',
+                    dataIndex: 'str_MOBILE',
+                    hidden: true,
                     flex: 1,
                     editor: {
                         allowBlank: false
