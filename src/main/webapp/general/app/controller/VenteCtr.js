@@ -5473,6 +5473,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.resetProduitCombo(comboxProduit);
                     comboxProduit.focus(true, 100);
                     me.refresh();
+                    // assurance/carnet : recalcul du net à chaque ajout (comme
+                    // le comptant), silencieux — sans effet tant qu'aucun
+                    // tiers-payant n'est saisi
+                    me.autoComputeNetAfterChange();
                 } else {
                     Ext.MessageBox.show({
                         title: 'Message d\'erreur',
