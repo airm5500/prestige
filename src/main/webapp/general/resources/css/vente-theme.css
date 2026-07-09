@@ -423,7 +423,9 @@ body.x-body,
     padding-top: 2px !important;
     padding-bottom: 2px !important;
     line-height: 16px !important;
-    font-size: 0.9em;
+    /* police agrandie pour la lisibilité ; la hauteur de ligne reste
+     * verrouillée par line-height + padding ci-dessus */
+    font-size: 14px;
 }
 
 /* Icône de suppression : évite qu'elle réimpose une hauteur de ligne */

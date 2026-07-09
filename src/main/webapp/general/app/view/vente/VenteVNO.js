@@ -377,7 +377,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                         loadingText: 'Recherche...',
                                                         emptyText: 'Pas de données trouvées.',
                                                         getInnerTpl: function () {
-                                                            return '<tpl for="."><tpl if="intNUMBERAVAILABLE <=0"><span style="color:#17987e;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right;"> ( {intPRICE} )</span></span><tpl else><span style="font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right; "> ( {intPRICE} )</span></span></tpl></tpl>';
+                                                            /* couleur du texte selon le stock : <0 rouge, =0 violet, >0 vert */
+                                                            return '<tpl for="."><tpl if="intNUMBERAVAILABLE < 0"><span style="color:#D32F2F;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right;"> ( {intPRICE} )</span></span><tpl elseif="intNUMBERAVAILABLE == 0"><span style="color:#8E24AA;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right;"> ( {intPRICE} )</span></span><tpl else><span style="color:#2E7D32;font-weight:bold;"><span style="width:100px;display:inline-block;">{intCIP}</span>{strNAME} <span style="float: right; "> ( {intPRICE} )</span></span></tpl></tpl>';
 
                                                         }
                                                     }
