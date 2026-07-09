@@ -900,6 +900,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             handler: this.onbtncloturer
                         }, {
+                            /* si coche, le stock machine apparait a l'impression
+                             * (meme comportement que le privilege 'Affiche colonne
+                             * stock machine lors de l'inventaire') */
+                            xtype: 'checkboxfield',
+                            id: 'chk_show_stock_print',
+                            boxLabel: 'Afficher stock',
+                            checked: false
+                        }, {
                             text: 'Editer fiche',
                             id: 'btn_devis',
                             iconCls: 'icon-clear-group',
@@ -1030,6 +1038,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 //                alert("entete " + grid.headerCt.getHeaderAtIndex(8).text);
                 Me.findColumnByDataIndex(grid, 8).setVisible(false);
                 Me.findColumnByDataIndex(grid, 8).setVisible(false);
+            }
+            /* etat initial de la case 'Afficher stock' aligne sur le
+             * privilege ; l'utilisateur peut ensuite la modifier */
+            var chkShowStock = Ext.getCmp('chk_show_stock_print');
+            if (chkShowStock && !chkShowStock.inventaireInitDone) {
+                chkShowStock.setValue(firstRec.get('is_AUTHORIZE_STOCK') === true);
+                chkShowStock.inventaireInitDone = true;
             }
         }
 
@@ -1358,10 +1373,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         }
         // alert(str_FILTER);
         // return;
-        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + ref + "&str_NAME_FILE=" + str_NAME_FILE + '&P_ZONE_ID=' + P_ZONE_ID + '&P_FAMILLEARTICLE_ID=' + P_FAMILLEARTICLE_ID + '&P_GROSSISTE_ID=' + P_GROSSISTE_ID + "&str_FILTER=" + str_FILTER + "&lg_USER_ID=" + lg_USER_ID;
+        /* case 'Afficher stock' : pilote la presence de la colonne stock a l'impression */
+        var chkShowStock = Ext.getCmp('chk_show_stock_print');
+        var showStock = (chkShowStock && chkShowStock.getValue()) ? 'true' : 'false';
+        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + ref + "&str_NAME_FILE=" + str_NAME_FILE + '&P_ZONE_ID=' + P_ZONE_ID + '&P_FAMILLEARTICLE_ID=' + P_FAMILLEARTICLE_ID + '&P_GROSSISTE_ID=' + P_GROSSISTE_ID + "&str_FILTER=" + str_FILTER + "&lg_USER_ID=" + lg_USER_ID + "&showStock=" + showStock;
         if (str_NAME_FILE === "alerte") {
 
-            linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + ref + "&str_NAME_FILE=" + str_NAME_FILE + "&P_ALERTE=" + KEY_MAX_VALUE_INVENTAIRE + '&P_ZONE_ID=' + P_ZONE_ID + '&P_FAMILLEARTICLE_ID=' + P_FAMILLEARTICLE_ID + '&P_GROSSISTE_ID=' + P_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID;
+            linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + ref + "&str_NAME_FILE=" + str_NAME_FILE + "&P_ALERTE=" + KEY_MAX_VALUE_INVENTAIRE + '&P_ZONE_ID=' + P_ZONE_ID + '&P_FAMILLEARTICLE_ID=' + P_FAMILLEARTICLE_ID + '&P_GROSSISTE_ID=' + P_GROSSISTE_ID + "&lg_USER_ID=" + lg_USER_ID + "&showStock=" + showStock;
         }
 
 //        alert("Ok ca marche " + linkUrl);

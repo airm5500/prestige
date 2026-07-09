@@ -105,6 +105,12 @@
     String report_generate_file = key.GetNumberRandom();
 
     boolean result_show_col_stock = Oprivilege.isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
+    // case 'Afficher stock' de la fiche inventaire : quand le parametre est
+    // transmis, il pilote l'affichage du stock a l'impression exactement
+    // comme le privilege
+    if (request.getParameter("showStock") != null && !"".equals(request.getParameter("showStock"))) {
+        result_show_col_stock = Boolean.parseBoolean(request.getParameter("showStock"));
+    }
     if (result_show_col_stock) {
         scr_report_file = "rp_fiche_inventaire_" + str_TYPE;
     } else {
@@ -124,7 +130,7 @@
         } else {
             scr_report_file = "rp_fiche_inventaire_ecart_" + str_TYPE.toLowerCase();
         }
-        P_H_CLT_INFOS = "Liste des écarts";
+        P_H_CLT_INFOS = "Liste des ï¿½carts";
 
     } else if (str_NAME_FILE.equalsIgnoreCase("alerte")) {
         if (result_show_col_stock) {
@@ -186,17 +192,17 @@
         parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
 
         if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-            P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+            P_FOOTER_RC += "RC Nï¿½ " + oTOfficine.getStrREGISTRECOMMERCE();
         }
 
         if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-            P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+            P_FOOTER_RC += " - CC Nï¿½ " + oTOfficine.getStrCOMPTECONTRIBUABLE();
         }
         if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-            P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+            P_FOOTER_RC += " - Rï¿½gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
         }
         if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-            P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+            P_FOOTER_RC += " - Centre des Impï¿½ts: " + oTOfficine.getStrCENTREIMPOSITION();
         }
 
         if (oTOfficine.getStrPHONE() != null) {
@@ -213,7 +219,7 @@
             P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
         }
         if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-            P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+            P_INSTITUTION_ADRESSE += " - CPT Nï¿½: " + oTOfficine.getStrNUMCOMPTABLE();
         }
         System.out.println("P_INSTITUTION_ADRESSE  ********** "+P_INSTITUTION_ADRESSE);
         parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
@@ -231,7 +237,7 @@
 
         if (oEm.getStrPHONE() != null) {
             if (oEm.getStrLOCALITE() != null) {
-                P_INSTITUTION_ADRESSE += "Localité °: " + oEm.getStrLOCALITE();
+                P_INSTITUTION_ADRESSE += "Localitï¿½ ï¿½: " + oEm.getStrLOCALITE();
             }
             String finalphonestring = oEm.getStrPHONE() != null ? " Tel: " + conversion.PhoneNumberFormat("+225", oEm.getStrPHONE()) : "";
 
