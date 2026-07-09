@@ -379,8 +379,8 @@ public class ProduitRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject jsono = suggestionService.makeSuggestionFromArticleInvendus(produitService.suiviUgArticles(tu, query),
-                tu);
+        JSONObject jsono = suggestionService
+                .makeSuggestionFromArticleInvendus(produitService.suiviUgArticles(tu, query), tu);
         return Response.ok().entity(jsono.toString()).build();
     }
 

@@ -75,7 +75,8 @@ public class ErpRessource {
             @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
         TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
         Map<String, Object> params = reportUtil.officineData(tu);
-        params.put("P_H_CLT_INFOS", "EVOLUTION DU STOCK - PERIODE DU " + formatDate(dtStart) + " AU " + formatDate(dtEnd));
+        params.put("P_H_CLT_INFOS",
+                "EVOLUTION DU STOCK - PERIODE DU " + formatDate(dtStart) + " AU " + formatDate(dtEnd));
         List<StockDailyValueDTO> data = erpService.valorisationAll(dtStart, dtEnd);
         // Page(s) 1 : tableau (portrait) puis page suivante : courbe (paysage), dans un seul PDF
         String url = servletRequest.getContextPath() + reportUtil.buildReportMulti(params,

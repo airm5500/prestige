@@ -2249,7 +2249,7 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
-        public JSONObject clotureravoir(String venteId, TUser tUser) {
+    public JSONObject clotureravoir(String venteId, TUser tUser) {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
@@ -2258,8 +2258,7 @@ public class SalesServiceImpl implements SalesService {
 
             // 1) Historise la quantite mise en avoir AVANT de remettre int_AVOIR a zero,
             // afin de pouvoir reafficher les produits dans l'onglet "Avoir cloture".
-            CriteriaUpdate<TPreenregistrementDetail> preserve = cb
-                    .createCriteriaUpdate(TPreenregistrementDetail.class);
+            CriteriaUpdate<TPreenregistrementDetail> preserve = cb.createCriteriaUpdate(TPreenregistrementDetail.class);
             Root<TPreenregistrementDetail> rp = preserve.from(TPreenregistrementDetail.class);
             preserve.set(rp.get(TPreenregistrementDetail_.intAVOIRINITIAL), rp.get(TPreenregistrementDetail_.intAVOIR))
                     .where(cb.and(cb.equal(rp.get(TPreenregistrementDetail_.bISAVOIR), true),

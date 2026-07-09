@@ -50,8 +50,8 @@ public class grossisteManagement extends bllBase {
             String str_CODE_POSTAL, String str_BUREAU_DISTRIBUTEUR, String str_MOBILE, String str_TELEPHONE,
             int int_DELAI_REGLEMENT_AUTORISE, String lg_TYPE_REGLEMENT_ID, String lg_VILLE_ID,
             Double dbl_CHIFFRE_DAFFAIRE, String str_CODE, int int_DELAI_REAPPROVISIONNEMENT, int int_COEF_SECURITY,
-            int int_DATE_BUTOIR_ARTICLE, String groupeId, String idrepartiteur,
-            String str_URL_PHARMAML, String str_CODE_RECEPTEUR_PHARMA, String str_ID_RECEPTEUR_PHARMA, String str_OFFICINE_ID) {
+            int int_DATE_BUTOIR_ARTICLE, String groupeId, String idrepartiteur, String str_URL_PHARMAML,
+            String str_CODE_RECEPTEUR_PHARMA, String str_ID_RECEPTEUR_PHARMA, String str_OFFICINE_ID) {
 
         try {
 
@@ -114,8 +114,8 @@ public class grossisteManagement extends bllBase {
             String str_ADRESSE_RUE_2, String str_CODE_POSTAL, String str_BUREAU_DISTRIBUTEUR, String str_MOBILE,
             String str_TELEPHONE, int int_DELAI_REGLEMENT_AUTORISE, String lg_TYPE_REGLEMENT_ID, String lg_VILLE_ID,
             String str_CODE, int int_DELAI_REAPPROVISIONNEMENT, int int_COEF_SECURITY, int int_DATE_BUTOIR_ARTICLE,
-            String groupeId, String idrepartiteur,
-            String str_URL_PHARMAML, String str_CODE_RECEPTEUR_PHARMA, String str_ID_RECEPTEUR_PHARMA, String str_OFFICINE_ID) {
+            String groupeId, String idrepartiteur, String str_URL_PHARMAML, String str_CODE_RECEPTEUR_PHARMA,
+            String str_ID_RECEPTEUR_PHARMA, String str_OFFICINE_ID) {
 
         try {
 

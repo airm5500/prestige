@@ -631,8 +631,8 @@ public class DataReporingServiceImpl implements DataReporingService {
     public List<ArticleDTO> statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
             TUser u, String codeRayon, String codeGrossiste, final int stock, MargeEnum stockFiltre, int start,
             int limit, boolean all) {
-        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
-                stockFiltre, start, limit, all, 0);
+        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock, stockFiltre,
+                start, limit, all, 0);
     }
 
     public List<ArticleDTO> statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
@@ -684,12 +684,12 @@ public class DataReporingServiceImpl implements DataReporingService {
             if (!all) {
                 q.setFirstResult(start);
                 q.setMaxResults(limit);
-                return q.getResultList().stream()
-                        .map(x -> x.lastDate(dateDerniereVente(x.getId(), empId)).stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
+                return q.getResultList().stream().map(x -> x.lastDate(dateDerniereVente(x.getId(), empId))
+                        .stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
                         .collect(Collectors.toList());
             } else {
-                return q.getResultList().stream()
-                        .map(x -> x.lastDate(dateDerniereVente(x.getId(), empId)).stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
+                return q.getResultList().stream().map(x -> x.lastDate(dateDerniereVente(x.getId(), empId))
+                        .stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
                         .collect(Collectors.toList());
             }
 
@@ -833,17 +833,17 @@ public class DataReporingServiceImpl implements DataReporingService {
             Date seuil = cal.getTime();
             Subquery<String> subEntree = cq.subquery(String.class);
             Root<TWarehouse> wr = subEntree.from(TWarehouse.class);
-            subEntree.select(wr.<TFamille>get("lgFAMILLEID").<String>get("lgFAMILLEID"));
+            subEntree.select(wr.<TFamille> get("lgFAMILLEID").<String> get("lgFAMILLEID"));
             subEntree.where(cb.equal(wr.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), empId),
-                    cb.greaterThan(wr.<Date>get("dtCREATED"), seuil));
+                    cb.greaterThan(wr.<Date> get("dtCREATED"), seuil));
             predicates.add(cb.not(cb.in(root.get(TFamille_.lgFAMILLEID)).value(subEntree)));
         }
     }
 
     public Long statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
             String codeRayon, String codeGrossiste, final int stock, MargeEnum stockFiltre) {
-        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
-                stockFiltre, 0);
+        return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock, stockFiltre,
+                0);
     }
 
     public Long statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
