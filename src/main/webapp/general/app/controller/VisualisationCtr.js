@@ -75,49 +75,34 @@ Ext.define('testextjs.controller.VisualisationCtr', {
 
     doMetachange: function (store, meta) {
         var me = this;
-        var bottom = me.getVisualisercaissemanager().getDockedItems('toolbar[dock="bottom"]');
+        var bottom = me.getVisualisercaissemanager().getDockedItems('#caisseTotauxBar');
         if (bottom.length > 0) {
             me.getVisualisercaissemanager().removeDocked(bottom[0]);
         }
         if (meta.length > 0) {
             var items = [];
-            var style = "color:blue;font-weight:600;";
+            /* chaque total prend sa largeur naturelle et la barre passe a la
+             * ligne si necessaire : plus de chevauchement libelle/montant
+             * quand tous les modes de reglement sont utilises */
             meta.forEach(function (e) {
-                if (e.amount < 0) {
-                    style = "color:red;font-weight:600;";
-                } else {
-                    style = "color:blue;font-weight:600;";
-                }
+                var style = e.amount < 0 ? 'color:red;font-weight:600;' : 'color:blue;font-weight:600;';
+                var montant = e.amount < 0
+                        ? '-' + Ext.util.Format.number((-1) * e.amount, '0,000.')
+                        : Ext.util.Format.number(e.amount, '0,000.');
                 items.push({
-                    xtype: 'displayfield',
-                    fieldLabel: e.modeReglement,
-//                    labelWidth: e.modeReglement.toString().length * 8,
-                    margin: '0 10 0 0',
-                    flex: 1,
-                    renderer: function (v) {
-                        if (e.amount < 0) {
-
-                            v = Ext.util.Format.number((-1) * v, '0,000.');
-                            return '-' + v;
-                        } else {
-
-                            return Ext.util.Format.number(v, '0,000.');
-
-                        }
-                    },
-                    fieldStyle: style,
-
-                    value: e.amount
+                    xtype: 'component',
+                    padding: '3 16 3 0',
+                    html: '<span style="font-weight:600;white-space:nowrap;">' + Ext.String.htmlEncode(e.modeReglement)
+                            + ':&nbsp;<span style="' + style + '">' + montant + '</span></span>'
                 });
             });
 
             me.getVisualisercaissemanager().addDocked({
-                xtype: 'toolbar',
-//            ui: 'navigation',
-                layout: {
-                    pack: 'center',
-                    type: 'hbox'
-                },
+                xtype: 'container',
+                itemId: 'caisseTotauxBar',
+                cls: 'x-toolbar x-toolbar-default',
+                padding: '2 8 2 8',
+                layout: 'column',
                 dock: 'bottom',
                 items: items
             });
