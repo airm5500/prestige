@@ -6,6 +6,7 @@
 <%@page import="toolkits.utils.conversion"%>
 <%@page import="bll.configManagement.clientManagement"%>
 <%@page import="dal.TPreenregistrementCompteClientTiersPayent"%>
+<%@page import="dal.TPreenregistrement"%>
 <%@page import="java.util.Date"%>
 <%@page import="toolkits.utils.date"%>
 
@@ -82,6 +83,33 @@
 
         arrayObj.put(json);
 
+    }
+
+    // clients standards : aucune ligne tiers payant -> on remonte les ventes
+    // reliees directement au client (t_preenregistrement.lg_CLIENT_ID)
+    if (count == 0) {
+        count = m.getClientVentesStandardsCount(lg_COMPTE_CLIENT_ID.trim(), dt_start, dt_end, search_value);
+        if (count > 0) {
+            List<TPreenregistrement> ventesStandards = m.getClientVentesStandards(lg_COMPTE_CLIENT_ID, dt_start, dt_end, search_value, start, limit);
+            JSONObject totauxStandards = m.getClientVentesStandardsTotaux(lg_COMPTE_CLIENT_ID, dt_start, dt_end, search_value);
+            for (TPreenregistrement vente : ventesStandards) {
+                JSONObject json = new JSONObject();
+                json.put("REFVENTE", vente.getStrREF());
+                json.put("IDVENTE", vente.getLgPREENREGISTREMENTID());
+                json.put("DATEVENTE", date.formatterShort.format(vente.getDtUPDATED()));
+                json.put("MONTANTVENTE", conversion.AmountFormat(vente.getIntPRICE()));
+                json.put("MONTANTCLIENT", vente.getIntPRICE());
+                json.put("MONTANTTP", 0);
+                json.put("POURCENTAGE", 0);
+                json.put("REFFACTURE", "");
+                json.put("TIERSPAYANT", "");
+                json.put("REFBON", "");
+                json.put("TOTALVENTE", totauxStandards.get("TOTALVENTE"));
+                json.put("TOTALCLIENT", totauxStandards.get("TOTALCLIENT"));
+                json.put("TOTALTTP", totauxStandards.get("TOTALTP"));
+                arrayObj.put(json);
+            }
+        }
     }
     data.put("data", arrayObj);
     data.put("total", count);

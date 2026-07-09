@@ -25,7 +25,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
         'Ext.ux.ProgressBarPager',
         'Ext.ux.grid.Printer',
         'testextjs.view.configmanagement.client.action.detailsclient',
-        'testextjs.view.configmanagement.client.action.venteClient'
+        'testextjs.view.configmanagement.client.action.venteClient',
+        'testextjs.view.configmanagement.client.action.consommationClient'
 
 
     ],
@@ -291,6 +292,18 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                             tooltip: 'Les Ventes du client',
                             scope: this,
                             handler: this.onVentesClick
+                        }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/chart_bar.png',
+                            tooltip: 'Suivi de consommation par m&eacute;dicament',
+                            scope: this,
+                            handler: this.onConsommationClick
                         }]
                 }
             ],
@@ -600,6 +613,15 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             odatasource: rec.data,
             parentview: this,
             titre: "Detail du client : [" + rec.get('str_FIRST_LAST_NAME') + "]"
+        });
+    },
+    onConsommationClick: function (grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+
+        new testextjs.view.configmanagement.client.action.consommationClient({
+            odatasource: rec.data,
+            parentview: this,
+            titre: "Suivi de consommation : [" + rec.get('str_FIRST_LAST_NAME') + "]"
         });
     }
 

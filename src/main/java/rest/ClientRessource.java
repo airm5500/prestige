@@ -30,6 +30,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.ClientConsommationService;
 import rest.service.ClientService;
 import util.Constant;
 
@@ -48,6 +49,23 @@ public class ClientRessource {
     private ClientService clientService;
     @EJB
     private ExportExcelUtilService exportExcelUtilService;
+    @EJB
+    private ClientConsommationService clientConsommationService;
+
+    @GET
+    @Path("consommation")
+    public Response consommation(@QueryParam(value = "clientId") String clientId,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = clientConsommationService.consommation(clientId, dtStart, dtEnd, query, start, limit);
+        return Response.ok().entity(json.toString()).build();
+    }
 
     @GET
     @Path("lambda")

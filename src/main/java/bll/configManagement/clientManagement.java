@@ -1693,6 +1693,83 @@ public class clientManagement extends bllBase {
 
     }
 
+    // ventes standards (sans tiers payant) d'un client : la vente est reliee
+    // directement au client via t_preenregistrement.lg_CLIENT_ID
+    private static final String CLIENT_VENTES_STANDARDS_WHERE = " FROM TPreenregistrement o WHERE o.lgCLIENTID.lgCLIENTID = ?1 "
+            + " AND o.intPRICE > 0 AND o.bISCANCEL = FALSE AND o.strSTATUT = 'is_Closed' "
+            + " AND FUNCTION('DATE', o.dtUPDATED) BETWEEN ?2 AND ?3 AND o.strREF LIKE ?4 "
+            + " AND NOT EXISTS (SELECT p FROM TPreenregistrementCompteClientTiersPayent p WHERE p.lgPREENREGISTREMENTID = o)";
+
+    private String getClientIdByCompteClient(String lgCOMPTECLIENTID) {
+        try {
+            TCompteClient compteClient = this.getOdataManager().getEm().find(TCompteClient.class, lgCOMPTECLIENTID);
+            if (compteClient != null && compteClient.getLgCLIENTID() != null) {
+                return compteClient.getLgCLIENTID().getLgCLIENTID();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
+    public List<TPreenregistrement> getClientVentesStandards(String lgCMP, String dt_start, String dt_end,
+            String criteria, int start, int limit) {
+        List<TPreenregistrement> list = new ArrayList<>();
+        if ("".equals(criteria)) {
+            criteria = "%%";
+        }
+        try {
+            list = this.getOdataManager().getEm()
+                    .createQuery("SELECT o " + CLIENT_VENTES_STANDARDS_WHERE + " ORDER BY o.dtUPDATED DESC")
+                    .setParameter(1, getClientIdByCompteClient(lgCMP.trim()))
+                    .setParameter(2, java.sql.Date.valueOf(dt_start)).setParameter(3, java.sql.Date.valueOf(dt_end))
+                    .setParameter(4, criteria).setFirstResult(start).setMaxResults(limit).getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public long getClientVentesStandardsCount(String lgCMP, String dt_start, String dt_end, String criteria) {
+        long count = 0;
+        if ("".equals(criteria)) {
+            criteria = "%%";
+        }
+        try {
+            count = (long) this.getOdataManager().getEm().createQuery("SELECT COUNT(o) " + CLIENT_VENTES_STANDARDS_WHERE)
+                    .setParameter(1, getClientIdByCompteClient(lgCMP.trim()))
+                    .setParameter(2, java.sql.Date.valueOf(dt_start)).setParameter(3, java.sql.Date.valueOf(dt_end))
+                    .setParameter(4, criteria).getSingleResult();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return count;
+    }
+
+    public JSONObject getClientVentesStandardsTotaux(String lgCMP, String dt_start, String dt_end, String criteria) {
+        JSONObject data = new JSONObject();
+        if ("".equals(criteria)) {
+            criteria = "%%";
+        }
+        try {
+            data.put("TOTALTP", 0);
+            data.put("TOTALVENTE", 0);
+            data.put("TOTALCLIENT", 0);
+            List<Object[]> list = this.getOdataManager().getEm()
+                    .createQuery("SELECT SUM(o.intPRICE), SUM(o.intCUSTPART) " + CLIENT_VENTES_STANDARDS_WHERE)
+                    .setParameter(1, getClientIdByCompteClient(lgCMP.trim()))
+                    .setParameter(2, java.sql.Date.valueOf(dt_start)).setParameter(3, java.sql.Date.valueOf(dt_end))
+                    .setParameter(4, criteria).getResultList();
+            for (Object[] objects : list) {
+                data.put("TOTALVENTE", (objects[0] != null ? objects[0] + "" : "0"));
+                data.put("TOTALCLIENT", (objects[0] != null ? objects[0] + "" : "0"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return data;
+    }
+
     public List<TPreenregistrementDetail> getDetailsByVente(String id, String serach) {
         List<TPreenregistrementDetail> details = new ArrayList<>();
 
