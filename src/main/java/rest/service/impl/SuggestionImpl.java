@@ -1416,7 +1416,7 @@ public class SuggestionImpl implements SuggestionService {
         try {
             Query q = em.createNativeQuery(
                     "SELECT f.int_CIP AS parentCip, f.int_EAN13 AS codeEan, g.str_CODE_ARTICLE AS grossisteCip, sd.int_NUMBER AS quantite FROM t_suggestion_order_details sd JOIN t_suggestion_order s "
-                            + " ON s.lg_SUGGESTION_ORDER_ID=sd.lg_SUGGESTION_ORDER_ID JOIN t_famille f ON f.lg_FAMILLE_ID=sd.lg_FAMILLE_ID JOIN t_famille_grossiste g ON f.lg_FAMILLE_ID=g.lg_FAMILLE_ID WHERE s.lg_SUGGESTION_ORDER_ID= ?1  AND s.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID AND sd.lg_FAMILLE_ID=g.lg_FAMILLE_ID",
+                            + " ON s.lg_SUGGESTION_ORDER_ID=sd.lg_SUGGESTION_ORDER_ID JOIN t_famille f ON f.lg_FAMILLE_ID=sd.lg_FAMILLE_ID JOIN t_famille_grossiste g ON f.lg_FAMILLE_ID=g.lg_FAMILLE_ID WHERE s.lg_SUGGESTION_ORDER_ID= ?1  AND s.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID AND sd.lg_FAMILLE_ID=g.lg_FAMILLE_ID AND f.str_STATUT <> 'disable'",
                     Tuple.class).setParameter(1, suggestionId);
 
             return q.getResultList();
