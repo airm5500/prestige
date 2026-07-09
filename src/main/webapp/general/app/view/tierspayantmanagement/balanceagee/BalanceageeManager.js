@@ -100,7 +100,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee.BalanceageeManager'
                     flex: 1,
                     renderer: function(val, meta, record, rowIndex){
                         var value=Number(record.get('int_NUMBER_TRANSACTION'))+record.get('int_NBDOSSIER7');
-                      return '<span style="color:#333;font-weight:900;">'+amountfarmat(value)+'</span>';  
+                      return '<span style="color:#333;font-weight:900;">'+amountformat(value)+'</span>';
                     }
                     
                 }, 
@@ -130,7 +130,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee.BalanceageeManager'
                     flex: 1,
                     renderer: function(val, meta, record, rowIndex){
                         var value=Number(record.get('int_MONTANT'))+record.get('int_MONTANTNONFACTURE7');
-                      return '<span style="color:#333;font-weight:900;">'+amountfarmat(value)+'</span>';  
+                      return '<span style="color:#333;font-weight:900;">'+amountformat(value)+'</span>';
                     }
                     
                 },
@@ -153,6 +153,27 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee.BalanceageeManager'
             selModel: {
                 selType: 'cellmodel'
             },
+            tbar: [
+                '->', {
+                    text: 'Exporter CSV',
+                    tooltip: 'Exporter la balance ag&eacute;e r&eacute;capitulative en CSV',
+                    iconCls: 'export_csv_icon',
+                    scope: this,
+                    handler: this.onExportCsvClick
+                }, '-', {
+                    text: 'Exporter EXCEL',
+                    tooltip: 'Exporter la balance ag&eacute;e r&eacute;capitulative en Excel',
+                    iconCls: 'export_excel_icon',
+                    scope: this,
+                    handler: this.onExportExcelClick
+                }, '-', {
+                    text: 'Imprimer',
+                    tooltip: 'Imprimer la balance ag&eacute;e r&eacute;capitulative',
+                    iconCls: 'printable',
+                    scope: this,
+                    handler: this.onImprimerClick
+                }
+            ],
             /*tbar: [
                 {
                     xtype: 'combobox',
@@ -242,6 +263,15 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee.BalanceageeManager'
         });
     },
     onStoreLoad: function () {
+    },
+    onExportCsvClick: function () {
+        window.location = '../api/v1/balance-agee/recap/csv';
+    },
+    onExportExcelClick: function () {
+        window.location = '../api/v1/balance-agee/recap/excel';
+    },
+    onImprimerClick: function () {
+        window.open('../api/v1/balance-agee/recap/pdf');
     },
 //    onRemoveClick: function (grid, rowIndex) {
 //        Ext.MessageBox.confirm('Message',
