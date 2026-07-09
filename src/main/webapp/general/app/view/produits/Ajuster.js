@@ -418,11 +418,12 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                         {
                                             xtype: 'textareafield',
                                             grow: true,
+                                            maxLength: 200,
                                             itemId: 'commentaire',
                                             fieldLabel: 'Commentaire',
                                             flex: 1,
                                             margin: '0 0 5 0',
-                                            emptyText: 'Saisir un commentaire'
+                                            emptyText: 'Saisir un commentaire (200 caracteres maximum)'
                                         }
                                     ]
                                 }

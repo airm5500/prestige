@@ -27,6 +27,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.AjustementAnalyseService;
 import rest.service.MvtProduitService;
 import toolkits.parameters.commonparameter;
 import util.DateConverter;
@@ -45,6 +46,13 @@ public class AjustementRessource {
     private HttpServletRequest servletRequest;
     @EJB
     MvtProduitService mvtProduitService;
+    @EJB
+    private AjustementAnalyseService ajustementAnalyseService;
+
+    private TUser getUser() {
+        HttpSession hs = servletRequest.getSession();
+        return (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+    }
 
     @POST
     @Path("creeation")
@@ -143,5 +151,84 @@ public class AjustementRessource {
 
         JSONObject jsono = mvtProduitService.ajsutements(body);
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    @GET
+    @Path("analyse")
+    public Response analyse(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)
+            throws JSONException {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = ajustementAnalyseService.fetchAnalyse(tu, dtStart, dtEnd, start, limit);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("analyse/csv")
+    @Produces("text/csv")
+    public Response analyseCsv(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws Exception {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        byte[] data = ajustementAnalyseService.exportCsv(tu, dtStart, dtEnd);
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"analyse_ajustements.csv\"")
+                .build();
+    }
+
+    @GET
+    @Path("analyse/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response analyseExcel(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws Exception {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        byte[] data = ajustementAnalyseService.exportExcel(tu, dtStart, dtEnd);
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"analyse_ajustements.xls\"")
+                .build();
+    }
+
+    @GET
+    @Path("analyse/suggestion")
+    public Response analyseSuggestion(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = ajustementAnalyseService.createSuggestion(tu, dtStart, dtEnd);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("analyse/inventaire")
+    public Response analyseInventaire(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = ajustementAnalyseService.createInventaire(tu, dtStart, dtEnd);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("analyse/pdf")
+    public Response analysePdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        String file = ajustementAnalyseService.printPdf(tu, dtStart, dtEnd);
+        // redirection vers le PDF genere (meme principe que BalancePdfServlet)
+        return Response.status(Response.Status.FOUND)
+                .location(java.net.URI.create(servletRequest.getContextPath() + file)).build();
     }
 }

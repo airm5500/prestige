@@ -157,9 +157,14 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.action.add', {
                                             //LaborexWorkFlow.DoAjaxGetStockArticle(record);
                                             Ext.getCmp('availableQty').setValue(record.get('int_NUMBER_AVAILABLE'));
 
-                                            Ext.getCmp('int_QUANTITE').focus(true, 100, function () {
-                                                Ext.getCmp('int_QUANTITE').selectText(0, 1);
-                                            });
+                                            /* le focus passe sur la quantite apres la selection
+                                             * (le combo reprend le focus a la fermeture de la
+                                             * liste : on differe pour passer apres lui) */
+                                            Ext.defer(function () {
+                                                var qte = Ext.getCmp('int_QUANTITE');
+                                                qte.focus();
+                                                qte.selectText();
+                                            }, 250);
                                         }
 
                                     }
@@ -366,13 +371,14 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.action.add', {
                         {
                             xtype: 'textareafield',
                             grow: true,
+                            maxLength: 200,
                             name: 'str_COMMENTAIRE',
                             fieldLabel: 'Commentaire',
                             flex: 1,
                             margin: '0 0 5 0',
                             id: 'str_COMMENTAIRE',
                             //anchor: '100%',
-                            emptyText: 'Saisir un commentaire'
+                            emptyText: 'Saisir un commentaire (200 caracteres maximum)'
                         }
                     ]
                 },

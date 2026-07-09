@@ -2,13 +2,15 @@
 
 Ext.define('testextjs.view.produits.Ajustement', {
     extend: 'Ext.panel.Panel',
-    xtype: 'ajustementmanager',
+    /* onglet "Gestion des ajustements" : le xtype ajustementmanager est
+     * desormais porte par le conteneur a onglets AjustementTabPanel */
+    xtype: 'ajustementgestion',
     requires: [
         'Ext.grid.plugin.RowExpander'
     ],
 
     frame: true,
-    title: 'GESTION DES AJUSTEMENTS DE STOCK',
+    title: 'Gestion des ajustements',
     iconCls: 'icon-grid',
     width: '97%',
     height: 'auto',
@@ -145,6 +147,30 @@ Ext.define('testextjs.view.produits.Ajustement', {
                             itemId: 'imprimer',
                             iconCls: 'printable',
                             tooltip: 'Imprimer',
+                            scope: this
+                        }, '-', {
+                            text: 'CSV',
+                            itemId: 'exportCsv',
+                            iconCls: 'export_csv_icon',
+                            tooltip: 'Exporter en CSV la liste des produits ajust&eacute;s sur la p&eacute;riode',
+                            scope: this
+                        }, {
+                            text: 'Excel',
+                            itemId: 'exportExcel',
+                            iconCls: 'export_excel_icon',
+                            tooltip: 'Exporter en Excel la liste des produits ajust&eacute;s sur la p&eacute;riode',
+                            scope: this
+                        }, '-', {
+                            text: 'Suggestion',
+                            itemId: 'creerSuggestion',
+                            iconCls: 'addicon',
+                            tooltip: 'Cr&eacute;er une suggestion avec les produits ajust&eacute;s sur la p&eacute;riode',
+                            scope: this
+                        }, {
+                            text: 'Inventaire',
+                            itemId: 'creerInventaire',
+                            iconCls: 'addicon',
+                            tooltip: 'Cr&eacute;er un inventaire avec les produits ajust&eacute;s sur la p&eacute;riode',
                             scope: this
                         }
                     ]

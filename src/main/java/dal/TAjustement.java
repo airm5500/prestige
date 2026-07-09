@@ -47,7 +47,7 @@ public class TAjustement implements Serializable {
     private String lgAJUSTEMENTID;
     @Column(name = "str_NAME", length = 100)
     private String strNAME;
-    @Column(name = "str_COMMENTAIRE", length = 100)
+    @Column(name = "str_COMMENTAIRE", length = 200)
     private String strCOMMENTAIRE;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;

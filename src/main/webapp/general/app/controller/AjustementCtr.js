@@ -139,11 +139,11 @@ Ext.define('testextjs.controller.AjustementCtr', {
         var me = this;
         var record = cmp.findRecord("lgFAMILLEID" || "intCIP", cmp.getValue());
         if (record) {
-            let motifField = me.getTypeAjustement();
             let vnostockField = me.getVnostockField();
             vnostockField.setValue(record.get('intNUMBERAVAILABLE'));
-//            me.getVnoqtyField().focus(true, 100);
-            motifField.focus(true, 100);
+            /* focus directement sur la quantite (produit + qte, produit + qte...) ;
+             * le motif reste selectionnable a la souris */
+            me.getVnoqtyField().focus(true, 100);
         }
     },
 
@@ -159,8 +159,7 @@ Ext.define('testextjs.controller.AjustementCtr', {
                     if (record) {
                         var vnostockField = me.getVnostockField();
                         vnostockField.setValue(record.get('intNUMBERAVAILABLE'));
-//                        me.getVnoqtyField().focus(true, 100);
-                        me.getTypeAjustement().focus(true, 100);
+                        me.getVnoqtyField().focus(true, 100);
                     } else {
                         me.checkDouchette(combo);
                     }
@@ -183,8 +182,7 @@ Ext.define('testextjs.controller.AjustementCtr', {
                     var produit = result.data;
                     var vnostockField = me.getVnostockField();
                     vnostockField.setValue(produit.intNUMBERAVAILABLE);
-//                    me.getVnoqtyField().focus(true, 100);
-                    me.getTypeAjustement().focus(true, 100);
+                    me.getVnoqtyField().focus(true, 100);
                 } else {
                     field.focus(true, 100);
                 }

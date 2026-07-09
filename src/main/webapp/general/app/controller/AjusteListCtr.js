@@ -5,10 +5,11 @@ Ext.define('testextjs.controller.AjusteListCtr', {
     requires: [
         'testextjs.model.caisse.Ajustement'
     ],
-    views: ['testextjs.view.produits.Ajustement', 'testextjs.view.produits.ItemAjustement'],
+    views: ['testextjs.view.produits.AjustementTabPanel', 'testextjs.view.produits.Ajustement',
+        'testextjs.view.produits.AnalyseAjustement', 'testextjs.view.produits.ItemAjustement'],
     refs: [{
             ref: 'ajustementmanagerlist',
-            selector: 'ajustementmanager'
+            selector: 'ajustementgestion'
         },
         {
             ref: 'itemAjustement',
@@ -19,15 +20,15 @@ Ext.define('testextjs.controller.AjusteListCtr', {
         },
         {
             ref: 'queryBtn',
-            selector: 'ajustementmanager #rechercher'
+            selector: 'ajustementgestion #rechercher'
         }, {
             ref: 'typeAjustement',
-            selector: 'ajustementmanager #typeAjustement'
+            selector: 'ajustementgestion #typeAjustement'
         },
 
         {
             ref: 'ajustementmanagerGrid',
-            selector: 'ajustementmanager gridpanel'
+            selector: 'ajustementgestion gridpanel'
         },
         {
             ref: 'itemAjustementGrid',
@@ -40,13 +41,13 @@ Ext.define('testextjs.controller.AjusteListCtr', {
 
         {
             ref: 'pagingtoolbar',
-            selector: 'ajustementmanager gridpanel pagingtoolbar'
+            selector: 'ajustementgestion gridpanel pagingtoolbar'
         }
         ,
 
         {
             ref: 'dtStart',
-            selector: 'ajustementmanager #dtStart'
+            selector: 'ajustementgestion #dtStart'
         },
         {
             ref: 'userName',
@@ -58,12 +59,12 @@ Ext.define('testextjs.controller.AjusteListCtr', {
 
         {
             ref: 'dtEnd',
-            selector: 'ajustementmanager #dtEnd'
+            selector: 'ajustementgestion #dtEnd'
         }
 
         , {
             ref: 'queryField',
-            selector: 'ajustementmanager #query'
+            selector: 'ajustementgestion #query'
         }
         , {
             ref: 'detailQuery',
@@ -72,7 +73,7 @@ Ext.define('testextjs.controller.AjusteListCtr', {
 
         , {
             ref: 'addBtn',
-            selector: 'ajustementmanager #addBtn'
+            selector: 'ajustementgestion #addBtn'
         }
     ],
     config: {
@@ -80,7 +81,7 @@ Ext.define('testextjs.controller.AjusteListCtr', {
     },
     init: function (application) {
         this.control({
-            'ajustementmanager gridpanel pagingtoolbar': {
+            'ajustementgestion gridpanel pagingtoolbar': {
                 beforechange: this.doBeforechange
             },
             'itemAjustement gridpanel pagingtoolbar': {
@@ -90,31 +91,31 @@ Ext.define('testextjs.controller.AjusteListCtr', {
             'itemAjustement': {
                 render: this.onReady
             },
-            'ajustementmanager #rechercher': {
+            'ajustementgestion #rechercher': {
                 click: this.doSearch
             },
             'itemAjustement #btnRecherche': {
                 click: this.doSearchDetails
             },
-            'ajustementmanager gridpanel': {
+            'ajustementgestion gridpanel': {
                 viewready: this.doInitStore
             },
             'itemAjustement gridpanel': {
                 viewready: this.doInitDetailsStore
             },
 
-            'ajustementmanager #query': {
+            'ajustementgestion #query': {
                 specialkey: this.onSpecialKey
             },
             'itemAjustement #query': {
                 specialkey: this.onSpecialQuery
             },
 
-            "ajustementmanager gridpanel actioncolumn": {
+            "ajustementgestion gridpanel actioncolumn": {
                 toItem: this.toItem,
                 print: this.print
             },
-            'ajustementmanager #addBtn': {
+            'ajustementgestion #addBtn': {
                 click: this.onAddClick
             }, 'itemAjustement [xtype=toolbar] #btnGoBack': {
                 click: this.goBack
@@ -122,9 +123,66 @@ Ext.define('testextjs.controller.AjusteListCtr', {
             'itemAjustement [xtype=toolbar] #btnCloture': {
                 click: this.onPrintPdf
             },
-            'ajustementmanager #imprimer': {
+            'ajustementgestion #imprimer': {
                 click: this.onPdfClick
             },
+            'ajustementgestion #exportCsv': {
+                click: this.onExportCsvClick
+            },
+            'ajustementgestion #exportExcel': {
+                click: this.onExportExcelClick
+            },
+            'ajustementgestion #creerSuggestion': {
+                click: this.onCreerSuggestionClick
+            },
+            'ajustementgestion #creerInventaire': {
+                click: this.onCreerInventaireClick
+            },
+        });
+    },
+    buildAnalyseParams: function () {
+        var me = this;
+        return 'dtStart=' + me.getDtStart().getSubmitValue() + '&dtEnd=' + me.getDtEnd().getSubmitValue();
+    },
+    onExportCsvClick: function () {
+        window.location = '../api/v1/ajustement/analyse/csv?' + this.buildAnalyseParams();
+    },
+    onExportExcelClick: function () {
+        window.location = '../api/v1/ajustement/analyse/excel?' + this.buildAnalyseParams();
+    },
+    onCreerSuggestionClick: function () {
+        this.doAnalyseAction('suggestion',
+                'Cr&eacute;er une suggestion avec les produits ajust&eacute;s sur la p&eacute;riode ?',
+                'Suggestion cr&eacute;&eacute;e');
+    },
+    onCreerInventaireClick: function () {
+        this.doAnalyseAction('inventaire',
+                'Cr&eacute;er un inventaire avec les produits ajust&eacute;s sur la p&eacute;riode ?',
+                'Inventaire cr&eacute;&eacute;');
+    },
+    doAnalyseAction: function (action, confirmMsg, successMsg) {
+        var me = this;
+        Ext.MessageBox.confirm('Message', confirmMsg, function (btn) {
+            if (btn === 'yes') {
+                var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
+                Ext.Ajax.request({
+                    method: 'GET',
+                    url: '../api/v1/ajustement/analyse/' + action + '?' + me.buildAnalyseParams(),
+                    success: function (response) {
+                        progress.hide();
+                        var result = Ext.JSON.decode(response.responseText, true);
+                        if (result && result.success) {
+                            Ext.MessageBox.alert('Confirmation', successMsg + ' : ' + result.count + ' produit(s).');
+                        } else {
+                            Ext.MessageBox.alert('Message', 'Aucun produit ajust&eacute; sur la p&eacute;riode.');
+                        }
+                    },
+                    failure: function (response) {
+                        progress.hide();
+                        Ext.MessageBox.alert('Error Message', response.responseText);
+                    }
+                });
+            }
         });
     },
     onPrintPdf: function () {
