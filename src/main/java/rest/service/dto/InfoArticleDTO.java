@@ -24,4 +24,17 @@ public class InfoArticleDTO {
     private BigDecimal quantiteVendue;
     private BigDecimal moyenne;
     private String quantiteMois; // Format "quantite1:mois1,quantite2:mois2,..."
+    private BigDecimal moyenneJour; // Moyenne de vente par jour sur la periode demandee
+    private String dateDerniereVente;
+    private Integer qteDerniereVente;
+    private String dateDernierAchat;
+    private Integer qteDernierAchat;
+    private String dateDernierInventaire;
+    private Integer qteDernierInventaire;
+    private String codeGeoArticle;
+    private String classe;
+    // Renseignes uniquement si le produit gere un stock reserve (bool_RESERVE)
+    private Integer stockReserve;
+    private Integer seuilReserve;
+    private Integer seuilMiniRayon;
 }
