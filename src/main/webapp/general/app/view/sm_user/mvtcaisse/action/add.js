@@ -15,12 +15,14 @@ Ext.util.Format.thousandSeparator = '.';
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
-/* reference alphanumerique par defaut (modifiable par l'utilisateur) */
+/* reference alphanumerique de 4 caracteres par defaut (modifiable par l'utilisateur) */
 function generateMvtCaisseReference() {
-    var now = new Date();
-    var stamp = Ext.Date.format(now, 'ymdHis');
-    var rand = Math.random().toString(36).substring(2, 5).toUpperCase();
-    return 'MC' + stamp + rand;
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var ref = '';
+    for (var i = 0; i < 4; i++) {
+        ref += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return ref;
 }
 
 Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {

@@ -1695,7 +1695,7 @@ public class clientManagement extends bllBase {
 
     // ventes standards (sans tiers payant) d'un client : la vente est reliee
     // directement au client via t_preenregistrement.lg_CLIENT_ID
-    private static final String CLIENT_VENTES_STANDARDS_WHERE = " FROM TPreenregistrement o WHERE o.lgCLIENTID.lgCLIENTID = ?1 "
+    private static final String CLIENT_VENTES_STANDARDS_WHERE = " FROM TPreenregistrement o WHERE o.client.lgCLIENTID = ?1 "
             + " AND o.intPRICE > 0 AND o.bISCANCEL = FALSE AND o.strSTATUT = 'is_Closed' "
             + " AND FUNCTION('DATE', o.dtUPDATED) BETWEEN ?2 AND ?3 AND o.strREF LIKE ?4 "
             + " AND NOT EXISTS (SELECT p FROM TPreenregistrementCompteClientTiersPayent p WHERE p.lgPREENREGISTREMENTID = o)";
@@ -1736,7 +1736,8 @@ public class clientManagement extends bllBase {
             criteria = "%%";
         }
         try {
-            count = (long) this.getOdataManager().getEm().createQuery("SELECT COUNT(o) " + CLIENT_VENTES_STANDARDS_WHERE)
+            count = (long) this.getOdataManager().getEm()
+                    .createQuery("SELECT COUNT(o) " + CLIENT_VENTES_STANDARDS_WHERE)
                     .setParameter(1, getClientIdByCompteClient(lgCMP.trim()))
                     .setParameter(2, java.sql.Date.valueOf(dt_start)).setParameter(3, java.sql.Date.valueOf(dt_end))
                     .setParameter(4, criteria).getSingleResult();

@@ -61,6 +61,10 @@ public class CaisseServlet extends HttpServlet {
         String dtStart = request.getParameter("dtStart");
         String dtEnd = request.getParameter("dtEnd");
         String userId = request.getParameter("userId");
+        String typeMvtId = request.getParameter("typeMvtId");
+        if ("null".equals(typeMvtId)) {
+            typeMvtId = "";
+        }
 
         boolean checked = Boolean.parseBoolean(request.getParameter("checked"));
         LocalDate dtSt = LocalDate.parse(dtStart);
@@ -74,8 +78,9 @@ public class CaisseServlet extends HttpServlet {
 
         parameters.put("P_H_CLT_INFOS", "LISTE DES MOUVEMENTS DE CAISSE \n DU  " + periode);
         List<rest.service.dto.MvtCaisseDTO> datas = this.caisseService.getAllMvtCaisses(dtStart, dtEnd, checked, userId,
-                0, 0, true);
-        MvtCaisseSummaryDTO caisseSummary = this.caisseService.getAllMvtCaissesSummary(dtStart, dtEnd, userId, checked);
+                typeMvtId, 0, 0, true);
+        MvtCaisseSummaryDTO caisseSummary = this.caisseService.getAllMvtCaissesSummary(dtStart, dtEnd, userId,
+                typeMvtId, checked);
         if (Objects.nonNull(caisseSummary)) {
             parameters.put("modes", caisseSummary.getModes());
         }

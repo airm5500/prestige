@@ -169,8 +169,8 @@ public class AjustementRessource {
     @GET
     @Path("analyse/csv")
     @Produces("text/csv")
-    public Response analyseCsv(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws Exception {
+    public Response analyseCsv(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)
+            throws Exception {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -220,8 +220,8 @@ public class AjustementRessource {
 
     @GET
     @Path("analyse/pdf")
-    public Response analysePdf(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+    public Response analysePdf(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)
+            throws JSONException {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();

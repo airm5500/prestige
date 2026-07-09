@@ -124,12 +124,12 @@ public class CaisseServiceImpl implements CaisseService {
 
     private static final Logger LOG = Logger.getLogger(CaisseServiceImpl.class.getName());
     private static final String MVT_QUERY = "SELECT tm.`lg_TYPE_MVT_CAISSE_ID` AS typeId, m.`str_COMMENTAIRE` AS commentaire,tm.categorie AS categorie,m.lg_MVT_CAISSE_ID AS id,m.str_NUM_COMPTE AS numCompte,DATE(m.dt_CREATED) AS dateOpreration,DATE_FORMAT(m.dt_CREATED,'%H:%i:%s') AS heureOpreration,m.int_AMOUNT AS montant,tm.str_DESCRIPTION AS typeMvtCaisse,CONCAT(SUBSTR(u.str_FIRST_NAME, 1, 1), '.', u.str_LAST_NAME)   AS userAbrName,tr.str_NAME AS modeReglement,m.str_REF_TICKET AS tiket FROM t_mvt_caisse m,t_type_mvt_caisse tm,t_user u, t_mode_reglement modeReglement,t_type_reglement tr  WHERE m.lg_TYPE_MVT_CAISSE_ID=tm.lg_TYPE_MVT_CAISSE_ID"
-            + " AND m.int_AMOUNT <> 0 AND u.lg_USER_ID=m.lg_USER_ID AND m.lg_MODE_REGLEMENT_ID=modeReglement.lg_MODE_REGLEMENT_ID AND modeReglement.lg_TYPE_REGLEMENT_ID=tr.lg_TYPE_REGLEMENT_ID AND m.bool_CHECKED=?1 AND DATE(m.dt_CREATED) BETWEEN ?2 AND ?3 {userId} ORDER BY m.dt_CREATED ";
+            + " AND m.int_AMOUNT <> 0 AND u.lg_USER_ID=m.lg_USER_ID AND m.lg_MODE_REGLEMENT_ID=modeReglement.lg_MODE_REGLEMENT_ID AND modeReglement.lg_TYPE_REGLEMENT_ID=tr.lg_TYPE_REGLEMENT_ID AND m.bool_CHECKED=?1 AND DATE(m.dt_CREATED) BETWEEN ?2 AND ?3 {userId} {typeMvt} ORDER BY m.dt_CREATED ";
 
     private static final String MVT_SUMMARY_QUERY = "SELECT tm.`lg_TYPE_MVT_CAISSE_ID` AS typeId, SUM(m.int_AMOUNT) AS montant,tr.str_NAME AS modeReglement FROM t_mvt_caisse m,t_type_mvt_caisse tm,t_user u, t_mode_reglement modeReglement,t_type_reglement tr  "
-            + " WHERE m.lg_TYPE_MVT_CAISSE_ID=tm.lg_TYPE_MVT_CAISSE_ID AND tm.`lg_TYPE_MVT_CAISSE_ID` <> '1' AND u.lg_USER_ID=m.lg_USER_ID AND m.lg_MODE_REGLEMENT_ID=modeReglement.lg_MODE_REGLEMENT_ID AND modeReglement.lg_TYPE_REGLEMENT_ID=tr.lg_TYPE_REGLEMENT_ID AND m.bool_CHECKED=?1 AND DATE(m.dt_CREATED) BETWEEN ?2 AND ?3 %s GROUP BY tr.lg_TYPE_REGLEMENT_ID,tm.`lg_TYPE_MVT_CAISSE_ID` ";
+            + " WHERE m.lg_TYPE_MVT_CAISSE_ID=tm.lg_TYPE_MVT_CAISSE_ID AND tm.`lg_TYPE_MVT_CAISSE_ID` <> '1' AND u.lg_USER_ID=m.lg_USER_ID AND m.lg_MODE_REGLEMENT_ID=modeReglement.lg_MODE_REGLEMENT_ID AND modeReglement.lg_TYPE_REGLEMENT_ID=tr.lg_TYPE_REGLEMENT_ID AND m.bool_CHECKED=?1 AND DATE(m.dt_CREATED) BETWEEN ?2 AND ?3 %s {typeMvt} GROUP BY tr.lg_TYPE_REGLEMENT_ID,tm.`lg_TYPE_MVT_CAISSE_ID` ";
 
-    private static final String MVT_QUERY_COUNT = "SELECT COUNT(m.lg_MVT_CAISSE_ID) FROM t_mvt_caisse m,t_user u WHERE  m.int_AMOUNT <> 0 AND u.lg_USER_ID=m.lg_USER_ID AND m.bool_CHECKED=?1 AND DATE(m.dt_CREATED) BETWEEN ?2 AND ?3 %s  ";
+    private static final String MVT_QUERY_COUNT = "SELECT COUNT(m.lg_MVT_CAISSE_ID) FROM t_mvt_caisse m,t_user u WHERE  m.int_AMOUNT <> 0 AND u.lg_USER_ID=m.lg_USER_ID AND m.bool_CHECKED=?1 AND DATE(m.dt_CREATED) BETWEEN ?2 AND ?3 %s {typeMvt}  ";
 
     @EJB
     private TransactionService transactionService;
@@ -1931,18 +1931,19 @@ public class CaisseServiceImpl implements CaisseService {
 
     @Override
     public List<rest.service.dto.MvtCaisseDTO> getAllMvtCaisses(String dtStart, String dtEnd, boolean checked,
-            String userId, int limit, int start, boolean all) {
+            String userId, String typeMvtId, int limit, int start, boolean all) {
         List<rest.service.dto.MvtCaisseDTO> list = new ArrayList<>();
-        fetchAllMvtCaisses(dtStart, dtEnd, checked, userId, limit, start, all)
+        fetchAllMvtCaisses(dtStart, dtEnd, checked, userId, typeMvtId, limit, start, all)
                 .forEach(e -> list.add(buildMvtCaisse(e)));
         return list;
     }
 
     @Override
-    public MvtCaisseSummaryDTO getAllMvtCaissesSummary(String dtStart, String dtEnd, String userId, boolean checked) {
+    public MvtCaisseSummaryDTO getAllMvtCaissesSummary(String dtStart, String dtEnd, String userId, String typeMvtId,
+            boolean checked) {
         LongAdder total = new LongAdder();
         List<MvtCaisseModeDTO> modes = new ArrayList<>();
-        getMvtCaissesSummary(dtStart, dtEnd, checked, userId).forEach((k, v) -> {
+        getMvtCaissesSummary(dtStart, dtEnd, checked, userId, typeMvtId).forEach((k, v) -> {
             long montant = 0;
             for (rest.service.dto.MvtCaisseDTO mvtCaisseDTO : v) {
 
@@ -1965,16 +1966,24 @@ public class CaisseServiceImpl implements CaisseService {
                 : sql.replace("{userId}", "");
     }
 
-    @Override
-    public JSONObject getAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId, int limit,
-            int start) {
-        return FunctionUtils.returnData(this.getAllMvtCaisses(dtStart, dtEnd, checked, userId, limit, start, false),
-                countMvtCaisses(dtStart, dtEnd, checked, userId));
+    private String replaceTypeMvtPlaceholder(String sql, String typeMvtId) {
+        return StringUtils.isNotEmpty(typeMvtId)
+                ? sql.replace("{typeMvt}",
+                        String.format(" AND m.lg_TYPE_MVT_CAISSE_ID='%s' ", typeMvtId.replace("'", "")))
+                : sql.replace("{typeMvt}", " ");
     }
 
-    private List<Tuple> fetchAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId, int limit,
-            int start, boolean all) {
-        String sql = replaceUserIdPlaceholder(MVT_QUERY, userId);
+    @Override
+    public JSONObject getAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId, String typeMvtId,
+            int limit, int start) {
+        return FunctionUtils.returnData(
+                this.getAllMvtCaisses(dtStart, dtEnd, checked, userId, typeMvtId, limit, start, false),
+                countMvtCaisses(dtStart, dtEnd, checked, userId, typeMvtId));
+    }
+
+    private List<Tuple> fetchAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId,
+            String typeMvtId, int limit, int start, boolean all) {
+        String sql = replaceTypeMvtPlaceholder(replaceUserIdPlaceholder(MVT_QUERY, userId), typeMvtId);
         LOG.log(Level.INFO, "sql---  getAllMvtCaisses {0}", sql);
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, checked)
@@ -1991,8 +2000,8 @@ public class CaisseServiceImpl implements CaisseService {
         }
     }
 
-    private long countMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId) {
-        String sql = replaceUserPlaceholder(MVT_QUERY_COUNT, userId);
+    private long countMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId, String typeMvtId) {
+        String sql = replaceTypeMvtPlaceholder(replaceUserPlaceholder(MVT_QUERY_COUNT, userId), typeMvtId);
         LOG.log(Level.INFO, "sql---  getAllMvtCaisses {0}", sql);
         try {
             Query query = em.createNativeQuery(sql).setParameter(1, checked)
@@ -2007,8 +2016,8 @@ public class CaisseServiceImpl implements CaisseService {
     }
 
     private Map<String, List<rest.service.dto.MvtCaisseDTO>> getMvtCaissesSummary(String dtStart, String dtEnd,
-            boolean checked, String userId) {
-        String sql = replaceUserPlaceholder(MVT_SUMMARY_QUERY, userId);
+            boolean checked, String userId, String typeMvtId) {
+        String sql = replaceTypeMvtPlaceholder(replaceUserPlaceholder(MVT_SUMMARY_QUERY, userId), typeMvtId);
         LOG.log(Level.INFO, "sql---  MVT_SUMMARY_QUERY {0}", sql);
         try {
             Query query = em.createNativeQuery(sql, Tuple.class).setParameter(1, checked)

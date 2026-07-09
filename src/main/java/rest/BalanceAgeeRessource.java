@@ -74,8 +74,7 @@ public class BalanceAgeeRessource {
             Preenregistrement oPreenregistrement = preenregistrement(user);
 
             long nbdossierhalfyear = 0L, montanthalfyear = 0L;
-            List<TFacture> lsthalfyearinvoices = oPreenregistrement.getPreviousHalfYearBalanceInvoice(search, "%%",
-                    tp);
+            List<TFacture> lsthalfyearinvoices = oPreenregistrement.getPreviousHalfYearBalanceInvoice(search, "%%", tp);
             for (TFacture oFacture : lsthalfyearinvoices) {
                 nbdossierhalfyear += oPreenregistrement.getNombreDossierImpayeParFacture(oFacture.getLgFACTUREID());
                 montanthalfyear += oFacture.getDblMONTANTRESTANT().longValue();
@@ -183,8 +182,8 @@ public class BalanceAgeeRessource {
 
     // ---------------------------------------------------------------- detail
 
-    private List<BalanceAgeeDetailDTO> buildDetail(TUser user, String searchValue, String tiersPayantId,
-            String dtDebut, String dtFin) {
+    private List<BalanceAgeeDetailDTO> buildDetail(TUser user, String searchValue, String tiersPayantId, String dtDebut,
+            String dtFin) {
         List<BalanceAgeeDetailDTO> rows = new ArrayList<>();
         try {
             String search = StringUtils.isEmpty(searchValue) ? "" : searchValue;
@@ -197,8 +196,7 @@ public class BalanceAgeeRessource {
                 BalanceAgeeDetailDTO dto = new BalanceAgeeDetailDTO();
                 dto.setTiersPayantId(data.getStr_value1());
                 dto.setTiersPayant(data.getStr_value2());
-                dto.setNbProduits(
-                        oPreenregistrement.getTierspayantProduitsVendus(data.getStr_value1(), debut, fin));
+                dto.setNbProduits(oPreenregistrement.getTierspayantProduitsVendus(data.getStr_value1(), debut, fin));
                 dto.setNbDossiers(parseLong(data.getStr_value3()));
                 dto.setMontant(parseLong(data.getStr_value4()));
                 rows.add(dto);
@@ -240,9 +238,7 @@ public class BalanceAgeeRessource {
         }
         List<BalanceAgeeDetailDTO> rows = buildDetail(tu, searchValue, tiersPayantId, dtDebut, dtFin);
         byte[] raw = csvExportService.createCsvReport("Balance âgée détaillée" + detailPeriode(dtDebut, dtFin),
-                detailHeaders(),
-                rows,
-                dto -> new String[] { dto.getTiersPayant(), String.valueOf(dto.getNbProduits()),
+                detailHeaders(), rows, dto -> new String[] { dto.getTiersPayant(), String.valueOf(dto.getNbProduits()),
                         String.valueOf(dto.getNbDossiers()), String.valueOf(dto.getMontant()) });
         return Response.ok(csvExportService.addUtf8Bom(raw))
                 .header("Content-Disposition", "attachment; filename=\"balance_agee_detail.csv\"").build();

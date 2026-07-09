@@ -348,8 +348,8 @@ public class CaisseRessource {
     public Response fetchMvtcaisses(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "user") String lgUSERID, @QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "userId") String userId, @QueryParam(value = "checked") boolean checked,
-            @QueryParam(value = "dtEnd") String dtEnd) {
-        JSONObject json = caisseService.getAllMvtCaisses(dtStart, dtEnd, checked, userId, limit, start);
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "typeMvtId") String typeMvtId) {
+        JSONObject json = caisseService.getAllMvtCaisses(dtStart, dtEnd, checked, userId, typeMvtId, limit, start);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -358,9 +358,11 @@ public class CaisseRessource {
     public Response fetchMvtcaisseSummary(@QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit, @QueryParam(value = "user") String lgUSERID,
             @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "userId") String userId,
-            @QueryParam(value = "checked") boolean checked, @QueryParam(value = "dtEnd") String dtEnd) {
+            @QueryParam(value = "checked") boolean checked, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "typeMvtId") String typeMvtId) {
         JSONObject json = new JSONObject();
-        MvtCaisseSummaryDTO caisseSummary = caisseService.getAllMvtCaissesSummary(dtStart, dtEnd, userId, checked);
+        MvtCaisseSummaryDTO caisseSummary = caisseService.getAllMvtCaissesSummary(dtStart, dtEnd, userId, typeMvtId,
+                checked);
         json.put("data", new JSONObject(caisseSummary));
         return Response.ok().entity(json.toString()).build();
     }

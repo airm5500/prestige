@@ -123,11 +123,13 @@ public interface CaisseService {
     List<MvtTransaction> balanceVenteCaisse(LocalDate dtStart, boolean checked, String emplacementId);
 
     List<rest.service.dto.MvtCaisseDTO> getAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId,
-            int limit, int start, boolean all);
+            String typeMvtId, int limit, int start, boolean all);
 
-    MvtCaisseSummaryDTO getAllMvtCaissesSummary(String dtStart, String dtEnd, String userId, boolean checked);
+    MvtCaisseSummaryDTO getAllMvtCaissesSummary(String dtStart, String dtEnd, String userId, String typeMvtId,
+            boolean checked);
 
-    JSONObject getAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId, int limit, int start);
+    JSONObject getAllMvtCaisses(String dtStart, String dtEnd, boolean checked, String userId, String typeMvtId,
+            int limit, int start);
 
     String ouvrirCaisse(TUser user, CoffreCaisseDTO coffreCaisse) throws CaisseUsingExeception;
 

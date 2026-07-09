@@ -59,16 +59,14 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
             String search = StringUtils.isEmpty(query) ? "%%" : "%" + query + "%";
 
             Query countQuery = em.createNativeQuery(COUNT_QUERY).setParameter(1, clientId)
-                    .setParameter(2, Date.valueOf(debut)).setParameter(3, Date.valueOf(fin))
-                    .setParameter(4, search);
+                    .setParameter(2, Date.valueOf(debut)).setParameter(3, Date.valueOf(fin)).setParameter(4, search);
             long total = ((Number) countQuery.getSingleResult()).longValue();
             if (total == 0) {
                 return json.put("total", 0).put("data", new JSONArray());
             }
 
             Query q = em.createNativeQuery(DATA_QUERY, Tuple.class).setParameter(1, clientId)
-                    .setParameter(2, Date.valueOf(debut)).setParameter(3, Date.valueOf(fin))
-                    .setParameter(4, search);
+                    .setParameter(2, Date.valueOf(debut)).setParameter(3, Date.valueOf(fin)).setParameter(4, search);
             if (limit > 0) {
                 q.setFirstResult(start);
                 q.setMaxResults(limit);

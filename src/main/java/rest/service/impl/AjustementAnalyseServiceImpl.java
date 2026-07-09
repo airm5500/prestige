@@ -44,8 +44,7 @@ public class AjustementAnalyseServiceImpl implements AjustementAnalyseService {
             + " COALESCE(SUM(CASE WHEN d.int_NUMBER < 0 THEN ABS(d.int_NUMBER) ELSE 0 END),0) AS qteNegative,"
             + " COALESCE(SUM(ABS(d.int_NUMBER)),0) AS qteTotale"
             + " FROM t_ajustement_detail d JOIN t_ajustement a ON a.lg_AJUSTEMENT_ID = d.lg_AJUSTEMENT_ID"
-            + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
-            + " JOIN t_user u ON u.lg_USER_ID = a.lg_USER_ID"
+            + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID" + " JOIN t_user u ON u.lg_USER_ID = a.lg_USER_ID"
             + " WHERE a.str_STATUT = 'enable' AND DATE(d.dt_CREATED) BETWEEN ?1 AND ?2 AND u.lg_EMPLACEMENT_ID = ?3"
             + " GROUP BY f.lg_FAMILLE_ID ORDER BY qteTotale DESC, nbAjustement DESC";
 
@@ -211,8 +210,7 @@ public class AjustementAnalyseServiceImpl implements AjustementAnalyseService {
     public String printPdf(TUser user, String dtStart, String dtEnd) {
         List<AjustementAnalyseDTO> datas = analyse(user, dtStart, dtEnd);
         Map<String, Object> parameters = reportUtil.officineData(user);
-        parameters.put("P_H_CLT_INFOS",
-                "PRODUITS LES PLUS AJUSTES - PERIODE " + periode(dtStart, dtEnd).toUpperCase());
+        parameters.put("P_H_CLT_INFOS", "PRODUITS LES PLUS AJUSTES - PERIODE " + periode(dtStart, dtEnd).toUpperCase());
         return reportUtil.buildReport(parameters, "rp_analyse_ajustement", datas);
     }
 }

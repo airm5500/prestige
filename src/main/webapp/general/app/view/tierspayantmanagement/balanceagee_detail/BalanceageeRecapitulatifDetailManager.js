@@ -349,24 +349,6 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
                     tooltip: 'rechercher',
                     scope: this,
                     handler: this.onRechClick
-                }, '-', {
-                    text: 'CSV',
-                    tooltip: 'Exporter la balance ag&eacute;e d&eacute;taill&eacute;e en CSV',
-                    iconCls: 'export_csv_icon',
-                    scope: this,
-                    handler: this.onExportCsvClick
-                }, {
-                    text: 'Excel',
-                    tooltip: 'Exporter la balance ag&eacute;e d&eacute;taill&eacute;e en Excel',
-                    iconCls: 'export_excel_icon',
-                    scope: this,
-                    handler: this.onExportExcelClick
-                }, '-', {
-                    text: 'Imprimer',
-                    tooltip: 'Imprimer la balance ag&eacute;e d&eacute;taill&eacute;e',
-                    iconCls: 'printable',
-                    scope: this,
-                    handler: this.onImprimerClick
                 }],
             bbar: {
                 /*xtype: 'pagingtoolbar',
@@ -378,6 +360,33 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
                         displayInfo: true,
                         flex: 1,
                         store: store // same store GridPanel is using
+                    },
+                    {
+                        xtype: 'tbseparator'
+                    },
+                    {
+                        xtype: 'button',
+                        text: 'Exporter CSV',
+                        tooltip: 'Exporter la balance ag&eacute;e d&eacute;taill&eacute;e en CSV',
+                        iconCls: 'export_csv_icon',
+                        scope: this,
+                        handler: this.onExportCsvClick
+                    },
+                    {
+                        xtype: 'button',
+                        text: 'Exporter EXCEL',
+                        tooltip: 'Exporter la balance ag&eacute;e d&eacute;taill&eacute;e en Excel',
+                        iconCls: 'export_excel_icon',
+                        scope: this,
+                        handler: this.onExportExcelClick
+                    },
+                    {
+                        xtype: 'button',
+                        text: 'Imprimer',
+                        tooltip: 'Imprimer la balance ag&eacute;e d&eacute;taill&eacute;e',
+                        iconCls: 'printable',
+                        scope: this,
+                        handler: this.onImprimerClick
                     },
                     {
                         xtype: 'tbseparator'

@@ -85,6 +85,21 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
             }
         });
 
+        const storeTypeMvt = Ext.create('Ext.data.Store', {
+            model: 'testextjs.model.TypeEcartMvt',
+            autoLoad: true,
+            pageSize: 999999,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/typeMvtCaisse/list',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+
 
         Ext.apply(this, {
             dockedItems: [{
@@ -125,6 +140,25 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                             submitFormat: 'Y-m-d',
                             format: 'd/m/Y'
 
+                        },
+                        {
+                            xtype: 'combobox',
+                            fieldLabel: 'Type',
+                            id: 'typeMvtFiltre',
+                            labelWidth: 35,
+                            flex: 1,
+                            margin: '0 9 0 0',
+                            store: storeTypeMvt,
+                            valueField: 'lg_TYPE_MVT_CAISSE_ID',
+                            displayField: 'str_NAME',
+                            queryMode: 'local',
+                            editable: false,
+                            emptyText: 'Tous les types...',
+                            listeners: {
+                                select: function () {
+                                    Me.onRechClick();
+                                }
+                            }
                         },
                         {
                             xtype: 'combobox',
@@ -264,16 +298,19 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                                     dtEnd: null,
                                     dtStart: null,
                                     checked: true,
-                                    userId: null
+                                    userId: null,
+                                    typeMvtId: null
                                 };
                                 let userId = "";
                                 if (Ext.getCmp('lg_USER_ID').getValue()) {
                                     userId = Ext.getCmp('lg_USER_ID').getValue();
                                 }
+                                let typeMvtId = Ext.getCmp('typeMvtFiltre').getValue() || "";
                                 myProxy.setExtraParam('dtStart', Ext.getCmp('dt_debut_journal').getSubmitValue());
                                 myProxy.setExtraParam('dtEnd', Ext.getCmp('dt_fin_journal').getSubmitValue());
                                 myProxy.setExtraParam('checked', true);
                                 myProxy.setExtraParam('userId', userId);
+                                myProxy.setExtraParam('typeMvtId', typeMvtId);
                             }
 
                         }
@@ -315,11 +352,13 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
         if (Ext.getCmp('lg_USER_ID').getValue()) {
             userId = Ext.getCmp('lg_USER_ID').getValue();
         }
+        const typeMvtId = Ext.getCmp('typeMvtFiltre').getValue() || "";
 
         const dtStart = Ext.getCmp('dt_debut_journal').getSubmitValue();
         const dtEnd = Ext.getCmp('dt_fin_journal').getSubmitValue();
 
-        const linkUrl = "../CaisseServlet?dtStart=" + dtStart + "&dtEnd=" + dtEnd + "&userId=" + userId + "&checked=true";
+        const linkUrl = "../CaisseServlet?dtStart=" + dtStart + "&dtEnd=" + dtEnd + "&userId=" + userId
+                + "&checked=true&typeMvtId=" + typeMvtId;
         window.open(linkUrl);
 
 
@@ -337,7 +376,8 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                 dtStart: Ext.getCmp('dt_debut_journal').getSubmitValue(),
                 dtEnd: Ext.getCmp('dt_fin_journal').getSubmitValue(),
                 checked: true,
-                userId: userId
+                userId: userId,
+                typeMvtId: Ext.getCmp('typeMvtFiltre').getValue() || ""
             },
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
@@ -386,7 +426,8 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.MvtCaisseManager', {
                 dtStart: Ext.getCmp('dt_debut_journal').getSubmitValue(),
                 dtEnd: Ext.getCmp('dt_fin_journal').getSubmitValue(),
                 checked: true,
-                userId: userId
+                userId: userId,
+                typeMvtId: Ext.getCmp('typeMvtFiltre').getValue() || ""
             }
         });
         Me.loadSummary();
