@@ -34,8 +34,12 @@ Ext.define('testextjs.controller.CashmovementCtr', {
         {
             ref: 'user',
             selector: 'cashmovements #user'
+        },
+        {
+            ref: 'typeMvt',
+            selector: 'cashmovements #typeMvt'
         }
-      
+
 
     ],
     init: function (application) {
@@ -53,6 +57,8 @@ Ext.define('testextjs.controller.CashmovementCtr', {
                 viewready: this.doInitStore
             }, 'cashmovements #user': {
                 select: this.doSearch
+            }, 'cashmovements #typeMvt': {
+                select: this.doSearch
             }
         });
     },
@@ -66,8 +72,10 @@ Ext.define('testextjs.controller.CashmovementCtr', {
         var me = this;
         var dtStart = me.getDtStart().getSubmitValue();
         var dtEnd = me.getDtEnd().getSubmitValue();
-        var user=me.getUser().getValue();
-        var linkUrl = '../BalancePdfServlet?mode=MVT_CAISSE&dtStart=' + dtStart + '&dtEnd=' + dtEnd +'&user='+user ;
+        var user = me.getUser().getValue();
+        var typeMvt = me.getTypeMvt().getValue();
+        var linkUrl = '../BalancePdfServlet?mode=MVT_CAISSE&dtStart=' + dtStart + '&dtEnd=' + dtEnd + '&user=' + user
+                + '&typeMvtId=' + typeMvt;
         window.open(linkUrl);
     },
 
@@ -77,12 +85,14 @@ Ext.define('testextjs.controller.CashmovementCtr', {
         myProxy.params = {
             dtEnd: null,
             dtStart: null,
-            user: null
-            
+            user: null,
+            typeMvtId: null
+
 
         };
          var user=me.getUser().getValue();
         myProxy.setExtraParam('user', user);
+        myProxy.setExtraParam('typeMvtId', me.getTypeMvt().getValue());
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
     },
@@ -97,7 +107,8 @@ Ext.define('testextjs.controller.CashmovementCtr', {
             params: {
                 dtStart: me.getDtStart().getSubmitValue(),
                 dtEnd: me.getDtEnd().getSubmitValue(),
-                user: user
+                user: user,
+                typeMvtId: me.getTypeMvt().getValue()
             }
         });
     }

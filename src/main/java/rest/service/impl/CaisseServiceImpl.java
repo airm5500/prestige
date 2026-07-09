@@ -1417,6 +1417,10 @@ public class CaisseServiceImpl implements CaisseService {
         predicates.add(root.get(MvtTransaction_.tTypeMvtCaisse).get(TTypeMvtCaisse_.lgTYPEMVTCAISSEID).in(
                 DateConverter.MVT_FOND_CAISSE, DateConverter.MVT_REGLE_TP, DateConverter.MVT_REGLE_DIFF,
                 DateConverter.MVT_ENTREE_CAISSE, DateConverter.MVT_SORTIE_CAISSE));
+        if (!StringUtils.isEmpty(caisseParams.getTypeMvtId())) {
+            predicates.add(cb.equal(root.get(MvtTransaction_.tTypeMvtCaisse).get(TTypeMvtCaisse_.lgTYPEMVTCAISSEID),
+                    caisseParams.getTypeMvtId()));
+        }
         if (caisseParams.getUtilisateurId() != null) {
             predicates.add(cb.and(
                     cb.equal(root.get(MvtTransaction_.caisse).get(TUser_.lgUSERID), caisseParams.getUtilisateurId())));

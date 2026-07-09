@@ -14,6 +14,28 @@ Ext.define('testextjs.view.caisseManager.Cashmovement', {
         type: 'fit'
     },
     initComponent: function () {
+        var storeTypeMvt = Ext.create('Ext.data.Store', {
+            model: 'testextjs.model.TypeEcartMvt',
+            autoLoad: true,
+            pageSize: 999999,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/typeMvtCaisse/list',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            },
+            listeners: {
+                /* seuls ces types sont listes dans les mouvements de caisse */
+                load: function (store) {
+                    store.filterBy(function (rec) {
+                        return ['1', '2', '3', '4', '5'].indexOf(rec.get('lg_TYPE_MVT_CAISSE_ID')) !== -1;
+                    });
+                }
+            }
+        });
         var storeUser = new Ext.data.Store({
             model: 'testextjs.model.caisse.User',
             pageSize: 20,
@@ -134,6 +156,19 @@ Ext.define('testextjs.view.caisseManager.Cashmovement', {
 
                         },
                         '-', {
+                            xtype: 'combobox',
+                            fieldLabel: 'Type',
+                            itemId: 'typeMvt',
+                            store: storeTypeMvt,
+                            valueField: 'lg_TYPE_MVT_CAISSE_ID',
+                            displayField: 'str_NAME',
+                            queryMode: 'local',
+                            editable: false,
+                            flex: 1.5,
+                            labelWidth: 35,
+                            emptyText: 'Tous les types...',
+                            triggerAction: 'all'
+                        }, '-', {
                             xtype: 'combobox',
                             fieldLabel: 'Utilisateur',
                             itemId: 'user',

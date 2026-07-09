@@ -265,7 +265,7 @@ public class CaisseRessource {
     @Path("mvtcaisses")
     public Response mvtcaisses(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "user") String lgUSERID, @QueryParam(value = "dtStart") String dtDebut,
-            @QueryParam(value = "dtEnd") String dtFin) {
+            @QueryParam(value = "dtEnd") String dtFin, @QueryParam(value = "typeMvtId") String typeMvtId) {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
@@ -283,6 +283,9 @@ public class CaisseRessource {
         }
         if (!StringUtils.isEmpty(lgUSERID)) {
             caisseParams.setUtilisateurId(lgUSERID);
+        }
+        if (!StringUtils.isEmpty(typeMvtId)) {
+            caisseParams.setTypeMvtId(typeMvtId);
         }
 
         caisseParams.setEmplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());

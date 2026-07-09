@@ -57,7 +57,7 @@ public class BalancePdfServlet extends HttpServlet {
     private enum Action {
         BALANCE, GESTION_CAISSE, TABLEAU, TVA, REPORT, LISTECAISSE, SUIVIMVT, RECAP, TVA_JOUR, STAT_FAMILLE_ARTICLE,
         PERIMES, STAT_RAYONS_ARTICLE, STAT_PROVIDER_ARTICLE, UNITES_AVOIRS, BALANCE_PARA, SAISIE_PERIMES,
-        STAT_FAMILLE_ARTICLE_VETO, SUIVI_REMISE, BALANCE_CARNET, TABLEAU_CARNET, LISTECAISSE_V2
+        STAT_FAMILLE_ARTICLE_VETO, SUIVI_REMISE, BALANCE_CARNET, TABLEAU_CARNET, LISTECAISSE_V2, MVT_CAISSE
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -161,6 +161,26 @@ public class BalancePdfServlet extends HttpServlet {
                 file = listeCaisse(caisseParams, oUser);
             }
 
+            break;
+
+        case MVT_CAISSE:
+            String mvtUserId = request.getParameter("user");
+            String typeMvtId = request.getParameter("typeMvtId");
+            CaisseParamsDTO mvtParams = new CaisseParamsDTO();
+            mvtParams.setEmplacementId(oUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+            if (!StringUtils.isEmpty(dtStart)) {
+                mvtParams.setStartDate(LocalDate.parse(dtStart));
+            }
+            if (!StringUtils.isEmpty(dtEnd)) {
+                mvtParams.setEnd(LocalDate.parse(dtEnd));
+            }
+            if (!StringUtils.isEmpty(mvtUserId) && !"null".equals(mvtUserId)) {
+                mvtParams.setUtilisateurId(mvtUserId);
+            }
+            if (!StringUtils.isEmpty(typeMvtId) && !"null".equals(typeMvtId)) {
+                mvtParams.setTypeMvtId(typeMvtId);
+            }
+            file = mouvementsCaisse(mvtParams, oUser);
             break;
 
         case SUIVIMVT:
@@ -315,6 +335,21 @@ public class BalancePdfServlet extends HttpServlet {
         reportUtil.buildReport(parameters, scrreportfile, jdom.scr_report_file,
                 jdom.scr_report_pdf + "listecaisses_" + reportGenerateFile, datas);
         return "/data/reports/pdf/listecaisses_" + reportGenerateFile;
+    }
+
+    public String mouvementsCaisse(CaisseParamsDTO caisseParams, TUser tu) throws IOException {
+        String scrreportfile = "rp_mvtcaisse";
+        Map<String, Object> parameters = reportUtil.officineData(tu);
+        List<VisualisationCaisseDTO> datas = caisseService.mouvementCaisses(caisseParams, true);
+        long total = datas.stream().mapToLong(VisualisationCaisseDTO::getMontant).sum();
+        String pPeriode = "PERIODE DU " + caisseParams.getStartDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + " AU " + caisseParams.getEnd().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        parameters.put("P_H_CLT_INFOS", "LISTE DES MOUVEMENTS DE CAISSE  " + pPeriode);
+        parameters.put("P_TOTAL", total);
+        String reportGenerateFile = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
+        reportUtil.buildReport(parameters, scrreportfile, jdom.scr_report_file,
+                jdom.scr_report_pdf + "mvtcaisses_" + reportGenerateFile, datas);
+        return "/data/reports/pdf/mvtcaisses_" + reportGenerateFile;
     }
 
     private SalesStatsParams buildSalesStatsParams(HttpServletRequest request, HttpSession session, TUser user) {

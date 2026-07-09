@@ -20,6 +20,7 @@ public class CaisseParamsDTO implements Serializable {
     private LocalTime startHour;
     private LocalTime startEnd;
     private String typeReglementId;
+    private String typeMvtId;
     private String utilisateurId;
     private int start;
     private int limit;
@@ -102,6 +103,14 @@ public class CaisseParamsDTO implements Serializable {
 
     public String getTypeReglementId() {
         return typeReglementId;
+    }
+
+    public String getTypeMvtId() {
+        return typeMvtId;
+    }
+
+    public void setTypeMvtId(String typeMvtId) {
+        this.typeMvtId = typeMvtId;
     }
 
     public void setTypeReglementId(String typeReglementId) {
