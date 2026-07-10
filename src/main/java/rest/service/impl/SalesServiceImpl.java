@@ -1747,7 +1747,9 @@ public class SalesServiceImpl implements SalesService {
                     json.put("msg", "Désolé la vente a été facturée");
                     return json;
                 }
-                annulerVenteAnterieur(tUser, venteAsupprimer);
+                // l'annulation automatique de la vente originale est attribuée à l'utilisateur
+                // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
+                annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
             } else if (isAlreadyClosedVente(tp, json)) {
                 return json;
             }
@@ -1981,7 +1983,9 @@ public class SalesServiceImpl implements SalesService {
             tp = emg.find(TPreenregistrement.class, clotureVenteParams.getVenteId());
             if (tp.getCopy()) {
                 TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
-                annulerVenteAnterieur(tUser, venteAsupprimer);
+                // l'annulation automatique de la vente originale est attribuée à l'utilisateur
+                // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
+                annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
             } else if (isAlreadyClosedVente(tp, json)) {
                 return json;
             }

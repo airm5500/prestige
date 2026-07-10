@@ -9,7 +9,9 @@ import commonTasks.dto.ClotureVenteParams;
 import commonTasks.dto.QueryDTO;
 import commonTasks.dto.SalesParams;
 import dal.TPreenregistrement;
+import dal.TPrivilege;
 import dal.TUser;
+import java.util.List;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -27,6 +29,7 @@ import org.json.JSONObject;
 import rest.service.GenerateTicketService;
 import rest.service.SalesService;
 import toolkits.parameters.commonparameter;
+import util.CommonUtils;
 import util.DateConverter;
 import util.Constant;
 
@@ -195,6 +198,13 @@ public class VenteRessource {
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        boolean hasPrivilege = CommonUtils.hasAuthorityByName(
+                (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE), Constant.P_BT_ANNULER_VENTE);
+        if (!hasPrivilege) {
+            return Response.ok()
+                    .entity(ResultFactory.getFailResult("Vous n'avez pas l'autorisation d'annuler une vente"))
+                    .build();
         }
 
         JSONObject jsono = salesService.annulerVente(tu, id);
