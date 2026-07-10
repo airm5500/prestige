@@ -188,9 +188,7 @@ public class FactureProvisoire extends HttpServlet {
                 parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
                 parameters.put("P_FOOTER_RC", P_FOOTER_RC);
 
-                parameters.put("P_CODE_POSTALE",
-                        (OTiersPayant.getStrADRESSE() != null && !"".equals(OTiersPayant.getStrADRESSE()))
-                                ? OTiersPayant.getStrADRESSE() : "");
+                parameters.put("P_CODE_POSTALE", util.StringUtils.normalizePhone(OTiersPayant.getStrADRESSE()));
                 parameters.put("P_COMPTE_CONTRIBUABLE",
                         (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null
                                 && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE()))

@@ -237,9 +237,7 @@ public class Facture {
                     "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
             parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OFacture.getStrCODECOMPTABLE());
-            parameters.put("P_CODE_POSTALE",
-                    (OTiersPayant.getStrADRESSE() != null && !"".equals(OTiersPayant.getStrADRESSE()))
-                            ? OTiersPayant.getStrADRESSE() : "");
+            parameters.put("P_CODE_POSTALE", util.StringUtils.normalizePhone(OTiersPayant.getStrADRESSE()));
             parameters.put("P_COMPTE_CONTRIBUABLE",
                     (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null
                             && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE()))

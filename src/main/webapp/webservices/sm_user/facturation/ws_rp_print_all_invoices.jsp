@@ -179,7 +179,7 @@
             parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
             parameters.put("P_FOOTER_RC", P_FOOTER_RC);
 
-            parameters.put("P_CODE_POSTALE", (OTiersPayant.getStrADRESSE() != null && !"".equals(OTiersPayant.getStrADRESSE())) ? OTiersPayant.getStrADRESSE() : "");
+            parameters.put("P_CODE_POSTALE", util.StringUtils.normalizePhone(OTiersPayant.getStrADRESSE()));
             parameters.put("P_COMPTE_CONTRIBUABLE", (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE())) ? OTiersPayant.getStrCOMPTECONTRIBUABLE() : "");
             parameters.put("P_CODE_OFFICINE", (OTiersPayant.getStrCODEOFFICINE() != null && !"".equals(OTiersPayant.getStrCODEOFFICINE())) ? OTiersPayant.getStrCODEOFFICINE() : "");
             parameters.put("P_REGISTRE_COMMERCE", (OTiersPayant.getStrREGISTRECOMMERCE() != null && !"".equals(OTiersPayant.getStrREGISTRECOMMERCE())) ? OTiersPayant.getStrREGISTRECOMMERCE() : "");

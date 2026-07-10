@@ -86,7 +86,7 @@ public class ReportDataSource {
                         MontantSecond = other.getIntPRICE();
                     }
                     line.putOnce("MATSECOND", MATSECOND);
-                    line.putOnce("MATRO", (cl.getStrADRESSE() != null ? cl.getStrADRESSE() : ""));
+                    line.putOnce("MATRO", util.StringUtils.normalizePhone(cl.getStrADRESSE()));
                     line.putOnce("MontantSecond", MontantSecond);
 
                     line.putOnce("MontantOwner", ps.getIntPRICE());
@@ -180,7 +180,7 @@ public class ReportDataSource {
                         MontantSecond = other.getIntPRICE();
                     }
                     line.putOnce("MATSECOND", MATSECOND);
-                    line.putOnce("MATRO", (cl.getStrADRESSE() != null ? cl.getStrADRESSE() : ""));
+                    line.putOnce("MATRO", util.StringUtils.normalizePhone(cl.getStrADRESSE()));
                     line.putOnce("MontantSecond", Util.getFormattedIntegerValue(MontantSecond));
 
                     line.putOnce("MontantOwner", Util.getFormattedIntegerValue(ps.getIntPRICE()));
@@ -253,7 +253,7 @@ public class ReportDataSource {
                         MontantSecond = other.getIntPRICE();
                     }
                     line.putOnce("MATSECOND", MATSECOND);
-                    line.putOnce("MATRO", (cl.getStrADRESSE() != null ? cl.getStrADRESSE() : ""));
+                    line.putOnce("MATRO", util.StringUtils.normalizePhone(cl.getStrADRESSE()));
                     line.putOnce("MontantSecond", Util.getFormattedIntegerValue(MontantSecond));
 
                     line.putOnce("MontantOwner", Util.getFormattedIntegerValue(ps.getIntPRICE()));
@@ -352,9 +352,7 @@ public class ReportDataSource {
 
             parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
             parameters.put("P_FOOTER_RC", P_FOOTER_RC);
-            parameters.put("P_CODE_POSTALE",
-                    (OTiersPayant.getStrADRESSE() != null && !"".equals(OTiersPayant.getStrADRESSE()))
-                            ? OTiersPayant.getStrADRESSE() : "");
+            parameters.put("P_CODE_POSTALE", util.StringUtils.normalizePhone(OTiersPayant.getStrADRESSE()));
             parameters.put("P_COMPTE_CONTRIBUABLE",
                     (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null
                             && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE()))
