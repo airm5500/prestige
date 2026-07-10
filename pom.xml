@@ -169,6 +169,12 @@
             <artifactId>jasperreports</artifactId>
             <version>6.18.1</version>
         </dependency>
+        <!-- version alignée sur le poi transitif de jasperreports 6.18.1 ; requis pour l'export .xlsx (XSSF) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>4.1.1</version>
+        </dependency>
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>

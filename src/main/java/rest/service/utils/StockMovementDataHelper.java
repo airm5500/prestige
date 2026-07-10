@@ -4,21 +4,38 @@ import bll.commandeManagement.retourFournisseurManagement;
 import bll.entity.EntityData;
 import bll.teller.SnapshotManager;
 import bll.warehouse.WarehouseManager;
+import commonTasks.dto.ArticleDTO;
 import dal.TAjustementDetail;
+import dal.TFamille;
 import dal.TPreenregistrementDetail;
 import dal.TRetourFournisseurDetail;
 import dal.TUser;
 import dal.TWarehouse;
 import dal.dataManager;
+import java.io.ByteArrayOutputStream;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.persistence.TemporalType;
 import javax.persistence.TypedQuery;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -78,6 +95,109 @@ public final class StockMovementDataHelper implements AutoCloseable {
      */
     public List<JSONObject> allRows(StockMovementFilterDTO filter) {
         return fetchRows(filter, true, 0, 0).page;
+    }
+
+    /**
+     * Identifiants produit distincts du résultat filtré, dans l'ordre d'affichage (créations d'inventaire et de
+     * suggestion en mode « tout le filtre »).
+     */
+    public Set<String> allFamilleIds(StockMovementFilterDTO filter) {
+        Set<String> ids = new LinkedHashSet<>();
+        for (JSONObject row : allRows(filter)) {
+            String id = row.optString("lg_FAMILLE_ID", "");
+            if (!id.isEmpty()) {
+                ids.add(id);
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * Convertit des identifiants produit en ArticleDTO (id + grossiste par défaut du produit) pour la création de
+     * suggestion. Les produits sans grossiste sont ignorés : une suggestion est toujours rattachée à un grossiste.
+     */
+    public List<ArticleDTO> toArticleDtos(Collection<String> familleIds) {
+        List<ArticleDTO> dtos = new ArrayList<>();
+        for (String id : familleIds) {
+            TFamille famille = odataManager.getEm().find(TFamille.class, id);
+            if (famille == null || famille.getLgGROSSISTEID() == null) {
+                continue;
+            }
+            ArticleDTO dto = new ArticleDTO();
+            dto.setId(famille.getLgFAMILLEID());
+            dto.setGrossisteId(famille.getLgGROSSISTEID().getLgGROSSISTEID());
+            dtos.add(dto);
+        }
+        return dtos;
+    }
+
+    private static final String[] EXPORT_HEADERS = { "CIP", "Article", "Quantité", "Opérateur", "Nature opération",
+            "Fournisseur", "Date mouvement", "Date", "Heure" };
+
+    private static String[] exportRow(JSONObject row) {
+        return new String[] { row.optString("int_CIP", ""), row.optString("str_NAME", ""),
+                row.optString("int_NUMBER", ""), row.optString("lg_USER_ID", ""), row.optString("str_ACTION", ""),
+                row.optString("lg_GROSSISTE_ID", ""), row.optString("dt_DAY", ""), row.optString("dt_UPDATED", ""),
+                row.optString("dt_LAST_VENTE", "") };
+    }
+
+    /**
+     * Export CSV (séparateur ; UTF-8 avec BOM pour Excel) de toutes les lignes filtrées.
+     */
+    public byte[] exportCsv(StockMovementFilterDTO filter) {
+        try (StringWriter writer = new StringWriter();
+                CSVPrinter printer = new CSVPrinter(writer,
+                        CSVFormat.EXCEL.withHeader(EXPORT_HEADERS).withDelimiter(';'))) {
+            for (JSONObject row : allRows(filter)) {
+                printer.printRecord((Object[]) exportRow(row));
+            }
+            printer.flush();
+            byte[] content = writer.toString().getBytes(StandardCharsets.UTF_8);
+            byte[] withBom = new byte[content.length + 3];
+            withBom[0] = (byte) 0xEF;
+            withBom[1] = (byte) 0xBB;
+            withBom[2] = (byte) 0xBF;
+            System.arraycopy(content, 0, withBom, 3, content.length);
+            return withBom;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "exportCsv", e);
+            return new byte[0];
+        }
+    }
+
+    /**
+     * Export Excel .xlsx (XSSF) de toutes les lignes filtrées.
+     */
+    public byte[] exportXlsx(StockMovementFilterDTO filter) {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Mouvements");
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            CellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFont(headerFont);
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(EXPORT_HEADERS[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            int rowIndex = 1;
+            for (JSONObject row : allRows(filter)) {
+                Row line = sheet.createRow(rowIndex++);
+                String[] values = exportRow(row);
+                for (int i = 0; i < values.length; i++) {
+                    line.createCell(i).setCellValue(values[i]);
+                }
+            }
+            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "exportXlsx", e);
+            return new byte[0];
+        }
     }
 
     private static final class Rows {
