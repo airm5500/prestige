@@ -71,14 +71,16 @@ public class ClientRessource {
     @Path("consommation/globale")
     public Response consommationGlobale(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query,
-            @QueryParam(value = "habitude") String habitude, @QueryParam(value = "start") int start,
+            @QueryParam(value = "habitude") String habitude, @QueryParam(value = "typeClient") String typeClient,
+            @QueryParam(value = "sortBy") String sortBy, @QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit) throws JSONException {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = clientConsommationService.fetchClients(dtStart, dtEnd, query, habitude, start, limit);
+        JSONObject json = clientConsommationService.fetchClients(dtStart, dtEnd, query, habitude, typeClient, sortBy,
+                start, limit);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -87,13 +89,14 @@ public class ClientRessource {
     @Produces("text/csv")
     public Response consommationGlobaleCsv(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query,
-            @QueryParam(value = "habitude") String habitude) throws Exception {
+            @QueryParam(value = "habitude") String habitude, @QueryParam(value = "typeClient") String typeClient,
+            @QueryParam(value = "sortBy") String sortBy) throws Exception {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        byte[] data = clientConsommationService.exportClientsCsv(dtStart, dtEnd, query, habitude);
+        byte[] data = clientConsommationService.exportClientsCsv(dtStart, dtEnd, query, habitude, typeClient, sortBy);
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"suivi_conso_clients.csv\"")
                 .build();
     }
@@ -103,13 +106,14 @@ public class ClientRessource {
     @Produces("application/vnd.ms-excel")
     public Response consommationGlobaleExcel(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query,
-            @QueryParam(value = "habitude") String habitude) throws Exception {
+            @QueryParam(value = "habitude") String habitude, @QueryParam(value = "typeClient") String typeClient,
+            @QueryParam(value = "sortBy") String sortBy) throws Exception {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        byte[] data = clientConsommationService.exportClientsExcel(dtStart, dtEnd, query, habitude);
+        byte[] data = clientConsommationService.exportClientsExcel(dtStart, dtEnd, query, habitude, typeClient, sortBy);
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"suivi_conso_clients.xls\"")
                 .build();
     }
@@ -118,13 +122,14 @@ public class ClientRessource {
     @Path("consommation/globale/pdf")
     public Response consommationGlobalePdf(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "query") String query,
-            @QueryParam(value = "habitude") String habitude) {
+            @QueryParam(value = "habitude") String habitude, @QueryParam(value = "typeClient") String typeClient,
+            @QueryParam(value = "sortBy") String sortBy) {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        String file = clientConsommationService.printClients(tu, dtStart, dtEnd, query, habitude);
+        String file = clientConsommationService.printClients(tu, dtStart, dtEnd, query, habitude, typeClient, sortBy);
         return Response.status(Response.Status.FOUND)
                 .location(java.net.URI.create(servletRequest.getContextPath() + file)).build();
     }

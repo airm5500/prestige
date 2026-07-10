@@ -9,6 +9,7 @@ public class ClientConsoDTO implements Serializable {
 
     private String clientId;
     private String client;
+    private String contact;
     private long nbAchats;
     private long montant;
     private String dernierAchat;
@@ -30,6 +31,14 @@ public class ClientConsoDTO implements Serializable {
 
     public void setClient(String client) {
         this.client = client;
+    }
+
+    public String getContact() {
+        return contact;
+    }
+
+    public void setContact(String contact) {
+        this.contact = contact;
     }
 
     public long getNbAchats() {

@@ -225,6 +225,8 @@ Ext.application({
         'testextjs.model.Client',
         'testextjs.view.configmanagement.client.action.add',
         'testextjs.view.configmanagement.client.ClientManager',
+        'testextjs.view.configmanagement.client.SuiviConsoClients',
+        'testextjs.view.configmanagement.client.ClientTabPanel',
         'testextjs.view.sm_user.client.ClientManager',
         'testextjs.view.sm_user.mainmenu.MainMenuManager',
         'testextjs.view.configmanagement.client.action.addmedecin',

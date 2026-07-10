@@ -173,6 +173,9 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
                                 if (record.get('nbAchats') < 2) {
                                     return '-';
                                 }
+                                if (v < 1) {
+                                    return '&lt; 1 jour';
+                                }
                                 return Ext.util.Format.number(v, '0,000.') + ' jour(s)';
                             }
                         }, {
@@ -200,10 +203,28 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
                         }
                     ],
                     bbar: {
-                        xtype: 'pagingtoolbar',
-                        store: store,
-                        pageSize: 20,
-                        displayInfo: true
+                        dock: 'bottom',
+                        items: [
+                            {
+                                xtype: 'pagingtoolbar',
+                                store: store,
+                                pageSize: 20,
+                                flex: 1,
+                                displayInfo: true
+                            },
+                            {
+                                xtype: 'tbseparator'
+                            },
+                            {
+                                xtype: 'button',
+                                text: 'Annuler',
+                                tooltip: 'Fermer la fen&ecirc;tre',
+                                iconCls: 'icon-clear-group',
+                                handler: function () {
+                                    me.close();
+                                }
+                            }
+                        ]
                     }
                 }
             ]

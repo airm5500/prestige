@@ -9,7 +9,9 @@ var Me_Workflow;
 var lg_TYPE_CLIENT_ID = "";
 Ext.define('testextjs.view.configmanagement.client.ClientManager', {
     extend: 'Ext.grid.Panel',
-    xtype: 'clientmanager',
+    /* onglet "Gestion des Clients" : le xtype clientmanager est desormais
+     * porte par le conteneur a onglets ClientTabPanel */
+    xtype: 'clientgestion',
     id: 'clientmanagerID',
     requires: [
         'Ext.selection.CellModel',
@@ -26,8 +28,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
         'Ext.ux.grid.Printer',
         'testextjs.view.configmanagement.client.action.detailsclient',
         'testextjs.view.configmanagement.client.action.venteClient',
-        'testextjs.view.configmanagement.client.action.consommationClient',
-        'testextjs.view.configmanagement.client.action.consommationClients'
+        'testextjs.view.configmanagement.client.action.consommationClient'
 
 
     ],
@@ -317,12 +318,6 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     scope: this,
                     iconCls: 'addicon',
                     handler: this.onAddClick
-                }, '-', {
-                    text: 'Suivi conso',
-                    tooltip: 'Suivi de consommation de tous les clients',
-                    scope: this,
-                    icon: 'resources/images/icons/fam/chart_bar.png',
-                    handler: this.onSuiviConsoClick
                 }, '-', {
                     xtype: 'combobox',
                     fieldLabel: 'Type Client',
@@ -629,11 +624,6 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             odatasource: rec.data,
             parentview: this,
             titre: "Suivi de consommation : [" + rec.get('str_FIRST_LAST_NAME') + "]"
-        });
-    },
-    onSuiviConsoClick: function () {
-        new testextjs.view.configmanagement.client.action.consommationClients({
-            parentview: this
         });
     }
 
