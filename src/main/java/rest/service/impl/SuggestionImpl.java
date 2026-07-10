@@ -30,6 +30,7 @@ import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
 import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.persistence.Tuple;
@@ -607,7 +608,7 @@ public class SuggestionImpl implements SuggestionService {
     private int verifierProduitDansSuggestion(TFamille famille) {
         try {
             TypedQuery<TSuggestionOrderDetails> q = getEmg().createQuery(
-                    "SELECT o FROM TSuggestionOrderDetails o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND ( o.strSTATUT=?2 OR o.strSTATUT=?3 OR o.strSTATUT=?4  ) ",
+                    "SELECT o FROM TSuggestionOrderDetails o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND ( o.strSTATUT=?2 OR o.strSTATUT=?3 ) ",
                     TSuggestionOrderDetails.class);
             q.setParameter(1, famille.getLgFAMILLEID());
             q.setParameter(2, STATUT_AUTO);
@@ -616,18 +617,26 @@ public class SuggestionImpl implements SuggestionService {
             q.setMaxResults(1);
             return q.getSingleResult() != null ? 1 : 0;
 
+        } catch (NoResultException e) {
+            return 0;
         } catch (Exception e) {
+            LOG.log(Level.WARNING, "verifierProduitDansSuggestion", e);
             return 0;
         }
     }
 
     private int verifierProduitCommande(TFamille famille) {
         try {
+            // seules les commandes réellement actives (is_Process, pharma) bloquent la
+            // suggestion : une vieille commande jamais reçue mais fermée/abandonnée ne
+            // doit plus empêcher le produit de remonter
             TypedQuery<TOrderDetail> q = getEmg().createQuery(
-                    "SELECT o FROM TOrderDetail o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgORDERID.recu=?2 ",
+                    "SELECT o FROM TOrderDetail o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.lgORDERID.recu=?2 AND o.lgORDERID.strSTATUT IN (?3, ?4) ",
                     TOrderDetail.class);
             q.setParameter(1, famille.getLgFAMILLEID());
             q.setParameter(2, Boolean.FALSE);
+            q.setParameter(3, STATUT_IS_PROGRESS);
+            q.setParameter(4, STATUT_PHARMA);
             q.setMaxResults(1);
             TOrderDetail detail = q.getSingleResult();
 
@@ -642,7 +651,10 @@ public class SuggestionImpl implements SuggestionService {
                 return 4;
             }
             return 0;
+        } catch (NoResultException e) {
+            return 0;
         } catch (Exception e) {
+            LOG.log(Level.WARNING, "verifierProduitCommande", e);
             return 0;
         }
     }
