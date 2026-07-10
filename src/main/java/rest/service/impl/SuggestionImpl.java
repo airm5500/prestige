@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -650,20 +651,7 @@ public class SuggestionImpl implements SuggestionService {
     @Override
     public JSONObject makeSuggestion(List<VenteDetailsDTO> datas) throws JSONException {
         try {
-            LongAdder count = new LongAdder();
-            Map<String, List<VenteDetailsDTO>> groupingByGrossisteId = datas.stream()
-                    .collect(Collectors.groupingBy(VenteDetailsDTO::getTypeVente));
-            groupingByGrossisteId.forEach((k, v) -> {
-                TGrossiste oGrossiste = getEmg().find(TGrossiste.class, k);
-                TSuggestionOrder suggestionOrder = createSuggestionOrder(oGrossiste, STATUT_IS_PROGRESS);
-                v.forEach(o -> {
-                    TFamille oFamille = getEmg().find(TFamille.class, o.getLgFAMILLEID());
-                    initTSuggestionOrderDetail(suggestionOrder, oFamille, oGrossiste, o.getIntQUANTITY());
-                    count.increment();
-                });
-
-            });
-            return new JSONObject().put("success", true).put("count", count.intValue());
+            return creerSuggestionArticlesVendus(datas, false);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return new JSONObject().put("success", false);
@@ -674,25 +662,131 @@ public class SuggestionImpl implements SuggestionService {
     @Override
     public JSONObject makeSuggestion(Set<VenteDetailsDTO> datas) throws JSONException {
         try {
-            LongAdder count = new LongAdder();
-            Map<String, List<VenteDetailsDTO>> groupingByGrossisteId = datas.stream()
-                    .collect(Collectors.groupingBy(VenteDetailsDTO::getTypeVente));
-            groupingByGrossisteId.forEach((k, v) -> {
-                TGrossiste oGrossiste = getEmg().find(TGrossiste.class, k);
-                TSuggestionOrder suggestionOrder = createSuggestionOrder(oGrossiste, STATUT_IS_PROGRESS);
-                v.forEach(o -> {
-                    TFamille oFamille = getEmg().find(TFamille.class, o.getLgFAMILLEID());
-                    initTSuggestionOrderDetail(suggestionOrder, oFamille, oGrossiste, o.getIntQUANTITY());
-                    count.increment();
-                });
-
-            });
-            return new JSONObject().put("success", true).put("count", count.intValue());
+            return creerSuggestionArticlesVendus(datas, false);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return new JSONObject().put("success", false);
         }
 
+    }
+
+    /**
+     * Creation des suggestions issues de la liste des articles vendus. La liste affichee garde les produits desactives,
+     * mais un produit desactive, sans grossiste, ou dont le couple t_famille_grossiste n'existe qu'en disable/delete ne
+     * doit pas etre suggere : il est ignore et remonte dans la reponse (ignores/detailIgnores). Un produit en erreur
+     * n'empeche plus la creation des autres lignes.
+     */
+    private JSONObject creerSuggestionArticlesVendus(Collection<VenteDetailsDTO> datas, boolean reappro)
+            throws JSONException {
+        LongAdder count = new LongAdder();
+        LongAdder ignores = new LongAdder();
+        JSONArray detailIgnores = new JSONArray();
+        datas.stream().filter(o -> StringUtils.isEmpty(o.getTypeVente()))
+                .forEach(o -> ajouterProduitIgnore(detailIgnores, ignores, o.getLgFAMILLEID(),
+                        "Grossiste principal non défini"));
+        Map<String, List<VenteDetailsDTO>> groupingByGrossisteId = datas.stream()
+                .filter(o -> StringUtils.isNotEmpty(o.getTypeVente()))
+                .collect(Collectors.groupingBy(VenteDetailsDTO::getTypeVente));
+        groupingByGrossisteId.forEach((k, v) -> {
+            TGrossiste oGrossiste = getEmg().find(TGrossiste.class, k);
+            if (oGrossiste == null) {
+                v.forEach(
+                        o -> ajouterProduitIgnore(detailIgnores, ignores, o.getLgFAMILLEID(), "Grossiste introuvable"));
+                return;
+            }
+            Map<TFamille, Integer> eligibles = new LinkedHashMap<>();
+            v.forEach(o -> {
+                try {
+                    TFamille oFamille = getEmg().find(TFamille.class, o.getLgFAMILLEID());
+                    String motif = motifExclusionSuggestion(oFamille, oGrossiste);
+                    if (motif != null) {
+                        ajouterProduitIgnore(detailIgnores, ignores, o.getLgFAMILLEID(), motif);
+                        return;
+                    }
+                    int qte = reappro ? quantiteASuggererReappro(oFamille) : o.getIntQUANTITY();
+                    eligibles.merge(oFamille, qte, Integer::sum);
+                } catch (Exception e) {
+                    LOG.log(Level.SEVERE, null, e);
+                    ajouterProduitIgnore(detailIgnores, ignores, o.getLgFAMILLEID(), "Erreur technique");
+                }
+            });
+            if (eligibles.isEmpty()) {
+                return;
+            }
+            TSuggestionOrder suggestionOrder = createSuggestionOrder(oGrossiste, STATUT_IS_PROGRESS);
+            LongAdder lignes = new LongAdder();
+            eligibles.forEach((oFamille, qte) -> {
+                try {
+                    initTSuggestionOrderDetail(suggestionOrder, oFamille, oGrossiste, qte);
+                    count.increment();
+                    lignes.increment();
+                } catch (Exception e) {
+                    LOG.log(Level.SEVERE, null, e);
+                    ajouterProduitIgnore(detailIgnores, ignores, oFamille.getLgFAMILLEID(), "Erreur technique");
+                }
+            });
+            if (lignes.intValue() == 0) {
+                getEmg().remove(suggestionOrder);
+            }
+        });
+        return new JSONObject().put("success", true).put("count", count.intValue()).put("ignores", ignores.intValue())
+                .put("detailIgnores", detailIgnores);
+    }
+
+    private int quantiteASuggererReappro(TFamille oFamille) {
+        Integer qteReappro = oFamille.getIntQTEREAPPROVISIONNEMENT();
+        return (qteReappro != null && qteReappro > 0) ? qteReappro : 1;
+    }
+
+    private String motifExclusionSuggestion(TFamille famille, TGrossiste grossiste) {
+        if (famille == null) {
+            return "Produit introuvable";
+        }
+        if (!STATUT_ENABLE.equals(famille.getStrSTATUT())) {
+            return "Produit désactivé";
+        }
+        if (coupleFamilleGrossisteDesactive(famille, grossiste)) {
+            return "Couple produit-grossiste désactivé";
+        }
+        return null;
+    }
+
+    /**
+     * Verifie en lecture seule si le couple t_famille_grossiste existe uniquement en disable/delete. Un couple
+     * inexistant reste eligible (il sera cree a la volee comme aujourd'hui) ; un couple desactive n'est jamais reactive
+     * par la suggestion.
+     */
+    private boolean coupleFamilleGrossisteDesactive(TFamille famille, TGrossiste grossiste) {
+        try {
+            List<String> statuts = getEmg().createQuery(
+                    "SELECT t.strSTATUT FROM TFamilleGrossiste t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgGROSSISTEID.lgGROSSISTEID = ?2",
+                    String.class).setParameter(1, famille.getLgFAMILLEID())
+                    .setParameter(2, grossiste.getLgGROSSISTEID()).getResultList();
+            return !statuts.isEmpty() && statuts.stream().noneMatch(STATUT_ENABLE::equals);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return false;
+        }
+    }
+
+    private void ajouterProduitIgnore(JSONArray detailIgnores, LongAdder ignores, String familleId, String motif) {
+        ignores.increment();
+        String cip = familleId;
+        String nom = "";
+        try {
+            TFamille famille = getEmg().find(TFamille.class, familleId);
+            if (famille != null) {
+                cip = famille.getIntCIP();
+                nom = famille.getStrNAME();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, null, e);
+        }
+        try {
+            detailIgnores.put(new JSONObject().put("cip", cip).put("nom", nom).put("motif", motif));
+        } catch (JSONException e) {
+            LOG.log(Level.WARNING, null, e);
+        }
     }
 
     @Override
@@ -1389,22 +1483,7 @@ public class SuggestionImpl implements SuggestionService {
     @Override
     public JSONObject suggererQteReappro(Set<VenteDetailsDTO> datas) {
         try {
-            LongAdder count = new LongAdder();
-            Map<String, List<VenteDetailsDTO>> groupingByGrossisteId = datas.stream()
-                    .collect(Collectors.groupingBy(VenteDetailsDTO::getTypeVente));
-            groupingByGrossisteId.forEach((k, v) -> {
-                TGrossiste oGrossiste = getEmg().find(TGrossiste.class, k);
-                TSuggestionOrder suggestionOrder = createSuggestionOrder(oGrossiste, STATUT_IS_PROGRESS);
-                v.forEach(o -> {
-                    TFamille oFamille = getEmg().find(TFamille.class, o.getLgFAMILLEID());
-                    initTSuggestionOrderDetail(suggestionOrder, oFamille, oGrossiste,
-                            oFamille.getIntQTEREAPPROVISIONNEMENT().compareTo(0) == 1
-                                    ? oFamille.getIntQTEREAPPROVISIONNEMENT() : 1);
-                    count.increment();
-                });
-
-            });
-            return new JSONObject().put("success", true).put("count", count.intValue());
+            return creerSuggestionArticlesVendus(datas, true);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return new JSONObject().put("success", false);

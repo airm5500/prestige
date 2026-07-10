@@ -714,10 +714,24 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                 progress.hide();
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
+                    var msg = 'Nombre de produits en compte : ' + result.count;
+                    if (result.ignores && result.ignores > 0) {
+                        msg += '<br/><b>Produits ignorés : ' + result.ignores + '</b>';
+                        if (result.detailIgnores && result.detailIgnores.length > 0) {
+                            msg += '<ul style="text-align:left;margin:5px 0 0 15px;">';
+                            Ext.Array.each(result.detailIgnores.slice(0, 15), function (p) {
+                                msg += '<li>' + (p.cip ? p.cip + ' - ' : '') + (p.nom || '') + ' (' + p.motif + ')</li>';
+                            });
+                            if (result.detailIgnores.length > 15) {
+                                msg += '<li>... et ' + (result.detailIgnores.length - 15) + ' autre(s)</li>';
+                            }
+                            msg += '</ul>';
+                        }
+                    }
                     Ext.MessageBox.show({
                         title: 'Message',
-                        width: 320,
-                        msg: 'Nombre de produits en compte : ' + result.count,
+                        width: 420,
+                        msg: msg,
                         buttons: Ext.MessageBox.OK,
                         icon: Ext.MessageBox.INFO
 

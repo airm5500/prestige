@@ -1651,30 +1651,39 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                 String key = entry.getKey();
                 Integer val = entry.getValue();
                 TFamille famille = getById(key);
-                if (famille != null) {
-                    int qty = (int) Math.ceil(Double.valueOf(val) / famille.getIntNUMBERDETAIL());
-                    VenteDetailsDTO d = new VenteDetailsDTO();
-                    d.setLgFAMILLEID(key);
-                    d.setLgPREENREGISTREMENTDETAILID(key);
-                    d.setIntQUANTITY(qty);
-                    d.setTypeVente(famille.getLgGROSSISTEID().getLgGROSSISTEID());
-                    Set<VenteDetailsDTO> setD = new HashSet<>();
-                    if (datasFinal.contains(d)) {
-                        Iterator<VenteDetailsDTO> iterator1 = datasFinal.iterator();
-                        while (iterator1.hasNext()) {
-                            VenteDetailsDTO next = iterator1.next();
-                            if (next.equals(d)) {
-                                iterator1.remove();
-                                next.setIntQUANTITY(next.getIntQUANTITY() + qty);
-                                setD.add(next);
-                            }
-
-                        }
-                    } else {
-                        datasFinal.add(d);
-                    }
-                    datasFinal.addAll(setD);
+                if (famille == null) {
+                    LOG.log(Level.WARNING, "Suggestion articles vendus: boite CH introuvable pour le produit {0}", key);
+                    continue;
                 }
+                Integer numberDetail = famille.getIntNUMBERDETAIL();
+                if (numberDetail == null || numberDetail <= 0) {
+                    LOG.log(Level.WARNING, "Suggestion articles vendus: nombre de details invalide pour la boite {0}",
+                            key);
+                    continue;
+                }
+                int qty = (int) Math.ceil(Double.valueOf(val) / numberDetail);
+                VenteDetailsDTO d = new VenteDetailsDTO();
+                d.setLgFAMILLEID(key);
+                d.setLgPREENREGISTREMENTDETAILID(key);
+                d.setIntQUANTITY(qty);
+                d.setTypeVente(
+                        famille.getLgGROSSISTEID() != null ? famille.getLgGROSSISTEID().getLgGROSSISTEID() : null);
+                Set<VenteDetailsDTO> setD = new HashSet<>();
+                if (datasFinal.contains(d)) {
+                    Iterator<VenteDetailsDTO> iterator1 = datasFinal.iterator();
+                    while (iterator1.hasNext()) {
+                        VenteDetailsDTO next = iterator1.next();
+                        if (next.equals(d)) {
+                            iterator1.remove();
+                            next.setIntQUANTITY(next.getIntQUANTITY() + qty);
+                            setD.add(next);
+                        }
+
+                    }
+                } else {
+                    datasFinal.add(d);
+                }
+                datasFinal.addAll(setD);
             }
             return datasFinal;
         } catch (Exception e) {
