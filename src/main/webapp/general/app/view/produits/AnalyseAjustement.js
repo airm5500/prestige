@@ -181,6 +181,19 @@ Ext.define('testextjs.view.produits.AnalyseAjustement', {
                                 metaData.style = 'font-weight:700;';
                                 return Ext.util.Format.number(v, '0,000.');
                             }
+                        }, {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/grid.png',
+                                    tooltip: 'Voir le d&eacute;tail des ajustements de ce produit sur la p&eacute;riode',
+                                    scope: me,
+                                    handler: function (grid, rowIndex) {
+                                        me.onDetailProduitClick(grid, rowIndex);
+                                    }
+                                }]
                         }
                     ],
                     bbar: {
@@ -210,6 +223,104 @@ Ext.define('testextjs.view.produits.AnalyseAjustement', {
     },
     onRechercher: function () {
         this.analyseStore.loadPage(1);
+    },
+    onDetailProduitClick: function (grid, rowIndex) {
+        var me = this;
+        var rec = grid.getStore().getAt(rowIndex);
+        var dtStart = me.down('#dtStart').getSubmitValue();
+        var dtEnd = me.down('#dtEnd').getSubmitValue();
+
+        var detailStore = Ext.create('Ext.data.Store', {
+            fields: [
+                {name: 'dateAjustement', type: 'string'},
+                {name: 'heure', type: 'string'},
+                {name: 'libelle', type: 'string'},
+                {name: 'motif', type: 'string'},
+                {name: 'operateur', type: 'string'},
+                {name: 'stockAvant', type: 'number'},
+                {name: 'quantite', type: 'number'},
+                {name: 'stockApres', type: 'number'}
+            ],
+            pageSize: 20,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/ajustement/analyse/details',
+                extraParams: {
+                    familleId: rec.get('familleId'),
+                    dtStart: dtStart,
+                    dtEnd: dtEnd
+                },
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+
+        var win = Ext.create('Ext.window.Window', {
+            title: 'Ajustements de [' + rec.get('name') + '] du '
+                    + Ext.Date.format(me.down('#dtStart').getValue(), 'd/m/Y') + ' au '
+                    + Ext.Date.format(me.down('#dtEnd').getValue(), 'd/m/Y'),
+            width: 950,
+            height: 500,
+            layout: 'fit',
+            maximizable: true,
+            modal: true,
+            items: [{
+                    xtype: 'gridpanel',
+                    store: detailStore,
+                    viewConfig: {
+                        forceFit: true,
+                        emptyText: '<h1 style="margin:10px 10px 10px 30%;">Pas de donn&eacute;es</h1>'
+                    },
+                    columns: [
+                        {xtype: 'rownumberer', text: 'LG', width: 40},
+                        {header: 'Date', dataIndex: 'dateAjustement', align: 'center', flex: 0.7},
+                        {header: 'Heure', dataIndex: 'heure', align: 'center', flex: 0.5},
+                        {header: 'Ajustement', dataIndex: 'libelle', flex: 1.3},
+                        {header: 'Motif', dataIndex: 'motif', flex: 1},
+                        {header: 'Op&eacute;rateur', dataIndex: 'operateur', flex: 1},
+                        {
+                            xtype: 'numbercolumn',
+                            header: 'Stock avant',
+                            dataIndex: 'stockAvant',
+                            format: '0,000.',
+                            align: 'right',
+                            flex: 0.7
+                        },
+                        {
+                            header: 'Quantit&eacute;',
+                            dataIndex: 'quantite',
+                            align: 'right',
+                            flex: 0.7,
+                            renderer: function (v) {
+                                var style = v < 0 ? 'color:red;font-weight:700;' : 'color:green;font-weight:700;';
+                                var txt = v > 0 ? '+' + Ext.util.Format.number(v, '0,000.')
+                                        : Ext.util.Format.number(v, '0,000.');
+                                return '<span style="' + style + '">' + txt + '</span>';
+                            }
+                        },
+                        {
+                            xtype: 'numbercolumn',
+                            header: 'Stock apr&egrave;s',
+                            dataIndex: 'stockApres',
+                            format: '0,000.',
+                            align: 'right',
+                            flex: 0.7
+                        }
+                    ],
+                    bbar: {
+                        xtype: 'pagingtoolbar',
+                        store: detailStore,
+                        pageSize: 20,
+                        displayInfo: true
+                    }
+                }]
+        });
+        win.show();
+        detailStore.load();
     },
     onExportCsv: function () {
         window.location = '../api/v1/ajustement/analyse/csv?' + this.buildParams();

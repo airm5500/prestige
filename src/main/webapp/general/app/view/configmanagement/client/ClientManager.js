@@ -26,7 +26,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
         'Ext.ux.grid.Printer',
         'testextjs.view.configmanagement.client.action.detailsclient',
         'testextjs.view.configmanagement.client.action.venteClient',
-        'testextjs.view.configmanagement.client.action.consommationClient'
+        'testextjs.view.configmanagement.client.action.consommationClient',
+        'testextjs.view.configmanagement.client.action.consommationClients'
 
 
     ],
@@ -316,6 +317,12 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     scope: this,
                     iconCls: 'addicon',
                     handler: this.onAddClick
+                }, '-', {
+                    text: 'Suivi conso',
+                    tooltip: 'Suivi de consommation de tous les clients',
+                    scope: this,
+                    icon: 'resources/images/icons/fam/chart_bar.png',
+                    handler: this.onSuiviConsoClick
                 }, '-', {
                     xtype: 'combobox',
                     fieldLabel: 'Type Client',
@@ -622,6 +629,11 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             odatasource: rec.data,
             parentview: this,
             titre: "Suivi de consommation : [" + rec.get('str_FIRST_LAST_NAME') + "]"
+        });
+    },
+    onSuiviConsoClick: function () {
+        new testextjs.view.configmanagement.client.action.consommationClients({
+            parentview: this
         });
     }
 

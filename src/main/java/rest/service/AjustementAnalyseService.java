@@ -18,6 +18,8 @@ public interface AjustementAnalyseService {
 
     JSONObject fetchAnalyse(TUser user, String dtStart, String dtEnd, int start, int limit);
 
+    JSONObject fetchAnalyseDetails(TUser user, String familleId, String dtStart, String dtEnd, int start, int limit);
+
     byte[] exportCsv(TUser user, String dtStart, String dtEnd) throws IOException;
 
     byte[] exportExcel(TUser user, String dtStart, String dtEnd) throws IOException;

@@ -116,6 +116,15 @@ Ext.define('testextjs.view.configmanagement.client.action.consommationClient', {
                                     handler: function () {
                                         me.doSearch();
                                     }
+                                }, '-', {
+                                    text: 'Imprimer',
+                                    tooltip: 'Imprimer la fiche de consommation du client',
+                                    iconCls: 'printable',
+                                    handler: function () {
+                                        window.open('../api/v1/client/consommation/pdf?clientId=' + clientId
+                                                + '&dtStart=' + me.down('#dtStart').getSubmitValue()
+                                                + '&dtEnd=' + me.down('#dtEnd').getSubmitValue());
+                                    }
                                 }
                             ]
                         }

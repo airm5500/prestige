@@ -167,6 +167,19 @@ public class AjustementRessource {
     }
 
     @GET
+    @Path("analyse/details")
+    public Response analyseDetails(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "familleId") String familleId, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = ajustementAnalyseService.fetchAnalyseDetails(tu, familleId, dtStart, dtEnd, start, limit);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
     @Path("analyse/csv")
     @Produces("text/csv")
     public Response analyseCsv(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)

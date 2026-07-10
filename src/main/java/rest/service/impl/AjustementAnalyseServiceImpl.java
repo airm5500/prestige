@@ -129,6 +129,63 @@ public class AjustementAnalyseServiceImpl implements AjustementAnalyseService {
         }
     }
 
+    private static final String DETAILS_QUERY = "SELECT DATE_FORMAT(d.dt_CREATED,'%d/%m/%Y') AS dateAjustement,"
+            + " DATE_FORMAT(d.dt_CREATED,'%H:%i') AS heure, a.str_NAME AS libelle, COALESCE(m.libelle,'') AS motif,"
+            + " CONCAT(u.str_FIRST_NAME,' ',u.str_LAST_NAME) AS operateur,"
+            + " COALESCE(d.int_NUMBER_CURRENT_STOCK,0) AS stockAvant, COALESCE(d.int_NUMBER,0) AS quantite,"
+            + " COALESCE(d.int_NUMBER_AFTER_STOCK,0) AS stockApres"
+            + " FROM t_ajustement_detail d JOIN t_ajustement a ON a.lg_AJUSTEMENT_ID = d.lg_AJUSTEMENT_ID"
+            + " JOIN t_user u ON u.lg_USER_ID = a.lg_USER_ID"
+            + " LEFT JOIN motif_ajustement m ON m.id = d.motif_ajustement_id"
+            + " WHERE a.str_STATUT = 'enable' AND d.lg_FAMILLE_ID = ?4 AND DATE(d.dt_CREATED) BETWEEN ?1 AND ?2"
+            + " AND u.lg_EMPLACEMENT_ID = ?3 ORDER BY d.dt_CREATED DESC";
+
+    private static final String DETAILS_COUNT_QUERY = "SELECT COUNT(d.lg_AJUSTEMENTDETAIL_ID)"
+            + " FROM t_ajustement_detail d JOIN t_ajustement a ON a.lg_AJUSTEMENT_ID = d.lg_AJUSTEMENT_ID"
+            + " JOIN t_user u ON u.lg_USER_ID = a.lg_USER_ID"
+            + " WHERE a.str_STATUT = 'enable' AND d.lg_FAMILLE_ID = ?4 AND DATE(d.dt_CREATED) BETWEEN ?1 AND ?2"
+            + " AND u.lg_EMPLACEMENT_ID = ?3";
+
+    @Override
+    public JSONObject fetchAnalyseDetails(TUser user, String familleId, String dtStart, String dtEnd, int start,
+            int limit) {
+        JSONObject json = new JSONObject();
+        try {
+            LocalDate debut = parseOrToday(dtStart);
+            LocalDate fin = parseOrToday(dtEnd);
+            Query countQuery = em.createNativeQuery(DETAILS_COUNT_QUERY).setParameter(1, debut).setParameter(2, fin)
+                    .setParameter(3, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).setParameter(4, familleId);
+            long total = ((Number) countQuery.getSingleResult()).longValue();
+            if (total == 0) {
+                return json.put("total", 0).put("data", new JSONArray());
+            }
+            Query q = em.createNativeQuery(DETAILS_QUERY, Tuple.class).setParameter(1, debut).setParameter(2, fin)
+                    .setParameter(3, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).setParameter(4, familleId);
+            if (limit > 0) {
+                q.setFirstResult(start);
+                q.setMaxResults(limit);
+            }
+            List<Tuple> tuples = q.getResultList();
+            JSONArray datas = new JSONArray();
+            for (Tuple t : tuples) {
+                JSONObject row = new JSONObject();
+                row.put("dateAjustement", t.get("dateAjustement", String.class));
+                row.put("heure", t.get("heure", String.class));
+                row.put("libelle", t.get("libelle", String.class));
+                row.put("motif", t.get("motif", String.class));
+                row.put("operateur", t.get("operateur", String.class));
+                row.put("stockAvant", ((Number) t.get("stockAvant")).longValue());
+                row.put("quantite", ((Number) t.get("quantite")).longValue());
+                row.put("stockApres", ((Number) t.get("stockApres")).longValue());
+                datas.put(row);
+            }
+            return json.put("total", total).put("data", datas);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return json.put("total", 0).put("data", new JSONArray());
+        }
+    }
+
     private String periode(String dtStart, String dtEnd) {
         return "du " + parseOrToday(dtStart).format(FR) + " au " + parseOrToday(dtEnd).format(FR);
     }

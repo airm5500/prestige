@@ -417,35 +417,67 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
                     handler: this.onRechClick
                 }],
             bbar: {
-                xtype: 'pagingtoolbar',
-                store: store, // same store GridPanel is using
                 dock: 'bottom',
-                displayInfo: true,
-                listeners: {
-                    beforechange: function (page, currentPage) {
-                        var myProxy = this.store.getProxy();
-                        myProxy.params = {
-                            search_value: '',
-                            lg_TIERS_PAYANT_ID: '',
-                            lg_COMPTE_CLIENT_ID: ''
-                        };
-                        var val = Ext.getCmp('rechecher').getValue();
-                        var lg_TIERS_PAYANT_ID = "";
-                        var lg_COMPTE_CLIENT_ID = "";
+                items: [
+                    {
+                        xtype: 'pagingtoolbar',
+                        store: store, // same store GridPanel is using
+                        displayInfo: true,
+                        flex: 1,
+                        listeners: {
+                            beforechange: function (page, currentPage) {
+                                var myProxy = this.store.getProxy();
+                                myProxy.params = {
+                                    search_value: '',
+                                    lg_TIERS_PAYANT_ID: '',
+                                    lg_COMPTE_CLIENT_ID: ''
+                                };
+                                var val = Ext.getCmp('rechecher').getValue();
+                                var lg_TIERS_PAYANT_ID = "";
+                                var lg_COMPTE_CLIENT_ID = "";
 
-                        if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== null) {
-                            lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
-                        }
-                        if (Ext.getCmp('lg_COMPTE_CLIENT_ID').getValue() === null) {
-                            lg_COMPTE_CLIENT_ID = Ext.getCmp('lg_COMPTE_CLIENT_ID').getValue();
-                        }
-                        myProxy.setExtraParam('lg_TIERS_PAYANT_ID', lg_TIERS_PAYANT_ID);
-                        myProxy.setExtraParam('lg_COMPTE_CLIENT_ID', lg_COMPTE_CLIENT_ID);
-                        myProxy.setExtraParam('search_value', val);
+                                if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== null) {
+                                    lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
+                                }
+                                if (Ext.getCmp('lg_COMPTE_CLIENT_ID').getValue() === null) {
+                                    lg_COMPTE_CLIENT_ID = Ext.getCmp('lg_COMPTE_CLIENT_ID').getValue();
+                                }
+                                myProxy.setExtraParam('lg_TIERS_PAYANT_ID', lg_TIERS_PAYANT_ID);
+                                myProxy.setExtraParam('lg_COMPTE_CLIENT_ID', lg_COMPTE_CLIENT_ID);
+                                myProxy.setExtraParam('search_value', val);
 
+                            }
+
+                        }
+                    },
+                    {
+                        xtype: 'tbseparator'
+                    },
+                    {
+                        xtype: 'button',
+                        text: 'Exporter CSV',
+                        tooltip: 'Exporter la balance ag&eacute;e d&eacute;taill&eacute;e en CSV',
+                        iconCls: 'export_csv_icon',
+                        scope: this,
+                        handler: this.onExportCsvClick
+                    },
+                    {
+                        xtype: 'button',
+                        text: 'Exporter EXCEL',
+                        tooltip: 'Exporter la balance ag&eacute;e d&eacute;taill&eacute;e en Excel',
+                        iconCls: 'export_excel_icon',
+                        scope: this,
+                        handler: this.onExportExcelClick
+                    },
+                    {
+                        xtype: 'button',
+                        text: 'Imprimer',
+                        tooltip: 'Imprimer la balance ag&eacute;e d&eacute;taill&eacute;e',
+                        iconCls: 'printable',
+                        scope: this,
+                        handler: this.onImprimerClick
                     }
-
-                }
+                ]
             }
         });
 
@@ -469,6 +501,23 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
         });
     },
     onStoreLoad: function () {
+    },
+    buildExportParams: function () {
+        var searchValue = Ext.getCmp('rechecher') ? Ext.getCmp('rechecher').getValue() : '';
+        var tiersPayantId = Ext.getCmp('lg_TIERS_PAYANT_ID') ? Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() : '';
+        var compteClientId = Ext.getCmp('lg_COMPTE_CLIENT_ID') ? Ext.getCmp('lg_COMPTE_CLIENT_ID').getValue() : '';
+        return 'search_value=' + encodeURIComponent(searchValue || '')
+                + '&lg_TIERS_PAYANT_ID=' + encodeURIComponent(tiersPayantId || '')
+                + '&lg_COMPTE_CLIENT_ID=' + encodeURIComponent(compteClientId || '');
+    },
+    onExportCsvClick: function () {
+        window.location = '../api/v1/balance-agee/mensuel/csv?' + this.buildExportParams();
+    },
+    onExportExcelClick: function () {
+        window.location = '../api/v1/balance-agee/mensuel/excel?' + this.buildExportParams();
+    },
+    onImprimerClick: function () {
+        window.open('../api/v1/balance-agee/mensuel/pdf?' + this.buildExportParams());
     },
     onbtnback: function () {
         var xtype = "";
