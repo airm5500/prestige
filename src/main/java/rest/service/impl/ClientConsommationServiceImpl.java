@@ -309,6 +309,14 @@ public class ClientConsommationServiceImpl implements ClientConsommationService 
             if (client != null) {
                 nomClient = (StringUtils.defaultString(client.getStrFIRSTNAME()) + " "
                         + StringUtils.defaultString(client.getStrLASTNAME())).trim();
+                // contact (telephone/email) entre parentheses a cote du nom,
+                // uniquement s'il est renseigne
+                String contact = java.util.stream.Stream
+                        .of(StringUtils.trimToNull(client.getStrADRESSE()), StringUtils.trimToNull(client.getEmail()))
+                        .filter(java.util.Objects::nonNull).collect(Collectors.joining(" / "));
+                if (StringUtils.isNotEmpty(contact)) {
+                    nomClient += " (" + contact + ")";
+                }
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
