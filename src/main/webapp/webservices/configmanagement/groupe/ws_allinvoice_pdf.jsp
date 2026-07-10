@@ -118,16 +118,16 @@
     }
 
     if (oTOfficine.getStrPHONE() != null) {
-        String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+        String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + util.DateConverter.phoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
         if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
             String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
             for (String va  : phone) {
-                finalphonestring += " / " + conversion.PhoneNumberFormat(va);
+                finalphonestring += " / " + util.DateConverter.phoneNumberFormat(va);
             }
         }
 
         P_INSTITUTION_ADRESSE += " -  " + finalphonestring;
-        // P_INSTITUTION_ADRESSE += " - Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE());
+        // P_INSTITUTION_ADRESSE += " - Tel: " + util.DateConverter.phoneNumberFormat("+225", oTOfficine.getStrPHONE());
     }
     if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
         P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();

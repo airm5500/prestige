@@ -82,7 +82,7 @@
     String str_tp_infos = "", P_CLIENT = "";
     int total_devis = 0;
     P_CLIENT = (oTPreenregistrement.getStrNUMEROSECURITESOCIAL() != null && !oTPreenregistrement.getStrNUMEROSECURITESOCIAL().equalsIgnoreCase("") ? oTPreenregistrement.getStrNUMEROSECURITESOCIAL() + " | " : "") + oTPreenregistrement.getStrFIRSTNAMECUSTOMER() + " " + oTPreenregistrement.getStrLASTNAMECUSTOMER();
-    P_H_CLT_INFOS = "Proforma N° " + oTPreenregistrement.getStrREF();
+    P_H_CLT_INFOS = "Proforma Nï¿½ " + oTPreenregistrement.getStrREF();
     total_devis = oTPreenregistrement.getIntPRICE() - oTPreenregistrement.getIntPRICEREMISE();
     
 
@@ -112,7 +112,7 @@
 
     parameters.put("P_H_CI_RI", ((oTOfficine.getStrCENTREIMPOSITION() != null && !oTOfficine.getStrCENTREIMPOSITION().equalsIgnoreCase("")) ? "CI:" + oTOfficine.getStrCENTREIMPOSITION() : "") + ((oTOfficine.getStrREGISTREIMPOSITION() != null && !oTOfficine.getStrREGISTREIMPOSITION().equalsIgnoreCase("")) ? " / RI: " + oTOfficine.getStrREGISTREIMPOSITION() : ""));
     parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
-    parameters.put("P_H_PHONE", (oTOfficine.getStrPHONE() != null ? "Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : ""));
+    parameters.put("P_H_PHONE", (oTOfficine.getStrPHONE() != null ? "Tel: " + util.DateConverter.phoneNumberFormat("+225", oTOfficine.getStrPHONE()) : ""));
 
     parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
     parameters.put("P_H_LOGO", P_H_LOGO);
@@ -124,27 +124,27 @@
     String P_FOOTER_RC = "";
 
     if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-        P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+        P_FOOTER_RC += "RC Nï¿½ " + oTOfficine.getStrREGISTRECOMMERCE();
     }
 
     if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-        P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+        P_FOOTER_RC += " - CC Nï¿½ " + oTOfficine.getStrCOMPTECONTRIBUABLE();
     }
     if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+        P_FOOTER_RC += " - Rï¿½gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
     }
     if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+        P_FOOTER_RC += " - Centre des Impï¿½ts: " + oTOfficine.getStrCENTREIMPOSITION();
     }
 
     if (oTOfficine.getStrPHONE() != null) {
-        P_INSTITUTION_ADRESSE += " - Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE());
+        P_INSTITUTION_ADRESSE += " - Tel: " + util.DateConverter.phoneNumberFormat("+225", oTOfficine.getStrPHONE());
     }
     if (oTOfficine.getStrCOMPTEBANCAIRE() != null) {
         P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
     }
     if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-        P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+        P_INSTITUTION_ADRESSE += " - CPT Nï¿½: " + oTOfficine.getStrNUMCOMPTABLE();
     }
 
     parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);

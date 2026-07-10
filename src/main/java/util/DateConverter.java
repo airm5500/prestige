@@ -207,43 +207,43 @@ public final class DateConverter {
     }
 
     public static String phoneNumberFormat(String Str_country_indicatif, String str_phone_number) {
-        try {
-            long lg_phone_number = Long.parseLong(str_phone_number);
-
-            DecimalFormatSymbols phoneNumberSymbols = new DecimalFormatSymbols();
-            // Use space not comma to thousands: 10 000 not 10,000.
-            phoneNumberSymbols.setGroupingSeparator('-');
-            DecimalFormat phoneNumberFormat = new DecimalFormat("##,##,##,##", phoneNumberSymbols);
-            String result_phone = phoneNumberFormat.format(lg_phone_number);
-
-            if (result_phone.length() < 11) {
-                result_phone = "0" + result_phone;
-            }
-
-            return "(" + Str_country_indicatif + ") " + result_phone;
-        } catch (Exception e) {
+        String grouped = groupLocalPhone(str_phone_number);
+        if (grouped.isEmpty()) {
+            return Str_country_indicatif;
         }
-        return Str_country_indicatif;
+        return "(" + Str_country_indicatif + ") " + grouped;
     }
 
     public static String phoneNumberFormat(String str_phone_number) {
-        String result_phone = "";
-        try {
-            long lg_phone_number = Long.parseLong(str_phone_number);
+        return groupLocalPhone(str_phone_number);
+    }
 
-            DecimalFormatSymbols phoneNumberSymbols = new DecimalFormatSymbols();
-            // Use space not comma to thousands: 10 000 not 10,000.
-            phoneNumberSymbols.setGroupingSeparator('-');
-            DecimalFormat phoneNumberFormat = new DecimalFormat("##,##,##,##", phoneNumberSymbols);
-            result_phone = phoneNumberFormat.format(lg_phone_number);
-
-            if (result_phone.length() < 11) {
-                result_phone = "0" + result_phone;
-            }
-
-        } catch (Exception e) {
+    /**
+     * Regroupe un numero local en paires separees par '-' en conservant le 0 initial : 708094545 comme 0708094545
+     * donnent tous deux "07-08-09-45-45". L'ancienne implementation passait par Long.parseLong, ce qui supprimait le 0
+     * de tete des numeros a 10 chiffres (0708094545 devenait "7-08-09-45-45"). Renvoie "" si l'entree n'est pas un
+     * numero local exploitable (l'appelant a deux arguments retombe alors sur le seul indicatif, comme avant).
+     */
+    private static String groupLocalPhone(String rawPhone) {
+        if (rawPhone == null) {
+            return "";
         }
-        return result_phone;
+        String digits = rawPhone.replaceAll("[\\s.]", "");
+        if (digits.isEmpty() || !digits.matches("\\d+")) {
+            return "";
+        }
+        // numero local a 9 chiffres ayant perdu son 0 initial -> on le restaure
+        if (digits.length() == 9 && digits.charAt(0) != '0') {
+            digits = "0" + digits;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < digits.length(); i++) {
+            if (i > 0 && i % 2 == 0) {
+                sb.append('-');
+            }
+            sb.append(digits.charAt(i));
+        }
+        return sb.toString();
     }
 
     public static String amountFormat(Integer Amount, char separator) {
