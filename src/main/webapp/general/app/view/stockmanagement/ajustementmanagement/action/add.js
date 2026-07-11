@@ -372,13 +372,34 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.action.add', {
                             xtype: 'textareafield',
                             grow: true,
                             maxLength: 200,
+                            enforceMaxLength: true,
                             name: 'str_COMMENTAIRE',
                             fieldLabel: 'Commentaire',
                             flex: 1,
                             margin: '0 0 5 0',
                             id: 'str_COMMENTAIRE',
                             //anchor: '100%',
-                            emptyText: 'Saisir un commentaire (200 caracteres maximum)'
+                            emptyText: 'Saisir un commentaire (200 caracteres maximum)',
+                            enableKeyEvents: true,
+                            listeners: {
+                                change: function (field, newValue) {
+                                    var len = (newValue || '').length;
+                                    if (len >= 200) {
+                                        field.markInvalid('Limite de 200 caractères atteinte : veuillez raccourcir votre commentaire.');
+                                        if (!field.limiteSignalee) {
+                                            field.limiteSignalee = true;
+                                            if (Ext.toast) {
+                                                Ext.toast('Limite de 200 caractères atteinte : veuillez raccourcir votre commentaire.', 'Commentaire', 4000);
+                                            } else {
+                                                Ext.MessageBox.alert('Commentaire', 'Limite de 200 caractères atteinte : veuillez raccourcir votre commentaire.');
+                                            }
+                                        }
+                                    } else {
+                                        field.clearInvalid();
+                                        field.limiteSignalee = false;
+                                    }
+                                }
+                            }
                         }
                     ]
                 },

@@ -38,11 +38,14 @@
     if (request.getParameter("query") != null && !"".equals(request.getParameter("query"))) {
         search_value = request.getParameter("query");
     }
+    // exclude_detail=1 : ecarte les produits deconditionnes (utilise par l'ajout d'article a une suggestion)
+    boolean excludeDetail = "1".equals(request.getParameter("exclude_detail"))
+            || "true".equalsIgnoreCase(request.getParameter("exclude_detail"));
     int start = Integer.valueOf(request.getParameter("start"));
     int limit = Integer.valueOf(request.getParameter("limit"));
     String empl = OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-    JSONArray arrayObj = groupeCtl.getFamille(false, search_value, empl, start, limit);
-    int count = groupeCtl.getFamille(search_value, empl);
+    JSONArray arrayObj = groupeCtl.getFamille(false, search_value, empl, start, limit, excludeDetail);
+    int count = groupeCtl.getFamille(search_value, empl, excludeDetail);
 
     JSONObject data = new JSONObject();
 

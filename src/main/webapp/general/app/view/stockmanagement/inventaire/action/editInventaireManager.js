@@ -857,6 +857,15 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                 store: store_inventaire_famille,
                                 displayInfo: true,
                                 plugins: new Ext.ux.ProgressBarPager(),
+                                items: ['-', {
+                                        /* si coche, le stock machine apparait a l'impression de la
+                                         * fiche ET de la liste des ecarts (meme comportement que le
+                                         * privilege 'Affiche colonne stock machine lors de l'inventaire') */
+                                        xtype: 'checkboxfield',
+                                        id: 'chk_show_stock_print',
+                                        boxLabel: '<span style="color:#0000CC;font-weight:bold;">Afficher stock</span>',
+                                        checked: false
+                                    }],
                                 listeners: {
 
                                     change: function (item, layout) {
@@ -899,14 +908,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             iconCls: 'icon-clear-group',
                             scope: this,
                             handler: this.onbtncloturer
-                        }, {
-                            /* si coche, le stock machine apparait a l'impression
-                             * (meme comportement que le privilege 'Affiche colonne
-                             * stock machine lors de l'inventaire') */
-                            xtype: 'checkboxfield',
-                            id: 'chk_show_stock_print',
-                            boxLabel: 'Afficher stock',
-                            checked: false
                         }, {
                             text: 'Editer fiche',
                             id: 'btn_devis',

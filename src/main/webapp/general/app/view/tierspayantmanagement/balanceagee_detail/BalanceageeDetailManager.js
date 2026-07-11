@@ -102,6 +102,46 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
 
         });
 
+        /* filtre par type de tiers payant (assurance, carnet...) */
+        var store_type_tp = Ext.create('Ext.data.Store', {
+            fields: ['lg_TYPE_TIERS_PAYANT_ID', 'str_LIBELLE_TYPE_TIERS_PAYANT'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp',
+                reader: {
+                    type: 'json',
+                    root: 'results',
+                    totalProperty: 'total'
+                }
+            },
+            listeners: {
+                load: function (st) {
+                    st.insert(0, [{lg_TYPE_TIERS_PAYANT_ID: '', str_LIBELLE_TYPE_TIERS_PAYANT: 'Tous les types'}]);
+                }
+            }
+        });
+
+        /* filtre par groupe (groupes de tiers payants / assurances) */
+        var store_groupe_tp = Ext.create('Ext.data.Store', {
+            fields: ['lg_GROUPE_ID', 'str_LIBELLE'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../webservices/configmanagement/groupe/ws_data.jsp',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            },
+            listeners: {
+                load: function (st) {
+                    st.insert(0, [{lg_GROUPE_ID: '', str_LIBELLE: 'Tous les groupes'}]);
+                }
+            }
+        });
+
 
 
 
@@ -259,18 +299,48 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
 
                         },
                         select: function (cmp) {
-                            var value = cmp.getValue();
-
                             var OGrid = Ext.getCmp('GridFacturationID');
                             OGrid.getStore().load({
-                                params: {
-                                    lg_TIERS_PAYANT_ID: value,
-                                    search_value: Ext.getCmp('rechecher').getValue()
-                                }
-
+                                params: OGrid.currentFilterParams()
                             });
-
-
+                        }
+                    }
+                }, {
+                    xtype: 'combobox',
+                    id: 'bad_type_tp',
+                    store: store_type_tp,
+                    valueField: 'lg_TYPE_TIERS_PAYANT_ID',
+                    displayField: 'str_LIBELLE_TYPE_TIERS_PAYANT',
+                    queryMode: 'local',
+                    editable: false,
+                    forceSelection: true,
+                    width: 170,
+                    emptyText: 'Type tiers payant...',
+                    listeners: {
+                        select: function () {
+                            var OGrid = Ext.getCmp('GridFacturationID');
+                            OGrid.getStore().load({
+                                params: OGrid.currentFilterParams()
+                            });
+                        }
+                    }
+                }, {
+                    xtype: 'combobox',
+                    id: 'bad_groupe_tp',
+                    store: store_groupe_tp,
+                    valueField: 'lg_GROUPE_ID',
+                    displayField: 'str_LIBELLE',
+                    queryMode: 'local',
+                    editable: false,
+                    forceSelection: true,
+                    width: 170,
+                    emptyText: 'Groupe...',
+                    listeners: {
+                        select: function () {
+                            var OGrid = Ext.getCmp('GridFacturationID');
+                            OGrid.getStore().load({
+                                params: OGrid.currentFilterParams()
+                            });
                         }
                     }
                 }, '-', {
@@ -314,12 +384,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
                             if (e.getKey() === e.ENTER) {
 
                                 store.load({
-                                    params: {
-                                        search_value: this.getValue(),
-                                        lg_TIERS_PAYANT_ID: Ext.getCmp('lg_TIERS_PAYANT_ID').getValue()
-                                    }
-
-
+                                    params: Ext.getCmp('GridFacturationID').currentFilterParams()
                                 });
                             }
                         }
@@ -358,18 +423,11 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
                 listeners: {
                     beforechange: function (page, currentPage) {
                         var myProxy = this.store.getProxy();
-                        myProxy.params = {
-                            search_value: '',
-                            lg_TIERS_PAYANT_ID: ''
-                        };
-                        var val = Ext.getCmp('rechecher').getValue();
-                        var lg_TIERS_PAYANT_ID = "";
-
-                        if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== null) {
-                            lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
-                        }
-                        myProxy.setExtraParam('lg_TIERS_PAYANT_ID', lg_TIERS_PAYANT_ID);
-                        myProxy.setExtraParam('search_value', val);
+                        var params = Ext.getCmp('GridFacturationID').currentFilterParams();
+                        myProxy.setExtraParam('lg_TIERS_PAYANT_ID', params.lg_TIERS_PAYANT_ID);
+                        myProxy.setExtraParam('search_value', params.search_value);
+                        myProxy.setExtraParam('lg_TYPE_TIERS_PAYANT_ID', params.lg_TYPE_TIERS_PAYANT_ID);
+                        myProxy.setExtraParam('lg_GROUPE_ID', params.lg_GROUPE_ID);
 
                     }
 
@@ -398,11 +456,25 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
     },
     onStoreLoad: function () {
     },
-    buildExportParams: function () {
+    /* filtres courants (recherche, tiers payant, type, groupe) partages par la grille, les exports et l'impression */
+    currentFilterParams: function () {
         var searchValue = Ext.getCmp('rechecher') ? Ext.getCmp('rechecher').getValue() : '';
         var tiersPayantId = Ext.getCmp('lg_TIERS_PAYANT_ID') ? Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() : '';
-        return 'search_value=' + encodeURIComponent(searchValue || '')
-                + '&lg_TIERS_PAYANT_ID=' + encodeURIComponent(tiersPayantId || '');
+        var typeTpId = Ext.getCmp('bad_type_tp') ? Ext.getCmp('bad_type_tp').getValue() : '';
+        var groupeId = Ext.getCmp('bad_groupe_tp') ? Ext.getCmp('bad_groupe_tp').getValue() : '';
+        return {
+            search_value: searchValue || '',
+            lg_TIERS_PAYANT_ID: tiersPayantId || '',
+            lg_TYPE_TIERS_PAYANT_ID: typeTpId || '',
+            lg_GROUPE_ID: groupeId || ''
+        };
+    },
+    buildExportParams: function () {
+        var params = this.currentFilterParams();
+        return 'search_value=' + encodeURIComponent(params.search_value)
+                + '&lg_TIERS_PAYANT_ID=' + encodeURIComponent(params.lg_TIERS_PAYANT_ID)
+                + '&lg_TYPE_TIERS_PAYANT_ID=' + encodeURIComponent(params.lg_TYPE_TIERS_PAYANT_ID)
+                + '&lg_GROUPE_ID=' + encodeURIComponent(params.lg_GROUPE_ID);
     },
     onExportCsvClick: function () {
         window.location = '../api/v1/balance-agee/mensuel/csv?' + this.buildExportParams();
@@ -497,19 +569,8 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
 
     },
     onRechClick: function () {
-        var val = Ext.getCmp('rechecher');
-        var lg_TIERS_PAYANT_ID = "";
-
-        if (Ext.getCmp('lg_TIERS_PAYANT_ID').getValue() !== null) {
-            lg_TIERS_PAYANT_ID = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
-        }
-
-
         this.getStore().load({
-            params: {
-                search_value: val.value,
-                lg_TIERS_PAYANT_ID: lg_TIERS_PAYANT_ID
-            }
+            params: this.currentFilterParams()
         });
     }
 

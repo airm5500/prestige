@@ -8726,6 +8726,15 @@ public class Preenregistrement extends bll.bllBase {
 
     public List<EntityData> getBalanceDetailsTiersPayant(String search_value, String lg_TIERS_PAYANT_ID,
             String lg_USER_ID) {
+        return getBalanceDetailsTiersPayant(search_value, lg_TIERS_PAYANT_ID, lg_USER_ID, "", "");
+    }
+
+    /**
+     * lg_TYPE_TIERS_PAYANT_ID et lg_GROUPE_ID : filtres additifs de la balance agee detaillee. Vide ou "%%" = pas de
+     * filtre (comportement historique inchange).
+     */
+    public List<EntityData> getBalanceDetailsTiersPayant(String search_value, String lg_TIERS_PAYANT_ID,
+            String lg_USER_ID, String lg_TYPE_TIERS_PAYANT_ID, String lg_GROUPE_ID) {
 
         List<EntityData> lstTFacture = new ArrayList<>();
 
@@ -8754,6 +8763,14 @@ public class Preenregistrement extends bll.bllBase {
                     + "' OR  `t_tiers_payant`.`str_CODE_ORGANISME` LIKE '" + search_value
                     + "')     AND (`t_preenregistrement`.`str_LAST_NAME_CUSTOMER` LIKE '" + UserName + "' OR \n"
                     + "  `t_preenregistrement`.`str_LAST_NAME_CUSTOMER` LIKE '" + UserLastName + "')";
+            if (lg_TYPE_TIERS_PAYANT_ID != null && !"".equals(lg_TYPE_TIERS_PAYANT_ID)
+                    && !"%%".equals(lg_TYPE_TIERS_PAYANT_ID)) {
+                query += " AND `t_tiers_payant`.`lg_TYPE_TIERS_PAYANT_ID` = '"
+                        + lg_TYPE_TIERS_PAYANT_ID.replace("'", "''") + "'";
+            }
+            if (lg_GROUPE_ID != null && !"".equals(lg_GROUPE_ID) && !"%%".equals(lg_GROUPE_ID)) {
+                query += " AND `t_tiers_payant`.`lg_GROUPE_ID` = '" + lg_GROUPE_ID.replace("'", "''") + "'";
+            }
             list = this.getOdataManager().getEm().createNativeQuery(query).getResultList();
 
             for (Object[] object : list) {

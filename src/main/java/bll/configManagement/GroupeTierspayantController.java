@@ -3582,6 +3582,15 @@ public class GroupeTierspayantController implements Serializable {
     }
 
     public JSONArray getFamille(boolean all, String criteria, String lgEmp, int start, int limit) {
+        return getFamille(all, criteria, lgEmp, start, limit, false);
+    }
+
+    /**
+     * excludeDetail : ecarte les produits deconditionnes (details) de la recherche. Utilise par l'ajout d'article a une
+     * suggestion, ou seule la boite CH est suggerable.
+     */
+    public JSONArray getFamille(boolean all, String criteria, String lgEmp, int start, int limit,
+            boolean excludeDetail) {
         EntityManager em = this.getEntityManager();
         JSONArray array = new JSONArray();
 
@@ -3602,6 +3611,9 @@ public class GroupeTierspayantController implements Serializable {
                                 cb.like(root.get(TFamille_.strDESCRIPTION), criteria + "%")));
             }
             predicate = cb.and(predicate, cb.equal(root.get(TFamille_.strSTATUT), "enable"));
+            if (excludeDetail) {
+                predicate = cb.and(predicate, cb.equal(root.get(TFamille_.boolDECONDITIONNE), 0));
+            }
             predicate = cb.and(predicate, cb.equal(fa.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmp));
             cq.multiselect(root.get(TFamille_.lgFAMILLEID), root.get(TFamille_.strDESCRIPTION),
                     root.get(TFamille_.intCIP), root.get(TFamille_.intPRICE), fa.get(TFamilleStock_.intNUMBER),
@@ -3726,6 +3738,10 @@ public class GroupeTierspayantController implements Serializable {
     }
 
     public int getFamille(String criteria, String lgEmp) {
+        return getFamille(criteria, lgEmp, false);
+    }
+
+    public int getFamille(String criteria, String lgEmp, boolean excludeDetail) {
         EntityManager em = this.getEntityManager();
 
         try {
@@ -3747,6 +3763,9 @@ public class GroupeTierspayantController implements Serializable {
             }
 
             predicate = cb.and(predicate, cb.equal(fa.get(TFamilleStock_.strSTATUT), "enable"));
+            if (excludeDetail) {
+                predicate = cb.and(predicate, cb.equal(root.get(TFamille_.boolDECONDITIONNE), 0));
+            }
             predicate = cb.and(predicate, cb.equal(fa.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmp));
 
             cq.select(cb.countDistinct(root));

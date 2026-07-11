@@ -302,14 +302,17 @@ public class BalanceAgeeRessource {
     }
 
     private List<BalanceAgeeMensuelDTO> buildMensuel(TUser user, String searchValue, String tiersPayantId,
-            String compteClientId) {
+            String compteClientId, String typeTiersPayantId, String groupeId) {
         List<BalanceAgeeMensuelDTO> rows = new ArrayList<>();
         try {
             String search = StringUtils.isEmpty(searchValue) ? "" : searchValue;
             String tp = StringUtils.isEmpty(tiersPayantId) ? "%%" : tiersPayantId;
             String compte = StringUtils.isEmpty(compteClientId) ? "%%" : compteClientId;
+            String typeTp = StringUtils.isEmpty(typeTiersPayantId) ? "" : typeTiersPayantId;
+            String groupe = StringUtils.isEmpty(groupeId) ? "" : groupeId;
             Preenregistrement oPreenregistrement = preenregistrement(user);
-            List<EntityData> datas = oPreenregistrement.getBalanceDetailsTiersPayant(search, tp, compte);
+            List<EntityData> datas = oPreenregistrement.getBalanceDetailsTiersPayant(search, tp, compte, typeTp,
+                    groupe);
             for (EntityData data : datas) {
                 String tpId = data.getStr_value1();
                 BalanceAgeeMensuelDTO dto = new BalanceAgeeMensuelDTO();
@@ -357,12 +360,15 @@ public class BalanceAgeeRessource {
     @Produces("text/csv")
     public Response mensuelCsv(@QueryParam("search_value") String searchValue,
             @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
-            @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId) throws Exception {
+            @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @QueryParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
+            @QueryParam("lg_GROUPE_ID") String groupeId) throws Exception {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        List<BalanceAgeeMensuelDTO> rows = buildMensuel(tu, searchValue, tiersPayantId, compteClientId);
+        List<BalanceAgeeMensuelDTO> rows = buildMensuel(tu, searchValue, tiersPayantId, compteClientId,
+                typeTiersPayantId, groupeId);
         byte[] raw = csvExportService.createCsvReport("Balance âgée détaillée", mensuelHeaders(), rows,
                 dto -> new String[] { dto.getTiersPayant(), String.valueOf(dto.getNbTransactions()),
                         String.valueOf(dto.getTotalSixMois()), String.valueOf(dto.getMois1()),
@@ -378,12 +384,15 @@ public class BalanceAgeeRessource {
     @Produces("application/vnd.ms-excel")
     public Response mensuelExcel(@QueryParam("search_value") String searchValue,
             @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
-            @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId) throws Exception {
+            @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @QueryParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
+            @QueryParam("lg_GROUPE_ID") String groupeId) throws Exception {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        List<BalanceAgeeMensuelDTO> rows = buildMensuel(tu, searchValue, tiersPayantId, compteClientId);
+        List<BalanceAgeeMensuelDTO> rows = buildMensuel(tu, searchValue, tiersPayantId, compteClientId,
+                typeTiersPayantId, groupeId);
         byte[] data = reportExcelExportService.createExcelReport("Balance âgée détaillée", mensuelHeaders(), rows,
                 (row, dto) -> {
                     int col = 0;
@@ -406,12 +415,15 @@ public class BalanceAgeeRessource {
     @Path("mensuel/pdf")
     public Response mensuelPdf(@QueryParam("search_value") String searchValue,
             @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
-            @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId) {
+            @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @QueryParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
+            @QueryParam("lg_GROUPE_ID") String groupeId) {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        List<BalanceAgeeMensuelDTO> rows = buildMensuel(tu, searchValue, tiersPayantId, compteClientId);
+        List<BalanceAgeeMensuelDTO> rows = buildMensuel(tu, searchValue, tiersPayantId, compteClientId,
+                typeTiersPayantId, groupeId);
         Map<String, Object> parameters = reportUtil.officineData(tu);
         parameters.put("P_H_CLT_INFOS", "BALANCE AGEE DETAILLEE");
         String[] mois = moisLabels();

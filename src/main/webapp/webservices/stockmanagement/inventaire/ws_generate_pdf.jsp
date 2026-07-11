@@ -121,14 +121,16 @@
         //scr_report_file = "rp_fiche_inventaire_final";
         scr_report_file = "rp_fiche_inventaire_final_" + str_TYPE.toLowerCase();
     } else if (str_NAME_FILE.equalsIgnoreCase("ecart")) {
-        // choix du fichier d'impression de jasper
+        // choix du fichier d'impression de jasper ; la case 'Afficher stock'
+        // (ou le privilege) pilote la variante avec ou sans stock machine
+        String ecartPrefix = result_show_col_stock ? "rp_fiche_inventaire_ecart_" : "rp_fiche_inventaire_ecart_agent_";
         if (str_FILTER.equalsIgnoreCase("manquant") || str_FILTER.equalsIgnoreCase("surplus")) {
 
-            scr_report_file = "rp_fiche_inventaire_ecart_" + str_FILTER.toLowerCase();
+            scr_report_file = ecartPrefix + str_FILTER.toLowerCase();
             new logger().OCategory.info("scr_report_file FILTER " + str_FILTER);
 
         } else {
-            scr_report_file = "rp_fiche_inventaire_ecart_" + str_TYPE.toLowerCase();
+            scr_report_file = ecartPrefix + str_TYPE.toLowerCase();
         }
         P_H_CLT_INFOS = "Liste des �carts";
 

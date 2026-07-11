@@ -69,6 +69,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         const AppController = testextjs.app.getController('App');
         orderIdRef = this.getNameintern();
         const store = Ext.create('testextjs.store.SearchStore');
+        // un detail n'est jamais suggere : la recherche d'ajout ne propose que les boites
+        store.getProxy().setExtraParam('exclude_detail', '1');
         const storerepartiteur = new Ext.data.Store({
             model: 'testextjs.model.Grossiste',
             pageSize: 999,

@@ -16,7 +16,7 @@
 
 <%
     int DATA_PER_PAGE = jdom.int_size_pagination, count = 0, pages_curr = 0;
-    new logger().OCategory.info("dans ws data balance agee detaillée");
+    new logger().OCategory.info("dans ws data balance agee detaillï¿½e");
     Translate oTranslate = new Translate();
     dataManager OdataManager = new dataManager();
 
@@ -65,7 +65,7 @@
 <%
     String dt_DEBUT = "", dt_FIN = "";
     Date dtFin;
-    String lg_COMPTE_CLIENT_ID = "%%", lg_TIERS_PAYANT_ID = "%%", search_value = "", lg_PREENREGISTREMENT_ID = "%%", lg_TYPE_TIERS_PAYANT_ID = "%%", lg_USER_ID = "%%", lg_EMPLACEMENT_ID = "%%";
+    String lg_COMPTE_CLIENT_ID = "%%", lg_TIERS_PAYANT_ID = "%%", search_value = "", lg_PREENREGISTREMENT_ID = "%%", lg_TYPE_TIERS_PAYANT_ID = "%%", lg_USER_ID = "%%", lg_EMPLACEMENT_ID = "%%", lg_GROUPE_ID = "%%";
 
     if (request.getParameter("search_value") != null) {
         search_value = request.getParameter("search_value");
@@ -83,6 +83,10 @@
     if (request.getParameter("lg_TYPE_TIERS_PAYANT_ID") != null) {
         lg_TYPE_TIERS_PAYANT_ID = request.getParameter("lg_TYPE_TIERS_PAYANT_ID");
         new logger().OCategory.info("lg_TYPE_TIERS_PAYANT_ID " + lg_TYPE_TIERS_PAYANT_ID);
+    }
+    if (request.getParameter("lg_GROUPE_ID") != null) {
+        lg_GROUPE_ID = request.getParameter("lg_GROUPE_ID");
+        new logger().OCategory.info("lg_GROUPE_ID " + lg_GROUPE_ID);
     }
     if (request.getParameter("lg_USER_ID") != null) {
         lg_USER_ID = request.getParameter("lg_USER_ID");
@@ -117,10 +121,10 @@
 
     OdataManager.initEntityManager();
     OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
-    new logger().OCategory.info("user connecté   " + OTUser.getStrFIRSTNAME());
+    new logger().OCategory.info("user connectï¿½   " + OTUser.getStrFIRSTNAME());
    
     Preenregistrement OPreenregistrement = new Preenregistrement(OdataManager, OTUser);
- lstTTiersPayant = OPreenregistrement.getBalanceDetailsTiersPayant(search_value,lg_TIERS_PAYANT_ID,lg_COMPTE_CLIENT_ID );  
+ lstTTiersPayant = OPreenregistrement.getBalanceDetailsTiersPayant(search_value,lg_TIERS_PAYANT_ID,lg_COMPTE_CLIENT_ID, lg_TYPE_TIERS_PAYANT_ID, lg_GROUPE_ID );
 
 %>
 
