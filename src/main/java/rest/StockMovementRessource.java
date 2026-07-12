@@ -134,15 +134,19 @@ public class StockMovementRessource {
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        Set<String> produitIds = resolveProduitIds(user, filter);
-        if (produitIds.isEmpty()) {
-            return Response.ok()
-                    .entity(new JSONObject().put("success", false)
-                            .put("msg", "Aucun produit ne correspond à la sélection ou aux filtres").toString())
-                    .build();
-        }
+        // un seul helper (donc un seul dataManager/EntityManager) pour résoudre les produits ET
+        // construire les ArticleDTO, au lieu d'en ouvrir deux
         List<ArticleDTO> articles;
         try (StockMovementDataHelper helper = new StockMovementDataHelper(user)) {
+            Set<String> produitIds = filter.getSelectedProductIds() != null && !filter.getSelectedProductIds().isEmpty()
+                    ? new java.util.LinkedHashSet<>(filter.getSelectedProductIds())
+                    : helper.allFamilleIds(filter);
+            if (produitIds.isEmpty()) {
+                return Response.ok()
+                        .entity(new JSONObject().put("success", false)
+                                .put("msg", "Aucun produit ne correspond à la sélection ou aux filtres").toString())
+                        .build();
+            }
             articles = helper.toArticleDtos(produitIds);
         }
         if (articles.isEmpty()) {

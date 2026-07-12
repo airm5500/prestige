@@ -84,6 +84,7 @@ Ext.define("testextjs.view.stockmanagement.suivistockvente.SuiviDetailStockVente
         var store_type = new Ext.data.Store({
             fields: ["str_TYPE_TRANSACTION", "str_STATUT_TRANSACTION"],
             data: [
+                {str_TYPE_TRANSACTION: "Tous", str_STATUT_TRANSACTION: "TOUS"},
                 {str_TYPE_TRANSACTION: "Entree en stock", str_STATUT_TRANSACTION: "ENTREESTOCK"},
                 {str_TYPE_TRANSACTION: "Saisie en perimes", str_STATUT_TRANSACTION: "PERIME"},
                 {str_TYPE_TRANSACTION: "Retour fournisseur", str_STATUT_TRANSACTION: "RETOURFOURNISSEUR"},
@@ -169,7 +170,7 @@ Ext.define("testextjs.view.stockmanagement.suivistockvente.SuiviDetailStockVente
                     typeAhead: true,
                     queryMode: "local",
                     forceSelection: true,
-                    value: "ENTREESTOCK",
+                    value: "TOUS",
                     flex: 1,
                     emptyText: "Type de transaction...",
                     listeners: {
@@ -337,7 +338,7 @@ Ext.define("testextjs.view.stockmanagement.suivistockvente.SuiviDetailStockVente
     // Lit tous les champs de filtre de la barre d'outils.
     getFilters: function () {
         var filters = {
-            transactionType: Ext.getCmp("str_TYPE_TRANSACTION").getValue() || "ENTREESTOCK",
+            transactionType: Ext.getCmp("str_TYPE_TRANSACTION").getValue() || "TOUS",
             searchValue: Ext.getCmp("rechecher").getValue() || "",
             dateDebut: Ext.getCmp("datedebut").getSubmitValue() || "",
             dateFin: Ext.getCmp("datefin").getSubmitValue() || "",

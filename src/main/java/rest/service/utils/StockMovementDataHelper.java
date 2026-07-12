@@ -1,6 +1,5 @@
 package rest.service.utils;
 
-import bll.commandeManagement.retourFournisseurManagement;
 import bll.entity.EntityData;
 import bll.teller.SnapshotManager;
 import bll.warehouse.WarehouseManager;
@@ -40,6 +39,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.dto.StockMovementFilterDTO;
+import util.Constant;
 
 /**
  * Source de données de l'écran « Point détaillé entrée/sortie » (API v1/stock-movements). Réutilise les managers BLL
@@ -50,6 +50,7 @@ public final class StockMovementDataHelper implements AutoCloseable {
 
     private static final Logger LOG = Logger.getLogger(StockMovementDataHelper.class.getName());
 
+    public static final String TYPE_TOUS = "TOUS";
     public static final String TYPE_ENTREESTOCK = "ENTREESTOCK";
     public static final String TYPE_PERIME = "PERIME";
     public static final String TYPE_RETOURFOURNISSEUR = "RETOURFOURNISSEUR";
@@ -212,7 +213,7 @@ public final class StockMovementDataHelper implements AutoCloseable {
 
     private Rows fetchRows(StockMovementFilterDTO filter, boolean all, int start, int limit) {
         String type = filter.getTransactionType() == null || filter.getTransactionType().trim().isEmpty()
-                ? TYPE_ENTREESTOCK : filter.getTransactionType().trim().toUpperCase();
+                ? TYPE_TOUS : filter.getTransactionType().trim().toUpperCase();
         String search = filter.getSearchValue() != null ? filter.getSearchValue().trim() : "";
         String grossisteId = likeParam(filter.getGrossisteId());
         String familleArticleId = likeParam(filter.getFamilleArticleId());
@@ -223,6 +224,8 @@ public final class StockMovementDataHelper implements AutoCloseable {
 
         try {
             switch (type) {
+            case TYPE_TOUS:
+                return fetchTous(filter, search, dtDebut, dtFin, all, start, limit);
             case TYPE_PERIME:
                 return fetchPerimes(search, grossisteId, familleArticleId, zoneGeoId, dtDebut, dtFin, all, start,
                         limit);
@@ -244,6 +247,26 @@ public final class StockMovementDataHelper implements AutoCloseable {
             LOG.log(Level.SEVERE, "fetchRows " + type, e);
             return new Rows(0, new ArrayList<>());
         }
+    }
+
+    // --- TOUS : agrégation de tous les types de mouvement sur la période, triée du plus récent au plus ancien ---
+    private Rows fetchTous(StockMovementFilterDTO filter, String search, Date dtDebut, Date dtFin, boolean all,
+            int start, int limit) throws JSONException {
+        String grossisteId = likeParam(filter.getGrossisteId());
+        String familleArticleId = likeParam(filter.getFamilleArticleId());
+        String zoneGeoId = likeParam(filter.getZoneGeoId());
+        List<JSONObject> merged = new ArrayList<>();
+        merged.addAll(fetchEntrees(search, grossisteId, familleArticleId, zoneGeoId, dtDebut, dtFin, true, 0, 0).page);
+        merged.addAll(fetchPerimes(search, grossisteId, familleArticleId, zoneGeoId, dtDebut, dtFin, true, 0, 0).page);
+        merged.addAll(fetchRetours(search, grossisteId, familleArticleId, zoneGeoId, dtDebut, dtFin, true, 0, 0).page);
+        merged.addAll(fetchVentes(search, filter.getGrossisteId(), familleArticleId, zoneGeoId, dtDebut, dtFin, true, 0,
+                0).page);
+        merged.addAll(fetchAjustements(search, filter.getGrossisteId(), filter.getFamilleArticleId(),
+                filter.getZoneGeoId(), dtDebut, dtFin, true, 0, 0).page);
+        merged.sort((a, b) -> Long.compare(b.optLong("_ts", 0L), a.optLong("_ts", 0L)));
+        int total = merged.size();
+        List<JSONObject> page = all ? merged : new ArrayList<>(slice(merged, false, start, limit));
+        return new Rows(total, page);
     }
 
     // --- ENTREESTOCK : équivalent ws_data_mouvement_entree.jsp ---
@@ -286,9 +309,12 @@ public final class StockMovementDataHelper implements AutoCloseable {
         json.put("int_CIP", elem.getLgFAMILLEID().getIntCIP());
         json.put("int_NUMBER", elem.getIntNUMBER());
         json.put("str_NAME", elem.getLgFAMILLEID().getStrNAME());
-        json.put("dt_UPDATED", format(formatterShort, elem.getDtPEREMPTION()));
-        json.put("dt_LAST_VENTE", format(timeFormat, elem.getDtUPDATED()));
+        // colonne Date = date du mouvement (l'ancien code y mettait la péremption, souvent vide)
+        json.put("dt_UPDATED", format(formatterShort, elem.getDtCREATED()));
+        json.put("dt_LAST_VENTE", format(timeFormat, elem.getDtCREATED()));
+        json.put("dt_PEREMPTION", format(formatterShort, elem.getDtPEREMPTION()));
         json.put("str_ACTION", "Entrée en stock");
+        json.put("_ts", tsOf(elem.getDtCREATED()));
         return json;
     }
 
@@ -310,9 +336,44 @@ public final class StockMovementDataHelper implements AutoCloseable {
     // --- PERIME : équivalent ws_data_mouvement_perime.jsp (libellé métier « Saisie en périmés ») ---
     private Rows fetchPerimes(String search, String grossisteId, String familleArticleId, String zoneGeoId,
             Date dtDebut, Date dtFin, boolean all, int start, int limit) throws JSONException {
-        WarehouseManager warehouseManager = new WarehouseManager(odataManager);
-        List<TWarehouse> datas = warehouseManager.listTFamilleSendToPerime(search, MATCH_ALL, dtDebut, dtFin,
-                grossisteId, MATCH_ALL, familleArticleId, zoneGeoId);
+        // Requête dédiée : l'ancienne listTFamilleSendToPerime faisait une jointure interne implicite sur le
+        // grossiste (t.lgGROSSISTEID.lgGROSSISTEID LIKE ...), or une saisie de périmés ne renseigne jamais
+        // lgGROSSISTEID -> toutes les saisies (même validées) étaient exclues. Ici le grossiste n'est joint que
+        // s'il est explicitement filtré. Statut = "delete" (périmé validé, mouvement de stock effectif).
+        StringBuilder jpql = new StringBuilder(
+                "SELECT t FROM TWarehouse t WHERE t.strSTATUT = ?1"
+                        + " AND ( FUNCTION('DATE', t.dtUPDATED) >= FUNCTION('DATE', ?2)"
+                        + " AND FUNCTION('DATE', t.dtUPDATED) <= FUNCTION('DATE', ?3) )"
+                        + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?4 OR t.lgFAMILLEID.intCIP LIKE ?4"
+                        + " OR t.lgFAMILLEID.strNAME LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4)");
+        boolean hasGrossiste = isSet(grossisteId);
+        boolean hasFamilleArticle = isSet(familleArticleId);
+        boolean hasZoneGeo = isSet(zoneGeoId);
+        if (hasGrossiste) {
+            jpql.append(" AND t.lgGROSSISTEID.lgGROSSISTEID = ?5");
+        }
+        if (hasFamilleArticle) {
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = ?6");
+        }
+        if (hasZoneGeo) {
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = ?7");
+        }
+        jpql.append(" ORDER BY t.dtUPDATED DESC");
+        TypedQuery<TWarehouse> q = odataManager.getEm().createQuery(jpql.toString(), TWarehouse.class);
+        q.setParameter(1, Constant.STATUT_DELETE);
+        q.setParameter(2, dtDebut, TemporalType.DATE);
+        q.setParameter(3, dtFin, TemporalType.DATE);
+        q.setParameter(4, (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
+        if (hasGrossiste) {
+            q.setParameter(5, grossisteId.trim());
+        }
+        if (hasFamilleArticle) {
+            q.setParameter(6, familleArticleId.trim());
+        }
+        if (hasZoneGeo) {
+            q.setParameter(7, zoneGeoId.trim());
+        }
+        List<TWarehouse> datas = q.getResultList();
         List<JSONObject> rows = new ArrayList<>();
         for (TWarehouse elem : slice(datas, all, start, limit)) {
             JSONObject json = new JSONObject();
@@ -325,7 +386,7 @@ public final class StockMovementDataHelper implements AutoCloseable {
             json.put("lg_GROSSISTE_ID",
                     elem.getLgGROSSISTEID() != null ? elem.getLgGROSSISTEID().getStrLIBELLE() : "");
             json.put("int_NUM_LOT", elem.getIntNUMLOT());
-            json.put("dt_UPDATED", format(timeFormat, elem.getDtUPDATED()));
+            json.put("dt_UPDATED", format(formatterShort, elem.getDtUPDATED()));
             json.put("str_CODE_TAUX_REMBOURSEMENT", format(formatterShort, elem.getDtPEREMPTION()));
             // champs article absents de la JSP historique (colonnes vides à l'écran) : complétés ici
             json.put("lg_FAMILLE_ID", elem.getLgFAMILLEID().getLgFAMILLEID());
@@ -334,6 +395,7 @@ public final class StockMovementDataHelper implements AutoCloseable {
             json.put("str_NAME", elem.getLgFAMILLEID().getStrNAME());
             json.put("dt_LAST_VENTE", format(timeFormat, elem.getDtUPDATED()));
             json.put("str_ACTION", "Saisie en périmés");
+            json.put("_ts", tsOf(elem.getDtUPDATED()));
             rows.add(json);
         }
         return new Rows(datas.size(), rows);
@@ -342,9 +404,47 @@ public final class StockMovementDataHelper implements AutoCloseable {
     // --- RETOURFOURNISSEUR : équivalent ws_data_mouvement_retour.jsp ---
     private Rows fetchRetours(String search, String grossisteId, String familleArticleId, String zoneGeoId,
             Date dtDebut, Date dtFin, boolean all, int start, int limit) throws JSONException {
-        retourFournisseurManagement retourManagement = new retourFournisseurManagement(odataManager, user);
-        List<TRetourFournisseurDetail> datas = retourManagement.listTRetourFournisseurDetail(search, dtDebut, dtFin,
-                MATCH_ALL, MATCH_ALL, grossisteId, MATCH_ALL, familleArticleId, zoneGeoId);
+        // Requête dédiée : l'ancienne listTRetourFournisseurDetail (9 args) restreignait aux retours validés
+        // (statut enable) ET à l'emplacement de l'utilisateur qui consulte, masquant les retours saisis
+        // (is_Process) ou faits depuis un autre emplacement. Ici : tous les retours actifs, sans filtre emplacement.
+        StringBuilder jpql = new StringBuilder(
+                "SELECT t FROM TRetourFournisseurDetail t WHERE"
+                        + " ( FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) >= FUNCTION('DATE', ?1)"
+                        + " AND FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) <= FUNCTION('DATE', ?2) )"
+                        + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR t.lgFAMILLEID.intCIP LIKE ?3"
+                        + " OR t.lgFAMILLEID.strNAME LIKE ?3 OR t.lgFAMILLEID.intEAN13 LIKE ?3)"
+                        + " AND t.lgRETOURFRSID.strSTATUT IN (?4, ?5, ?6)");
+        boolean hasGrossiste = isSet(grossisteId);
+        boolean hasFamilleArticle = isSet(familleArticleId);
+        boolean hasZoneGeo = isSet(zoneGeoId);
+        if (hasGrossiste) {
+            jpql.append(" AND t.lgRETOURFRSID.lgGROSSISTEID.lgGROSSISTEID = ?7");
+        }
+        if (hasFamilleArticle) {
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = ?8");
+        }
+        if (hasZoneGeo) {
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = ?9");
+        }
+        jpql.append(" ORDER BY t.lgRETOURFRSID.dtCREATED DESC");
+        TypedQuery<TRetourFournisseurDetail> q = odataManager.getEm().createQuery(jpql.toString(),
+                TRetourFournisseurDetail.class);
+        q.setParameter(1, dtDebut, TemporalType.DATE);
+        q.setParameter(2, dtFin, TemporalType.DATE);
+        q.setParameter(3, (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
+        q.setParameter(4, Constant.STATUT_IS_PROGRESS);
+        q.setParameter(5, Constant.STATUT_ENABLE);
+        q.setParameter(6, Constant.STATUT_IS_CLOSED);
+        if (hasGrossiste) {
+            q.setParameter(7, grossisteId.trim());
+        }
+        if (hasFamilleArticle) {
+            q.setParameter(8, familleArticleId.trim());
+        }
+        if (hasZoneGeo) {
+            q.setParameter(9, zoneGeoId.trim());
+        }
+        List<TRetourFournisseurDetail> datas = q.getResultList();
         List<JSONObject> rows = new ArrayList<>();
         for (TRetourFournisseurDetail elem : slice(datas, all, start, limit)) {
             JSONObject json = new JSONObject();
@@ -359,8 +459,10 @@ public final class StockMovementDataHelper implements AutoCloseable {
             json.put("int_CIP", elem.getLgFAMILLEID().getIntCIP());
             json.put("int_NUMBER", elem.getIntNUMBERRETURN());
             json.put("str_NAME", elem.getLgFAMILLEID().getStrNAME());
-            json.put("dt_UPDATED", format(timeFormat, elem.getLgRETOURFRSID().getDtCREATED()));
+            json.put("dt_UPDATED", format(formatterShort, elem.getLgRETOURFRSID().getDtCREATED()));
+            json.put("dt_LAST_VENTE", format(timeFormat, elem.getLgRETOURFRSID().getDtCREATED()));
             json.put("str_ACTION", "Retour four.");
+            json.put("_ts", tsOf(elem.getLgRETOURFRSID().getDtCREATED()));
             rows.add(json);
         }
         return new Rows(datas.size(), rows);
@@ -400,6 +502,7 @@ public final class StockMovementDataHelper implements AutoCloseable {
             json.put("dt_UPDATED", format(formatterShort, elem.getLgPREENREGISTREMENTID().getDtUPDATED()));
             json.put("dt_LAST_VENTE", format(timeFormat, elem.getLgPREENREGISTREMENTID().getDtUPDATED()));
             json.put("str_ACTION", "Vente");
+            json.put("_ts", tsOf(elem.getLgPREENREGISTREMENTID().getDtUPDATED()));
             rows.add(json);
         }
         return new Rows(datas.size(), rows);
@@ -479,12 +582,22 @@ public final class StockMovementDataHelper implements AutoCloseable {
         return value == null || value.trim().isEmpty() ? MATCH_ALL : value.trim();
     }
 
+    // un filtre est "renseigné" s'il n'est ni vide ni le joker "%%"
+    private static boolean isSet(String value) {
+        return value != null && !value.trim().isEmpty() && !MATCH_ALL.equals(value.trim());
+    }
+
     private static String userName(TUser u) {
         return u != null ? u.getStrFIRSTNAME() + " " + u.getStrLASTNAME() : "";
     }
 
     private static String format(SimpleDateFormat fmt, Date value) {
         return value != null ? fmt.format(value) : "";
+    }
+
+    // horodatage (epoch millis) servant uniquement au tri chronologique du type agrégé « Tous »
+    private static long tsOf(Date value) {
+        return value != null ? value.getTime() : 0L;
     }
 
     private static JSONArray toArray(List<JSONObject> rows) {
