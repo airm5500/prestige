@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -209,68 +210,68 @@ public class ErpServiceImpl implements ErpService {
     @Override
     public List<ErpCaComptant> caAll(String dtStart, String dtEnd) {
         try {
-            List<Tuple> list = getEntityManager().createNativeQuery(
-                    "SELECT SUM(m.montantCredit) AS montantCredit, sum(v.montant_attentu) AS montantVerse, SUM(m.montantRemise) AS montantRemise, SUM(m.montantTva) as montantTva,m.mvtdate,v.type_regelement FROM mvttransaction m, vente_reglement v where m.vente_id=v.vente_id AND m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,v.type_regelement",
+            DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyyMMdd");
+            Map<String, ErpCaComptant> parDate = new LinkedHashMap<>();
+            // credit, remise et TVA agreges directement sur mvttransaction (une ligne
+            // par vente) : une vente reglee en plusieurs lignes de reglement ne doit
+            // contribuer qu'une seule fois a ces montants
+            List<Tuple> totaux = getEntityManager().createNativeQuery(
+                    "SELECT SUM(m.montantCredit) AS montantCredit, SUM(m.montantRemise) AS montantRemise, SUM(m.montantTva) as montantTva,m.mvtdate FROM mvttransaction m where m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate",
                     Tuple.class).setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd))
                     .getResultList();
-            List<ErpCaComptant> caComptants = new ArrayList<>();
-            list.stream().map(t -> {
-                long montantCredit = t.get("montantCredit", BigDecimal.class).longValue();
-                long montantPaye = t.get("montantVerse", BigDecimal.class).longValue();
-                long montantRemise = t.get("montantRemise", BigDecimal.class).longValue();
-                long montantTva = t.get("montantTva", BigDecimal.class).longValue();
-                LocalDate mvtDate = t.get("mvtdate", java.sql.Date.class).toLocalDate();
-                String type_regelement = t.get("type_regelement", String.class);
-                ErpCaComptant caComptant = new ErpCaComptant();
-                caComptant.setMode(type_regelement);
-                caComptant.setTotEsp(montantPaye);
-                caComptant.setRemiseSurCA(montantRemise);
-                caComptant.setTotTVA(montantTva);
-                caComptant.setMvtDate(mvtDate.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
-                caComptant.setMontantCredit(montantCredit);
-                return caComptant;
-            }).forEachOrdered(caComptant -> {
-                caComptants.add(caComptant);
-            });
-            List<ErpCaComptant> caComptants2 = new ArrayList<>();
-            Map<String, List<ErpCaComptant>> map = caComptants.stream()
-                    .collect(Collectors.groupingBy(ErpCaComptant::getMvtDate));
-            map.forEach((k, v) -> {
-                ErpCaComptant caComptant = new ErpCaComptant();
-                caComptant.setMvtDate(k);
-
-                v.forEach(e -> {
-                    caComptant.setRemiseSurCA(caComptant.getRemiseSurCA() + e.getRemiseSurCA());
-                    caComptant.setTotTVA(caComptant.getTotTVA() + e.getTotTVA());
-                    caComptant.setMontantCredit(caComptant.getMontantCredit() + e.getMontantCredit());
-                    switch (e.getMode()) {
-                    case DateConverter.MODE_ESP:
-                        caComptant.setTotEsp(caComptant.getTotEsp() + e.getTotEsp());
-                        break;
-                    case DateConverter.MODE_CHEQUE:
-                        caComptant.setTotChq(caComptant.getTotChq() + e.getTotEsp());
-                        break;
-                    case DateConverter.MODE_CB:
-                        caComptant.setTotCB(caComptant.getTotCB() + e.getTotEsp());
-                        break;
-                    case DateConverter.MODE_VIREMENT:
-                        caComptant.setTotVirement(caComptant.getTotVirement() + e.getTotEsp());
-                        break;
-                    case DateConverter.MODE_MOOV:
-                    case DateConverter.TYPE_REGLEMENT_ORANGE:
-                    case DateConverter.MODE_MTN:
-                    case DateConverter.MODE_WAVE:
-                    case DateConverter.MODE_DJAMO:
-                        caComptant.setTotMobile(caComptant.getTotMobile() + e.getTotEsp());
-                        break;
-                    default:
-                        break;
-                    }
+            for (Tuple t : totaux) {
+                String mvtDate = t.get("mvtdate", java.sql.Date.class).toLocalDate().format(fmt);
+                ErpCaComptant caComptant = parDate.computeIfAbsent(mvtDate, k -> {
+                    ErpCaComptant c = new ErpCaComptant();
+                    c.setMvtDate(k);
+                    return c;
                 });
-
-                caComptants2.add(caComptant);
-            });
-            return caComptants2;
+                caComptant.setMontantCredit(
+                        caComptant.getMontantCredit() + t.get("montantCredit", BigDecimal.class).longValue());
+                caComptant.setRemiseSurCA(
+                        caComptant.getRemiseSurCA() + t.get("montantRemise", BigDecimal.class).longValue());
+                caComptant.setTotTVA(caComptant.getTotTVA() + t.get("montantTva", BigDecimal.class).longValue());
+            }
+            // ventilation des encaissements par mode de reglement depuis les lignes
+            // de reglement effectives
+            List<Tuple> reglements = getEntityManager().createNativeQuery(
+                    "SELECT sum(v.montant_attentu) AS montantVerse,m.mvtdate,v.type_regelement FROM mvttransaction m, vente_reglement v where m.vente_id=v.vente_id AND m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,v.type_regelement",
+                    Tuple.class).setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd))
+                    .getResultList();
+            for (Tuple t : reglements) {
+                String mvtDate = t.get("mvtdate", java.sql.Date.class).toLocalDate().format(fmt);
+                long montantPaye = t.get("montantVerse", BigDecimal.class).longValue();
+                String typeReglement = t.get("type_regelement", String.class);
+                ErpCaComptant caComptant = parDate.computeIfAbsent(mvtDate, k -> {
+                    ErpCaComptant c = new ErpCaComptant();
+                    c.setMvtDate(k);
+                    return c;
+                });
+                switch (typeReglement) {
+                case DateConverter.MODE_ESP:
+                    caComptant.setTotEsp(caComptant.getTotEsp() + montantPaye);
+                    break;
+                case DateConverter.MODE_CHEQUE:
+                    caComptant.setTotChq(caComptant.getTotChq() + montantPaye);
+                    break;
+                case DateConverter.MODE_CB:
+                    caComptant.setTotCB(caComptant.getTotCB() + montantPaye);
+                    break;
+                case DateConverter.MODE_VIREMENT:
+                    caComptant.setTotVirement(caComptant.getTotVirement() + montantPaye);
+                    break;
+                case DateConverter.MODE_MOOV:
+                case DateConverter.TYPE_REGLEMENT_ORANGE:
+                case DateConverter.MODE_MTN:
+                case DateConverter.MODE_WAVE:
+                case DateConverter.MODE_DJAMO:
+                    caComptant.setTotMobile(caComptant.getTotMobile() + montantPaye);
+                    break;
+                default:
+                    break;
+                }
+            }
+            return new ArrayList<>(parDate.values());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "caComptant =====>>", e);
             return Collections.emptyList();
