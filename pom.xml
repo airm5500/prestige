@@ -169,10 +169,11 @@
             <artifactId>jasperreports</artifactId>
             <version>6.18.1</version>
         </dependency>
-        <!-- POI 4.1.1 (même version que celle déclarée, optionnelle, par jasperreports 6.18.1) pour l'export .xlsx.
-             Le core 'poi' est déclaré explicitement en plus de 'poi-ooxml' : sans lui, une version poi core plus
-             ancienne (ou absente) provoque java.lang.NoClassDefFoundError sur org/apache/poi/ss/usermodel/Date1904Support
-             à l'exécution de l'export XSSF. -->
+        <!-- POI 4.1.1 (core + ooxml), même version que celle déclarée (optionnelle, donc non transitive) par
+             jasperreports 6.18.1. Requis pour l'export .xlsx (XSSF) : sans le core 'poi' aligné, XSSFWorkbook
+             échoue à l'exécution avec java.lang.NoClassDefFoundError sur org/apache/poi/ss/usermodel/Date1904Support
+             (classe introduite en POI 4.0). Le code existant a été aligné sur cette API 4.x (FactureDataExport,
+             MigrationManager). -->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>

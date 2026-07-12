@@ -1060,8 +1060,10 @@ public class CommandeServiceImpl implements CommandeService {
                     Cell cipCell = nextrow.getCell(0);
                     Cell qtyCell = nextrow.getCell(3);
                     Cell qtyCmd = nextrow.getCell(1);
-                    TFamille famille = findByCipOrEan(((cipCell.getCellType() == 1) ? cipCell.getStringCellValue()
-                            : cipCell.getNumericCellValue() + ""), grossiste);
+                    TFamille famille = findByCipOrEan(
+                            ((cipCell.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING)
+                                    ? cipCell.getStringCellValue() : cipCell.getNumericCellValue() + ""),
+                            grossiste);
                     if (famille != null) {
                         totalItemsCount++;
                         s.add(famille);

@@ -139,8 +139,7 @@ public class StockMovementRessource {
         List<ArticleDTO> articles;
         try (StockMovementDataHelper helper = new StockMovementDataHelper(user)) {
             Set<String> produitIds = filter.getSelectedProductIds() != null && !filter.getSelectedProductIds().isEmpty()
-                    ? new java.util.LinkedHashSet<>(filter.getSelectedProductIds())
-                    : helper.allFamilleIds(filter);
+                    ? new java.util.LinkedHashSet<>(filter.getSelectedProductIds()) : helper.allFamilleIds(filter);
             if (produitIds.isEmpty()) {
                 return Response.ok()
                         .entity(new JSONObject().put("success", false)
@@ -167,8 +166,8 @@ public class StockMovementRessource {
     }
 
     private static String safe(String value) {
-        return value == null || value.trim().isEmpty() ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date())
-                : value.trim();
+        return value == null || value.trim().isEmpty()
+                ? new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()) : value.trim();
     }
 
     private static String exportFileName(StockMovementFilterDTO filter, String extension) {

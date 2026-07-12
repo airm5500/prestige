@@ -203,8 +203,7 @@ public class VenteRessource {
                 (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE), Constant.P_BT_ANNULER_VENTE);
         if (!hasPrivilege) {
             return Response.ok()
-                    .entity(ResultFactory.getFailResult("Vous n'avez pas l'autorisation d'annuler une vente"))
-                    .build();
+                    .entity(ResultFactory.getFailResult("Vous n'avez pas l'autorisation d'annuler une vente")).build();
         }
 
         JSONObject jsono = salesService.annulerVente(tu, id);

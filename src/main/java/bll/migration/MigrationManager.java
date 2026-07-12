@@ -21,9 +21,12 @@ import java.util.List;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import toolkits.filesmanagers.FilesType.CsvFiles;
@@ -220,7 +223,7 @@ public class MigrationManager extends bll.bllBase {
             CellStyle header = hwb.createCellStyle();
             CellStyle style = hwb.createCellStyle();
             style.setFont(font);
-            style.setAlignment(CellStyle.ALIGN_LEFT);
+            style.setAlignment(HorizontalAlignment.LEFT);
 
             // fin gestion des styles du fichier
             // un autre style pour les entetes
@@ -231,12 +234,12 @@ public class MigrationManager extends bll.bllBase {
             header.setFont(headerfont);
             header.setFillForegroundColor(IndexedColors.GREY_50_PERCENT.getIndex());
 
-            header.setBorderLeft(CellStyle.BORDER_THIN);
+            header.setBorderLeft(BorderStyle.THIN);
             header.setLeftBorderColor(IndexedColors.GREY_80_PERCENT.getIndex());
-            header.setBorderRight(CellStyle.BORDER_THIN);
+            header.setBorderRight(BorderStyle.THIN);
             header.setRightBorderColor(IndexedColors.GREY_80_PERCENT.getIndex());
-            header.setFillPattern(CellStyle.SOLID_FOREGROUND);
-            header.setAlignment(CellStyle.ALIGN_LEFT);
+            header.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            header.setAlignment(HorizontalAlignment.LEFT);
 
             // fin du style de l'entete
             Cell cellule;

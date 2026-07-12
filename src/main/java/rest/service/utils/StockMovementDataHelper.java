@@ -43,8 +43,8 @@ import util.Constant;
 
 /**
  * Source de données de l'écran « Point détaillé entrée/sortie » (API v1/stock-movements). Réutilise les managers BLL
- * historiques appelés par les JSP ws_data_mouvement_*.jsp afin de produire strictement les mêmes résultats et les
- * mêmes noms de champs JSON que l'écran actuel (stratégie anti-régression de la refonte REST).
+ * historiques appelés par les JSP ws_data_mouvement_*.jsp afin de produire strictement les mêmes résultats et les mêmes
+ * noms de champs JSON que l'écran actuel (stratégie anti-régression de la refonte REST).
  */
 public final class StockMovementDataHelper implements AutoCloseable {
 
@@ -146,9 +146,8 @@ public final class StockMovementDataHelper implements AutoCloseable {
      * Export CSV (séparateur ; UTF-8 avec BOM pour Excel) de toutes les lignes filtrées.
      */
     public byte[] exportCsv(StockMovementFilterDTO filter) {
-        try (StringWriter writer = new StringWriter();
-                CSVPrinter printer = new CSVPrinter(writer,
-                        CSVFormat.EXCEL.withHeader(EXPORT_HEADERS).withDelimiter(';'))) {
+        try (StringWriter writer = new StringWriter(); CSVPrinter printer = new CSVPrinter(writer,
+                CSVFormat.EXCEL.withHeader(EXPORT_HEADERS).withDelimiter(';'))) {
             for (JSONObject row : allRows(filter)) {
                 printer.printRecord((Object[]) exportRow(row));
             }
@@ -212,8 +211,8 @@ public final class StockMovementDataHelper implements AutoCloseable {
     }
 
     private Rows fetchRows(StockMovementFilterDTO filter, boolean all, int start, int limit) {
-        String type = filter.getTransactionType() == null || filter.getTransactionType().trim().isEmpty()
-                ? TYPE_TOUS : filter.getTransactionType().trim().toUpperCase();
+        String type = filter.getTransactionType() == null || filter.getTransactionType().trim().isEmpty() ? TYPE_TOUS
+                : filter.getTransactionType().trim().toUpperCase();
         String search = filter.getSearchValue() != null ? filter.getSearchValue().trim() : "";
         String grossisteId = likeParam(filter.getGrossisteId());
         String familleArticleId = likeParam(filter.getFamilleArticleId());
@@ -279,9 +278,8 @@ public final class StockMovementDataHelper implements AutoCloseable {
             String dtFinIso = isoDate.format(dtFin);
             List<TWarehouse> page = warehouseManager.listeWarehouses(search, MATCH_ALL, dtDebutIso, dtFinIso,
                     grossisteId, MATCH_ALL, familleArticleId, zoneGeoId, all, start, limit);
-            int total = all ? page.size()
-                    : warehouseManager.listeWarehouses(search, MATCH_ALL, dtDebutIso, dtFinIso, grossisteId, MATCH_ALL,
-                            familleArticleId, zoneGeoId);
+            int total = all ? page.size() : warehouseManager.listeWarehouses(search, MATCH_ALL, dtDebutIso, dtFinIso,
+                    grossisteId, MATCH_ALL, familleArticleId, zoneGeoId);
             for (TWarehouse elem : page) {
                 rows.add(entreeRow(elem));
             }
@@ -298,12 +296,10 @@ public final class StockMovementDataHelper implements AutoCloseable {
         JSONObject json = new JSONObject();
         json.put("dt_DAY", format(formatterOrange, elem.getDtCREATED()));
         json.put("int_NUMBER_ENTREE", elem.getIntNUMBER());
-        json.put("int_PRICE",
-                elem.getIntNUMBER() * (elem.getLgFAMILLEID().getDblPRIXMOYENPONDERE() != null
-                        ? elem.getLgFAMILLEID().getDblPRIXMOYENPONDERE() : 0d));
+        json.put("int_PRICE", elem.getIntNUMBER() * (elem.getLgFAMILLEID().getDblPRIXMOYENPONDERE() != null
+                ? elem.getLgFAMILLEID().getDblPRIXMOYENPONDERE() : 0d));
         json.put("lg_USER_ID", userName(elem.getLgUSERID()));
-        json.put("lg_GROSSISTE_ID",
-                elem.getLgGROSSISTEID() != null ? elem.getLgGROSSISTEID().getStrLIBELLE() : "");
+        json.put("lg_GROSSISTE_ID", elem.getLgGROSSISTEID() != null ? elem.getLgGROSSISTEID().getStrLIBELLE() : "");
         json.put("int_NUM_LOT", elem.getIntNUMLOT());
         json.put("lg_FAMILLE_ID", elem.getLgFAMILLEID().getLgFAMILLEID());
         json.put("int_CIP", elem.getLgFAMILLEID().getIntCIP());
@@ -340,12 +336,11 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // grossiste (t.lgGROSSISTEID.lgGROSSISTEID LIKE ...), or une saisie de périmés ne renseigne jamais
         // lgGROSSISTEID -> toutes les saisies (même validées) étaient exclues. Ici le grossiste n'est joint que
         // s'il est explicitement filtré. Statut = "delete" (périmé validé, mouvement de stock effectif).
-        StringBuilder jpql = new StringBuilder(
-                "SELECT t FROM TWarehouse t WHERE t.strSTATUT = ?1"
-                        + " AND ( FUNCTION('DATE', t.dtUPDATED) >= FUNCTION('DATE', ?2)"
-                        + " AND FUNCTION('DATE', t.dtUPDATED) <= FUNCTION('DATE', ?3) )"
-                        + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?4 OR t.lgFAMILLEID.intCIP LIKE ?4"
-                        + " OR t.lgFAMILLEID.strNAME LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4)");
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TWarehouse t WHERE t.strSTATUT = ?1"
+                + " AND ( FUNCTION('DATE', t.dtUPDATED) >= FUNCTION('DATE', ?2)"
+                + " AND FUNCTION('DATE', t.dtUPDATED) <= FUNCTION('DATE', ?3) )"
+                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?4 OR t.lgFAMILLEID.intCIP LIKE ?4"
+                + " OR t.lgFAMILLEID.strNAME LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4)");
         boolean hasGrossiste = isSet(grossisteId);
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
@@ -379,12 +374,10 @@ public final class StockMovementDataHelper implements AutoCloseable {
             JSONObject json = new JSONObject();
             json.put("dt_DAY", format(formatterShort, elem.getDtUPDATED()));
             json.put("int_NUMBER_PERIME", elem.getIntNUMBERDELETE());
-            json.put("int_PRICE",
-                    elem.getIntNUMBERDELETE() * (elem.getLgFAMILLEID().getIntPRICE() != null
-                            ? elem.getLgFAMILLEID().getIntPRICE() : 0));
+            json.put("int_PRICE", elem.getIntNUMBERDELETE()
+                    * (elem.getLgFAMILLEID().getIntPRICE() != null ? elem.getLgFAMILLEID().getIntPRICE() : 0));
             json.put("lg_USER_ID", userName(elem.getLgUSERID()));
-            json.put("lg_GROSSISTE_ID",
-                    elem.getLgGROSSISTEID() != null ? elem.getLgGROSSISTEID().getStrLIBELLE() : "");
+            json.put("lg_GROSSISTE_ID", elem.getLgGROSSISTEID() != null ? elem.getLgGROSSISTEID().getStrLIBELLE() : "");
             json.put("int_NUM_LOT", elem.getIntNUMLOT());
             json.put("dt_UPDATED", format(formatterShort, elem.getDtUPDATED()));
             json.put("str_CODE_TAUX_REMBOURSEMENT", format(formatterShort, elem.getDtPEREMPTION()));
@@ -407,13 +400,12 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // Requête dédiée : l'ancienne listTRetourFournisseurDetail (9 args) restreignait aux retours validés
         // (statut enable) ET à l'emplacement de l'utilisateur qui consulte, masquant les retours saisis
         // (is_Process) ou faits depuis un autre emplacement. Ici : tous les retours actifs, sans filtre emplacement.
-        StringBuilder jpql = new StringBuilder(
-                "SELECT t FROM TRetourFournisseurDetail t WHERE"
-                        + " ( FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) >= FUNCTION('DATE', ?1)"
-                        + " AND FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) <= FUNCTION('DATE', ?2) )"
-                        + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR t.lgFAMILLEID.intCIP LIKE ?3"
-                        + " OR t.lgFAMILLEID.strNAME LIKE ?3 OR t.lgFAMILLEID.intEAN13 LIKE ?3)"
-                        + " AND t.lgRETOURFRSID.strSTATUT IN (?4, ?5, ?6)");
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TRetourFournisseurDetail t WHERE"
+                + " ( FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) >= FUNCTION('DATE', ?1)"
+                + " AND FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) <= FUNCTION('DATE', ?2) )"
+                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR t.lgFAMILLEID.intCIP LIKE ?3"
+                + " OR t.lgFAMILLEID.strNAME LIKE ?3 OR t.lgFAMILLEID.intEAN13 LIKE ?3)"
+                + " AND t.lgRETOURFRSID.strSTATUT IN (?4, ?5, ?6)");
         boolean hasGrossiste = isSet(grossisteId);
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
@@ -470,8 +462,8 @@ public final class StockMovementDataHelper implements AutoCloseable {
 
     // --- VENTE : équivalent ws_data_mouvement_vente.jsp ; le filtre grossiste (nouveau) passe par le
     // grossiste par défaut du produit (TFamille.lgGROSSISTEID), une vente n'ayant pas de grossiste direct ---
-    private Rows fetchVentes(String search, String grossisteId, String familleArticleId, String zoneGeoId,
-            Date dtDebut, Date dtFin, boolean all, int start, int limit) throws JSONException {
+    private Rows fetchVentes(String search, String grossisteId, String familleArticleId, String zoneGeoId, Date dtDebut,
+            Date dtFin, boolean all, int start, int limit) throws JSONException {
         SnapshotManager snapshotManager = new SnapshotManager(odataManager, user);
         List<TPreenregistrementDetail> datas = snapshotManager.listTPreenregistrementDetail(search, dtDebut, dtFin,
                 MATCH_ALL, MATCH_ALL, MATCH_ALL, MATCH_ALL, familleArticleId, zoneGeoId);
@@ -489,8 +481,8 @@ public final class StockMovementDataHelper implements AutoCloseable {
         for (TPreenregistrementDetail elem : slice(datas, all, start, limit)) {
             JSONObject json = new JSONObject();
             json.put("dt_DAY", format(formatterShort, elem.getLgPREENREGISTREMENTID().getDtUPDATED()));
-            json.put("int_NUMBER_VENTE", elem.getIntQUANTITY()
-                    + (elem.getIntFREEPACKNUMBER() != null ? elem.getIntFREEPACKNUMBER() : 0));
+            json.put("int_NUMBER_VENTE",
+                    elem.getIntQUANTITY() + (elem.getIntFREEPACKNUMBER() != null ? elem.getIntFREEPACKNUMBER() : 0));
             json.put("int_NUMBER_RETOUR", elem.getIntPRICE());
             json.put("lg_USER_ID", userName(elem.getLgPREENREGISTREMENTID().getLgUSERID()));
             json.put("str_CODE_TAUX_REMBOURSEMENT", elem.getLgPREENREGISTREMENTID().getLgTYPEVENTEID() != null

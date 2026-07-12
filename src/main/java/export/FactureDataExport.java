@@ -27,6 +27,7 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.hssf.util.HSSFColor;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -200,14 +201,14 @@ public class FactureDataExport extends HttpServlet {
             sheet.setColumnWidth(14, 7000);
             // sheet.setDefaultRowHeight((short) 1000);
             Font parentHeaderfont = wb.createFont();
-            parentHeaderfont.setBoldweight((short) 700);
+            parentHeaderfont.setBold(true);
             parentHeaderfont.setFontHeightInPoints((short) 16);
             Font subtitlefont = wb.createFont();
             CellStyle cellStyle = wb.createCellStyle();
-            cellStyle.setFillBackgroundColor(HSSFColor.GREY_25_PERCENT.index);
-            cellStyle.setFillPattern(CellStyle.SOLID_FOREGROUND);
-            cellStyle.setFillForegroundColor(HSSFColor.GREY_25_PERCENT.index);
-            subtitlefont.setBoldweight((short) 700);
+            cellStyle.setFillBackgroundColor(HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex());
+            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            cellStyle.setFillForegroundColor(HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex());
+            subtitlefont.setBold(true);
             subtitlefont.setFontHeightInPoints((short) 14);
 
             JSONArray parentheader = data.getJSONArray("dataheader");
@@ -277,14 +278,14 @@ public class FactureDataExport extends HttpServlet {
             sheet.setColumnWidth(10, 7000);
 
             Font parentHeaderfont = wb.createFont();
-            parentHeaderfont.setBoldweight((short) 700);
+            parentHeaderfont.setBold(true);
             parentHeaderfont.setFontHeightInPoints((short) 16);
             Font subtitlefont = wb.createFont();
             CellStyle cellStyle = wb.createCellStyle();
-            cellStyle.setFillBackgroundColor(HSSFColor.GREY_25_PERCENT.index);
-            cellStyle.setFillPattern(CellStyle.SOLID_FOREGROUND);
-            cellStyle.setFillForegroundColor(HSSFColor.GREY_25_PERCENT.index);
-            subtitlefont.setBoldweight((short) 700);
+            cellStyle.setFillBackgroundColor(HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex());
+            cellStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            cellStyle.setFillForegroundColor(HSSFColor.HSSFColorPredefined.GREY_25_PERCENT.getIndex());
+            subtitlefont.setBold(true);
             subtitlefont.setFontHeightInPoints((short) 14);
 
             JSONArray parentheader = data.getJSONArray("parentheader");
