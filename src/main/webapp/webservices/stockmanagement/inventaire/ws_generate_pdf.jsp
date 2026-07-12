@@ -132,7 +132,7 @@
         } else {
             scr_report_file = ecartPrefix + str_TYPE.toLowerCase();
         }
-        P_H_CLT_INFOS = "Liste des �carts";
+        P_H_CLT_INFOS = "Liste des \u00e9carts";
 
     } else if (str_NAME_FILE.equalsIgnoreCase("alerte")) {
         if (result_show_col_stock) {
@@ -194,17 +194,17 @@
         parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
 
         if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-            P_FOOTER_RC += "RC N� " + oTOfficine.getStrREGISTRECOMMERCE();
+            P_FOOTER_RC += "RC N\u00b0 " + oTOfficine.getStrREGISTRECOMMERCE();
         }
 
         if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-            P_FOOTER_RC += " - CC N� " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+            P_FOOTER_RC += " - CC N\u00b0 " + oTOfficine.getStrCOMPTECONTRIBUABLE();
         }
         if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-            P_FOOTER_RC += " - R�gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+            P_FOOTER_RC += " - R\u00e9gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
         }
         if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-            P_FOOTER_RC += " - Centre des Imp�ts: " + oTOfficine.getStrCENTREIMPOSITION();
+            P_FOOTER_RC += " - Centre des Imp\u00f4ts: " + oTOfficine.getStrCENTREIMPOSITION();
         }
 
         if (oTOfficine.getStrPHONE() != null) {
@@ -221,7 +221,7 @@
             P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
         }
         if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-            P_INSTITUTION_ADRESSE += " - CPT N�: " + oTOfficine.getStrNUMCOMPTABLE();
+            P_INSTITUTION_ADRESSE += " - CPT N\u00b0: " + oTOfficine.getStrNUMCOMPTABLE();
         }
         System.out.println("P_INSTITUTION_ADRESSE  ********** "+P_INSTITUTION_ADRESSE);
         parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
@@ -239,7 +239,7 @@
 
         if (oEm.getStrPHONE() != null) {
             if (oEm.getStrLOCALITE() != null) {
-                P_INSTITUTION_ADRESSE += "Localit� �: " + oEm.getStrLOCALITE();
+                P_INSTITUTION_ADRESSE += "Localit\u00e9 \u00b0: " + oEm.getStrLOCALITE();
             }
             String finalphonestring = oEm.getStrPHONE() != null ? " Tel: " + conversion.PhoneNumberFormat("+225", oEm.getStrPHONE()) : "";
 

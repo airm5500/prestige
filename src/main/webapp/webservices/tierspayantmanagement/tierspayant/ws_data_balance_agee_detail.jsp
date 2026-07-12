@@ -16,7 +16,7 @@
 
 <%
     int DATA_PER_PAGE = jdom.int_size_pagination, count = 0, pages_curr = 0;
-    new logger().OCategory.info("dans ws data balance agee detaill�e");
+    new logger().OCategory.info("dans ws data balance agee detaill\u00e9e");
     Translate oTranslate = new Translate();
     dataManager OdataManager = new dataManager();
 
@@ -121,7 +121,7 @@
 
     OdataManager.initEntityManager();
     OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
-    new logger().OCategory.info("user connect�   " + OTUser.getStrFIRSTNAME());
+    new logger().OCategory.info("user connect\u00e9   " + OTUser.getStrFIRSTNAME());
    
     Preenregistrement OPreenregistrement = new Preenregistrement(OdataManager, OTUser);
  lstTTiersPayant = OPreenregistrement.getBalanceDetailsTiersPayant(search_value,lg_TIERS_PAYANT_ID,lg_COMPTE_CLIENT_ID, lg_TYPE_TIERS_PAYANT_ID, lg_GROUPE_ID );
