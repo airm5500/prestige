@@ -302,7 +302,7 @@
                 ObllBase.setMessage("1");
                 ObllBase.setDetailmessage(OfamilleManagement.getDetailmessage());
             } else {
-                ObllBase.setDetailmessage("Impossible de supprimer un article qui a dï¿½jï¿½ ï¿½tï¿½ utilisï¿½ dans le systï¿½me");
+                ObllBase.setDetailmessage("Impossible de supprimer un article qui a déjà été utilisé dans le système");
             }
 
             // ObllBase.setMessage(OfamilleManagement.getMessage());
