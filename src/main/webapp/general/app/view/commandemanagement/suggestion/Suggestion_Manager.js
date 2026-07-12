@@ -608,9 +608,11 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
 
     // Diagnostic : pourquoi un produit (tous statuts confondus) n'est-il pas suggéré en suggestion auto ?
     onDiagnosticClick: function () {
+        // produits cochés, conservés à travers les recherches ET les pages (même pattern que suggCheckedIds)
+        const diagCheckedIds = [];
         const diagStore = new Ext.data.Store({
             fields: ['lg_FAMILLE_ID', 'int_CIP', 'str_NAME', 'str_STATUT', 'int_SEUIL_MIN', 'int_STOCK',
-                'str_GROSSISTE', 'str_DIAGNOSTIC', 'bool_OK'],
+                'str_GROSSISTE', 'str_DIAGNOSTIC', 'bool_OK', 'isChecked'],
             pageSize: 20,
             autoLoad: false,
             proxy: {
@@ -620,6 +622,15 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     type: 'json',
                     root: 'results',
                     totalProperty: 'total'
+                }
+            },
+            listeners: {
+                // au rechargement (recherche, page), recoche les produits déjà mémorisés
+                load: function (st) {
+                    st.each(function (rec) {
+                        rec.set('isChecked', diagCheckedIds.indexOf(rec.get('lg_FAMILLE_ID')) !== -1);
+                        rec.commit();
+                    });
                 }
             }
         });
@@ -636,14 +647,12 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
             diagStore.loadPage(1);
         };
         const me = this;
-        // création de suggestion depuis le diagnostic : sélection cochée, ou tous les produits sans blocage
-        const doCreerSuggestion = function (grid) {
-            const ids = [];
-            Ext.Array.each(grid.getSelectionModel().getSelection(), function (record) {
-                ids.push(record.get('lg_FAMILLE_ID'));
-            });
+        // création de suggestion depuis le diagnostic : produits cochés (toutes recherches/pages
+        // confondues), ou tous les produits sans blocage si rien n'est coché
+        const doCreerSuggestion = function () {
+            const ids = diagCheckedIds.slice();
             const scopeMsg = ids.length > 0
-                    ? ids.length + ' produit(s) sélectionné(s)'
+                    ? ids.length + ' produit(s) coché(s)'
                     : 'TOUS les produits au seuil non suggérés (les produits bloqués seront ignorés)';
             Ext.MessageBox.confirm('Créer suggestion',
                     'Créer/alimenter la suggestion auto pour ' + scopeMsg + ' ?', function (btn) {
@@ -659,6 +668,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         Ext.MessageBox.alert('Créer suggestion',
                                 (result.count || 0) + ' produit(s) ajouté(s) en suggestion sur '
                                 + (result.traites || 0) + ' traité(s)');
+                        diagCheckedIds.length = 0;
                         diagStore.reload();
                         me.getStore().reload();
                     },
@@ -677,12 +687,32 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
             items: [{
                     xtype: 'grid',
                     store: diagStore,
-                    selModel: {
-                        selType: 'checkboxmodel',
-                        mode: 'SIMPLE',
-                        checkOnly: true
-                    },
                     columns: [
+                        {
+                            xtype: 'checkcolumn',
+                            text: '&#10003;',
+                            tooltip: 'Cocher les produits à suggérer (conservé à travers les recherches et les pages)',
+                            dataIndex: 'isChecked',
+                            width: 40,
+                            sortable: false,
+                            menuDisabled: true,
+                            listeners: {
+                                checkchange: function (col, rowIndex, checked) {
+                                    const rec = diagStore.getAt(rowIndex);
+                                    if (!rec) {
+                                        return;
+                                    }
+                                    const id = rec.get('lg_FAMILLE_ID');
+                                    const idx = diagCheckedIds.indexOf(id);
+                                    if (checked && idx === -1) {
+                                        diagCheckedIds.push(id);
+                                    } else if (!checked && idx !== -1) {
+                                        diagCheckedIds.splice(idx, 1);
+                                    }
+                                    rec.commit();
+                                }
+                            }
+                        },
                         {header: 'CIP', dataIndex: 'int_CIP', width: 110},
                         {header: 'Article', dataIndex: 'str_NAME', flex: 2},
                         {header: 'Statut', dataIndex: 'str_STATUT', width: 70},
@@ -720,9 +750,9 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                         }, '->', {
                             text: 'Créer suggestion',
                             iconCls: 'suggestionreapro',
-                            tooltip: 'Créer/alimenter la suggestion auto pour les produits cochés, ou pour tous les produits au seuil non suggérés si rien n\'est coché (les produits bloqués sont ignorés)',
-                            handler: function (btn) {
-                                doCreerSuggestion(btn.up('grid'));
+                            tooltip: 'Créer/alimenter la suggestion auto pour les produits cochés (toutes recherches et pages confondues), ou pour tous les produits au seuil non suggérés si rien n\'est coché (les produits bloqués sont ignorés)',
+                            handler: function () {
+                                doCreerSuggestion();
                             }
                         }],
                     bbar: {
