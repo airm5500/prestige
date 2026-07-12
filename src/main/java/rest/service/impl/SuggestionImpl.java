@@ -607,12 +607,18 @@ public class SuggestionImpl implements SuggestionService {
 
     private int verifierProduitDansSuggestion(TFamille famille) {
         try {
+            // Seules comptent les lignes dont la suggestion parente est encore en statut "auto" (non ouverte) :
+            // - produit dans une suggestion auto non traitée -> sa quantité est mise à jour dans cette suggestion ;
+            // - suggestion prise en main par un utilisateur (statut pending) -> ses produits redeviennent
+            // suggérables et une NOUVELLE suggestion auto est créée à la prochaine vente (comportement métier
+            // historique de l'écran Suggestion).
             TypedQuery<TSuggestionOrderDetails> q = getEmg().createQuery(
-                    "SELECT o FROM TSuggestionOrderDetails o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND ( o.strSTATUT=?2 OR o.strSTATUT=?3 ) ",
+                    "SELECT o FROM TSuggestionOrderDetails o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND ( o.strSTATUT=?2 OR o.strSTATUT=?3 ) AND o.lgSUGGESTIONORDERID.strSTATUT = ?4 ",
                     TSuggestionOrderDetails.class);
             q.setParameter(1, famille.getLgFAMILLEID());
             q.setParameter(2, STATUT_AUTO);
             q.setParameter(3, STATUT_IS_PROGRESS);
+            q.setParameter(4, STATUT_AUTO);
 
             q.setMaxResults(1);
             return q.getSingleResult() != null ? 1 : 0;
