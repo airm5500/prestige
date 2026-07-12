@@ -6,7 +6,6 @@ import commonTasks.dto.ArticleDTO;
 import dal.TAjustementDetail;
 import dal.TFamille;
 import dal.TPreenregistrementDetail;
-import dal.TRetourFournisseurDetail;
 import dal.TUser;
 import dal.TWarehouse;
 import dal.dataManager;
@@ -478,31 +477,36 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // Bornes de dates directes sur la colonne (index) et optionnelles (nulles = tout l'historique). Aucun filtre
         // de statut : un retour à peine saisi (is_Process) ou non validé en avoir doit rester visible. Aucun filtre
         // d'emplacement non plus.
-        StringBuilder jpql = new StringBuilder("SELECT t FROM TRetourFournisseurDetail t"
-                + " JOIN FETCH t.lgRETOURFRSID JOIN FETCH t.lgFAMILLEID LEFT JOIN FETCH t.lgMOTIFRETOUR WHERE"
-                + " (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
-                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)");
+        // Requête SCALAIRE (aucune entité matérialisée) : TRetourFournisseurDetail référence en EAGER
+        // TBonLivraisonDetail, dont le champ lots est mappé @Type(type="json") — annotation Hibernate
+        // qu'EclipseLink (provider de DALPU) ne sait pas convertir (ConversionException EclipseLink-3002).
+        // En ne sélectionnant que des colonnes, le champ lots n'est jamais lu.
+        StringBuilder jpql = new StringBuilder("SELECT r.dtCREATED, t.intNUMBERRETURN, m.strLIBELLE,"
+                + " u.strFIRSTNAME, u.strLASTNAME, g.strLIBELLE, f.lgFAMILLEID, f.intCIP, f.strNAME"
+                + " FROM TRetourFournisseurDetail t JOIN t.lgRETOURFRSID r JOIN t.lgFAMILLEID f"
+                + " LEFT JOIN t.lgMOTIFRETOUR m LEFT JOIN r.lgUSERID u LEFT JOIN r.lgGROSSISTEID g"
+                + " WHERE (f.strDESCRIPTION LIKE :search OR f.intCIP LIKE :search"
+                + " OR f.strNAME LIKE :search OR f.intEAN13 LIKE :search)");
         if (dtDebut != null) {
-            jpql.append(" AND t.lgRETOURFRSID.dtCREATED >= :debut");
+            jpql.append(" AND r.dtCREATED >= :debut");
         }
         if (dtFin != null) {
-            jpql.append(" AND t.lgRETOURFRSID.dtCREATED <= :fin");
+            jpql.append(" AND r.dtCREATED <= :fin");
         }
         boolean hasGrossiste = isSet(grossisteId);
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
         if (hasGrossiste) {
-            jpql.append(" AND t.lgRETOURFRSID.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
+            jpql.append(" AND g.lgGROSSISTEID = :grossiste");
         }
         if (hasFamilleArticle) {
-            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
+            jpql.append(" AND f.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
+            jpql.append(" AND f.lgZONEGEOID.lgZONEGEOID = :zone");
         }
-        jpql.append(" ORDER BY t.lgRETOURFRSID.dtCREATED DESC");
-        TypedQuery<TRetourFournisseurDetail> q = odataManager.getEm().createQuery(jpql.toString(),
-                TRetourFournisseurDetail.class);
+        jpql.append(" ORDER BY r.dtCREATED DESC");
+        TypedQuery<Object[]> q = odataManager.getEm().createQuery(jpql.toString(), Object[].class);
         q.setParameter("search", (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
         if (dtDebut != null) {
             q.setParameter("debut", dtDebut);
@@ -519,25 +523,28 @@ public final class StockMovementDataHelper implements AutoCloseable {
         if (hasZoneGeo) {
             q.setParameter("zone", zoneGeoId.trim());
         }
-        List<TRetourFournisseurDetail> datas = q.getResultList();
+        List<Object[]> datas = q.getResultList();
         List<JSONObject> rows = new ArrayList<>();
-        for (TRetourFournisseurDetail elem : slice(datas, all, start, limit)) {
+        for (Object[] elem : slice(datas, all, start, limit)) {
+            Date dtCreated = (Date) elem[0];
+            String motif = elem[2] != null ? (String) elem[2] : "";
+            String prenom = elem[3] != null ? (String) elem[3] : "";
+            String nom = elem[4] != null ? (String) elem[4] : "";
+            String grossiste = elem[5] != null ? (String) elem[5] : "";
             JSONObject json = new JSONObject();
-            json.put("dt_DAY", format(formatterShort, elem.getLgRETOURFRSID().getDtCREATED()));
-            json.put("int_NUMBER_VENTE", elem.getIntNUMBERRETURN());
-            json.put("int_NUMBER_DEBUT",
-                    elem.getLgMOTIFRETOUR() != null ? elem.getLgMOTIFRETOUR().getStrLIBELLE() : "");
-            json.put("lg_USER_ID", userName(elem.getLgRETOURFRSID().getLgUSERID()));
-            json.put("lg_GROSSISTE_ID", elem.getLgRETOURFRSID().getLgGROSSISTEID() != null
-                    ? elem.getLgRETOURFRSID().getLgGROSSISTEID().getStrLIBELLE() : "");
-            json.put("lg_FAMILLE_ID", elem.getLgFAMILLEID().getLgFAMILLEID());
-            json.put("int_CIP", elem.getLgFAMILLEID().getIntCIP());
-            json.put("int_NUMBER", elem.getIntNUMBERRETURN());
-            json.put("str_NAME", elem.getLgFAMILLEID().getStrNAME());
-            json.put("dt_UPDATED", format(formatterShort, elem.getLgRETOURFRSID().getDtCREATED()));
-            json.put("dt_LAST_VENTE", format(timeFormat, elem.getLgRETOURFRSID().getDtCREATED()));
+            json.put("dt_DAY", format(formatterShort, dtCreated));
+            json.put("int_NUMBER_VENTE", elem[1]);
+            json.put("int_NUMBER_DEBUT", motif);
+            json.put("lg_USER_ID", (prenom + " " + nom).trim());
+            json.put("lg_GROSSISTE_ID", grossiste);
+            json.put("lg_FAMILLE_ID", elem[6]);
+            json.put("int_CIP", elem[7]);
+            json.put("int_NUMBER", elem[1]);
+            json.put("str_NAME", elem[8]);
+            json.put("dt_UPDATED", format(formatterShort, dtCreated));
+            json.put("dt_LAST_VENTE", format(timeFormat, dtCreated));
             json.put("str_ACTION", "Retour four.");
-            json.put("_ts", tsOf(elem.getLgRETOURFRSID().getDtCREATED()));
+            json.put("_ts", tsOf(dtCreated));
             rows.add(json);
         }
         return new Rows(datas.size(), rows);
