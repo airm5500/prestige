@@ -176,6 +176,16 @@ public class SuggestionRessource {
     }
 
     @GET
+    @Path("diagnostic")
+    public Response diagnostic(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "query") String query) throws JSONException {
+
+        int pageSize = limit > 0 ? limit : 20;
+        return Response.ok().entity(this.suggestionService.diagnosticProduit(query, start, pageSize).toString())
+                .build();
+    }
+
+    @GET
     @Path("set-pending/{id}")
     public Response setToPending(@PathParam("id") String id) throws JSONException {
 

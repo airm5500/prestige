@@ -357,6 +357,12 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     tooltip: 'Supprimer les suggestions cochées (sur une ou plusieurs pages)',
                     scope: this,
                     handler: this.onViderSuggestion
+                },
+                {
+                    text: 'Diagnostic produit',
+                    tooltip: 'Rechercher un produit (tous statuts) et voir pourquoi il n\'est pas suggéré en suggestion auto',
+                    scope: this,
+                    handler: this.onDiagnosticClick
                 }
             ],
             bbar: {
@@ -520,6 +526,78 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                 query: val.value
             }
         });
+    },
+
+    // Diagnostic : pourquoi un produit (tous statuts confondus) n'est-il pas suggéré en suggestion auto ?
+    onDiagnosticClick: function () {
+        const diagStore = new Ext.data.Store({
+            fields: ['lg_FAMILLE_ID', 'int_CIP', 'str_NAME', 'str_STATUT', 'int_SEUIL_MIN', 'int_STOCK',
+                'str_GROSSISTE', 'str_DIAGNOSTIC', 'bool_OK'],
+            pageSize: 20,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/suggestion/diagnostic',
+                reader: {
+                    type: 'json',
+                    root: 'results',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        const doSearch = function () {
+            const field = Ext.getCmp('diagProduitSearch');
+            diagStore.getProxy().setExtraParam('query', field ? field.getValue() : '');
+            diagStore.loadPage(1);
+        };
+        Ext.create('Ext.window.Window', {
+            title: 'Diagnostic suggestion — pourquoi ce produit n\'est-il pas suggéré ?',
+            modal: true,
+            width: 1050,
+            height: 520,
+            layout: 'fit',
+            items: [{
+                    xtype: 'grid',
+                    store: diagStore,
+                    columns: [
+                        {header: 'CIP', dataIndex: 'int_CIP', width: 110},
+                        {header: 'Article', dataIndex: 'str_NAME', flex: 2},
+                        {header: 'Statut', dataIndex: 'str_STATUT', width: 70},
+                        {header: 'Stock', dataIndex: 'int_STOCK', width: 60, align: 'right'},
+                        {header: 'Seuil', dataIndex: 'int_SEUIL_MIN', width: 60, align: 'right'},
+                        {header: 'Grossiste', dataIndex: 'str_GROSSISTE', flex: 1},
+                        {header: 'Diagnostic', dataIndex: 'str_DIAGNOSTIC', flex: 3,
+                            renderer: function (value, meta, record) {
+                                meta.style = record.get('bool_OK')
+                                        ? 'color:#1a7f37;font-weight:bold;'
+                                        : 'color:#b35900;';
+                                return value;
+                            }}
+                    ],
+                    tbar: [{
+                            xtype: 'textfield',
+                            id: 'diagProduitSearch',
+                            emptyText: 'CIP ou nom du produit...',
+                            width: 320,
+                            listeners: {
+                                specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        doSearch();
+                                    }
+                                }
+                            }
+                        }, {
+                            text: 'rechercher',
+                            iconCls: 'searchicon',
+                            handler: doSearch
+                        }],
+                    bbar: {
+                        xtype: 'pagingtoolbar',
+                        store: diagStore,
+                        displayInfo: true
+                    }
+                }]
+        }).show();
     },
 
     // Cree une suggestion (reappro) a partir du Top Nx de la classification ABC, sur les 3 derniers mois clotures

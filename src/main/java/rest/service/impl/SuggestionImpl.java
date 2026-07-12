@@ -918,6 +918,77 @@ public class SuggestionImpl implements SuggestionService {
         this.getEmg().merge(order);
     }
 
+    /**
+     * Diagnostic : pourquoi un produit n'est-il pas (ou plus) suggéré en suggestion auto ? Recherche tous statuts
+     * confondus (enable/disable) et rejoue, pour chaque produit trouvé, les mêmes contrôles que makeSuggestionAuto dans
+     * le même ordre, en expliquant la première cause bloquante rencontrée.
+     */
+    @Override
+    public JSONObject diagnosticProduit(String query, int start, int limit) throws JSONException {
+        String search = (query == null ? "" : query.trim()) + "%";
+        TypedQuery<TFamille> q = getEmg().createQuery(
+                "SELECT f FROM TFamille f WHERE (f.intCIP LIKE ?1 OR f.strNAME LIKE ?1 OR f.strDESCRIPTION LIKE ?1 OR f.intEAN13 LIKE ?1) ORDER BY f.strNAME",
+                TFamille.class);
+        q.setParameter(1, search);
+        q.setFirstResult(start);
+        q.setMaxResults(limit);
+        TypedQuery<Long> qCount = getEmg().createQuery(
+                "SELECT COUNT(f) FROM TFamille f WHERE (f.intCIP LIKE ?1 OR f.strNAME LIKE ?1 OR f.strDESCRIPTION LIKE ?1 OR f.intEAN13 LIKE ?1)",
+                Long.class);
+        qCount.setParameter(1, search);
+        TEmplacement emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+        JSONArray results = new JSONArray();
+        for (TFamille famille : q.getResultList()) {
+            results.put(buildDiagnosticProduit(famille, emplacement));
+        }
+        return new JSONObject().put("success", true).put("total", qCount.getSingleResult()).put("results", results);
+    }
+
+    private JSONObject buildDiagnosticProduit(TFamille famille, TEmplacement emplacement) throws JSONException {
+        TFamilleStock stock = findStock(famille.getLgFAMILLEID(), emplacement);
+        Integer stockDispo = stock != null ? stock.getIntNUMBERAVAILABLE() : null;
+        String diagnostic;
+        boolean seraSuggere = false;
+        // mêmes contrôles et même ordre que makeSuggestionAuto
+        if (famille.getBoolDECONDITIONNE() != null && famille.getBoolDECONDITIONNE() == 1) {
+            diagnostic = "Produit déconditionné : exclu de la suggestion";
+        } else if (!STATUT_ENABLE.equals(famille.getStrSTATUT())) {
+            diagnostic = "Produit inactif (statut « " + famille.getStrSTATUT() + " ») : exclu de la suggestion";
+        } else if (famille.getBoolSUGGERABLE() != null && !famille.getBoolSUGGERABLE()) {
+            diagnostic = "Produit marqué « non suggérable » dans sa fiche";
+        } else if (famille.getIntSEUILMIN() == null) {
+            diagnostic = "Seuil de réapprovisionnement non défini sur la fiche produit";
+        } else if (stock == null) {
+            diagnostic = "Stock introuvable pour l'emplacement courant";
+        } else if (!checkQteSeuilCondition(stock, famille)) {
+            diagnostic = "Seuil non atteint (stock " + stockDispo + ", seuil " + famille.getIntSEUILMIN()
+                    + ", condition " + getOptionSuggestion() + ")";
+        } else {
+            int statutCommande = verifierProduitCommande(famille);
+            if (statutCommande == 2 || statutCommande == 4) {
+                diagnostic = "Bloqué : présent dans une commande active (en cours ou non réceptionnée)";
+            } else if (famille.getLgGROSSISTEID() == null) {
+                diagnostic = "Aucun grossiste par défaut sur la fiche produit : la suggestion ne peut pas être créée";
+            } else if (verifierProduitDansSuggestion(famille) == 1) {
+                diagnostic = "Déjà dans une suggestion auto : sa quantité sera mise à jour à la prochaine vente";
+            } else {
+                diagnostic = "Aucun blocage : sera suggéré à la prochaine vente";
+                seraSuggere = true;
+            }
+        }
+        JSONObject json = new JSONObject();
+        json.put("lg_FAMILLE_ID", famille.getLgFAMILLEID());
+        json.put("int_CIP", famille.getIntCIP());
+        json.put("str_NAME", famille.getStrNAME());
+        json.put("str_STATUT", famille.getStrSTATUT());
+        json.put("int_SEUIL_MIN", famille.getIntSEUILMIN() != null ? famille.getIntSEUILMIN() : JSONObject.NULL);
+        json.put("int_STOCK", stockDispo != null ? stockDispo : JSONObject.NULL);
+        json.put("str_GROSSISTE", famille.getLgGROSSISTEID() != null ? famille.getLgGROSSISTEID().getStrLIBELLE() : "");
+        json.put("str_DIAGNOSTIC", diagnostic);
+        json.put("bool_OK", seraSuggere);
+        return json;
+    }
+
     private List<Tuple> getListSuggestion(String query, int start, int limit) {
         try {
             Query q = em.createNativeQuery(SUGGESTION_QUERY, Tuple.class).setParameter(1, query);
