@@ -82,11 +82,18 @@ public final class StockMovementDataHelper implements AutoCloseable {
     }
 
     /**
-     * Liste paginée au format attendu par le reader ExtJS actuel : {success, total, results}.
+     * Liste paginée au format attendu par le reader ExtJS actuel : {success, total, results}. En cas d'erreur de
+     * requête, la réponse porte success=false et le message d'erreur (visible dans l'onglet réseau) au lieu d'un faux
+     * total à zéro.
      */
     public JSONObject list(StockMovementFilterDTO filter, int start, int limit) throws JSONException {
-        Rows rows = fetchRows(filter, false, start, limit);
-        return new JSONObject().put("success", true).put("total", rows.total).put("results", toArray(rows.page));
+        try {
+            Rows rows = fetchRows(filter, false, start, limit);
+            return new JSONObject().put("success", true).put("total", rows.total).put("results", toArray(rows.page));
+        } catch (Exception e) {
+            return new JSONObject().put("success", false).put("total", 0).put("results", new JSONArray()).put("msg",
+                    e.getMessage());
+        }
     }
 
     /**
@@ -247,8 +254,10 @@ public final class StockMovementDataHelper implements AutoCloseable {
                         limit);
             }
         } catch (Exception e) {
+            // ne pas avaler l'erreur : elle remonte à l'appelant qui la restitue dans la réponse
+            // (un catch silencieux transformait toute erreur de requête en faux « total: 0, success: true »)
             LOG.log(Level.SEVERE, "fetchRows " + type, e);
-            return new Rows(0, new ArrayList<>());
+            throw new IllegalStateException("Erreur " + type + " : " + e.getMessage(), e);
         }
     }
 
@@ -280,9 +289,11 @@ public final class StockMovementDataHelper implements AutoCloseable {
             // Requête dédiée index-friendly : l'ancienne listeWarehouses (Criteria) enveloppait la date dans
             // DATE(...), empêchant l'usage de l'index. Comparaison directe + JOIN FETCH pour éviter le N+1 ;
             // pagination en base (setFirstResult/setMaxResults) + requête de comptage, comme avant.
+            // JPQL standard uniquement : JOIN FETCH sans alias + chemins implicites (les alias sur les fetch
+            // joins sont une extension refusée par certaines versions d'EclipseLink, provider par défaut de DALPU)
             StringBuilder where = new StringBuilder(" WHERE t.strSTATUT = :statut"
-                    + " AND (f.strDESCRIPTION LIKE :search OR f.intCIP LIKE :search OR f.strNAME LIKE :search"
-                    + " OR f.intEAN13 LIKE :search)");
+                    + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                    + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)");
             if (dtDebut != null) {
                 where.append(" AND t.dtCREATED >= :debut");
             }
@@ -296,15 +307,15 @@ public final class StockMovementDataHelper implements AutoCloseable {
                 where.append(" AND t.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
             }
             if (hasFamilleArticle) {
-                where.append(" AND f.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
+                where.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
             }
             if (hasZoneGeo) {
-                where.append(" AND f.lgZONEGEOID.lgZONEGEOID = :zone");
+                where.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
             }
-            String select = "SELECT t FROM TWarehouse t JOIN FETCH t.lgFAMILLEID f LEFT JOIN FETCH t.lgGROSSISTEID"
+            String select = "SELECT t FROM TWarehouse t JOIN FETCH t.lgFAMILLEID LEFT JOIN FETCH t.lgGROSSISTEID"
                     + " LEFT JOIN FETCH t.lgUSERID" + where
-                    + " ORDER BY t.strREFLIVRAISON, f.strDESCRIPTION, t.dtCREATED DESC";
-            String count = "SELECT COUNT(t) FROM TWarehouse t JOIN t.lgFAMILLEID f" + where;
+                    + " ORDER BY t.strREFLIVRAISON, t.lgFAMILLEID.strDESCRIPTION, t.dtCREATED DESC";
+            String count = "SELECT COUNT(t) FROM TWarehouse t" + where;
             TypedQuery<TWarehouse> q = odataManager.getEm().createQuery(select, TWarehouse.class);
             TypedQuery<Long> qCount = odataManager.getEm().createQuery(count, Long.class);
             for (TypedQuery<?> query : new TypedQuery<?>[] { q, qCount }) {
@@ -391,10 +402,10 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // s'il est explicitement filtré. Statut = "delete" (périmé validé, mouvement de stock effectif).
         // Bornes de dates en comparaison directe sur la colonne (pas de FUNCTION('DATE', ...) qui empêcherait
         // l'usage de l'index). Bornes optionnelles : si nulles, aucune restriction (tout l'historique).
-        StringBuilder jpql = new StringBuilder("SELECT t FROM TWarehouse t JOIN FETCH t.lgFAMILLEID f"
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TWarehouse t JOIN FETCH t.lgFAMILLEID"
                 + " LEFT JOIN FETCH t.lgGROSSISTEID LEFT JOIN FETCH t.lgUSERID WHERE t.strSTATUT = :statut"
-                + " AND (f.strDESCRIPTION LIKE :search OR f.intCIP LIKE :search"
-                + " OR f.strNAME LIKE :search OR f.intEAN13 LIKE :search)");
+                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)");
         if (dtDebut != null) {
             jpql.append(" AND t.dtUPDATED >= :debut");
         }
@@ -408,10 +419,10 @@ public final class StockMovementDataHelper implements AutoCloseable {
             jpql.append(" AND t.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
         }
         if (hasFamilleArticle) {
-            jpql.append(" AND f.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND f.lgZONEGEOID.lgZONEGEOID = :zone");
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
         }
         jpql.append(" ORDER BY t.dtUPDATED DESC");
         TypedQuery<TWarehouse> q = odataManager.getEm().createQuery(jpql.toString(), TWarehouse.class);
@@ -468,28 +479,28 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // de statut : un retour à peine saisi (is_Process) ou non validé en avoir doit rester visible. Aucun filtre
         // d'emplacement non plus.
         StringBuilder jpql = new StringBuilder("SELECT t FROM TRetourFournisseurDetail t"
-                + " JOIN FETCH t.lgRETOURFRSID r JOIN FETCH t.lgFAMILLEID f LEFT JOIN FETCH t.lgMOTIFRETOUR WHERE"
-                + " (f.strDESCRIPTION LIKE :search OR f.intCIP LIKE :search"
-                + " OR f.strNAME LIKE :search OR f.intEAN13 LIKE :search)");
+                + " JOIN FETCH t.lgRETOURFRSID JOIN FETCH t.lgFAMILLEID LEFT JOIN FETCH t.lgMOTIFRETOUR WHERE"
+                + " (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)");
         if (dtDebut != null) {
-            jpql.append(" AND r.dtCREATED >= :debut");
+            jpql.append(" AND t.lgRETOURFRSID.dtCREATED >= :debut");
         }
         if (dtFin != null) {
-            jpql.append(" AND r.dtCREATED <= :fin");
+            jpql.append(" AND t.lgRETOURFRSID.dtCREATED <= :fin");
         }
         boolean hasGrossiste = isSet(grossisteId);
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
         if (hasGrossiste) {
-            jpql.append(" AND r.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
+            jpql.append(" AND t.lgRETOURFRSID.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
         }
         if (hasFamilleArticle) {
-            jpql.append(" AND f.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND f.lgZONEGEOID.lgZONEGEOID = :zone");
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
         }
-        jpql.append(" ORDER BY r.dtCREATED DESC");
+        jpql.append(" ORDER BY t.lgRETOURFRSID.dtCREATED DESC");
         TypedQuery<TRetourFournisseurDetail> q = odataManager.getEm().createQuery(jpql.toString(),
                 TRetourFournisseurDetail.class);
         q.setParameter("search", (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
@@ -541,24 +552,25 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // produit pour éviter le N+1. Statut is_Closed = vente clôturée (mouvement de stock effectif). Le filtre
         // grossiste reste appliqué en mémoire via le grossiste par défaut du produit.
         StringBuilder jpql = new StringBuilder("SELECT t FROM TPreenregistrementDetail t"
-                + " JOIN FETCH t.lgPREENREGISTREMENTID p JOIN FETCH t.lgFAMILLEID f WHERE p.strSTATUT = :statut"
-                + " AND (f.strDESCRIPTION LIKE :search OR f.intCIP LIKE :search OR f.strNAME LIKE :search"
-                + " OR f.intEAN13 LIKE :search)");
+                + " JOIN FETCH t.lgPREENREGISTREMENTID JOIN FETCH t.lgFAMILLEID"
+                + " WHERE t.lgPREENREGISTREMENTID.strSTATUT = :statut"
+                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)");
         if (dtDebut != null) {
-            jpql.append(" AND p.dtUPDATED >= :debut");
+            jpql.append(" AND t.lgPREENREGISTREMENTID.dtUPDATED >= :debut");
         }
         if (dtFin != null) {
-            jpql.append(" AND p.dtUPDATED <= :fin");
+            jpql.append(" AND t.lgPREENREGISTREMENTID.dtUPDATED <= :fin");
         }
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
         if (hasFamilleArticle) {
-            jpql.append(" AND f.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND f.lgZONEGEOID.lgZONEGEOID = :zone");
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
         }
-        jpql.append(" ORDER BY p.dtUPDATED DESC");
+        jpql.append(" ORDER BY t.lgPREENREGISTREMENTID.dtUPDATED DESC");
         TypedQuery<TPreenregistrementDetail> q = odataManager.getEm().createQuery(jpql.toString(),
                 TPreenregistrementDetail.class);
         q.setParameter("statut", Constant.STATUT_IS_CLOSED);
@@ -613,10 +625,10 @@ public final class StockMovementDataHelper implements AutoCloseable {
     private Rows fetchAjustements(String search, String grossisteId, String familleArticleId, String zoneGeoId,
             Date dtDebut, Date dtFin, boolean all, int start, int limit) throws JSONException {
         StringBuilder jpql = new StringBuilder("SELECT t FROM TAjustementDetail t"
-                + " JOIN FETCH t.lgFAMILLEID f JOIN FETCH t.lgAJUSTEMENTID a LEFT JOIN FETCH t.typeAjustement WHERE"
-                + " (f.strDESCRIPTION LIKE :search OR f.intCIP LIKE :search"
-                + " OR f.strNAME LIKE :search OR f.intEAN13 LIKE :search)"
-                + " AND a.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = :emplacement");
+                + " JOIN FETCH t.lgFAMILLEID JOIN FETCH t.lgAJUSTEMENTID LEFT JOIN FETCH t.typeAjustement WHERE"
+                + " (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)"
+                + " AND t.lgAJUSTEMENTID.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = :emplacement");
         if (dtDebut != null) {
             jpql.append(" AND t.dtUPDATED >= :debut");
         }
@@ -627,13 +639,13 @@ public final class StockMovementDataHelper implements AutoCloseable {
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
         if (hasGrossiste) {
-            jpql.append(" AND f.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
+            jpql.append(" AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
         }
         if (hasFamilleArticle) {
-            jpql.append(" AND f.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND f.lgZONEGEOID.lgZONEGEOID = :zone");
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
         }
         jpql.append(" ORDER BY t.dtUPDATED DESC");
         TypedQuery<TAjustementDetail> q = odataManager.getEm().createQuery(jpql.toString(), TAjustementDetail.class);
