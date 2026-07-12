@@ -952,9 +952,11 @@ public class SuggestionImpl implements SuggestionService {
     @Override
     public JSONObject diagnosticManques(int start, int limit) throws JSONException {
         TEmplacement emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+        // les produits disable/delete sont exclus de la LISTE (on sait exactement pourquoi ils ne sont pas
+        // suggérés) ; ils restent trouvables via la recherche manuelle (diagnosticProduit, tous statuts)
         String base = " FROM TFamilleStock s JOIN s.lgFAMILLEID f WHERE s.strSTATUT = ?1"
                 + " AND s.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND f.intSEUILMIN IS NOT NULL"
-                + " AND s.intNUMBERAVAILABLE <= f.intSEUILMIN"
+                + " AND s.intNUMBERAVAILABLE <= f.intSEUILMIN" + " AND f.strSTATUT NOT IN (?5, ?6)"
                 + " AND NOT EXISTS (SELECT d FROM TSuggestionOrderDetails d WHERE d.lgFAMILLEID = f"
                 + " AND (d.strSTATUT = ?3 OR d.strSTATUT = ?4) AND d.lgSUGGESTIONORDERID.strSTATUT = ?3)";
         TypedQuery<TFamille> q = getEmg().createQuery("SELECT f" + base + " ORDER BY f.strNAME", TFamille.class);
@@ -964,6 +966,8 @@ public class SuggestionImpl implements SuggestionService {
             query.setParameter(2, emplacement.getLgEMPLACEMENTID());
             query.setParameter(3, STATUT_AUTO);
             query.setParameter(4, STATUT_IS_PROGRESS);
+            query.setParameter(5, STATUT_DISABLE);
+            query.setParameter(6, STATUT_DELETE);
         }
         q.setFirstResult(start);
         q.setMaxResults(limit);
@@ -994,6 +998,7 @@ public class SuggestionImpl implements SuggestionService {
             TypedQuery<TFamille> q = getEmg().createQuery("SELECT f FROM TFamilleStock s JOIN s.lgFAMILLEID f"
                     + " WHERE s.strSTATUT = ?1 AND s.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2"
                     + " AND f.intSEUILMIN IS NOT NULL AND s.intNUMBERAVAILABLE <= f.intSEUILMIN"
+                    + " AND f.strSTATUT NOT IN (?5, ?6)"
                     + " AND NOT EXISTS (SELECT d FROM TSuggestionOrderDetails d WHERE d.lgFAMILLEID = f"
                     + " AND (d.strSTATUT = ?3 OR d.strSTATUT = ?4) AND d.lgSUGGESTIONORDERID.strSTATUT = ?3)"
                     + " ORDER BY f.strNAME", TFamille.class);
@@ -1001,6 +1006,8 @@ public class SuggestionImpl implements SuggestionService {
             q.setParameter(2, emplacement.getLgEMPLACEMENTID());
             q.setParameter(3, STATUT_AUTO);
             q.setParameter(4, STATUT_IS_PROGRESS);
+            q.setParameter(5, STATUT_DISABLE);
+            q.setParameter(6, STATUT_DELETE);
             familles = q.getResultList();
         }
         int ajoutes = 0;
