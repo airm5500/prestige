@@ -215,6 +215,18 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
+                            icon: 'resources/images/icons/fam/application_view_list.png',
+                            tooltip: 'Voir le contenu (consultation seule : ne change pas le statut de la suggestion)',
+                            scope: this,
+                            handler: this.onViewSuggestionClick
+                        }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
                             icon: 'resources/images/icons/fam/page_white_edit.png',
                             tooltip: 'Modifier',
                             scope: this,
@@ -528,6 +540,72 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
         });
     },
 
+    // Consultation d'une suggestion en LECTURE SEULE : n'appelle pas set-pending, la suggestion
+    // garde son statut (une suggestion auto reste alimentée automatiquement).
+    onViewSuggestionClick: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        const suggestionId = rec.get('lg_SUGGESTION_ORDER_ID');
+        const itemsStore = new Ext.data.Store({
+            fields: ['str_FAMILLE_CIP', 'str_FAMILLE_NAME', 'int_STOCK', 'int_SEUIL', 'int_NUMBER',
+                'int_PAF_SUGG', 'lg_FAMILLE_PRIX_VENTE'],
+            pageSize: 20,
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/suggestion/list/items',
+                extraParams: {
+                    orderId: suggestionId,
+                    query: ''
+                },
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        Ext.create('Ext.window.Window', {
+            title: 'Contenu de la suggestion [' + suggestionId + '] — consultation seule',
+            modal: true,
+            width: 950,
+            height: 500,
+            layout: 'fit',
+            items: [{
+                    xtype: 'grid',
+                    store: itemsStore,
+                    columns: [
+                        {header: 'CIP', dataIndex: 'str_FAMILLE_CIP', width: 110},
+                        {header: 'Article', dataIndex: 'str_FAMILLE_NAME', flex: 2},
+                        {header: 'Stock', dataIndex: 'int_STOCK', width: 70, align: 'right'},
+                        {header: 'Seuil', dataIndex: 'int_SEUIL', width: 70, align: 'right'},
+                        {header: 'Qté suggérée', dataIndex: 'int_NUMBER', width: 100, align: 'right'},
+                        {header: 'Prix achat', dataIndex: 'int_PAF_SUGG', width: 90, align: 'right',
+                            renderer: amountformat},
+                        {header: 'Prix vente', dataIndex: 'lg_FAMILLE_PRIX_VENTE', width: 90, align: 'right',
+                            renderer: amountformat}
+                    ],
+                    tbar: [{
+                            xtype: 'textfield',
+                            emptyText: 'Filtrer par CIP ou nom...',
+                            width: 280,
+                            listeners: {
+                                specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        itemsStore.getProxy().setExtraParam('query', f.getValue());
+                                        itemsStore.loadPage(1);
+                                    }
+                                }
+                            }
+                        }],
+                    bbar: {
+                        xtype: 'pagingtoolbar',
+                        store: itemsStore,
+                        displayInfo: true
+                    }
+                }]
+        }).show();
+    },
+
     // Diagnostic : pourquoi un produit (tous statuts confondus) n'est-il pas suggéré en suggestion auto ?
     onDiagnosticClick: function () {
         const diagStore = new Ext.data.Store({
@@ -557,6 +635,39 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
             diagStore.getProxy().setExtraParam('manques', '1');
             diagStore.loadPage(1);
         };
+        const me = this;
+        // création de suggestion depuis le diagnostic : sélection cochée, ou tous les produits sans blocage
+        const doCreerSuggestion = function (grid) {
+            const ids = [];
+            Ext.Array.each(grid.getSelectionModel().getSelection(), function (record) {
+                ids.push(record.get('lg_FAMILLE_ID'));
+            });
+            const scopeMsg = ids.length > 0
+                    ? ids.length + ' produit(s) sélectionné(s)'
+                    : 'TOUS les produits au seuil non suggérés (les produits bloqués seront ignorés)';
+            Ext.MessageBox.confirm('Créer suggestion',
+                    'Créer/alimenter la suggestion auto pour ' + scopeMsg + ' ?', function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+                Ext.Ajax.request({
+                    url: '../api/v1/suggestion/diagnostic/creer',
+                    method: 'POST',
+                    jsonData: ids,
+                    success: function (response) {
+                        const result = Ext.decode(response.responseText, true) || {};
+                        Ext.MessageBox.alert('Créer suggestion',
+                                (result.count || 0) + ' produit(s) ajouté(s) en suggestion sur '
+                                + (result.traites || 0) + ' traité(s)');
+                        diagStore.reload();
+                        me.getStore().reload();
+                    },
+                    failure: function () {
+                        Ext.MessageBox.alert('Créer suggestion', 'L\'opération a échoué');
+                    }
+                });
+            });
+        };
         Ext.create('Ext.window.Window', {
             title: 'Diagnostic suggestion — pourquoi ce produit n\'est-il pas suggéré ?',
             modal: true,
@@ -566,6 +677,11 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
             items: [{
                     xtype: 'grid',
                     store: diagStore,
+                    selModel: {
+                        selType: 'checkboxmodel',
+                        mode: 'SIMPLE',
+                        checkOnly: true
+                    },
                     columns: [
                         {header: 'CIP', dataIndex: 'int_CIP', width: 110},
                         {header: 'Article', dataIndex: 'str_NAME', flex: 2},
@@ -601,6 +717,13 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             text: 'Produits au seuil non suggérés',
                             tooltip: 'Lister tous les produits dont le stock a atteint le seuil et qui ne figurent dans aucune suggestion auto active, avec la cause',
                             handler: doManques
+                        }, '->', {
+                            text: 'Créer suggestion',
+                            iconCls: 'suggestionreapro',
+                            tooltip: 'Créer/alimenter la suggestion auto pour les produits cochés, ou pour tous les produits au seuil non suggérés si rien n\'est coché (les produits bloqués sont ignorés)',
+                            handler: function (btn) {
+                                doCreerSuggestion(btn.up('grid'));
+                            }
                         }],
                     bbar: {
                         xtype: 'pagingtoolbar',

@@ -974,6 +974,49 @@ public class SuggestionImpl implements SuggestionService {
         return new JSONObject().put("success", true).put("total", qCount.getSingleResult()).put("results", results);
     }
 
+    /**
+     * Crée/alimente la suggestion auto pour les produits donnés (ou, si la liste est vide, pour TOUS les produits au
+     * seuil absents de toute suggestion auto active). Chaque produit repasse par proccessSuggetion, donc par les mêmes
+     * contrôles que la suggestion déclenchée par une vente : seuls les produits sans blocage sont ajoutés.
+     */
+    @Override
+    public JSONObject creerSuggestionDepuisDiagnostic(List<String> famillesIds) throws JSONException {
+        TEmplacement emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+        List<TFamille> familles = new ArrayList<>();
+        if (famillesIds != null && !famillesIds.isEmpty()) {
+            for (String id : famillesIds) {
+                TFamille famille = getEmg().find(TFamille.class, id);
+                if (famille != null) {
+                    familles.add(famille);
+                }
+            }
+        } else {
+            TypedQuery<TFamille> q = getEmg().createQuery("SELECT f FROM TFamilleStock s JOIN s.lgFAMILLEID f"
+                    + " WHERE s.strSTATUT = ?1 AND s.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2"
+                    + " AND f.intSEUILMIN IS NOT NULL AND s.intNUMBERAVAILABLE <= f.intSEUILMIN"
+                    + " AND NOT EXISTS (SELECT d FROM TSuggestionOrderDetails d WHERE d.lgFAMILLEID = f"
+                    + " AND (d.strSTATUT = ?3 OR d.strSTATUT = ?4) AND d.lgSUGGESTIONORDERID.strSTATUT = ?3)"
+                    + " ORDER BY f.strNAME", TFamille.class);
+            q.setParameter(1, STATUT_ENABLE);
+            q.setParameter(2, emplacement.getLgEMPLACEMENTID());
+            q.setParameter(3, STATUT_AUTO);
+            q.setParameter(4, STATUT_IS_PROGRESS);
+            familles = q.getResultList();
+        }
+        int ajoutes = 0;
+        for (TFamille famille : familles) {
+            try {
+                proccessSuggetion(famille, emplacement);
+                if (verifierProduitDansSuggestion(famille) == 1) {
+                    ajoutes++;
+                }
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "creerSuggestionDepuisDiagnostic " + famille.getLgFAMILLEID(), e);
+            }
+        }
+        return new JSONObject().put("success", true).put("count", ajoutes).put("traites", familles.size());
+    }
+
     private JSONObject buildDiagnosticProduit(TFamille famille, TEmplacement emplacement) throws JSONException {
         TFamilleStock stock = findStock(famille.getLgFAMILLEID(), emplacement);
         Integer stockDispo = stock != null ? stock.getIntNUMBERAVAILABLE() : null;

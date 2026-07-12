@@ -190,6 +190,18 @@ public class SuggestionRessource {
                 .build();
     }
 
+    /**
+     * Crée/alimente la suggestion auto pour les produits donnés (liste d'identifiants), ou pour tous les produits au
+     * seuil non suggérés si la liste est vide. Les produits bloqués sont ignorés (mêmes contrôles que la vente).
+     */
+    @POST
+    @Path("diagnostic/creer")
+    public Response creerDepuisDiagnostic(List<String> famillesIds) throws JSONException {
+
+        return Response.ok().entity(this.suggestionService.creerSuggestionDepuisDiagnostic(famillesIds).toString())
+                .build();
+    }
+
     @GET
     @Path("set-pending/{id}")
     public Response setToPending(@PathParam("id") String id) throws JSONException {

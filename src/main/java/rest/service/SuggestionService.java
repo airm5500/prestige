@@ -66,6 +66,8 @@ public interface SuggestionService {
 
     JSONObject diagnosticManques(int start, int limit) throws JSONException;
 
+    JSONObject creerSuggestionDepuisDiagnostic(List<String> famillesIds) throws JSONException;
+
     void makeSuggestionAuto(List<TPreenregistrementDetail> list, TEmplacement emplacementId);
 
     JSONObject fetchItems(String orderId, String search, int start, int limit);
