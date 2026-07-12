@@ -857,15 +857,20 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                 store: store_inventaire_famille,
                                 displayInfo: true,
                                 plugins: new Ext.ux.ProgressBarPager(),
-                                items: ['-', {
+                                /* la case est placee AVANT les controles de pagination : a droite
+                                 * elle se superposait a la barre de progression du pager, ce qui
+                                 * rendait la coche aleatoire */
+                                prependButtons: true,
+                                items: [{
                                         /* si coche, le stock machine apparait a l'impression de la
                                          * fiche ET de la liste des ecarts (meme comportement que le
                                          * privilege 'Affiche colonne stock machine lors de l'inventaire') */
                                         xtype: 'checkboxfield',
                                         id: 'chk_show_stock_print',
                                         boxLabel: '<span style="color:#0000CC;font-weight:bold;">Afficher stock</span>',
-                                        checked: false
-                                    }],
+                                        checked: false,
+                                        margin: '0 8 0 4'
+                                    }, '-'],
                                 listeners: {
 
                                     change: function (item, layout) {
