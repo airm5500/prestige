@@ -1,6 +1,6 @@
 <%-- 
     Document   : ws_rp_print_all_invoices
-    Created on : 8 dï¿½c. 2015, 10:21:33
+    Created on : 8 déc. 2015, 10:21:33
     Author     : KKOFFI
 --%>
 
@@ -99,22 +99,22 @@
         invoicesToPrint = new HashMap<>();
     }
 
-    /* les factures ï¿½ imprimer */
+    /* les factures à imprimer */
     long P_ATT_AMOUNTGROUPE = 0l;
     String P_FOOTER_RC = "";
 
     if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-        P_FOOTER_RC += "RC Nï¿½ " + oTOfficine.getStrREGISTRECOMMERCE();
+        P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
     }
 
     if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-        P_FOOTER_RC += " - CC Nï¿½ " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+        P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
     }
     if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Rï¿½gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+        P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
     }
     if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Centre des Impï¿½ts: " + oTOfficine.getStrCENTREIMPOSITION();
+        P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
     }
 
     if (oTOfficine.getStrPHONE() != null) {
@@ -133,7 +133,7 @@
         P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
     }
     if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-        P_INSTITUTION_ADRESSE += " - CPT Nï¿½: " + oTOfficine.getStrNUMCOMPTABLE();
+        P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
     }
     Map parameters = new HashMap();
     parameters.put("P_H_LOGO", P_H_LOGO);
@@ -193,7 +193,7 @@
         OreportManager.BuildReport(parameters, Ojconnexion);
         inputPdfList.add(new FileInputStream(jdom.scr_report_pdf + footer));
 
-        String CODEFATUREGROUPE = "FACTURE Nï¿½ :";
+        String CODEFATUREGROUPE = "FACTURE N° :";
         parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS);
         LongAdder count = new LongAdder();
         for (TFacture OFacture : factures) {
@@ -219,15 +219,15 @@
 
             parameters.put("P_LG_FACTURE_ID", OFacture.getLgFACTUREID());
             parameters.put("P_LG_TIERS_PAYANT_ID", OTiersPayant.getLgTIERSPAYANTID());
-            parameters.put("P_CODE_FACTURE", "FACTURE Nï¿½ " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
+            parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
             parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
 
             // parameters.put("P_NUMBERPERPAGE", 12);
             parameters.put("P_CODE_POSTALE", util.StringUtils.normalizePhone(OTiersPayant.getStrADRESSE()));
-            parameters.put("P_COMPTE_CONTRIBUABLE", (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE())) ? "N ï¿½ CC :" + OTiersPayant.getStrCOMPTECONTRIBUABLE() : "");
-            parameters.put("P_CODE_OFFICINE", (OTiersPayant.getStrCODEOFFICINE() != null && !"".equals(OTiersPayant.getStrCODEOFFICINE())) ? "N ï¿½ CO :" + OTiersPayant.getStrCODEOFFICINE() : "");
-            parameters.put("P_REGISTRE_COMMERCE", (OTiersPayant.getStrREGISTRECOMMERCE() != null && !"".equals(OTiersPayant.getStrREGISTRECOMMERCE())) ? "N ï¿½ RC :" + OTiersPayant.getStrREGISTRECOMMERCE() : "");
+            parameters.put("P_COMPTE_CONTRIBUABLE", (OTiersPayant.getStrCOMPTECONTRIBUABLE() != null && !"".equals(OTiersPayant.getStrCOMPTECONTRIBUABLE())) ? "N ° CC :" + OTiersPayant.getStrCOMPTECONTRIBUABLE() : "");
+            parameters.put("P_CODE_OFFICINE", (OTiersPayant.getStrCODEOFFICINE() != null && !"".equals(OTiersPayant.getStrCODEOFFICINE())) ? "N ° CO :" + OTiersPayant.getStrCODEOFFICINE() : "");
+            parameters.put("P_REGISTRE_COMMERCE", (OTiersPayant.getStrREGISTRECOMMERCE() != null && !"".equals(OTiersPayant.getStrREGISTRECOMMERCE())) ? "N ° RC :" + OTiersPayant.getStrREGISTRECOMMERCE() : "");
             /* fin du recap */
             if (recapParam != null && Integer.valueOf(recapParam.getStrVALUE()) == 1) {
                 OreportManager.BuildReport(parameters, Ojconnexion);
