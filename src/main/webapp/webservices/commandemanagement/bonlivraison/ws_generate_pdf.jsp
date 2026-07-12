@@ -102,7 +102,7 @@
 
     TOfficine oTOfficine = obllBase.getOdataManager().getEm().find(dal.TOfficine.class, "1");
 
-    // Rï¿½cupï¿½ration des paramï¿½tres
+    // Récupération des paramètres
     // Entete
     String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
     String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();

@@ -82,7 +82,7 @@
     String str_tp_infos = "", P_CLIENT = "";
     int total_devis = 0;
     P_CLIENT = (oTPreenregistrement.getStrNUMEROSECURITESOCIAL() != null && !oTPreenregistrement.getStrNUMEROSECURITESOCIAL().equalsIgnoreCase("") ? oTPreenregistrement.getStrNUMEROSECURITESOCIAL() + " | " : "") + oTPreenregistrement.getStrFIRSTNAMECUSTOMER() + " " + oTPreenregistrement.getStrLASTNAMECUSTOMER();
-    P_H_CLT_INFOS = "Proforma Nï¿½ " + oTPreenregistrement.getStrREF();
+    P_H_CLT_INFOS = "Proforma N° " + oTPreenregistrement.getStrREF();
     total_devis = oTPreenregistrement.getIntPRICE() - oTPreenregistrement.getIntPRICEREMISE();
     
 
@@ -124,17 +124,17 @@
     String P_FOOTER_RC = "";
 
     if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-        P_FOOTER_RC += "RC Nï¿½ " + oTOfficine.getStrREGISTRECOMMERCE();
+        P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
     }
 
     if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-        P_FOOTER_RC += " - CC Nï¿½ " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+        P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
     }
     if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Rï¿½gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+        P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
     }
     if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Centre des Impï¿½ts: " + oTOfficine.getStrCENTREIMPOSITION();
+        P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
     }
 
     if (oTOfficine.getStrPHONE() != null) {
@@ -144,7 +144,7 @@
         P_INSTITUTION_ADRESSE += " - Compte Bancaire: " + oTOfficine.getStrCOMPTEBANCAIRE();
     }
     if (oTOfficine.getStrNUMCOMPTABLE() != null) {
-        P_INSTITUTION_ADRESSE += " - CPT Nï¿½: " + oTOfficine.getStrNUMCOMPTABLE();
+        P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
     }
 
     parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
