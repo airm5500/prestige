@@ -944,6 +944,36 @@ public class SuggestionImpl implements SuggestionService {
         return new JSONObject().put("success", true).put("total", qCount.getSingleResult()).put("results", results);
     }
 
+    /**
+     * Liste des produits « ayant raté la suggestion auto » : stock au seuil (ou en dessous) et absents de toute
+     * suggestion auto active, avec la cause pour chacun (bloqué par commande, grossiste manquant, produit inactif… ou
+     * aucun blocage : simplement en attente de la prochaine vente).
+     */
+    @Override
+    public JSONObject diagnosticManques(int start, int limit) throws JSONException {
+        TEmplacement emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+        String base = " FROM TFamilleStock s JOIN s.lgFAMILLEID f WHERE s.strSTATUT = ?1"
+                + " AND s.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND f.intSEUILMIN IS NOT NULL"
+                + " AND s.intNUMBERAVAILABLE <= f.intSEUILMIN"
+                + " AND NOT EXISTS (SELECT d FROM TSuggestionOrderDetails d WHERE d.lgFAMILLEID = f"
+                + " AND (d.strSTATUT = ?3 OR d.strSTATUT = ?4) AND d.lgSUGGESTIONORDERID.strSTATUT = ?3)";
+        TypedQuery<TFamille> q = getEmg().createQuery("SELECT f" + base + " ORDER BY f.strNAME", TFamille.class);
+        TypedQuery<Long> qCount = getEmg().createQuery("SELECT COUNT(f)" + base, Long.class);
+        for (TypedQuery<?> query : new TypedQuery<?>[] { q, qCount }) {
+            query.setParameter(1, STATUT_ENABLE);
+            query.setParameter(2, emplacement.getLgEMPLACEMENTID());
+            query.setParameter(3, STATUT_AUTO);
+            query.setParameter(4, STATUT_IS_PROGRESS);
+        }
+        q.setFirstResult(start);
+        q.setMaxResults(limit);
+        JSONArray results = new JSONArray();
+        for (TFamille famille : q.getResultList()) {
+            results.put(buildDiagnosticProduit(famille, emplacement));
+        }
+        return new JSONObject().put("success", true).put("total", qCount.getSingleResult()).put("results", results);
+    }
+
     private JSONObject buildDiagnosticProduit(TFamille famille, TEmplacement emplacement) throws JSONException {
         TFamilleStock stock = findStock(famille.getLgFAMILLEID(), emplacement);
         Integer stockDispo = stock != null ? stock.getIntNUMBERAVAILABLE() : null;

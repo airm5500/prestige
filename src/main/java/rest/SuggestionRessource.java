@@ -178,9 +178,14 @@ public class SuggestionRessource {
     @GET
     @Path("diagnostic")
     public Response diagnostic(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "query") String query) throws JSONException {
+            @QueryParam(value = "query") String query, @QueryParam(value = "manques") String manques)
+            throws JSONException {
 
         int pageSize = limit > 0 ? limit : 20;
+        // manques=1 : liste des produits au seuil absents de toute suggestion auto active, avec la cause
+        if ("1".equals(manques) || "true".equals(manques)) {
+            return Response.ok().entity(this.suggestionService.diagnosticManques(start, pageSize).toString()).build();
+        }
         return Response.ok().entity(this.suggestionService.diagnosticProduit(query, start, pageSize).toString())
                 .build();
     }

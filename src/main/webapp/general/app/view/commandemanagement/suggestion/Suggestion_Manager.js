@@ -547,7 +547,14 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
         });
         const doSearch = function () {
             const field = Ext.getCmp('diagProduitSearch');
+            diagStore.getProxy().setExtraParam('manques', '');
             diagStore.getProxy().setExtraParam('query', field ? field.getValue() : '');
+            diagStore.loadPage(1);
+        };
+        // liste serveur des produits au seuil absents de toute suggestion auto active
+        const doManques = function () {
+            diagStore.getProxy().setExtraParam('query', '');
+            diagStore.getProxy().setExtraParam('manques', '1');
             diagStore.loadPage(1);
         };
         Ext.create('Ext.window.Window', {
@@ -590,6 +597,10 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             text: 'rechercher',
                             iconCls: 'searchicon',
                             handler: doSearch
+                        }, '-', {
+                            text: 'Produits au seuil non suggérés',
+                            tooltip: 'Lister tous les produits dont le stock a atteint le seuil et qui ne figurent dans aucune suggestion auto active, avec la cause',
+                            handler: doManques
                         }],
                     bbar: {
                         xtype: 'pagingtoolbar',
