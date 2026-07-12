@@ -1,7 +1,6 @@
 package rest.service.utils;
 
 import bll.entity.EntityData;
-import bll.teller.SnapshotManager;
 import bll.warehouse.WarehouseManager;
 import commonTasks.dto.ArticleDTO;
 import dal.TAjustementDetail;
@@ -24,7 +23,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.persistence.TemporalType;
 import javax.persistence.TypedQuery;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -217,26 +215,32 @@ public final class StockMovementDataHelper implements AutoCloseable {
         String grossisteId = likeParam(filter.getGrossisteId());
         String familleArticleId = likeParam(filter.getFamilleArticleId());
         String zoneGeoId = likeParam(filter.getZoneGeoId());
-        Date[] periode = resolvePeriode(filter.getDateDebut(), filter.getDateFin());
-        Date dtDebut = periode[0];
-        Date dtFin = periode[1];
+        boolean noDates = isEmptyIso(filter.getDateDebut()) && isEmptyIso(filter.getDateFin());
+        // gros volumes (ventes, entrées, agrégat Tous) : défaut « aujourd'hui » si aucune date fournie (performance)
+        Date dtDebut = isEmptyIso(filter.getDateDebut()) ? atTime(new Date(), 0, 0, 0)
+                : dayStart(filter.getDateDebut());
+        Date dtFin = isEmptyIso(filter.getDateFin()) ? atTime(new Date(), 23, 59, 59) : dayEnd(filter.getDateFin());
+        // petites tables (retours, périmés, ajustements) : aucune date => tout l'historique, pour ne pas masquer
+        // une saisie faite un autre jour
+        Date smallDebut = noDates ? null : dtDebut;
+        Date smallFin = noDates ? null : dtFin;
 
         try {
             switch (type) {
             case TYPE_TOUS:
                 return fetchTous(filter, search, dtDebut, dtFin, all, start, limit);
             case TYPE_PERIME:
-                return fetchPerimes(search, grossisteId, familleArticleId, zoneGeoId, dtDebut, dtFin, all, start,
+                return fetchPerimes(search, grossisteId, familleArticleId, zoneGeoId, smallDebut, smallFin, all, start,
                         limit);
             case TYPE_RETOURFOURNISSEUR:
-                return fetchRetours(search, grossisteId, familleArticleId, zoneGeoId, dtDebut, dtFin, all, start,
+                return fetchRetours(search, grossisteId, familleArticleId, zoneGeoId, smallDebut, smallFin, all, start,
                         limit);
             case TYPE_VENTE:
                 return fetchVentes(search, filter.getGrossisteId(), familleArticleId, zoneGeoId, dtDebut, dtFin, all,
                         start, limit);
             case TYPE_AJUSTEMENT:
                 return fetchAjustements(search, filter.getGrossisteId(), filter.getFamilleArticleId(),
-                        filter.getZoneGeoId(), dtDebut, dtFin, all, start, limit);
+                        filter.getZoneGeoId(), smallDebut, smallFin, all, start, limit);
             case TYPE_ENTREESTOCK:
             default:
                 return fetchEntrees(search, grossisteId, familleArticleId, zoneGeoId, dtDebut, dtFin, all, start,
@@ -336,37 +340,47 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // grossiste (t.lgGROSSISTEID.lgGROSSISTEID LIKE ...), or une saisie de périmés ne renseigne jamais
         // lgGROSSISTEID -> toutes les saisies (même validées) étaient exclues. Ici le grossiste n'est joint que
         // s'il est explicitement filtré. Statut = "delete" (périmé validé, mouvement de stock effectif).
-        StringBuilder jpql = new StringBuilder("SELECT t FROM TWarehouse t WHERE t.strSTATUT = ?1"
-                + " AND ( FUNCTION('DATE', t.dtUPDATED) >= FUNCTION('DATE', ?2)"
-                + " AND FUNCTION('DATE', t.dtUPDATED) <= FUNCTION('DATE', ?3) )"
-                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?4 OR t.lgFAMILLEID.intCIP LIKE ?4"
-                + " OR t.lgFAMILLEID.strNAME LIKE ?4 OR t.lgFAMILLEID.intEAN13 LIKE ?4)");
+        // Bornes de dates en comparaison directe sur la colonne (pas de FUNCTION('DATE', ...) qui empêcherait
+        // l'usage de l'index). Bornes optionnelles : si nulles, aucune restriction (tout l'historique).
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TWarehouse t WHERE t.strSTATUT = :statut"
+                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)");
+        if (dtDebut != null) {
+            jpql.append(" AND t.dtUPDATED >= :debut");
+        }
+        if (dtFin != null) {
+            jpql.append(" AND t.dtUPDATED <= :fin");
+        }
         boolean hasGrossiste = isSet(grossisteId);
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
         if (hasGrossiste) {
-            jpql.append(" AND t.lgGROSSISTEID.lgGROSSISTEID = ?5");
+            jpql.append(" AND t.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
         }
         if (hasFamilleArticle) {
-            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = ?6");
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = ?7");
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
         }
         jpql.append(" ORDER BY t.dtUPDATED DESC");
         TypedQuery<TWarehouse> q = odataManager.getEm().createQuery(jpql.toString(), TWarehouse.class);
-        q.setParameter(1, Constant.STATUT_DELETE);
-        q.setParameter(2, dtDebut, TemporalType.DATE);
-        q.setParameter(3, dtFin, TemporalType.DATE);
-        q.setParameter(4, (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
+        q.setParameter("statut", Constant.STATUT_DELETE);
+        q.setParameter("search", (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
+        if (dtDebut != null) {
+            q.setParameter("debut", dtDebut);
+        }
+        if (dtFin != null) {
+            q.setParameter("fin", dtFin);
+        }
         if (hasGrossiste) {
-            q.setParameter(5, grossisteId.trim());
+            q.setParameter("grossiste", grossisteId.trim());
         }
         if (hasFamilleArticle) {
-            q.setParameter(6, familleArticleId.trim());
+            q.setParameter("famArt", familleArticleId.trim());
         }
         if (hasZoneGeo) {
-            q.setParameter(7, zoneGeoId.trim());
+            q.setParameter("zone", zoneGeoId.trim());
         }
         List<TWarehouse> datas = q.getResultList();
         List<JSONObject> rows = new ArrayList<>();
@@ -400,41 +414,48 @@ public final class StockMovementDataHelper implements AutoCloseable {
         // Requête dédiée : l'ancienne listTRetourFournisseurDetail (9 args) restreignait aux retours validés
         // (statut enable) ET à l'emplacement de l'utilisateur qui consulte, masquant les retours saisis
         // (is_Process) ou faits depuis un autre emplacement. Ici : tous les retours actifs, sans filtre emplacement.
+        // Bornes de dates directes sur la colonne (index) et optionnelles (nulles = tout l'historique). Aucun filtre
+        // de statut : un retour à peine saisi (is_Process) ou non validé en avoir doit rester visible. Aucun filtre
+        // d'emplacement non plus.
         StringBuilder jpql = new StringBuilder("SELECT t FROM TRetourFournisseurDetail t WHERE"
-                + " ( FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) >= FUNCTION('DATE', ?1)"
-                + " AND FUNCTION('DATE', t.lgRETOURFRSID.dtCREATED) <= FUNCTION('DATE', ?2) )"
-                + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?3 OR t.lgFAMILLEID.intCIP LIKE ?3"
-                + " OR t.lgFAMILLEID.strNAME LIKE ?3 OR t.lgFAMILLEID.intEAN13 LIKE ?3)"
-                + " AND t.lgRETOURFRSID.strSTATUT IN (?4, ?5, ?6)");
+                + " (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)");
+        if (dtDebut != null) {
+            jpql.append(" AND t.lgRETOURFRSID.dtCREATED >= :debut");
+        }
+        if (dtFin != null) {
+            jpql.append(" AND t.lgRETOURFRSID.dtCREATED <= :fin");
+        }
         boolean hasGrossiste = isSet(grossisteId);
         boolean hasFamilleArticle = isSet(familleArticleId);
         boolean hasZoneGeo = isSet(zoneGeoId);
         if (hasGrossiste) {
-            jpql.append(" AND t.lgRETOURFRSID.lgGROSSISTEID.lgGROSSISTEID = ?7");
+            jpql.append(" AND t.lgRETOURFRSID.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
         }
         if (hasFamilleArticle) {
-            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = ?8");
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = ?9");
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
         }
         jpql.append(" ORDER BY t.lgRETOURFRSID.dtCREATED DESC");
         TypedQuery<TRetourFournisseurDetail> q = odataManager.getEm().createQuery(jpql.toString(),
                 TRetourFournisseurDetail.class);
-        q.setParameter(1, dtDebut, TemporalType.DATE);
-        q.setParameter(2, dtFin, TemporalType.DATE);
-        q.setParameter(3, (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
-        q.setParameter(4, Constant.STATUT_IS_PROGRESS);
-        q.setParameter(5, Constant.STATUT_ENABLE);
-        q.setParameter(6, Constant.STATUT_IS_CLOSED);
+        q.setParameter("search", (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
+        if (dtDebut != null) {
+            q.setParameter("debut", dtDebut);
+        }
+        if (dtFin != null) {
+            q.setParameter("fin", dtFin);
+        }
         if (hasGrossiste) {
-            q.setParameter(7, grossisteId.trim());
+            q.setParameter("grossiste", grossisteId.trim());
         }
         if (hasFamilleArticle) {
-            q.setParameter(8, familleArticleId.trim());
+            q.setParameter("famArt", familleArticleId.trim());
         }
         if (hasZoneGeo) {
-            q.setParameter(9, zoneGeoId.trim());
+            q.setParameter("zone", zoneGeoId.trim());
         }
         List<TRetourFournisseurDetail> datas = q.getResultList();
         List<JSONObject> rows = new ArrayList<>();
@@ -464,14 +485,51 @@ public final class StockMovementDataHelper implements AutoCloseable {
     // grossiste par défaut du produit (TFamille.lgGROSSISTEID), une vente n'ayant pas de grossiste direct ---
     private Rows fetchVentes(String search, String grossisteId, String familleArticleId, String zoneGeoId, Date dtDebut,
             Date dtFin, boolean all, int start, int limit) throws JSONException {
-        SnapshotManager snapshotManager = new SnapshotManager(odataManager, user);
-        List<TPreenregistrementDetail> datas = snapshotManager.listTPreenregistrementDetail(search, dtDebut, dtFin,
-                MATCH_ALL, MATCH_ALL, MATCH_ALL, MATCH_ALL, familleArticleId, zoneGeoId);
-        if (grossisteId != null && !grossisteId.trim().isEmpty()) {
+        // Requête dédiée index-friendly : l'ancienne listTPreenregistrementDetail enveloppait la date dans
+        // FUNCTION('DATE', ...), empêchant l'usage de l'index (lenteur observée). JOIN FETCH de la vente et du
+        // produit pour éviter le N+1. Statut is_Closed = vente clôturée (mouvement de stock effectif). Le filtre
+        // grossiste reste appliqué en mémoire via le grossiste par défaut du produit.
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TPreenregistrementDetail t"
+                + " JOIN FETCH t.lgPREENREGISTREMENTID p JOIN FETCH t.lgFAMILLEID f WHERE p.strSTATUT = :statut"
+                + " AND (f.strDESCRIPTION LIKE :search OR f.intCIP LIKE :search OR f.strNAME LIKE :search"
+                + " OR f.intEAN13 LIKE :search)");
+        if (dtDebut != null) {
+            jpql.append(" AND p.dtUPDATED >= :debut");
+        }
+        if (dtFin != null) {
+            jpql.append(" AND p.dtUPDATED <= :fin");
+        }
+        boolean hasFamilleArticle = isSet(familleArticleId);
+        boolean hasZoneGeo = isSet(zoneGeoId);
+        if (hasFamilleArticle) {
+            jpql.append(" AND f.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
+        }
+        if (hasZoneGeo) {
+            jpql.append(" AND f.lgZONEGEOID.lgZONEGEOID = :zone");
+        }
+        jpql.append(" ORDER BY p.dtUPDATED DESC");
+        TypedQuery<TPreenregistrementDetail> q = odataManager.getEm().createQuery(jpql.toString(),
+                TPreenregistrementDetail.class);
+        q.setParameter("statut", Constant.STATUT_IS_CLOSED);
+        q.setParameter("search", (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
+        if (dtDebut != null) {
+            q.setParameter("debut", dtDebut);
+        }
+        if (dtFin != null) {
+            q.setParameter("fin", dtFin);
+        }
+        if (hasFamilleArticle) {
+            q.setParameter("famArt", familleArticleId.trim());
+        }
+        if (hasZoneGeo) {
+            q.setParameter("zone", zoneGeoId.trim());
+        }
+        List<TPreenregistrementDetail> datas = q.getResultList();
+        if (isSet(grossisteId)) {
             List<TPreenregistrementDetail> filtered = new ArrayList<>();
             for (TPreenregistrementDetail elem : datas) {
                 if (elem.getLgFAMILLEID().getLgGROSSISTEID() != null
-                        && grossisteId.equals(elem.getLgFAMILLEID().getLgGROSSISTEID().getLgGROSSISTEID())) {
+                        && grossisteId.trim().equals(elem.getLgFAMILLEID().getLgGROSSISTEID().getLgGROSSISTEID())) {
                     filtered.add(elem);
                 }
             }
@@ -503,38 +561,46 @@ public final class StockMovementDataHelper implements AutoCloseable {
     // --- AJUSTEMENT : nouveau type, requête dédiée sur les détails d'ajustement ---
     private Rows fetchAjustements(String search, String grossisteId, String familleArticleId, String zoneGeoId,
             Date dtDebut, Date dtFin, boolean all, int start, int limit) throws JSONException {
-        StringBuilder jpql = new StringBuilder(
-                "SELECT t FROM TAjustementDetail t WHERE ( FUNCTION('DATE', t.dtUPDATED) >= FUNCTION('DATE', ?3)"
-                        + " AND FUNCTION('DATE', t.dtUPDATED) <= FUNCTION('DATE', ?4) )"
-                        + " AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?1 OR t.lgFAMILLEID.intCIP LIKE ?1"
-                        + " OR t.lgFAMILLEID.strNAME LIKE ?1 OR t.lgFAMILLEID.intEAN13 LIKE ?1)"
-                        + " AND t.lgAJUSTEMENTID.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = ?5");
-        boolean hasGrossiste = grossisteId != null && !grossisteId.trim().isEmpty();
-        boolean hasFamilleArticle = familleArticleId != null && !familleArticleId.trim().isEmpty();
-        boolean hasZoneGeo = zoneGeoId != null && !zoneGeoId.trim().isEmpty();
+        StringBuilder jpql = new StringBuilder("SELECT t FROM TAjustementDetail t WHERE"
+                + " (t.lgFAMILLEID.strDESCRIPTION LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search"
+                + " OR t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intEAN13 LIKE :search)"
+                + " AND t.lgAJUSTEMENTID.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = :emplacement");
+        if (dtDebut != null) {
+            jpql.append(" AND t.dtUPDATED >= :debut");
+        }
+        if (dtFin != null) {
+            jpql.append(" AND t.dtUPDATED <= :fin");
+        }
+        boolean hasGrossiste = isSet(grossisteId);
+        boolean hasFamilleArticle = isSet(familleArticleId);
+        boolean hasZoneGeo = isSet(zoneGeoId);
         if (hasGrossiste) {
-            jpql.append(" AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID = ?6");
+            jpql.append(" AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
         }
         if (hasFamilleArticle) {
-            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = ?7");
+            jpql.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famArt");
         }
         if (hasZoneGeo) {
-            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = ?8");
+            jpql.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
         }
         jpql.append(" ORDER BY t.dtUPDATED DESC");
         TypedQuery<TAjustementDetail> q = odataManager.getEm().createQuery(jpql.toString(), TAjustementDetail.class);
-        q.setParameter(1, (search.isEmpty() ? MATCH_ALL : search) + "%");
-        q.setParameter(3, dtDebut, TemporalType.DATE);
-        q.setParameter(4, dtFin, TemporalType.DATE);
-        q.setParameter(5, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        q.setParameter("search", (search == null || search.isEmpty() ? MATCH_ALL : search) + "%");
+        q.setParameter("emplacement", user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        if (dtDebut != null) {
+            q.setParameter("debut", dtDebut);
+        }
+        if (dtFin != null) {
+            q.setParameter("fin", dtFin);
+        }
         if (hasGrossiste) {
-            q.setParameter(6, grossisteId.trim());
+            q.setParameter("grossiste", grossisteId.trim());
         }
         if (hasFamilleArticle) {
-            q.setParameter(7, familleArticleId.trim());
+            q.setParameter("famArt", familleArticleId.trim());
         }
         if (hasZoneGeo) {
-            q.setParameter(8, zoneGeoId.trim());
+            q.setParameter("zone", zoneGeoId.trim());
         }
         List<TAjustementDetail> datas = q.getResultList();
         List<JSONObject> rows = new ArrayList<>();
@@ -600,22 +666,6 @@ public final class StockMovementDataHelper implements AutoCloseable {
         return array;
     }
 
-    /**
-     * Bornes inclusives de la période : dateDebut à 00:00:00 et dateFin à 23:59:59 ; les deux valent aujourd'hui si
-     * absentes (comportement des JSP historiques).
-     */
-    private Date[] resolvePeriode(String dateDebut, String dateFin) {
-        Date debut = parseIso(dateDebut);
-        Date fin = parseIso(dateFin);
-        if (debut == null) {
-            debut = new Date();
-        }
-        if (fin == null) {
-            fin = new Date();
-        }
-        return new Date[] { atTime(debut, 0, 0, 0), atTime(fin, 23, 59, 59) };
-    }
-
     private Date parseIso(String value) {
         if (value == null || value.trim().isEmpty()) {
             return null;
@@ -625,6 +675,22 @@ public final class StockMovementDataHelper implements AutoCloseable {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static boolean isEmptyIso(String value) {
+        return value == null || value.trim().isEmpty();
+    }
+
+    // borne basse (00:00:00) d'une date ISO, ou null si absente
+    private Date dayStart(String iso) {
+        Date d = parseIso(iso);
+        return d == null ? null : atTime(d, 0, 0, 0);
+    }
+
+    // borne haute (23:59:59) d'une date ISO, ou null si absente
+    private Date dayEnd(String iso) {
+        Date d = parseIso(iso);
+        return d == null ? null : atTime(d, 23, 59, 59);
     }
 
     private static Date atTime(Date day, int hour, int minute, int second) {
