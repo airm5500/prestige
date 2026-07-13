@@ -3238,6 +3238,22 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     goBack: function () {
         const me = this;
+        // Abandon d'une modification de vente clôturée : la copie en attente est supprimée pour ne pas
+        // laisser traîner une vente orpheline qu'un autre utilisateur pourrait reprendre et clôturer.
+        // (Le bouton ATTENTE reste le moyen de conserver volontairement la copie.)
+        if (me.getCategorie() === 'COPY' && me.current && me.current.lgPREENREGISTREMENTID) {
+            const copieId = me.current.lgPREENREGISTREMENTID;
+            Ext.Ajax.request({
+                method: 'DELETE',
+                url: '../api/v1/vente/copie/' + copieId,
+                callback: function () {
+                    me.resetAll();
+                    testextjs.app.getController('App')
+                            .onLoadNewComponentWithDataSource('cloturerventemanager', "", "", "");
+                }
+            });
+            return;
+        }
         me.resetAll();
         let xtype = 'cloturerventemanager';
         if (me.getCategorie() === 'PREVENTE') {

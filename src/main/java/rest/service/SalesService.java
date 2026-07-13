@@ -91,6 +91,8 @@ public interface SalesService {
 
     JSONObject modificationVenteCloturee(String venteId);
 
+    JSONObject supprimerCopieVente(String venteId) throws JSONException;
+
     JSONObject modificationVentetierpayantprincipal(String venteId, ClotureVenteParams params) throws JSONException;
 
     JSONObject updateMedecin(String idVente, MedecinDTO medecinDTO) throws JSONException;

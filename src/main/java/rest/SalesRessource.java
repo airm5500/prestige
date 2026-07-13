@@ -18,6 +18,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -416,6 +417,22 @@ public class SalesRessource {
     @Path("modifier-vente-terme/{id}")
     public Response modifierventeterme(@PathParam("id") String id) throws JSONException {
         JSONObject json = salesService.modificationVenteCloturee(id);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Abandon d'une modification de vente clôturée : supprime la copie en attente créée par modifier-vente-terme
+     * (appelé par le bouton Retour de l'écran de vente lorsqu'une copie est ouverte).
+     */
+    @DELETE
+    @Path("copie/{id}")
+    public Response supprimerCopie(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = salesService.supprimerCopieVente(id);
         return Response.ok().entity(json.toString()).build();
     }
 
