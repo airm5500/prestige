@@ -65,6 +65,7 @@ import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
 import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.persistence.TemporalType;
@@ -216,6 +217,68 @@ public class ReglementServiceImpl implements ReglementService {
 
             cq.select(root).where(cb.and(predicates.toArray(Predicate[]::new)))
                     .orderBy(cb.asc(root.get(TPreenregistrementCompteClient_.dtUPDATED)));
+
+            return emg.createQuery(cq).getResultList().stream().map(DelayedDTO::new).collect(Collectors.toList());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public JSONObject listeDifferesReglesData(Params params) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            List<DelayedDTO> list = listeDifferesRegles(params);
+            json.put("total", list.size()).put("data", new JSONArray(list));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return json;
+    }
+
+    private List<DelayedDTO> listeDifferesRegles(Params params) {
+        try {
+            params.setOperateur(this.sessionHelperService.getCurrentUser());
+            EntityManager emg = this.getEmg();
+            CriteriaBuilder cb = emg.getCriteriaBuilder();
+            CriteriaQuery<TPreenregistrementCompteClient> cq = cb.createQuery(TPreenregistrementCompteClient.class);
+            Root<TPreenregistrementCompteClient> root = cq.from(TPreenregistrementCompteClient.class);
+
+            List<Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get(TPreenregistrementCompteClient_.strSTATUT), Constant.STATUT_IS_CLOSED));
+            predicates.add(cb.isFalse(root.get(TPreenregistrementCompteClient_.lgPREENREGISTREMENTID)
+                    .get(TPreenregistrement_.bISCANCEL)));
+            predicates.add(cb.equal(
+                    root.get(TPreenregistrementCompteClient_.lgUSERID).get(TUser_.lgEMPLACEMENTID)
+                            .get(TEmplacement_.lgEMPLACEMENTID),
+                    params.getOperateur().getLgEMPLACEMENTID().getLgEMPLACEMENTID()));
+
+            if (params.getDescription() != null) {
+                var clientPath = root.get(TPreenregistrementCompteClient_.lgCOMPTECLIENTID)
+                        .get(TCompteClient_.lgCLIENTID);
+                String pattern = params.getDescription() + "%";
+                predicates.add(cb.or(cb.like(clientPath.get(TClient_.strFIRSTNAME), pattern),
+                        cb.like(clientPath.get(TClient_.strLASTNAME), pattern),
+                        cb.like(cb.concat(cb.concat(clientPath.get(TClient_.strFIRSTNAME), " "),
+                                clientPath.get(TClient_.strLASTNAME)), pattern)));
+            }
+
+            if (params.getRef() != null) {
+                predicates.add(cb.equal(root.get(TPreenregistrementCompteClient_.lgCOMPTECLIENTID)
+                        .get(TCompteClient_.lgCLIENTID).get(TClient_.lgCLIENTID), params.getRef()));
+            }
+
+            predicates.add(
+                    cb.between(cb.function("DATE", Date.class, root.get(TPreenregistrementCompteClient_.dtUPDATED)),
+                            java.sql.Date.valueOf(params.getDtStart()), java.sql.Date.valueOf(params.getDtEnd())));
+            // reste a payer nul sur un montant differe positif: le dossier est entierement regle
+            predicates.add(cb.equal(root.get(TPreenregistrementCompteClient_.intPRICERESTE), 0));
+            predicates.add(cb.greaterThan(root.get(TPreenregistrementCompteClient_.intPRICE), 0));
+
+            cq.select(root).where(cb.and(predicates.toArray(Predicate[]::new)))
+                    .orderBy(cb.desc(root.get(TPreenregistrementCompteClient_.dtUPDATED)));
 
             return emg.createQuery(cq).getResultList().stream().map(DelayedDTO::new).collect(Collectors.toList());
         } catch (Exception e) {
@@ -620,18 +683,29 @@ public class ReglementServiceImpl implements ReglementService {
             if (!checkCaisse(p.getUserId())) {
                 return json.put("success", false).put("msg", "Votre caisse est fermée");
             }
+            if (p.getMontantPaye() <= 0) {
+                return json.put("success", false).put("msg", "Le montant payé doit être supérieur à zéro");
+            }
             TCompteClient compteClient = getByClientId(p.getClientId());
+            // p.getUserVendeurId() et p.getCompteClientId() transportent la periode affichee (dtStart/dtEnd)
             List<TPreenregistrementCompteClient> listPreEnreg = getPreenregistrementCompteClients(p.getUserVendeurId(),
                     p.getCompteClientId(), compteClient.getLgCOMPTECLIENTID());
             if (listPreEnreg.isEmpty()) {
                 return json.put("success", false).put("msg", "La liste des ventes est vide");
             }
+            int totalReel = listPreEnreg.stream().mapToInt(TPreenregistrementCompteClient::getIntPRICERESTE).sum();
+            if (p.getMontantPaye() != totalReel) {
+                return json.put("success", false).put("msg", "Le total réel des différés de la période est de "
+                        + NumberUtils.formatIntToString(totalReel)
+                        + " et ne correspond plus au montant affiché. Veuillez actualiser la liste et recommencer");
+            }
             TTypeMvtCaisse typeMvt = getEmg().find(TTypeMvtCaisse.class, Constant.KEY_PARAM_MVT_REGLEMENT_DIFFERES);
             TModeReglement modeReglement = findModeReglement(p.getTypeRegleId());
             Date dateReglement = java.sql.Date.valueOf(LocalDate.parse(p.getNatureVenteId()));
             Date now = new Date();
+            int soldeClientAvant = soldeReglableClient(compteClient.getLgCOMPTECLIENTID());
             TDossierReglement dossierReglement = createDossierReglements(p.getClientId(), p.getUserId(),
-                    p.getMontantPaye(), "DIFFERE", dateReglement, p.getTotalRecap(), now);
+                    p.getMontantPaye(), "DIFFERE", dateReglement, soldeClientAvant, now);
             TReglement reglement = createTReglement(compteClient.getLgCOMPTECLIENTID(), p.getUserId(),
                     dossierReglement.getLgDOSSIERREGLEMENTID(), p.getBanque(), p.getLieux(), "", modeReglement,
                     p.getMontantPaye(), p.getNom(), dateReglement, now);
@@ -641,25 +715,19 @@ public class ReglementServiceImpl implements ReglementService {
             String description = buildDescription(dossierReglement.getDblAMOUNT(), typeMvt.getStrDESCRIPTION(),
                     p.getUserId());
             transactionService.addTransaction(p.getUserId(), p.getUserId(), dossierReglement.getLgDOSSIERREGLEMENTID(),
-                    p.getMontantPaye(), p.getTotalRecap(), p.getMontantPaye(), p.getMontantRecu(), Boolean.TRUE,
+                    p.getMontantPaye(), soldeClientAvant, p.getMontantPaye(), p.getMontantRecu(), Boolean.TRUE,
                     CategoryTransaction.CREDIT, TypeTransaction.ENTREE, modeReglement.getLgTYPEREGLEMENTID(), typeMvt,
                     getEmg(), p.getMontantPaye(), 0, 0, caisse.getStrREFTICKET(),
-                    compteClient.getLgCLIENTID().getLgCLIENTID(), p.getTotalRecap() - p.getMontantPaye());
-            listPreEnreg.forEach(a -> {
-                createDossierReglementDetail(a.getLgPREENREGISTREMENTCOMPTECLIENTID(), dossierReglement,
-                        a.getIntPRICERESTE());
-                a.setIntPRICERESTE(0);
-                a.setDtUPDATED(now);
-                getEmg().merge(a);
-            });
+                    compteClient.getLgCLIENTID().getLgCLIENTID(), soldeClientAvant - p.getMontantPaye());
+            int remaining = distributePayment(listPreEnreg, dossierReglement, p.getMontantPaye(), now);
+            if (remaining != 0) {
+                sessionContext.setRollbackOnly();
+                return new JSONObject().put("success", false).put("msg",
+                        "Le règlement n'a pas pu être imputé entièrement aux différés. Aucune opération n'a été enregistrée. Veuillez actualiser la liste et recommencer");
+            }
             logService.updateItem(p.getUserId(), caisse.getLgMVTCAISSEID(), description, TypeLog.MVT_DE_CAISSE, caisse);
             createNotification(description, TypeNotification.MVT_DE_CAISSE, p.getUserId(),
                     buildDonneesMapDiffere(p.getUserId(), dossierReglement.getDblAMOUNT()), caisse.getLgMVTCAISSEID());
-            if (Objects.isNull(dossierReglement.getDblAMOUNT())
-                    || dossierReglement.getDblAMOUNT().compareTo(0.0) == 0) {
-                sessionContext.setRollbackOnly();
-                return new JSONObject().put("success", false).put("msg", "Une erreur est survenue lors du règlement");
-            }
             return json.put("success", true).put("msg", "Opération effectuée").put("ref",
                     dossierReglement.getLgDOSSIERREGLEMENTID());
         } catch (Exception e) {
@@ -679,17 +747,57 @@ public class ReglementServiceImpl implements ReglementService {
             if (!checkCaisse(p.getUserId())) {
                 return json.put("success", false).put("msg", "Votre caisse est fermée");
             }
+            if (p.getMontantPaye() <= 0) {
+                return json.put("success", false).put("msg", "Le montant payé doit être supérieur à zéro");
+            }
             TCompteClient compteClient = getByClientId(p.getClientId());
             JSONArray array = new JSONArray(p.getCommentaire());
             if (array.isEmpty()) {
                 return json.put("success", false).put("msg", "Veuillez sélectionner au moins un dossier");
             }
+            // chargement et validation de la selection: le paiement ne porte que sur les dossiers coches
+            List<TPreenregistrementCompteClient> selection = new ArrayList<>();
+            Set<String> dejaVus = new HashSet<>();
+            for (int i = 0; i < array.length(); i++) {
+                String id = array.getString(i);
+                if (!dejaVus.add(id)) {
+                    continue;
+                }
+                TPreenregistrementCompteClient tp = getEmg().find(TPreenregistrementCompteClient.class, id,
+                        LockModeType.PESSIMISTIC_WRITE);
+                if (tp == null) {
+                    return json.put("success", false).put("msg",
+                            "Un des dossiers sélectionnés est introuvable. Veuillez actualiser la liste et recommencer");
+                }
+                if (!tp.getLgCOMPTECLIENTID().getLgCLIENTID().getLgCLIENTID().equals(p.getClientId())) {
+                    return json.put("success", false).put("msg",
+                            "Un des dossiers sélectionnés n'appartient pas à ce client. Veuillez actualiser la liste et recommencer");
+                }
+                if (Boolean.TRUE.equals(tp.getLgPREENREGISTREMENTID().getBISCANCEL())) {
+                    return json.put("success", false).put("msg",
+                            "Un des dossiers sélectionnés porte sur une vente annulée. Veuillez actualiser la liste et recommencer");
+                }
+                if (tp.getIntPRICERESTE() <= 0) {
+                    return json.put("success", false).put("msg",
+                            "Un des dossiers sélectionnés est déjà réglé. Veuillez actualiser la liste et recommencer");
+                }
+                selection.add(tp);
+            }
+            int totalSelection = selection.stream().mapToInt(TPreenregistrementCompteClient::getIntPRICERESTE).sum();
+            if (p.getMontantPaye() > totalSelection) {
+                return json.put("success", false).put("msg", "Le montant payé ("
+                        + NumberUtils.formatIntToString(p.getMontantPaye())
+                        + ") dépasse le total des dossiers sélectionnés ("
+                        + NumberUtils.formatIntToString(totalSelection)
+                        + "). La monnaie doit être rendue au client, pas imputée. Veuillez ajuster le montant ou la sélection");
+            }
             TTypeMvtCaisse typeMvt = getEmg().find(TTypeMvtCaisse.class, Constant.KEY_PARAM_MVT_REGLEMENT_DIFFERES);
             TModeReglement modeReglement = findModeReglement(p.getTypeRegleId());
             Date dateReglement = java.sql.Date.valueOf(LocalDate.parse(p.getNatureVenteId()));
             Date now = new Date();
+            int soldeClientAvant = soldeReglableClient(compteClient.getLgCOMPTECLIENTID());
             TDossierReglement dossierReglement = createDossierReglements(p.getClientId(), p.getUserId(),
-                    p.getMontantPaye(), "DIFFERE", dateReglement, p.getTotalRecap(), now);
+                    p.getMontantPaye(), "DIFFERE", dateReglement, soldeClientAvant, now);
             TReglement reglement = createTReglement(compteClient.getLgCOMPTECLIENTID(), p.getUserId(),
                     dossierReglement.getLgDOSSIERREGLEMENTID(), p.getBanque(), p.getLieux(), "", modeReglement,
                     p.getMontantPaye(), p.getNom(), dateReglement, now);
@@ -699,19 +807,19 @@ public class ReglementServiceImpl implements ReglementService {
             String description = buildDescription(dossierReglement.getDblAMOUNT(), typeMvt.getStrDESCRIPTION(),
                     p.getUserId());
             transactionService.addTransaction(p.getUserId(), p.getUserId(), dossierReglement.getLgDOSSIERREGLEMENTID(),
-                    p.getMontantPaye(), p.getTotalRecap(), p.getMontantPaye(), p.getMontantRecu(), Boolean.TRUE,
+                    p.getMontantPaye(), soldeClientAvant, p.getMontantPaye(), p.getMontantRecu(), Boolean.TRUE,
                     CategoryTransaction.CREDIT, TypeTransaction.ENTREE, modeReglement.getLgTYPEREGLEMENTID(), typeMvt,
                     getEmg(), p.getMontantPaye(), 0, 0, caisse.getStrREFTICKET(),
-                    compteClient.getLgCLIENTID().getLgCLIENTID(), p.getTotalRecap() - p.getMontantPaye());
-            distributePayment(array, dossierReglement, p.getMontantPaye(), now);
+                    compteClient.getLgCLIENTID().getLgCLIENTID(), soldeClientAvant - p.getMontantPaye());
+            int remaining = distributePayment(selection, dossierReglement, p.getMontantPaye(), now);
+            if (remaining != 0) {
+                sessionContext.setRollbackOnly();
+                return new JSONObject().put("success", false).put("msg",
+                        "Le règlement n'a pas pu être imputé entièrement aux différés. Aucune opération n'a été enregistrée. Veuillez actualiser la liste et recommencer");
+            }
             logService.updateItem(p.getUserId(), caisse.getLgMVTCAISSEID(), description, TypeLog.MVT_DE_CAISSE, caisse);
             createNotification(description, TypeNotification.MVT_DE_CAISSE, p.getUserId(),
                     buildDonneesMapDiffere(p.getUserId(), dossierReglement.getDblAMOUNT()), caisse.getLgMVTCAISSEID());
-            if (Objects.isNull(dossierReglement.getDblAMOUNT())
-                    || dossierReglement.getDblAMOUNT().compareTo(0.0) == 0) {
-                sessionContext.setRollbackOnly();
-                return new JSONObject().put("success", false).put("msg", "Une erreur est survenue lors du règlement");
-            }
             return json.put("success", true).put("msg", "Opération effectuée").put("ref",
                     dossierReglement.getLgDOSSIERREGLEMENTID());
         } catch (Exception e) {
@@ -721,16 +829,17 @@ public class ReglementServiceImpl implements ReglementService {
         }
     }
 
-    private void distributePayment(JSONArray array, TDossierReglement dossierReglement, int montantPaye, Date now)
-            throws org.json.JSONException {
+    private int distributePayment(List<TPreenregistrementCompteClient> dossiers, TDossierReglement dossierReglement,
+            int montantPaye, Date now) {
         int remaining = montantPaye;
-        for (int i = 0; i < array.length() && remaining > 0; i++) {
-            String id = array.getString(i);
-            TPreenregistrementCompteClient tp = getEmg().find(TPreenregistrementCompteClient.class, id);
-            if (tp == null) {
-                continue;
+        for (TPreenregistrementCompteClient tp : dossiers) {
+            if (remaining <= 0) {
+                break;
             }
             int dette = tp.getIntPRICERESTE();
+            if (dette <= 0) {
+                continue;
+            }
             if (remaining >= dette) {
                 createDossierReglementDetail(tp.getLgPREENREGISTREMENTCOMPTECLIENTID(), dossierReglement, dette);
                 tp.setIntPRICERESTE(0);
@@ -742,6 +851,24 @@ public class ReglementServiceImpl implements ReglementService {
             }
             tp.setDtUPDATED(now);
             getEmg().merge(tp);
+        }
+        return remaining;
+    }
+
+    /**
+     * Solde reellement reglable du client: somme des restes positifs des differes clotures sur ventes non annulees,
+     * toutes periodes confondues.
+     */
+    private int soldeReglableClient(String compteClientId) {
+        try {
+            Number solde = getEmg().createQuery(
+                    "SELECT COALESCE(SUM(o.intPRICERESTE),0) FROM TPreenregistrementCompteClient o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1 AND o.strSTATUT = ?2 AND o.lgPREENREGISTREMENTID.bISCANCEL = FALSE AND o.intPRICERESTE > 0",
+                    Number.class).setParameter(1, compteClientId).setParameter(2, Constant.STATUT_IS_CLOSED)
+                    .getSingleResult();
+            return solde != null ? solde.intValue() : 0;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return 0;
         }
     }
 
@@ -821,8 +948,12 @@ public class ReglementServiceImpl implements ReglementService {
         predicates
                 .add(cb.and(cb.equal(root.get(TPreenregistrementCompteClient_.strSTATUT), Constant.STATUT_IS_CLOSED)));
         predicates.add(cb.and(cb.greaterThan(root.get(TPreenregistrementCompteClient_.intPRICERESTE), 0)));
-        cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+        predicates.add(cb.isFalse(
+                root.get(TPreenregistrementCompteClient_.lgPREENREGISTREMENTID).get(TPreenregistrement_.bISCANCEL)));
+        cq.where(cb.and(predicates.toArray(Predicate[]::new)))
+                .orderBy(cb.asc(root.get(TPreenregistrementCompteClient_.dtUPDATED)));
         TypedQuery<TPreenregistrementCompteClient> q = emg.createQuery(cq);
+        q.setLockMode(LockModeType.PESSIMISTIC_WRITE);
         return q.getResultList();
 
     }
@@ -884,7 +1015,7 @@ public class ReglementServiceImpl implements ReglementService {
         }
         try {
             Query query = em.createNativeQuery(
-                    "SELECT cl.lg_CLIENT_ID AS clientId,CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME) AS clientFullName, COALESCE(SUM(o.int_PRICE_RESTE) ,0) AS solde  FROM t_client cl  JOIN t_compte_client cp ON cl.lg_CLIENT_ID=cp.lg_CLIENT_ID LEFT JOIN t_preenregistrement_compte_client o ON o.lg_COMPTE_CLIENT_ID=cp.lg_COMPTE_CLIENT_ID  JOIN t_preenregistrement p  ON p.lg_PREENREGISTREMENT_ID=o.lg_PREENREGISTREMENT_ID WHERE p.b_IS_CANCEL =FALSE AND  p.int_PRICE >0 AND cl.lg_CLIENT_ID IN(?1) GROUP BY cl.lg_CLIENT_ID,clientFullName",
+                    "SELECT cl.lg_CLIENT_ID AS clientId,CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME) AS clientFullName, COALESCE(SUM(CASE WHEN o.str_STATUT='is_Closed' AND p.b_IS_CANCEL=FALSE THEN o.int_PRICE_RESTE ELSE 0 END),0) AS solde  FROM t_client cl  JOIN t_compte_client cp ON cl.lg_CLIENT_ID=cp.lg_CLIENT_ID LEFT JOIN t_preenregistrement_compte_client o ON o.lg_COMPTE_CLIENT_ID=cp.lg_COMPTE_CLIENT_ID  LEFT JOIN t_preenregistrement p  ON p.lg_PREENREGISTREMENT_ID=o.lg_PREENREGISTREMENT_ID WHERE cl.lg_CLIENT_ID IN(?1) GROUP BY cl.lg_CLIENT_ID,clientFullName",
                     Tuple.class).setParameter(1, ids);
 
             List<Tuple> results = query.getResultList();

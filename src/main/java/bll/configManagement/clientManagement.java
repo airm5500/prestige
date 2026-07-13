@@ -1790,8 +1790,8 @@ public class clientManagement extends bllBase {
         Long amount = 0l;
         try {
             amount = (Long) this.getOdataManager().getEm().createQuery(
-                    "SELECT SUM(o.intPRICERESTE) FROM TPreenregistrementCompteClient o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID=?1  ")
-                    .setParameter(1, cmptID).getSingleResult();
+                    "SELECT SUM(o.intPRICERESTE) FROM TPreenregistrementCompteClient o WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID=?1 AND o.strSTATUT=?2 AND o.lgPREENREGISTREMENTID.bISCANCEL = FALSE ")
+                    .setParameter(1, cmptID).setParameter(2, commonparameter.statut_is_Closed).getSingleResult();
         } catch (Exception e) {
             e.printStackTrace();
         }

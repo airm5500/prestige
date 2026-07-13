@@ -403,6 +403,34 @@ public class SalesServiceImpl implements SalesService {
         }
     }
 
+    private List<TPreenregistrementCompteClient> findAllCmt(TPreenregistrement preenregistrement) {
+        try {
+            return em.createQuery(
+                    "SELECT o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID =?1 ",
+                    TPreenregistrementCompteClient.class).setParameter(1, preenregistrement.getLgPREENREGISTREMENTID())
+                    .getResultList();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Solde toutes les lignes de dette differee d'une vente au moment de son annulation: reste a 0 et statut delete,
+     * afin qu'aucune dette fantome ne survive a l'annulation.
+     */
+    private long annulerDifferesDeLaVente(TPreenregistrement vente, Date dtAnnulation, EntityManager emg) {
+        long montantRestant = 0;
+        for (TPreenregistrementCompteClient cp : findAllCmt(vente)) {
+            montantRestant += cp.getIntPRICERESTE();
+            cp.setIntPRICE(0);
+            cp.setIntPRICERESTE(0);
+            cp.setStrSTATUT(STATUT_DELETE);
+            cp.setDtUPDATED(dtAnnulation);
+            emg.merge(cp);
+        }
+        return montantRestant;
+    }
+
     public Optional checkResumeCaisse(TUser ooTUser) {
         try {
             TypedQuery<TResumeCaisse> q = em.createQuery(
@@ -556,14 +584,7 @@ public class SalesServiceImpl implements SalesService {
             ref = newItem.getLgPREENREGISTREMENTID();
 
             LongAdder montantRestant = new LongAdder();
-            findOptionalCmt(tp).ifPresent(cp -> {
-                montantRestant.add(cp.getIntPRICERESTE());
-                cp.setIntPRICE(0);
-                cp.setIntPRICERESTE(0);
-                cp.setStrSTATUT(STATUT_DELETE);
-                cp.setDtUPDATED(new Date());
-                emg.merge(cp);
-            });
+            montantRestant.add(annulerDifferesDeLaVente(tp, new Date(), emg));
             if (tp.getStrTYPEVENTE().equals(VENTE_ASSURANCE)) {
                 copyPreenregistrementCompteTp(newItem, idVente, ooTUser);
 
@@ -1668,7 +1689,8 @@ public class SalesServiceImpl implements SalesService {
         oTPreenregistrementCompteClient.setLgUSERID(user);
         oTPreenregistrementCompteClient.setIntPRICE(p.getIntCUSTPART() == 0 ? p.getIntPRICE() - p.getIntPRICEREMISE()
                 : p.getIntCUSTPART() - p.getIntPRICEREMISE());
-        oTPreenregistrementCompteClient.setIntPRICERESTE(oTPreenregistrementCompteClient.getIntPRICE() - montantPaye);
+        oTPreenregistrementCompteClient
+                .setIntPRICERESTE(resteDiffere(oTPreenregistrementCompteClient.getIntPRICE(), montantPaye));
         oTPreenregistrementCompteClient.setStrSTATUT(STATUT_IS_CLOSED);
         this.getEm().persist(oTPreenregistrementCompteClient);
     }
@@ -2124,13 +2146,25 @@ public class SalesServiceImpl implements SalesService {
 
                 ctp.setIntPRICE(tp.getIntCUSTPART() == 0 ? tp.getIntPRICE() - tp.getIntPRICEREMISE()
                         : tp.getIntCUSTPART() - tp.getIntPRICEREMISE());
-                ctp.setIntPRICERESTE(ctp.getIntPRICE() - clotureVenteParams.getMontantPaye());
+                ctp.setIntPRICERESTE(resteDiffere(ctp.getIntPRICE(), clotureVenteParams.getMontantPaye()));
                 ctp.setStrSTATUT(STATUT_IS_CLOSED);
                 em.merge(ctp);
 
             }, () -> addDiffere(compteClient, tp, clotureVenteParams.getMontantPaye(), clotureVenteParams.getUserId()));
 
         }
+    }
+
+    /**
+     * Reste a payer d'un differe a la cloture de la vente. Un differe positif ne peut pas laisser un reste negatif (le
+     * trop-percu est de la monnaie a rendre, pas un credit); un differe negatif (avoir) reste un credit du client.
+     */
+    private int resteDiffere(int montantDiffere, Integer montantPaye) {
+        int paye = montantPaye != null ? montantPaye : 0;
+        if (montantDiffere > 0) {
+            return Math.max(0, montantDiffere - paye);
+        }
+        return montantDiffere - paye;
     }
 
     public boolean checkRefBonIsUse(String refBon, TCompteClientTiersPayant oTCompteClientTiersPayant,
@@ -3656,14 +3690,7 @@ public class SalesServiceImpl implements SalesService {
         String idVente = tp.getLgPREENREGISTREMENTID();
         TPreenregistrement clonedPreen = cloneVente(ooTUser, tp);
         LongAdder montantRestant = new LongAdder();
-        findOptionalCmt(tp).ifPresent(cp -> {
-            montantRestant.add(cp.getIntPRICERESTE());
-            cp.setIntPRICE(0);
-            cp.setIntPRICERESTE(0);
-            cp.setStrSTATUT(STATUT_DELETE);
-            cp.setDtUPDATED(clonedPreen.getDtUPDATED());
-            emg.merge(cp);
-        });
+        montantRestant.add(annulerDifferesDeLaVente(tp, clonedPreen.getDtUPDATED(), emg));
         MvtTransaction copieMvtTransaction = getTransaction(idVente).orElse(null);
         if (tp.getStrTYPEVENTE().equals(VENTE_ASSURANCE)) {
             clonePreenregistrementTp(clonedPreen, idVente, ooTUser);

@@ -141,6 +141,52 @@ Ext.define('testextjs.view.reglement.Differe', {
 
             }
         });
+        var listeRegles = new Ext.data.Store({
+            fields: [
+                {
+                    name: 'clientId',
+                    type: 'string'
+                },
+                {
+                    name: 'clientFullName',
+                    type: 'string'
+                },
+                {
+                    name: 'reference',
+                    type: 'string'
+                },
+                {
+                    name: 'heure',
+                    type: 'string'
+                },
+                {
+                    name: 'dateOp',
+                    type: 'string'
+                },
+                {
+                    name: 'montantPaye',
+                    type: 'number'
+                },
+                {
+                    name: 'totalAmount',
+                    type: 'number'
+                }
+            ],
+            pageSize: 999,
+            autoLoad: false,
+            groupField: 'clientFullName',
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/reglement/liste-regles',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+
+                }
+
+            }
+        });
         var storeUser = new Ext.data.Store({
             model: 'testextjs.model.caisse.ClientLambda',
             pageSize: 100,
@@ -156,6 +202,20 @@ Ext.define('testextjs.view.reglement.Differe', {
             }
         });
         var diffUser = new Ext.data.Store({
+            model: 'testextjs.model.caisse.ClientLambda',
+            pageSize: 100,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/client/differes',
+                reader: {
+                    type: 'json',
+                    root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        var regleUser = new Ext.data.Store({
             model: 'testextjs.model.caisse.ClientLambda',
             pageSize: 100,
             autoLoad: false,
@@ -532,6 +592,156 @@ Ext.define('testextjs.view.reglement.Differe', {
 
                     }
                 }/*  FIN LISTE*/
+                ,
+                {
+                    dockedItems: [
+                        {
+                            xtype: 'toolbar',
+                            dock: 'top',
+                            items: [
+                                {
+                                    xtype: 'datefield',
+                                    fieldLabel: 'Du',
+                                    itemId: 'dtStartRegle',
+                                    margin: '0 10 0 0',
+                                    submitFormat: 'Y-m-d',
+                                    flex: 1,
+                                    labelWidth: 20,
+                                    maxValue: new Date(),
+                                    value: new Date(),
+                                    format: 'd/m/Y'
+
+                                }, {
+                                    xtype: 'datefield',
+                                    fieldLabel: 'Au',
+                                    itemId: 'dtEndRegle',
+                                    labelWidth: 20,
+                                    flex: 1,
+                                    maxValue: new Date(),
+                                    value: new Date(),
+                                    margin: '0 9 0 0',
+                                    submitFormat: 'Y-m-d',
+                                    format: 'd/m/Y'
+
+                                },
+                                {
+                                    xtype: 'textfield',
+                                    itemId: 'queryRegle',
+                                    emptyText: 'Recherche',
+                                    flex: 1,
+                                    enableKeyEvents: true
+                                },
+                                {
+                                    xtype: 'combobox',
+                                    itemId: 'userRegle',
+                                    store: regleUser,
+                                    labelWidth: 40,
+                                    fieldLabel: 'Clients',
+                                    pageSize: null,
+                                    valueField: 'lgCLIENTID',
+                                    displayField: 'fullName',
+                                    typeAhead: false,
+                                    flex: 1,
+                                    minChars: 2,
+                                    queryMode: 'remote',
+                                    emptyText: 'Choisir un client'
+
+                                }
+                                ,
+                                {
+                                    text: 'rechercher',
+                                    tooltip: 'rechercher',
+                                    itemId: 'rechercherRegle',
+                                    scope: this,
+                                    iconCls: 'searchicon'
+                                }
+                            ]
+                        }
+                    ],
+                    xtype: 'gridpanel',
+                    title: 'DIFFERES REGLES',
+                    features: [
+                        {
+                            ftype: 'groupingsummary',
+                            collapsible: true,
+                            groupHeaderTpl: "{[values.rows[0].data.clientFullName]}",
+                            hideGroupedHeader: true,
+                            showSummaryRow: true
+                        }],
+                    border: false,
+
+                    itemId: 'listeRegles',
+                    store: listeRegles,
+                    viewConfig: {
+                        forceFit: true,
+                        columnLines: true
+
+                    },
+                    columns: [
+
+                        {
+                            header: 'Réference',
+                            dataIndex: 'reference',
+                            flex: 1,
+                            summaryType: "count",
+                            summaryRenderer: function (value) {
+                                return "<b>Nombre de différés réglés:  </b><span style='color:blue;font-weight:800;'>" + value + "</span>";
+
+                            }},
+
+                        {
+                            header: 'Client',
+                            dataIndex: 'clientFullName',
+                            flex: 1.5
+
+                        },
+                        {
+                            xtype: 'numbercolumn',
+                            header: 'Montant total vente',
+                            format: '0,000.',
+                            dataIndex: 'totalAmount',
+                            flex: 1,
+                            align: 'right'
+
+                        },
+                        {
+                            xtype: 'numbercolumn',
+                            header: 'Montant Payé',
+                            format: '0,000.',
+                            dataIndex: 'montantPaye',
+                            fieldStyle: "color:green;",
+                            flex: 1,
+                            align: 'right',
+                            summaryType: "sum",
+                            summaryRenderer: function (value) {
+                                return " Total payé: <span style='color:green;font-weight:800;'>" + Ext.util.Format.number(value, '0,000.') + "</span> ";
+                            }
+                        },
+                        {
+                            header: 'Date du solde',
+                            dataIndex: 'dateOp',
+                            flex: 1
+
+                        },
+                        {
+                            header: 'Heure',
+                            dataIndex: 'heure',
+                            flex: 1
+
+                        }
+                    ],
+                    selModel: {
+                        selType: 'cellmodel'
+                    },
+                    bbar: {
+                        xtype: 'pagingtoolbar',
+                        store: listeRegles,
+                        pageSize: 999,
+                        dock: 'bottom',
+                        displayInfo: true
+
+                    }
+                }/*  FIN DIFFERES REGLES*/
 
             ]
 

@@ -69,6 +69,26 @@ Ext.define('testextjs.controller.DiffereCtr', {
         {ref: 'users',
             selector: 'delayed #userre'
 
+        },
+        {
+            ref: 'listeRegles',
+            selector: 'delayed #listeRegles'
+        },
+        {
+            ref: 'dtStartRegle',
+            selector: 'delayed #dtStartRegle'
+        },
+        {
+            ref: 'dtEndRegle',
+            selector: 'delayed #dtEndRegle'
+        },
+        {ref: 'queryRegle',
+            selector: 'delayed #queryRegle'
+
+        },
+        {ref: 'userRegleCombo',
+            selector: 'delayed #userRegle'
+
         }
     ],
     init: function (application) {
@@ -116,8 +136,66 @@ Ext.define('testextjs.controller.DiffereCtr', {
             },
              'delayed #query': {
                 specialkey: this.onSpecialKey
+            },
+            'delayed #listeRegles pagingtoolbar': {
+                beforechange: this.doBeforechangeRegles
+            },
+            'delayed #rechercherRegle': {
+                click: this.doSearchRegles
+            },
+            'delayed #userRegle': {
+                select: this.onUserRegleSelect
+            },
+            'delayed #listeRegles': {
+                viewready: this.doInitStoreRegles
+            },
+            'delayed #queryRegle': {
+                specialkey: this.onSpecialKeyRegle
             }
         });
+    },
+    onSpecialKeyRegle: function (field, e, options) {
+        if (e.getKey() === e.ENTER) {
+            var me = this;
+            me.doSearchRegles();
+        }
+    },
+    onUserRegleSelect: function (cmp) {
+        var me = this;
+        me.doSearchRegles();
+    },
+    doInitStoreRegles: function () {
+        var me = this;
+        me.doSearchRegles();
+    },
+    doSearchRegles: function () {
+        var me = this;
+        me.getListeRegles().getStore().load({
+            params: {
+                dtStart: me.getDtStartRegle().getSubmitValue(),
+                dtEnd: me.getDtEndRegle().getSubmitValue(),
+                query: me.getQueryRegle().getValue(),
+                userId: me.getUserRegleCombo().getValue()
+
+            }
+        });
+    },
+    doBeforechangeRegles: function (page, currentPage) {
+        var me = this;
+        var myProxy = me.getListeRegles().getStore().getProxy();
+        myProxy.params = {
+            dtEnd: null,
+            dtStart: null,
+            query: null,
+            userId: null
+
+        };
+
+        myProxy.setExtraParam('userId', me.getUserRegleCombo().getValue());
+        myProxy.setExtraParam('query', me.getQueryRegle().getValue());
+        myProxy.setExtraParam('dtEnd', me.getDtEndRegle().getSubmitValue());
+        myProxy.setExtraParam('dtStart', me.getDtStartRegle().getSubmitValue());
+
     },
     onSpecialKey: function (field, e, options) {
         if (e.getKey() === e.ENTER) {

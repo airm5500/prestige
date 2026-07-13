@@ -65,6 +65,29 @@ public class ReglementRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    @GET
+    @Path("liste-regles")
+    public Response listeDifferesRegles(@QueryParam(value = "query") String query,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "userId") String userId) throws JSONException {
+
+        Params body = new Params();
+        if (query != null && !"".equals(query)) {
+            body.setDescription(query);
+        }
+        if (userId != null && !"".equals(userId)) {
+            body.setRef(userId);
+        }
+        if (dtStart != null && !"".equals(dtStart)) {
+            body.setDtStart(dtStart);
+        }
+        if (dtEnd != null && !"".equals(dtEnd)) {
+            body.setDtEnd(dtEnd);
+        }
+        JSONObject jsono = reglementService.listeDifferesReglesData(body);
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
     @POST
     @Path("reglementdiffere")
     public Response faireReglementDiffere(ClotureVenteParams clotureVenteParams) throws JSONException {
