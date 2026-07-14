@@ -1680,9 +1680,12 @@ public class SalesServiceImpl implements SalesService {
     }
 
     public void addDiffere(TCompteClient oTCompteClient, TPreenregistrement p, Integer montantPaye, TUser user) {
+        traceAddDiffere("reglement(compteClient,p,montantPaye,user)", p);
         // idempotence : une vente ne porte qu'UNE ligne de differe (evite les doublons
         // lors des re-validations de ventes modifiees). Si une existe deja, on ne recree pas.
         if (compteDejaUnDiffere(p)) {
+            LOG.log(Level.INFO, "[TRACE_DIFFERE] BLOQUE (doublon evite) venteId={0}",
+                    p != null ? p.getLgPREENREGISTREMENTID() : "null");
             return;
         }
         TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient(
@@ -3406,9 +3409,12 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private void addDiffere(TPreenregistrement newP, TPreenregistrementCompteClient old) {
+        traceAddDiffere("modification(newP,old)", newP);
         // idempotence : une vente ne doit porter qu'UNE ligne de differe. Si une existe deja
         // (cas des modifications de vente cloturee rejouees), on ne cree pas de doublon.
         if (compteDejaUnDiffere(newP)) {
+            LOG.log(Level.INFO, "[TRACE_DIFFERE] BLOQUE (doublon evite) venteId={0}",
+                    newP != null ? newP.getLgPREENREGISTREMENTID() : "null");
             return;
         }
         TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient(
@@ -3433,6 +3439,35 @@ public class SalesServiceImpl implements SalesService {
             return n != null && n > 0;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    /**
+     * Traçage de diagnostic des creations de differe : permet d'identifier l'origine des rares ventes portant plusieurs
+     * lignes de differe (course / re-essai). Journalise, a chaque tentative : la source (overload), l'id de la vente,
+     * le thread, le nombre de lignes DEJA presentes et la pile d'appel. Tag "[TRACE_DIFFERE]" pour un filtrage facile
+     * dans les logs.
+     */
+    private void traceAddDiffere(String source, TPreenregistrement p) {
+        try {
+            String venteId = (p != null ? p.getLgPREENREGISTREMENTID() : "null");
+            long deja = -1;
+            try {
+                Long n = getEm().createQuery(
+                        "SELECT COUNT(o) FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1",
+                        Long.class).setParameter(1, venteId).getSingleResult();
+                deja = (n != null ? n : 0);
+            } catch (Exception ignore) {
+            }
+            StringBuilder pile = new StringBuilder();
+            StackTraceElement[] st = Thread.currentThread().getStackTrace();
+            for (int i = 2; i < st.length && i < 12; i++) {
+                pile.append("\n    at ").append(st[i]);
+            }
+            LOG.log(Level.INFO, "[TRACE_DIFFERE] source={0} venteId={1} lignesDeja={2} thread={3} pile:{4}",
+                    new Object[] { source, venteId, deja, Thread.currentThread().getName(), pile.toString() });
+        } catch (Exception e) {
+            // le tracage ne doit jamais perturber le flux metier
         }
     }
 
