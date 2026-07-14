@@ -206,6 +206,21 @@ Ext.define('testextjs.controller.App', {
 
         var ViewClass = Ext.ClassManager.get(className);
 
+        if (!ViewClass) {
+            /* classe non chargee (cache navigateur, fichier manquant...) :
+             * message clair plutot qu'une erreur JS silencieuse */
+            Ext.MessageBox.show({
+                title: 'Erreur',
+                width: 420,
+                msg: "Impossible d'ouvrir ce menu (vue '" + xtype
+                        + "' introuvable).<br/>Videz le cache du navigateur (Ctrl+F5) puis réessayez. "
+                        + "Si le problème persiste, signalez le nom de ce menu.",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+            return;
+        }
+
         // alert("139");
         var clsProto = ViewClass.prototype;
         // alert("141");
@@ -263,6 +278,21 @@ Ext.define('testextjs.controller.App', {
         var className = Ext.ClassManager.getNameByAlias(alias);
 
         var ViewClass = Ext.ClassManager.get(className);
+
+        if (!ViewClass) {
+            /* classe non chargee (cache navigateur, fichier manquant...) :
+             * message clair plutot qu'une erreur JS silencieuse */
+            Ext.MessageBox.show({
+                title: 'Erreur',
+                width: 420,
+                msg: "Impossible d'ouvrir ce menu (vue '" + xtype
+                        + "' introuvable).<br/>Videz le cache du navigateur (Ctrl+F5) puis réessayez. "
+                        + "Si le problème persiste, signalez le nom de ce menu.",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+            return;
+        }
 
         // alert("139");
         var clsProto = ViewClass.prototype;
@@ -324,6 +354,21 @@ Ext.define('testextjs.controller.App', {
 
         var ViewClass = Ext.ClassManager.get(className);
 
+        if (!ViewClass) {
+            /* classe non chargee (cache navigateur, fichier manquant...) :
+             * message clair plutot qu'une erreur JS silencieuse */
+            Ext.MessageBox.show({
+                title: 'Erreur',
+                width: 420,
+                msg: "Impossible d'ouvrir ce menu (vue '" + xtype
+                        + "' introuvable).<br/>Videz le cache du navigateur (Ctrl+F5) puis réessayez. "
+                        + "Si le problème persiste, signalez le nom de ce menu.",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+            return;
+        }
+
         // alert("139");
         var clsProto = ViewClass.prototype;
         // alert("141");
@@ -384,6 +429,21 @@ Ext.define('testextjs.controller.App', {
         var className = Ext.ClassManager.getNameByAlias(alias);
 
         var ViewClass = Ext.ClassManager.get(className);
+
+        if (!ViewClass) {
+            /* classe non chargee (cache navigateur, fichier manquant...) :
+             * message clair plutot qu'une erreur JS silencieuse */
+            Ext.MessageBox.show({
+                title: 'Erreur',
+                width: 420,
+                msg: "Impossible d'ouvrir ce menu (vue '" + xtype
+                        + "' introuvable).<br/>Videz le cache du navigateur (Ctrl+F5) puis réessayez. "
+                        + "Si le problème persiste, signalez le nom de ce menu.",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+            return;
+        }
 
         // alert("139");
         var clsProto = ViewClass.prototype;
@@ -757,6 +817,21 @@ Ext.define('testextjs.controller.App', {
         var className = Ext.ClassManager.getNameByAlias(alias);
 
         var ViewClass = Ext.ClassManager.get(className);
+
+        if (!ViewClass) {
+            /* classe non chargee (cache navigateur, fichier manquant...) :
+             * message clair plutot qu'une erreur JS silencieuse */
+            Ext.MessageBox.show({
+                title: 'Erreur',
+                width: 420,
+                msg: "Impossible d'ouvrir ce menu (vue '" + xtype
+                        + "' introuvable).<br/>Videz le cache du navigateur (Ctrl+F5) puis réessayez. "
+                        + "Si le problème persiste, signalez le nom de ce menu.",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+            return;
+        }
 
         // alert("139");
         var clsProto = ViewClass.prototype;

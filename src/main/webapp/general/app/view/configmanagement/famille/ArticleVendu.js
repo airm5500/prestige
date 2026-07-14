@@ -45,7 +45,10 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
     cls: 'custompanel',
     initComponent: function () {
 
-        Me = this;
+        /* 'var' volontaire : masque la variable globale Me partagee par les
+         * autres ecrans (elle etait ecrasee par le dernier ecran ouvert, ce qui
+         * cassait les boutons de cette vue) */
+        var Me = this;
         var lg_EMPLACEMENT_ID = loadEmplacement();
 
         var itemsPerPage = 20;

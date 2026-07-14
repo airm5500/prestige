@@ -38,7 +38,10 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
     minHeight: 570,
     cls: 'custompanel',
     initComponent: function () {
-        Me = this;
+        /* 'var' volontaire : masque la variable globale Me partagee par les
+         * autres ecrans (elle etait ecrasee par le dernier ecran ouvert, ce qui
+         * cassait les boutons Suggerer/Rechercher de cette vue) */
+        var Me = this;
         str_TYPE_TRANSACTION = "ALL";
         var itemsPerPage = 20;
         const storeUser = new Ext.data.Store({
