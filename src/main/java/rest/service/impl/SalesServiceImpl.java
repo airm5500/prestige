@@ -3401,6 +3401,11 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private void addDiffere(TPreenregistrement newP, TPreenregistrementCompteClient old) {
+        // idempotence : une vente ne doit porter qu'UNE ligne de differe. Si une existe deja
+        // (cas des modifications de vente cloturee rejouees), on ne cree pas de doublon.
+        if (compteDejaUnDiffere(newP)) {
+            return;
+        }
         TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient(
                 UUID.randomUUID().toString());
         oTPreenregistrementCompteClient.setDtCREATED(old.getDtCREATED());
@@ -3412,6 +3417,18 @@ public class SalesServiceImpl implements SalesService {
         oTPreenregistrementCompteClient.setIntPRICERESTE(old.getIntPRICERESTE());
         oTPreenregistrementCompteClient.setStrSTATUT(STATUT_IS_PROGRESS);
         getEm().persist(oTPreenregistrementCompteClient);
+    }
+
+    /** true si la vente porte deja au moins une ligne de differe (tout statut). */
+    private boolean compteDejaUnDiffere(TPreenregistrement preenregistrement) {
+        try {
+            Long n = getEm().createQuery(
+                    "SELECT COUNT(o) FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1",
+                    Long.class).setParameter(1, preenregistrement.getLgPREENREGISTREMENTID()).getSingleResult();
+            return n != null && n > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private TCompteClientTiersPayant findByClientAndTiersPayant(String clientId, String tierspayentId) {
