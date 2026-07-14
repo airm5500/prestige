@@ -834,7 +834,8 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                     var rouge = 'color:red;font-weight:bold;';
                     let msg = '<span style="' + vert + '">Nombre de produits suggérés : ' + result.count + '</span>';
                     if (result.ignores && result.ignores > 0) {
-                        msg += '<br/><span style="' + rouge + '">Produits non suggérés (ignorés) : ' + result.ignores + '</span>';
+                        msg += '<hr style="border:none;border-top:1px solid #ccc;margin:6px 0;"/>';
+                        msg += '<span style="' + rouge + '">Produits non suggérés (ignorés) : ' + result.ignores + '</span>';
                         if (result.detailIgnores && result.detailIgnores.length > 0) {
                             msg += '<br/><span style="' + rouge + '">Causes :</span>';
                             msg += '<ul style="text-align:left;margin:5px 0 0 15px;' + rouge + '">';
@@ -849,7 +850,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                     }
                     Ext.MessageBox.show({
                         title: 'Message',
-                        width: 420,
+                        width: (result.ignores && result.ignores > 0) ? 600 : 340,
                         msg: msg,
                         buttons: Ext.MessageBox.OK,
                         icon: Ext.MessageBox.INFO,
