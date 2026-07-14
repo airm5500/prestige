@@ -1680,6 +1680,11 @@ public class SalesServiceImpl implements SalesService {
     }
 
     public void addDiffere(TCompteClient oTCompteClient, TPreenregistrement p, Integer montantPaye, TUser user) {
+        // idempotence : une vente ne porte qu'UNE ligne de differe (evite les doublons
+        // lors des re-validations de ventes modifiees). Si une existe deja, on ne recree pas.
+        if (compteDejaUnDiffere(p)) {
+            return;
+        }
         TPreenregistrementCompteClient oTPreenregistrementCompteClient = new TPreenregistrementCompteClient(
                 UUID.randomUUID().toString());
         oTPreenregistrementCompteClient.setDtCREATED(new Date());
