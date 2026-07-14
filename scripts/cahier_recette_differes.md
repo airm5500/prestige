@@ -216,6 +216,30 @@
 | **Résultat obtenu** | |
 | **Statut** | OK ☐ KO ☐ R ☐ |
 
+#### CR-21 — Vente différée avec 2 modes de règlement
+| | |
+|---|---|
+| **Étapes** | 1. Clôturer une vente avec 2 modes de règlement dont un différé. 2. Vérifier la dette créée. |
+| **Résultat attendu** | La dette différée créée correspond exactement à la part différée. Pas de reste négatif, pas de double comptage. |
+| **Résultat obtenu** | |
+| **Statut** | OK ☐ KO ☐ R ☐ |
+
+#### CR-22 — Annulation d'une vente ORDONNANCÉE / tiers-payant (point sensible : trigger V6.3.2)
+| | |
+|---|---|
+| **Étapes** | 1. Faire une vente ordonnancée / avec tiers-payant, la clôturer. 2. L'annuler. 3. Vérifier la comptabilité tiers-payant (part organisme) ET la dette différée du client. |
+| **Résultat attendu** | La part tiers-payant reste correctement contre-passée (identique à avant). La dette différée du client de la vente annulée est soldée (reste 0, statut delete). Aucun écart comptable nouveau introduit par le trigger. |
+| **Résultat obtenu** | |
+| **Statut** | OK ☐ KO ☐ R ☐ |
+
+#### CR-23 — Clôture d'une vente DÉPÔT différée (point sensible : garde d'idempotence)
+| | |
+|---|---|
+| **Étapes** | 1. Faire une vente de type dépôt / extension réglée en différé. 2. La clôturer. 3. Requête : nb de lignes de différé de la vente. |
+| **Résultat attendu** | La dette différée est bien créée (exactement UNE ligne active). La garde d'idempotence ne bloque pas la création légitime sur ce chemin (addDiffere @2948). |
+| **Résultat obtenu** | |
+| **Statut** | OK ☐ KO ☐ R ☐ |
+
 ---
 
 ## 4. Synthèse de la recette
@@ -228,8 +252,8 @@
 | D. Cohérence des soldes | 1 | | | |
 | E. Onglet Différés réglés | 2 | | | |
 | F. Réparation des données | 3 | | | |
-| G. Non-régression | 3 | | | |
-| **Total** | **20** | | | |
+| G. Non-régression | 6 | | | |
+| **Total** | **23** | | | |
 
 ## 5. Décision
 
