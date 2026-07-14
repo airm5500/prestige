@@ -3433,9 +3433,12 @@ public class SalesServiceImpl implements SalesService {
     /** true si la vente porte deja au moins une ligne de differe (tout statut). */
     private boolean compteDejaUnDiffere(TPreenregistrement preenregistrement) {
         try {
+            // on ne compte que les lignes ACTIVES : une ligne 'delete' (annulee) ne doit pas
+            // empecher la creation d'un differe legitime (sinon risque de sous-enregistrement).
             Long n = getEm().createQuery(
-                    "SELECT COUNT(o) FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1",
-                    Long.class).setParameter(1, preenregistrement.getLgPREENREGISTREMENTID()).getSingleResult();
+                    "SELECT COUNT(o) FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1 AND o.strSTATUT <> ?2",
+                    Long.class).setParameter(1, preenregistrement.getLgPREENREGISTREMENTID())
+                    .setParameter(2, STATUT_DELETE).getSingleResult();
             return n != null && n > 0;
         } catch (Exception e) {
             return false;
