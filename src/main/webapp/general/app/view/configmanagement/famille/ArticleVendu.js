@@ -717,11 +717,13 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                 progress.hide();
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
-                    var msg = 'Nombre de produits en compte : ' + result.count;
+                    var vert = 'color:green;font-weight:bold;';
+                    var msg = '<span style="' + vert + '">Nombre de produits suggérés : ' + result.count + '</span>';
                     if (result.ignores && result.ignores > 0) {
-                        msg += '<br/><b>Produits ignorés : ' + result.ignores + '</b>';
+                        msg += '<br/><span style="' + vert + '">Produits non suggérés (ignorés) : ' + result.ignores + '</span>';
                         if (result.detailIgnores && result.detailIgnores.length > 0) {
-                            msg += '<ul style="text-align:left;margin:5px 0 0 15px;">';
+                            msg += '<br/><span style="' + vert + '">Causes :</span>';
+                            msg += '<ul style="text-align:left;margin:5px 0 0 15px;' + vert + '">';
                             Ext.Array.each(result.detailIgnores.slice(0, 15), function (p) {
                                 msg += '<li>' + (p.cip ? p.cip + ' - ' : '') + (p.nom || '') + ' (' + p.motif + ')</li>';
                             });
