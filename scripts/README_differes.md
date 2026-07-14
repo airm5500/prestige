@@ -28,7 +28,7 @@ incohérents entre écrans). Les correctifs applicatifs sont sur la branche
 | `cahier_recette_differes.md` | Même cahier en Markdown (lecture rapide / versionnage). | Alternative au `.xlsx`. |
 | `verifications_recette_differes.sql` | **Lecture seule.** Une requête de contrôle par fiche (CR-01 à CR-21). | Pendant la recette, pour vérifier chaque résultat en base. |
 | `confirmation_diagnostics_differes.xlsx` / `.sql` | Prouve, sur la base actuelle, que les anomalies sont réelles avant correctif. | Avant déploiement, pour valider les diagnostics. |
-| `db/migration/V6.3.2__differe_garde_fous_integrite.sql` | **Triggers SQL** (défense en profondeur) : pas de reste négatif sur différé positif ; annulation d'une vente ⇒ ses différés soldés (anti dette fantôme). Couvre les 5 chemins d'annulation. | Appliqué automatiquement par Flyway au déploiement. |
+| `db/migration/V6.3.3__differe_garde_fous_integrite.sql` | **Triggers SQL** (défense en profondeur) : pas de reste négatif sur différé positif ; annulation d'une vente ⇒ ses différés soldés (anti dette fantôme). Couvre les 5 chemins d'annulation. | Appliqué automatiquement par Flyway au déploiement. |
 | `README_differes.md` | Ce document. | — |
 
 ---

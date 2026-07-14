@@ -224,7 +224,7 @@
 | **Résultat obtenu** | |
 | **Statut** | OK ☐ KO ☐ R ☐ |
 
-#### CR-22 — Annulation d'une vente ORDONNANCÉE / tiers-payant (point sensible : trigger V6.3.2)
+#### CR-22 — Annulation d'une vente ORDONNANCÉE / tiers-payant (point sensible : trigger V6.3.3)
 | | |
 |---|---|
 | **Étapes** | 1. Faire une vente ordonnancée / avec tiers-payant, la clôturer. 2. L'annuler. 3. Vérifier la comptabilité tiers-payant (part organisme) ET la dette différée du client. |
