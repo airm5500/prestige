@@ -251,10 +251,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     hideGroupedHeader: true
                                 }], //appliquer le groupement
                             store: store_inventaire_famille,
-                            /* 0.66 (au lieu de 0.8) pour laisser la place aux deux
-                             * barres de boutons du bas, desormais reellement dockees :
-                             * le bouton "Cloturer l'inventaire" reste toujours visible */
-                            height: Ext.getBody().getViewSize().height * 0.66,
+                            height: Ext.getBody().getViewSize().height * 0.8,
                             
                              // AJOUT: Configuration de la vue
                             viewConfig: {
@@ -929,10 +926,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             }
 
                         }]
-                }],
-            /* barres de boutons reellement dockees en bas du panneau : leur
-             * hauteur est reservee, elles ne sont plus tronquees par la grille */
-            dockedItems: [
+                },
+                /* barres de boutons dans le flux, juste sous la grille (pas de
+                 * vide) ; le panneau defile (autoScroll) donc la ligne
+                 * "Cloturer" reste toujours atteignable sur petit ecran */
                 {
                     xtype: 'toolbar',
                     ui: 'footer',
