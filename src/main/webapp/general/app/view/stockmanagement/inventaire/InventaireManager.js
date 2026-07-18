@@ -192,6 +192,21 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
+                            /* disponible sur toute ligne, y compris un
+                             * inventaire cloture : c'est justement apres
+                             * cloture qu'on recontrole les ecarts */
+                            icon: 'resources/images/icons/fam/inventaire.png',
+                            tooltip: 'Créer un inventaire à partir des écarts',
+                            scope: this,
+                            handler: this.onCreateFromEcartsClick
+                        }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
                             icon: 'resources/images/icons/fam/printer.png',
                             tooltip: 'Imprimer la liste d\'inventaire',
                             scope: this,
@@ -327,6 +342,37 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
             titre: "Inventaire [" + rec.get('str_NAME') + "]"
         });
 
+    },
+    /* cree un nouvel inventaire avec les produits en ecart de la ligne
+     * choisie ; le stock initial est recalcule cote serveur depuis le stock
+     * courant (pas repris de l'ancien inventaire) */
+    onCreateFromEcartsClick: function(grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        Ext.MessageBox.confirm('Message',
+                'Créer un nouvel inventaire à partir des écarts de "' + rec.get('str_NAME')
+                + '" ?<br/>Le stock initial des lignes sera repris du stock courant.',
+                function(btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    testextjs.app.getController('App').ShowWaitingProcess();
+                    Ext.Ajax.request({
+                        url: url_services_rest_inventaire + '/create-from-ecarts/' + rec.get('lg_INVENTAIRE_ID'),
+                        method: 'POST',
+                        timeout: 1800000,
+                        success: function(response) {
+                            testextjs.app.getController('App').StopWaitingProcess();
+                            var object = Ext.JSON.decode(response.responseText, true) || {};
+                            Ext.Msg.alert(object.success ? 'Confirmation' : 'Information',
+                                    object.message || 'Traitement terminé.');
+                            grid.getStore().reload();
+                        },
+                        failure: function(response) {
+                            testextjs.app.getController('App').StopWaitingProcess();
+                            Ext.Msg.alert('Erreur', 'Erreur du serveur ' + response.status);
+                        }
+                    });
+                });
     },
     // DEBUT DE LA NOUVELLE FONCTION
     onAnalyseClick: function(grid, rowIndex) {

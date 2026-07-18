@@ -57,6 +57,18 @@ public class InventaireRessource {
     }
 
     @POST
+    @Path("create-from-ecarts/{id}")
+    public Response createInventaireFromEcarts(@PathParam("id") String id) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = inventaireService.createInventaireFromEcarts(id, tu);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @POST
     @Path("import-csv")
     public Response createInventaireFromCsv(String payload) {
         HttpSession hs = servletRequest.getSession();
