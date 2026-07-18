@@ -85,6 +85,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             ref = ref_add;
         }
 
+        /* l'impression n'est autorisee que sur un inventaire en cours */
+        var isInventaireCloture = false;
+        try {
+            isInventaireCloture = (this.getOdatasource().etat === 'is_Closed');
+        } catch (e) {
+        }
+
 
 
         url_services_data_inventaire_famille = '../webservices/stockmanagement/inventaire/ws_data_inventaire_famille.jsp?lg_INVENTAIRE_ID=' + ref;
@@ -349,17 +356,20 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     text: 'Emplacement',
                                     flex: 1,
                                     sortable: true,
-                                    dataIndex: 'lg_ZONE_GEO_ID'
+                                    dataIndex: 'lg_ZONE_GEO_ID',
+                                    tdCls: 'inv-cell-emplacement'
                                 }, {
                                     text: 'Famille',
                                     dataIndex: 'lg_FAMILLEARTICLE_ID',
                                     sortable: true,
+                                    hidden: true,
                                     flex: 1
 
                                 }, {
                                     text: 'Grossiste',
                                     dataIndex: 'lg_GROSSISTE_ID',
                                     sortable: true,
+                                    hidden: true,
                                     flex: 1
 
                                 }, {
@@ -391,6 +401,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     sortable: true,
                                     dataIndex: 'int_NUMBER_AVAILABLE',
                                     //renderer: amountformat,
+                                    tdCls: 'inv-cell-big',
                                     align: 'right',
                                     // Modifier la partie navigation dans l'éditeur de "Stock Rayon"
                                     editor: {
@@ -599,12 +610,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     sortable: true,
                                     dataIndex: 'int_TAUX_MARQUE',
                                     renderer: amountformat,
+                                    tdCls: 'inv-cell-big',
                                     align: 'right'
                                 },
                                 {
                                     header: 'Ecart',
                                     dataIndex: 'int_QTE_SORTIE',
                                     flex: 1,
+                                    tdCls: 'inv-cell-big',
                                     align: 'right',
                                     renderer: function (v, m, r) {
                                         if (v > 0) {
@@ -844,7 +857,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                 e.stopEvent();
                                                 var grid = Ext.getCmp('gridpanelInventaireID');
                                                 if (grid.getStore().getCount() > 0) {
-                                                    grid.getPlugin('inventaireEditor').startEdit(0, 7);
+                                                    grid.getPlugin('inventaireEditor').startEdit(0, Me.getStockRayonColIndex(grid));
                                                 }
                                             }
                                         }
@@ -889,8 +902,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                 listeners: {
 
                                     change: function (item, layout) {
-                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(currentrowindex), column: 7});
-                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(currentrowindex, 7);
+                                        var gridInv = Ext.getCmp('gridpanelInventaireID');
+                                        var colStockRayon = Me.getStockRayonColIndex(gridInv);
+                                        gridInv.getPlugin('inventaireEditor').startEditByPosition({row: Number(currentrowindex), column: colStockRayon});
+                                        gridInv.getPlugin('inventaireEditor').startEdit(currentrowindex, colStockRayon);
                                         return false;
                                     }
 
@@ -929,18 +944,18 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             handler: this.onbtncloturer
                         }, {
-                            text: 'Editer fiche',
+                            text: 'Imprimer la liste d\'inventaire',
                             id: 'btn_devis',
                             iconCls: 'icon-clear-group',
                             scope: this,
-                            hidden: false,
+                            hidden: isInventaireCloture,
                             handler: this.onbtnprint
                         }, {
                             text: 'Imprimer liste des &eacute;carts',
                             id: 'btn_print_ecart',
                             iconCls: 'icon-clear-group',
                             scope: this,
-                            hidden: false,
+                            hidden: isInventaireCloture,
                             handler: this.onbtnprintecart
                         }, {
                             text: 'Imprimer liste des articles alerte',
@@ -1056,9 +1071,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         if (grid.getStore().getCount() > 0) {
             var firstRec = grid.getStore().getAt(0);
             if (firstRec.get('is_AUTHORIZE_STOCK') == false) { // cacher le champ stock machine
-//                alert("entete " + grid.headerCt.getHeaderAtIndex(8).text);
-                Me.findColumnByDataIndex(grid, 8).setVisible(false);
-                Me.findColumnByDataIndex(grid, 8).setVisible(false);
+                var colStockMachine = Me.findColumnByName(grid, 'int_TAUX_MARQUE');
+                if (colStockMachine) {
+                    colStockMachine.setVisible(false);
+                }
             }
             /* etat initial de la case 'Afficher stock' aligne sur le
              * privilege ; l'utilisateur peut ensuite la modifier */
@@ -1155,7 +1171,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     } else {
                         // Résultats trouvés - navigation normale
                         setTimeout(function () {
-                            OGrid.getPlugin('inventaireEditor').startEdit(0, 7);
+                            OGrid.getPlugin('inventaireEditor').startEdit(0, Me.getStockRayonColIndex(OGrid));
                         }, 100);
                     }
                 }, 150); // Délai initial
@@ -1416,6 +1432,31 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
     findColumnByDataIndex: function (grid, columnIndex) {
 
         return  grid.headerCt.getHeaderAtIndex(columnIndex);
+    },
+
+    /* recherche une colonne (meme cachee) par son dataIndex : les index
+     * numeriques ne sont plus fiables depuis que des colonnes sont
+     * masquees/reaffichables par le menu de colonnes */
+    findColumnByName: function (grid, dataIndex) {
+        var cols = grid.headerCt.getGridColumns();
+        for (var i = 0; i < cols.length; i++) {
+            if (cols[i].dataIndex === dataIndex) {
+                return cols[i];
+            }
+        }
+        return null;
+    },
+
+    /* index VISIBLE de la colonne de saisie 'Stock Rayon' (utilise par le
+     * plugin d'edition qui compte uniquement les colonnes visibles) */
+    getStockRayonColIndex: function (grid) {
+        var cols = grid.headerCt.getVisibleGridColumns();
+        for (var i = 0; i < cols.length; i++) {
+            if (cols[i].dataIndex === 'int_NUMBER_AVAILABLE') {
+                return i;
+            }
+        }
+        return 0;
     },
     
     // Ajouter cette méthode à la classe
