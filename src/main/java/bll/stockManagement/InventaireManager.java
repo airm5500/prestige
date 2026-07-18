@@ -1903,6 +1903,73 @@ public class InventaireManager extends bllBase {
 
     }
 
+    /* tri identique aux listes existantes, selon le type d'inventaire */
+    private String buildOrderByInventaire(String lg_INVENTAIRE_ID) {
+        String orderBy = "ORDER BY t.lgFAMILLEID.lgZONEGEOID.strCODE ASC, t.lgFAMILLEID.strDESCRIPTION ASC";
+        try {
+            if (!"%%".equals(lg_INVENTAIRE_ID)) {
+                TInventaire OInventaire = this.getOdataManager().getEm().find(TInventaire.class, lg_INVENTAIRE_ID);
+                if (OInventaire != null && OInventaire.getStrTYPE().equalsIgnoreCase("famille")) {
+                    orderBy = "ORDER BY t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE ASC, t.lgFAMILLEID.strDESCRIPTION ASC";
+                } else if (OInventaire != null && OInventaire.getStrTYPE().equalsIgnoreCase("grossiste")) {
+                    orderBy = "ORDER BY t.lgFAMILLEID.lgGROSSISTEID.strCODE ASC, t.lgFAMILLEID.strDESCRIPTION ASC";
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return orderBy;
+    }
+
+    /* clause commune aux listes touche/non touche : memes filtres et champs de
+     * recherche que la liste 'Tous' (ws_data_inventaire_famille) */
+    private static final String INVENTAIRE_TOUCHE_WHERE = " FROM TInventaireFamille t, TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR g.strCODEARTICLE LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9 AND t.dtUPDATED IS ";
+
+    // liste des lignes touchees (dt_UPDATED renseigne) ou non touchees d'un inventaire
+    public List<TInventaireFamille> listInventaireTouche(String search_value, String lg_INVENTAIRE_ID,
+            String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, boolean touche, int start,
+            int limit, String lg_USER_ID) {
+        List<TInventaireFamille> lstTInventaireFamille = new ArrayList<>();
+        try {
+            if (search_value == null || "".equals(search_value)) {
+                search_value = "%%";
+            }
+            String jpql = "SELECT DISTINCT t" + INVENTAIRE_TOUCHE_WHERE + (touche ? "NOT NULL " : "NULL ")
+                    + buildOrderByInventaire(lg_INVENTAIRE_ID);
+            lstTInventaireFamille = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
+                    .setParameter(8, true).setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return lstTInventaireFamille;
+    }
+
+    public long getCountInventaireTouche(String search_value, String lg_INVENTAIRE_ID, String lg_FAMILLEARTICLE_ID,
+            String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, boolean touche, String lg_USER_ID) {
+        long count = 0l;
+        try {
+            if (search_value == null || "".equals(search_value)) {
+                search_value = "%%";
+            }
+            String jpql = "SELECT COUNT(DISTINCT t)" + INVENTAIRE_TOUCHE_WHERE + (touche ? "NOT NULL " : "NULL ");
+            Object object = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
+                    .setParameter(8, true).setParameter(9, lg_USER_ID)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
+            count = Long.valueOf(object + "");
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return count;
+    }
+    // fin liste des lignes touchees / non touchees
+
     // recuperation du dernier inventaire
     public TInventaire getLastInventaire(String str_STATUT) {
         TInventaire OTInventaire = null;

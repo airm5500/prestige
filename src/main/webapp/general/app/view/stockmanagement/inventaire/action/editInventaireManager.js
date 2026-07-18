@@ -102,7 +102,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
         var store_type = new Ext.data.Store({
             fields: ['str_TYPE', 'str_desc'],
-            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}]
+            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles touchés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non touchés'}]
         });
 
         var store_grossiste = new Ext.data.Store({
@@ -630,7 +630,18 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                         return v;
                                     },
 
-                                    sortable: true}
+                                    sortable: true},
+                                {
+                                    text: 'Touché',
+                                    dataIndex: 'is_TOUCHED',
+                                    flex: 0.6,
+                                    align: 'center',
+                                    sortable: false,
+                                    renderer: function (v, m) {
+                                        m.tdCls = (v === 'Oui') ? 'inv-touche-oui' : 'inv-touche-non';
+                                        return v;
+                                    }
+                                }
                             ],
                             tbar: [
                                 {
@@ -964,6 +975,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             hidden: true,
                             handler: this.onbtnprintalert
+                        }, {
+                            text: 'Imprimer filtre courant',
+                            id: 'btn_print_filtre',
+                            icon: 'resources/images/icons/fam/printer.png',
+                            tooltip: 'Impression via le navigateur de toutes les lignes du filtre courant (touchés, non touchés, écarts...)',
+                            scope: this,
+                            hidden: isInventaireCloture,
+                            handler: this.onbtnprintfiltre
                         },
                         {
                             text: 'Importer csv',
@@ -1192,6 +1211,35 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         str_NAME_FILE = "alerte";
         Me.onPdfClick();
 
+    },
+    /* impression navigateur : rendu HTML serveur de TOUTES les lignes du
+     * filtre courant (la grille paginee ne contient qu'une page) */
+    onbtnprintfiltre: function () {
+        var str_TYPE = "", lg_FAMILLEARTICLE_ID = "", lg_ZONE_GEO_ID = "", lg_GROSSISTE_ID = "", lg_USER_ID = "";
+        var rechecher = Ext.getCmp('rechecher').getValue() || "";
+        if (Ext.getCmp('str_TYPE').getValue() !== null) {
+            str_TYPE = Ext.getCmp('str_TYPE').getValue();
+        }
+        if (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() !== null) {
+            lg_FAMILLEARTICLE_ID = Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue();
+        }
+        if (Ext.getCmp('lg_ZONE_GEO_ID').getValue() !== null) {
+            lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
+        }
+        if (Ext.getCmp('lg_GROSSISTE_ID').getValue() !== null) {
+            lg_GROSSISTE_ID = Ext.getCmp('lg_GROSSISTE_ID').getValue();
+        }
+        if (Ext.getCmp('lg_USER_ID').getValue() !== null) {
+            lg_USER_ID = Ext.getCmp('lg_USER_ID').getValue();
+        }
+        var linkUrl = '../webservices/stockmanagement/inventaire/ws_print_inventaire_filtre.jsp?lg_INVENTAIRE_ID=' + ref
+                + '&str_TYPE=' + str_TYPE
+                + '&search_value=' + encodeURIComponent(rechecher)
+                + '&lg_FAMILLEARTICLE_ID=' + lg_FAMILLEARTICLE_ID
+                + '&lg_ZONE_GEO_ID=' + lg_ZONE_GEO_ID
+                + '&lg_GROSSISTE_ID=' + lg_GROSSISTE_ID
+                + '&lg_USER_ID=' + lg_USER_ID;
+        window.open(linkUrl);
     },
     onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message',
