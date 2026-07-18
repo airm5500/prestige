@@ -33,6 +33,19 @@ public interface FicheArticleService {
             String dtStart, String dtEnd, String codeFamile, String codeRayon, String codeGrossiste, int start,
             int limit, boolean all);
 
+    /* Visualisation des perimes (peremptionquery) : exports et creation d'inventaire sur la liste filtree */
+    byte[] exportPerimesCsv(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
+            String codeRayon, String codeGrossiste) throws java.io.IOException;
+
+    byte[] exportPerimesExcel(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
+            String codeRayon, String codeGrossiste) throws java.io.IOException;
+
+    java.util.Set<String> perimesProduitIds(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
+            String codeRayon, String codeGrossiste);
+
+    JSONObject createInventairePerimes(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
+            String codeRayon, String codeGrossiste) throws JSONException;
+
     JSONObject modifierArticleDatePeremption(String lgFAMILLEID, String dtperemption) throws JSONException;
 
     List<ArticleDTO> articleSurStock(TUser u, String query, String codeFamile, String codeRayon, String codeGrossiste,

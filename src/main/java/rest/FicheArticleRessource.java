@@ -196,6 +196,97 @@ public class FicheArticleRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /*
+     * Visualisation des perimes (peremptionquery) : exports CSV/Excel et creation d'inventaire sur la liste filtree.
+     * nbreMois recu en String pour tolerer une valeur vide (equivalent 0 = filtre par periode/dates).
+     */
+    private int parseNbreMois(String nbreMois) {
+        try {
+            return Integer.parseInt(nbreMois.trim());
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    @GET
+    @Path("perimes/csv")
+    @Produces("text/csv")
+    public Response exportPerimesCsv(@QueryParam(value = "nbreMois") String nbreMois,
+            @QueryParam(value = "codeFamile") String codeFamile, @QueryParam(value = "query") String query,
+            @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws IOException, JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        byte[] data = ficheArticleService.exportPerimesCsv(query, parseNbreMois(nbreMois), dtStart, dtEnd, codeFamile,
+                codeRayon, codeGrossiste);
+        String filename = "peremptions-proches_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".csv";
+        return Response.ok(data, "text/csv; charset=UTF-8").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename=" + filename).build();
+    }
+
+    @GET
+    @Path("perimes/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportPerimesExcel(@QueryParam(value = "nbreMois") String nbreMois,
+            @QueryParam(value = "codeFamile") String codeFamile, @QueryParam(value = "query") String query,
+            @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws IOException, JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        byte[] data = ficheArticleService.exportPerimesExcel(query, parseNbreMois(nbreMois), dtStart, dtEnd, codeFamile,
+                codeRayon, codeGrossiste);
+        String filename = "peremptions-proches_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".xls";
+        return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
+                .header("content-disposition", "attachment; filename=" + filename).build();
+    }
+
+    // Nombre de produits distincts (controle avant confirmation de creation d'inventaire)
+    @GET
+    @Path("perimes/produits/count")
+    public Response perimesProduitsCount(@QueryParam(value = "nbreMois") String nbreMois,
+            @QueryParam(value = "codeFamile") String codeFamile, @QueryParam(value = "query") String query,
+            @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        int count = ficheArticleService
+                .perimesProduitIds(query, parseNbreMois(nbreMois), dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste)
+                .size();
+        return Response.ok().entity(new JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
+    // Creation d'inventaire "Inventaire peremptions proches yyyy-MM-dd HH:mm:ss"
+    @POST
+    @Path("perimes/create-inventaire")
+    public Response perimesCreateInventaire(@QueryParam(value = "nbreMois") String nbreMois,
+            @QueryParam(value = "codeFamile") String codeFamile, @QueryParam(value = "query") String query,
+            @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = ficheArticleService.createInventairePerimes(query, parseNbreMois(nbreMois), dtStart, dtEnd,
+                codeFamile, codeRayon, codeGrossiste);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @GET
     @Path("saisieperimes/csv")
     @Produces("text/csv")
