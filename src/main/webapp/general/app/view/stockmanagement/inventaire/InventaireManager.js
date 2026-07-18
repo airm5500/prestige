@@ -193,11 +193,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/printer.png',
-                            tooltip: 'Imprimer une fiche',
+                            tooltip: 'Imprimer la liste d\'inventaire',
                             scope: this,
                             handler: this.onbtnprint,
+                            /* impression disponible uniquement sur les
+                             * inventaires en cours (pas apres cloture) */
                             getClass: function(value, metadata, record) {
-                                if (record.get('etat') == "is_Closed") {
+                                if (record.get('etat') == "enable") {
                                     return 'x-display-hide';
                                 } else {
                                     return 'x-hide-display';
@@ -273,11 +275,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         var rec = grid.getStore().getAt(rowIndex);
 
         Ext.MessageBox.confirm('Message',
-                'Confirmation de l\'impression de la fiche d\'inventaire',
+                'Confirmation de l\'impression de la liste d\'inventaire',
                 function(btn) {
                     if (btn == 'yes') {
-                       
-                        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=final";
+                        /* meme modele que l'impression depuis la fiche
+                         * (str_NAME_FILE vide) pour eviter deux documents
+                         * divergents */
+                        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=";
                           window.open(linkUrl);
                         return;
                     }
