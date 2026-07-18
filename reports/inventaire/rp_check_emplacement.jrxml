@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Check EMPLACEMENT : statut du comptage par emplacement d'un inventaire.
+     Statut : aucune ligne touchee -> Non fait ; toutes -> Termine ; sinon En cours.
+     A deployer dans le dossier des modeles Jasper (jdom.scr_report_file). -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_check_emplacement" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+
+    <style name="colHeader" fontName="DejaVu Sans" fontSize="9" isBold="true" forecolor="#FFFFFF" backcolor="#4A4A4A" mode="Opaque">
+        <box>
+            <pen lineWidth="0.5" lineColor="#000000"/>
+        </box>
+    </style>
+    <style name="cell" fontName="DejaVu Sans" fontSize="9">
+        <box leftPadding="3" rightPadding="3">
+            <pen lineWidth="0.5" lineColor="#999999"/>
+        </box>
+    </style>
+    <style name="statutStyle" fontName="DejaVu Sans" fontSize="9" isBold="true">
+        <box leftPadding="3" rightPadding="3">
+            <pen lineWidth="0.5" lineColor="#999999"/>
+        </box>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{comptes}.longValue() == 0]]></conditionExpression>
+            <style forecolor="#B02A37"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{comptes}.longValue() > 0 && $F{comptes}.longValue() < $F{total}.longValue()]]></conditionExpression>
+            <style forecolor="#B76E00"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{comptes}.longValue() >= $F{total}.longValue()]]></conditionExpression>
+            <style forecolor="#1E7E34"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="P_REFERENCE" class="java.lang.String"/>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_PRINTED_BY" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String">
+        <defaultValueExpression><![CDATA["CHECK EMPLACEMENT"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_FOOTER_RC" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+
+    <queryString>
+        <![CDATA[SELECT i.str_NAME AS inventaire_name,
+       z.str_CODE AS code,
+       z.str_LIBELLEE AS emplacement,
+       COUNT(t.lg_INVENTAIRE_FAMILLE_ID) AS total,
+       SUM(CASE WHEN t.dt_UPDATED IS NOT NULL THEN 1 ELSE 0 END) AS comptes
+FROM t_inventaire_famille t
+INNER JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = t.lg_INVENTAIRE_ID
+INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID
+INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID
+WHERE t.lg_INVENTAIRE_ID = $P{P_REFERENCE}
+  AND t.bool_INVENTAIRE = TRUE
+GROUP BY z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE
+ORDER BY z.str_CODE ASC]]>
+    </queryString>
+
+    <field name="inventaire_name" class="java.lang.String"/>
+    <field name="code" class="java.lang.String"/>
+    <field name="emplacement" class="java.lang.String"/>
+    <field name="total" class="java.lang.Number"/>
+    <field name="comptes" class="java.lang.Number"/>
+
+    <title>
+        <band height="78" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="380" height="16"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="12" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="380" height="12"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField pattern="dd/MM/yyyy HH:mm">
+                <reportElement x="380" y="0" width="175" height="12"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="380" y="12" width="175" height="12"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Imprimé par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="34" width="555" height="18"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="13" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="54" width="555" height="14"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Inventaire : " + $F{inventaire_name}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <staticText>
+                <reportElement style="colHeader" x="0" y="0" width="70" height="18"/>
+                <textElement verticalAlignment="Middle">
+                    <paragraph leftIndent="3"/>
+                </textElement>
+                <text><![CDATA[Code]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="70" y="0" width="245" height="18"/>
+                <textElement verticalAlignment="Middle">
+                    <paragraph leftIndent="3"/>
+                </textElement>
+                <text><![CDATA[Emplacement]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="315" y="0" width="60" height="18"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <paragraph rightIndent="3"/>
+                </textElement>
+                <text><![CDATA[Articles]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="375" y="0" width="60" height="18"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <paragraph rightIndent="3"/>
+                </textElement>
+                <text><![CDATA[Comptés]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="435" y="0" width="60" height="18"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <paragraph rightIndent="3"/>
+                </textElement>
+                <text><![CDATA[Restants]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="495" y="0" width="60" height="18"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <text><![CDATA[Statut]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="16" splitType="Stretch">
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="0" y="0" width="70" height="16"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{code}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="70" y="0" width="245" height="16"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{emplacement}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="315" y="0" width="60" height="16"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{total}.longValue()]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="375" y="0" width="60" height="16"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{comptes}.longValue()]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="435" y="0" width="60" height="16"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{total}.longValue() - $F{comptes}.longValue()]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="statutStyle" stretchType="RelativeToBandHeight" x="495" y="0" width="60" height="16"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{comptes}.longValue() == 0 ? "Non fait" : ($F{comptes}.longValue() >= $F{total}.longValue() ? "Terminé" : "En cours")]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="16">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="400" height="12"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="455" y="2" width="70" height="12"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " /"]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="525" y="2" width="30" height="12"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>

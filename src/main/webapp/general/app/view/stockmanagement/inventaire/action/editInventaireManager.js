@@ -993,7 +993,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             text: 'Imprimer filtre courant',
                             id: 'btn_print_filtre',
                             icon: 'resources/images/icons/fam/printer.png',
-                            tooltip: 'Impression via le navigateur de toutes les lignes du filtre courant (touchés, non touchés, écarts...)',
+                            tooltip: 'Impression PDF de toutes les lignes du filtre courant (touchés, non touchés, écarts...)',
                             scope: this,
                             hidden: isInventaireCloture,
                             handler: this.onbtnprintfiltre
@@ -1316,11 +1316,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         });
     },
 
-    /* impression navigateur : rendu HTML serveur de TOUTES les lignes du
-     * filtre courant (la grille paginee ne contient qu'une page) */
+    /* impression PDF (Jasper) de TOUTES les lignes du filtre courant : la
+     * grille paginee ne contient qu'une page. Le modele avec ou sans stock
+     * machine est choisi cote serveur (privilege / case 'Afficher stock'). */
     onbtnprintfiltre: function () {
         var p = Me.getCurrentFilterParams();
-        var linkUrl = '../webservices/stockmanagement/inventaire/ws_print_inventaire_filtre.jsp?'
+        var chkShowStock = Ext.getCmp('chk_show_stock_print');
+        p.showStock = (chkShowStock && chkShowStock.getValue()) ? 'true' : 'false';
+        var linkUrl = '../webservices/stockmanagement/inventaire/ws_generate_pdf_filtre.jsp?'
                 + Ext.Object.toQueryString(p);
         window.open(linkUrl);
     },
@@ -1675,7 +1678,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     text: 'Imprimer',
                     icon: 'resources/images/icons/fam/printer.png',
                     handler: function () {
-                        Me.printCheckEmplacement(storeCheck);
+                        Me.printCheckEmplacement();
                     }
                 }, {
                     text: 'Fermer',
@@ -1687,36 +1690,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         win.show();
     },
 
-    /* impression navigateur de la liste des emplacements et de leur statut */
-    printCheckEmplacement: function (store) {
-        var rows = '';
-        store.each(function (r) {
-            var color = r.get('str_STATUT') === 'Terminé' ? '#1E7E34'
-                    : (r.get('str_STATUT') === 'En cours' ? '#B76E00' : '#B02A37');
-            rows += '<tr>'
-                    + '<td>' + r.get('str_CODE') + '</td>'
-                    + '<td>' + r.get('str_LIBELLEE') + '</td>'
-                    + '<td style="text-align:right;">' + r.get('int_TOTAL') + '</td>'
-                    + '<td style="text-align:right;">' + r.get('int_TOUCHES') + '</td>'
-                    + '<td style="text-align:right;">' + r.get('int_RESTANT') + '</td>'
-                    + '<td style="color:' + color + ';font-weight:bold;">' + r.get('str_STATUT') + '</td>'
-                    + '</tr>';
-        });
-        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"/>'
-                + '<title>Check emplacement</title>'
-                + '<style>body{font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:20px;}'
-                + 'h1{font-size:16px;}table{border-collapse:collapse;width:100%;}'
-                + 'th,td{border:1px solid #999;padding:3px 6px;text-align:left;}'
-                + 'th{background:#eee;}</style></head><body>'
-                + '<h1>Check emplacement — statut du comptage</h1>'
-                + '<table><thead><tr><th>Code</th><th>Emplacement</th><th>Articles</th>'
-                + '<th>Comptés</th><th>Restants</th><th>Statut</th></tr></thead>'
-                + '<tbody>' + rows + '</tbody></table></body></html>';
-        var w = window.open('', '_blank');
-        w.document.write(html);
-        w.document.close();
-        w.focus();
-        w.print();
+    /* impression PDF (Jasper) de la liste des emplacements et de leur statut */
+    printCheckEmplacement: function () {
+        window.open('../webservices/stockmanagement/inventaire/ws_generate_pdf_check_emplacement.jsp?lg_INVENTAIRE_ID=' + ref);
     },
 
     onbtnActualiserStock: function (button) {

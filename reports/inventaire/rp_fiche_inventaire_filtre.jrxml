@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Impression de la liste d'inventaire pour le filtre courant (tous, manquants,
+     surplus, ecarts, alertes, touches, non touches) avec stock machine et ecart.
+     La designation est large et extensible : le nom complet du produit est
+     toujours visible (retour a la ligne automatique).
+     Variante sans stock : rp_fiche_inventaire_filtre_agent.jrxml.
+     A deployer dans le dossier des modeles Jasper (jdom.scr_report_file). -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_fiche_inventaire_filtre" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+
+    <style name="colHeader" fontName="DejaVu Sans" fontSize="8" isBold="true" forecolor="#FFFFFF" backcolor="#4A4A4A" mode="Opaque">
+        <box>
+            <pen lineWidth="0.5" lineColor="#000000"/>
+        </box>
+    </style>
+    <style name="cell" fontName="DejaVu Sans" fontSize="8">
+        <box leftPadding="3" rightPadding="3">
+            <pen lineWidth="0.5" lineColor="#999999"/>
+        </box>
+    </style>
+    <style name="ecartStyle" fontName="DejaVu Sans" fontSize="8" isBold="true">
+        <box leftPadding="3" rightPadding="3">
+            <pen lineWidth="0.5" lineColor="#999999"/>
+        </box>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{ecart}.longValue() < 0]]></conditionExpression>
+            <style forecolor="#B02A37"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{ecart}.longValue() > 0]]></conditionExpression>
+            <style forecolor="#1E7E34"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="P_REFERENCE" class="java.lang.String"/>
+    <parameter name="P_FILTRE" class="java.lang.String">
+        <defaultValueExpression><![CDATA["ALL"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_FILTRE_LIBELLE" class="java.lang.String">
+        <defaultValueExpression><![CDATA["Tous les articles"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_SEARCH" class="java.lang.String">
+        <defaultValueExpression><![CDATA["%%"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_ZONE_ID" class="java.lang.String">
+        <defaultValueExpression><![CDATA["%%"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_FAMILLEARTICLE_ID" class="java.lang.String">
+        <defaultValueExpression><![CDATA["%%"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_GROSSISTE_ID" class="java.lang.String">
+        <defaultValueExpression><![CDATA["%%"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_USER" class="java.lang.String">
+        <defaultValueExpression><![CDATA["%%"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_ALERTE" class="java.lang.Integer">
+        <defaultValueExpression><![CDATA[0]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_PRINTED_BY" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String">
+        <defaultValueExpression><![CDATA["LISTE D'INVENTAIRE"]]></defaultValueExpression>
+    </parameter>
+    <parameter name="P_FOOTER_RC" class="java.lang.String">
+        <defaultValueExpression><![CDATA[""]]></defaultValueExpression>
+    </parameter>
+
+    <queryString>
+        <![CDATA[SELECT i.str_NAME AS inventaire_name,
+       f.int_CIP AS cip,
+       f.str_DESCRIPTION AS designation,
+       z.str_LIBELLEE AS emplacement,
+       IFNULL(t.int_NUMBER_INIT, 0) AS stock_machine,
+       IFNULL(t.int_NUMBER, 0) AS stock_rayon,
+       (IFNULL(t.int_NUMBER, 0) - IFNULL(t.int_NUMBER_INIT, 0)) AS ecart,
+       IFNULL(f.int_PAF, 0) AS paf,
+       IFNULL(f.int_PRICE, 0) AS prix_vente,
+       CASE WHEN t.dt_UPDATED IS NOT NULL THEN 'Oui' ELSE 'Non' END AS touche
+FROM t_inventaire_famille t
+INNER JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = t.lg_INVENTAIRE_ID
+INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID
+INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID
+WHERE t.lg_INVENTAIRE_ID = $P{P_REFERENCE}
+  AND t.bool_INVENTAIRE = TRUE
+  AND f.lg_ZONE_GEO_ID LIKE $P{P_ZONE_ID}
+  AND IFNULL(f.lg_FAMILLEARTICLE_ID, '') LIKE $P{P_FAMILLEARTICLE_ID}
+  AND IFNULL(f.lg_GROSSISTE_ID, '') LIKE $P{P_GROSSISTE_ID}
+  AND IFNULL(t.str_UPDATED_ID, '') LIKE $P{P_USER}
+  AND (f.str_DESCRIPTION LIKE $P{P_SEARCH} OR f.int_CIP LIKE $P{P_SEARCH} OR IFNULL(f.int_EAN13, '') LIKE $P{P_SEARCH})
+  AND ( $P{P_FILTRE} = 'ALL' OR $P{P_FILTRE} = ''
+        OR ($P{P_FILTRE} = 'MANQUANT' AND IFNULL(t.int_NUMBER, 0) < IFNULL(t.int_NUMBER_INIT, 0))
+        OR ($P{P_FILTRE} = 'SURPLUS' AND IFNULL(t.int_NUMBER, 0) > IFNULL(t.int_NUMBER_INIT, 0))
+        OR ($P{P_FILTRE} = 'MANQUANTSURPLUS' AND IFNULL(t.int_NUMBER, 0) <> IFNULL(t.int_NUMBER_INIT, 0))
+        OR ($P{P_FILTRE} = 'ALERTE' AND IFNULL(t.int_NUMBER, 0) > $P{P_ALERTE})
+        OR ($P{P_FILTRE} = 'TOUCHE' AND t.dt_UPDATED IS NOT NULL)
+        OR ($P{P_FILTRE} = 'NONTOUCHE' AND t.dt_UPDATED IS NULL) )
+ORDER BY z.str_CODE ASC, f.str_DESCRIPTION ASC]]>
+    </queryString>
+
+    <field name="inventaire_name" class="java.lang.String"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="designation" class="java.lang.String"/>
+    <field name="emplacement" class="java.lang.String"/>
+    <field name="stock_machine" class="java.lang.Number"/>
+    <field name="stock_rayon" class="java.lang.Number"/>
+    <field name="ecart" class="java.lang.Number"/>
+    <field name="paf" class="java.lang.Number"/>
+    <field name="prix_vente" class="java.lang.Number"/>
+    <field name="touche" class="java.lang.String"/>
+
+    <variable name="V_ECART_QTE" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{ecart}.longValue()]]></variableExpression>
+        <initialValueExpression><![CDATA[0L]]></initialValueExpression>
+    </variable>
+    <variable name="V_ECART_ACHAT" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{ecart}.longValue() * $F{paf}.longValue()]]></variableExpression>
+        <initialValueExpression><![CDATA[0L]]></initialValueExpression>
+    </variable>
+    <variable name="V_ECART_VENTE" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{ecart}.longValue() * $F{prix_vente}.longValue()]]></variableExpression>
+        <initialValueExpression><![CDATA[0L]]></initialValueExpression>
+    </variable>
+
+    <title>
+        <band height="92" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="380" height="16"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="12" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="380" height="12"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField pattern="dd/MM/yyyy HH:mm">
+                <reportElement x="380" y="0" width="175" height="12"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="380" y="12" width="175" height="12"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Imprimé par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="34" width="555" height="18"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="13" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="54" width="555" height="14"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Inventaire : " + $F{inventaire_name}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="70" width="555" height="14"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="10" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Filtre : " + $P{P_FILTRE_LIBELLE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <staticText>
+                <reportElement style="colHeader" x="0" y="0" width="65" height="18"/>
+                <textElement verticalAlignment="Middle">
+                    <paragraph leftIndent="3"/>
+                </textElement>
+                <text><![CDATA[CIP]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="65" y="0" width="200" height="18"/>
+                <textElement verticalAlignment="Middle">
+                    <paragraph leftIndent="3"/>
+                </textElement>
+                <text><![CDATA[Désignation]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="265" y="0" width="85" height="18"/>
+                <textElement verticalAlignment="Middle">
+                    <paragraph leftIndent="3"/>
+                </textElement>
+                <text><![CDATA[Emplacement]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="350" y="0" width="55" height="18"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <paragraph rightIndent="3"/>
+                </textElement>
+                <text><![CDATA[Stock mach.]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="405" y="0" width="55" height="18"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <paragraph rightIndent="3"/>
+                </textElement>
+                <text><![CDATA[Stock rayon]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="460" y="0" width="50" height="18"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <paragraph rightIndent="3"/>
+                </textElement>
+                <text><![CDATA[Écart]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="colHeader" x="510" y="0" width="45" height="18"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <text><![CDATA[Touché]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="14" splitType="Stretch">
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="0" y="0" width="65" height="14"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
+            </textField>
+            <!-- designation large et extensible : le nom complet reste visible -->
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="65" y="0" width="200" height="14"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="265" y="0" width="85" height="14"/>
+                <textElement verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{emplacement}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="350" y="0" width="55" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{stock_machine}.longValue()]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="405" y="0" width="55" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{stock_rayon}.longValue()]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0">
+                <reportElement style="ecartStyle" stretchType="RelativeToBandHeight" x="460" y="0" width="50" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{ecart}.longValue()]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement style="cell" stretchType="RelativeToBandHeight" x="510" y="0" width="45" height="14"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle"/>
+                <textFieldExpression><![CDATA[$F{touche}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+
+    <pageFooter>
+        <band height="16">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="2" width="400" height="12"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="455" y="2" width="70" height="12"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " /"]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="525" y="2" width="30" height="12"/>
+                <textElement>
+                    <font fontName="DejaVu Sans" size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="40" splitType="Stretch">
+            <textField>
+                <reportElement x="0" y="4" width="555" height="14"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Nombre de lignes : " + $V{REPORT_COUNT} + "    |    Écart quantité : " + new java.text.DecimalFormat("#,##0").format($V{V_ECART_QTE})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="0" y="20" width="555" height="14"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="9" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Écart achat : " + new java.text.DecimalFormat("#,##0").format($V{V_ECART_ACHAT}) + "    |    Écart vente : " + new java.text.DecimalFormat("#,##0").format($V{V_ECART_VENTE}) + "  (écart signé = saisi - initial)"]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>
