@@ -125,8 +125,6 @@
     }
    
    boolean result_show_col_stock = Oprivilege.isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
-   // privilege du bouton 'Cloturer' de la fiche d'inventaire
-   boolean result_cloture_inventaire = Oprivilege.isColonneStockMachineIsAuthorize("P_CLOTURER_INVENTAIRE");
 
     if (str_TYPE.equalsIgnoreCase(MANQUANT)) {
       
@@ -216,7 +214,6 @@ for(TInventaireFamille OTInventaireFamille:lstTInventaireFamille){
         // une ligne est touchee des que dt_UPDATED est renseigne (meme si la
         // quantite saisie est identique a la quantite initiale)
         json.put("is_TOUCHED", OTInventaireFamille.getDtUPDATED() != null ? "Oui" : "Non");
-        json.put("is_AUTHORIZE_CLOTURE", result_cloture_inventaire);
 
         arrayObj.put(json);
     }

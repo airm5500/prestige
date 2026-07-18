@@ -1081,6 +1081,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             id: 'btn_loturer',
                             cls: 'btn-cloturer',
                             scale: 'medium',
+                            hidden: true,
                             scope: this,
                             handler: this.onbtncloturer
                         }
@@ -1090,6 +1091,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         });
         this.callParent();
         this.loadData();
+        this.loadCloturePrivilege();
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
@@ -1131,15 +1133,24 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                 chkShowStock.setValue(firstRec.get('is_AUTHORIZE_STOCK') === true);
                 chkShowStock.inventaireInitDone = true;
             }
-            /* bouton Cloturer soumis au privilege P_CLOTURER_INVENTAIRE
-             * (le serveur re-verifie de toute facon a la cloture) */
-            var btnCloturer = Ext.getCmp('btn_loturer');
-            if (btnCloturer) {
-                btnCloturer.setVisible(firstRec.get('is_AUTHORIZE_CLOTURE') !== false);
-            }
         }
 
 
+    },
+    /* controle UNIQUE du privilege de cloture a l'ouverture de l'ecran : le
+     * bouton reste masque par defaut et n'est affiche que si l'utilisateur a
+     * le droit. Hors du chargement pagine pour ne rien relancer par page. */
+    loadCloturePrivilege: function () {
+        Ext.Ajax.request({
+            url: '../webservices/stockmanagement/inventaire/ws_check_cloture_privilege.jsp',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true);
+                var btnCloturer = Ext.getCmp('btn_loturer');
+                if (btnCloturer && o && o.authorize === true) {
+                    btnCloturer.setVisible(true);
+                }
+            }
+        });
     },
     onbtnback: function () {
         var xtype = "";
