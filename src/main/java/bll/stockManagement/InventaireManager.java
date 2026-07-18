@@ -2025,6 +2025,54 @@ public class InventaireManager extends bllBase {
     }
     // fin valorisation des ecarts
 
+    /*
+     * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone
+     * geographique) pour un inventaire, sur les seules lignes incluses
+     * (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ;
+     * toutes touchees -> Termine ; sinon -> En cours. Un emplacement sans
+     * aucune ligne dans l'inventaire n'apparait pas (il ne peut pas etre
+     * compte).
+     */
+    public JSONArray listCheckEmplacement(String lg_INVENTAIRE_ID) {
+        JSONArray arrayObj = new JSONArray();
+        try {
+            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(
+                    "SELECT z.str_CODE, z.str_LIBELLEE, COUNT(t.lg_INVENTAIRE_FAMILLE_ID) AS int_TOTAL, "
+                            + "SUM(CASE WHEN t.dt_UPDATED IS NOT NULL THEN 1 ELSE 0 END) AS int_TOUCHES "
+                            + "FROM t_inventaire_famille t "
+                            + "INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID "
+                            + "INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID "
+                            + "WHERE t.lg_INVENTAIRE_ID = ?1 AND t.bool_INVENTAIRE = TRUE "
+                            + "GROUP BY z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE ORDER BY z.str_CODE ASC")
+                    .setParameter(1, lg_INVENTAIRE_ID).getResultList();
+            for (Object[] row : list) {
+                long total = Long.valueOf(row[2] + "");
+                long touches = Long.valueOf(row[3] + "");
+                String statut;
+                if (touches == 0) {
+                    statut = "Non fait";
+                } else if (touches >= total) {
+                    statut = "Terminé";
+                } else {
+                    statut = "En cours";
+                }
+                JSONObject json = new JSONObject();
+                json.put("str_CODE", row[0] + "");
+                json.put("str_LIBELLEE", row[1] + "");
+                json.put("int_TOTAL", total);
+                json.put("int_TOUCHES", touches);
+                json.put("int_RESTANT", total - touches);
+                json.put("str_STATUT", statut);
+                arrayObj.put(json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return arrayObj;
+    }
+    // fin 'Check EMPLACEMENT'
+
     // recuperation du dernier inventaire
     public TInventaire getLastInventaire(String str_STATUT) {
         TInventaire OTInventaire = null;

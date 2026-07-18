@@ -954,6 +954,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             icon: 'resources/images/icons/fam/cog_edit.png',
                             scope: this,
                             handler: this.onbtnActualiserStock
+                        },
+                        {
+                            text: 'Check emplacement (F4)',
+                            id: 'btn_check_emplacement',
+                            icon: 'resources/images/icons/fam/coches.png',
+                            tooltip: 'Statut du comptage par emplacement : Non fait / En cours / Terminé',
+                            scope: this,
+                            handler: this.onbtnCheckEmplacement
                         }, {
                             text: 'Imprimer la liste d\'inventaire',
                             id: 'btn_devis',
@@ -1583,7 +1591,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
     
     // Ajouter cette méthode à la classe
         addKeyMap: function() {
-            // Créer un keyMap pour F3
+            // F3 : recherche (comportement historique conserve) ; F4 : check emplacement
             this.keyMap = new Ext.util.KeyMap({
                 target: Ext.getBody(),
                 binding: [{
@@ -1597,9 +1605,113 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         return false; // Empêcher le comportement par défaut de F3
                     },
                     scope: this
+                }, {
+                    key: Ext.EventObject.F4,
+                    fn: function() {
+                        // n'agir que si l'ecran inventaire est actif
+                        if (Ext.getCmp('editinventaireManagerID')) {
+                            Me.onbtnCheckEmplacement();
+                        }
+                        return false;
+                    },
+                    scope: this
                 }]
             });
         },
+
+    /* 'Check EMPLACEMENT' : liste des emplacements de l'inventaire courant
+     * avec leur statut de comptage (Non fait / En cours / Termine), calcule
+     * cote serveur sur les lignes bool_INVENTAIRE=true. Les emplacements sans
+     * article dans l'inventaire ne sont pas listes. */
+    onbtnCheckEmplacement: function () {
+        var storeCheck = new Ext.data.Store({
+            fields: ['str_CODE', 'str_LIBELLEE', 'int_TOTAL', 'int_TOUCHES', 'int_RESTANT', 'str_STATUT'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../webservices/stockmanagement/inventaire/ws_data_check_emplacement.jsp?lg_INVENTAIRE_ID=' + ref,
+                reader: {
+                    type: 'json',
+                    root: 'results',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        var statutRenderer = function (v, m) {
+            if (v === 'Terminé') {
+                m.style = 'color:#1E7E34;font-weight:800;';
+            } else if (v === 'En cours') {
+                m.style = 'color:#B76E00;font-weight:800;';
+            } else {
+                m.style = 'color:#B02A37;font-weight:800;';
+            }
+            return v;
+        };
+        var win = new Ext.window.Window({
+            title: 'Check emplacement — statut du comptage',
+            width: 680,
+            height: 480,
+            layout: 'fit',
+            modal: true,
+            items: {
+                xtype: 'grid',
+                store: storeCheck,
+                columns: [
+                    {text: 'Code', dataIndex: 'str_CODE', flex: 0.5},
+                    {text: 'Emplacement', dataIndex: 'str_LIBELLEE', flex: 1.2},
+                    {text: 'Articles', dataIndex: 'int_TOTAL', flex: 0.5, align: 'right'},
+                    {text: 'Comptés', dataIndex: 'int_TOUCHES', flex: 0.5, align: 'right'},
+                    {text: 'Restants', dataIndex: 'int_RESTANT', flex: 0.5, align: 'right'},
+                    {text: 'Statut', dataIndex: 'str_STATUT', flex: 0.7, renderer: statutRenderer}
+                ]
+            },
+            buttons: [{
+                    text: 'Imprimer',
+                    icon: 'resources/images/icons/fam/printer.png',
+                    handler: function () {
+                        Me.printCheckEmplacement(storeCheck);
+                    }
+                }, {
+                    text: 'Fermer',
+                    handler: function () {
+                        win.close();
+                    }
+                }]
+        });
+        win.show();
+    },
+
+    /* impression navigateur de la liste des emplacements et de leur statut */
+    printCheckEmplacement: function (store) {
+        var rows = '';
+        store.each(function (r) {
+            var color = r.get('str_STATUT') === 'Terminé' ? '#1E7E34'
+                    : (r.get('str_STATUT') === 'En cours' ? '#B76E00' : '#B02A37');
+            rows += '<tr>'
+                    + '<td>' + r.get('str_CODE') + '</td>'
+                    + '<td>' + r.get('str_LIBELLEE') + '</td>'
+                    + '<td style="text-align:right;">' + r.get('int_TOTAL') + '</td>'
+                    + '<td style="text-align:right;">' + r.get('int_TOUCHES') + '</td>'
+                    + '<td style="text-align:right;">' + r.get('int_RESTANT') + '</td>'
+                    + '<td style="color:' + color + ';font-weight:bold;">' + r.get('str_STATUT') + '</td>'
+                    + '</tr>';
+        });
+        var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"/>'
+                + '<title>Check emplacement</title>'
+                + '<style>body{font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:20px;}'
+                + 'h1{font-size:16px;}table{border-collapse:collapse;width:100%;}'
+                + 'th,td{border:1px solid #999;padding:3px 6px;text-align:left;}'
+                + 'th{background:#eee;}</style></head><body>'
+                + '<h1>Check emplacement — statut du comptage</h1>'
+                + '<table><thead><tr><th>Code</th><th>Emplacement</th><th>Articles</th>'
+                + '<th>Comptés</th><th>Restants</th><th>Statut</th></tr></thead>'
+                + '<tbody>' + rows + '</tbody></table></body></html>';
+        var w = window.open('', '_blank');
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        w.print();
+    },
 
     onbtnActualiserStock: function (button) {
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
