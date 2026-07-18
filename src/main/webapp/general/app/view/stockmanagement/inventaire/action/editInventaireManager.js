@@ -1638,13 +1638,29 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         };
         var win = new Ext.window.Window({
             title: 'Check emplacement — statut du comptage',
-            width: 680,
-            height: 480,
+            width: 820,
+            height: 560,
             layout: 'fit',
             modal: true,
             items: {
                 xtype: 'grid',
                 store: storeCheck,
+                /* barre de totaux globaux (articles, comptes, restants, taux) */
+                bbar: [
+                    {
+                        xtype: 'tbtext', itemId: 'totGlobal',
+                        text: '<b>Total articles : 0</b>'
+                    }, '-', {
+                        xtype: 'tbtext', itemId: 'totComptes',
+                        text: '<b style="color:#1E7E34;">Compt&eacute;s : 0</b>'
+                    }, '-', {
+                        xtype: 'tbtext', itemId: 'totRestants',
+                        text: '<b style="color:#B02A37;">Restants : 0</b>'
+                    }, '->', {
+                        xtype: 'tbtext', itemId: 'totTaux',
+                        text: '<b style="color:#0D6EFD;font-size:14px;">Avancement global : 0 %</b>'
+                    }
+                ],
                 columns: [
                     {text: 'Code', dataIndex: 'str_CODE', flex: 0.5},
                     {text: 'Emplacement', dataIndex: 'str_LIBELLEE', flex: 1.2},
@@ -1680,6 +1696,24 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         win.close();
                     }
                 }]
+        });
+        /* calcule et affiche les totaux globaux a chaque chargement du store */
+        storeCheck.on('load', function (store) {
+            var total = 0, touches = 0, restant = 0;
+            store.each(function (rec) {
+                total += rec.get('int_TOTAL') || 0;
+                touches += rec.get('int_TOUCHES') || 0;
+                restant += rec.get('int_RESTANT') || 0;
+            });
+            var taux = total > 0 ? (touches / total) * 100 : 0;
+            var fmt = function (n) {
+                return Ext.util.Format.number(n, '0,000.');
+            };
+            win.down('#totGlobal').setText('<b>Total articles : ' + fmt(total) + '</b>');
+            win.down('#totComptes').setText('<b style="color:#1E7E34;">Compt&eacute;s : ' + fmt(touches) + '</b>');
+            win.down('#totRestants').setText('<b style="color:#B02A37;">Restants : ' + fmt(restant) + '</b>');
+            win.down('#totTaux').setText('<b style="color:#0D6EFD;font-size:14px;">Avancement global : '
+                    + Ext.util.Format.number(taux, '0.0') + ' %</b>');
         });
         win.show();
     },
