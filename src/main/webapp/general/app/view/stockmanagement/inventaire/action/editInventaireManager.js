@@ -457,7 +457,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                                 }
 
                                                                 record.set("int_QTE_SORTIE", Number(int_NUMBER) - int_NUMBER_INIT);
+                                                                record.set("is_TOUCHED", "Oui");
                                                                 grid.getStore().commitChanges();
+                                                                Me.refreshEcartValorisation();
 
                                                                 var totalOnPage = grid.getStore().getCount();
                                                                 var currentRowIndex = position.row;
@@ -909,6 +911,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             this.toggle(val === true);
                                             return this;
                                         }
+                                    }, '-', {
+                                        /* valorisation des ecarts du filtre courant,
+                                         * calculee cote serveur (toutes pages) */
+                                        xtype: 'tbtext',
+                                        id: 'lbl_ecart_valorisation',
+                                        text: ''
                                     }, '-'],
                                 listeners: {
 
@@ -1066,6 +1074,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             single: true
         });
 
+        /* rafraichir la valorisation des ecarts a chaque (re)chargement de la
+         * grille : couvre les changements de filtre, la recherche et la saisie */
+        store_inventaire_famille.on('load', function () {
+            Me.refreshEcartValorisation();
+        });
+
 
 
         if (my_view_title === "Modification de la fiche d'inventaire") {
@@ -1212,33 +1226,69 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         Me.onPdfClick();
 
     },
+    /* collecte des filtres courants de l'ecran, partagee par la valorisation
+     * et l'impression navigateur */
+    getCurrentFilterParams: function () {
+        var params = {
+            lg_INVENTAIRE_ID: ref,
+            str_TYPE: "",
+            search_value: Ext.getCmp('rechecher') ? (Ext.getCmp('rechecher').getValue() || "") : "",
+            lg_FAMILLEARTICLE_ID: "",
+            lg_ZONE_GEO_ID: "",
+            lg_GROSSISTE_ID: "",
+            lg_USER_ID: ""
+        };
+        if (Ext.getCmp('str_TYPE') && Ext.getCmp('str_TYPE').getValue() !== null) {
+            params.str_TYPE = Ext.getCmp('str_TYPE').getValue();
+        }
+        if (Ext.getCmp('lg_FAMILLEARTICLE_ID') && Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() !== null) {
+            params.lg_FAMILLEARTICLE_ID = Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue();
+        }
+        if (Ext.getCmp('lg_ZONE_GEO_ID') && Ext.getCmp('lg_ZONE_GEO_ID').getValue() !== null) {
+            params.lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
+        }
+        if (Ext.getCmp('lg_GROSSISTE_ID') && Ext.getCmp('lg_GROSSISTE_ID').getValue() !== null) {
+            params.lg_GROSSISTE_ID = Ext.getCmp('lg_GROSSISTE_ID').getValue();
+        }
+        if (Ext.getCmp('lg_USER_ID') && Ext.getCmp('lg_USER_ID').getValue() !== null) {
+            params.lg_USER_ID = Ext.getCmp('lg_USER_ID').getValue();
+        }
+        return params;
+    },
+
+    /* ecart achat / ecart vente du filtre courant, affiches dans la barre de
+     * pagination ; montants signes (negatif = manque) calcules cote serveur */
+    refreshEcartValorisation: function () {
+        var lbl = Ext.getCmp('lbl_ecart_valorisation');
+        if (!lbl) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../webservices/stockmanagement/inventaire/ws_data_inventaire_valorisation.jsp',
+            params: Me.getCurrentFilterParams(),
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true);
+                if (o) {
+                    lbl.setText('<span style="font-weight:800;">Écart achat: '
+                            + '<span style="color:' + (o.int_ECART_ACHAT < 0 ? '#B02A37' : '#1E7E34') + ';">'
+                            + amountformat(o.int_ECART_ACHAT) + '</span>'
+                            + ' &nbsp;|&nbsp; Écart vente: '
+                            + '<span style="color:' + (o.int_ECART_VENTE < 0 ? '#B02A37' : '#1E7E34') + ';">'
+                            + amountformat(o.int_ECART_VENTE) + '</span></span>');
+                }
+            },
+            failure: function () {
+                lbl.setText('');
+            }
+        });
+    },
+
     /* impression navigateur : rendu HTML serveur de TOUTES les lignes du
      * filtre courant (la grille paginee ne contient qu'une page) */
     onbtnprintfiltre: function () {
-        var str_TYPE = "", lg_FAMILLEARTICLE_ID = "", lg_ZONE_GEO_ID = "", lg_GROSSISTE_ID = "", lg_USER_ID = "";
-        var rechecher = Ext.getCmp('rechecher').getValue() || "";
-        if (Ext.getCmp('str_TYPE').getValue() !== null) {
-            str_TYPE = Ext.getCmp('str_TYPE').getValue();
-        }
-        if (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() !== null) {
-            lg_FAMILLEARTICLE_ID = Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue();
-        }
-        if (Ext.getCmp('lg_ZONE_GEO_ID').getValue() !== null) {
-            lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
-        }
-        if (Ext.getCmp('lg_GROSSISTE_ID').getValue() !== null) {
-            lg_GROSSISTE_ID = Ext.getCmp('lg_GROSSISTE_ID').getValue();
-        }
-        if (Ext.getCmp('lg_USER_ID').getValue() !== null) {
-            lg_USER_ID = Ext.getCmp('lg_USER_ID').getValue();
-        }
-        var linkUrl = '../webservices/stockmanagement/inventaire/ws_print_inventaire_filtre.jsp?lg_INVENTAIRE_ID=' + ref
-                + '&str_TYPE=' + str_TYPE
-                + '&search_value=' + encodeURIComponent(rechecher)
-                + '&lg_FAMILLEARTICLE_ID=' + lg_FAMILLEARTICLE_ID
-                + '&lg_ZONE_GEO_ID=' + lg_ZONE_GEO_ID
-                + '&lg_GROSSISTE_ID=' + lg_GROSSISTE_ID
-                + '&lg_USER_ID=' + lg_USER_ID;
+        var p = Me.getCurrentFilterParams();
+        var linkUrl = '../webservices/stockmanagement/inventaire/ws_print_inventaire_filtre.jsp?'
+                + Ext.Object.toQueryString(p);
         window.open(linkUrl);
     },
     onRemoveClick: function (grid, rowIndex) {
