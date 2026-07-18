@@ -460,7 +460,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                                 }
 
                                                                 record.set("int_QTE_SORTIE", Number(int_NUMBER) - int_NUMBER_INIT);
-                                                                record.set("is_TOUCHED", "Oui");
                                                                 grid.getStore().commitChanges();
 
                                                                 var totalOnPage = grid.getStore().getCount();
@@ -636,13 +635,23 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
                                     sortable: true},
                                 {
+                                    /* colonne 'Check' A LA DEMANDE : masquee par
+                                     * defaut et remplie uniquement au clic du
+                                     * bouton 'Afficher Check', pour ne rien
+                                     * calculer/afficher a chaque changement de
+                                     * page (rapidite identique a avant) */
                                     text: 'Check',
+                                    id: 'col_check_inventorie',
                                     dataIndex: 'is_TOUCHED',
                                     flex: 0.6,
                                     align: 'center',
                                     sortable: false,
+                                    hidden: true,
                                     renderer: function (v, m) {
-                                        /* case cochee quand la ligne est faite (touchee) */
+                                        if (!v) {
+                                            return '';
+                                        }
+                                        /* case cochee quand la ligne est inventoriee */
                                         m.tdCls = (v === 'Oui') ? 'inv-touche-oui' : 'inv-touche-non';
                                         return (v === 'Oui') ? '\u2611' : '\u2610';
                                     }
@@ -954,6 +963,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             icon: 'resources/images/icons/fam/cog_edit.png',
                             scope: this,
                             handler: this.onbtnActualiserStock
+                        },
+                        {
+                            text: 'Afficher Check',
+                            id: 'btn_check_inventorie',
+                            icon: 'resources/images/icons/fam/coches.png',
+                            tooltip: 'Afficher, à la demande, la colonne Check (inventorié / non inventorié) pour la page affichée. Sans impact sur la vitesse des changements de page.',
+                            scope: this,
+                            handler: this.onbtnCheckColonne
                         },
                         {
                             text: 'Check emplacement (F4)',
@@ -1598,6 +1615,58 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                 }]
             });
         },
+
+    /* Check A LA DEMANDE : remplit la colonne Check (inventorie/non) pour les
+     * seules lignes de la page affichee, via une requete legere par cle
+     * primaire. Rien n'est calcule lors des chargements/changements de page. */
+    onbtnCheckColonne: function () {
+        var grid = Ext.getCmp('gridpanelInventaireID');
+        var store = grid.getStore();
+        var ids = [];
+        store.each(function (r) {
+            var id = r.get('lg_INVENTAIRE_FAMILLE_ID');
+            if (id) {
+                ids.push(id);
+            }
+        });
+        if (ids.length === 0) {
+            Ext.toast('Aucune ligne à vérifier sur cette page.', 3000);
+            return;
+        }
+        var progress = Ext.MessageBox.wait('Vérification en cours...', 'Check');
+        Ext.Ajax.request({
+            url: '../webservices/stockmanagement/inventaire/ws_check_touched.jsp',
+            method: 'POST',
+            params: {ids: ids.join(',')},
+            success: function (response) {
+                progress.hide();
+                var o = Ext.JSON.decode(response.responseText, true);
+                var map = {};
+                if (o && o.results) {
+                    Ext.each(o.results, function (x) {
+                        map[x.lg_INVENTAIRE_FAMILLE_ID] = x.is_TOUCHED;
+                    });
+                }
+                /* mise a jour groupee : on suspend les evenements du store puis
+                 * on rafraichit la vue une seule fois (evite un rendu par ligne) */
+                store.suspendEvents();
+                store.each(function (r) {
+                    r.set('is_TOUCHED', map[r.get('lg_INVENTAIRE_FAMILLE_ID')] || 'Non');
+                });
+                store.commitChanges();
+                store.resumeEvents();
+                var col = Me.findColumnByName(grid, 'is_TOUCHED');
+                if (col) {
+                    col.setVisible(true);
+                }
+                grid.getView().refresh();
+            },
+            failure: function (response) {
+                progress.hide();
+                Ext.Msg.alert('Erreur', 'Erreur du serveur ' + response.status);
+            }
+        });
+    },
 
     /* 'Check EMPLACEMENT' : liste des emplacements de l'inventaire courant
      * avec leur statut de comptage (Non fait / En cours / Termine), calcule

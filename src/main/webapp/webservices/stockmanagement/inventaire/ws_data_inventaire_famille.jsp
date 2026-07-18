@@ -211,9 +211,6 @@ for(TInventaireFamille OTInventaireFamille:lstTInventaireFamille){
        json.put("is_AUTHORIZE_STOCK", result_show_col_stock);
               //json.put("is_AUTHORIZE_STOCK",true);
         json.put("int_NUMBER_AVAILABLE", OTInventaireFamille.getIntNUMBER());
-        // une ligne est touchee des que dt_UPDATED est renseigne (meme si la
-        // quantite saisie est identique a la quantite initiale)
-        json.put("is_TOUCHED", OTInventaireFamille.getDtUPDATED() != null ? "Oui" : "Non");
 
         arrayObj.put(json);
     }
