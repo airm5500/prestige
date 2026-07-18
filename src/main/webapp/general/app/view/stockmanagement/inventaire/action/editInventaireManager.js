@@ -227,6 +227,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
              flex: 1
              },*/
             id: 'panelID',
+            /* le corps peut defiler si l'ecran est petit : les barres de boutons
+             * du bas restent quant a elles toujours visibles (dockedItems) */
+            autoScroll: true,
             items: [
                 {
                     xtype: 'fieldset',
@@ -248,7 +251,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     hideGroupedHeader: true
                                 }], //appliquer le groupement
                             store: store_inventaire_famille,
-                            height: Ext.getBody().getViewSize().height * 0.8,
+                            /* 0.66 (au lieu de 0.8) pour laisser la place aux deux
+                             * barres de boutons du bas, desormais reellement dockees :
+                             * le bouton "Cloturer l'inventaire" reste toujours visible */
+                            height: Ext.getBody().getViewSize().height * 0.66,
                             
                              // AJOUT: Configuration de la vue
                             viewConfig: {
@@ -921,7 +927,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             }
 
                         }]
-                },
+                }],
+            /* barres de boutons reellement dockees en bas du panneau : leur
+             * hauteur est reservee, elles ne sont plus tronquees par la grille */
+            dockedItems: [
                 {
                     xtype: 'toolbar',
                     ui: 'footer',

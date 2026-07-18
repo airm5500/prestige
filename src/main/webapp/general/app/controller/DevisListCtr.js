@@ -108,9 +108,9 @@ Ext.define('testextjs.controller.DevisListCtr', {
     },
 
     onExportExcel: function (view, rowIndex, colIndex, item, e, rec, row) {
-        const linkUrl = "../FacturePdfServlet?mode=DEVIS_FACTURE&venteId="
-            + rec.get('lgPREENREGISTREMENTID') + "&format=EXCEL";
-        window.open(linkUrl);
+        // Export Excel tabulaire (une ligne par article), facilement modifiable
+        window.location = '../api/v1/ventestats/devis/excel?id='
+            + rec.get('lgPREENREGISTREMENTID') + '&ref=' + rec.get('strREF');
     },
 
     onExportPdf: function (view, rowIndex, colIndex, item, e, rec, row) {

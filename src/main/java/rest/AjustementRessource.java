@@ -156,13 +156,13 @@ public class AjustementRessource {
     @GET
     @Path("analyse")
     public Response analyse(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
-            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)
-            throws JSONException {
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "motifId") String motifId) throws JSONException {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = ajustementAnalyseService.fetchAnalyse(tu, dtStart, dtEnd, start, limit);
+        JSONObject json = ajustementAnalyseService.fetchAnalyse(tu, dtStart, dtEnd, motifId, start, limit);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -170,25 +170,27 @@ public class AjustementRessource {
     @Path("analyse/details")
     public Response analyseDetails(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "familleId") String familleId, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "motifId") String motifId)
+            throws JSONException {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = ajustementAnalyseService.fetchAnalyseDetails(tu, familleId, dtStart, dtEnd, start, limit);
+        JSONObject json = ajustementAnalyseService.fetchAnalyseDetails(tu, familleId, dtStart, dtEnd, motifId, start,
+                limit);
         return Response.ok().entity(json.toString()).build();
     }
 
     @GET
     @Path("analyse/csv")
     @Produces("text/csv")
-    public Response analyseCsv(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)
-            throws Exception {
+    public Response analyseCsv(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "motifId") String motifId) throws Exception {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        byte[] data = ajustementAnalyseService.exportCsv(tu, dtStart, dtEnd);
+        byte[] data = ajustementAnalyseService.exportCsv(tu, dtStart, dtEnd, motifId);
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"analyse_ajustements.csv\"")
                 .build();
     }
@@ -197,12 +199,12 @@ public class AjustementRessource {
     @Path("analyse/excel")
     @Produces("application/vnd.ms-excel")
     public Response analyseExcel(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws Exception {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "motifId") String motifId) throws Exception {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        byte[] data = ajustementAnalyseService.exportExcel(tu, dtStart, dtEnd);
+        byte[] data = ajustementAnalyseService.exportExcel(tu, dtStart, dtEnd, motifId);
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"analyse_ajustements.xls\"")
                 .build();
     }
@@ -210,36 +212,38 @@ public class AjustementRessource {
     @GET
     @Path("analyse/suggestion")
     public Response analyseSuggestion(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "motifId") String motifId)
+            throws JSONException {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = ajustementAnalyseService.createSuggestion(tu, dtStart, dtEnd);
+        JSONObject json = ajustementAnalyseService.createSuggestion(tu, dtStart, dtEnd, motifId);
         return Response.ok().entity(json.toString()).build();
     }
 
     @GET
     @Path("analyse/inventaire")
     public Response analyseInventaire(@QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
-        TUser tu = getUser();
-        if (tu == null) {
-            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
-        }
-        JSONObject json = ajustementAnalyseService.createInventaire(tu, dtStart, dtEnd);
-        return Response.ok().entity(json.toString()).build();
-    }
-
-    @GET
-    @Path("analyse/pdf")
-    public Response analysePdf(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd)
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "motifId") String motifId)
             throws JSONException {
         TUser tu = getUser();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        String file = ajustementAnalyseService.printPdf(tu, dtStart, dtEnd);
+        JSONObject json = ajustementAnalyseService.createInventaire(tu, dtStart, dtEnd, motifId);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @GET
+    @Path("analyse/pdf")
+    public Response analysePdf(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "motifId") String motifId) throws JSONException {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        String file = ajustementAnalyseService.printPdf(tu, dtStart, dtEnd, motifId);
         // redirection vers le PDF genere (meme principe que BalancePdfServlet)
         return Response.status(Response.Status.FOUND)
                 .location(java.net.URI.create(servletRequest.getContextPath() + file)).build();

@@ -42,4 +42,12 @@ public class ParametreRessource {
         return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(isEnable, 1)).build();
     }
 
+    /** Valeur brute d'un parametre (str_VALUE), vide si absent. */
+    @GET
+    @Path("value/{key}")
+    public Response value(@PathParam("key") String key) {
+        String value = parametreService.getValue(key, "");
+        return Response.ok().entity(ResultFactory.getSuccessResult(value, 1)).build();
+    }
+
 }
