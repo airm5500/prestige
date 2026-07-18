@@ -940,7 +940,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     ui: 'footer',
                     dock: 'bottom',
                     border: '0',
-                    items: ['->', 
+                    items: [
                         {
                             text: 'Retour',
                             id: 'btn_back',
@@ -954,14 +954,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             icon: 'resources/images/icons/fam/cog_edit.png',
                             scope: this,
                             handler: this.onbtnActualiserStock
-                        },
-
-                        {
-                            text: 'Cloturer',
-                            id: 'btn_loturer',
-                            iconCls: 'icon-clear-group',
-                            scope: this,
-                            handler: this.onbtncloturer
                         }, {
                             text: 'Imprimer la liste d\'inventaire',
                             id: 'btn_devis',
@@ -1070,6 +1062,19 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             hidden: true,
                             handler: this.onbtnexportCsv
+                        },
+                        '->',
+                        {
+                            /* action finale : isolee a droite, verte et plus
+                             * lisible ; soumise au privilege
+                             * P_CLOTURER_INVENTAIRE (masquee sinon), avec
+                             * confirmation et controle egalement cote serveur */
+                            text: 'Cloturer',
+                            id: 'btn_loturer',
+                            cls: 'btn-cloturer',
+                            scale: 'medium',
+                            scope: this,
+                            handler: this.onbtncloturer
                         }
 
                     ]
@@ -1123,6 +1128,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             if (chkShowStock && !chkShowStock.inventaireInitDone) {
                 chkShowStock.setValue(firstRec.get('is_AUTHORIZE_STOCK') === true);
                 chkShowStock.inventaireInitDone = true;
+            }
+            /* bouton Cloturer soumis au privilege P_CLOTURER_INVENTAIRE
+             * (le serveur re-verifie de toute facon a la cloture) */
+            var btnCloturer = Ext.getCmp('btn_loturer');
+            if (btnCloturer) {
+                btnCloturer.setVisible(firstRec.get('is_AUTHORIZE_CLOTURE') !== false);
             }
         }
 
