@@ -85,6 +85,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             ref = ref_add;
         }
 
+        /* l'impression n'est autorisee que sur un inventaire en cours */
+        var isInventaireCloture = false;
+        try {
+            isInventaireCloture = (this.getOdatasource().etat === 'is_Closed');
+        } catch (e) {
+        }
+
 
 
         url_services_data_inventaire_famille = '../webservices/stockmanagement/inventaire/ws_data_inventaire_famille.jsp?lg_INVENTAIRE_ID=' + ref;
@@ -95,7 +102,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
         var store_type = new Ext.data.Store({
             fields: ['str_TYPE', 'str_desc'],
-            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}]
+            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}]
         });
 
         var store_grossiste = new Ext.data.Store({
@@ -354,12 +361,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     text: 'Famille',
                                     dataIndex: 'lg_FAMILLEARTICLE_ID',
                                     sortable: true,
+                                    hidden: true,
                                     flex: 1
 
                                 }, {
                                     text: 'Grossiste',
                                     dataIndex: 'lg_GROSSISTE_ID',
                                     sortable: true,
+                                    hidden: true,
                                     flex: 1
 
                                 }, {
@@ -391,6 +400,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     sortable: true,
                                     dataIndex: 'int_NUMBER_AVAILABLE',
                                     //renderer: amountformat,
+                                    tdCls: 'inv-cell-big',
                                     align: 'right',
                                     // Modifier la partie navigation dans l'éditeur de "Stock Rayon"
                                     editor: {
@@ -399,6 +409,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                         maskRe: /[0-9.]/,
                                         selectOnFocus: true,
                                         enableKeyEvents: true,
+                                        /* meme police agrandie pendant la
+                                         * saisie qu'apres validation
+                                         * (inv-cell-big sur la cellule) */
+                                        fieldStyle: 'font-size:16px;font-weight:800;text-align:right;',
                                         listeners: {
                                             specialKey: function (field, e, options) {
                                                 var grid = Ext.getCmp('gridpanelInventaireID');
@@ -599,12 +613,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     sortable: true,
                                     dataIndex: 'int_TAUX_MARQUE',
                                     renderer: amountformat,
+                                    tdCls: 'inv-cell-big',
                                     align: 'right'
                                 },
                                 {
                                     header: 'Ecart',
                                     dataIndex: 'int_QTE_SORTIE',
                                     flex: 1,
+                                    tdCls: 'inv-cell-big',
                                     align: 'right',
                                     renderer: function (v, m, r) {
                                         if (v > 0) {
@@ -709,6 +725,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     id: 'lg_ZONE_GEO_ID',
                                     store: store_zonegeo,
                                     minChars: 2,
+                                    /* champ emplacement mis en evidence en
+                                     * permanence (independant du focus) */
+                                    fieldCls: 'x-form-field inv-field-emplacement',
 //                                    autoSelect: true,
                                     selectOnFocus: true,
                                     valueField: 'lg_ZONE_GEO_ID',
@@ -844,7 +863,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                 e.stopEvent();
                                                 var grid = Ext.getCmp('gridpanelInventaireID');
                                                 if (grid.getStore().getCount() > 0) {
-                                                    grid.getPlugin('inventaireEditor').startEdit(0, 7);
+                                                    grid.getPlugin('inventaireEditor').startEdit(0, Me.getStockRayonColIndex(grid));
                                                 }
                                             }
                                         }
@@ -889,8 +908,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                 listeners: {
 
                                     change: function (item, layout) {
-                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEditByPosition({row: Number(currentrowindex), column: 7});
-                                        Ext.getCmp('gridpanelInventaireID').getPlugin('inventaireEditor').startEdit(currentrowindex, 7);
+                                        var gridInv = Ext.getCmp('gridpanelInventaireID');
+                                        var colStockRayon = Me.getStockRayonColIndex(gridInv);
+                                        gridInv.getPlugin('inventaireEditor').startEditByPosition({row: Number(currentrowindex), column: colStockRayon});
+                                        gridInv.getPlugin('inventaireEditor').startEdit(currentrowindex, colStockRayon);
                                         return false;
                                     }
 
@@ -906,7 +927,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     ui: 'footer',
                     dock: 'bottom',
                     border: '0',
-                    items: ['->', 
+                    items: [
                         {
                             text: 'Retour',
                             id: 'btn_back',
@@ -921,26 +942,26 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             handler: this.onbtnActualiserStock
                         },
-
                         {
-                            text: 'Cloturer',
-                            id: 'btn_loturer',
-                            iconCls: 'icon-clear-group',
+                            text: 'Check emplacement (F4)',
+                            id: 'btn_check_emplacement',
+                            icon: 'resources/images/icons/fam/coches.png',
+                            tooltip: 'Statut du comptage par emplacement : Non fait / En cours / Terminé',
                             scope: this,
-                            handler: this.onbtncloturer
+                            handler: this.onbtnCheckEmplacement
                         }, {
-                            text: 'Editer fiche',
+                            text: 'Imprimer la liste d\'inventaire',
                             id: 'btn_devis',
                             iconCls: 'icon-clear-group',
                             scope: this,
-                            hidden: false,
+                            hidden: isInventaireCloture,
                             handler: this.onbtnprint
                         }, {
                             text: 'Imprimer liste des &eacute;carts',
                             id: 'btn_print_ecart',
                             iconCls: 'icon-clear-group',
                             scope: this,
-                            hidden: false,
+                            hidden: isInventaireCloture,
                             handler: this.onbtnprintecart
                         }, {
                             text: 'Imprimer liste des articles alerte',
@@ -949,6 +970,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             hidden: true,
                             handler: this.onbtnprintalert
+                        }, {
+                            text: 'Imprimer filtre courant',
+                            id: 'btn_print_filtre',
+                            icon: 'resources/images/icons/fam/printer.png',
+                            tooltip: 'Impression PDF de toutes les lignes du filtre courant (touchés, non touchés, écarts...)',
+                            scope: this,
+                            hidden: isInventaireCloture,
+                            handler: this.onbtnprintfiltre
                         },
                         {
                             text: 'Importer csv',
@@ -1007,6 +1036,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         },
 
                         {
+                            text: 'Exporter &eacute;carts (CSV)',
+                            id: 'btn_export_ecart',
+                            icon: 'resources/images/icons/fam/csv.png',
+                            tooltip: 'Export CSV des seuls écarts au format cip;quantité (écart signé : négatif = manque, positif = surplus)',
+                            scope: this,
+                            handler: this.onbtnexportEcart
+                        },
+                        {
                             text: 'Exporter excel',
                             id: 'btn_export_txt',
                             iconCls: 'icon-clear-group',
@@ -1021,12 +1058,36 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             hidden: true,
                             handler: this.onbtnexportCsv
                         }
-
+                    ]
+                },
+                {
+                    /* 2e ligne dediee au bouton 'Cloturer' : action finale isolee
+                     * et alignee a droite, pour qu'elle ne soit jamais tronquee
+                     * quand la premiere ligne de boutons est pleine */
+                    xtype: 'toolbar',
+                    ui: 'footer',
+                    dock: 'bottom',
+                    border: '0',
+                    /* un ressort de chaque cote pour centrer le bouton seul */
+                    items: ['->',
+                        {
+                            /* soumise au privilege P_CLOTURER_INVENTAIRE (masquee
+                             * sinon), avec confirmation et controle cote serveur */
+                            text: 'Cloturer l\'inventaire',
+                            id: 'btn_loturer',
+                            cls: 'btn-cloturer',
+                            scale: 'medium',
+                            hidden: true,
+                            scope: this,
+                            handler: this.onbtncloturer
+                        },
+                        '->'
                     ]
                 }]
         });
         this.callParent();
         this.loadData();
+        this.loadCloturePrivilege();
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
@@ -1056,9 +1117,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         if (grid.getStore().getCount() > 0) {
             var firstRec = grid.getStore().getAt(0);
             if (firstRec.get('is_AUTHORIZE_STOCK') == false) { // cacher le champ stock machine
-//                alert("entete " + grid.headerCt.getHeaderAtIndex(8).text);
-                Me.findColumnByDataIndex(grid, 8).setVisible(false);
-                Me.findColumnByDataIndex(grid, 8).setVisible(false);
+                var colStockMachine = Me.findColumnByName(grid, 'int_TAUX_MARQUE');
+                if (colStockMachine) {
+                    colStockMachine.setVisible(false);
+                }
             }
             /* etat initial de la case 'Afficher stock' aligne sur le
              * privilege ; l'utilisateur peut ensuite la modifier */
@@ -1070,6 +1132,21 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         }
 
 
+    },
+    /* controle UNIQUE du privilege de cloture a l'ouverture de l'ecran : le
+     * bouton reste masque par defaut et n'est affiche que si l'utilisateur a
+     * le droit. Hors du chargement pagine pour ne rien relancer par page. */
+    loadCloturePrivilege: function () {
+        Ext.Ajax.request({
+            url: '../webservices/stockmanagement/inventaire/ws_check_cloture_privilege.jsp',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true);
+                var btnCloturer = Ext.getCmp('btn_loturer');
+                if (btnCloturer && o && o.authorize === true) {
+                    btnCloturer.setVisible(true);
+                }
+            }
+        });
     },
     onbtnback: function () {
         var xtype = "";
@@ -1155,7 +1232,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     } else {
                         // Résultats trouvés - navigation normale
                         setTimeout(function () {
-                            OGrid.getPlugin('inventaireEditor').startEdit(0, 7);
+                            OGrid.getPlugin('inventaireEditor').startEdit(0, Me.getStockRayonColIndex(OGrid));
                         }, 100);
                     }
                 }, 150); // Délai initial
@@ -1176,6 +1253,46 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         str_NAME_FILE = "alerte";
         Me.onPdfClick();
 
+    },
+    /* collecte des filtres courants de l'ecran, utilisee par l'impression PDF */
+    getCurrentFilterParams: function () {
+        var params = {
+            lg_INVENTAIRE_ID: ref,
+            str_TYPE: "",
+            search_value: Ext.getCmp('rechecher') ? (Ext.getCmp('rechecher').getValue() || "") : "",
+            lg_FAMILLEARTICLE_ID: "",
+            lg_ZONE_GEO_ID: "",
+            lg_GROSSISTE_ID: "",
+            lg_USER_ID: ""
+        };
+        if (Ext.getCmp('str_TYPE') && Ext.getCmp('str_TYPE').getValue() !== null) {
+            params.str_TYPE = Ext.getCmp('str_TYPE').getValue();
+        }
+        if (Ext.getCmp('lg_FAMILLEARTICLE_ID') && Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() !== null) {
+            params.lg_FAMILLEARTICLE_ID = Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue();
+        }
+        if (Ext.getCmp('lg_ZONE_GEO_ID') && Ext.getCmp('lg_ZONE_GEO_ID').getValue() !== null) {
+            params.lg_ZONE_GEO_ID = Ext.getCmp('lg_ZONE_GEO_ID').getValue();
+        }
+        if (Ext.getCmp('lg_GROSSISTE_ID') && Ext.getCmp('lg_GROSSISTE_ID').getValue() !== null) {
+            params.lg_GROSSISTE_ID = Ext.getCmp('lg_GROSSISTE_ID').getValue();
+        }
+        if (Ext.getCmp('lg_USER_ID') && Ext.getCmp('lg_USER_ID').getValue() !== null) {
+            params.lg_USER_ID = Ext.getCmp('lg_USER_ID').getValue();
+        }
+        return params;
+    },
+
+    /* impression PDF (Jasper) de TOUTES les lignes du filtre courant : la
+     * grille paginee ne contient qu'une page. Le modele avec ou sans stock
+     * machine est choisi cote serveur (privilege / case 'Afficher stock'). */
+    onbtnprintfiltre: function () {
+        var p = Me.getCurrentFilterParams();
+        var chkShowStock = Ext.getCmp('chk_show_stock_print');
+        p.showStock = (chkShowStock && chkShowStock.getValue()) ? 'true' : 'false';
+        var linkUrl = '../webservices/stockmanagement/inventaire/ws_generate_pdf_filtre.jsp?'
+                + Ext.Object.toQueryString(p);
+        window.open(linkUrl);
     },
     onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message',
@@ -1223,6 +1340,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
     onbtnexportCsv: function () {
 
         window.location = '../ExportInventaire?lg_INVENTAIRE_ID=' + ref + "&format=csv";
+    },
+    /* export des seuls ecarts, format cip;quantite (ecart signe) */
+    onbtnexportEcart: function () {
+
+        window.location = '../ExportInventaire?lg_INVENTAIRE_ID=' + ref + "&format=ecart";
     },
 
     onbtnImporter: function (button) {
@@ -1417,10 +1539,35 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
         return  grid.headerCt.getHeaderAtIndex(columnIndex);
     },
+
+    /* recherche une colonne (meme cachee) par son dataIndex : les index
+     * numeriques ne sont plus fiables depuis que des colonnes sont
+     * masquees/reaffichables par le menu de colonnes */
+    findColumnByName: function (grid, dataIndex) {
+        var cols = grid.headerCt.getGridColumns();
+        for (var i = 0; i < cols.length; i++) {
+            if (cols[i].dataIndex === dataIndex) {
+                return cols[i];
+            }
+        }
+        return null;
+    },
+
+    /* index VISIBLE de la colonne de saisie 'Stock Rayon' (utilise par le
+     * plugin d'edition qui compte uniquement les colonnes visibles) */
+    getStockRayonColIndex: function (grid) {
+        var cols = grid.headerCt.getVisibleGridColumns();
+        for (var i = 0; i < cols.length; i++) {
+            if (cols[i].dataIndex === 'int_NUMBER_AVAILABLE') {
+                return i;
+            }
+        }
+        return 0;
+    },
     
     // Ajouter cette méthode à la classe
         addKeyMap: function() {
-            // Créer un keyMap pour F3
+            // F3 : recherche (comportement historique conserve) ; F4 : check emplacement
             this.keyMap = new Ext.util.KeyMap({
                 target: Ext.getBody(),
                 binding: [{
@@ -1434,9 +1581,86 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         return false; // Empêcher le comportement par défaut de F3
                     },
                     scope: this
+                }, {
+                    key: Ext.EventObject.F4,
+                    fn: function() {
+                        // n'agir que si l'ecran inventaire est actif
+                        if (Ext.getCmp('editinventaireManagerID')) {
+                            Me.onbtnCheckEmplacement();
+                        }
+                        return false;
+                    },
+                    scope: this
                 }]
             });
         },
+
+    /* 'Check EMPLACEMENT' : liste des emplacements de l'inventaire courant
+     * avec leur statut de comptage (Non fait / En cours / Termine), calcule
+     * cote serveur sur les lignes bool_INVENTAIRE=true. Les emplacements sans
+     * article dans l'inventaire ne sont pas listes. */
+    onbtnCheckEmplacement: function () {
+        var storeCheck = new Ext.data.Store({
+            fields: ['str_CODE', 'str_LIBELLEE', 'int_TOTAL', 'int_TOUCHES', 'int_RESTANT', 'str_STATUT'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../webservices/stockmanagement/inventaire/ws_data_check_emplacement.jsp?lg_INVENTAIRE_ID=' + ref,
+                reader: {
+                    type: 'json',
+                    root: 'results',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        var statutRenderer = function (v, m) {
+            if (v === 'Terminé') {
+                m.style = 'color:#1E7E34;font-weight:800;';
+            } else if (v === 'En cours') {
+                m.style = 'color:#B76E00;font-weight:800;';
+            } else {
+                m.style = 'color:#B02A37;font-weight:800;';
+            }
+            return v;
+        };
+        var win = new Ext.window.Window({
+            title: 'Check emplacement — statut du comptage',
+            width: 680,
+            height: 480,
+            layout: 'fit',
+            modal: true,
+            items: {
+                xtype: 'grid',
+                store: storeCheck,
+                columns: [
+                    {text: 'Code', dataIndex: 'str_CODE', flex: 0.5},
+                    {text: 'Emplacement', dataIndex: 'str_LIBELLEE', flex: 1.2},
+                    {text: 'Articles', dataIndex: 'int_TOTAL', flex: 0.5, align: 'right'},
+                    {text: 'Comptés', dataIndex: 'int_TOUCHES', flex: 0.5, align: 'right'},
+                    {text: 'Restants', dataIndex: 'int_RESTANT', flex: 0.5, align: 'right'},
+                    {text: 'Statut', dataIndex: 'str_STATUT', flex: 0.7, renderer: statutRenderer}
+                ]
+            },
+            buttons: [{
+                    text: 'Imprimer',
+                    icon: 'resources/images/icons/fam/printer.png',
+                    handler: function () {
+                        Me.printCheckEmplacement();
+                    }
+                }, {
+                    text: 'Fermer',
+                    handler: function () {
+                        win.close();
+                    }
+                }]
+        });
+        win.show();
+    },
+
+    /* impression PDF (Jasper) de la liste des emplacements et de leur statut */
+    printCheckEmplacement: function () {
+        window.open('../webservices/stockmanagement/inventaire/ws_generate_pdf_check_emplacement.jsp?lg_INVENTAIRE_ID=' + ref);
+    },
 
     onbtnActualiserStock: function (button) {
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');

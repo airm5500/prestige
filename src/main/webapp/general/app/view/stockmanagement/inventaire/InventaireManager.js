@@ -192,12 +192,29 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
+                            /* disponible sur toute ligne, y compris un
+                             * inventaire cloture : c'est justement apres
+                             * cloture qu'on recontrole les ecarts */
+                            icon: 'resources/images/icons/fam/inventaire.png',
+                            tooltip: 'Créer un inventaire à partir des écarts',
+                            scope: this,
+                            handler: this.onCreateFromEcartsClick
+                        }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
                             icon: 'resources/images/icons/fam/printer.png',
-                            tooltip: 'Imprimer une fiche',
+                            tooltip: 'Imprimer la liste d\'inventaire',
                             scope: this,
                             handler: this.onbtnprint,
+                            /* impression disponible uniquement sur les
+                             * inventaires en cours (pas apres cloture) */
                             getClass: function(value, metadata, record) {
-                                if (record.get('etat') == "is_Closed") {
+                                if (record.get('etat') == "enable") {
                                     return 'x-display-hide';
                                 } else {
                                     return 'x-hide-display';
@@ -273,11 +290,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         var rec = grid.getStore().getAt(rowIndex);
 
         Ext.MessageBox.confirm('Message',
-                'Confirmation de l\'impression de la fiche d\'inventaire',
+                'Confirmation de l\'impression de la liste d\'inventaire',
                 function(btn) {
                     if (btn == 'yes') {
-                       
-                        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=final";
+                        /* meme modele que l'impression depuis la fiche
+                         * (str_NAME_FILE vide) pour eviter deux documents
+                         * divergents */
+                        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=";
                           window.open(linkUrl);
                         return;
                     }
@@ -323,6 +342,37 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
             titre: "Inventaire [" + rec.get('str_NAME') + "]"
         });
 
+    },
+    /* cree un nouvel inventaire avec les produits en ecart de la ligne
+     * choisie ; le stock initial est recalcule cote serveur depuis le stock
+     * courant (pas repris de l'ancien inventaire) */
+    onCreateFromEcartsClick: function(grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        Ext.MessageBox.confirm('Message',
+                'Créer un nouvel inventaire à partir des écarts de "' + rec.get('str_NAME')
+                + '" ?<br/>Le stock initial des lignes sera repris du stock courant.',
+                function(btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    testextjs.app.getController('App').ShowWaitingProcess();
+                    Ext.Ajax.request({
+                        url: url_services_rest_inventaire + '/create-from-ecarts/' + rec.get('lg_INVENTAIRE_ID'),
+                        method: 'POST',
+                        timeout: 1800000,
+                        success: function(response) {
+                            testextjs.app.getController('App').StopWaitingProcess();
+                            var object = Ext.JSON.decode(response.responseText, true) || {};
+                            Ext.Msg.alert(object.success ? 'Confirmation' : 'Information',
+                                    object.message || 'Traitement terminé.');
+                            grid.getStore().reload();
+                        },
+                        failure: function(response) {
+                            testextjs.app.getController('App').StopWaitingProcess();
+                            Ext.Msg.alert('Erreur', 'Erreur du serveur ' + response.status);
+                        }
+                    });
+                });
     },
     // DEBUT DE LA NOUVELLE FONCTION
     onAnalyseClick: function(grid, rowIndex) {

@@ -48,6 +48,8 @@ public interface InventaireService {
 
     int create(Set<String> produitIds, String description);
 
+    JSONObject createInventaireFromEcarts(String sourceInventaireId, TUser tUser);
+
     /**
      * Variante du create() generique avec un nom distinct de la description (le nom horodate va dans str_NAME, le
      * commentaire dans str_DESCRIPTION). Operation atomique : en cas d'echec, aucun inventaire partiel n'est cree.

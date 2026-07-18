@@ -495,6 +495,61 @@ public class InventaireServiceImpl implements InventaireService {
         return produitIds.size();
     }
 
+    /*
+     * cree un nouvel inventaire a partir des lignes en ecart d'un inventaire source (y compris cloture). Les produits
+     * sont repris mais le stock initial est RECALCULE depuis le stock courant de l'emplacement, pour ne pas creer
+     * d'ecarts artificiels si le stock a evolue depuis. Methode EJB : la creation entete + lignes est atomique
+     * (transaction conteneur).
+     */
+    @Override
+    public JSONObject createInventaireFromEcarts(String sourceInventaireId, TUser tUser) {
+        JSONObject json = new JSONObject();
+        TInventaire source = em.find(TInventaire.class, sourceInventaireId);
+        if (source == null) {
+            return json.put("success", false).put("count", 0).put("message", "Inventaire source introuvable.");
+        }
+        TypedQuery<TFamille> q = em.createQuery(
+                "SELECT DISTINCT o.lgFAMILLEID FROM TInventaireFamille o WHERE o.lgINVENTAIREID.lgINVENTAIREID = ?1 AND o.boolINVENTAIRE = TRUE AND COALESCE(o.intNUMBER, 0) <> COALESCE(o.intNUMBERINIT, 0)",
+                TFamille.class);
+        q.setParameter(1, sourceInventaireId);
+        List<TFamille> familles = q.getResultList();
+        if (familles.isEmpty()) {
+            return json.put("success", false).put("count", 0).put("message",
+                    "Aucun écart sur l'inventaire source : aucun inventaire créé.");
+        }
+
+        TEmplacement emplacement = tUser.getLgEMPLACEMENTID();
+        TInventaire nouveau = new TInventaire(IdGenerator.getComplexId());
+        String name = "ECARTS " + source.getStrNAME();
+        nouveau.setStrNAME(name);
+        nouveau.setStrDESCRIPTION("Inventaire créé à partir des écarts de : " + source.getStrNAME());
+        nouveau.setLgUSERID(tUser);
+        nouveau.setStrTYPE("emplacement");
+        nouveau.setStrSTATUT(Constant.STATUT_ENABLE);
+        nouveau.setDtCREATED(new Date());
+        nouveau.setDtUPDATED(nouveau.getDtCREATED());
+        nouveau.setLgEMPLACEMENTID(emplacement);
+        em.persist(nouveau);
+
+        int count = 0, ignores = 0;
+        for (TFamille famille : familles) {
+            try {
+                TFamilleStock familleStock = findByProduitId(famille.getLgFAMILLEID(),
+                        emplacement.getLgEMPLACEMENTID());
+                saveInventaireFamille(nouveau, familleStock);
+                count++;
+            } catch (Exception e) {
+                ignores++;
+                LOG.log(Level.WARNING, "createInventaireFromEcarts: produit sans stock actif ignoré={0} : {1}",
+                        new Object[] { famille.getLgFAMILLEID(), e.getMessage() });
+            }
+        }
+        String message = count + " ligne(s) créée(s) dans l'inventaire \"" + name + "\""
+                + (ignores > 0 ? " ; " + ignores + " produit(s) sans stock actif ignoré(s)" : "");
+        return json.put("success", true).put("count", count).put("ignored", ignores)
+                .put("inventaireId", nouveau.getLgINVENTAIREID()).put("message", message);
+    }
+
     @Override
     public int createReserveInventaire(Set<String> produitIds, String description) {
         return createReserveInventaire(produitIds, description, description);
