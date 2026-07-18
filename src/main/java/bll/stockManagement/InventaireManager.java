@@ -1973,48 +1973,6 @@ public class InventaireManager extends bllBase {
     // fin liste des lignes touchees / non touchees
 
     /*
-     * Statut 'Check' (inventorie / non inventorie) A LA DEMANDE pour un ensemble de lignes deja affichees (cles
-     * primaires de la page courante). Volontairement separe du chargement pagine pour que les changements de page
-     * restent aussi rapides qu'avant : une ligne est 'inventoriee' des que dt_UPDATED est renseigne. Requete par cle
-     * primaire (IN), tres rapide.
-     */
-    public JSONArray listTouchedStatus(String csvIds) {
-        JSONArray arrayObj = new JSONArray();
-        try {
-            if (csvIds == null || csvIds.trim().isEmpty()) {
-                return arrayObj;
-            }
-            List<Long> ids = new ArrayList<>();
-            for (String s : csvIds.split(",")) {
-                s = s.trim();
-                if (!s.isEmpty()) {
-                    try {
-                        ids.add(Long.valueOf(s));
-                    } catch (NumberFormatException nfe) {
-                    }
-                }
-            }
-            if (ids.isEmpty()) {
-                return arrayObj;
-            }
-            List<Object[]> rows = this.getOdataManager().getEm().createQuery(
-                    "SELECT o.lgINVENTAIREFAMILLEID, o.dtUPDATED FROM TInventaireFamille o WHERE o.lgINVENTAIREFAMILLEID IN :ids")
-                    .setParameter("ids", ids).getResultList();
-            for (Object[] r : rows) {
-                JSONObject json = new JSONObject();
-                json.put("lg_INVENTAIRE_FAMILLE_ID", r[0] + "");
-                json.put("is_TOUCHED", r[1] != null ? "Oui" : "Non");
-                arrayObj.put(json);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            this.setMessage(commonparameter.PROCESS_FAILED);
-        }
-        return arrayObj;
-    }
-    // fin statut 'Check' a la demande
-
-    /*
      * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone geographique) pour un inventaire, sur
      * les seules lignes incluses (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ; toutes touchees
      * -> Termine ; sinon -> En cours. Un emplacement sans aucune ligne dans l'inventaire n'apparait pas (il ne peut pas
