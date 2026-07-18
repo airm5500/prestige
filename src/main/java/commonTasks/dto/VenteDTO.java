@@ -603,6 +603,17 @@ public class VenteDTO implements Serializable {
 
     private String heureAnnulation;
 
+    // Mode de reglement memorise a la mise en attente (restaure au rappel)
+    private String typeReglementAttente;
+
+    public String getTypeReglementAttente() {
+        return typeReglementAttente;
+    }
+
+    public void setTypeReglementAttente(String typeReglementAttente) {
+        this.typeReglementAttente = typeReglementAttente;
+    }
+
     public String getHeureAnnulation() {
         return heureAnnulation;
     }
@@ -989,6 +1000,7 @@ public class VenteDTO implements Serializable {
     public VenteDTO(TPreenregistrement tp, List<TiersPayantParams> tierspayants, AyantDroitDTO ayantDroit,
             ClientDTO client) {
         this.lgPREENREGISTREMENTID = tp.getLgPREENREGISTREMENTID();
+        this.typeReglementAttente = tp.getStrTYPEREGLEMENTATTENTE();
         this.strREF = tp.getStrREF();
         this.strREFTICKET = tp.getStrREFTICKET();
         this.intPRICE = tp.getIntPRICE();

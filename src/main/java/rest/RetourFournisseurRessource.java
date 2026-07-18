@@ -38,6 +38,85 @@ public class RetourFournisseurRessource {
 
     @EJB
     private RetourFournisseurService retourFournisseurService;
+    @EJB
+    private rest.service.MvtProduitService mvtProduitService;
+    @EJB
+    private rest.service.InventaireService inventaireService;
+    @EJB
+    private rest.service.utils.ReportExcelExportService reportExcelExportService;
+
+    private String defaultDate(String date) {
+        return org.apache.commons.lang3.StringUtils.isEmpty(date) ? java.time.LocalDate.now().toString() : date;
+    }
+
+    private List<RetourDetailsDTO> loadDetails(String dtStart, String dtEnd, String fourId, String query,
+            String filtre) {
+        return mvtProduitService.loadretoursFournisseur(defaultDate(dtStart), defaultDate(dtEnd), fourId, query,
+                filtre);
+    }
+
+    private java.util.Set<String> produitIds(String dtStart, String dtEnd, String fourId, String query,
+            String filtre) {
+        return loadDetails(dtStart, dtEnd, fourId, query, filtre).stream().map(RetourDetailsDTO::getProduitId)
+                .filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    // Nombre de produits distincts des retours affiches (controle avant confirmation)
+    @GET
+    @Path("produits/count")
+    public Response produitsCount(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre)
+            throws org.json.JSONException {
+        int count = produitIds(dtStart, dtEnd, fourId, query, filtre).size();
+        return Response.ok()
+                .entity(new org.json.JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
+    // Creation d'inventaire a partir des produits des retours fournisseur affiches
+    @POST
+    @Path("create-inventaire")
+    public Response createInventaire(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre)
+            throws org.json.JSONException {
+        java.util.Set<String> ids = produitIds(dtStart, dtEnd, fourId, query, filtre);
+        if (ids.isEmpty()) {
+            return Response.ok().entity(new org.json.JSONObject().put("success", false)
+                    .put("message", "Aucun produit dans les retours affiches").toString()).build();
+        }
+        String name = "INVENTAIRE RETOURS FOURNISSEUR " + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        int count = inventaireService.create(ids, name, name);
+        return Response.ok()
+                .entity(new org.json.JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
+    // Export Excel des produits des retours affiches (memes filtres que la liste)
+    @GET
+    @Path("export-excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportExcel(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre) throws Exception {
+        List<RetourDetailsDTO> details = loadDetails(dtStart, dtEnd, fourId, query, filtre);
+        String[] headers = new String[] { "N° BL", "Date retour", "Heure", "Fournisseur", "Code produit", "Libelle",
+                "Quantite retournee", "Utilisateur" };
+        String title = "Produits des retours fournisseur du " + defaultDate(dtStart) + " au " + defaultDate(dtEnd);
+        byte[] data = reportExcelExportService.createExcelReport(title, headers, details, (row, dto) -> {
+            row.createCell(0).setCellValue(dto.getReferenceBl() == null ? "" : dto.getReferenceBl());
+            row.createCell(1).setCellValue(dto.getDtCREATED() == null ? "" : dto.getDtCREATED());
+            row.createCell(2).setCellValue(dto.getHEURE() == null ? "" : dto.getHEURE());
+            row.createCell(3).setCellValue(dto.getStrLIBELLE() == null ? "" : dto.getStrLIBELLE());
+            row.createCell(4).setCellValue(dto.getIntCIP() == null ? "" : dto.getIntCIP());
+            row.createCell(5).setCellValue(dto.getStrNAME() == null ? "" : dto.getStrNAME());
+            row.createCell(6).setCellValue(dto.getIntNUMBERRETURN() == null ? 0 : dto.getIntNUMBERRETURN());
+            row.createCell(7).setCellValue(dto.getOperateur() == null ? "" : dto.getOperateur());
+        });
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"retours_fournisseur_produits.xls\"").build();
+    }
 
     @GET
     @Path("retours-items")

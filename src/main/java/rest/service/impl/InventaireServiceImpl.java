@@ -465,13 +465,18 @@ public class InventaireServiceImpl implements InventaireService {
 
     @Override
     public int create(Set<String> produitIds, String description) {
+        return create(produitIds, description, description);
+    }
+
+    @Override
+    public int create(Set<String> produitIds, String name, String description) {
         if (CollectionUtils.isEmpty(produitIds)) {
             return 0;
         }
         TInventaire oTInventaire = new TInventaire(IdGenerator.getComplexId());
         TUser tUser = sessionHelperService.getCurrentUser();
         TEmplacement emplacement = tUser.getLgEMPLACEMENTID();
-        oTInventaire.setStrNAME(description);
+        oTInventaire.setStrNAME(name);
         oTInventaire.setStrDESCRIPTION(description);
         oTInventaire.setLgUSERID(tUser);
         oTInventaire.setStrTYPE("emplacement");
@@ -642,6 +647,18 @@ public class InventaireServiceImpl implements InventaireService {
         }
         int inserted = insertNativeQuery.executeUpdate();
         return json.put("success", true).put("count", inserted).put("message", "Inventaire créé avec succès.");
+    }
+
+    @Override
+    public Set<String> produitIdsFromVentes(List<String> venteIds) {
+        if (CollectionUtils.isEmpty(venteIds)) {
+            return Set.of();
+        }
+        TypedQuery<String> q = em.createQuery(
+                "SELECT DISTINCT d.lgFAMILLEID.lgFAMILLEID FROM TPreenregistrementDetail d WHERE d.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID IN :ids",
+                String.class);
+        q.setParameter("ids", venteIds);
+        return new LinkedHashSet<>(q.getResultList());
     }
 
     private TInventaire createInventaireFromCsv(TUser tUser, int itemCount) {

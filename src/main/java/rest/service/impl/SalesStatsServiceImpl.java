@@ -156,6 +156,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     @EJB
     private SessionHelperService sessionHelperService;
     @EJB
+    private rest.service.VenteSuppressionService venteSuppressionService;
+    @EJB
     private CsvExportService csvExportService;
 
     @EJB
@@ -514,6 +516,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         try {
             TPreenregistrement tp = getEntityManager().find(TPreenregistrement.class, venteId);
             LOG.log(Level.INFO, "{0} {1}", new Object[] { venteId, tp });
+            // Tracabilite : vente abandonnee (ecran "Suppressions de vente")
+            venteSuppressionService.logVenteSuppression(tp, this.sessionHelperService.getCurrentUser());
             Collection<TPreenregistrementDetail> items = tp.getTPreenregistrementDetailCollection();
             if (CollectionUtils.isNotEmpty(items)) {
                 items.forEach(em::remove);
@@ -598,6 +602,21 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         json.put("success", true).put("data",
                 new JSONObject(new ClientDTO(cl, findTiersPayantByClientId(cl.getLgCLIENTID()), venteTps,
                         findAyantDroitByClientId(cl.getLgCLIENTID()))));
+        return json;
+    }
+
+    @Override
+    public JSONObject setModeReglementAttente(String venteId, String typeReglementId) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            TPreenregistrement tp = getEntityManager().find(TPreenregistrement.class, venteId);
+            tp.setStrTYPEREGLEMENTATTENTE(typeReglementId);
+            getEntityManager().merge(tp);
+            json.put("success", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            json.put("success", false);
+        }
         return json;
     }
 
@@ -2362,6 +2381,64 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             LOG.log(Level.SEVERE, null, e);
             return List.of();
         }
+    }
+
+    @Override
+    public List<rest.service.dto.PreventeProduitDTO> preventesProduits(SalesStatsParams params, boolean parVente) {
+        try {
+            List<Tuple> ventes = getPreventeTuples(params);
+            if (ventes.isEmpty()) {
+                return List.of();
+            }
+            Map<String, Tuple> ventesById = new java.util.LinkedHashMap<>();
+            for (Tuple t : ventes) {
+                ventesById.put(t.get("id", String.class), t);
+            }
+            List<rest.service.dto.PreventeProduitDTO> rows = new ArrayList<>();
+            TypedQuery<TPreenregistrementDetail> q = this.getEntityManager().createQuery(
+                    "SELECT o FROM TPreenregistrementDetail o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID IN :ids",
+                    TPreenregistrementDetail.class);
+            q.setParameter("ids", ventesById.keySet());
+            for (TPreenregistrementDetail detail : q.getResultList()) {
+                Tuple vente = ventesById.get(detail.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID());
+                if (vente == null || detail.getLgFAMILLEID() == null) {
+                    continue;
+                }
+                rest.service.dto.PreventeProduitDTO row = new rest.service.dto.PreventeProduitDTO();
+                row.setVenteId(vente.get("id", String.class));
+                row.setVenteRef(vente.get("ref", String.class));
+                row.setDateVente(vente.get("dateVente", String.class));
+                row.setHeure(vente.get("heureVente", String.class));
+                row.setVendeur(vente.get("userVendeur", String.class));
+                row.setProduitId(detail.getLgFAMILLEID().getLgFAMILLEID());
+                row.setProduitCip(detail.getLgFAMILLEID().getIntCIP());
+                row.setProduitLibelle(detail.getLgFAMILLEID().getStrNAME());
+                row.setQuantite(detail.getIntQUANTITY() == null ? 0 : detail.getIntQUANTITY());
+                rows.add(row);
+            }
+            Comparator<rest.service.dto.PreventeProduitDTO> byProduit = Comparator
+                    .comparing(r -> StringUtils.defaultString(r.getProduitLibelle()));
+            if (parVente) {
+                // Ventes classees par ordre chronologique, produits regroupes par vente
+                rows.sort(Comparator
+                        .comparing((rest.service.dto.PreventeProduitDTO r) -> StringUtils.defaultString(r.getHeure()))
+                        .thenComparing(r -> StringUtils.defaultString(r.getVenteRef())).thenComparing(byProduit));
+            } else {
+                // Liste complete par ordre alphabetique, numero de vente sur chaque ligne
+                rows.sort(byProduit.thenComparing(r -> StringUtils.defaultString(r.getVenteRef())));
+            }
+            return rows;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "preventesProduits", e);
+            return List.of();
+        }
+    }
+
+    @Override
+    public Set<String> preventesProduitIds(SalesStatsParams params) {
+        return preventesProduits(params, false).stream().map(rest.service.dto.PreventeProduitDTO::getProduitId)
+                .filter(StringUtils::isNotEmpty)
+                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
     }
 
     private String buildPreVentesQuery(SalesStatsParams params) {

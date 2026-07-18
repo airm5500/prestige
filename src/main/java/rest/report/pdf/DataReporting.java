@@ -31,6 +31,7 @@ import rest.service.DonneesExploitation;
 import rest.service.FicheArticleService;
 import rest.service.MvtProduitService;
 import toolkits.utils.jdom;
+import util.DateConverter;
 
 /**
  *
@@ -163,7 +164,6 @@ public class DataReporting {
         if (!dtEn.isEqual(dtSt)) {
             P_PERIODE += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        parameters.put("P_H_CLT_INFOS", "ARTICLES NON VENDUS " + P_PERIODE);
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         Comparator<ArticleDTO> comparator = Comparator.comparing(ArticleDTO::getFilterId)
                 .thenComparing(ArticleDTO::getLibelle);
@@ -171,6 +171,14 @@ public class DataReporting {
         List<ArticleDTO> data = dataReporingService.statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, tu,
                 codeRayon, codeGrossiste, stock, stockFiltre, 0, 0, true);
         data.sort(comparator);
+        // Total global de valorisation (stock x prix d'achat) affiche dans l'entete du
+        // document ; egalement transmis au modele via P_TOTAL_VALORISATION pour un
+        // affichage en pied de rapport (bande summary du .jrxml).
+        long totalValorisation = data.stream().mapToLong(a -> (long) a.getStock() * a.getPrixAchat()).sum();
+        String totalValorisationFmt = DateConverter.amountFormat(totalValorisation, ' ');
+        parameters.put("P_TOTAL_VALORISATION", totalValorisationFmt);
+        parameters.put("P_H_CLT_INFOS", "ARTICLES NON VENDUS " + P_PERIODE
+                + " - TOTAL VALORISATION (STOCK x PRIX ACHAT) : " + totalValorisationFmt + " F CFA");
 
         reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
                 jdom.scr_report_pdf + "articles_invendus_" + report_generate_file, data);

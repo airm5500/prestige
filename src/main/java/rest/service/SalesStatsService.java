@@ -43,6 +43,17 @@ public interface SalesStatsService {
 
     JSONObject reloadVenteById(String venteId) throws JSONException;
 
+    JSONObject setModeReglementAttente(String venteId, String typeReglementId) throws JSONException;
+
+    /**
+     * Produits des ventes en attente correspondant aux filtres. parVente=true : tri chronologique par vente ;
+     * parVente=false : liste complete triee par ordre alphabetique des produits.
+     */
+    java.util.List<rest.service.dto.PreventeProduitDTO> preventesProduits(SalesStatsParams params, boolean parVente);
+
+    /** Ids produits distincts des ventes en attente correspondant aux filtres. */
+    java.util.Set<String> preventesProduitIds(SalesStatsParams params);
+
     JSONObject annulations(SalesStatsParams params) throws JSONException;
 
     long countListeAnnulations(SalesStatsParams params);

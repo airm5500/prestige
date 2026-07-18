@@ -74,9 +74,34 @@ public class ReportUtil {
             return (JasperReport) JRLoader.loadObject(resource);
         } catch (FileNotFoundException e) {
             LOG.log(Level.SEVERE, String.format("Le fichier n'est pas accessible %s", reportName), reportName);
-            return compileReport(reportName, reportPath);
+            try {
+                return compileReport(reportName, reportPath);
+            } catch (FileNotFoundException e2) {
+                // Dernier recours : modele .jrxml embarque dans le war (src/main/resources/reports)
+                JasperReport fromClasspath = compileFromClasspath(reportName);
+                if (fromClasspath != null) {
+                    return fromClasspath;
+                }
+                throw e2;
+            }
         }
 
+    }
+
+    /**
+     * Compile un modele .jrxml embarque dans le classpath (/reports/&lt;nom&gt;.jrxml) lorsque le fichier n'est pas
+     * deploye dans le repertoire des rapports.
+     */
+    public JasperReport compileFromClasspath(String reportName) {
+        try (InputStream in = ReportUtil.class.getResourceAsStream("/reports/" + reportName + ".jrxml")) {
+            if (in == null) {
+                return null;
+            }
+            return JasperCompileManager.compileReport(in);
+        } catch (IOException | JRException e) {
+            LOG.log(Level.SEVERE, "compileFromClasspath " + reportName, e);
+            return null;
+        }
     }
 
     public JasperReport compileReport(String reportName, String reportPath) throws Exception {

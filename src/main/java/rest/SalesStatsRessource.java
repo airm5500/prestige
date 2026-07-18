@@ -45,6 +45,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.GenerateTicketService;
@@ -74,6 +75,12 @@ public class SalesStatsRessource {
 
     @EJB
     private TvaService tvaService;
+
+    @EJB
+    private rest.service.InventaireService inventaireService;
+
+    @EJB
+    private rest.report.ReportUtil reportUtil;
 
     @GET
     @Path("preventes")
@@ -130,6 +137,93 @@ public class SalesStatsRessource {
     public Response delete(@PathParam("id") String id) throws JSONException {
 
         JSONObject json = salesService.delete(id);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    private SalesStatsParams buildPreventesParams(String query, String typeVenteId, String statut) {
+        SalesStatsParams body = new SalesStatsParams();
+        body.setQuery(query);
+        body.setStatut(StringUtils.isNotEmpty(statut) ? statut : "is_Process");
+        body.setAll(true);
+        body.setTypeVenteId(typeVenteId);
+        return body;
+    }
+
+    private String buildPreventesCriteres(String query, String typeVenteId) {
+        StringBuilder criteres = new StringBuilder(
+                "VENTES EN ATTENTE DU " + LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        if (StringUtils.isNotEmpty(typeVenteId)) {
+            criteres.append(" - TYPE : ").append(typeVenteId);
+        }
+        if (StringUtils.isNotEmpty(query)) {
+            criteres.append(" - RECHERCHE : ").append(query);
+        }
+        return criteres.toString();
+    }
+
+    // Impression des produits des ventes en attente (filtres actifs de la liste).
+    // mode=PAR_VENTE : produits regroupes par vente (rp_preventes_produits_par_vente.jrxml),
+    // mode=LISTE : liste complete alphabetique (rp_preventes_produits_liste.jrxml).
+    @GET
+    @Path("preventes/produits/pdf")
+    public Response preventesProduitsPdf(@QueryParam(value = "query") String query,
+            @QueryParam(value = "typeVenteId") String typeVenteId, @QueryParam(value = "statut") String statut,
+            @DefaultValue(value = "PAR_VENTE") @QueryParam(value = "mode") String mode) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        boolean parVente = !"LISTE".equalsIgnoreCase(mode);
+        List<rest.service.dto.PreventeProduitDTO> data = salesService
+                .preventesProduits(buildPreventesParams(query, typeVenteId, statut), parVente);
+        if (data.isEmpty()) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("message", "Aucun produit a imprimer")
+                            .toString())
+                    .build();
+        }
+        java.util.Map<String, Object> params = reportUtil.officineData(tu);
+        params.put("P_H_CLT_INFOS", (parVente ? "PRODUITS DES VENTES EN ATTENTE PAR VENTE - "
+                : "LISTE COMPLETE DES PRODUITS DES VENTES EN ATTENTE - ") + buildPreventesCriteres(query, typeVenteId));
+        String reportName = parVente ? "rp_preventes_produits_par_vente" : "rp_preventes_produits_liste";
+        String url = servletRequest.getContextPath() + reportUtil.buildReport(params, reportName, data);
+        return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
+    }
+
+    // Nombre de produits distincts (controle avant confirmation de creation d'inventaire)
+    @GET
+    @Path("preventes/produits/count")
+    public Response preventesProduitsCount(@QueryParam(value = "query") String query,
+            @QueryParam(value = "typeVenteId") String typeVenteId, @QueryParam(value = "statut") String statut)
+            throws JSONException {
+        int count = salesService.preventesProduitIds(buildPreventesParams(query, typeVenteId, statut)).size();
+        return Response.ok().entity(new JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
+    // Creation d'inventaire avec les produits des ventes en attente affichees
+    // (un meme produit present dans plusieurs ventes = une seule ligne)
+    @POST
+    @Path("preventes/create-inventaire")
+    public Response preventesCreateInventaire(@QueryParam(value = "query") String query,
+            @QueryParam(value = "typeVenteId") String typeVenteId, @QueryParam(value = "statut") String statut)
+            throws JSONException {
+        java.util.Set<String> produitIds = salesService
+                .preventesProduitIds(buildPreventesParams(query, typeVenteId, statut));
+        if (produitIds.isEmpty()) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", "Aucun produit dans les ventes en attente")
+                            .toString())
+                    .build();
+        }
+        String name = "Inventaire produits en attente "
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        int count = inventaireService.create(produitIds, name, name);
+        return Response.ok().entity(new JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
+    @PUT
+    @Path("attente/mode-reglement/{venteId}/{typeReglementId}")
+    public Response setModeReglementAttente(@PathParam("venteId") String venteId,
+            @PathParam("typeReglementId") String typeReglementId) throws JSONException {
+        JSONObject json = salesService.setModeReglementAttente(venteId, typeReglementId);
         return Response.ok().entity(json.toString()).build();
     }
 

@@ -484,24 +484,33 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                             return;
                         }
                         var comment = win.down('#commentFld').getValue() || '';
-                        var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
-                        Ext.Ajax.request({
-                            url: '../api/v1/reserve/create-inventaire-selection',
-                            method: 'POST',
-                            jsonData: {ids: ids, description: comment},
-                            timeout: 600000,
-                            success: function (response) {
-                                progress.hide();
-                                var res = Ext.JSON.decode(response.responseText, true);
-                                win.close();
-                                Ext.MessageBox.alert('Inventaire',
-                                        'Inventaire cree.<br/>Produits en compte : <b>' + (res.count || 0) + '</b>');
-                            },
-                            failure: function () {
-                                progress.hide();
-                                Ext.MessageBox.alert('Erreur', "La creation de l'inventaire a echoue.");
-                            }
-                        });
+                        // Recapitulatif : controle du nombre de produits avant confirmation
+                        Ext.MessageBox.confirm('Confirmation',
+                                'Vous allez creer un inventaire contenant <b>' + ids.length
+                                + '</b> produit(s) (toutes pages confondues).<br/>Confirmez-vous ?',
+                                function (btn) {
+                                    if (btn !== 'yes') {
+                                        return;
+                                    }
+                                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
+                                    Ext.Ajax.request({
+                                        url: '../api/v1/reserve/create-inventaire-selection',
+                                        method: 'POST',
+                                        jsonData: {ids: ids, description: comment},
+                                        timeout: 600000,
+                                        success: function (response) {
+                                            progress.hide();
+                                            var res = Ext.JSON.decode(response.responseText, true);
+                                            win.close();
+                                            Ext.MessageBox.alert('Inventaire',
+                                                    'Inventaire cree.<br/>Produits en compte : <b>' + (res.count || 0) + '</b>');
+                                        },
+                                        failure: function () {
+                                            progress.hide();
+                                            Ext.MessageBox.alert('Erreur', "La creation de l'inventaire a echoue. Aucun inventaire partiel n'a ete cree.");
+                                        }
+                                    });
+                                });
                     }
                 }, {
                     text: 'Annuler',

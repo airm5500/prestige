@@ -72,6 +72,15 @@ Ext.define('testextjs.controller.PendingCtr', {
             'cloturerventemanager #addBtn': {
                 click: this.onAddClick
             },
+            'cloturerventemanager #printParVente': {
+                click: this.onPrintParVente
+            },
+            'cloturerventemanager #printListe': {
+                click: this.onPrintListe
+            },
+            'cloturerventemanager #createInventaire': {
+                click: this.onCreateInventaire
+            },
             'preventeDetail #btnCancel': {
                 click: this.onClosePreventeDetail
             }
@@ -239,6 +248,102 @@ Ext.define('testextjs.controller.PendingCtr', {
                 "statut": 'is_Process',
                 "query": me.getQueryField().getValue(),
                 "typeVenteId": me.getTypeComboField().getValue()
+            }
+        });
+    },
+    // Filtres actifs de la liste (repris pour les impressions et l'inventaire)
+    getActiveFilters: function () {
+        var me = this;
+        return {
+            statut: 'is_Process',
+            query: me.getQueryField().getValue() || '',
+            typeVenteId: me.getTypeComboField().getValue() || ''
+        };
+    },
+    doPrintProduits: function (mode) {
+        var me = this;
+        var params = Ext.apply({mode: mode}, me.getActiveFilters());
+        var progress = Ext.MessageBox.wait('Generation du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            url: '../api/v1/ventestats/preventes/produits/pdf',
+            method: 'GET',
+            params: params,
+            timeout: 600000,
+            success: function (resp) {
+                progress.hide();
+                var r = Ext.JSON.decode(resp.responseText, true);
+                if (r && r.success && r.url) {
+                    window.open(r.url);
+                } else {
+                    Ext.MessageBox.alert('Impression',
+                            (r && r.message) ? r.message : "La generation du PDF n'a pas abouti.");
+                }
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.alert('Impression', 'La generation du PDF a echoue.');
+            }
+        });
+    },
+    onPrintParVente: function () {
+        this.doPrintProduits('PAR_VENTE');
+    },
+    onPrintListe: function () {
+        this.doPrintProduits('LISTE');
+    },
+    // Creation d'inventaire avec les produits des ventes en attente affichees
+    // (un meme produit dans plusieurs ventes = une seule ligne)
+    onCreateInventaire: function () {
+        var me = this, filters = me.getActiveFilters();
+        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Controle des produits');
+        Ext.Ajax.request({
+            url: '../api/v1/ventestats/preventes/produits/count',
+            method: 'GET',
+            params: filters,
+            success: function (resp) {
+                progress.hide();
+                var r = Ext.JSON.decode(resp.responseText, true);
+                var count = (r && r.count) ? r.count : 0;
+                if (count === 0) {
+                    Ext.MessageBox.alert('Message', 'Aucun produit dans les ventes en attente affichees.');
+                    return;
+                }
+                Ext.MessageBox.confirm('Confirmation',
+                        'Vous allez creer un inventaire contenant <b>' + count
+                        + '</b> produit(s) distinct(s) des ventes en attente affichees.<br/>Confirmez-vous ?',
+                        function (btn) {
+                            if (btn !== 'yes') {
+                                return;
+                            }
+                            var prog = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
+                            Ext.Ajax.request({
+                                // filtres en query string : le endpoint lit des @QueryParam
+                                url: '../api/v1/ventestats/preventes/create-inventaire?'
+                                        + Ext.Object.toQueryString(filters),
+                                method: 'POST',
+                                timeout: 600000,
+                                success: function (response) {
+                                    prog.hide();
+                                    var res = Ext.JSON.decode(response.responseText, true);
+                                    if (res && res.success) {
+                                        Ext.MessageBox.alert('Inventaire',
+                                                'Inventaire cree.<br/>Produits en compte : <b>' + (res.count || 0) + '</b>');
+                                    } else {
+                                        Ext.MessageBox.alert('Erreur',
+                                                (res && res.message) ? res.message : "La creation de l'inventaire a echoue.");
+                                    }
+                                },
+                                failure: function () {
+                                    prog.hide();
+                                    Ext.MessageBox.alert('Erreur',
+                                            "La creation de l'inventaire a echoue. Aucun inventaire partiel n'a ete cree.");
+                                }
+                            });
+                        });
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.alert('Erreur', 'Le controle du nombre de produits a echoue.');
             }
         });
     }

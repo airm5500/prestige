@@ -198,6 +198,9 @@ public class TPreenregistrement implements Serializable {
     @Column(name = "completion_date")
     @Temporal(TemporalType.TIMESTAMP)
     private Date completionDate = new Date();
+    // Mode de reglement memorise a la mise en attente, restaure au rappel
+    @Column(name = "str_TYPE_REGLEMENT_ATTENTE", length = 5)
+    private String strTYPEREGLEMENTATTENTE;
     @OneToMany(mappedBy = "preenregistrement")
     private List<VenteReglement> venteReglements = new ArrayList<>();
     @ManyToOne
@@ -303,6 +306,14 @@ public class TPreenregistrement implements Serializable {
 
     public void setCompletionDate(Date completionDate) {
         this.completionDate = completionDate;
+    }
+
+    public String getStrTYPEREGLEMENTATTENTE() {
+        return strTYPEREGLEMENTATTENTE;
+    }
+
+    public void setStrTYPEREGLEMENTATTENTE(String strTYPEREGLEMENTATTENTE) {
+        this.strTYPEREGLEMENTATTENTE = strTYPEREGLEMENTATTENTE;
     }
 
     public void setIntREMISEPARA(Integer intREMISEPARA) {
