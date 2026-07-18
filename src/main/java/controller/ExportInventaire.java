@@ -141,10 +141,9 @@ public class ExportInventaire extends HttpServlet {
     }
 
     /*
-     * Export des ecarts au format demande : exactement deux colonnes cip;quantite,
-     * quantite signee = quantite saisie - quantite initiale (negatif = manque,
-     * positif = surplus). Sans ligne d'entete pour rester compatible avec
-     * l'import CSV d'inventaire qui lit le CIP en premiere colonne.
+     * Export des ecarts au format demande : exactement deux colonnes cip;quantite, quantite signee = quantite saisie -
+     * quantite initiale (negatif = manque, positif = surplus). Sans ligne d'entete pour rester compatible avec l'import
+     * CSV d'inventaire qui lit le CIP en premiere colonne.
      */
     private void ecartCSV(List<TInventaireFamille> list, HttpServletResponse response) throws Exception {
         OutputStream out = null;

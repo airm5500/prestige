@@ -1921,8 +1921,10 @@ public class InventaireManager extends bllBase {
         return orderBy;
     }
 
-    /* clause commune aux listes touche/non touche : memes filtres et champs de
-     * recherche que la liste 'Tous' (ws_data_inventaire_famille) */
+    /*
+     * clause commune aux listes touche/non touche : memes filtres et champs de recherche que la liste 'Tous'
+     * (ws_data_inventaire_famille)
+     */
     private static final String INVENTAIRE_TOUCHE_WHERE = " FROM TInventaireFamille t, TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR g.strCODEARTICLE LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9 AND t.dtUPDATED IS ";
 
     // liste des lignes touchees (dt_UPDATED renseigne) ou non touchees d'un inventaire
@@ -1971,11 +1973,9 @@ public class InventaireManager extends bllBase {
     // fin liste des lignes touchees / non touchees
 
     /*
-     * valorisation des ecarts pour le filtre courant, calculee cote serveur sur
-     * TOUTES les lignes (la pagination de la grille ne contient qu'une page).
-     * L'ecart est signe : quantite saisie - quantite initiale (negatif = manque,
-     * positif = surplus). La recherche grossiste passe par EXISTS pour ne pas
-     * dupliquer les lignes dans les sommes.
+     * valorisation des ecarts pour le filtre courant, calculee cote serveur sur TOUTES les lignes (la pagination de la
+     * grille ne contient qu'une page). L'ecart est signe : quantite saisie - quantite initiale (negatif = manque,
+     * positif = surplus). La recherche grossiste passe par EXISTS pour ne pas dupliquer les lignes dans les sommes.
      */
     public JSONObject getEcartValorisation(String search_value, String lg_INVENTAIRE_ID, String lg_FAMILLEARTICLE_ID,
             String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String str_TYPE, int int_ALERTE, String lg_USER_ID) {
@@ -2004,9 +2004,9 @@ public class InventaireManager extends bllBase {
                     + "OR EXISTS (SELECT g FROM TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND g.strCODEARTICLE LIKE ?6)) "
                     + "AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9" + condition;
             Object[] result = (Object[]) this.getOdataManager().getEm().createQuery(jpql)
-                    .setParameter(1, lg_INVENTAIRE_ID).setParameter(2, lg_GROSSISTE_ID)
-                    .setParameter(3, lg_ZONE_GEO_ID).setParameter(4, lg_FAMILLEARTICLE_ID)
-                    .setParameter(6, "%" + search_value + "%").setParameter(8, true).setParameter(9, lg_USER_ID)
+                    .setParameter(1, lg_INVENTAIRE_ID).setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
+                    .setParameter(8, true).setParameter(9, lg_USER_ID)
                     .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
             json.put("int_ECART_QTE", result[0] != null ? Long.valueOf(result[0] + "") : 0L);
             json.put("int_ECART_ACHAT", result[1] != null ? Long.valueOf(result[1] + "") : 0L);
@@ -2026,24 +2026,23 @@ public class InventaireManager extends bllBase {
     // fin valorisation des ecarts
 
     /*
-     * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone
-     * geographique) pour un inventaire, sur les seules lignes incluses
-     * (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ;
-     * toutes touchees -> Termine ; sinon -> En cours. Un emplacement sans
-     * aucune ligne dans l'inventaire n'apparait pas (il ne peut pas etre
-     * compte).
+     * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone geographique) pour un inventaire, sur
+     * les seules lignes incluses (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ; toutes touchees
+     * -> Termine ; sinon -> En cours. Un emplacement sans aucune ligne dans l'inventaire n'apparait pas (il ne peut pas
+     * etre compte).
      */
     public JSONArray listCheckEmplacement(String lg_INVENTAIRE_ID) {
         JSONArray arrayObj = new JSONArray();
         try {
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(
-                    "SELECT z.str_CODE, z.str_LIBELLEE, COUNT(t.lg_INVENTAIRE_FAMILLE_ID) AS int_TOTAL, "
-                            + "SUM(CASE WHEN t.dt_UPDATED IS NOT NULL THEN 1 ELSE 0 END) AS int_TOUCHES "
-                            + "FROM t_inventaire_famille t "
-                            + "INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID "
-                            + "INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID "
-                            + "WHERE t.lg_INVENTAIRE_ID = ?1 AND t.bool_INVENTAIRE = TRUE "
-                            + "GROUP BY z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE ORDER BY z.str_CODE ASC")
+            List<Object[]> list = this.getOdataManager().getEm()
+                    .createNativeQuery(
+                            "SELECT z.str_CODE, z.str_LIBELLEE, COUNT(t.lg_INVENTAIRE_FAMILLE_ID) AS int_TOTAL, "
+                                    + "SUM(CASE WHEN t.dt_UPDATED IS NOT NULL THEN 1 ELSE 0 END) AS int_TOUCHES "
+                                    + "FROM t_inventaire_famille t "
+                                    + "INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID "
+                                    + "INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID "
+                                    + "WHERE t.lg_INVENTAIRE_ID = ?1 AND t.bool_INVENTAIRE = TRUE "
+                                    + "GROUP BY z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE ORDER BY z.str_CODE ASC")
                     .setParameter(1, lg_INVENTAIRE_ID).getResultList();
             for (Object[] row : list) {
                 long total = Long.valueOf(row[2] + "");

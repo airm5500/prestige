@@ -608,19 +608,17 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     /*
-     * verifie qu'un privilege actif est associe a l'utilisateur via ses roles
-     * (meme chaine t_role_user -> t_role -> t_role_privelege -> t_privilege que
-     * bll.userManagement.privilege)
+     * verifie qu'un privilege actif est associe a l'utilisateur via ses roles (meme chaine t_role_user -> t_role ->
+     * t_role_privelege -> t_privilege que bll.userManagement.privilege)
      */
     private boolean hasPrivilege(TUser user, String privilegeName) {
         try {
-            Object result = this.getEm().createNativeQuery(
-                    "SELECT COUNT(t_privilege.str_NAME) FROM t_role_user "
-                            + "INNER JOIN t_user ON t_role_user.lg_USER_ID = t_user.lg_USER_ID "
-                            + "INNER JOIN t_role ON t_role.lg_ROLE_ID = t_role_user.lg_ROLE_ID "
-                            + "INNER JOIN t_role_privelege ON t_role.lg_ROLE_ID = t_role_privelege.lg_ROLE_ID "
-                            + "INNER JOIN t_privilege ON t_role_privelege.lg_PRIVILEGE_ID = t_privilege.lg_PRIVELEGE_ID "
-                            + "WHERE t_privilege.str_NAME = ?1 AND t_user.lg_USER_ID = ?2 AND t_privilege.str_STATUT = 'enable'")
+            Object result = this.getEm().createNativeQuery("SELECT COUNT(t_privilege.str_NAME) FROM t_role_user "
+                    + "INNER JOIN t_user ON t_role_user.lg_USER_ID = t_user.lg_USER_ID "
+                    + "INNER JOIN t_role ON t_role.lg_ROLE_ID = t_role_user.lg_ROLE_ID "
+                    + "INNER JOIN t_role_privelege ON t_role.lg_ROLE_ID = t_role_privelege.lg_ROLE_ID "
+                    + "INNER JOIN t_privilege ON t_role_privelege.lg_PRIVILEGE_ID = t_privilege.lg_PRIVELEGE_ID "
+                    + "WHERE t_privilege.str_NAME = ?1 AND t_user.lg_USER_ID = ?2 AND t_privilege.str_STATUT = 'enable'")
                     .setParameter(1, privilegeName).setParameter(2, user.getLgUSERID()).getSingleResult();
             return Integer.parseInt(result + "") > 0;
         } catch (Exception e) {

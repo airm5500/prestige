@@ -491,11 +491,10 @@ public class InventaireServiceImpl implements InventaireService {
     }
 
     /*
-     * cree un nouvel inventaire a partir des lignes en ecart d'un inventaire
-     * source (y compris cloture). Les produits sont repris mais le stock
-     * initial est RECALCULE depuis le stock courant de l'emplacement, pour ne
-     * pas creer d'ecarts artificiels si le stock a evolue depuis. Methode EJB :
-     * la creation entete + lignes est atomique (transaction conteneur).
+     * cree un nouvel inventaire a partir des lignes en ecart d'un inventaire source (y compris cloture). Les produits
+     * sont repris mais le stock initial est RECALCULE depuis le stock courant de l'emplacement, pour ne pas creer
+     * d'ecarts artificiels si le stock a evolue depuis. Methode EJB : la creation entete + lignes est atomique
+     * (transaction conteneur).
      */
     @Override
     public JSONObject createInventaireFromEcarts(String sourceInventaireId, TUser tUser) {
