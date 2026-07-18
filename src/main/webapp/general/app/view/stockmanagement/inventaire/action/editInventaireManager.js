@@ -1682,6 +1682,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                 ]
             },
             buttons: [{
+                    text: 'Actualiser',
+                    icon: 'resources/images/icons/fam/table_refresh.png',
+                    handler: function () {
+                        storeCheck.load();
+                    }
+                }, {
                     text: 'Imprimer',
                     icon: 'resources/images/icons/fam/printer.png',
                     handler: function () {
