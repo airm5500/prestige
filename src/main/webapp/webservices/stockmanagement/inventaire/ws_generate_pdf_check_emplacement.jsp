@@ -42,7 +42,7 @@
 
     Map parameters = new HashMap();
     parameters.put("P_REFERENCE", lg_INVENTAIRE_ID);
-    parameters.put("P_H_CLT_INFOS", "CHECK EMPLACEMENT — STATUT DU COMPTAGE");
+    parameters.put("P_H_CLT_INFOS", "CHECK EMPLACEMENT \u2014 STATUT DU COMPTAGE");
 
     String P_INSTITUTION_ADRESSE = "", P_FOOTER_RC = "";
     if ("1".equals(OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID())) {
@@ -50,10 +50,10 @@
         parameters.put("P_H_INSTITUTION", oTOfficine.getStrNOMABREGE());
         parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
         if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-            P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+            P_FOOTER_RC += "RC N\u00b0 " + oTOfficine.getStrREGISTRECOMMERCE();
         }
         if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-            P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+            P_FOOTER_RC += " - CC N\u00b0 " + oTOfficine.getStrCOMPTECONTRIBUABLE();
         }
         if (oTOfficine.getStrPHONE() != null) {
             P_INSTITUTION_ADRESSE += " Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE());
@@ -65,7 +65,7 @@
         parameters.put("P_H_INSTITUTION", oEm.getStrDESCRIPTION());
         parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
         if (oEm.getStrLOCALITE() != null) {
-            P_INSTITUTION_ADRESSE += "Localité : " + oEm.getStrLOCALITE();
+            P_INSTITUTION_ADRESSE += "Localit\u00e9 : " + oEm.getStrLOCALITE();
         }
         if (oEm.getStrPHONE() != null) {
             P_INSTITUTION_ADRESSE += " - Tel: " + conversion.PhoneNumberFormat("+225", oEm.getStrPHONE());

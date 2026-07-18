@@ -85,13 +85,13 @@
     } else if ("SURPLUS".equalsIgnoreCase(str_TYPE)) {
         libelleFiltre = "Articles surplus";
     } else if ("MANQUANTSURPLUS".equalsIgnoreCase(str_TYPE)) {
-        libelleFiltre = "Tous les écarts";
+        libelleFiltre = "Tous les \u00e9carts";
     } else if ("ALERTE".equalsIgnoreCase(str_TYPE)) {
         libelleFiltre = "Articles alertes";
     } else if ("TOUCHE".equalsIgnoreCase(str_TYPE)) {
-        libelleFiltre = "Articles touchés";
+        libelleFiltre = "Articles touch\u00e9s";
     } else if ("NONTOUCHE".equalsIgnoreCase(str_TYPE)) {
-        libelleFiltre = "Articles non touchés";
+        libelleFiltre = "Articles non touch\u00e9s";
     }
 
     String report_generate_file = key.GetNumberRandom() + ".pdf";
@@ -116,10 +116,10 @@
         parameters.put("P_H_INSTITUTION", oTOfficine.getStrNOMABREGE());
         parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
         if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-            P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+            P_FOOTER_RC += "RC N\u00b0 " + oTOfficine.getStrREGISTRECOMMERCE();
         }
         if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-            P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+            P_FOOTER_RC += " - CC N\u00b0 " + oTOfficine.getStrCOMPTECONTRIBUABLE();
         }
         if (oTOfficine.getStrPHONE() != null) {
             P_INSTITUTION_ADRESSE += " Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE());
@@ -131,7 +131,7 @@
         parameters.put("P_H_INSTITUTION", oEm.getStrDESCRIPTION());
         parameters.put("P_PRINTED_BY", " " + OTUser.getStrFIRSTNAME() + "  " + OTUser.getStrLASTNAME());
         if (oEm.getStrLOCALITE() != null) {
-            P_INSTITUTION_ADRESSE += "Localité : " + oEm.getStrLOCALITE();
+            P_INSTITUTION_ADRESSE += "Localit\u00e9 : " + oEm.getStrLOCALITE();
         }
         if (oEm.getStrPHONE() != null) {
             P_INSTITUTION_ADRESSE += " - Tel: " + conversion.PhoneNumberFormat("+225", oEm.getStrPHONE());

@@ -637,14 +637,15 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
                                     sortable: true},
                                 {
-                                    text: 'Touché',
+                                    text: 'Check',
                                     dataIndex: 'is_TOUCHED',
                                     flex: 0.6,
                                     align: 'center',
                                     sortable: false,
                                     renderer: function (v, m) {
+                                        /* case cochee quand la ligne est faite (touchee) */
                                         m.tdCls = (v === 'Oui') ? 'inv-touche-oui' : 'inv-touche-non';
-                                        return v;
+                                        return (v === 'Oui') ? '\u2611' : '\u2610';
                                     }
                                 }
                             ],

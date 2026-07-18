@@ -183,7 +183,7 @@ ORDER BY z.str_CODE ASC, f.str_DESCRIPTION ASC]]>
             <staticText>
                 <reportElement style="colHeader" x="495" y="0" width="60" height="18"/>
                 <textElement textAlignment="Center" verticalAlignment="Middle"/>
-                <text><![CDATA[Touché]]></text>
+                <text><![CDATA[Check]]></text>
             </staticText>
         </band>
     </columnHeader>
@@ -213,8 +213,10 @@ ORDER BY z.str_CODE ASC, f.str_DESCRIPTION ASC]]>
             </textField>
             <textField>
                 <reportElement style="cell" stretchType="RelativeToBandHeight" x="495" y="0" width="60" height="14"/>
-                <textElement textAlignment="Center" verticalAlignment="Middle"/>
-                <textFieldExpression><![CDATA[$F{touche}]]></textFieldExpression>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font fontName="DejaVu Sans" size="11"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Oui".equals($F{touche}) ? "\u2611" : "\u2610"]]></textFieldExpression>
             </textField>
         </band>
     </detail>
