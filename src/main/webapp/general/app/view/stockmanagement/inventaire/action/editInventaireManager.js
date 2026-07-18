@@ -356,8 +356,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     text: 'Emplacement',
                                     flex: 1,
                                     sortable: true,
-                                    dataIndex: 'lg_ZONE_GEO_ID',
-                                    tdCls: 'inv-cell-emplacement'
+                                    dataIndex: 'lg_ZONE_GEO_ID'
                                 }, {
                                     text: 'Famille',
                                     dataIndex: 'lg_FAMILLEARTICLE_ID',
@@ -410,6 +409,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                         maskRe: /[0-9.]/,
                                         selectOnFocus: true,
                                         enableKeyEvents: true,
+                                        /* meme police agrandie pendant la
+                                         * saisie qu'apres validation
+                                         * (inv-cell-big sur la cellule) */
+                                        fieldStyle: 'font-size:16px;font-weight:800;text-align:right;',
                                         listeners: {
                                             specialKey: function (field, e, options) {
                                                 var grid = Ext.getCmp('gridpanelInventaireID');
@@ -735,6 +738,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     id: 'lg_ZONE_GEO_ID',
                                     store: store_zonegeo,
                                     minChars: 2,
+                                    /* champ emplacement mis en evidence en
+                                     * permanence (independant du focus) */
+                                    fieldCls: 'x-form-field inv-field-emplacement',
 //                                    autoSelect: true,
                                     selectOnFocus: true,
                                     valueField: 'lg_ZONE_GEO_ID',

@@ -22891,12 +22891,14 @@ body.x-nbr .x-panel-header-light-framed-collapsed-left-frameInfo {
 
 
 /* ====== Inventaire : evolutions ergonomie ====== */
-/* colonne Emplacement toujours mise en evidence (independant du focus) */
-.inv-cell-emplacement {
+/* liste deroulante 'zone geographique' (emplacement) toujours mise en
+   evidence, independamment du focus */
+.inv-field-emplacement {
     background-color: #FFF3CD !important;
-    border-left: 3px solid #E67E00 !important;
+    border: 2px solid #E67E00 !important;
+    border-radius: 6px !important;
     color: #7A4A00 !important;
-    font-weight: 800;
+    font-weight: 800 !important;
 }
 /* stock rayon, stock machine et ecart : lecture agrandie */
 .inv-cell-big .x-grid-cell-inner {
