@@ -648,6 +648,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     margins: '0 0 0 10',
                                     fieldLabel: 'Filtre:',
                                     id: 'str_TYPE',
+                                    /* bordure violette du filtre article */
+                                    cls: 'filtre-article-violet',
                                     store: store_type,
                                     valueField: 'str_TYPE',
                                     displayField: 'str_desc',
@@ -968,6 +970,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         }, {
                             text: 'Imprimer liste des &eacute;carts',
                             id: 'btn_print_ecart',
+                            cls: 'btn-orange',
                             iconCls: 'icon-clear-group',
                             scope: this,
                             hidden: isInventaireCloture,
@@ -982,6 +985,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         }, {
                             text: 'Imprimer filtre courant',
                             id: 'btn_print_filtre',
+                            cls: 'btn-bleu-nuit',
                             icon: 'resources/images/icons/fam/printer.png',
                             tooltip: 'Impression PDF de toutes les lignes du filtre courant (touchés, non touchés, écarts...)',
                             scope: this,

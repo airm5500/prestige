@@ -22917,6 +22917,31 @@ body.x-nbr .x-panel-header-light-framed-collapsed-left-frameInfo {
     font-weight: 800;
     font-size: 15px;
 }
+/* bouton "Imprimer liste des ecarts" : fond orange */
+.btn-orange {
+    background: linear-gradient(145deg, #F58220, #D9640A) !important;
+    border: 1px solid rgba(0, 0, 0, .15) !important;
+    border-radius: 6px !important;
+}
+.btn-orange .x-btn-inner {
+    color: #fff !important;
+    font-weight: 700;
+}
+/* bouton "Imprimer filtre courant" : fond bleu nuit */
+.btn-bleu-nuit {
+    background: linear-gradient(145deg, #1F3A67, #101E3C) !important;
+    border: 1px solid rgba(0, 0, 0, .25) !important;
+    border-radius: 6px !important;
+}
+.btn-bleu-nuit .x-btn-inner {
+    color: #fff !important;
+    font-weight: 700;
+}
+/* combo "Filtre article" : bordure violette */
+.filtre-article-violet input.x-form-field {
+    border: 2px solid #7B2CBF !important;
+    border-radius: 4px !important;
+}
 /* badge de la colonne Touche */
 .inv-touche-oui {
     color: #1E7E34;
