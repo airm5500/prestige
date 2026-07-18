@@ -1651,6 +1651,20 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     {text: 'Articles', dataIndex: 'int_TOTAL', flex: 0.5, align: 'right'},
                     {text: 'Comptés', dataIndex: 'int_TOUCHES', flex: 0.5, align: 'right'},
                     {text: 'Restants', dataIndex: 'int_RESTANT', flex: 0.5, align: 'right'},
+                    {
+                        /* pourcentage d'avancement du comptage = comptes / articles */
+                        text: '% avancement',
+                        dataIndex: 'int_TOUCHES',
+                        flex: 0.6,
+                        align: 'right',
+                        renderer: function (v, m, rec) {
+                            var total = rec.get('int_TOTAL') || 0;
+                            var touches = rec.get('int_TOUCHES') || 0;
+                            var pct = total > 0 ? (touches / total) * 100 : 0;
+                            m.style = 'color:#0D6EFD;font-weight:800;';
+                            return Ext.util.Format.number(pct, '0.0') + ' %';
+                        }
+                    },
                     {text: 'Statut', dataIndex: 'str_STATUT', flex: 0.7, renderer: statutRenderer}
                 ]
             },
