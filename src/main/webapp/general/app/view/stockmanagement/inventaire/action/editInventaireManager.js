@@ -1057,13 +1057,21 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             hidden: true,
                             handler: this.onbtnexportCsv
-                        },
-                        '->',
+                        }
+                    ]
+                },
+                {
+                    /* 2e ligne dediee au bouton 'Cloturer' : action finale isolee
+                     * et alignee a droite, pour qu'elle ne soit jamais tronquee
+                     * quand la premiere ligne de boutons est pleine */
+                    xtype: 'toolbar',
+                    ui: 'footer',
+                    dock: 'bottom',
+                    border: '0',
+                    items: ['->',
                         {
-                            /* action finale : isolee a droite, verte et plus
-                             * lisible ; soumise au privilege
-                             * P_CLOTURER_INVENTAIRE (masquee sinon), avec
-                             * confirmation et controle egalement cote serveur */
+                            /* soumise au privilege P_CLOTURER_INVENTAIRE (masquee
+                             * sinon), avec confirmation et controle cote serveur */
                             text: 'Cloturer',
                             id: 'btn_loturer',
                             cls: 'btn-cloturer',
@@ -1072,7 +1080,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             handler: this.onbtncloturer
                         }
-
                     ]
                 }]
         });
