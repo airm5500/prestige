@@ -2437,8 +2437,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     @Override
     public Set<String> preventesProduitIds(SalesStatsParams params) {
         return preventesProduits(params, false).stream().map(rest.service.dto.PreventeProduitDTO::getProduitId)
-                .filter(StringUtils::isNotEmpty)
-                .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+                .filter(StringUtils::isNotEmpty).collect(Collectors.toCollection(java.util.LinkedHashSet::new));
     }
 
     private String buildPreVentesQuery(SalesStatsParams params) {

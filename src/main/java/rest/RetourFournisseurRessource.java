@@ -55,8 +55,7 @@ public class RetourFournisseurRessource {
                 filtre);
     }
 
-    private java.util.Set<String> produitIds(String dtStart, String dtEnd, String fourId, String query,
-            String filtre) {
+    private java.util.Set<String> produitIds(String dtStart, String dtEnd, String fourId, String query, String filtre) {
         return loadDetails(dtStart, dtEnd, fourId, query, filtre).stream().map(RetourDetailsDTO::getProduitId)
                 .filter(org.apache.commons.lang3.StringUtils::isNotEmpty)
                 .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
@@ -70,8 +69,8 @@ public class RetourFournisseurRessource {
             @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre)
             throws org.json.JSONException {
         int count = produitIds(dtStart, dtEnd, fourId, query, filtre).size();
-        return Response.ok()
-                .entity(new org.json.JSONObject().put("success", true).put("count", count).toString()).build();
+        return Response.ok().entity(new org.json.JSONObject().put("success", true).put("count", count).toString())
+                .build();
     }
 
     // Creation d'inventaire a partir des produits des retours fournisseur affiches
@@ -89,8 +88,8 @@ public class RetourFournisseurRessource {
         String name = "INVENTAIRE RETOURS FOURNISSEUR " + java.time.LocalDateTime.now()
                 .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         int count = inventaireService.create(ids, name, name);
-        return Response.ok()
-                .entity(new org.json.JSONObject().put("success", true).put("count", count).toString()).build();
+        return Response.ok().entity(new org.json.JSONObject().put("success", true).put("count", count).toString())
+                .build();
     }
 
     // Export Excel des produits des retours affiches (memes filtres que la liste)

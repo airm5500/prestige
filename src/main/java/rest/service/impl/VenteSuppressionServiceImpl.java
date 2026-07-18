@@ -74,14 +74,13 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
         }
     }
 
-    private VenteSuppression build(String type, TPreenregistrement vente, TPreenregistrementDetail detail,
-            TUser user) {
+    private VenteSuppression build(String type, TPreenregistrement vente, TPreenregistrementDetail detail, TUser user) {
         VenteSuppression suppression = new VenteSuppression();
         suppression.setTypeSuppression(type);
         if (vente != null) {
             suppression.setVenteId(vente.getLgPREENREGISTREMENTID());
-            suppression.setVenteRef(StringUtils.isNotEmpty(vente.getStrREF()) ? vente.getStrREF()
-                    : vente.getStrREFTICKET());
+            suppression.setVenteRef(
+                    StringUtils.isNotEmpty(vente.getStrREF()) ? vente.getStrREF() : vente.getStrREFTICKET());
         }
         if (detail != null) {
             TFamille famille = detail.getLgFAMILLEID();
@@ -108,8 +107,8 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
             long total = count(dtStart, dtEnd, userId, query, type);
             List<VenteSuppression> results = query(dtStart, dtEnd, userId, query, type, start, limit);
             json.put("total", total);
-            json.put("results", new JSONArray(results.stream().map(this::toDto).map(JSONObject::new)
-                    .collect(Collectors.toList())));
+            json.put("results",
+                    new JSONArray(results.stream().map(this::toDto).map(JSONObject::new).collect(Collectors.toList())));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "list", e);
             json.put("total", 0);
@@ -120,8 +119,7 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
 
     @Override
     public List<VenteSuppressionDTO> fetchAll(String dtStart, String dtEnd, String userId, String query, String type) {
-        return query(dtStart, dtEnd, userId, query, type, 0, 0).stream().map(this::toDto)
-                .collect(Collectors.toList());
+        return query(dtStart, dtEnd, userId, query, type, 0, 0).stream().map(this::toDto).collect(Collectors.toList());
     }
 
     @Override

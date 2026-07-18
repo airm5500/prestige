@@ -68,9 +68,8 @@ public class VenteSuppressionRessource {
             }
         }
         if (produitIds.isEmpty()) {
-            return Response.ok()
-                    .entity(new JSONObject().put("success", false).put("message", "Aucun produit selectionne")
-                            .toString())
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", "Aucun produit selectionne").toString())
                     .build();
         }
         String description = payload.optString("description", "");
@@ -104,9 +103,8 @@ public class VenteSuppressionRessource {
         java.util.List<VenteSuppressionDTO> data = venteSuppressionService.fetchAll(dtStart, dtEnd, userId, query,
                 type);
         if (data.isEmpty()) {
-            return Response.ok()
-                    .entity(new JSONObject().put("success", false).put("message", "Aucune donnee a imprimer")
-                            .toString())
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", "Aucune donnee a imprimer").toString())
                     .build();
         }
         String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "rp_suppressions_vente", data);

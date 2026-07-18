@@ -175,14 +175,15 @@ public class SalesStatsRessource {
         List<rest.service.dto.PreventeProduitDTO> data = salesService
                 .preventesProduits(buildPreventesParams(query, typeVenteId, statut), parVente);
         if (data.isEmpty()) {
-            return Response.ok()
-                    .entity(new JSONObject().put("success", false).put("message", "Aucun produit a imprimer")
-                            .toString())
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", "Aucun produit a imprimer").toString())
                     .build();
         }
         java.util.Map<String, Object> params = reportUtil.officineData(tu);
-        params.put("P_H_CLT_INFOS", (parVente ? "PRODUITS DES VENTES EN ATTENTE PAR VENTE - "
-                : "LISTE COMPLETE DES PRODUITS DES VENTES EN ATTENTE - ") + buildPreventesCriteres(query, typeVenteId));
+        params.put("P_H_CLT_INFOS",
+                (parVente ? "PRODUITS DES VENTES EN ATTENTE PAR VENTE - "
+                        : "LISTE COMPLETE DES PRODUITS DES VENTES EN ATTENTE - ")
+                        + buildPreventesCriteres(query, typeVenteId));
         String reportName = parVente ? "rp_preventes_produits_par_vente" : "rp_preventes_produits_liste";
         String url = servletRequest.getContextPath() + reportUtil.buildReport(params, reportName, data);
         return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
@@ -208,10 +209,8 @@ public class SalesStatsRessource {
         java.util.Set<String> produitIds = salesService
                 .preventesProduitIds(buildPreventesParams(query, typeVenteId, statut));
         if (produitIds.isEmpty()) {
-            return Response.ok().entity(
-                    new JSONObject().put("success", false).put("message", "Aucun produit dans les ventes en attente")
-                            .toString())
-                    .build();
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Aucun produit dans les ventes en attente").toString()).build();
         }
         String name = "Inventaire produits en attente "
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));

@@ -12,12 +12,11 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 
 /**
- * Trace des produits retires d'une vente (type PRODUIT) et des ventes
- * abandonnees / supprimees (type VENTE, une ligne par produit de la vente).
+ * Trace des produits retires d'une vente (type PRODUIT) et des ventes abandonnees / supprimees (type VENTE, une ligne
+ * par produit de la vente).
  */
 @Entity
-@Table(name = "vente_suppression", indexes = {
-        @Index(name = "idx_vente_suppression_date", columnList = "mvt_date"),
+@Table(name = "vente_suppression", indexes = { @Index(name = "idx_vente_suppression_date", columnList = "mvt_date"),
         @Index(name = "idx_vente_suppression_user", columnList = "user_id"),
         @Index(name = "idx_vente_suppression_produit", columnList = "produit_id"),
         @Index(name = "idx_vente_suppression_cip", columnList = "produit_cip") })
