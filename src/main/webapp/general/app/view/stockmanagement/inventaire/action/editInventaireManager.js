@@ -1073,7 +1073,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         {
                             /* soumise au privilege P_CLOTURER_INVENTAIRE (masquee
                              * sinon), avec confirmation et controle cote serveur */
-                            text: 'Cloturer',
+                            text: 'Cloturer l\'inventaire',
                             id: 'btn_loturer',
                             cls: 'btn-cloturer',
                             scale: 'medium',
