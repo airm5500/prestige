@@ -89,9 +89,9 @@
     } else if ("ALERTE".equalsIgnoreCase(str_TYPE)) {
         libelleFiltre = "Articles alertes";
     } else if ("TOUCHE".equalsIgnoreCase(str_TYPE)) {
-        libelleFiltre = "Articles touch\u00e9s";
+        libelleFiltre = "Articles inventori\u00e9s";
     } else if ("NONTOUCHE".equalsIgnoreCase(str_TYPE)) {
-        libelleFiltre = "Articles non touch\u00e9s";
+        libelleFiltre = "Articles non inventori\u00e9s";
     }
 
     String report_generate_file = key.GetNumberRandom() + ".pdf";

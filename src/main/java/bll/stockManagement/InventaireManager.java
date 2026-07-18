@@ -1973,59 +1973,6 @@ public class InventaireManager extends bllBase {
     // fin liste des lignes touchees / non touchees
 
     /*
-     * valorisation des ecarts pour le filtre courant, calculee cote serveur sur TOUTES les lignes (la pagination de la
-     * grille ne contient qu'une page). L'ecart est signe : quantite saisie - quantite initiale (negatif = manque,
-     * positif = surplus). La recherche grossiste passe par EXISTS pour ne pas dupliquer les lignes dans les sommes.
-     */
-    public JSONObject getEcartValorisation(String search_value, String lg_INVENTAIRE_ID, String lg_FAMILLEARTICLE_ID,
-            String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String str_TYPE, int int_ALERTE, String lg_USER_ID) {
-        JSONObject json = new JSONObject();
-        try {
-            if (search_value == null || "".equals(search_value)) {
-                search_value = "%%";
-            }
-            String condition = "";
-            if ("MANQUANT".equalsIgnoreCase(str_TYPE)) {
-                condition = " AND (t.intNUMBER - t.intNUMBERINIT < 0)";
-            } else if ("SURPLUS".equalsIgnoreCase(str_TYPE)) {
-                condition = " AND (t.intNUMBER > t.intNUMBERINIT)";
-            } else if ("MANQUANTSURPLUS".equalsIgnoreCase(str_TYPE)) {
-                condition = " AND (t.intNUMBER <> t.intNUMBERINIT)";
-            } else if ("ALERTE".equalsIgnoreCase(str_TYPE)) {
-                condition = " AND (t.intNUMBER > " + int_ALERTE + ")";
-            } else if ("TOUCHE".equalsIgnoreCase(str_TYPE)) {
-                condition = " AND t.dtUPDATED IS NOT NULL";
-            } else if ("NONTOUCHE".equalsIgnoreCase(str_TYPE)) {
-                condition = " AND t.dtUPDATED IS NULL";
-            }
-            String jpql = "SELECT SUM(t.intNUMBER - t.intNUMBERINIT), SUM((t.intNUMBER - t.intNUMBERINIT) * t.lgFAMILLEID.intPAF), SUM((t.intNUMBER - t.intNUMBERINIT) * t.lgFAMILLEID.intPRICE) "
-                    + "FROM TInventaireFamille t WHERE t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 "
-                    + "AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6 "
-                    + "OR EXISTS (SELECT g FROM TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND g.strCODEARTICLE LIKE ?6)) "
-                    + "AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9" + condition;
-            Object[] result = (Object[]) this.getOdataManager().getEm().createQuery(jpql)
-                    .setParameter(1, lg_INVENTAIRE_ID).setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
-                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
-                    .setParameter(8, true).setParameter(9, lg_USER_ID)
-                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
-            json.put("int_ECART_QTE", result[0] != null ? Long.valueOf(result[0] + "") : 0L);
-            json.put("int_ECART_ACHAT", result[1] != null ? Long.valueOf(result[1] + "") : 0L);
-            json.put("int_ECART_VENTE", result[2] != null ? Long.valueOf(result[2] + "") : 0L);
-            json.put("success", true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            this.setMessage(commonparameter.PROCESS_FAILED);
-            try {
-                json.put("success", false).put("int_ECART_QTE", 0L).put("int_ECART_ACHAT", 0L).put("int_ECART_VENTE",
-                        0L);
-            } catch (Exception ex) {
-            }
-        }
-        return json;
-    }
-    // fin valorisation des ecarts
-
-    /*
      * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone geographique) pour un inventaire, sur
      * les seules lignes incluses (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ; toutes touchees
      * -> Termine ; sinon -> En cours. Un emplacement sans aucune ligne dans l'inventaire n'apparait pas (il ne peut pas

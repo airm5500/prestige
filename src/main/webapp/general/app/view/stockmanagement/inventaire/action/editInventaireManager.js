@@ -102,7 +102,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
         var store_type = new Ext.data.Store({
             fields: ['str_TYPE', 'str_desc'],
-            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles touchés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non touchés'}]
+            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}]
         });
 
         var store_grossiste = new Ext.data.Store({
@@ -462,7 +462,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                                 record.set("int_QTE_SORTIE", Number(int_NUMBER) - int_NUMBER_INIT);
                                                                 record.set("is_TOUCHED", "Oui");
                                                                 grid.getStore().commitChanges();
-                                                                Me.refreshEcartValorisation();
 
                                                                 var totalOnPage = grid.getStore().getCount();
                                                                 var currentRowIndex = position.row;
@@ -918,12 +917,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                             this.toggle(val === true);
                                             return this;
                                         }
-                                    }, '-', {
-                                        /* valorisation des ecarts du filtre courant,
-                                         * calculee cote serveur (toutes pages) */
-                                        xtype: 'tbtext',
-                                        id: 'lbl_ecart_valorisation',
-                                        text: ''
                                     }, '-'],
                                 listeners: {
 
@@ -1102,12 +1095,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             single: true
         });
 
-        /* rafraichir la valorisation des ecarts a chaque (re)chargement de la
-         * grille : couvre les changements de filtre, la recherche et la saisie */
-        store_inventaire_famille.on('load', function () {
-            Me.refreshEcartValorisation();
-        });
-
 
 
         if (my_view_title === "Modification de la fiche d'inventaire") {
@@ -1260,8 +1247,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         Me.onPdfClick();
 
     },
-    /* collecte des filtres courants de l'ecran, partagee par la valorisation
-     * et l'impression navigateur */
+    /* collecte des filtres courants de l'ecran, utilisee par l'impression PDF */
     getCurrentFilterParams: function () {
         var params = {
             lg_INVENTAIRE_ID: ref,
@@ -1288,33 +1274,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             params.lg_USER_ID = Ext.getCmp('lg_USER_ID').getValue();
         }
         return params;
-    },
-
-    /* ecart achat / ecart vente du filtre courant, affiches dans la barre de
-     * pagination ; montants signes (negatif = manque) calcules cote serveur */
-    refreshEcartValorisation: function () {
-        var lbl = Ext.getCmp('lbl_ecart_valorisation');
-        if (!lbl) {
-            return;
-        }
-        Ext.Ajax.request({
-            url: '../webservices/stockmanagement/inventaire/ws_data_inventaire_valorisation.jsp',
-            params: Me.getCurrentFilterParams(),
-            success: function (response) {
-                var o = Ext.JSON.decode(response.responseText, true);
-                if (o) {
-                    lbl.setText('<span style="font-weight:800;">Écart achat: '
-                            + '<span style="color:' + (o.int_ECART_ACHAT < 0 ? '#B02A37' : '#1E7E34') + ';">'
-                            + amountformat(o.int_ECART_ACHAT) + '</span>'
-                            + ' &nbsp;|&nbsp; Écart vente: '
-                            + '<span style="color:' + (o.int_ECART_VENTE < 0 ? '#B02A37' : '#1E7E34') + ';">'
-                            + amountformat(o.int_ECART_VENTE) + '</span></span>');
-                }
-            },
-            failure: function () {
-                lbl.setText('');
-            }
-        });
     },
 
     /* impression PDF (Jasper) de TOUTES les lignes du filtre courant : la
