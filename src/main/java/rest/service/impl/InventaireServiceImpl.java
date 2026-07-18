@@ -459,7 +459,29 @@ public class InventaireServiceImpl implements InventaireService {
 
     @Override
     public void refreshStockLigneInventaire(String inventaireId) {
-        String query = "UPDATE t_inventaire_famille f SET f.int_NUMBER_INIT=(SELECT s.int_NUMBER_AVAILABLE FROM t_famille_stock s WHERE s.lg_FAMILLE_STOCK_ID= f.lg_FAMILLE_STOCK_ID ) WHERE f.lg_INVENTAIRE_ID=?1 AND f.bool_INVENTAIRE=true";
+        // Determine le type d'inventaire : pour un inventaire reserve, la valeur
+        // initiale doit provenir du stock reserve (t_type_stock_famille type 2),
+        // pas du stock rayon (t_famille_stock.int_NUMBER_AVAILABLE).
+        boolean isReserve = false;
+        try {
+            TInventaire inv = em.find(TInventaire.class, inventaireId);
+            isReserve = inv != null && "reserve".equalsIgnoreCase(inv.getStrTYPE());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "refreshStockLigneInventaire: type inventaire indetermine id={0}", inventaireId);
+        }
+
+        String query;
+        if (isReserve) {
+            query = "UPDATE t_inventaire_famille f SET f.int_NUMBER_INIT="
+                    + "(SELECT t.int_NUMBER FROM t_type_stock_famille t "
+                    + " WHERE t.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
+                    + " AND t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable' "
+                    + " AND t.lg_EMPLACEMENT_ID = (SELECT s.lg_EMPLACEMENT_ID FROM t_famille_stock s "
+                    + "     WHERE s.lg_FAMILLE_STOCK_ID = f.lg_FAMILLE_STOCK_ID) LIMIT 1) "
+                    + "WHERE f.lg_INVENTAIRE_ID=?1 AND f.bool_INVENTAIRE=true";
+        } else {
+            query = "UPDATE t_inventaire_famille f SET f.int_NUMBER_INIT=(SELECT s.int_NUMBER_AVAILABLE FROM t_famille_stock s WHERE s.lg_FAMILLE_STOCK_ID= f.lg_FAMILLE_STOCK_ID ) WHERE f.lg_INVENTAIRE_ID=?1 AND f.bool_INVENTAIRE=true";
+        }
         em.createNativeQuery(query).setParameter(1, inventaireId).executeUpdate();
     }
 
