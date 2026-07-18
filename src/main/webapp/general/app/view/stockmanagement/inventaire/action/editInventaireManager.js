@@ -1068,6 +1068,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     ui: 'footer',
                     dock: 'bottom',
                     border: '0',
+                    /* un ressort de chaque cote pour centrer le bouton seul */
                     items: ['->',
                         {
                             /* soumise au privilege P_CLOTURER_INVENTAIRE (masquee
@@ -1079,7 +1080,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             hidden: true,
                             scope: this,
                             handler: this.onbtncloturer
-                        }
+                        },
+                        '->'
                     ]
                 }]
         });
