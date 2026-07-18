@@ -1049,6 +1049,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                         },
 
                         {
+                            text: 'Exporter &eacute;carts (CSV)',
+                            id: 'btn_export_ecart',
+                            icon: 'resources/images/icons/fam/csv.png',
+                            tooltip: 'Export CSV des seuls écarts au format cip;quantité (écart signé : négatif = manque, positif = surplus)',
+                            scope: this,
+                            handler: this.onbtnexportEcart
+                        },
+                        {
                             text: 'Exporter excel',
                             id: 'btn_export_txt',
                             iconCls: 'icon-clear-group',
@@ -1337,6 +1345,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
     onbtnexportCsv: function () {
 
         window.location = '../ExportInventaire?lg_INVENTAIRE_ID=' + ref + "&format=csv";
+    },
+    /* export des seuls ecarts, format cip;quantite (ecart signe) */
+    onbtnexportEcart: function () {
+
+        window.location = '../ExportInventaire?lg_INVENTAIRE_ID=' + ref + "&format=ecart";
     },
 
     onbtnImporter: function (button) {
