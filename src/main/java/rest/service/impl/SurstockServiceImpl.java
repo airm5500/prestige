@@ -7,11 +7,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -33,8 +35,9 @@ import rest.service.utils.ReportExcelExportService;
  * Gestion des surstocks : calculs corriges et une seule requete agregee (pas de N+1).
  *
  * Performance : les ventes sont agregees dans une table derivee pilotee par l'index de date de t_preenregistrement (une
- * seule passe sur la periode), puis jointes aux produits ; l'ecran n'execute la requete qu'une seule fois (total,
- * valeur totale et page extraits du meme resultat).
+ * seule passe sur la periode), puis jointes aux produits. Le resultat de la derniere recherche est conserve en memoire
+ * par utilisateur : la pagination, l'edition PDF, l'export Excel et la creation d'inventaire reutilisent les donnees
+ * deja calculees au lieu de relancer la requete (le bouton Rechercher, lui, recalcule toujours).
  *
  * Definitions affichees a l'utilisateur (tooltips) : moyenne mensuelle = qte vendue periode / mois d'historique ; nb
  * mois de stock = stock / moyenne mensuelle ; qte surplus = stock - (moyenne x mois de projection) ; valeur surplus =
@@ -45,6 +48,31 @@ public class SurstockServiceImpl implements SurstockService {
 
     private static final Logger LOG = Logger.getLogger(SurstockServiceImpl.class.getName());
     private static final DateTimeFormatter FR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+    /*
+     * Cache du dernier resultat de recherche, par utilisateur (une entree par utilisateur, donnees deja agregees donc
+     * legeres). Rafraichi a chaque clic sur Rechercher (start = 0) ; reutilise par la pagination, le PDF, l'Excel et la
+     * creation d'inventaire tant que les filtres sont identiques et le resultat recent.
+     */
+    private static final Map<String, CacheEntry> CACHE = new ConcurrentHashMap<>();
+    private static final long CACHE_TTL_MS = 10L * 60L * 1000L;
+
+    private static final class CacheEntry {
+
+        private final String filtresKey;
+        private final long timestamp;
+        private final List<SurstockDTO> datas;
+
+        private CacheEntry(String filtresKey, List<SurstockDTO> datas) {
+            this.filtresKey = filtresKey;
+            this.timestamp = System.currentTimeMillis();
+            this.datas = datas;
+        }
+
+        private boolean isValid(String key) {
+            return filtresKey.equals(key) && (System.currentTimeMillis() - timestamp) < CACHE_TTL_MS;
+        }
+    }
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -156,19 +184,20 @@ public class SurstockServiceImpl implements SurstockService {
         return Math.round(value * 100.0) / 100.0;
     }
 
-    /*
-     * Execution unique de la requete agregee. orderByEmplacement : tri emplacement puis valeur (edition PDF groupee) ;
-     * sinon tri par valeur de surplus decroissante (ecran).
-     */
-    private List<SurstockDTO> query(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
-            String codeGrossiste, String codeFamille, boolean orderByEmplacement) {
+    private String filtresKey(int hist, int proj, String query, String codeRayon, String codeGrossiste,
+            String codeFamille) {
+        return hist + "|" + proj + "|" + StringUtils.defaultString(query).trim() + "|"
+                + StringUtils.defaultString(codeRayon) + "|" + StringUtils.defaultString(codeGrossiste) + "|"
+                + StringUtils.defaultString(codeFamille);
+    }
+
+    /* Execution de la requete agregee (tri par valeur de surplus decroissante). */
+    private List<SurstockDTO> query(TUser user, int hist, int proj, String query, String codeRayon,
+            String codeGrossiste, String codeFamille) {
         List<SurstockDTO> datas = new ArrayList<>();
         try {
-            int hist = sanitize(moisHistorique, 3);
-            int proj = sanitize(moisProjection, 3);
-            String order = orderByEmplacement ? " ORDER BY emplacement ASC, valeurSurplus DESC, libelle ASC"
-                    : " ORDER BY valeurSurplus DESC, libelle ASC";
-            String sql = BASE_SQL + filtres(query, codeRayon, codeGrossiste, codeFamille) + order;
+            String sql = BASE_SQL + filtres(query, codeRayon, codeGrossiste, codeFamille)
+                    + " ORDER BY valeurSurplus DESC, libelle ASC";
             Query q = em.createNativeQuery(sql, Tuple.class);
             bind(q, user, hist, proj, query, codeRayon, codeGrossiste, codeFamille);
             List<Tuple> tuples = q.getResultList();
@@ -206,14 +235,35 @@ public class SurstockServiceImpl implements SurstockService {
         return datas;
     }
 
+    /*
+     * Donnees de la recherche courante : reutilise le cache si les filtres sont identiques et le resultat recent, sinon
+     * recalcule. forceRefresh = true (clic sur Rechercher) : recalcule toujours.
+     */
+    private List<SurstockDTO> datas(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
+            String codeGrossiste, String codeFamille, boolean forceRefresh) {
+        int hist = sanitize(moisHistorique, 3);
+        int proj = sanitize(moisProjection, 3);
+        String userId = user.getLgUSERID();
+        String key = filtresKey(hist, proj, query, codeRayon, codeGrossiste, codeFamille);
+        if (!forceRefresh) {
+            CacheEntry entry = CACHE.get(userId);
+            if (entry != null && entry.isValid(key)) {
+                return entry.datas;
+            }
+        }
+        List<SurstockDTO> datas = query(user, hist, proj, query, codeRayon, codeGrossiste, codeFamille);
+        CACHE.put(userId, new CacheEntry(key, datas));
+        return datas;
+    }
+
     @Override
     public JSONObject fetch(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
             String codeGrossiste, String codeFamille, int start, int limit) {
         JSONObject json = new JSONObject();
         try {
-            // une seule execution : total, valeur totale et page extraits du meme resultat
-            List<SurstockDTO> all = query(user, sanitize(moisHistorique, 3), sanitize(moisProjection, 3), query,
-                    codeRayon, codeGrossiste, codeFamille, false);
+            // start = 0 : clic sur Rechercher -> recalcul ; pagination -> reutilisation du cache
+            List<SurstockDTO> all = datas(user, moisHistorique, moisProjection, query, codeRayon, codeGrossiste,
+                    codeFamille, start == 0);
             long totalValeur = all.stream().mapToLong(SurstockDTO::getValeurSurplus).sum();
             List<SurstockDTO> page = all;
             if (limit > 0) {
@@ -232,8 +282,8 @@ public class SurstockServiceImpl implements SurstockService {
     @Override
     public List<SurstockDTO> fetchAll(TUser user, int moisHistorique, int moisProjection, String query,
             String codeRayon, String codeGrossiste, String codeFamille) {
-        return query(user, sanitize(moisHistorique, 3), sanitize(moisProjection, 3), query, codeRayon, codeGrossiste,
-                codeFamille, false);
+        // PDF, Excel et creation d'inventaire : reutilisent la recherche deja affichee
+        return datas(user, moisHistorique, moisProjection, query, codeRayon, codeGrossiste, codeFamille, false);
     }
 
     @Override
@@ -290,9 +340,12 @@ public class SurstockServiceImpl implements SurstockService {
     @Override
     public String printPdf(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
             String codeGrossiste, String codeFamille) {
-        // tri par emplacement : le PDF groupe les produits par emplacement
-        List<SurstockDTO> datas = query(user, sanitize(moisHistorique, 3), sanitize(moisProjection, 3), query,
-                codeRayon, codeGrossiste, codeFamille, true);
+        // reutilise les donnees de la recherche affichee, triees par emplacement pour le groupement du PDF
+        List<SurstockDTO> datas = new ArrayList<>(
+                fetchAll(user, moisHistorique, moisProjection, query, codeRayon, codeGrossiste, codeFamille));
+        datas.sort(Comparator.comparing(SurstockDTO::getEmplacement, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(Comparator.comparingLong(SurstockDTO::getValeurSurplus).reversed())
+                .thenComparing(SurstockDTO::getLibelle, String.CASE_INSENSITIVE_ORDER));
         Map<String, Object> parameters = reportUtil.officineData(user);
         parameters.put("P_H_CLT_INFOS", titre(moisHistorique, moisProjection));
         LocalDate m0 = LocalDate.now().withDayOfMonth(1);
