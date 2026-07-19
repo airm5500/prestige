@@ -1678,7 +1678,22 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             return Ext.util.Format.number(pct, '0.0') + ' %';
                         }
                     },
-                    {text: 'Statut', dataIndex: 'str_STATUT', flex: 0.7, renderer: statutRenderer}
+                    {text: 'Statut', dataIndex: 'str_STATUT', flex: 0.7, renderer: statutRenderer},
+                    {
+                        /* coche verte = rien a faire ; icone liste = voir les
+                         * produits non faits de l'emplacement */
+                        text: 'D&eacute;tail', itemId: 'colRestantsDetail', dataIndex: 'int_RESTANT',
+                        width: 60, align: 'center', sortable: false, menuDisabled: true,
+                        renderer: function (v, m, rec) {
+                            if ((rec.get('int_RESTANT') || 0) === 0) {
+                                m.tdAttr = 'data-qtip="Emplacement termin&eacute; : rien &agrave; faire"';
+                                return '<img src="resources/images/icons/fam/accept.png" alt="OK"/>';
+                            }
+                            m.tdAttr = 'data-qtip="Voir les produits non faits de cet emplacement"';
+                            m.style = 'cursor:pointer;';
+                            return '<img src="resources/images/icons/fam/application_view_list.png" alt="Voir"/>';
+                        }
+                    }
                 ]
             },
             buttons: [{
@@ -1700,6 +1715,17 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     }
                 }]
         });
+        /* clic sur la colonne Detail : sous-fenetre des produits non faits */
+        win.down('grid').on('cellclick', function (view, td, cellIndex, rec) {
+            var col = view.up('gridpanel').headerCt.getGridColumns()[cellIndex];
+            if (!col || col.itemId !== 'colRestantsDetail') {
+                return;
+            }
+            if ((rec.get('int_RESTANT') || 0) === 0) {
+                return;
+            }
+            Me.showRestantsEmplacement(rec.get('str_CODE'), rec.get('str_LIBELLEE'), rec.get('int_RESTANT'));
+        });
         /* calcule et affiche les totaux globaux a chaque chargement du store */
         storeCheck.on('load', function (store) {
             var total = 0, touches = 0, restant = 0;
@@ -1719,6 +1745,63 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     + Ext.util.Format.number(taux, '0.0') + ' %</b>');
         });
         win.show();
+    },
+
+    /* Sous-fenetre lecture seule : produits non comptes d'un emplacement
+     * (meme regle que la colonne Restants : dt_UPDATED IS NULL). Liste
+     * complete sans pagination, tri par nom, scroll si necessaire. */
+    showRestantsEmplacement: function (code, libelle, nbRestants) {
+        var storeRestants = new Ext.data.Store({
+            fields: ['str_CIP', 'str_NAME', 'int_PAF', 'int_PRICE'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../webservices/stockmanagement/inventaire/ws_data_check_emplacement_restants.jsp?'
+                        + Ext.Object.toQueryString({lg_INVENTAIRE_ID: ref, str_CODE: code}),
+                reader: {
+                    type: 'json',
+                    root: 'results',
+                    totalProperty: 'total'
+                }
+            }
+        });
+        var winRestants = new Ext.window.Window({
+            title: 'Produits non faits — ' + code + ' ' + libelle + ' (' + nbRestants + ')',
+            width: 680,
+            height: 480,
+            layout: 'fit',
+            modal: true,
+            items: {
+                xtype: 'grid',
+                store: storeRestants,
+                viewConfig: {
+                    emptyText: '<div style="margin:12px;font-size:13px;">Aucun produit restant</div>'
+                },
+                columns: [
+                    {text: 'Code', dataIndex: 'str_CIP', width: 110},
+                    {text: 'Produit', dataIndex: 'str_NAME', flex: 1},
+                    {
+                        text: 'Prix achat', dataIndex: 'int_PAF', width: 95, align: 'right',
+                        renderer: function (v) {
+                            return Ext.util.Format.number(v, '0,000.');
+                        }
+                    },
+                    {
+                        text: 'Prix vente', dataIndex: 'int_PRICE', width: 95, align: 'right',
+                        renderer: function (v) {
+                            return Ext.util.Format.number(v, '0,000.');
+                        }
+                    }
+                ]
+            },
+            buttons: [{
+                    text: 'Fermer',
+                    handler: function () {
+                        winRestants.close();
+                    }
+                }]
+        });
+        winRestants.show();
     },
 
     /* impression PDF (Jasper) de la liste des emplacements et de leur statut */

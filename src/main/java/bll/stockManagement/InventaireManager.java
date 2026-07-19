@@ -2017,6 +2017,36 @@ public class InventaireManager extends bllBase {
         }
         return arrayObj;
     }
+
+    /*
+     * Produits non encore comptes d'un emplacement de l'inventaire : meme regle que la colonne 'Restants' du check
+     * (dt_UPDATED IS NULL sur les lignes incluses). Lecture seule ; code CIP, nom, prix d'achat et prix de vente.
+     */
+    public JSONArray listCheckEmplacementRestants(String lg_INVENTAIRE_ID, String str_CODE_EMPLACEMENT) {
+        JSONArray arrayObj = new JSONArray();
+        try {
+            List<Object[]> list = this.getOdataManager().getEm()
+                    .createNativeQuery(
+                            "SELECT f.int_CIP, f.str_NAME, f.int_PAF, f.int_PRICE " + "FROM t_inventaire_famille t "
+                                    + "INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID "
+                                    + "INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID "
+                                    + "WHERE t.lg_INVENTAIRE_ID = ?1 AND t.bool_INVENTAIRE = TRUE "
+                                    + "AND t.dt_UPDATED IS NULL AND z.str_CODE = ?2 ORDER BY f.str_NAME ASC")
+                    .setParameter(1, lg_INVENTAIRE_ID).setParameter(2, str_CODE_EMPLACEMENT).getResultList();
+            for (Object[] row : list) {
+                JSONObject json = new JSONObject();
+                json.put("str_CIP", row[0] + "");
+                json.put("str_NAME", row[1] + "");
+                json.put("int_PAF", row[2] == null ? 0 : Long.valueOf(row[2] + ""));
+                json.put("int_PRICE", row[3] == null ? 0 : Long.valueOf(row[3] + ""));
+                arrayObj.put(json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return arrayObj;
+    }
     // fin 'Check EMPLACEMENT'
 
     // recuperation du dernier inventaire
