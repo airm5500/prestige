@@ -80,9 +80,13 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
             var html = '<div style="' + TIP_STYLE + '">' + Ext.String.htmlEncode(texte) + '</div>';
             metaData.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(html) + '" data-qwidth="340"';
         };
-        // Tooltip d'entete de colonne : definition simple, sans calcul
+        // Tooltip d'entete de colonne : definition simple, sans calcul.
+        // IMPORTANT : aucun guillemet double ici — ExtJS concatene ce texte
+        // brut dans data-qtip="..." (Column.initRenderData) et un " interne
+        // casserait le HTML des entetes (grille vide).
         var headerTip = function (texte) {
-            return '<div style="' + TIP_STYLE + '">' + Ext.String.htmlEncode(texte) + '</div>';
+            return "<div style='" + TIP_STYLE + "'>"
+                    + Ext.String.htmlEncode(texte) + "</div>";
         };
 
         Ext.applyIf(me, {
