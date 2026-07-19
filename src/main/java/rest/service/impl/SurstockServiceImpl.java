@@ -315,9 +315,13 @@ public class SurstockServiceImpl implements SurstockService {
         if (datas.isEmpty()) {
             return new byte[0];
         }
+        // memes informations que le PDF : date de peremption et conso du mois
+        // en cours + 3 mois precedents (noms de mois reels en entete)
+        LocalDate m0 = LocalDate.now().withDayOfMonth(1);
         String[] headers = new String[] { "CIP", "Libelle", "Emplacement", "Date peremption", "Qte vendue periode",
                 "Moyenne mensuelle", "Prix vente", "Prix achat", "Stock", "Coefficient", "Nb mois de stock",
-                "Qte surplus", "Valeur surplus (achat)" };
+                "Qte surplus", "Valeur surplus (achat)", moisLabel(m0), moisLabel(m0.minusMonths(1)),
+                moisLabel(m0.minusMonths(2)), moisLabel(m0.minusMonths(3)) };
         return reportExcelExportService.createExcelReport(titre(moisHistorique, moisProjection), headers, datas,
                 (row, dto) -> {
                     int col = 0;
@@ -334,6 +338,10 @@ public class SurstockServiceImpl implements SurstockService {
                     row.createCell(col++).setCellValue(dto.getNbMoisStock());
                     row.createCell(col++).setCellValue(dto.getQteSurplus());
                     row.createCell(col++).setCellValue(dto.getValeurSurplus());
+                    row.createCell(col++).setCellValue(dto.getMois0());
+                    row.createCell(col++).setCellValue(dto.getMois1());
+                    row.createCell(col++).setCellValue(dto.getMois2());
+                    row.createCell(col++).setCellValue(dto.getMois3());
                 });
     }
 
