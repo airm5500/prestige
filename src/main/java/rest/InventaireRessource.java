@@ -109,6 +109,16 @@ public class InventaireRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    // Export Excel des produits d'un inventaire (tous les champs), meme apres cloture
+    @GET
+    @Path("export-excel/{id}")
+    @Produces("application/vnd.ms-excel")
+    public Response exportExcel(@PathParam("id") String id) throws Exception {
+        byte[] data = inventaireService.exportInventaireExcel(id);
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"produits_inventaire_" + id + ".xls\"").build();
+    }
+
     @POST
     @Path("import-csv")
     public Response createInventaireFromCsv(String payload) {

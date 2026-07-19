@@ -237,6 +237,22 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             scope: this,
                             handler: this.onPrintEcartsClick
                         }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            /* export Excel de tous les produits de l'inventaire
+                             * avec tous les champs (stock machine, saisi, ecart,
+                             * prix, valeur d'ecart...) ; disponible sur toute
+                             * ligne, y compris apres cloture */
+                            icon: 'resources/images/icons/fam/excel_icon.png',
+                            tooltip: 'Exporter les produits et &eacute;carts en Excel (tous les champs)',
+                            scope: this,
+                            handler: this.onExportExcelClick
+                        }]
                 }],
             selModel: {
                 selType: 'cellmodel'
@@ -311,6 +327,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
                 + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=ecart";
         window.open(linkUrl);
+    },
+    /* export Excel de tous les produits de l'inventaire (tous les champs :
+     * stocks, ecart, prix, valeur d'ecart, comptage) ; meme apres cloture */
+    onExportExcelClick: function(grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        window.location = '../api/v1/inventaire/export-excel/'
+                + encodeURIComponent(rec.get('lg_INVENTAIRE_ID'));
     },
     onbtnprint: function(grid, rowIndex) {
 

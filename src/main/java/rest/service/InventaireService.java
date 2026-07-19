@@ -72,4 +72,10 @@ public interface InventaireService {
 
     /** Ids produits distincts contenus dans les ventes donnees (ex: ventes annulees selectionnees). */
     Set<String> produitIdsFromVentes(List<String> venteIds);
+
+    /**
+     * Export Excel des produits d'un inventaire avec tous les champs (CIP, designation, emplacement, stock machine,
+     * stock saisi, ecart, prix, valeur d'ecart, comptage). Utilisable a tout moment, y compris apres cloture.
+     */
+    byte[] exportInventaireExcel(String inventaireId) throws java.io.IOException;
 }

@@ -55,6 +55,8 @@ public class InventaireServiceImpl implements InventaireService {
     private static final Logger LOG = Logger.getLogger(InventaireServiceImpl.class.getName());
     @EJB
     private SessionHelperService sessionHelperService;
+    @EJB
+    private rest.service.utils.ReportExcelExportService reportExcelExportService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     private static final String INVENTAIRE_QUERY = "INSERT INTO t_inventaire_famille(`lg_INVENTAIRE_ID`,`str_STATUT`,`dt_CREATED`,`boolINVENTAIRE`,`lg_FAMILLE_ID`,`int_NUMBER`,`int_NUMBER_INIT`,`lg_FAMILLE_STOCK_ID`) "
@@ -714,6 +716,50 @@ public class InventaireServiceImpl implements InventaireService {
                 String.class);
         q.setParameter("ids", venteIds);
         return new LinkedHashSet<>(q.getResultList());
+    }
+
+    /*
+     * Export Excel des produits d'un inventaire, tous champs : CIP, designation, emplacement, stock machine
+     * (int_NUMBER_INIT), stock saisi (int_NUMBER), ecart, prix, valeur d'ecart au prix d'achat, comptage (fait/quand).
+     * Lecture seule : utilisable a tout moment, y compris apres cloture.
+     */
+    @Override
+    public byte[] exportInventaireExcel(String inventaireId) throws java.io.IOException {
+        TInventaire inventaire = em.find(TInventaire.class, inventaireId);
+        String titre = "Produits de l'inventaire " + (inventaire != null
+                ? inventaire.getStrNAME() + " du "
+                        + new java.text.SimpleDateFormat("dd/MM/yyyy").format(inventaire.getDtCREATED())
+                : inventaireId);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em
+                .createNativeQuery("SELECT f.int_CIP, f.str_NAME, z.str_CODE, z.str_LIBELLEE,"
+                        + " t.int_NUMBER_INIT, t.int_NUMBER, (t.int_NUMBER - t.int_NUMBER_INIT) AS ecart,"
+                        + " COALESCE(f.int_PAF,0), COALESCE(f.int_PRICE,0),"
+                        + " (t.int_NUMBER - t.int_NUMBER_INIT) * COALESCE(f.int_PAF,0) AS valeurEcart,"
+                        + " t.dt_UPDATED, COALESCE(t.bool_INVENTAIRE,0)" + " FROM t_inventaire_famille t"
+                        + " JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID"
+                        + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
+                        + " WHERE t.lg_INVENTAIRE_ID = ?1 ORDER BY z.str_CODE ASC, f.str_NAME ASC")
+                .setParameter(1, inventaireId).getResultList();
+        String[] headers = new String[] { "CIP", "Designation", "Code empl.", "Emplacement", "Stock machine",
+                "Stock saisi", "Ecart", "Prix achat", "Prix vente", "Valeur ecart (achat)", "Compte", "Date comptage",
+                "Inclus dans l'inventaire" };
+        java.text.SimpleDateFormat dtFmt = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+        return reportExcelExportService.createExcelReport(titre, headers, rows, (row, r) -> {
+            row.createCell(0).setCellValue(r[0] == null ? "" : r[0].toString());
+            row.createCell(1).setCellValue(r[1] == null ? "" : r[1].toString());
+            row.createCell(2).setCellValue(r[2] == null ? "" : r[2].toString());
+            row.createCell(3).setCellValue(r[3] == null ? "" : r[3].toString());
+            row.createCell(4).setCellValue(r[4] == null ? 0 : ((Number) r[4]).longValue());
+            row.createCell(5).setCellValue(r[5] == null ? 0 : ((Number) r[5]).longValue());
+            row.createCell(6).setCellValue(r[6] == null ? 0 : ((Number) r[6]).longValue());
+            row.createCell(7).setCellValue(r[7] == null ? 0 : ((Number) r[7]).longValue());
+            row.createCell(8).setCellValue(r[8] == null ? 0 : ((Number) r[8]).longValue());
+            row.createCell(9).setCellValue(r[9] == null ? 0 : ((Number) r[9]).longValue());
+            row.createCell(10).setCellValue(r[10] == null ? "Non" : "Oui");
+            row.createCell(11).setCellValue(r[10] == null ? "" : dtFmt.format((Date) r[10]));
+            row.createCell(12).setCellValue(r[11] != null && ((Number) r[11]).intValue() != 0 ? "Oui" : "Non");
+        });
     }
 
     private TInventaire createInventaireFromCsv(TUser tUser, int itemCount) {
