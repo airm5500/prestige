@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Gestion des surstocks : liste des produits en surstock avec calculs (paysage) -->
+<!-- Gestion des surstocks : produits groupes par emplacement, conso mensuelle
+     (mois courant + 3 mois precedents), date de peremption la plus proche.
+     Libelle produit sur une seule ligne (coupe si trop long). Paysage. -->
 <jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
               xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
@@ -13,9 +15,14 @@
     <parameter name="P_AUTRE_DESC" class="java.lang.String" isForPrompting="false"/>
     <parameter name="P_H_CLT_INFOS" class="java.lang.String" isForPrompting="false"/>
     <parameter name="P_FOOTER_RC" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS0" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS1" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS2" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS3" class="java.lang.String" isForPrompting="false"/>
     <field name="cip" class="java.lang.String"/>
     <field name="libelle" class="java.lang.String"/>
-    <field name="codeGrossiste" class="java.lang.String"/>
+    <field name="emplacement" class="java.lang.String"/>
+    <field name="datePeremption" class="java.lang.String"/>
     <field name="qteVendue" class="java.lang.Long"/>
     <field name="moyenneMensuelle" class="java.lang.Double"/>
     <field name="prixVente" class="java.lang.Long"/>
@@ -25,6 +32,10 @@
     <field name="nbMoisStock" class="java.lang.Double"/>
     <field name="qteSurplus" class="java.lang.Long"/>
     <field name="valeurSurplus" class="java.lang.Long"/>
+    <field name="mois0" class="java.lang.Long"/>
+    <field name="mois1" class="java.lang.Long"/>
+    <field name="mois2" class="java.lang.Long"/>
+    <field name="mois3" class="java.lang.Long"/>
     <variable name="V_NB_LIGNES" class="java.lang.Integer" calculation="Count">
         <variableExpression><![CDATA[$F{libelle}]]></variableExpression>
     </variable>
@@ -34,6 +45,52 @@
     <variable name="V_TOTAL_VALEUR" class="java.lang.Long" calculation="Sum">
         <variableExpression><![CDATA[$F{valeurSurplus}]]></variableExpression>
     </variable>
+    <variable name="V_GRP_VALEUR" class="java.lang.Long" resetType="Group" resetGroup="GRP_EMPLACEMENT"
+              calculation="Sum">
+        <variableExpression><![CDATA[$F{valeurSurplus}]]></variableExpression>
+    </variable>
+    <variable name="V_GRP_NB" class="java.lang.Integer" resetType="Group" resetGroup="GRP_EMPLACEMENT"
+              calculation="Count">
+        <variableExpression><![CDATA[$F{libelle}]]></variableExpression>
+    </variable>
+    <group name="GRP_EMPLACEMENT">
+        <groupExpression><![CDATA[$F{emplacement}]]></groupExpression>
+        <groupHeader>
+            <band height="16">
+                <rectangle>
+                    <reportElement x="0" y="1" width="802" height="14" backcolor="#EEEEEE"/>
+                </rectangle>
+                <textField isBlankWhenNull="true">
+                    <reportElement x="2" y="1" width="798" height="14"/>
+                    <textElement verticalAlignment="Middle">
+                        <font size="8" isBold="true"/>
+                    </textElement>
+                    <textFieldExpression><![CDATA[$F{emplacement}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupHeader>
+        <groupFooter>
+            <band height="14">
+                <line>
+                    <reportElement x="0" y="0" width="802" height="1" forecolor="#999999"/>
+                </line>
+                <textField isBlankWhenNull="true" textAdjust="CutText">
+                    <reportElement x="2" y="1" width="520" height="12"/>
+                    <textElement verticalAlignment="Middle">
+                        <font size="7" isBold="true" isItalic="true"/>
+                    </textElement>
+                    <textFieldExpression><![CDATA["TOTAL EMPLACEMENT " + $F{emplacement} + " (" + $V{V_GRP_NB} + " produit(s))"]]></textFieldExpression>
+                </textField>
+                <textField isBlankWhenNull="true" pattern="#,##0">
+                    <reportElement x="524" y="1" width="102" height="12"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle">
+                        <font size="7" isBold="true"/>
+                    </textElement>
+                    <textFieldExpression><![CDATA[$V{V_GRP_VALEUR}]]></textFieldExpression>
+                </textField>
+            </band>
+        </groupFooter>
+    </group>
     <title>
         <band height="80">
             <image onErrorType="Blank">
@@ -69,179 +126,235 @@
                 <reportElement x="0" y="0" width="802" height="22" backcolor="#DDDDDD"/>
             </rectangle>
             <staticText>
-                <reportElement x="2" y="0" width="55" height="22"/>
+                <reportElement x="2" y="0" width="46" height="22"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[CIP]]></text>
+                <text><![CDATA[Code CIP]]></text>
             </staticText>
             <staticText>
-                <reportElement x="57" y="0" width="180" height="22"/>
+                <reportElement x="48" y="0" width="168" height="22"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Libelle]]></text>
+                <text><![CDATA[Libelle du produit]]></text>
             </staticText>
             <staticText>
-                <reportElement x="237" y="0" width="60" height="22"/>
-                <textElement verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                <reportElement x="216" y="0" width="46" height="22"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Code gross.]]></text>
+                <text><![CDATA[Date Peremp]]></text>
             </staticText>
             <staticText>
-                <reportElement x="297" y="0" width="55" height="22"/>
+                <reportElement x="262" y="0" width="38" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Qte vendue]]></text>
             </staticText>
             <staticText>
-                <reportElement x="352" y="0" width="55" height="22"/>
+                <reportElement x="300" y="0" width="40" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Moy. mens.]]></text>
             </staticText>
             <staticText>
-                <reportElement x="407" y="0" width="55" height="22"/>
+                <reportElement x="340" y="0" width="42" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Prix vente]]></text>
             </staticText>
             <staticText>
-                <reportElement x="462" y="0" width="55" height="22"/>
+                <reportElement x="382" y="0" width="42" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
                 <text><![CDATA[Prix achat]]></text>
             </staticText>
             <staticText>
-                <reportElement x="517" y="0" width="45" height="22"/>
+                <reportElement x="424" y="0" width="34" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Stock]]></text>
+                <text><![CDATA[Qte Stock]]></text>
             </staticText>
             <staticText>
-                <reportElement x="562" y="0" width="50" height="22"/>
+                <reportElement x="458" y="0" width="34" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Coefficient]]></text>
+                <text><![CDATA[Coeff]]></text>
             </staticText>
             <staticText>
-                <reportElement x="612" y="0" width="55" height="22"/>
+                <reportElement x="492" y="0" width="36" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Nb mois stock]]></text>
+                <text><![CDATA[Stock/Moyen]]></text>
             </staticText>
             <staticText>
-                <reportElement x="667" y="0" width="55" height="22"/>
+                <reportElement x="528" y="0" width="38" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Qte surplus]]></text>
+                <text><![CDATA[Qte Sur-stock]]></text>
             </staticText>
             <staticText>
-                <reportElement x="722" y="0" width="78" height="22"/>
+                <reportElement x="566" y="0" width="60" height="22"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7" isBold="true"/>
+                    <font size="6" isBold="true"/>
                 </textElement>
-                <text><![CDATA[Valeur surplus]]></text>
+                <text><![CDATA[Valeur Achat]]></text>
             </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="626" y="0" width="44" height="22"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_MOIS0}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="670" y="0" width="44" height="22"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_MOIS1}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="714" y="0" width="44" height="22"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_MOIS2}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="758" y="0" width="44" height="22"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_MOIS3}]]></textFieldExpression>
+            </textField>
         </band>
     </columnHeader>
     <detail>
-        <band height="13">
+        <band height="12">
             <line>
-                <reportElement x="0" y="12" width="802" height="1" forecolor="#CCCCCC"/>
+                <reportElement x="0" y="11" width="802" height="1" forecolor="#CCCCCC"/>
             </line>
-            <textField isBlankWhenNull="true">
-                <reportElement x="2" y="0" width="55" height="12"/>
+            <textField isBlankWhenNull="true" textAdjust="CutText">
+                <reportElement x="2" y="0" width="46" height="11"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true" isStretchWithOverflow="true">
-                <reportElement x="57" y="0" width="180" height="12"/>
+            <textField isBlankWhenNull="true" textAdjust="CutText">
+                <reportElement x="48" y="0" width="168" height="11"/>
                 <textElement verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="237" y="0" width="60" height="12"/>
-                <textElement verticalAlignment="Middle">
-                    <font size="7"/>
+                <reportElement x="216" y="0" width="46" height="11"/>
+                <textElement textAlignment="Center" verticalAlignment="Middle">
+                    <font size="6"/>
                 </textElement>
-                <textFieldExpression><![CDATA[$F{codeGrossiste}]]></textFieldExpression>
+                <textFieldExpression><![CDATA[$F{datePeremption}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0">
-                <reportElement x="297" y="0" width="55" height="12"/>
+                <reportElement x="262" y="0" width="38" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{qteVendue}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0.00">
-                <reportElement x="352" y="0" width="55" height="12"/>
+                <reportElement x="300" y="0" width="40" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{moyenneMensuelle}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0">
-                <reportElement x="407" y="0" width="55" height="12"/>
+                <reportElement x="340" y="0" width="42" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{prixVente}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0">
-                <reportElement x="462" y="0" width="55" height="12"/>
+                <reportElement x="382" y="0" width="42" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{prixAchat}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0">
-                <reportElement x="517" y="0" width="45" height="12"/>
+                <reportElement x="424" y="0" width="34" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0.00">
-                <reportElement x="562" y="0" width="50" height="12"/>
+                <reportElement x="458" y="0" width="34" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{coefficient}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0.00">
-                <reportElement x="612" y="0" width="55" height="12"/>
+                <reportElement x="492" y="0" width="36" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{nbMoisStock}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0">
-                <reportElement x="667" y="0" width="55" height="12"/>
+                <reportElement x="528" y="0" width="38" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{qteSurplus}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" pattern="#,##0">
-                <reportElement x="722" y="0" width="78" height="12"/>
+                <reportElement x="566" y="0" width="60" height="11"/>
                 <textElement textAlignment="Right" verticalAlignment="Middle">
-                    <font size="7"/>
+                    <font size="6"/>
                 </textElement>
                 <textFieldExpression><![CDATA[$F{valeurSurplus}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" pattern="#,##0">
+                <reportElement x="626" y="0" width="44" height="11"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{mois0}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" pattern="#,##0">
+                <reportElement x="670" y="0" width="44" height="11"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{mois1}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" pattern="#,##0">
+                <reportElement x="714" y="0" width="44" height="11"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{mois2}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" pattern="#,##0">
+                <reportElement x="758" y="0" width="44" height="11"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle">
+                    <font size="6"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$F{mois3}]]></textFieldExpression>
             </textField>
         </band>
     </detail>

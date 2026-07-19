@@ -8,7 +8,8 @@ public class SurstockDTO {
     private String id;
     private String cip;
     private String libelle;
-    private String codeGrossiste;
+    private String emplacement;
+    private String datePeremption;
     private long qteVendue;
     private double moyenneMensuelle;
     private long prixVente;
@@ -18,6 +19,11 @@ public class SurstockDTO {
     private double nbMoisStock;
     private long qteSurplus;
     private long valeurSurplus;
+    /* consommation mensuelle : mois courant (mois0) puis 3 mois precedents */
+    private long mois0;
+    private long mois1;
+    private long mois2;
+    private long mois3;
 
     public String getId() {
         return id;
@@ -43,12 +49,20 @@ public class SurstockDTO {
         this.libelle = libelle;
     }
 
-    public String getCodeGrossiste() {
-        return codeGrossiste;
+    public String getEmplacement() {
+        return emplacement;
     }
 
-    public void setCodeGrossiste(String codeGrossiste) {
-        this.codeGrossiste = codeGrossiste;
+    public void setEmplacement(String emplacement) {
+        this.emplacement = emplacement;
+    }
+
+    public String getDatePeremption() {
+        return datePeremption;
+    }
+
+    public void setDatePeremption(String datePeremption) {
+        this.datePeremption = datePeremption;
     }
 
     public long getQteVendue() {
@@ -121,5 +135,37 @@ public class SurstockDTO {
 
     public void setValeurSurplus(long valeurSurplus) {
         this.valeurSurplus = valeurSurplus;
+    }
+
+    public long getMois0() {
+        return mois0;
+    }
+
+    public void setMois0(long mois0) {
+        this.mois0 = mois0;
+    }
+
+    public long getMois1() {
+        return mois1;
+    }
+
+    public void setMois1(long mois1) {
+        this.mois1 = mois1;
+    }
+
+    public long getMois2() {
+        return mois2;
+    }
+
+    public void setMois2(long mois2) {
+        this.mois2 = mois2;
+    }
+
+    public long getMois3() {
+        return mois3;
+    }
+
+    public void setMois3(long mois3) {
+        this.mois3 = mois3;
     }
 }

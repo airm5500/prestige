@@ -27,7 +27,7 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
         var me = this;
 
         me.surstockStore = Ext.create('Ext.data.Store', {
-            fields: ['id', 'cip', 'libelle', 'codeGrossiste',
+            fields: ['id', 'cip', 'libelle',
                 {name: 'qteVendue', type: 'number'},
                 {name: 'moyenneMensuelle', type: 'number'},
                 {name: 'prixVente', type: 'number'},
@@ -73,9 +73,12 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
         var fmt2 = function (v) {
             return Ext.util.Format.number(v, '0,000.00');
         };
-        // Tooltip HTML sur une cellule (metaData.tdAttr)
+        // Tooltip HTML sur une cellule (metaData.tdAttr) : agrandi, gras bleu
+        // (style inline pour ne pas toucher les tooltips du reste de l'application)
+        var TIP_STYLE = 'font-size:13px;color:#0D6EFD;font-weight:700;line-height:1.5;';
         var tip = function (metaData, texte) {
-            metaData.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(texte) + '"';
+            var html = '<div style="' + TIP_STYLE + '">' + Ext.String.htmlEncode(texte) + '</div>';
+            metaData.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(html) + '" data-qwidth="340"';
         };
 
         Ext.applyIf(me, {
@@ -99,9 +102,11 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                                     Ext.tip.QuickTipManager.register({
                                         target: fld.getEl(),
                                         title: 'Nbre mois historique',
-                                        text: 'Periode d\'historique des ventes utilisee pour calculer la moyenne '
+                                        width: 340,
+                                        text: '<div style="' + TIP_STYLE + '">'
+                                                + 'Periode d\'historique des ventes utilisee pour calculer la moyenne '
                                                 + 'mensuelle. Exemple : 3 = moyenne calculee sur les ventes des '
-                                                + '3 derniers mois.'
+                                                + '3 derniers mois.</div>'
                                     });
                                 },
                                 specialkey: function (f, e) {
@@ -125,10 +130,12 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                                     Ext.tip.QuickTipManager.register({
                                         target: fld.getEl(),
                                         title: 'Nbre mois stock projection',
-                                        text: 'Nombre de mois de stock juge normal a conserver, compare a la '
+                                        width: 340,
+                                        text: '<div style="' + TIP_STYLE + '">'
+                                                + 'Nombre de mois de stock juge normal a conserver, compare a la '
                                                 + 'moyenne mensuelle de vente. Un produit est en surstock si son '
                                                 + 'stock disponible depasse : moyenne mensuelle x ce nombre de mois. '
-                                                + 'Exemple : 3 = alerte au-dela de 3 mois de stock disponible.'
+                                                + 'Exemple : 3 = alerte au-dela de 3 mois de stock disponible.</div>'
                                     });
                                 },
                                 specialkey: function (f, e) {
@@ -243,7 +250,6 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
                     columns: [
                         {header: 'Code CIP', dataIndex: 'cip', flex: 0.5},
                         {header: 'Libell&eacute;', dataIndex: 'libelle', flex: 1.3},
-                        {header: 'Code. Grossiste', dataIndex: 'codeGrossiste', flex: 0.6},
                         {
                             header: 'Qt&eacute;.Vendue',
                             dataIndex: 'qteVendue',
@@ -335,7 +341,8 @@ Ext.define('testextjs.view.produits.GestionSurstock', {
         });
 
         me.callParent(arguments);
-        me.on('afterrender', me.doSearch, me, {single: true, delay: 100});
+        // pas de chargement automatique a l'ouverture : l'utilisateur lance
+        // la recherche lui-meme (bouton Rechercher ou touche Entree)
     },
     getFilters: function () {
         var me = this;

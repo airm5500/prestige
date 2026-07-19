@@ -2,11 +2,14 @@ package rest.service.impl;
 
 import dal.TUser;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
@@ -27,7 +30,11 @@ import rest.service.dto.SurstockDTO;
 import rest.service.utils.ReportExcelExportService;
 
 /**
- * Gestion des surstocks : calculs corriges et une seule requete agregee (pas de N+1), filtre de date indexable.
+ * Gestion des surstocks : calculs corriges et une seule requete agregee (pas de N+1).
+ *
+ * Performance : les ventes sont agregees dans une table derivee pilotee par l'index de date de t_preenregistrement (une
+ * seule passe sur la periode), puis jointes aux produits ; l'ecran n'execute la requete qu'une seule fois (total,
+ * valeur totale et page extraits du meme resultat).
  *
  * Definitions affichees a l'utilisateur (tooltips) : moyenne mensuelle = qte vendue periode / mois d'historique ; nb
  * mois de stock = stock / moyenne mensuelle ; qte surplus = stock - (moyenne x mois de projection) ; valeur surplus =
@@ -48,29 +55,46 @@ public class SurstockServiceImpl implements SurstockService {
     @EJB
     private ReportUtil reportUtil;
 
-    private static final String SELECT_CLAUSE = "SELECT f.lg_FAMILLE_ID AS id, f.int_CIP AS cip,"
-            + " f.str_NAME AS libelle, MAX(COALESCE(fg.str_CODE_ARTICLE,'')) AS codeGrossiste,"
-            + " COALESCE(f.int_PRICE,0) AS prixVente, COALESCE(f.int_PAF,0) AS prixAchat,"
-            + " fs.int_NUMBER_AVAILABLE AS stock, SUM(d.int_QUANTITY) AS qteVendue,"
-            + " (fs.int_NUMBER_AVAILABLE - ROUND(SUM(d.int_QUANTITY) / :hist * :proj)) AS qteSurplus,"
-            + " (fs.int_NUMBER_AVAILABLE - ROUND(SUM(d.int_QUANTITY) / :hist * :proj)) * COALESCE(f.int_PAF,0) AS valeurSurplus";
+    /*
+     * Table derivee des ventes : une seule passe sur la periode scannee (index de date sur t_preenregistrement),
+     * agregation par produit. qteVendue = periode d'historique ; m0..m3 = mois courant et 3 mois precedents.
+     */
+    private static final String VENTES_CLAUSE = "(SELECT d.lg_FAMILLE_ID AS fid,"
+            + " SUM(CASE WHEN p.dt_UPDATED >= :debut THEN d.int_QUANTITY ELSE 0 END) AS qteVendue,"
+            + " SUM(CASE WHEN p.dt_UPDATED >= :m0 THEN d.int_QUANTITY ELSE 0 END) AS m0,"
+            + " SUM(CASE WHEN p.dt_UPDATED >= :m1 AND p.dt_UPDATED < :m0 THEN d.int_QUANTITY ELSE 0 END) AS m1,"
+            + " SUM(CASE WHEN p.dt_UPDATED >= :m2 AND p.dt_UPDATED < :m1 THEN d.int_QUANTITY ELSE 0 END) AS m2,"
+            + " SUM(CASE WHEN p.dt_UPDATED >= :m3 AND p.dt_UPDATED < :m2 THEN d.int_QUANTITY ELSE 0 END) AS m3"
+            + " FROM t_preenregistrement p"
+            + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = :emp"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.dt_UPDATED >= :scanDebut AND p.dt_UPDATED < :fin"
+            + " AND p.str_STATUT = 'is_Closed' AND COALESCE(p.b_IS_CANCEL,0) = 0 AND p.int_PRICE > 0"
+            + " GROUP BY d.lg_FAMILLE_ID"
+            + " HAVING SUM(CASE WHEN p.dt_UPDATED >= :debut THEN d.int_QUANTITY ELSE 0 END) > 0) v";
 
-    private static final String FROM_CLAUSE = " FROM t_famille f"
+    /* date de peremption la plus proche : lots actifs, sinon date famille */
+    private static final String LOTS_CLAUSE = "(SELECT l.lg_FAMILLE_ID AS fid, MIN(l.dt_PEREMPTION) AS dtp"
+            + " FROM t_lot l WHERE l.str_STATUT = 'enable' AND l.dt_PEREMPTION IS NOT NULL"
+            + " GROUP BY l.lg_FAMILLE_ID) lo";
+
+    private static final String BASE_SQL = "SELECT f.lg_FAMILLE_ID AS id, f.int_CIP AS cip, f.str_NAME AS libelle,"
+            + " COALESCE(z.str_LIBELLEE,'SANS EMPLACEMENT') AS emplacement,"
+            + " COALESCE(lo.dtp, f.dt_PEREMPTION) AS datePeremption,"
+            + " COALESCE(f.int_PRICE,0) AS prixVente, COALESCE(f.int_PAF,0) AS prixAchat,"
+            + " fs.int_NUMBER_AVAILABLE AS stock, v.qteVendue AS qteVendue,"
+            + " v.m0 AS m0, v.m1 AS m1, v.m2 AS m2, v.m3 AS m3,"
+            + " (fs.int_NUMBER_AVAILABLE - ROUND(v.qteVendue / :hist * :proj)) AS qteSurplus,"
+            + " (fs.int_NUMBER_AVAILABLE - ROUND(v.qteVendue / :hist * :proj)) * COALESCE(f.int_PAF,0) AS valeurSurplus"
+            + " FROM " + VENTES_CLAUSE + " JOIN t_famille f ON f.lg_FAMILLE_ID = v.fid"
+            + "   AND f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE,0) = 0"
             + " JOIN t_famille_stock fs ON fs.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND fs.lg_EMPLACEMENT_ID = :emp"
             + "   AND fs.str_STATUT = 'enable'"
-            + " JOIN t_preenregistrement_detail d ON d.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
-            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
-            + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = :emp"
-            + " LEFT JOIN t_famille_grossiste fg ON fg.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
-            + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE,0) = 0"
-            + " AND p.str_STATUT = 'is_Closed' AND COALESCE(p.b_IS_CANCEL,0) = 0 AND p.int_PRICE > 0"
-            // filtre indexable (index idx_preenregistrement_dt_updated) : pas de fonction sur la colonne
-            + " AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin";
-
-    private static final String GROUP_HAVING = " GROUP BY f.lg_FAMILLE_ID, fs.int_NUMBER_AVAILABLE"
+            + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID" + " LEFT JOIN " + LOTS_CLAUSE
+            + " ON lo.fid = f.lg_FAMILLE_ID"
             // surstock : stock disponible > moyenne mensuelle x mois de projection
             // (ecrit sans division pour rester exact en entier : stock x moisHist > qteVendue x projection)
-            + " HAVING SUM(d.int_QUANTITY) > 0 AND fs.int_NUMBER_AVAILABLE * :hist > SUM(d.int_QUANTITY) * :proj";
+            + " WHERE fs.int_NUMBER_AVAILABLE * :hist > v.qteVendue * :proj";
 
     private String filtres(String query, String codeRayon, String codeGrossiste, String codeFamille) {
         StringBuilder sb = new StringBuilder();
@@ -91,11 +115,23 @@ public class SurstockServiceImpl implements SurstockService {
 
     private void bind(Query q, TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
             String codeGrossiste, String codeFamille) {
-        LocalDate fin = LocalDate.now().plusDays(1);
-        LocalDate debut = LocalDate.now().minusMonths(moisHistorique);
+        LocalDate now = LocalDate.now();
+        LocalDate fin = now.plusDays(1);
+        LocalDate debut = now.minusMonths(moisHistorique);
+        LocalDate m0 = now.withDayOfMonth(1);
+        LocalDate m1 = m0.minusMonths(1);
+        LocalDate m2 = m0.minusMonths(2);
+        LocalDate m3 = m0.minusMonths(3);
+        // periode scannee = union de la periode d'historique et des 4 mois affiches
+        LocalDate scanDebut = debut.isBefore(m3) ? debut : m3;
         q.setParameter("emp", user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-        q.setParameter("debut", java.sql.Date.valueOf(debut));
-        q.setParameter("fin", java.sql.Date.valueOf(fin));
+        q.setParameter("scanDebut", Timestamp.valueOf(scanDebut.atStartOfDay()));
+        q.setParameter("debut", Timestamp.valueOf(debut.atStartOfDay()));
+        q.setParameter("fin", Timestamp.valueOf(fin.atStartOfDay()));
+        q.setParameter("m0", Timestamp.valueOf(m0.atStartOfDay()));
+        q.setParameter("m1", Timestamp.valueOf(m1.atStartOfDay()));
+        q.setParameter("m2", Timestamp.valueOf(m2.atStartOfDay()));
+        q.setParameter("m3", Timestamp.valueOf(m3.atStartOfDay()));
         q.setParameter("hist", moisHistorique);
         q.setParameter("proj", moisProjection);
         if (StringUtils.isNotEmpty(query)) {
@@ -116,31 +152,46 @@ public class SurstockServiceImpl implements SurstockService {
         return value > 0 ? value : fallback;
     }
 
+    private double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
+    }
+
+    /*
+     * Execution unique de la requete agregee. orderByEmplacement : tri emplacement puis valeur (edition PDF groupee) ;
+     * sinon tri par valeur de surplus decroissante (ecran).
+     */
     private List<SurstockDTO> query(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
-            String codeGrossiste, String codeFamille, int start, int limit) {
+            String codeGrossiste, String codeFamille, boolean orderByEmplacement) {
         List<SurstockDTO> datas = new ArrayList<>();
         try {
             int hist = sanitize(moisHistorique, 3);
             int proj = sanitize(moisProjection, 3);
-            String sql = SELECT_CLAUSE + FROM_CLAUSE + filtres(query, codeRayon, codeGrossiste, codeFamille)
-                    + GROUP_HAVING + " ORDER BY valeurSurplus DESC, libelle ASC";
+            String order = orderByEmplacement ? " ORDER BY emplacement ASC, valeurSurplus DESC, libelle ASC"
+                    : " ORDER BY valeurSurplus DESC, libelle ASC";
+            String sql = BASE_SQL + filtres(query, codeRayon, codeGrossiste, codeFamille) + order;
             Query q = em.createNativeQuery(sql, Tuple.class);
             bind(q, user, hist, proj, query, codeRayon, codeGrossiste, codeFamille);
-            if (limit > 0) {
-                q.setFirstResult(start);
-                q.setMaxResults(limit);
-            }
             List<Tuple> tuples = q.getResultList();
             for (Tuple t : tuples) {
                 SurstockDTO dto = new SurstockDTO();
                 dto.setId(t.get("id", String.class));
                 dto.setCip(t.get("cip", String.class));
                 dto.setLibelle(t.get("libelle", String.class));
-                dto.setCodeGrossiste(t.get("codeGrossiste", String.class));
+                dto.setEmplacement(t.get("emplacement", String.class));
+                Object dtp = t.get("datePeremption");
+                if (dtp instanceof java.util.Date) {
+                    dto.setDatePeremption(new java.text.SimpleDateFormat("dd/MM/yyyy").format((java.util.Date) dtp));
+                } else {
+                    dto.setDatePeremption("");
+                }
                 dto.setPrixVente(((Number) t.get("prixVente")).longValue());
                 dto.setPrixAchat(((Number) t.get("prixAchat")).longValue());
                 dto.setStock(((Number) t.get("stock")).longValue());
                 dto.setQteVendue(((Number) t.get("qteVendue")).longValue());
+                dto.setMois0(((Number) t.get("m0")).longValue());
+                dto.setMois1(((Number) t.get("m1")).longValue());
+                dto.setMois2(((Number) t.get("m2")).longValue());
+                dto.setMois3(((Number) t.get("m3")).longValue());
                 dto.setQteSurplus(((Number) t.get("qteSurplus")).longValue());
                 dto.setValeurSurplus(((Number) t.get("valeurSurplus")).longValue());
                 double moyenne = dto.getQteVendue() / (double) hist;
@@ -155,32 +206,23 @@ public class SurstockServiceImpl implements SurstockService {
         return datas;
     }
 
-    private double round2(double value) {
-        return Math.round(value * 100.0) / 100.0;
-    }
-
     @Override
     public JSONObject fetch(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
             String codeGrossiste, String codeFamille, int start, int limit) {
         JSONObject json = new JSONObject();
         try {
-            int hist = sanitize(moisHistorique, 3);
-            int proj = sanitize(moisProjection, 3);
-            String inner = SELECT_CLAUSE + FROM_CLAUSE + filtres(query, codeRayon, codeGrossiste, codeFamille)
-                    + GROUP_HAVING;
-            Query countQuery = em
-                    .createNativeQuery("SELECT COUNT(*), COALESCE(SUM(t.valeurSurplus),0) FROM (" + inner + ") t");
-            bind(countQuery, user, hist, proj, query, codeRayon, codeGrossiste, codeFamille);
-            Object[] countRow = (Object[]) countQuery.getSingleResult();
-            long total = ((Number) countRow[0]).longValue();
-            long totalValeur = ((Number) countRow[1]).longValue();
-            if (total == 0) {
-                return json.put("total", 0).put("totalValeur", 0).put("data", new JSONArray());
+            // une seule execution : total, valeur totale et page extraits du meme resultat
+            List<SurstockDTO> all = query(user, sanitize(moisHistorique, 3), sanitize(moisProjection, 3), query,
+                    codeRayon, codeGrossiste, codeFamille, false);
+            long totalValeur = all.stream().mapToLong(SurstockDTO::getValeurSurplus).sum();
+            List<SurstockDTO> page = all;
+            if (limit > 0) {
+                int from = Math.min(Math.max(start, 0), all.size());
+                int to = Math.min(from + limit, all.size());
+                page = all.subList(from, to);
             }
-            List<SurstockDTO> datas = query(user, hist, proj, query, codeRayon, codeGrossiste, codeFamille, start,
-                    limit);
-            return json.put("total", total).put("totalValeur", totalValeur).put("data",
-                    new JSONArray(datas.stream().map(JSONObject::new).collect(Collectors.toList())));
+            return json.put("total", all.size()).put("totalValeur", totalValeur).put("data",
+                    new JSONArray(page.stream().map(JSONObject::new).collect(Collectors.toList())));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "surstock fetch", e);
             return json.put("total", 0).put("totalValeur", 0).put("data", new JSONArray());
@@ -191,7 +233,7 @@ public class SurstockServiceImpl implements SurstockService {
     public List<SurstockDTO> fetchAll(TUser user, int moisHistorique, int moisProjection, String query,
             String codeRayon, String codeGrossiste, String codeFamille) {
         return query(user, sanitize(moisHistorique, 3), sanitize(moisProjection, 3), query, codeRayon, codeGrossiste,
-                codeFamille, 0, 0);
+                codeFamille, false);
     }
 
     @Override
@@ -210,6 +252,11 @@ public class SurstockServiceImpl implements SurstockService {
                 + " MOIS DE STOCK - PERIODE DU " + debut.format(FR) + " AU " + fin.format(FR);
     }
 
+    private String moisLabel(LocalDate date) {
+        String label = date.getMonth().getDisplayName(TextStyle.FULL, Locale.FRENCH);
+        return StringUtils.capitalize(label);
+    }
+
     @Override
     public byte[] exportExcel(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
             String codeGrossiste, String codeFamille) throws IOException {
@@ -218,15 +265,16 @@ public class SurstockServiceImpl implements SurstockService {
         if (datas.isEmpty()) {
             return new byte[0];
         }
-        String[] headers = new String[] { "CIP", "Libelle", "Code grossiste", "Qte vendue periode", "Moyenne mensuelle",
-                "Prix vente", "Prix achat", "Stock", "Coefficient", "Nb mois de stock", "Qte surplus",
-                "Valeur surplus (achat)" };
+        String[] headers = new String[] { "CIP", "Libelle", "Emplacement", "Date peremption", "Qte vendue periode",
+                "Moyenne mensuelle", "Prix vente", "Prix achat", "Stock", "Coefficient", "Nb mois de stock",
+                "Qte surplus", "Valeur surplus (achat)" };
         return reportExcelExportService.createExcelReport(titre(moisHistorique, moisProjection), headers, datas,
                 (row, dto) -> {
                     int col = 0;
                     row.createCell(col++).setCellValue(dto.getCip());
                     row.createCell(col++).setCellValue(dto.getLibelle());
-                    row.createCell(col++).setCellValue(dto.getCodeGrossiste());
+                    row.createCell(col++).setCellValue(dto.getEmplacement());
+                    row.createCell(col++).setCellValue(dto.getDatePeremption());
                     row.createCell(col++).setCellValue(dto.getQteVendue());
                     row.createCell(col++).setCellValue(dto.getMoyenneMensuelle());
                     row.createCell(col++).setCellValue(dto.getPrixVente());
@@ -242,10 +290,16 @@ public class SurstockServiceImpl implements SurstockService {
     @Override
     public String printPdf(TUser user, int moisHistorique, int moisProjection, String query, String codeRayon,
             String codeGrossiste, String codeFamille) {
-        List<SurstockDTO> datas = fetchAll(user, moisHistorique, moisProjection, query, codeRayon, codeGrossiste,
-                codeFamille);
+        // tri par emplacement : le PDF groupe les produits par emplacement
+        List<SurstockDTO> datas = query(user, sanitize(moisHistorique, 3), sanitize(moisProjection, 3), query,
+                codeRayon, codeGrossiste, codeFamille, true);
         Map<String, Object> parameters = reportUtil.officineData(user);
         parameters.put("P_H_CLT_INFOS", titre(moisHistorique, moisProjection));
+        LocalDate m0 = LocalDate.now().withDayOfMonth(1);
+        parameters.put("P_MOIS0", moisLabel(m0));
+        parameters.put("P_MOIS1", moisLabel(m0.minusMonths(1)));
+        parameters.put("P_MOIS2", moisLabel(m0.minusMonths(2)));
+        parameters.put("P_MOIS3", moisLabel(m0.minusMonths(3)));
         return reportUtil.buildReport(parameters, "rp_gestion_surstock", datas);
     }
 }
