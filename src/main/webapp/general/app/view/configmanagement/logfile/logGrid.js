@@ -327,14 +327,22 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                                     var dt_end = Ext.getCmp('dt_end_log').getSubmitValue(),
                                             dt_start = Ext.getCmp('dt_log_start').getSubmitValue();
                                     var cmbologfile = Ext.getCmp('cmbologfile').getValue();
-                                    if (!cmbologfile && cmbologfile == null) {
+                                    if (cmbologfile == null) {
                                         cmbologfile = -1;
                                     }
 
                                     if (user == null) {
                                         user = '';
                                     }
-                                    var linkUrl = '../FacturePdfServlet?mode=LOG&dtStart=' + dt_start + '&dtEnd=' + dt_end + '&userId=' + user + "&criteria=" + cmbologfile + "&query=" + rech;
+                                    // parametres encodes : espaces, accents et & dans la recherche
+                                    var linkUrl = '../FacturePdfServlet?' + Ext.Object.toQueryString({
+                                        mode: 'LOG',
+                                        dtStart: dt_start,
+                                        dtEnd: dt_end,
+                                        userId: user,
+                                        criteria: cmbologfile,
+                                        query: rech || ''
+                                    });
                                     window.open(linkUrl);
 
                                 }
@@ -371,7 +379,8 @@ Ext.define('testextjs.view.configmanagement.logfile.logGrid', {
                             var dt_end = Ext.getCmp('dt_end_log').getSubmitValue(),
                                     dt_start = Ext.getCmp('dt_log_start').getSubmitValue();
                             var cmbologfile = Ext.getCmp('cmbologfile').getValue();
-                            if (!cmbologfile) {
+                            // 0 (Deconditionnement) est une valeur valide : ne pas la remplacer par -1
+                            if (cmbologfile == null) {
                                 cmbologfile = -1;
                             }
 

@@ -125,20 +125,29 @@ public class LogServiceImpl implements LogService {
         }
     }
 
+    /* echappe % _ \ pour qu'ils soient recherches litteralement dans le LIKE */
+    private String escapeLike(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
+
     private List<Predicate> logs(CriteriaBuilder cb, Root<TEventLog> root, String search, LocalDate dtStart,
             LocalDate dtEnd, String userId, int criteria) {
         List<Predicate> predicates = new ArrayList<>();
         Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TEventLog_.dtCREATED)),
                 java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
         predicates.add(btw);
-        if (StringUtils.isNotEmpty(search)) {
-            predicates.add(cb.or(cb.like(root.get(TEventLog_.strDESCRIPTION), search + "%"),
-                    cb.like(root.get(TEventLog_.strTYPELOG), search + "%")));
+        if (StringUtils.isNotBlank(search)) {
+            // recherche "contient", insensible a la casse, saisie trimee (nom de produit ou CIP
+            // au milieu de la description)
+            String term = "%" + escapeLike(search.trim().toLowerCase()) + "%";
+            predicates.add(cb.or(cb.like(cb.lower(root.get(TEventLog_.strDESCRIPTION)), term, '\\'),
+                    cb.like(cb.lower(root.get(TEventLog_.strTYPELOG)), term, '\\')));
         }
         if (StringUtils.isNotEmpty(userId)) {
             predicates.add(cb.equal(root.get(TEventLog_.lgUSERID).get(TUser_.lgUSERID), userId));
         }
-        if (criteria > 0) {
+        // 0 est un ordinal valide (Deconditionnement) ; -1 = TOUS
+        if (criteria >= 0 && criteria < TypeLog.values().length) {
             predicates.add(cb.equal(root.get(TEventLog_.typeLog), TypeLog.values()[criteria]));
         }
         return predicates;
