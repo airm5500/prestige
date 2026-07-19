@@ -594,7 +594,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.onBtnExtraModeClick
                     },
                     'doventemanager #contenu #montantExtra': {
-                        change: this.montantExtraChangeListener
+                        change: this.montantExtraChangeListener,
+                        // Entree dans le champ du 2e mode = meme cloture que le
+                        // bouton 'Terminer la vente' (tous les controles s'appliquent)
+                        specialkey: this.onMontantRecuVnoKey
                     },
                     'doventemanager #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
                         click: this.removeItemVno
@@ -2701,11 +2704,9 @@ Ext.define('testextjs.controller.VenteCtr', {
      */
     focusEncaissement: function () {
         const me = this;
-        const extra = me.getMontantExtra();
-        if (extra && extra.isVisible() && !extra.readOnly) {
-            extra.focus(true, 100);
-            return;
-        }
+        // Toujours revenir dans le montant recu (especes) : la part mobile est
+        // le complement calcule automatiquement, c'est le montant especes que
+        // le client peut changer au dernier moment. Entree y valide la vente.
         me.getMontantRecu().focus(true, 100);
     },
     /*
