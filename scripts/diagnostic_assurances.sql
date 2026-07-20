@@ -118,3 +118,36 @@ JOIN t_compte_client_tiers_payant cctp ON cctp.lg_COMPTE_CLIENT_ID = ccl.lg_COMP
 JOIN t_tiers_payant tp                ON tp.lg_TIERS_PAYANT_ID = cctp.lg_TIERS_PAYANT_ID
 WHERE CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME) LIKE '%NOM DU CLIENT%'
 ORDER BY cl.lg_CLIENT_ID, cctp.int_PRIORITY;
+
+
+-- ============================================================================
+-- Q6 — LE VRAI MELANGE : comptes rattaches a PLUSIEURS assurances DISTINCTES
+-- ----------------------------------------------------------------------------
+-- Confirme par le cas COULIBALY DANIEL FLORE (4 assurances actives). Cause :
+-- createComptClientTierspayant fait toujours un INSERT 'enable' sans desactiver
+-- les liens precedents => accumulation de rattachements.
+-- La colonne nb_ro aide a distinguer un vrai multi-rattachement d'un schema
+-- RO + complementaire legitime.
+-- ============================================================================
+SELECT ccl.lg_COMPTE_CLIENT_ID                                   AS compte,
+       CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
+       COUNT(DISTINCT cctp.lg_TIERS_PAYANT_ID)                   AS nb_assurances_distinctes,
+       SUM(CASE WHEN cctp.b_IS_RO = 1 THEN 1 ELSE 0 END)         AS nb_ro,
+       GROUP_CONCAT(DISTINCT tp.str_NAME ORDER BY tp.str_NAME SEPARATOR ' | ') AS assurances
+FROM t_compte_client_tiers_payant cctp
+JOIN t_compte_client ccl ON ccl.lg_COMPTE_CLIENT_ID = cctp.lg_COMPTE_CLIENT_ID
+JOIN t_client cl         ON cl.lg_CLIENT_ID = ccl.lg_CLIENT_ID
+JOIN t_tiers_payant tp   ON tp.lg_TIERS_PAYANT_ID = cctp.lg_TIERS_PAYANT_ID
+WHERE cctp.str_STATUT = 'enable'
+GROUP BY ccl.lg_COMPTE_CLIENT_ID, client
+HAVING COUNT(DISTINCT cctp.lg_TIERS_PAYANT_ID) > 1
+ORDER BY nb_assurances_distinctes DESC;
+
+-- Q6bis — comptage global (une seule ligne : ampleur du phenomene)
+SELECT COUNT(*) AS nb_comptes_multi_assurances FROM (
+  SELECT cctp.lg_COMPTE_CLIENT_ID
+  FROM t_compte_client_tiers_payant cctp
+  WHERE cctp.str_STATUT = 'enable'
+  GROUP BY cctp.lg_COMPTE_CLIENT_ID
+  HAVING COUNT(DISTINCT cctp.lg_TIERS_PAYANT_ID) > 1
+) x;
