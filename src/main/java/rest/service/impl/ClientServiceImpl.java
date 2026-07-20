@@ -1128,8 +1128,23 @@ public class ClientServiceImpl implements ClientService {
         });
     }
 
+    /**
+     * Règle métier : un client n'a qu'un seul RO (régime obligatoire) actif à la fois. Avant d'attacher un nouveau lien
+     * RO, on désactive l'ancien RO encore actif, sinon le client se retrouve rattaché à plusieurs assurances RO et
+     * apparaît « mélangé » entre elles. Les complémentaires (RO = false) ne sont pas touchées : elles peuvent
+     * s'accumuler légitimement.
+     */
+    private void disableActiveRoLinks(String compteClientId) {
+        findTCompteClientTiersPayanCompteClient(compteClientId).stream()
+                .filter(c -> Constant.STATUT_ENABLE.equalsIgnoreCase(c.getStrSTATUT()))
+                .filter(c -> Boolean.TRUE.equals(c.getBISRO())).forEach(this::desabledCompteClientTiersPayant);
+    }
+
     private TCompteClientTiersPayant createComptClientTierspayant(TClient cdto, TCompteClient oTCompteClient, int taux,
             TTiersPayant p, boolean isRO, int order) {
+        if (isRO) {
+            disableActiveRoLinks(oTCompteClient.getLgCOMPTECLIENTID());
+        }
         TCompteClientTiersPayant oCompteClientTiersPayant = new TCompteClientTiersPayant(UUID.randomUUID().toString());
         oCompteClientTiersPayant.setStrSTATUT(Constant.STATUT_ENABLE);
         oCompteClientTiersPayant.setStrNUMEROSECURITESOCIAL(cdto.getStrNUMEROSECURITESOCIAL());

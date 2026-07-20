@@ -121,13 +121,21 @@ ORDER BY cl.lg_CLIENT_ID, cctp.int_PRIORITY;
 
 
 -- ============================================================================
--- Q6 — LE VRAI MELANGE : comptes rattaches a PLUSIEURS assurances DISTINCTES
+-- REGLE METIER (confirmee) : un client a UN SEUL RO (regime obligatoire) actif
+-- a la fois, et peut avoir autant de complementaires (RC) actives que voulu.
+-- => Un compte avec plusieurs assurances DISTINCTES n'est PAS forcement une
+--    anomalie (1 RO + N complementaires est legitime).
+-- => La vraie anomalie = PLUSIEURS RO actifs sur le meme compte (Q7).
+-- ============================================================================
+
+
+-- ============================================================================
+-- Q6 — INFORMATIF : comptes rattaches a PLUSIEURS assurances DISTINCTES
 -- ----------------------------------------------------------------------------
--- Confirme par le cas COULIBALY DANIEL FLORE (4 assurances actives). Cause :
--- createComptClientTierspayant fait toujours un INSERT 'enable' sans desactiver
--- les liens precedents => accumulation de rattachements.
--- La colonne nb_ro aide a distinguer un vrai multi-rattachement d'un schema
--- RO + complementaire legitime.
+-- ATTENTION : sur-compte au regard de la regle metier. Un compte peut avoir
+-- 1 RO + plusieurs complementaires en toute legitimite. Utiliser la colonne
+-- nb_ro pour reperer les vrais cas problematiques (nb_ro > 1). Q7 isole
+-- directement ces cas.
 -- ============================================================================
 SELECT ccl.lg_COMPTE_CLIENT_ID                                   AS compte,
        CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
@@ -150,4 +158,37 @@ SELECT COUNT(*) AS nb_comptes_multi_assurances FROM (
   WHERE cctp.str_STATUT = 'enable'
   GROUP BY cctp.lg_COMPTE_CLIENT_ID
   HAVING COUNT(DISTINCT cctp.lg_TIERS_PAYANT_ID) > 1
+) x;
+
+
+-- ============================================================================
+-- Q7 — LA VRAIE ANOMALIE : comptes avec PLUSIEURS RO actifs (viole la regle)
+-- ----------------------------------------------------------------------------
+-- C'est le cœur du melange : le flux de vente (updateOrCreateClientAssurance /
+-- updateOrCreateClientCarnet) cree un nouveau lien RO sans desactiver l'ancien.
+-- Le client apparait alors comme client RO de DEUX assurances a la fois.
+-- Un compte ne devrait JAMAIS avoir nb_ro_actifs > 1.
+-- ============================================================================
+SELECT ccl.lg_COMPTE_CLIENT_ID                                   AS compte,
+       CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
+       COUNT(*)                                                  AS nb_ro_actifs,
+       GROUP_CONCAT(tp.str_NAME ORDER BY cctp.dt_CREATED SEPARATOR ' | ') AS assurances_ro,
+       GROUP_CONCAT(cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID ORDER BY cctp.dt_CREATED SEPARATOR ' | ') AS liens_ro
+FROM t_compte_client_tiers_payant cctp
+JOIN t_compte_client ccl ON ccl.lg_COMPTE_CLIENT_ID = cctp.lg_COMPTE_CLIENT_ID
+JOIN t_client cl         ON cl.lg_CLIENT_ID = ccl.lg_CLIENT_ID
+JOIN t_tiers_payant tp   ON tp.lg_TIERS_PAYANT_ID = cctp.lg_TIERS_PAYANT_ID
+WHERE cctp.str_STATUT = 'enable'
+  AND cctp.b_IS_RO = 1
+GROUP BY ccl.lg_COMPTE_CLIENT_ID, client
+HAVING COUNT(*) > 1
+ORDER BY nb_ro_actifs DESC;
+
+-- Q7bis — comptage global des comptes en infraction (ampleur reelle)
+SELECT COUNT(*) AS nb_comptes_multi_ro FROM (
+  SELECT cctp.lg_COMPTE_CLIENT_ID
+  FROM t_compte_client_tiers_payant cctp
+  WHERE cctp.str_STATUT = 'enable' AND cctp.b_IS_RO = 1
+  GROUP BY cctp.lg_COMPTE_CLIENT_ID
+  HAVING COUNT(*) > 1
 ) x;
