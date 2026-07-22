@@ -14,6 +14,7 @@
 <%@page import="dal.dataManager"  %>
 <%@page import="dal.TUser"  %>
 <%@page import="java.util.*"  %>
+<%@page import="java.text.SimpleDateFormat"  %>
 <%@page import="toolkits.utils.date"  %>
 <%@page import="toolkits.parameters.commonparameter"  %>
 
@@ -51,10 +52,16 @@
     TOfficine oTOfficine = OdataManager.getEm().find(dal.TOfficine.class, "1");
     Map parameters = new HashMap();
     String scr_report_file = "rp_lots_peremptions";
-    String report_generate_file = key.GetNumberRandom() + ".pdf";
+    // Nom du PDF genere : lots_peremptions_<code>_<nomproduit>_<minuteseconde>.pdf
+    String nomProduitFichier = designation.replaceAll("[^a-zA-Z0-9]+", "_").replaceAll("^_+|_+$", "");
+    if (nomProduitFichier.length() > 50) {
+        nomProduitFichier = nomProduitFichier.substring(0, 50);
+    }
+    String report_generate_file = "lots_peremptions_" + cip + "_" + nomProduitFichier + "_"
+            + new SimpleDateFormat("mmss").format(new java.util.Date()) + ".pdf";
 
     OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
-    OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "rp_lots_peremptions_" + report_generate_file);
+    OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + report_generate_file);
 
     parameters.put("P_H_INSTITUTION", oTOfficine.getStrNOMABREGE());
     parameters.put("P_INSTITUTION_ADRESSE", oTOfficine.getStrADRESSSEPOSTALE());
@@ -78,6 +85,6 @@
 
     Ojconnexion.CloseConnexion();
 
-    response.sendRedirect("../../../data/reports/pdf/" + "rp_lots_peremptions_" + report_generate_file);
+    response.sendRedirect("../../../data/reports/pdf/" + report_generate_file);
 
 %>

@@ -1391,7 +1391,17 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                     toolkits.utils.jdom.scr_report_file);
             net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(
                     report, parameters, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
-            return net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(print);
+            byte[] pdf = net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(print);
+            // Copie dans le repertoire commun des PDF generes (data/reports/pdf),
+            // comme les autres impressions de l'application.
+            try {
+                String fileName = "feuille_de_match_" + new java.text.SimpleDateFormat("mmss").format(new Date())
+                        + ".pdf";
+                java.nio.file.Files.write(java.nio.file.Paths.get(reportUtil.getReportDirectory(fileName)), pdf);
+            } catch (Exception archiveEx) {
+                LOG.log(Level.WARNING, "Archivage du PDF feuille de match impossible", archiveEx);
+            }
+            return pdf;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Impression PDF Feuille de match impossible", e);
             return new byte[0];
