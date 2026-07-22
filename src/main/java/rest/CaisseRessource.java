@@ -123,6 +123,31 @@ public class CaisseRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    @GET
+    @Path("point-mobile-money/autorisation")
+    public Response pointMobileMoneyAutorisation() {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        boolean authorize = (tu != null) && caisseService.hasPointMobileMoneyPrivilege(tu);
+        return Response.ok().entity(new JSONObject().put("authorize", authorize).toString()).build();
+    }
+
+    @GET
+    @Path("point-mobile-money")
+    public Response pointMobileMoney() {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (!caisseService.hasPointMobileMoneyPrivilege(tu)) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Vous n'avez pas le privilège requis pour le point mobile money").toString())
+                    .build();
+        }
+        return Response.ok().entity(caisseService.pointMobileMoney(tu).toString()).build();
+    }
+
     @PUT
     @Path("validatecloture/{id}")
     public Response closeResumeCaisse(@PathParam("id") String id) throws JSONException {

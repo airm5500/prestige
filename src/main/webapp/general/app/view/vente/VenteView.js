@@ -22,6 +22,17 @@ Ext.define('testextjs.view.vente.VenteView', {
     header: {
         titlePosition: 0,
         items: [{
+            xtype: 'button',
+            itemId: 'btnPointMobileMoney',
+            text: 'POINT MOBILE MONEY',
+            cls: 'btn-primarya',
+            tooltip: 'Point du jour des encaissements mobile money + carte bancaire de la caissi&egrave;re connect&eacute;e',
+            hidden: true,
+            margin: '0 5 0 0',
+            handler: function (btn) {
+                btn.up('doventemanager').showPointMobileMoney();
+            }
+        }, {
             xtype: 'textfield',
             itemId: 'preventeSearchField',
             emptyText: 'N° ticket / scan',
@@ -73,10 +84,86 @@ Ext.define('testextjs.view.vente.VenteView', {
     listeners: {
         afterrender: function() {
             this.initKeyboardShortcut();
+            this.loadPointMobileMoneyPrivilege();
         },
         destroy: function() {
             this.cleanupKeyboardShortcut();
         }
+    },
+
+    // Affiche le bouton 'POINT MOBILE MONEY' uniquement si l'utilisateur detient
+    // le privilege 'Autorisation Point mobile money caisse' (controle aussi cote serveur).
+    loadPointMobileMoneyPrivilege: function () {
+        var me = this;
+        Ext.Ajax.request({
+            url: '../api/v1/caisse/point-mobile-money/autorisation',
+            method: 'GET',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                var btn = me.down('#btnPointMobileMoney');
+                if (btn && o.authorize === true) {
+                    btn.setVisible(true);
+                }
+            }
+        });
+    },
+
+    // Point du jour (utilisateur connecte uniquement) : montants et nombre de
+    // ventes par mode mobile money + carte bancaire, avec total general.
+    showPointMobileMoney: function () {
+        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Point mobile money');
+        Ext.Ajax.request({
+            url: '../api/v1/caisse/point-mobile-money',
+            method: 'GET',
+            success: function (response) {
+                progress.hide();
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                if (o.success !== true) {
+                    Ext.MessageBox.show({title: 'Point mobile money', width: 420,
+                        msg: o.message || 'Impossible de charger le point mobile money.',
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
+                    return;
+                }
+                var fmt = function (v) {
+                    return Ext.util.Format.number(v || 0, '0,000.');
+                };
+                var rows = '';
+                Ext.Array.each(o.data || [], function (r) {
+                    rows += '<tr><td style="padding:4px 8px;">' + Ext.String.htmlEncode(r.libelle || '') + '</td>'
+                            + '<td style="padding:4px 8px;text-align:right;font-weight:bold;">'
+                            + fmt(r.montant) + ' fcfa</td>'
+                            + '<td style="padding:4px 8px;text-align:right;">' + fmt(r.nbVentes)
+                            + ' vente(s)</td></tr>';
+                });
+                var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+                        + rows
+                        + '<tr style="border-top:2px solid #444;"><td style="padding:6px 8px;font-weight:bold;">TOTAL GENERAL</td>'
+                        + '<td style="padding:6px 8px;text-align:right;font-weight:bold;">'
+                        + fmt(o.totalMontant) + ' fcfa</td>'
+                        + '<td style="padding:6px 8px;text-align:right;font-weight:bold;">'
+                        + fmt(o.totalVentes) + ' vente(s)</td></tr>'
+                        + '</table>';
+                Ext.create('Ext.window.Window', {
+                    title: 'Point mobile money du jour - ' + Ext.Date.format(new Date(), 'd/m/Y'),
+                    modal: true,
+                    width: 440,
+                    autoShow: true,
+                    bodyPadding: 10,
+                    html: html,
+                    buttons: [{
+                            text: 'Fermer',
+                            handler: function (b) {
+                                b.up('window').close();
+                            }
+                        }]
+                });
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.show({title: 'Point mobile money', width: 380, msg: 'Erreur de serveur',
+                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+            }
+        });
     },
     
     initKeyboardShortcut: function() {

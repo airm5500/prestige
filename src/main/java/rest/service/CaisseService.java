@@ -133,4 +133,13 @@ public interface CaisseService {
 
     String ouvrirCaisse(TUser user, CoffreCaisseDTO coffreCaisse) throws CaisseUsingExeception;
 
+    /** Vrai si l'utilisateur detient le privilege 'Autorisation Point mobile money caisse'. */
+    boolean hasPointMobileMoneyPrivilege(TUser user);
+
+    /**
+     * Point mobile money de la caissiere connectee : montants et nombre de ventes du jour par mode de reglement mobile
+     * money + carte bancaire, avec total general.
+     */
+    JSONObject pointMobileMoney(TUser user);
+
 }

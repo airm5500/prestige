@@ -2176,4 +2176,77 @@ public class CaisseServiceImpl implements CaisseService {
 
     }
 
+    private static final String P_POINT_MOBILE_MONEY_CAISSE = "P_POINT_MOBILE_MONEY_CAISSE";
+
+    /*
+     * verifie qu'un privilege actif est associe a l'utilisateur via ses roles (meme chaine t_role_user -> t_role ->
+     * t_role_privelege -> t_privilege que bll.userManagement.privilege)
+     */
+    @Override
+    public boolean hasPointMobileMoneyPrivilege(TUser user) {
+        try {
+            Object result = getEntityManager().createNativeQuery("SELECT COUNT(t_privilege.str_NAME) FROM t_role_user "
+                    + "INNER JOIN t_user ON t_role_user.lg_USER_ID = t_user.lg_USER_ID "
+                    + "INNER JOIN t_role ON t_role.lg_ROLE_ID = t_role_user.lg_ROLE_ID "
+                    + "INNER JOIN t_role_privelege ON t_role.lg_ROLE_ID = t_role_privelege.lg_ROLE_ID "
+                    + "INNER JOIN t_privilege ON t_role_privelege.lg_PRIVILEGE_ID = t_privilege.lg_PRIVELEGE_ID "
+                    + "WHERE t_privilege.str_NAME = ?1 AND t_user.lg_USER_ID = ?2 AND t_privilege.str_STATUT = 'enable'")
+                    .setParameter(1, P_POINT_MOBILE_MONEY_CAISSE).setParameter(2, user.getLgUSERID()).getSingleResult();
+            return Integer.parseInt(result + "") > 0;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, null, e);
+            return false;
+        }
+    }
+
+    @Override
+    public JSONObject pointMobileMoney(TUser user) {
+        JSONObject json = new JSONObject();
+        try {
+            // Modes concernes : tous les mobiles money + la carte bancaire.
+            List<String> typeIds = Arrays.asList(Constant.TYPE_REGLEMENT_ORANGE, Constant.MODE_MTN, Constant.MODE_MOOV,
+                    Constant.MODE_WAVE, Constant.MODE_DJAMO, Constant.MODE_CB);
+            Map<String, Object[]> aggregats = new HashMap<>();
+            List<Object[]> rows = getEntityManager().createNativeQuery(
+                    "SELECT tr.lg_TYPE_REGLEMENT_ID, SUM(vr.montant_attentu) AS montant,"
+                            + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbVentes"
+                            + " FROM vente_reglement vr"
+                            + " INNER JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID = vr.type_regelement"
+                            + " INNER JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
+                            + " WHERE DATE(vr.mvtDate) = CURDATE() AND p.lg_USER_CAISSIER_ID = ?1"
+                            + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0"
+                            + " AND tr.lg_TYPE_REGLEMENT_ID IN (?2, ?3, ?4, ?5, ?6, ?7)"
+                            + " GROUP BY tr.lg_TYPE_REGLEMENT_ID")
+                    .setParameter(1, user.getLgUSERID()).setParameter(2, Constant.TYPE_REGLEMENT_ORANGE)
+                    .setParameter(3, Constant.MODE_MTN).setParameter(4, Constant.MODE_MOOV)
+                    .setParameter(5, Constant.MODE_WAVE).setParameter(6, Constant.MODE_DJAMO)
+                    .setParameter(7, Constant.MODE_CB).getResultList();
+            for (Object[] r : rows) {
+                aggregats.put(String.valueOf(r[0]), r);
+            }
+            JSONArray data = new JSONArray();
+            long totalMontant = 0;
+            long totalVentes = 0;
+            for (String typeId : typeIds) {
+                TTypeReglement typeReglement = getEntityManager().find(TTypeReglement.class, typeId);
+                if (typeReglement == null) {
+                    continue;
+                }
+                Object[] r = aggregats.get(typeId);
+                long montant = (r != null && r[1] != null) ? ((Number) r[1]).longValue() : 0;
+                long nbVentes = (r != null && r[2] != null) ? ((Number) r[2]).longValue() : 0;
+                totalMontant += montant;
+                totalVentes += nbVentes;
+                data.put(new JSONObject().put("typeId", typeId).put("libelle", typeReglement.getStrNAME())
+                        .put("montant", montant).put("nbVentes", nbVentes));
+            }
+            json.put("success", true).put("data", data).put("totalMontant", totalMontant).put("totalVentes",
+                    totalVentes);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "pointMobileMoney", e);
+            json.put("success", false).put("data", new JSONArray()).put("totalMontant", 0).put("totalVentes", 0);
+        }
+        return json;
+    }
+
 }
