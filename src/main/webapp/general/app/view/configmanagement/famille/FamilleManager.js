@@ -1881,57 +1881,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             data: []
         });
 
+        // Impression Jasper (rp_lots_peremptions.jrxml) : donnees de l'impression
+        // d'origine + date de saisie, utilisateur et stock actuel du produit.
         const printPerimeData = function () {
-            const rows = [];
-
-            perimeStore.each(function (record) {
-                rows.push(
-                        '<tr>' +
-                        '<td>' + Ext.String.htmlEncode(record.get('datePerement') || '') + '</td>' +
-                        '<td style="text-align:center;">' + Ext.String.htmlEncode(String(record.get('quantiteLot') || 0)) + '</td>' +
-                        '<td>' + Ext.String.htmlEncode(record.get('numLot') || '') + '</td>' +
-                        '<td>' + Ext.String.htmlEncode(record.get('statut') || '') + '</td>' +
-                        '</tr>'
-                        );
-            });
-
-            const html = '<!DOCTYPE html>' +
-                    '<html>' +
-                    '<head>' +
-                    '<meta charset="UTF-8">' +
-                    '<title>Lots / péremptions - ' + Ext.String.htmlEncode(String(cip)) + '</title>' +
-                    '<style>' +
-                    'body{font-family:Arial,Helvetica,sans-serif;font-size:12px;margin:20px;}' +
-                    'h2{font-size:16px;margin:0 0 12px 0;}' +
-                    'table{width:100%;border-collapse:collapse;}' +
-                    'th,td{border:1px solid #000;padding:6px;}' +
-                    'th{background:#f0f0f0;text-align:left;}' +
-                    '</style>' +
-                    '</head>' +
-                    '<body>' +
-                    '<h2>' + Ext.String.htmlEncode(String(cip)) + ' - ' + Ext.String.htmlEncode(designation) + '</h2>' +
-                    '<table>' +
-                    '<thead>' +
-                    '<tr>' +
-                    '<th>Date péremption</th>' +
-                    '<th>Quantité</th>' +
-                    '<th>N° Lot</th>' +
-                    '<th>Statut</th>' +
-                    '</tr>' +
-                    '</thead>' +
-                    '<tbody>' +
-                    (rows.length > 0 ? rows.join('') : '<tr><td colspan="4">Aucune donnée à imprimer</td></tr>') +
-                    '</tbody>' +
-                    '</table>' +
-                    '</body>' +
-                    '</html>';
-
-            const printWindow = window.open('', '_blank');
-            printWindow.document.open();
-            printWindow.document.write(html);
-            printWindow.document.close();
-            printWindow.focus();
-            printWindow.print();
+            window.open('../webservices/sm_user/famille/ws_lots_peremptions_pdf.jsp'
+                    + '?cip=' + encodeURIComponent(String(cip))
+                    + '&designation=' + encodeURIComponent(designation)
+                    + '&nbreMois=24');
         };
 
         // Chargement (et rechargement) des lots / peremptions du produit.
@@ -2146,6 +2102,23 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
 addPeremptiondate: function (grid, rowIndex) {
     const rec = grid.getStore().getAt(rowIndex);
+
+    // Un produit a stock 0 ne peut pas recevoir de date de peremption.
+    const stockDisponible = Number(rec.get('int_NUMBER_AVAILABLE') || 0);
+    if (stockDisponible === 0) {
+        Ext.MessageBox.show({
+            title: 'Alerte Message',
+            width: 440,
+            msg: 'Impossible d\'ajouter une date de p&eacute;remption au produit <b>'
+                    + Ext.String.htmlEncode(rec.get('str_NAME') || '') + '</b> : son stock est &agrave; <b>0</b>.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.WARNING,
+            fn: function () {
+                Me_Workflow.fmField('rechecher').focus(true, 100);
+            }
+        });
+        return;
+    }
 
     const win = Ext.create("Ext.window.Window", {
         title: "[ " + rec.get('str_NAME') + " ]",
