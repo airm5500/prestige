@@ -79,11 +79,11 @@
         <band height="52" splitType="Prevent">
             <textField isBlankWhenNull="true" textAdjust="StretchHeight">
                 <reportElement x="0" y="2" width="802" height="13" uuid="7c6b5a49-0002-0000-0000-000000000001"/>
-                <textElement markup="html"><font size="9" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA[$F{cip} + "    " + $F{libelle}
-    + "    PRIX ACHAT: " + new java.text.DecimalFormat("#,##0").format($F{prixAchat} == null ? 0L : $F{prixAchat}) + " FCFA"
-    + "    PRIX DE VENTE: " + new java.text.DecimalFormat("#,##0").format($F{prixVente} == null ? 0L : $F{prixVente}) + " FCFA"
-    + "    Objectif achat/mois (max " + $P{P_OBJECTIF_ACHAT} + ") : <font color=\""
+                <textElement markup="html"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA["<b>" + $F{cip} + " " + $F{libelle} + "</b>"
+    + "  |  PRIX ACHAT: " + new java.text.DecimalFormat("#,##0", new java.text.DecimalFormatSymbols(java.util.Locale.FRENCH)).format($F{prixAchat} == null ? 0L : $F{prixAchat}) + " FCFA"
+    + "   PRIX DE VENTE: " + new java.text.DecimalFormat("#,##0", new java.text.DecimalFormatSymbols(java.util.Locale.FRENCH)).format($F{prixVente} == null ? 0L : $F{prixVente}) + " FCFA"
+    + "  |  Objectif achat/mois (max " + $P{P_OBJECTIF_ACHAT} + ") : <font color=\""
     + ($F{objectifStatut} != null && $F{objectifStatut}.startsWith("Dépassé") ? "#D10000" : "#1A7E1A")
     + "\">" + $F{objectifStatut} + "</font>"]]></textFieldExpression>
             </textField>
