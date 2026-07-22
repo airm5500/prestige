@@ -42,12 +42,12 @@ public class AjustementAnalyseServiceImpl implements AjustementAnalyseService {
     private static final String BASE_QUERY = "SELECT f.lg_FAMILLE_ID AS familleId, f.lg_GROSSISTE_ID AS grossisteId,"
             + " f.int_CIP AS cip, f.str_NAME AS name, COUNT(d.lg_AJUSTEMENTDETAIL_ID) AS nbAjustement,"
             + " COALESCE(SUM(CASE WHEN d.int_NUMBER > 0 THEN d.int_NUMBER ELSE 0 END),0) AS qtePositive,"
-            + " COALESCE(SUM(CASE WHEN d.int_NUMBER < 0 THEN ABS(d.int_NUMBER) ELSE 0 END),0) AS qteNegative,"
-            + " COALESCE(SUM(ABS(d.int_NUMBER)),0) AS qteTotale"
+            + " COALESCE(SUM(CASE WHEN d.int_NUMBER < 0 THEN d.int_NUMBER ELSE 0 END),0) AS qteNegative,"
+            + " COALESCE(SUM(d.int_NUMBER),0) AS qteTotale"
             + " FROM t_ajustement_detail d JOIN t_ajustement a ON a.lg_AJUSTEMENT_ID = d.lg_AJUSTEMENT_ID"
             + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID" + " JOIN t_user u ON u.lg_USER_ID = a.lg_USER_ID"
             + " WHERE a.str_STATUT = 'enable' AND DATE(d.dt_CREATED) BETWEEN ?1 AND ?2 AND u.lg_EMPLACEMENT_ID = ?3"
-            + "{motif} GROUP BY f.lg_FAMILLE_ID ORDER BY qteTotale DESC, nbAjustement DESC";
+            + "{motif} GROUP BY f.lg_FAMILLE_ID ORDER BY COALESCE(SUM(ABS(d.int_NUMBER)),0) DESC, nbAjustement DESC";
 
     private static final String COUNT_QUERY = "SELECT COUNT(DISTINCT d.lg_FAMILLE_ID)"
             + " FROM t_ajustement_detail d JOIN t_ajustement a ON a.lg_AJUSTEMENT_ID = d.lg_AJUSTEMENT_ID"
