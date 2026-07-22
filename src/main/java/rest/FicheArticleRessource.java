@@ -374,10 +374,11 @@ public class FicheArticleRessource {
     @Path("maj-seuil/list")
     public Response majSeuilList(@QueryParam("codeFamille") String codeFamille,
             @QueryParam("zoneGeoId") String zoneGeoId, @QueryParam("search") String search,
-            @QueryParam("start") int start, @QueryParam("limit") int limit) {
+            @QueryParam("classeAbcId") String classeAbcId, @QueryParam("start") int start,
+            @QueryParam("limit") int limit) {
         int lim = (limit > 0) ? limit : 15;
-        return Response.ok()
-                .entity(ficheArticleService.majSeuilList(codeFamille, zoneGeoId, search, start, lim).toString())
+        return Response.ok().entity(
+                ficheArticleService.majSeuilList(codeFamille, zoneGeoId, search, classeAbcId, start, lim).toString())
                 .build();
     }
 
@@ -389,13 +390,15 @@ public class FicheArticleRessource {
         String codeFamille = in.optString("codeFamille", "");
         String zoneGeoId = in.optString("zoneGeoId", "");
         String search = in.optString("search", "");
+        String classeAbcId = in.optString("classeAbcId", "");
         Integer q1 = (in.has("q1") && !in.isNull("q1")) ? in.getInt("q1") : null;
         Integer q2 = (in.has("q2") && !in.isNull("q2")) ? in.getInt("q2") : null;
         List<String> ids = jsonArrToList(in.optJSONArray("ids"));
         List<String> unchecked = jsonArrToList(in.optJSONArray("uncheckedIds"));
-        return Response
-                .ok().entity(ficheArticleService
-                        .majSeuilApply(mode, codeFamille, zoneGeoId, search, ids, unchecked, q1, q2).toString())
+        return Response.ok()
+                .entity(ficheArticleService
+                        .majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId, ids, unchecked, q1, q2)
+                        .toString())
                 .build();
     }
 

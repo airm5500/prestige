@@ -1125,8 +1125,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
     // ----------------------- MAJ SEUIL groupee (Q1/Q2 par produit) -----------------------
 
-    /** Construit la clause WHERE (famille OU emplacement + recherche) commune liste/ids. */
-    private String majSeuilWhere(String codeFamille, String zoneGeoId, String search) {
+    /** Construit la clause WHERE (famille, emplacement, classe ABC + recherche) commune liste/ids. */
+    private String majSeuilWhere(String codeFamille, String zoneGeoId, String search, String classeAbcId) {
         StringBuilder w = new StringBuilder(" WHERE f.str_STATUT='enable' ");
         if (StringUtils.isNotBlank(codeFamille)) {
             w.append(" AND f.lg_FAMILLEARTICLE_ID = :fam ");
@@ -1134,18 +1134,24 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         if (StringUtils.isNotBlank(zoneGeoId)) {
             w.append(" AND f.lg_ZONE_GEO_ID = :zone ");
         }
+        if (StringUtils.isNotBlank(classeAbcId)) {
+            w.append(" AND f.lg_CLASSE_ABC_ID = :classeAbc ");
+        }
         if (StringUtils.isNotBlank(search)) {
             w.append(" AND (f.int_CIP LIKE :s OR f.str_NAME LIKE :s) ");
         }
         return w.toString();
     }
 
-    private void majSeuilParams(Query q, String codeFamille, String zoneGeoId, String search) {
+    private void majSeuilParams(Query q, String codeFamille, String zoneGeoId, String search, String classeAbcId) {
         if (StringUtils.isNotBlank(codeFamille)) {
             q.setParameter("fam", codeFamille);
         }
         if (StringUtils.isNotBlank(zoneGeoId)) {
             q.setParameter("zone", zoneGeoId);
+        }
+        if (StringUtils.isNotBlank(classeAbcId)) {
+            q.setParameter("classeAbc", classeAbcId);
         }
         if (StringUtils.isNotBlank(search)) {
             q.setParameter("s", "%" + search.trim() + "%");
@@ -1153,15 +1159,16 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
-    public JSONObject majSeuilList(String codeFamille, String zoneGeoId, String search, int start, int limit) {
+    public JSONObject majSeuilList(String codeFamille, String zoneGeoId, String search, String classeAbcId, int start,
+            int limit) {
         JSONObject data = new JSONObject();
         JSONArray arr = new JSONArray();
         try {
-            String where = majSeuilWhere(codeFamille, zoneGeoId, search);
+            String where = majSeuilWhere(codeFamille, zoneGeoId, search, classeAbcId);
             Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, "
                     + "f.int_Q1_SEUIL_REAPPRO, f.int_Q2_QTE_REAPPRO FROM t_famille f " + where
                     + " ORDER BY f.str_NAME ASC");
-            majSeuilParams(q, codeFamille, zoneGeoId, search);
+            majSeuilParams(q, codeFamille, zoneGeoId, search, classeAbcId);
             if (limit > 0) {
                 q.setFirstResult(Math.max(0, start));
                 q.setMaxResults(limit);
@@ -1173,7 +1180,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                         .put("int_Q2_QTE_REAPPRO", r[4] != null ? r[4] : ""));
             }
             Query qc = em.createNativeQuery("SELECT COUNT(*) FROM t_famille f " + where);
-            majSeuilParams(qc, codeFamille, zoneGeoId, search);
+            majSeuilParams(qc, codeFamille, zoneGeoId, search, classeAbcId);
             long total = ((Number) qc.getSingleResult()).longValue();
             data.put("total", total).put("data", arr);
         } catch (Exception e) {
@@ -1184,15 +1191,15 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
-    public JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search, List<String> ids,
-            List<String> uncheckedIds, Integer q1, Integer q2) {
+    public JSONObject majSeuilApply(String mode, String codeFamille, String zoneGeoId, String search,
+            String classeAbcId, List<String> ids, List<String> uncheckedIds, Integer q1, Integer q2) {
         JSONObject res = new JSONObject();
         try {
             List<String> targets;
             if ("ALL".equalsIgnoreCase(mode)) {
-                String where = majSeuilWhere(codeFamille, zoneGeoId, search);
+                String where = majSeuilWhere(codeFamille, zoneGeoId, search, classeAbcId);
                 Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID FROM t_famille f " + where);
-                majSeuilParams(q, codeFamille, zoneGeoId, search);
+                majSeuilParams(q, codeFamille, zoneGeoId, search, classeAbcId);
                 targets = new java.util.ArrayList<>();
                 for (Object o : q.getResultList()) {
                     if (o != null) {

@@ -38,6 +38,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_seuil', {
             fields: ['id', 'libelle'], autoLoad: true, pageSize: 9999,
             proxy: {type: 'ajax', url: '../api/v1/common/famillearticles', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
         });
+        var classeAbcStore = Ext.create('Ext.data.Store', {
+            fields: ['id', 'code', 'libelle'], autoLoad: true, pageSize: 9999,
+            proxy: {type: 'ajax', url: '../api/v1/articles/abc/classes', reader: {type: 'json', root: 'data'}}
+        });
 
         var store = Ext.create('Ext.data.Store', {
             fields: ['lg_FAMILLE_ID', 'int_CIP', 'str_NAME', 'int_Q1_SEUIL_REAPPRO', 'int_Q2_QTE_REAPPRO',
@@ -115,6 +119,23 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_seuil', {
                         }
                     }
                 },
+                {
+                    xtype: 'combobox', id: 'majClasseAbc', store: classeAbcStore, fieldLabel: 'Classe ABC',
+                    labelWidth: 75, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'local',
+                    flex: 1.5, emptyText: 'Classe ABC...',
+                    listeners: {
+                        select: function () {
+                            majMe.onMajRech();
+                        }
+                    }
+                },
+                {
+                    text: '', tooltip: 'Effacer le filtre classe ABC', iconCls: 'cancelicon',
+                    handler: function () {
+                        var c = Ext.getCmp('majClasseAbc'); if (c) { c.setValue(null); }
+                        majMe.onMajRech();
+                    }
+                },
                 {text: 'rechercher', iconCls: 'searchicon', scope: this, handler: this.onMajRech},
                 {
                     xtype: 'checkbox', id: 'majAll', boxLabel: 'Tous Sélectionner', margin: '0 0 0 8',
@@ -186,6 +207,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_seuil', {
         proxy.setExtraParam('search', (Ext.getCmp('majRech') && Ext.getCmp('majRech').getValue()) || '');
         proxy.setExtraParam('codeFamille', (Ext.getCmp('majFam') && Ext.getCmp('majFam').getValue()) || '');
         proxy.setExtraParam('zoneGeoId', (Ext.getCmp('majZone') && Ext.getCmp('majZone').getValue()) || '');
+        proxy.setExtraParam('classeAbcId', (Ext.getCmp('majClasseAbc') && Ext.getCmp('majClasseAbc').getValue()) || '');
     },
 
     onMajRech: function () {
@@ -221,10 +243,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_seuil', {
         var codeFamille = (Ext.getCmp('majFam') && Ext.getCmp('majFam').getValue()) || '';
         var zoneGeoId = (Ext.getCmp('majZone') && Ext.getCmp('majZone').getValue()) || '';
         var search = (Ext.getCmp('majRech') && Ext.getCmp('majRech').getValue()) || '';
+        var classeAbcId = (Ext.getCmp('majClasseAbc') && Ext.getCmp('majClasseAbc').getValue()) || '';
         var mode = majSelectAll ? 'ALL' : 'SELECTED';
-        if (mode === 'ALL' && !codeFamille && !zoneGeoId && !search) {
+        if (mode === 'ALL' && !codeFamille && !zoneGeoId && !search && !classeAbcId) {
             Ext.MessageBox.show({title: 'Filtre requis', width: 440,
-                msg: 'En mode « Tous Sélectionner », veuillez d\'abord filtrer par <b>famille</b>, <b>emplacement</b> ou <b>recherche</b>.',
+                msg: 'En mode « Tous Sélectionner », veuillez d\'abord filtrer par <b>famille</b>, <b>emplacement</b>, <b>classe ABC</b> ou <b>recherche</b>.',
                 buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
             return;
         }
@@ -246,6 +269,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_seuil', {
                         headers: {'Content-Type': 'application/json'},
                         jsonData: {
                             mode: mode, codeFamille: codeFamille, zoneGeoId: zoneGeoId, search: search,
+                            classeAbcId: classeAbcId,
                             ids: majSelected, uncheckedIds: majUnchecked, q1: Number(q1), q2: Number(q2)
                         },
                         success: function (resp) {
