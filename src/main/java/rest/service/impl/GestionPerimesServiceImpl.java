@@ -46,6 +46,7 @@ import util.NotificationUtils;
 public class GestionPerimesServiceImpl implements GestionPerimesService {
 
     private static final Logger LOG = Logger.getLogger(GestionPerimesServiceImpl.class.getName());
+    private static final String P_CLOTURE_SAISIE_PERIMES = "P_CLOTURE_SAISIE_PERIMES";
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
@@ -261,10 +262,35 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
         getEntityManager().remove(getEntityManager().find(TWarehouse.class, id));
     }
 
+    /*
+     * verifie qu'un privilege actif est associe a l'utilisateur via ses roles (meme chaine t_role_user -> t_role ->
+     * t_role_privelege -> t_privilege que bll.userManagement.privilege)
+     */
+    @Override
+    public boolean hasCloturePrivilege(TUser user) {
+        try {
+            Object result = getEntityManager().createNativeQuery("SELECT COUNT(t_privilege.str_NAME) FROM t_role_user "
+                    + "INNER JOIN t_user ON t_role_user.lg_USER_ID = t_user.lg_USER_ID "
+                    + "INNER JOIN t_role ON t_role.lg_ROLE_ID = t_role_user.lg_ROLE_ID "
+                    + "INNER JOIN t_role_privelege ON t_role.lg_ROLE_ID = t_role_privelege.lg_ROLE_ID "
+                    + "INNER JOIN t_privilege ON t_role_privelege.lg_PRIVILEGE_ID = t_privilege.lg_PRIVELEGE_ID "
+                    + "WHERE t_privilege.str_NAME = ?1 AND t_user.lg_USER_ID = ?2 AND t_privilege.str_STATUT = 'enable'")
+                    .setParameter(1, P_CLOTURE_SAISIE_PERIMES).setParameter(2, user.getLgUSERID()).getSingleResult();
+            return Integer.parseInt(result + "") > 0;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, null, e);
+            return false;
+        }
+    }
+
     @Override
     public JSONObject completePerimes(String id, TUser user) {
 
         JSONObject json = new JSONObject();
+        if (!hasCloturePrivilege(user)) {
+            return json.put("success", false).put("message",
+                    "Vous n'avez pas le privilège requis pour clôturer une saisie de périmés");
+        }
 
         try {
             List<TWarehouse> list;

@@ -345,10 +345,19 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                             border: '0',
                             items: ['->',
                                 {
+                                    text: 'Imprimer',
+                                    id: 'btn_print_perime',
+                                    cls: 'btn-secondary',
+                                    iconCls: 'printable',
+                                    tooltip: 'Imprimer la saisie en cours pour la contr&ocirc;ler avant validation',
+                                    scope: this,
+                                    handler: this.onPrintSaisie
+                                }, {
                                     text: 'Terminer',
                                     id: 'btn_create_perime',
                                     cls: 'btn-primary',
                                     iconCls: 'icon-clear-group',
+                                    hidden: true,
                                     scope: this,
                                     handler: this.CreateFacture
                                 }, {
@@ -367,16 +376,88 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
         });
 
         this.callParent();
-        
+
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
         });
+        this.loadCloturePrivilege();
     },
 
     loadStore: function () {
         // Focus sur le champ article au chargement
         Ext.getCmp('cmb_Article').focus(true, 200);
+    },
+
+    // Affiche le bouton 'Terminer' uniquement si l'utilisateur detient le
+    // privilege 'Autorisation cloture saisie de perimés' (controle aussi cote serveur).
+    loadCloturePrivilege: function () {
+        Ext.Ajax.request({
+            url: '../api/v1/gestionperime/autorisation-cloture',
+            method: 'GET',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                var btn = Ext.getCmp('btn_create_perime');
+                if (btn && o.authorize === true) {
+                    btn.setVisible(true);
+                }
+            }
+        });
+    },
+
+    onPrintSaisie: function () {
+        Ext.Ajax.request({
+            url: '../api/v1/gestionperime/saisie-encours',
+            method: 'GET',
+            params: {start: 0, limit: 9999},
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                var rows = o.data || [];
+                if (rows.length === 0) {
+                    Ext.MessageBox.show({title: 'Infos', width: 320,
+                        msg: 'Aucune saisie en cours &agrave; imprimer.',
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
+                    return;
+                }
+                var html = '<html><head><title>Contr&ocirc;le saisie de produits p&eacute;rim&eacute;s</title>'
+                        + '<style>body{font-family:Arial,sans-serif;font-size:12px;}'
+                        + 'h2{font-size:16px;margin-bottom:2px;} .soustitre{margin:0 0 10px 0;color:#555;}'
+                        + 'table{border-collapse:collapse;width:100%;}'
+                        + 'th,td{border:1px solid #444;padding:4px 6px;text-align:left;}'
+                        + 'th{background:#eee;} td.num{text-align:right;}</style></head><body>'
+                        + '<h2>Contr&ocirc;le saisie de produits p&eacute;rim&eacute;s</h2>'
+                        + '<p class="soustitre">Saisie en cours (non valid&eacute;e) du '
+                        + Ext.Date.format(new Date(), 'd/m/Y H:i') + ' - ' + rows.length + ' ligne(s)</p>'
+                        + '<table><thead><tr><th>CODE CIP</th><th>ARTICLE</th><th>LOT</th>'
+                        + '<th>STOCK ACTUEL</th><th>QUANTITE</th><th>STOCK FINAL</th>'
+                        + '<th>DATE ENTREE</th><th>DATE PEREMPTION</th></tr></thead><tbody>';
+                var totalQte = 0;
+                Ext.Array.each(rows, function (r) {
+                    totalQte += Number(r.quantity || 0);
+                    html += '<tr><td>' + (r.produitCip || '') + '</td>'
+                            + '<td>' + (r.produitLibelle || '') + '</td>'
+                            + '<td>' + (r.lot || '') + '</td>'
+                            + '<td class="num">' + amountformat(r.stockInitial || 0) + '</td>'
+                            + '<td class="num">' + amountformat(r.quantity || 0) + '</td>'
+                            + '<td class="num">' + amountformat(r.stockFinal || 0) + '</td>'
+                            + '<td>' + (r.dateEntree || '') + '</td>'
+                            + '<td>' + (r.datePeremption || '') + '</td></tr>';
+                });
+                html += '<tr><th colspan="4" style="text-align:right;">TOTAL QUANTITE</th>'
+                        + '<th style="text-align:right;">' + amountformat(totalQte) + '</th>'
+                        + '<th colspan="3"></th></tr>';
+                html += '</tbody></table></body></html>';
+                var printWindow = window.open('', '_blank');
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                printWindow.print();
+            },
+            failure: function () {
+                Ext.MessageBox.show({title: 'Infos', width: 320, msg: 'Erreur de serveur',
+                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+            }
+        });
     },
 
     onbtncancel: function () {

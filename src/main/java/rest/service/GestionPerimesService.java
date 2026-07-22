@@ -25,4 +25,6 @@ public interface GestionPerimesService {
     JSONObject completePerimes(String id, TUser user);
 
     JSONObject getPerimesSaisiEnCours(int start, int limit);
+
+    boolean hasCloturePrivilege(TUser user);
 }

@@ -93,4 +93,13 @@ public class GestionPerimesResource {
         JSONObject json = gestionPerimesService.getPerimesSaisiEnCours(start, limit);
         return Response.ok().entity(json.toString()).build();
     }
+
+    @GET
+    @Path("autorisation-cloture")
+    public Response autorisationCloture() {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        boolean authorize = (tu != null) && gestionPerimesService.hasCloturePrivilege(tu);
+        return Response.ok().entity(new JSONObject().put("authorize", authorize).toString()).build();
+    }
 }
