@@ -2207,10 +2207,9 @@ public class CaisseServiceImpl implements CaisseService {
             List<String> typeIds = Arrays.asList(Constant.TYPE_REGLEMENT_ORANGE, Constant.MODE_MTN, Constant.MODE_MOOV,
                     Constant.MODE_WAVE, Constant.MODE_DJAMO, Constant.MODE_CB);
             Map<String, Object[]> aggregats = new HashMap<>();
-            List<Object[]> rows = getEntityManager().createNativeQuery(
-                    "SELECT tr.lg_TYPE_REGLEMENT_ID, SUM(vr.montant_attentu) AS montant,"
-                            + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbVentes"
-                            + " FROM vente_reglement vr"
+            List<Object[]> rows = getEntityManager()
+                    .createNativeQuery("SELECT tr.lg_TYPE_REGLEMENT_ID, SUM(vr.montant_attentu) AS montant,"
+                            + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nbVentes" + " FROM vente_reglement vr"
                             + " INNER JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID = vr.type_regelement"
                             + " INNER JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
                             + " WHERE DATE(vr.mvtDate) = CURDATE() AND p.lg_USER_CAISSIER_ID = ?1"

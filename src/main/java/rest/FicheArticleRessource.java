@@ -395,10 +395,8 @@ public class FicheArticleRessource {
         Integer q2 = (in.has("q2") && !in.isNull("q2")) ? in.getInt("q2") : null;
         List<String> ids = jsonArrToList(in.optJSONArray("ids"));
         List<String> unchecked = jsonArrToList(in.optJSONArray("uncheckedIds"));
-        return Response.ok()
-                .entity(ficheArticleService
-                        .majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId, ids, unchecked, q1, q2)
-                        .toString())
+        return Response.ok().entity(ficheArticleService
+                .majSeuilApply(mode, codeFamille, zoneGeoId, search, classeAbcId, ids, unchecked, q1, q2).toString())
                 .build();
     }
 

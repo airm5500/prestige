@@ -93,8 +93,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             data.put("total", 1);
         } else {
             getAllLite(false, search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true, start,
-                    limit).forEach(tuple -> arrayObj
-                            .put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate)));
+                    limit).forEach(
+                            tuple -> arrayObj
+                                    .put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate)));
             data.put("total",
                     getAllCount(search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true));
         }

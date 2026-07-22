@@ -1145,8 +1145,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                     + " INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID"
                     + " WHERE bl.str_STATUT = 'is_Closed'"
                     + " AND bld.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH),'%Y-%m-01')"
-                    + " AND bld.lg_FAMILLE_ID IN (:ids) GROUP BY bld.lg_FAMILLE_ID, m_index")
-                    .setParameter("ids", chunk).getResultList();
+                    + " AND bld.lg_FAMILLE_ID IN (:ids) GROUP BY bld.lg_FAMILLE_ID, m_index").setParameter("ids", chunk)
+                    .getResultList();
             for (Object[] r : rows) {
                 int idx = asInt(r[1]);
                 if (idx < 0 || idx > 3) {
@@ -1164,8 +1164,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     private Map<String, Object[]> fmDerniereEntree(List<String> ids) {
         Map<String, Object[]> map = new HashMap<>();
         for (List<String> chunk : fmChunks(ids)) {
-            List<Object[]> rows = em.createNativeQuery(
-                    "SELECT bld.lg_FAMILLE_ID, bld.dt_UPDATED, COALESCE(bld.int_QTE_RECUE,0)"
+            List<Object[]> rows = em
+                    .createNativeQuery("SELECT bld.lg_FAMILLE_ID, bld.dt_UPDATED, COALESCE(bld.int_QTE_RECUE,0)"
                             + " FROM t_bon_livraison_detail bld"
                             + " INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID"
                             + " INNER JOIN (SELECT bld2.lg_FAMILLE_ID AS fid, MAX(bld2.dt_UPDATED) AS maxdt"
@@ -1187,8 +1187,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     private Map<String, Long> fmStockReserve(List<String> ids, String emplacement) {
         Map<String, Long> map = new HashMap<>();
         for (List<String> chunk : fmChunks(ids)) {
-            List<Object[]> rows = em.createNativeQuery(
-                    "SELECT t.lg_FAMILLE_ID, COALESCE(t.int_NUMBER,0) FROM t_type_stock_famille t"
+            List<Object[]> rows = em
+                    .createNativeQuery("SELECT t.lg_FAMILLE_ID, COALESCE(t.int_NUMBER,0) FROM t_type_stock_famille t"
                             + " WHERE t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable'"
                             + " AND t.lg_EMPLACEMENT_ID = :empl AND t.lg_FAMILLE_ID IN (:ids)")
                     .setParameter("empl", emplacement).setParameter("ids", chunk).getResultList();
@@ -1200,8 +1200,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     }
 
     /**
-     * Vente hebdomadaire moyenne (MOY/4) par produit : quantites vendues (equivalent boite, consolidation
-     * deconditionne -> parent) des 28 derniers jours divisees par 4.
+     * Vente hebdomadaire moyenne (MOY/4) par produit : quantites vendues (equivalent boite, consolidation deconditionne
+     * -> parent) des 28 derniers jours divisees par 4.
      */
     private Map<String, Double> fmVenteHebdo(List<String> ids, String emplacement) {
         Map<String, Double> map = new HashMap<>();
@@ -1241,16 +1241,16 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
             String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-            List<String> ids = rows.stream().map(AbcProduitDTO::getProduitId).filter(StringUtils::isNotBlank)
-                    .distinct().collect(Collectors.toList());
+            List<String> ids = rows.stream().map(AbcProduitDTO::getProduitId).filter(StringUtils::isNotBlank).distinct()
+                    .collect(Collectors.toList());
             Map<String, long[]> prix = fmPrix(ids);
             Map<String, long[][]> entrees = fmEntrees(ids);
             Map<String, Object[]> dernieres = fmDerniereEntree(ids);
             Map<String, Long> reserves = fmStockReserve(ids, emplacement);
             Map<String, Double> hebdos = fmVenteHebdo(ids, emplacement);
 
-            String moisCourant = java.time.LocalDate.now().getMonth()
-                    .getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.FRENCH);
+            String moisCourant = java.time.LocalDate.now().getMonth().getDisplayName(java.time.format.TextStyle.FULL,
+                    java.util.Locale.FRENCH);
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
             DecimalFormat df = new DecimalFormat("0.00", new DecimalFormatSymbols(java.util.Locale.US));
 

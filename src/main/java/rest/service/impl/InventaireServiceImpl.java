@@ -475,8 +475,7 @@ public class InventaireServiceImpl implements InventaireService {
         String query;
         if (isReserve) {
             query = "UPDATE t_inventaire_famille f SET f.int_NUMBER_INIT="
-                    + "(SELECT t.int_NUMBER FROM t_type_stock_famille t "
-                    + " WHERE t.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
+                    + "(SELECT t.int_NUMBER FROM t_type_stock_famille t " + " WHERE t.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
                     + " AND t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable' "
                     + " AND t.lg_EMPLACEMENT_ID = (SELECT s.lg_EMPLACEMENT_ID FROM t_famille_stock s "
                     + "     WHERE s.lg_FAMILLE_STOCK_ID = f.lg_FAMILLE_STOCK_ID) LIMIT 1) "
