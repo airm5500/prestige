@@ -511,6 +511,39 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 sortable: false,
                 menuDisabled: true,
                 items: [{
+                        getClass: function (v, meta, rec) {
+                            if (rec.get('fneUrl') && !rec.get('fneAvoirReference') && rec.get('AUTORISATION_AVOIR_FNE')) {
+                                return 'x-display-hide';
+                            } else {
+                                return 'x-hide-display';
+                            }
+                        },
+                        icon: 'resources/images/icons/fam/retour.png',
+                        tooltip: 'Émettre un avoir FNE (total)',
+                        scope: this,
+                        handler: this.onAvoirFneClick
+                    }, {
+                        getClass: function (v, meta, rec) {
+                            if (rec.get('fneAvoirReference')) {
+                                return 'x-display-hide';
+                            } else {
+                                return 'x-hide-display';
+                            }
+                        },
+                        getTip: function (v, meta, rec) {
+                            return 'Avoir FNE : ' + rec.get('fneAvoirReference');
+                        },
+                        icon: 'resources/images/icons/fam/recu.png',
+                        scope: this,
+                        handler: this.onOpenFneAvoirLink
+                    }]
+            },
+            {
+                xtype: 'actioncolumn',
+                width: 30,
+                sortable: false,
+                menuDisabled: true,
+                items: [{
                         icon: 'resources/images/icons/fam/grid.png',
                         tooltip: 'Detail Bordereau',
                         scope: this,
@@ -613,6 +646,64 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         if (fneUrl) {
             window.open(fneUrl);
         }
+
+    },
+    onOpenFneAvoirLink: function (grid, rowIndex) {
+        const rec = grid.getStore().getAt(rowIndex);
+        const fneAvoirUrl = rec.get('fneAvoirUrl');
+        if (fneAvoirUrl) {
+            window.open(fneAvoirUrl);
+        } else if (rec.get('fneAvoirReference')) {
+            Ext.MessageBox.alert('Info', 'Avoir FNE : ' + rec.get('fneAvoirReference'));
+        }
+
+    },
+    onAvoirFneClick: function (grid, rowIndex) {
+        const me = this;
+        const rec = grid.getStore().getAt(rowIndex);
+        if (!rec.get('fneUrl') || rec.get('fneAvoirReference') || !rec.get('AUTORISATION_AVOIR_FNE')) {
+            return;
+        }
+        Ext.MessageBox.confirm('Avoir FNE',
+                'Émettre un avoir total à la FNE pour la facture ' + rec.get('str_CODE_FACTURE')
+                + ' ?<br/>Toutes les lignes certifiées seront retournées. Cette opération consomme un sticker et est irréversible.',
+                function (btn) {
+                    if (btn === 'yes') {
+                        me.doAvoirFne(rec.get('lg_FACTURE_ID'), grid);
+                    }
+                });
+    },
+    doAvoirFne: function (idFacture, grid) {
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Avoir FNE en cours!');
+        Ext.Ajax.request({
+            url: '../api/v1/fne/invoices/avoir/' + idFacture,
+            method: 'POST',
+            success: function (response) {
+                progress.hide();
+                let message = 'Avoir FNE émis';
+                try {
+                    const json = Ext.decode(response.responseText);
+                    if (json.reference) {
+                        message = 'Avoir FNE émis. Référence : ' + json.reference;
+                    }
+                } catch (e) {
+                }
+                Ext.MessageBox.alert('Info', message);
+                grid.getStore().reload();
+            },
+            failure: function (response) {
+                progress.hide();
+                let message = response.responseText;
+                try {
+                    const json = Ext.decode(response.responseText);
+                    if (json.message) {
+                        message = json.message;
+                    }
+                } catch (e) {
+                }
+                Ext.MessageBox.alert('Avoir FNE impossible', message);
+            }
+        });
 
     },
     shwoChoiceModal: function (grid, rowIndex) {

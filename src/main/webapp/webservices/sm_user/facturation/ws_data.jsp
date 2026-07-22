@@ -94,6 +94,7 @@
     List<TPrivilege> LstTPrivilege = (List<TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
     boolean isALLOWED = DateConverter.hasAuthorityById(LstTPrivilege, Util.ACTIONDELETEINVOICE);
     boolean ACTION_REGLER_FACTURE = DateConverter.hasAuthorityById(LstTPrivilege, Util.ACTION_REGLER_FACTURE);
+    boolean AUTORISATION_AVOIR_FNE = DateConverter.hasAuthorityByName(LstTPrivilege, "AUTORISATION_AVOIR_FNE");
 
     for (TFacture of : lstTFacture) {
         
@@ -101,6 +102,9 @@
         JSONObject json = new JSONObject();
 
         json.put("fneUrl", of.getFneUrl());
+        json.put("fneAvoirReference", of.getFneAvoirReference());
+        json.put("fneAvoirUrl", of.getFneAvoirUrl());
+        json.put("AUTORISATION_AVOIR_FNE", AUTORISATION_AVOIR_FNE);
         json.put("lg_FACTURE_ID", of.getLgFACTUREID());
         json.put("str_CODE_FACTURE", of.getStrCODEFACTURE());
         json.put("int_NB_DOSSIER", of.getIntNBDOSSIER());

@@ -183,6 +183,18 @@ Ext.define('testextjs.model.Facture', {
             name: 'fneUrl',
             type: 'string'
         },
+        {
+            name: 'fneAvoirReference',
+            type: 'string'
+        },
+        {
+            name: 'fneAvoirUrl',
+            type: 'string'
+        },
+        {
+            name: 'AUTORISATION_AVOIR_FNE',
+            type: 'boolean'
+        },
          {
             name: 'ACTION_REGLER_FACTURE',
             type: 'boolean'

@@ -1,6 +1,7 @@
 package rest.service.fne;
 
 import com.google.common.util.concurrent.AtomicDouble;
+import dal.FneInvoiceEntity;
 import dal.TFacture;
 import dal.TOfficine;
 import dal.TTiersPayant;
@@ -9,10 +10,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -28,6 +31,8 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.exception.FneExeception;
 import rest.service.impl.Utils;
@@ -65,7 +70,12 @@ public class FneServiceImpl implements FneService {
         fetchGroupeFactures(
                 Arrays.stream(idGroupeFactures.split("_")).map(Integer::valueOf).collect(Collectors.toSet()))
                         .forEach(facture -> {
-                            createInvoice(facture, typeInvoice);
+                            try {
+                                createInvoice(facture, typeInvoice);
+                            } catch (Exception e) {
+                                // comportement historique du groupe : une facture en echec n'empeche pas les autres
+                                LOG.log(Level.SEVERE, "createGroupeInvoice: facture " + facture.getLgFACTUREID(), e);
+                            }
                         });
     }
 
@@ -77,11 +87,17 @@ public class FneServiceImpl implements FneService {
         WebTarget myResource = client.target(sp.fneUrl);
         Response response = myResource.request().header("Authorization", "Bearer ".concat(sp.fnePkey))
                 .post(Entity.entity(payload.toString(), MediaType.APPLICATION_JSON_TYPE));
-        // String fneResponse = response.readEntity(String.class);
 
-        FneResponse fneResponse = response.readEntity(FneResponse.class);
-        LOG.log(Level.INFO, "response --- {0}", fneResponse);
+        int status = response.getStatus();
+        String raw = response.readEntity(String.class);
+        LOG.log(Level.INFO, "FNE sign response ({0}) --- {1}", new Object[] { status, raw });
+        FneResponse fneResponse = parseFneResponse(raw);
+        if (status < 200 || status >= 300 || Objects.isNull(fneResponse)
+                || StringUtils.isEmpty(fneResponse.getToken())) {
+            throw new FneExeception(resolveErrorMessage(raw, status));
+        }
         saveResponse(fneResponse, facture);
+        persistSignResponse(raw, facture);
 
     }
 
@@ -164,11 +180,344 @@ public class FneServiceImpl implements FneService {
     }
 
     private void saveResponse(FneResponse fneResponse, TFacture facture) {
-        if (Objects.nonNull(fneResponse)) {
+        if (Objects.nonNull(fneResponse) && StringUtils.isNotEmpty(fneResponse.getToken())) {
             facture.setFneUrl(fneResponse.getToken());
             em.merge(facture);
         }
 
+    }
+
+    /**
+     * Lecture tolerante de la reponse FNE via org.json : seuls les champs utiles sont extraits, les champs inconnus
+     * sont ignores.
+     */
+    private FneResponse parseFneResponse(String raw) {
+        try {
+            JSONObject json = new JSONObject(raw);
+            FneResponse fneResponse = new FneResponse();
+            fneResponse.setNcc(json.optString("ncc", null));
+            fneResponse.setReference(json.optString("reference", null));
+            fneResponse.setToken(json.optString("token", null));
+            fneResponse.setWarning(json.optBoolean("warning", false));
+            return fneResponse;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "parseFneResponse", e);
+            return null;
+        }
+    }
+
+    private String resolveErrorMessage(String raw, int status) {
+        try {
+            JSONObject json = new JSONObject(raw);
+            String message = json.optString("message", null);
+            if (StringUtils.isNotEmpty(message)) {
+                return "FNE (" + status + ") : " + message;
+            }
+        } catch (Exception e) {
+            // reponse non JSON : message generique ci-dessous
+        }
+        return "La plateforme FNE a retourne une erreur (code " + status + ")";
+    }
+
+    /**
+     * Enregistre la reponse complete de certification dans fne_invoice : indispensable pour un futur avoir (l'endpoint
+     * /refund exige invoice.id et les ids des lignes). Non bloquant : un echec ici ne remet pas en cause la
+     * certification qui vient de reussir.
+     */
+    private void persistSignResponse(String raw, TFacture facture) {
+        try {
+            JSONObject json = new JSONObject(raw);
+            JSONObject invoice = json.optJSONObject("invoice");
+            String fneInvoiceId = Objects.nonNull(invoice) ? invoice.optString("id", null) : null;
+            if (StringUtils.isEmpty(fneInvoiceId)) {
+                LOG.log(Level.WARNING, "persistSignResponse: pas d''objet invoice dans la reponse FNE, facture {0}",
+                        facture.getLgFACTUREID());
+                return;
+            }
+            saveFneInvoiceRecord(fneInvoiceId, FneInvoiceEntity.TYPE_SALE, json.optString("reference", null), raw,
+                    facture);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "persistSignResponse: enregistrement non bloquant en echec", e);
+        }
+    }
+
+    private void saveFneInvoiceRecord(String id, String type, String reference, String raw, TFacture facture) {
+        FneInvoiceEntity entity = em.find(FneInvoiceEntity.class, id);
+        if (Objects.isNull(entity)) {
+            entity = new FneInvoiceEntity();
+            entity.setId(id);
+        }
+        entity.setMvtDate(new Date());
+        entity.setType(type);
+        entity.setReference(reference);
+        entity.setResponse(raw);
+        entity.setFacture(facture);
+        em.merge(entity);
+    }
+
+    @Override
+    public JSONObject createAvoirTotal(String idFacture) throws FneExeception {
+        FneInvoiceEntity sale = requireSaleRecord(idFacture);
+        List<FneAvoirItem> items = extractAvoirItems(sale.getResponse());
+        if (items.isEmpty()) {
+            throw new FneExeception(
+                    "Aucune ligne exploitable dans la reponse de certification enregistree pour cette facture");
+        }
+        return doRefund(sale, items);
+    }
+
+    @Override
+    public JSONObject createAvoirPartiel(String idFacture, List<FneAvoirItem> items) throws FneExeception {
+        if (Objects.isNull(items) || items.isEmpty()) {
+            throw new FneExeception("Aucune ligne fournie pour l'avoir partiel");
+        }
+        for (FneAvoirItem item : items) {
+            if (StringUtils.isEmpty(item.getId()) || item.getQuantity() <= 0) {
+                throw new FneExeception("Ligne d'avoir invalide : identifiant FNE et quantite positive obligatoires");
+            }
+        }
+        FneInvoiceEntity sale = requireSaleRecord(idFacture);
+        return doRefund(sale, items);
+    }
+
+    /**
+     * Retourne l'enregistrement de certification (type SALE) le plus recent de la facture, apres controle qu'aucun
+     * avoir n'a deja ete emis.
+     */
+    private FneInvoiceEntity requireSaleRecord(String idFacture) throws FneExeception {
+        TFacture facture = em.find(TFacture.class, idFacture);
+        if (Objects.isNull(facture)) {
+            throw new FneExeception("Facture introuvable : " + idFacture);
+        }
+        if (StringUtils.isEmpty(facture.getFneUrl())) {
+            throw new FneExeception("Cette facture n'a pas encore ete certifiee a la FNE");
+        }
+        if (StringUtils.isNotEmpty(facture.getFneAvoirReference())) {
+            throw new FneExeception("Un avoir FNE a deja ete emis pour cette facture (reference "
+                    + facture.getFneAvoirReference() + ")");
+        }
+        FneInvoiceEntity sale = findLastRecordByType(idFacture, FneInvoiceEntity.TYPE_SALE);
+        if (Objects.isNull(sale)) {
+            throw new FneExeception("Identifiants FNE introuvables pour cette facture (certification anterieure a la "
+                    + "gestion des avoirs). Utilisez la recuperation automatique ou le rattachement manuel, puis relancez l'avoir.");
+        }
+        return sale;
+    }
+
+    private FneInvoiceEntity findLastRecordByType(String idFacture, String type) {
+        TypedQuery<FneInvoiceEntity> query = em.createQuery(
+                "SELECT o FROM FneInvoiceEntity o WHERE o.facture.lgFACTUREID = ?1 AND o.type = ?2 ORDER BY o.mvtDate DESC",
+                FneInvoiceEntity.class);
+        query.setParameter(1, idFacture).setParameter(2, type).setMaxResults(1);
+        return query.getResultList().stream().findFirst().orElse(null);
+    }
+
+    /**
+     * Extrait les lignes (id FNE + quantite complete) de la reponse de certification enregistree, pour construire un
+     * avoir total.
+     */
+    private List<FneAvoirItem> extractAvoirItems(String rawSaleResponse) {
+        List<FneAvoirItem> items = new ArrayList<>();
+        try {
+            JSONObject invoice = resolveInvoiceObject(new JSONObject(rawSaleResponse));
+            if (Objects.isNull(invoice)) {
+                return items;
+            }
+            JSONArray jsonItems = invoice.optJSONArray("items");
+            if (Objects.isNull(jsonItems)) {
+                return items;
+            }
+            for (int i = 0; i < jsonItems.length(); i++) {
+                JSONObject jsonItem = jsonItems.optJSONObject(i);
+                if (Objects.isNull(jsonItem)) {
+                    continue;
+                }
+                String id = jsonItem.optString("id", null);
+                int quantity = jsonItem.optInt("quantity", 1);
+                if (StringUtils.isNotEmpty(id) && quantity > 0) {
+                    items.add(new FneAvoirItem(id, quantity));
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "extractAvoirItems", e);
+        }
+        return items;
+    }
+
+    /**
+     * La reponse de certification est de la forme {..., "invoice": {...}} ; un rattachement manuel peut fournir
+     * directement l'objet facture {id, items...}.
+     */
+    private JSONObject resolveInvoiceObject(JSONObject json) {
+        JSONObject invoice = json.optJSONObject("invoice");
+        if (Objects.nonNull(invoice)) {
+            return invoice;
+        }
+        if (StringUtils.isNotEmpty(json.optString("id", null)) && Objects.nonNull(json.optJSONArray("items"))) {
+            return json;
+        }
+        return null;
+    }
+
+    private JSONObject doRefund(FneInvoiceEntity sale, List<FneAvoirItem> items) throws FneExeception {
+        TFacture facture = sale.getFacture();
+        JSONArray jsonItems = new JSONArray();
+        for (FneAvoirItem item : items) {
+            jsonItems.put(new JSONObject().put("id", item.getId()).put("quantity", item.getQuantity()));
+        }
+        JSONObject payload = new JSONObject().put("items", jsonItems);
+        String refundUrl = buildRefundUrl(sale.getId());
+        LOG.log(Level.INFO, "FNE refund request {0} --- {1}", new Object[] { refundUrl, payload });
+
+        Client client = getHttpClient();
+        Response response = client.target(refundUrl).request().header("Authorization", "Bearer ".concat(sp.fnePkey))
+                .accept(MediaType.APPLICATION_JSON)
+                .post(Entity.entity(payload.toString(), MediaType.APPLICATION_JSON_TYPE));
+        int status = response.getStatus();
+        String raw = response.readEntity(String.class);
+        LOG.log(Level.INFO, "FNE refund response ({0}) --- {1}", new Object[] { status, raw });
+
+        FneResponse fneResponse = parseFneResponse(raw);
+        if (status < 200 || status >= 300 || Objects.isNull(fneResponse)
+                || StringUtils.isEmpty(fneResponse.getReference())) {
+            throw new FneExeception(resolveErrorMessage(raw, status));
+        }
+
+        facture.setFneAvoirReference(fneResponse.getReference());
+        facture.setFneAvoirUrl(fneResponse.getToken());
+        em.merge(facture);
+        try {
+            saveFneInvoiceRecord(resolveAvoirRecordId(fneResponse), FneInvoiceEntity.TYPE_AVOIR,
+                    fneResponse.getReference(), raw, facture);
+        } catch (Exception e) {
+            // trace non bloquante : la reference et l'URL de l'avoir sont deja sur la facture
+            LOG.log(Level.SEVERE, "doRefund: enregistrement fne_invoice de l'avoir", e);
+        }
+
+        return new JSONObject().put("success", true).put("reference", fneResponse.getReference()).put("url",
+                StringUtils.defaultString(fneResponse.getToken()));
+    }
+
+    private String resolveAvoirRecordId(FneResponse fneResponse) {
+        String tokenUuid = extractTokenUuid(fneResponse.getToken());
+        if (StringUtils.isNotEmpty(tokenUuid)) {
+            return tokenUuid;
+        }
+        if (StringUtils.isNotEmpty(fneResponse.getReference())) {
+            return fneResponse.getReference();
+        }
+        return UUID.randomUUID().toString();
+    }
+
+    /**
+     * L'URL de refund est deduite de l'URL de certification configuree (fneUrl), qui se termine par
+     * /external/invoices/sign : POST $base/external/invoices/{id}/refund.
+     */
+    private String buildRefundUrl(String fneInvoiceId) throws FneExeception {
+        String base = StringUtils.trimToEmpty(sp.fneUrl);
+        if (StringUtils.isEmpty(base)) {
+            throw new FneExeception("URL FNE non configuree (propriete fneUrl)");
+        }
+        base = StringUtils.removeEnd(base, "/");
+        base = StringUtils.removeEnd(base, "/sign");
+        return base + "/" + fneInvoiceId + "/refund";
+    }
+
+    @Override
+    public JSONObject rattacherFacture(String idFacture, String signResponseJson) throws FneExeception {
+        TFacture facture = em.find(TFacture.class, idFacture);
+        if (Objects.isNull(facture)) {
+            throw new FneExeception("Facture introuvable : " + idFacture);
+        }
+        if (StringUtils.isEmpty(signResponseJson)) {
+            throw new FneExeception("Le JSON de la facture FNE est obligatoire pour le rattachement");
+        }
+        JSONObject json;
+        try {
+            json = new JSONObject(signResponseJson);
+        } catch (Exception e) {
+            throw new FneExeception("Le contenu fourni n'est pas un JSON valide");
+        }
+        JSONObject invoice = resolveInvoiceObject(json);
+        if (Objects.isNull(invoice)) {
+            throw new FneExeception(
+                    "JSON incomplet : l'objet facture FNE avec son id et ses lignes (items) est obligatoire");
+        }
+        String fneInvoiceId = invoice.optString("id", null);
+        JSONArray items = invoice.optJSONArray("items");
+        if (StringUtils.isEmpty(fneInvoiceId) || Objects.isNull(items) || items.length() == 0) {
+            throw new FneExeception(
+                    "JSON incomplet : l'objet facture FNE avec son id et ses lignes (items) est obligatoire");
+        }
+        // normalisation vers la forme de la reponse de certification {"reference":..., "invoice": {...}}
+        String reference = StringUtils.defaultIfEmpty(json.optString("reference", null),
+                invoice.optString("reference", null));
+        JSONObject normalise = new JSONObject().put("reference", StringUtils.defaultString(reference)).put("invoice",
+                invoice);
+        saveFneInvoiceRecord(fneInvoiceId, FneInvoiceEntity.TYPE_SALE, reference, normalise.toString(), facture);
+
+        List<FneAvoirItem> avoirItems = extractAvoirItems(normalise.toString());
+        return new JSONObject().put("success", true).put("fneInvoiceId", fneInvoiceId).put("nbItems",
+                avoirItems.size());
+    }
+
+    @Override
+    public JSONObject recupererDepuisToken(String idFacture) throws FneExeception {
+        TFacture facture = em.find(TFacture.class, idFacture);
+        if (Objects.isNull(facture)) {
+            throw new FneExeception("Facture introuvable : " + idFacture);
+        }
+        FneInvoiceEntity existant = findLastRecordByType(idFacture, FneInvoiceEntity.TYPE_SALE);
+        if (Objects.nonNull(existant)) {
+            return new JSONObject().put("success", true).put("fneInvoiceId", existant.getId()).put("message",
+                    "Les identifiants FNE de cette facture sont deja enregistres");
+        }
+        String tokenUuid = extractTokenUuid(facture.getFneUrl());
+        if (StringUtils.isEmpty(tokenUuid)) {
+            throw new FneExeception("Aucune URL de verification FNE n'est enregistree pour cette facture");
+        }
+
+        String base = StringUtils.removeEnd(StringUtils.removeEnd(StringUtils.trimToEmpty(sp.fneUrl), "/"), "/sign");
+        // tentatives best-effort : la consultation d'une facture par token n'est pas documentee par la DGI
+        List<String> urls = Arrays.asList(base + "/" + tokenUuid, facture.getFneUrl());
+        Client client = getHttpClient();
+        for (String url : urls) {
+            try {
+                Response response = client.target(url).request().header("Authorization", "Bearer ".concat(sp.fnePkey))
+                        .accept(MediaType.APPLICATION_JSON).get();
+                int status = response.getStatus();
+                String raw = response.readEntity(String.class);
+                LOG.log(Level.INFO, "FNE recuperation {0} ({1}) --- {2}", new Object[] { url, status, raw });
+                if (status < 200 || status >= 300) {
+                    continue;
+                }
+                JSONObject invoice = resolveInvoiceObject(new JSONObject(raw));
+                if (Objects.isNull(invoice) || StringUtils.isEmpty(invoice.optString("id", null))
+                        || Objects.isNull(invoice.optJSONArray("items"))) {
+                    continue;
+                }
+                return rattacherFacture(idFacture, raw);
+            } catch (FneExeception e) {
+                throw e;
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "recupererDepuisToken: tentative " + url, e);
+            }
+        }
+        throw new FneExeception("Recuperation automatique impossible : la plateforme FNE n'expose pas le detail de la "
+                + "facture pour ce token. Utilisez le rattachement manuel avec le JSON de la facture (espace FNE ou "
+                + "support.fne@dgi.gouv.ci).");
+    }
+
+    /**
+     * Extrait l'UUID final d'une URL de verification FNE (http://.../fr/verification/{uuid}).
+     */
+    private String extractTokenUuid(String url) {
+        if (StringUtils.isEmpty(url)) {
+            return null;
+        }
+        String cleaned = StringUtils.removeEnd(url.trim(), "/");
+        int idx = cleaned.lastIndexOf('/');
+        return idx >= 0 ? cleaned.substring(idx + 1) : cleaned;
     }
 
     /**

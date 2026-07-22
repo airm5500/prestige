@@ -127,6 +127,10 @@ public class TFacture implements Serializable {
     private String typeFactureId;
     @Column(name = "fne_url", length = 500)
     private String fneUrl;
+    @Column(name = "fne_avoir_reference", length = 70)
+    private String fneAvoirReference;
+    @Column(name = "fne_avoir_url", length = 500)
+    private String fneAvoirUrl;
     @JoinColumn(name = "groupeTp_id", referencedColumnName = "lg_GROUPE_ID")
     @ManyToOne
     private TGroupeTierspayant groupeTierspayant;
@@ -140,6 +144,22 @@ public class TFacture implements Serializable {
 
     public void setFneUrl(String fneUrl) {
         this.fneUrl = fneUrl;
+    }
+
+    public String getFneAvoirReference() {
+        return fneAvoirReference;
+    }
+
+    public void setFneAvoirReference(String fneAvoirReference) {
+        this.fneAvoirReference = fneAvoirReference;
+    }
+
+    public String getFneAvoirUrl() {
+        return fneAvoirUrl;
+    }
+
+    public void setFneAvoirUrl(String fneAvoirUrl) {
+        this.fneAvoirUrl = fneAvoirUrl;
     }
 
     public TGroupeTierspayant getGroupeTierspayant() {

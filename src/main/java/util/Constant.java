@@ -35,6 +35,7 @@ public final class Constant {
     public static final String VENTE_COMPTANT = "VNO";
     public static final String VENTE_ASSURANCE = "VO";
     public static final String USER_LIST_PRIVILEGE = "USER_LIST_PRIVILEGE";
+    public static final String AUTORISATION_AVOIR_FNE = "AUTORISATION_AVOIR_FNE";
     public static final String SHOW_VENTE = "str_SHOW_VENTE";
     public static final String P_SHOW_ALL_ACTIVITY = "P_SHOW_ALL_ACTIVITY";
     public static final String STATUT_DELETE = "delete";
