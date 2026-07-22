@@ -26,6 +26,9 @@ public interface CommandeService {
 
     JSONObject cloturerBonLivraison(String id) throws JSONException;
 
+    /** Vrai si l'utilisateur connecte detient le privilege 'Autorisation entrée en stock'. */
+    boolean hasEntreeStockPrivilege();
+
     void closureOrder(TOrder order);
 
     JSONObject cloturerInvetaire(String inventaireId) throws JSONException;

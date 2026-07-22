@@ -171,6 +171,10 @@ public class CommandeServiceImpl implements CommandeService {
             TParameters tp = findParameter(Constant.KEY_ACTIVATE_PEREMPTION_DATE);
 
             TUser user = sessionHelperService.getCurrentUser();
+            if (!hasPrivilege(user, P_ENTREE_EN_STOCK)) {
+                return json.put("success", false).put("msg",
+                        "Vous n'avez pas le privilège requis pour faire une entrée en stock");
+            }
 
             TBonLivraison bonLivraison = this.getEm().find(TBonLivraison.class, id);
             List<TPreenregistrementDetail> avoirs = getAvoirs();
@@ -611,6 +615,14 @@ public class CommandeServiceImpl implements CommandeService {
      * verifie qu'un privilege actif est associe a l'utilisateur via ses roles (meme chaine t_role_user -> t_role ->
      * t_role_privelege -> t_privilege que bll.userManagement.privilege)
      */
+    private static final String P_ENTREE_EN_STOCK = "P_ENTREE_EN_STOCK";
+
+    @Override
+    public boolean hasEntreeStockPrivilege() {
+        TUser user = sessionHelperService.getCurrentUser();
+        return user != null && hasPrivilege(user, P_ENTREE_EN_STOCK);
+    }
+
     private boolean hasPrivilege(TUser user, String privilegeName) {
         try {
             Object result = this.getEm().createNativeQuery("SELECT COUNT(t_privilege.str_NAME) FROM t_role_user "

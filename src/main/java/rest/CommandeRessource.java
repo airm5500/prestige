@@ -69,6 +69,14 @@ public class CommandeRessource {
         return Response.ok().entity(commandeService.cloturerBonLivraison(id).toString()).build();
     }
 
+    @GET
+    @Path("entree-stock/autorisation")
+    public Response entreeStockAutorisation() throws JSONException {
+        return Response.ok()
+                .entity(new JSONObject().put("authorize", commandeService.hasEntreeStockPrivilege()).toString())
+                .build();
+    }
+
     @PUT
     @Path("clotureinventaire/{id}")
     public Response cloturerInventaire(@PathParam("id") String id) throws JSONException {

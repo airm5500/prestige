@@ -288,8 +288,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                     dock: 'bottom',
                     border: '0',
                     items: ['->',
-                        {text: 'Retour', id: 'btn_cancel', cls: 'btn-secondary', iconCls: 'icon-clear-group', scope: this, handler: this.onbtncancel},
-                        {text: 'ENTREE EN STOCK', id: 'btn_enterstock', cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, handler: this.onbtnenterstock}
+                        {text: 'Retour', id: 'btn_cancel', iconCls: 'icon-clear-group', style: 'background-color:#d9534f;border-color:#d9534f;', scope: this, handler: this.onbtncancel},
+                        {text: 'ENTREE EN STOCK', id: 'btn_enterstock', cls: 'btn-primary', iconCls: 'icon-clear-group', hidden: true, scope: this, handler: this.onbtnenterstock}
                     ]
                 }
             ]
@@ -313,7 +313,24 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
             set('ig_tva', Ext.util.Format.number(ds.int_TVA || 0, '0,000.'));
             set('ig_ttc', Ext.util.Format.number(ds.int_HTTC || 0, '0,000.'));
             this.checkParamGestionLot();
+            this.loadEntreeStockPrivilege();
         }, this, {single: true, delay: 50});
+    },
+
+    // Affiche le bouton 'ENTREE EN STOCK' uniquement si l'utilisateur detient
+    // le privilege 'Autorisation entrée en stock' (controle aussi cote serveur).
+    loadEntreeStockPrivilege: function () {
+        Ext.Ajax.request({
+            url: '../api/v1/commande/entree-stock/autorisation',
+            method: 'GET',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                var btn = Ext.getCmp('btn_enterstock');
+                if (btn && o.authorize === true) {
+                    btn.setVisible(true);
+                }
+            }
+        });
     },
 
     loadStore: function () {
