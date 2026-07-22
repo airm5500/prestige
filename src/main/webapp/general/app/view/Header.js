@@ -196,11 +196,30 @@ Ext.define('testextjs.view.Header', {
         // Charge le compteur de notifications (articles a reassortir)
         this.on('afterrender', function () {
             refreshNotificationBadge();
-            // Rafraichissement temps reel du badge (toutes les 60s)
+            // Rafraichissement du badge : delai configurable via le parametre
+            // KEY_NOTIFICATION_REFRESH_SECONDS (t_parameters), defaut 60s,
+            // minimum 15s pour ne pas surcharger le serveur.
             if (!window.PRESTIGE_NOTIF_TIMER) {
-                window.PRESTIGE_NOTIF_TIMER = setInterval(function () {
-                    refreshNotificationBadge();
-                }, 60000);
+                var demarrerTimer = function (secondes) {
+                    var delai = parseInt(secondes, 10);
+                    if (isNaN(delai) || delai < 15) {
+                        delai = 60;
+                    }
+                    window.PRESTIGE_NOTIF_TIMER = setInterval(function () {
+                        refreshNotificationBadge();
+                    }, delai * 1000);
+                };
+                Ext.Ajax.request({
+                    method: 'GET',
+                    url: '../api/v1/app-params/value/KEY_NOTIFICATION_REFRESH_SECONDS',
+                    success: function (response) {
+                        var r = Ext.JSON.decode(response.responseText, true);
+                        demarrerTimer(r && r.data ? r.data : 60);
+                    },
+                    failure: function () {
+                        demarrerTimer(60);
+                    }
+                });
             }
             // Animation lettre par lettre du branding et du nom officine.
             prestigeHeaderAnimateTexts();

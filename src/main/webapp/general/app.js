@@ -395,6 +395,8 @@ Ext.application({
         'testextjs.view.stockmanagement.etatstock.EtatStockManager',
         'testextjs.view.stockmanagement.etatstock.action.add',
         'testextjs.view.stockmanagement.evolutionstock.EvolutionStock',
+        'testextjs.view.vente.SuppressionsVente',
+        'testextjs.view.produits.GestionSurstock',
         'testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManager',
         'testextjs.view.stockmanagement.perime.PerimeManager',
         'testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenneManager',
@@ -751,7 +753,12 @@ Ext.application({
         'testextjs.view.modereglement.ModeReglementView',
         'testextjs.view.stat.ArticleMvtGrid',
         'testextjs.store.ArticleMvtStore',
-        'testextjs.model.ArticleMvt'
+        'testextjs.model.ArticleMvt',
+        'testextjs.view.support.SupportContact',
+        'testextjs.view.support.SupportTickets',
+        'testextjs.view.support.SupportDiagnostic',
+        'testextjs.view.support.SupportSante',
+        'testextjs.view.support.SupportHistorique'
 
 
         
@@ -830,7 +837,11 @@ Ext.application({
         'CautionCtr',
         'BalanceSaleCashDepotController',
         'PointCaisseController',
-        'ArticleMvtController'
+        'ArticleMvtController',
+        'SupportContactCtr',
+        'SupportTicketsCtr',
+        'SupportDiagnosticCtr',
+        'SupportSanteCtr'
 
 
     ],
@@ -840,3 +851,78 @@ Ext.application({
     autoCreateViewport: true
 
 });
+
+// ---------------------------------------------------------------------
+// Centre de Support : capture automatique des erreurs frontend
+// (erreurs JavaScript non gerees et echecs Ajax). Les evenements sont
+// envoyes au journal du Centre de Support ou ils sont dedupliques par
+// signature. La capture est silencieuse : elle ne doit jamais perturber
+// l'utilisation de l'application.
+// ---------------------------------------------------------------------
+(function () {
+    var reported = {};
+    var reportCount = 0;
+    var MAX_REPORTS = 20;
+
+    function reportError(payload) {
+        try {
+            if (reportCount >= MAX_REPORTS) {
+                return;
+            }
+            var key = (payload.messageCourt || '') + '|' + (payload.urlOuEcran || '');
+            if (reported[key]) {
+                return;
+            }
+            reported[key] = true;
+            reportCount++;
+            Ext.Ajax.request({
+                method: 'POST',
+                url: '/prestige/api/v1/support/events',
+                headers: {'Content-Type': 'application/json'},
+                params: Ext.JSON.encode(payload),
+                failure: Ext.emptyFn
+            });
+        } catch (ignore) {
+            // capture silencieuse
+        }
+    }
+
+    window.onerror = function (message, source, lineno, colno, error) {
+        reportError({
+            type: 'JS',
+            niveau: 'ERROR',
+            module: 'FRONTEND',
+            messageCourt: String(message || 'Erreur JavaScript').substring(0, 500),
+            urlOuEcran: (String(source || window.location.pathname) + ':' + (lineno || 0)).substring(0, 255),
+            stack: (error && error.stack) ? String(error.stack).substring(0, 8000) : null
+        });
+        return false;
+    };
+
+    Ext.onReady(function () {
+        Ext.Ajax.on('requestexception', function (conn, response, options) {
+            try {
+                var url = (options && options.url) ? String(options.url) : '';
+                if (url.indexOf('/support/events') !== -1) {
+                    return;
+                }
+                if (response && response.aborted) {
+                    return;
+                }
+                var status = response ? response.status : 0;
+                reportError({
+                    type: 'AJAX',
+                    niveau: status >= 500 || status === 0 ? 'ERROR' : 'WARN',
+                    module: 'FRONTEND',
+                    messageCourt: ('Échec Ajax HTTP ' + status + ' '
+                            + (response && response.statusText ? response.statusText : '')).substring(0, 500),
+                    urlOuEcran: url.substring(0, 255),
+                    stack: (response && response.responseText)
+                            ? String(response.responseText).substring(0, 4000) : null
+                });
+            } catch (ignore) {
+                // capture silencieuse
+            }
+        });
+    });
+})();

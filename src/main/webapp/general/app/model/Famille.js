@@ -507,7 +507,9 @@ Ext.define('testextjs.model.Famille', {
             type: 'boolean'
         },
         {name: 'cmu_price', type: 'int'},
-        {name: 'produitState', type: 'auto'}
+        {name: 'produitState', type: 'auto'},
+        {name: 'is_TOUCHED', type: 'string'},
+        {name: 'is_AUTHORIZE_CLOTURE', type: 'boolean'}
 
     ]
 });

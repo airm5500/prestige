@@ -81,6 +81,15 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
             'peremptionquery #imprimer': {
                 click: this.onPdfClick
             },
+            'peremptionquery #exportCsv': {
+                click: this.onExportCsv
+            },
+            'peremptionquery #exportExcel': {
+                click: this.onExportExcel
+            },
+            'peremptionquery #creerInventaire': {
+                click: this.onCreerInventaire
+            },
             'peremptionquery #rayons': {
                 select: this.doSearch
             },
@@ -139,6 +148,85 @@ Ext.define('testextjs.controller.peremptionManagerCtr', {
         window.open(linkUrl);
     },
 
+    /* filtres actifs de l'ecran, partages par les exports et la creation d'inventaire */
+    buildFilterParams: function () {
+        const me = this;
+        return {
+            nbreMois: me.getNbreMois().getValue() == null ? '' : me.getNbreMois().getValue(),
+            codeRayon: me.getRayons().getValue() || '',
+            codeGrossiste: me.getGrossiste().getValue() || '',
+            codeFamile: me.getCodeFamile().getValue() || '',
+            query: me.getQuery().getValue() || '',
+            dtStart: me.getDtStart().getSubmitValue() || '',
+            dtEnd: me.getDtEnd().getSubmitValue() || ''
+        };
+    },
+    onExportCsv: function () {
+        window.location = '../api/v1/fichearticle/perimes/csv?'
+                + Ext.Object.toQueryString(this.buildFilterParams());
+    },
+    onExportExcel: function () {
+        window.location = '../api/v1/fichearticle/perimes/excel?'
+                + Ext.Object.toQueryString(this.buildFilterParams());
+    },
+    // Creation d'inventaire "Inventaire peremptions proches yyyy-MM-dd HH:mm:ss"
+    // avec controle du nombre de produits distincts avant confirmation
+    onCreerInventaire: function () {
+        const me = this, filters = me.buildFilterParams();
+        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Controle des produits');
+        Ext.Ajax.request({
+            url: '../api/v1/fichearticle/perimes/produits/count',
+            method: 'GET',
+            params: filters,
+            timeout: 600000,
+            success: function (resp) {
+                progress.hide();
+                const r = Ext.JSON.decode(resp.responseText, true);
+                const count = (r && r.count) ? r.count : 0;
+                if (count === 0) {
+                    Ext.MessageBox.alert('Message', 'Aucun produit perime avec ces criteres.');
+                    return;
+                }
+                Ext.MessageBox.confirm('Confirmation',
+                        'Vous allez creer un inventaire contenant <b>' + count
+                        + '</b> produit(s) distinct(s) de la liste filtree.<br/>Confirmez-vous ?',
+                        function (btn) {
+                            if (btn !== 'yes') {
+                                return;
+                            }
+                            const prog = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
+                            Ext.Ajax.request({
+                                // filtres en query string : le endpoint lit des @QueryParam
+                                url: '../api/v1/fichearticle/perimes/create-inventaire?'
+                                        + Ext.Object.toQueryString(filters),
+                                method: 'POST',
+                                timeout: 600000,
+                                success: function (response) {
+                                    prog.hide();
+                                    const res = Ext.JSON.decode(response.responseText, true);
+                                    if (res && res.success) {
+                                        Ext.MessageBox.alert('Inventaire',
+                                                'Inventaire cree : <b>' + (res.name || '') + '</b><br/>Produits en compte : <b>'
+                                                + (res.count || 0) + '</b>');
+                                    } else {
+                                        Ext.MessageBox.alert('Erreur',
+                                                (res && res.message) ? res.message : "La creation de l'inventaire a echoue.");
+                                    }
+                                },
+                                failure: function () {
+                                    prog.hide();
+                                    Ext.MessageBox.alert('Erreur',
+                                            "La creation de l'inventaire a echoue. Aucun inventaire partiel n'a ete cree.");
+                                }
+                            });
+                        });
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.alert('Erreur', 'Le controle du nombre de produits a echoue.');
+            }
+        });
+    },
     doBeforechange: function (page, currentPage) {
         const me = this;
         const myProxy = me.getPeremptionGrid().getStore().getProxy();

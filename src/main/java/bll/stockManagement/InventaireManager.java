@@ -1903,6 +1903,152 @@ public class InventaireManager extends bllBase {
 
     }
 
+    /* tri identique aux listes existantes, selon le type d'inventaire */
+    private String buildOrderByInventaire(String lg_INVENTAIRE_ID) {
+        String orderBy = "ORDER BY t.lgFAMILLEID.lgZONEGEOID.strCODE ASC, t.lgFAMILLEID.strDESCRIPTION ASC";
+        try {
+            if (!"%%".equals(lg_INVENTAIRE_ID)) {
+                TInventaire OInventaire = this.getOdataManager().getEm().find(TInventaire.class, lg_INVENTAIRE_ID);
+                if (OInventaire != null && OInventaire.getStrTYPE().equalsIgnoreCase("famille")) {
+                    orderBy = "ORDER BY t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE ASC, t.lgFAMILLEID.strDESCRIPTION ASC";
+                } else if (OInventaire != null && OInventaire.getStrTYPE().equalsIgnoreCase("grossiste")) {
+                    orderBy = "ORDER BY t.lgFAMILLEID.lgGROSSISTEID.strCODE ASC, t.lgFAMILLEID.strDESCRIPTION ASC";
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return orderBy;
+    }
+
+    /*
+     * clause commune aux listes touche/non touche : memes filtres et champs de recherche que la liste 'Tous'
+     * (ws_data_inventaire_famille)
+     */
+    private static final String INVENTAIRE_TOUCHE_WHERE = " FROM TInventaireFamille t, TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR g.strCODEARTICLE LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9 AND t.dtUPDATED IS ";
+
+    // liste des lignes touchees (dt_UPDATED renseigne) ou non touchees d'un inventaire
+    public List<TInventaireFamille> listInventaireTouche(String search_value, String lg_INVENTAIRE_ID,
+            String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, boolean touche, int start,
+            int limit, String lg_USER_ID) {
+        List<TInventaireFamille> lstTInventaireFamille = new ArrayList<>();
+        try {
+            if (search_value == null || "".equals(search_value)) {
+                search_value = "%%";
+            }
+            String jpql = "SELECT DISTINCT t" + INVENTAIRE_TOUCHE_WHERE + (touche ? "NOT NULL " : "NULL ")
+                    + buildOrderByInventaire(lg_INVENTAIRE_ID);
+            lstTInventaireFamille = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
+                    .setParameter(8, true).setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return lstTInventaireFamille;
+    }
+
+    public long getCountInventaireTouche(String search_value, String lg_INVENTAIRE_ID, String lg_FAMILLEARTICLE_ID,
+            String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, boolean touche, String lg_USER_ID) {
+        long count = 0l;
+        try {
+            if (search_value == null || "".equals(search_value)) {
+                search_value = "%%";
+            }
+            String jpql = "SELECT COUNT(DISTINCT t)" + INVENTAIRE_TOUCHE_WHERE + (touche ? "NOT NULL " : "NULL ");
+            Object object = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
+                    .setParameter(8, true).setParameter(9, lg_USER_ID)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
+            count = Long.valueOf(object + "");
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return count;
+    }
+    // fin liste des lignes touchees / non touchees
+
+    /*
+     * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone geographique) pour un inventaire, sur
+     * les seules lignes incluses (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ; toutes touchees
+     * -> Termine ; sinon -> En cours. Un emplacement sans aucune ligne dans l'inventaire n'apparait pas (il ne peut pas
+     * etre compte).
+     */
+    public JSONArray listCheckEmplacement(String lg_INVENTAIRE_ID) {
+        JSONArray arrayObj = new JSONArray();
+        try {
+            List<Object[]> list = this.getOdataManager().getEm()
+                    .createNativeQuery(
+                            "SELECT z.str_CODE, z.str_LIBELLEE, COUNT(t.lg_INVENTAIRE_FAMILLE_ID) AS int_TOTAL, "
+                                    + "SUM(CASE WHEN t.dt_UPDATED IS NOT NULL THEN 1 ELSE 0 END) AS int_TOUCHES "
+                                    + "FROM t_inventaire_famille t "
+                                    + "INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID "
+                                    + "INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID "
+                                    + "WHERE t.lg_INVENTAIRE_ID = ?1 AND t.bool_INVENTAIRE = TRUE "
+                                    + "GROUP BY z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE ORDER BY z.str_CODE ASC")
+                    .setParameter(1, lg_INVENTAIRE_ID).getResultList();
+            for (Object[] row : list) {
+                long total = Long.valueOf(row[2] + "");
+                long touches = Long.valueOf(row[3] + "");
+                String statut;
+                if (touches == 0) {
+                    statut = "Non fait";
+                } else if (touches >= total) {
+                    statut = "Terminé";
+                } else {
+                    statut = "En cours";
+                }
+                JSONObject json = new JSONObject();
+                json.put("str_CODE", row[0] + "");
+                json.put("str_LIBELLEE", row[1] + "");
+                json.put("int_TOTAL", total);
+                json.put("int_TOUCHES", touches);
+                json.put("int_RESTANT", total - touches);
+                json.put("str_STATUT", statut);
+                arrayObj.put(json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return arrayObj;
+    }
+
+    /*
+     * Produits non encore comptes d'un emplacement de l'inventaire : meme regle que la colonne 'Restants' du check
+     * (dt_UPDATED IS NULL sur les lignes incluses). Lecture seule ; code CIP, nom, prix d'achat et prix de vente.
+     */
+    public JSONArray listCheckEmplacementRestants(String lg_INVENTAIRE_ID, String str_CODE_EMPLACEMENT) {
+        JSONArray arrayObj = new JSONArray();
+        try {
+            List<Object[]> list = this.getOdataManager().getEm()
+                    .createNativeQuery(
+                            "SELECT f.int_CIP, f.str_NAME, f.int_PAF, f.int_PRICE " + "FROM t_inventaire_famille t "
+                                    + "INNER JOIN t_famille f ON f.lg_FAMILLE_ID = t.lg_FAMILLE_ID "
+                                    + "INNER JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID "
+                                    + "WHERE t.lg_INVENTAIRE_ID = ?1 AND t.bool_INVENTAIRE = TRUE "
+                                    + "AND t.dt_UPDATED IS NULL AND z.str_CODE = ?2 ORDER BY f.str_NAME ASC")
+                    .setParameter(1, lg_INVENTAIRE_ID).setParameter(2, str_CODE_EMPLACEMENT).getResultList();
+            for (Object[] row : list) {
+                JSONObject json = new JSONObject();
+                json.put("str_CIP", row[0] + "");
+                json.put("str_NAME", row[1] + "");
+                json.put("int_PAF", row[2] == null ? 0 : Long.valueOf(row[2] + ""));
+                json.put("int_PRICE", row[3] == null ? 0 : Long.valueOf(row[3] + ""));
+                arrayObj.put(json);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return arrayObj;
+    }
+    // fin 'Check EMPLACEMENT'
+
     // recuperation du dernier inventaire
     public TInventaire getLastInventaire(String str_STATUT) {
         TInventaire OTInventaire = null;

@@ -362,6 +362,19 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     tooltip: 'imprimer',
                     scope: this,
                     handler: this.printLitToPDF
+                }, '',
+                {
+                    text: 'Export Excel',
+                    tooltip: 'Exporter les produits des retours affiches (avec le N° de BL)',
+                    scope: this,
+                    handler: this.exportToExcel
+                }, '',
+                {
+                    text: 'Creer inventaire',
+                    iconCls: 'addicon',
+                    tooltip: 'Creer un inventaire avec les produits des retours affiches',
+                    scope: this,
+                    handler: this.onCreateInventaire
                 }
             ],
             bbar: {
@@ -526,6 +539,74 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
         var linkUrl = '../DataReportingServlet?dtStart=' + dtStart + "&dtEnd=" + dtEnd + "&query=" + query + "&mode=RETOUR_FOURNISSEUR" + "&fourId=" + fourId+ "&filtre=" + filtre;
 
         window.open(linkUrl);
+    },
+    // Filtres actifs de la liste (memes parametres que le chargement de la grille)
+    getActiveFilters: function () {
+        return {
+            dtStart: Ext.getCmp('datedebut').getSubmitValue() || '',
+            dtEnd: Ext.getCmp('datefin').getSubmitValue() || '',
+            fourId: Ext.getCmp('lg_GROSSISTE_ID').getValue() || '',
+            filtre: Ext.getCmp('filtre').getValue() || '',
+            query: Ext.getCmp('rechecher').getValue() || ''
+        };
+    },
+    exportToExcel: function () {
+        var filters = this.getActiveFilters();
+        window.open('../api/v1/retourfournisseur/export-excel?' + Ext.Object.toQueryString(filters));
+    },
+    onCreateInventaire: function () {
+        var me = this, filters = me.getActiveFilters();
+        var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Controle des produits');
+        Ext.Ajax.request({
+            url: '../api/v1/retourfournisseur/produits/count',
+            method: 'GET',
+            params: filters,
+            success: function (resp) {
+                progress.hide();
+                var r = Ext.JSON.decode(resp.responseText, true);
+                var count = (r && r.count) ? r.count : 0;
+                if (count === 0) {
+                    Ext.MessageBox.alert('Message', 'Aucun produit dans les retours fournisseur affiches.');
+                    return;
+                }
+                Ext.MessageBox.confirm('Confirmation',
+                        'Vous allez creer un inventaire contenant <b>' + count
+                        + '</b> produit(s) distinct(s) des retours affiches.<br/>Confirmez-vous ?',
+                        function (btn) {
+                            if (btn !== 'yes') {
+                                return;
+                            }
+                            var prog = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
+                            Ext.Ajax.request({
+                                // filtres en query string : le endpoint lit des @QueryParam
+                                url: '../api/v1/retourfournisseur/create-inventaire?'
+                                        + Ext.Object.toQueryString(filters),
+                                method: 'POST',
+                                timeout: 600000,
+                                success: function (response) {
+                                    prog.hide();
+                                    var res = Ext.JSON.decode(response.responseText, true);
+                                    if (res && res.success) {
+                                        Ext.MessageBox.alert('Inventaire',
+                                                'Inventaire cree.<br/>Produits en compte : <b>' + (res.count || 0) + '</b>');
+                                    } else {
+                                        Ext.MessageBox.alert('Erreur',
+                                                (res && res.message) ? res.message : "La creation de l'inventaire a echoue.");
+                                    }
+                                },
+                                failure: function () {
+                                    prog.hide();
+                                    Ext.MessageBox.alert('Erreur',
+                                            "La creation de l'inventaire a echoue. Aucun inventaire partiel n'a ete cree.");
+                                }
+                            });
+                        });
+            },
+            failure: function () {
+                progress.hide();
+                Ext.MessageBox.alert('Erreur', 'Le controle du nombre de produits a echoue.');
+            }
+        });
     },
     onRechClick: function () {
 

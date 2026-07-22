@@ -42,4 +42,14 @@ public class ParametreServiceImpl implements ParametreService {
         return Objects.nonNull(tp) && tp.getStrVALUE().trim().equals("1");
 
     }
+
+    @Override
+    public String getValue(String key, String defaultValue) {
+        try {
+            TParameters tp = em.find(TParameters.class, key);
+            return tp != null && tp.getStrVALUE() != null ? tp.getStrVALUE().trim() : defaultValue;
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
 }

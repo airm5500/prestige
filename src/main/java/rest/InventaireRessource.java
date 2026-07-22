@@ -48,12 +48,75 @@ public class InventaireRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    private java.util.List<String> parseVenteIds(String body) {
+        java.util.List<String> venteIds = new java.util.ArrayList<>();
+        try {
+            org.json.JSONArray ids = new JSONObject(body).optJSONArray("ids");
+            if (ids != null) {
+                for (int i = 0; i < ids.length(); i++) {
+                    String id = ids.optString(i);
+                    if (StringUtils.isNotEmpty(id)) {
+                        venteIds.add(id);
+                    }
+                }
+            }
+        } catch (Exception e) {
+        }
+        return venteIds;
+    }
+
+    // Nombre de produits distincts des ventes annulees selectionnees (controle avant confirmation)
+    @POST
+    @Path("produit-annules/selection/count")
+    public Response produitsAnnulesSelectionCount(String body) throws org.json.JSONException {
+        int count = inventaireService.produitIdsFromVentes(parseVenteIds(body)).size();
+        return Response.ok().entity(new JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
+    // Creation d'inventaire a partir des produits des ventes annulees selectionnees
+    // (selection conservee sur toutes les pages cote ecran)
+    @POST
+    @Path("produit-annules/selection")
+    public Response doInventaireFromProduitsAnnulesSelection(String body) throws org.json.JSONException {
+        java.util.Set<String> produitIds = inventaireService.produitIdsFromVentes(parseVenteIds(body));
+        if (produitIds.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Aucun produit dans les ventes selectionnees").toString()).build();
+        }
+        String name = "INVENTAIRE PRODUITS ANNULES " + java.time.LocalDateTime.now()
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        int count = inventaireService.create(produitIds, name, name);
+        return Response.ok().entity(new JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
     @GET
     @Path("refreshStockLigneInventaire/{id}")
     public Response refreshStockLigneInventaire(@PathParam("id") String id) {
 
         inventaireService.refreshStockLigneInventaire(id);
         return Response.ok().build();
+    }
+
+    @POST
+    @Path("create-from-ecarts/{id}")
+    public Response createInventaireFromEcarts(@PathParam("id") String id) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = inventaireService.createInventaireFromEcarts(id, tu);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    // Export Excel des produits d'un inventaire (tous les champs), meme apres cloture
+    @GET
+    @Path("export-excel/{id}")
+    @Produces("application/vnd.ms-excel")
+    public Response exportExcel(@PathParam("id") String id) throws Exception {
+        byte[] data = inventaireService.exportInventaireExcel(id);
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"produits_inventaire_" + id + ".xls\"").build();
     }
 
     @POST

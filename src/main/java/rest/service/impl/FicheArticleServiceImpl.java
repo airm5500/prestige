@@ -35,6 +35,13 @@ import dal.TWarehouse_;
 import dal.TZoneGeographique;
 import dal.TZoneGeographique_;
 import enumeration.MargeEnum;
+import static enumeration.MargeEnum.EQUAL;
+import static enumeration.MargeEnum.GREATER;
+import static enumeration.MargeEnum.GREATER_EQUAL;
+import static enumeration.MargeEnum.LESS;
+import static enumeration.MargeEnum.LESS_EQUAL;
+import static enumeration.MargeEnum.NOT;
+import static enumeration.MargeEnum.STOCK_LESS_THAN_SEUIL;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -201,6 +208,101 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             return Pair.of(new commonTasks.dto.LotDTO(), Collections.emptyList());
         }
 
+    }
+
+    /* ---- Visualisation des perimes (peremptionquery) : exports + inventaire ---- */
+
+    private String perimesTitre(int nbreMois, String dtStart, String dtEnd) {
+        StringBuilder titre = new StringBuilder("Peremptions proches");
+        if (nbreMois > 0) {
+            titre.append(" (").append(nbreMois).append(" mois)");
+        } else if (!StringUtils.isEmpty(dtStart) && !StringUtils.isEmpty(dtEnd)) {
+            titre.append(" du ").append(dtStart).append(" au ").append(dtEnd);
+        }
+        return titre.toString();
+    }
+
+    private static final String[] PERIMES_HEADERS = { "Numéro lot", "Code CIP", "Libellé", "Famille", "Emplacement",
+            "Grossiste", "Quantité", "Valeur achat", "Valeur vente", "Date péremption", "Statut" };
+
+    private String nvl(String value) {
+        return value == null ? "" : value;
+    }
+
+    @Override
+    public byte[] exportPerimesCsv(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
+            String codeRayon, String codeGrossiste) throws java.io.IOException {
+        List<commonTasks.dto.LotDTO> data = produitPerimes(query, nbreMois, dtStart, dtEnd, codeFamile, codeRayon,
+                codeGrossiste, 0, 0, true).getRight();
+        byte[] csvData = csvExportService.createCsvReport(perimesTitre(nbreMois, dtStart, dtEnd), PERIMES_HEADERS, data,
+                dto -> new String[] { nvl(dto.getNumLot()), nvl(dto.getCodeCip()), nvl(dto.getLibelle()),
+                        nvl(dto.getLibelleFamille()), nvl(dto.getLibelleRayon()), nvl(dto.getLibelleGrossiste()),
+                        String.valueOf(dto.getQuantiteLot() == null ? 0 : dto.getQuantiteLot()),
+                        String.valueOf(dto.getValeurAchat() == null ? 0 : dto.getValeurAchat()),
+                        String.valueOf(dto.getValeurVente() == null ? 0 : dto.getValeurVente()),
+                        nvl(dto.getDatePerement()), nvl(dto.getStatut()) });
+        return csvExportService.addUtf8Bom(csvData);
+    }
+
+    @Override
+    public byte[] exportPerimesExcel(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
+            String codeRayon, String codeGrossiste) throws java.io.IOException {
+        List<commonTasks.dto.LotDTO> data = produitPerimes(query, nbreMois, dtStart, dtEnd, codeFamile, codeRayon,
+                codeGrossiste, 0, 0, true).getRight();
+        return reportExcelExportService.createExcelReport(perimesTitre(nbreMois, dtStart, dtEnd), PERIMES_HEADERS, data,
+                (row, dto) -> {
+                    int col = 0;
+                    row.createCell(col++).setCellValue(nvl(dto.getNumLot()));
+                    row.createCell(col++).setCellValue(nvl(dto.getCodeCip()));
+                    row.createCell(col++).setCellValue(nvl(dto.getLibelle()));
+                    row.createCell(col++).setCellValue(nvl(dto.getLibelleFamille()));
+                    row.createCell(col++).setCellValue(nvl(dto.getLibelleRayon()));
+                    row.createCell(col++).setCellValue(nvl(dto.getLibelleGrossiste()));
+                    row.createCell(col++).setCellValue(dto.getQuantiteLot() == null ? 0 : dto.getQuantiteLot());
+                    row.createCell(col++).setCellValue(dto.getValeurAchat() == null ? 0 : dto.getValeurAchat());
+                    row.createCell(col++).setCellValue(dto.getValeurVente() == null ? 0 : dto.getValeurVente());
+                    row.createCell(col++).setCellValue(nvl(dto.getDatePerement()));
+                    row.createCell(col++).setCellValue(nvl(dto.getStatut()));
+                });
+    }
+
+    @Override
+    public java.util.Set<String> perimesProduitIds(String query, int nbreMois, String dtStart, String dtEnd,
+            String codeFamile, String codeRayon, String codeGrossiste) {
+        try {
+            TEmplacement emp = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID();
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<String> cq = cb.createQuery(String.class);
+            Root<TLot> root = cq.from(TLot.class);
+            Join<TLot, TFamille> joinLot = root.join(TLot_.lgFAMILLEID);
+            Join<TFamille, TFamilleStock> fa = joinLot.join(TFamille_.tFamilleStockCollection);
+            Join<TFamille, TFamillearticle> joinFa = joinLot.join(TFamille_.lgFAMILLEARTICLEID);
+            Join<TFamille, TGrossiste> joinFaG = joinLot.join(TFamille_.lgGROSSISTEID);
+            Join<TFamille, TZoneGeographique> joinFaz = joinLot.join(TFamille_.lgZONEGEOID);
+            List<Predicate> predicates = perimePredicat(cb, root, fa, joinLot, joinFa, joinFaG, joinFaz, query,
+                    nbreMois, dtStart, dtEnd, codeFamile, codeRayon, codeGrossiste, emp);
+            cq.select(joinLot.get(TFamille_.lgFAMILLEID)).distinct(true)
+                    .where(cb.and(predicates.toArray(Predicate[]::new)));
+            return new java.util.LinkedHashSet<>(getEntityManager().createQuery(cq).getResultList());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "perimesProduitIds", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    @Override
+    public JSONObject createInventairePerimes(String query, int nbreMois, String dtStart, String dtEnd,
+            String codeFamile, String codeRayon, String codeGrossiste) throws JSONException {
+        java.util.Set<String> ids = perimesProduitIds(query, nbreMois, dtStart, dtEnd, codeFamile, codeRayon,
+                codeGrossiste);
+        if (ids.isEmpty()) {
+            return new JSONObject().put("success", false).put("count", 0).put("message",
+                    "Aucun produit perime avec ces criteres");
+        }
+        String name = "Inventaire peremptions proches "
+                + java.time.LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        int count = inventaireService.create(ids, name, name);
+        return new JSONObject().put("success", true).put("count", count).put("name", name);
     }
 
     private List<Predicate> perimePredicat(CriteriaBuilder cb, Root<TLot> root, Join<TFamille, TFamilleStock> fa,

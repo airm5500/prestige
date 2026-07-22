@@ -48,6 +48,10 @@ public class ExportInventaire extends HttpServlet {
         String lg_INVENTAIRE_ID = request.getParameter("lg_INVENTAIRE_ID");
         // String statut ="is_Closed";// "enable";
         try {
+            if (format.equals("ecart")) {
+                ecartCSV(getEcartsInventaire(lg_INVENTAIRE_ID, OdataManager.getEm()), response);
+                return;
+            }
             List<TInventaireFamille> list = getInventaireFamilles(lg_INVENTAIRE_ID, OdataManager.getEm());
             if (format.equals("csv")) {
                 articleCSV(list, response);
@@ -126,6 +130,47 @@ public class ExportInventaire extends HttpServlet {
                 TInventaireFamille.class);
         query.setParameter(1, lg_INVENTAIRE_ID);
         return query.getResultList();
+    }
+
+    public List<TInventaireFamille> getEcartsInventaire(String lg_INVENTAIRE_ID, EntityManager em) throws Exception {
+        TypedQuery<TInventaireFamille> query = em.createQuery(
+                "SELECT o FROM TInventaireFamille o WHERE o.lgINVENTAIREID.lgINVENTAIREID =?1 AND o.boolINVENTAIRE = TRUE AND COALESCE(o.intNUMBER, 0) <> COALESCE(o.intNUMBERINIT, 0) ORDER BY o.lgFAMILLEID.intCIP",
+                TInventaireFamille.class);
+        query.setParameter(1, lg_INVENTAIRE_ID);
+        return query.getResultList();
+    }
+
+    /*
+     * Export des ecarts au format demande : exactement deux colonnes cip;quantite, quantite signee = quantite saisie -
+     * quantite initiale (negatif = manque, positif = surplus). Sans ligne d'entete pour rester compatible avec l'import
+     * CSV d'inventaire qui lit le CIP en premiere colonne.
+     */
+    private void ecartCSV(List<TInventaireFamille> list, HttpServletResponse response) throws Exception {
+        OutputStream out = null;
+        try {
+            String filename = "ecarts_inventaire_" + df.format(new Date()) + ".csv";
+            out = response.getOutputStream();
+            response.setContentType("text/csv");
+            response.setHeader("Content-disposition", "inline; filename=" + filename);
+
+            Writer writer = new OutputStreamWriter(out, "UTF-8");
+            for (TInventaireFamille famille : list) {
+                int ecart = famille.getIntNUMBER() - famille.getIntNUMBERINIT();
+                writer.write(famille.getLgFAMILLEID().getIntCIP() + ";" + ecart + "\r\n");
+            }
+            writer.flush();
+            out.flush();
+        } catch (IOException ex) {
+            LOGGER.log(Level.SEVERE, null, ex);
+        } finally {
+            try {
+                if (out != null) {
+                    out.close();
+                }
+            } catch (IOException ex) {
+                LOGGER.log(Level.SEVERE, null, ex);
+            }
+        }
     }
 
     private void extportToExcel(List<TInventaireFamille> list, HttpServletResponse response) throws Exception {

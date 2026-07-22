@@ -166,6 +166,8 @@ public class SalesServiceImpl implements SalesService {
     private CautionTiersPayantService cautionTiersPayantService;
     @EJB
     private LotService lotService;
+    @EJB
+    private rest.service.VenteSuppressionService venteSuppressionService;
 
     private final java.util.function.Predicate<Optional<TParameters>> test = e -> {
         if (e.isPresent()) {
@@ -1418,6 +1420,8 @@ public class SalesServiceImpl implements SalesService {
             if (tpd.getBoolACCOUNT()) {
                 tp.setIntACCOUNT(tp.getIntACCOUNT() - tpd.getIntPRICE());
             }
+            // Tracabilite : produit retire d'une vente (ecran "Suppressions de vente")
+            venteSuppressionService.logProduitSuppression(tp, tpd, this.sessionHelperService.getCurrentUser());
             emg.merge(tp);
             emg.remove(tpd);
             return tp;

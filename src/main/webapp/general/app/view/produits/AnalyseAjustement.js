@@ -74,6 +74,30 @@ Ext.define('testextjs.view.produits.AnalyseAjustement', {
                             format: 'd/m/Y',
                             value: new Date()
                         }, '-', {
+                            xtype: 'combobox',
+                            itemId: 'motifCombo',
+                            emptyText: 'Tous les motifs',
+                            flex: 1,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            queryMode: 'local',
+                            editable: false,
+                            store: Ext.create('Ext.data.Store', {
+                                fields: ['id', 'libelle'],
+                                autoLoad: true,
+                                proxy: {
+                                    type: 'ajax',
+                                    url: '../api/v1/common/type-ajustements',
+                                    reader: {type: 'json', root: 'data'}
+                                },
+                                listeners: {
+                                    load: function (s) {
+                                        // choix "Tous" en tete de liste
+                                        s.insert(0, {id: '', libelle: 'Tous les motifs'});
+                                    }
+                                }
+                            })
+                        }, '-', {
                             text: 'Sortir la liste',
                             tooltip: 'Sortir la liste des produits les plus ajust&eacute;s sur la p&eacute;riode',
                             itemId: 'rechercher',
@@ -212,14 +236,20 @@ Ext.define('testextjs.view.produits.AnalyseAjustement', {
             var proxy = s.getProxy();
             proxy.setExtraParam('dtStart', me.down('#dtStart').getSubmitValue());
             proxy.setExtraParam('dtEnd', me.down('#dtEnd').getSubmitValue());
+            proxy.setExtraParam('motifId', me.getMotifId());
         });
         me.on('afterrender', function () {
             store.load();
         }, me, {single: true, delay: 1});
     },
+    getMotifId: function () {
+        var v = this.down('#motifCombo').getValue();
+        return (v === null || v === undefined) ? '' : v;
+    },
     buildParams: function () {
         var me = this;
-        return 'dtStart=' + me.down('#dtStart').getSubmitValue() + '&dtEnd=' + me.down('#dtEnd').getSubmitValue();
+        return 'dtStart=' + me.down('#dtStart').getSubmitValue() + '&dtEnd=' + me.down('#dtEnd').getSubmitValue()
+                + '&motifId=' + encodeURIComponent(me.getMotifId());
     },
     onRechercher: function () {
         this.analyseStore.loadPage(1);
@@ -249,7 +279,8 @@ Ext.define('testextjs.view.produits.AnalyseAjustement', {
                 extraParams: {
                     familleId: rec.get('familleId'),
                     dtStart: dtStart,
-                    dtEnd: dtEnd
+                    dtEnd: dtEnd,
+                    motifId: me.getMotifId()
                 },
                 reader: {
                     type: 'json',

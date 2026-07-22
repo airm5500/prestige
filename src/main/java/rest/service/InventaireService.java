@@ -48,6 +48,14 @@ public interface InventaireService {
 
     int create(Set<String> produitIds, String description);
 
+    JSONObject createInventaireFromEcarts(String sourceInventaireId, TUser tUser);
+
+    /**
+     * Variante du create() generique avec un nom distinct de la description (le nom horodate va dans str_NAME, le
+     * commentaire dans str_DESCRIPTION). Operation atomique : en cas d'echec, aucun inventaire partiel n'est cree.
+     */
+    int create(Set<String> produitIds, String name, String description);
+
     /**
      * Cree un inventaire de type "reserve" seede depuis t_type_stock_famille (type 2). Isole du create() generique pour
      * ne pas impacter les autres fonctionnalites.
@@ -61,4 +69,13 @@ public interface InventaireService {
     int createReserveInventaire(Set<String> produitIds, String name, String description);
 
     JSONObject createInventaireFromCsv(String csvContent, TUser tUser);
+
+    /** Ids produits distincts contenus dans les ventes donnees (ex: ventes annulees selectionnees). */
+    Set<String> produitIdsFromVentes(List<String> venteIds);
+
+    /**
+     * Export Excel des produits d'un inventaire avec tous les champs (CIP, designation, emplacement, stock machine,
+     * stock saisi, ecart, prix, valeur d'ecart, comptage). Utilisable a tout moment, y compris apres cloture.
+     */
+    byte[] exportInventaireExcel(String inventaireId) throws java.io.IOException;
 }

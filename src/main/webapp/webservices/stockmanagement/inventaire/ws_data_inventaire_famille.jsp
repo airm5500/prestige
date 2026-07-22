@@ -73,7 +73,7 @@
 <!-- fin logic de gestion des page -->
 
 <%    String lg_INVENTAIRE_ID = "%%", search_value = "", lg_USER_ID = "%%", lg_ZONE_GEO_ID = "%%", lg_FAMILLEARTICLE_ID = "%%", lg_GROSSISTE_ID = "%%", str_TYPE = "";
-    String MANQUANT = "MANQUANT", SURPLUS = "SURPLUS", MANQUANTSURPLUS = "MANQUANTSURPLUS", ALERTE = "ALERTE";
+    String MANQUANT = "MANQUANT", SURPLUS = "SURPLUS", MANQUANTSURPLUS = "MANQUANTSURPLUS", ALERTE = "ALERTE", TOUCHE = "TOUCHE", NONTOUCHE = "NONTOUCHE";
     int int_ALERTE = 0;
     long total=0l;
  int    start = Integer.valueOf(request.getParameter("start")); 
@@ -139,6 +139,12 @@
     } else if (str_TYPE.equalsIgnoreCase(ALERTE)) {
       total=OInventaireManager.getCountAlertInventaire(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, int_ALERTE);
         lstTInventaireFamille = OInventaireManager.listAlertInventaire(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, int_ALERTE,start, limit);
+    } else if (str_TYPE.equalsIgnoreCase(TOUCHE)) {
+        total=OInventaireManager.getCountInventaireTouche(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, true, lg_USER_ID);
+        lstTInventaireFamille = OInventaireManager.listInventaireTouche(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, true, start, limit, lg_USER_ID);
+    } else if (str_TYPE.equalsIgnoreCase(NONTOUCHE)) {
+        total=OInventaireManager.getCountInventaireTouche(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, false, lg_USER_ID);
+        lstTInventaireFamille = OInventaireManager.listInventaireTouche(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, false, start, limit, lg_USER_ID);
     } else {
           total=OInventaireManager.getCountByInventaire(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, true, lg_USER_ID); 
         lstTInventaireFamille = OInventaireManager.listTFamilleByInventaire(search_value, lg_INVENTAIRE_ID, lg_FAMILLEARTICLE_ID, lg_ZONE_GEO_ID, lg_GROSSISTE_ID, true,start, limit, lg_USER_ID);

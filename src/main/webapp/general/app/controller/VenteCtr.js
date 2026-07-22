@@ -594,7 +594,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.onBtnExtraModeClick
                     },
                     'doventemanager #contenu #montantExtra': {
-                        change: this.montantExtraChangeListener
+                        change: this.montantExtraChangeListener,
+                        // Entree dans le champ du 2e mode = meme cloture que le
+                        // bouton 'Terminer la vente' (tous les controles s'appliquent)
+                        specialkey: this.onMontantRecuVnoKey
                     },
                     'doventemanager #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
                         click: this.removeItemVno
@@ -2701,11 +2704,9 @@ Ext.define('testextjs.controller.VenteCtr', {
      */
     focusEncaissement: function () {
         const me = this;
-        const extra = me.getMontantExtra();
-        if (extra && extra.isVisible() && !extra.readOnly) {
-            extra.focus(true, 100);
-            return;
-        }
+        // Toujours revenir dans le montant recu (especes) : la part mobile est
+        // le complement calcule automatiquement, c'est le montant especes que
+        // le client peut changer au dernier moment. Entree y valide la vente.
         me.getMontantRecu().focus(true, 100);
     },
     /*
@@ -3317,10 +3318,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.netAmountToPay = null;
                     me.ayantDroit = ayantDroit;
                     // Vente en attente : pas encore de règlements en base, on
-                    // restaure le mode mémorisé à la mise en attente
+                    // restaure le mode mémorisé à la mise en attente : d'abord
+                    // celui persisté côté serveur, sinon celui du poste (localStorage)
                     let typeReglementARestaurer = me.getTypeReglementToDisplay(reglements);
                     if ((!reglements || reglements.length === 0) && typeReglementARestaurer === '1') {
-                        typeReglementARestaurer = me.getRememberedPreventeMode(record.lgPREENREGISTREMENTID)
+                        typeReglementARestaurer = record.typeReglementAttente
+                                || me.getRememberedPreventeMode(record.lgPREENREGISTREMENTID)
                                 || typeReglementARestaurer;
                     }
                     me.updateComboxFields(lgTYPEVENTEID, lgNATUREVENTEID, lgUSERVENDEURID, typeReglementARestaurer, lgREMISEID);
@@ -4952,7 +4955,12 @@ Ext.define('testextjs.controller.VenteCtr', {
             totalSaisie += extra;
         }
 
-        if (totalSaisie >= me.suspectInputThreshold && me._suspectConfirmedForValue !== totalSaisie) {
+        // Pas de contrôle "montant élevé" pour les règlements mobile money :
+        // le montant est renseigné automatiquement (aucune saisie utilisateur).
+        const typeRegleCloture = me.getVnotypeReglement ? me.getVnotypeReglement().getValue() : null;
+        const isMobileCloture = typeRegleCloture && me.isMobileMode(typeRegleCloture);
+
+        if (!isMobileCloture && totalSaisie >= me.suspectInputThreshold) {
             Ext.Msg.show({
                 title: 'Alerte',
                 msg: '⚠️ Montant élevé : vous allez encaisser ' + totalSaisie + '. Confirmez-vous ?',
@@ -4962,11 +4970,19 @@ Ext.define('testextjs.controller.VenteCtr', {
                 buttonText: {yes: 'Confirmer quand même', no: 'Annuler'},
                 fn: function (btn) {
                     if (btn === 'yes') {
-                        me._suspectConfirmedForValue = totalSaisie;
                         me.doClotureCore();
                     } else {
-                        // Annuler => bloquer jusqu'à changement (évite enchainement)
-                        me.blockMontantRecuUntilChange(raw, 'Saisie annulée. Corrigez le montant reçu.');
+                        // Annuler => on ferme uniquement la confirmation : la vente
+                        // reste modifiable (montant et mode de règlement inchangés)
+                        // et "Terminer vente" reste actif. La confirmation sera
+                        // redemandée au prochain essai de finalisation.
+                        if (me.getVnobtnCloture) {
+                            try {
+                                me.getVnobtnCloture().enable();
+                            } catch (e) {
+                            }
+                        }
+                        me.focusSelectMontantRecu();
                     }
                 }
             });
@@ -5874,8 +5890,28 @@ Ext.define('testextjs.controller.VenteCtr', {
     putToStandBy: function () {
         const me = this;
         me.rememberPreventeMode();
+        me.saveModeReglementAttente();
         me.resetAll();
         me.getVnoproduitCombo().focus(false, 100, function () {
+        });
+    },
+    /*
+     * Persiste cote serveur le mode de reglement au moment de la mise en attente
+     * (colonne str_TYPE_REGLEMENT_ATTENTE de t_preenregistrement) afin que le
+     * rappel restaure le mode a l'identique (ex: Differe), quel que soit le poste.
+     */
+    saveModeReglementAttente: function () {
+        const me = this, vente = me.getCurrent();
+        if (!vente || !vente.lgPREENREGISTREMENTID) {
+            return;
+        }
+        const mode = me.getVnotypeReglement().getValue();
+        if (!mode) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'PUT',
+            url: '../api/v1/ventestats/attente/mode-reglement/' + vente.lgPREENREGISTREMENTID + '/' + mode
         });
     },
     /*

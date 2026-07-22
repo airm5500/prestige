@@ -87,6 +87,24 @@ Ext.define('testextjs.view.vente.Pending', {
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
+                        }, '-',
+                        {
+                            text: 'Imprimer par vente',
+                            tooltip: 'Produits regroupes par vente (ordre chronologique)',
+                            itemId: 'printParVente',
+                            iconCls: 'printable'
+                        }, '-',
+                        {
+                            text: 'Imprimer liste produits',
+                            tooltip: 'Tous les produits par ordre alphabetique avec le numero de vente',
+                            itemId: 'printListe',
+                            iconCls: 'printable'
+                        }, '-',
+                        {
+                            text: 'Creer inventaire',
+                            tooltip: 'Creer un inventaire avec les produits des ventes en attente affichees',
+                            itemId: 'createInventaire',
+                            iconCls: 'addicon'
                         }
                     ]
                 }

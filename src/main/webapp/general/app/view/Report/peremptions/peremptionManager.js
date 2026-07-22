@@ -263,6 +263,24 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                             iconCls: 'printable',
                             tooltip: 'imprimer',
                             scope: this
+                        }, {
+                            text: 'CSV',
+                            flex: 0.5,
+                            itemId: 'exportCsv',
+                            iconCls: 'export_csv_icon',
+                            tooltip: 'Exporter la liste filtr&eacute;e en CSV'
+                        }, {
+                            text: 'Excel',
+                            flex: 0.5,
+                            itemId: 'exportExcel',
+                            iconCls: 'export_excel_icon',
+                            tooltip: 'Exporter la liste filtr&eacute;e en Excel'
+                        }, {
+                            text: 'Cr&eacute;er inventaire',
+                            flex: 0.9,
+                            itemId: 'creerInventaire',
+                            iconCls: 'addicon',
+                            tooltip: 'Cr&eacute;er un inventaire avec les produits de la liste filtr&eacute;e'
                         }
                     ]
                 },
