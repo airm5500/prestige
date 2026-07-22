@@ -238,12 +238,22 @@ public class LotServiceImpl implements LotService {
         if (quantiteVendue == 0) {
             return;
         }
-        List<TLot> lots = findOnlyAvaillableStockByProduitId(produitId, quantiteVendue < 0);
-        int remaining = quantiteVendue;
+        int remaining = decrementerLots(findOnlyAvaillableStockByProduitId(produitId, quantiteVendue < 0),
+                quantiteVendue);
+        // Les unites encore non imputees proviennent physiquement de lots deja
+        // perimes : on les decremente aussi, sinon leur current_stock fantome
+        // les laisse indefiniment dans la visualisation des perimes alors que
+        // tout a ete vendu.
+        if (remaining > 0) {
+            decrementerLots(findExpiredLotsWithStock(produitId), remaining);
+        }
+    }
 
+    private int decrementerLots(List<TLot> lots, int quantite) {
+        int remaining = quantite;
         for (var lot : lots) {
 
-            if (quantiteVendue == 0) {
+            if (remaining == 0) {
                 break;
             }
 
@@ -254,11 +264,25 @@ public class LotServiceImpl implements LotService {
             lot.setDtUPDATED(new Date());
             lot.setLgUSERID(sessionHelperService.getCurrentUser());
             em.merge(lot);
-            quantiteVendue -= take;
+            remaining -= take;
 
         }
+        return remaining;
+    }
 
-        // TODO 1 mettre le stock
+    private List<TLot> findExpiredLotsWithStock(String produitId) {
+        try {
+            return em
+                    .createQuery("SELECT t FROM TLot t WHERE t.currentStock > 0 AND t.lgFAMILLEID.lgFAMILLEID = ?1"
+                            + " AND t.dtPEREMPTION IS NOT NULL AND t.intNUMLOT IS NOT NULL AND t.dtPEREMPTION <= ?2"
+                            + " ORDER BY t.dtPEREMPTION ASC", TLot.class)
+                    .setParameter(1, produitId)
+                    .setParameter(2, java.sql.Timestamp.valueOf(LocalDateTime.now()), TemporalType.TIMESTAMP)
+                    .getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.INFO, null, e);
+            return new ArrayList<>();
+        }
     }
 
     private List<TLot> findOnlyAvaillableStockByProduitId(String produitId, boolean checkedLotSansStock) {
