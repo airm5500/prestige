@@ -74,3 +74,82 @@ SELECT COUNT(*) AS nb_comptes_multi_ro_restants FROM (
   GROUP BY lg_COMPTE_CLIENT_ID
   HAVING COUNT(*) > 1
 ) x;
+
+
+-- ============================================================================
+-- ETAPE 4 — DOUBLONS MEME (COMPTE, TIERS-PAYANT)
+-- ============================================================================
+-- Cas observe (COULIBALY) : deux liens actifs vers le MEME tiers-payant
+-- (MUGEF x2). On conserve, par (compte, tiers-payant), le lien actif le plus
+-- utile (RO d'abord, puis le plus recemment mis a jour) et on desactive les
+-- autres. Les ventes deja rattachees aux liens desactives restent lisibles.
+-- ----------------------------------------------------------------------------
+-- 4a — APERCU (LECTURE SEULE) : ce qui SERA desactive
+-- ----------------------------------------------------------------------------
+SELECT a.lg_COMPTE_CLIENT_ID                                     AS compte,
+       CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
+       tp.str_NAME                                               AS assurance,
+       a.lg_COMPTE_CLIENT_TIERS_PAYANT_ID                        AS lien_a_desactiver,
+       a.int_POURCENTAGE, a.b_IS_RO, a.dt_CREATED
+FROM t_compte_client_tiers_payant a
+JOIN t_compte_client_tiers_payant b
+      ON b.lg_COMPTE_CLIENT_ID = a.lg_COMPTE_CLIENT_ID
+     AND b.lg_TIERS_PAYANT_ID = a.lg_TIERS_PAYANT_ID
+     AND b.str_STATUT = 'enable'
+     AND b.lg_COMPTE_CLIENT_TIERS_PAYANT_ID <> a.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+     AND ( b.b_IS_RO > COALESCE(a.b_IS_RO,0)
+           OR ( COALESCE(b.b_IS_RO,0) = COALESCE(a.b_IS_RO,0)
+                AND ( COALESCE(b.dt_UPDATED,b.dt_CREATED) > COALESCE(a.dt_UPDATED,a.dt_CREATED)
+                      OR ( COALESCE(b.dt_UPDATED,b.dt_CREATED) = COALESCE(a.dt_UPDATED,a.dt_CREATED)
+                           AND b.lg_COMPTE_CLIENT_TIERS_PAYANT_ID > a.lg_COMPTE_CLIENT_TIERS_PAYANT_ID ) ) ) )
+JOIN t_compte_client ccl ON ccl.lg_COMPTE_CLIENT_ID = a.lg_COMPTE_CLIENT_ID
+JOIN t_client cl         ON cl.lg_CLIENT_ID = ccl.lg_CLIENT_ID
+JOIN t_tiers_payant tp   ON tp.lg_TIERS_PAYANT_ID = a.lg_TIERS_PAYANT_ID
+WHERE a.str_STATUT = 'enable'
+ORDER BY a.lg_COMPTE_CLIENT_ID;
+
+-- ----------------------------------------------------------------------------
+-- 4b — REPARATION (ECRITURE) : decommenter apres sauvegarde
+-- ----------------------------------------------------------------------------
+-- START TRANSACTION;
+--
+-- UPDATE t_compte_client_tiers_payant a
+-- JOIN t_compte_client_tiers_payant b
+--       ON b.lg_COMPTE_CLIENT_ID = a.lg_COMPTE_CLIENT_ID
+--      AND b.lg_TIERS_PAYANT_ID = a.lg_TIERS_PAYANT_ID
+--      AND b.str_STATUT = 'enable'
+--      AND b.lg_COMPTE_CLIENT_TIERS_PAYANT_ID <> a.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+--      AND ( b.b_IS_RO > COALESCE(a.b_IS_RO,0)
+--            OR ( COALESCE(b.b_IS_RO,0) = COALESCE(a.b_IS_RO,0)
+--                 AND ( COALESCE(b.dt_UPDATED,b.dt_CREATED) > COALESCE(a.dt_UPDATED,a.dt_CREATED)
+--                       OR ( COALESCE(b.dt_UPDATED,b.dt_CREATED) = COALESCE(a.dt_UPDATED,a.dt_CREATED)
+--                            AND b.lg_COMPTE_CLIENT_TIERS_PAYANT_ID > a.lg_COMPTE_CLIENT_TIERS_PAYANT_ID ) ) ) )
+-- SET a.str_STATUT = 'delete', a.int_PRIORITY = -1, a.dt_UPDATED = NOW()
+-- WHERE a.str_STATUT = 'enable';
+--
+-- -- COMMIT;   (ou ROLLBACK;)
+
+
+-- ============================================================================
+-- ETAPE 5 — LIENS SANS AUCUNE VENTE (LECTURE SEULE, arbitrage manuel)
+-- ============================================================================
+-- Cas observe : FADIGA LANCINE INDIVIDUEL rattache a des clients sans aucune
+-- vente. Un lien actif sans vente peut etre une contamination (a desactiver)
+-- MAIS AUSSI une souscription recente legitime : NE PAS desactiver en masse.
+-- Cette requete liste les candidats ; decision au cas par cas.
+-- ----------------------------------------------------------------------------
+SELECT ccl.lg_COMPTE_CLIENT_ID                                   AS compte,
+       CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
+       tp.str_NAME                                               AS assurance,
+       cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID                     AS lien,
+       cctp.b_IS_RO, cctp.int_PRIORITY, cctp.int_POURCENTAGE,
+       cctp.dt_CREATED                                           AS lien_cree_le
+FROM t_compte_client_tiers_payant cctp
+JOIN t_compte_client ccl ON ccl.lg_COMPTE_CLIENT_ID = cctp.lg_COMPTE_CLIENT_ID
+JOIN t_client cl         ON cl.lg_CLIENT_ID = ccl.lg_CLIENT_ID
+JOIN t_tiers_payant tp   ON tp.lg_TIERS_PAYANT_ID = cctp.lg_TIERS_PAYANT_ID
+WHERE cctp.str_STATUT = 'enable'
+  AND NOT EXISTS (
+      SELECT 1 FROM t_preenregistrement_compte_client_tiers_payent pcctp
+      WHERE pcctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID )
+ORDER BY tp.str_NAME, cctp.dt_CREATED DESC;

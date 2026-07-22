@@ -1192,12 +1192,14 @@ public class ClientServiceImpl implements ClientService {
      * Règle métier : un client n'a qu'un seul RO (régime obligatoire) actif à la fois. Avant d'attacher un nouveau lien
      * RO, on désactive l'ancien RO encore actif, sinon le client se retrouve rattaché à plusieurs assurances RO et
      * apparaît « mélangé » entre elles. Les complémentaires (RO = false) ne sont pas touchées : elles peuvent
-     * s'accumuler légitimement.
+     * s'accumuler légitimement. Le lien {@code saufLienId} (celui en cours de promotion) est épargné.
      */
-    private void disableActiveRoLinks(String compteClientId) {
+    private void disableActiveRoLinks(String compteClientId, String saufLienId) {
         findTCompteClientTiersPayanCompteClient(compteClientId).stream()
                 .filter(c -> Constant.STATUT_ENABLE.equalsIgnoreCase(c.getStrSTATUT()))
-                .filter(c -> Boolean.TRUE.equals(c.getBISRO())).forEach(this::desabledCompteClientTiersPayant);
+                .filter(c -> Boolean.TRUE.equals(c.getBISRO()))
+                .filter(c -> saufLienId == null || !saufLienId.equals(c.getLgCOMPTECLIENTTIERSPAYANTID()))
+                .forEach(this::desabledCompteClientTiersPayant);
     }
 
     private TCompteClientTiersPayant createComptClientTierspayant(TClient cdto, TCompteClient oTCompteClient, int taux,
@@ -1208,8 +1210,47 @@ public class ClientServiceImpl implements ClientService {
         if (isCarnetTiersPayant(p)) {
             isRO = false;
         }
+        List<TCompteClientTiersPayant> liens = findTCompteClientTiersPayanCompteClient(
+                oTCompteClient.getLgCOMPTECLIENTID());
+        // jamais de priorite < 1 : l'ordre est parfois clone depuis un lien
+        // desactive (priorite -1) et le lien cree devient invisible des ecrans
+        // qui cherchent la priorite 1 tout en restant actif en base.
+        if (order < 1) {
+            order = liens.stream().filter(c -> Constant.STATUT_ENABLE.equalsIgnoreCase(c.getStrSTATUT()))
+                    .map(TCompteClientTiersPayant::getIntPRIORITY).filter(Objects::nonNull).max(Integer::compare)
+                    .orElse(0) + 1;
+        }
+        // un seul lien par (compte, tiers-payant) : si un lien existe deja (actif
+        // ou desactive), on le reutilise au lieu d'empiler un doublon — c'est ce
+        // clonage repete qui rattache un meme tiers-payant a repetition et fait
+        // renaitre des liens desactives.
+        TCompteClientTiersPayant existant = null;
+        if (p != null) {
+            existant = liens.stream()
+                    .filter(c -> c.getLgTIERSPAYANTID() != null
+                            && p.getLgTIERSPAYANTID().equals(c.getLgTIERSPAYANTID().getLgTIERSPAYANTID()))
+                    .sorted(Comparator.comparing(
+                            (TCompteClientTiersPayant c) -> Constant.STATUT_ENABLE.equalsIgnoreCase(c.getStrSTATUT())
+                                    ? 0 : 1))
+                    .findFirst().orElse(null);
+        }
         if (isRO) {
-            disableActiveRoLinks(oTCompteClient.getLgCOMPTECLIENTID());
+            disableActiveRoLinks(oTCompteClient.getLgCOMPTECLIENTID(),
+                    existant != null ? existant.getLgCOMPTECLIENTTIERSPAYANTID() : null);
+        }
+        if (existant != null) {
+            boolean etaitActif = Constant.STATUT_ENABLE.equalsIgnoreCase(existant.getStrSTATUT());
+            existant.setStrSTATUT(Constant.STATUT_ENABLE);
+            existant.setStrNUMEROSECURITESOCIAL(cdto.getStrNUMEROSECURITESOCIAL());
+            existant.setBISRO(isRO);
+            existant.setIntPOURCENTAGE(taux);
+            if (!etaitActif || existant.getIntPRIORITY() == null || existant.getIntPRIORITY() < 1) {
+                existant.setIntPRIORITY(order);
+            }
+            existant.setDtUPDATED(new Date());
+            getEmg().merge(existant);
+            traceAssurance("reutilisation-lien-vente", existant);
+            return existant;
         }
         TCompteClientTiersPayant oCompteClientTiersPayant = new TCompteClientTiersPayant(UUID.randomUUID().toString());
         oCompteClientTiersPayant.setStrSTATUT(Constant.STATUT_ENABLE);
