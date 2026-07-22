@@ -1297,17 +1297,81 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         return lignes;
     }
 
+    /** Ids distincts non vides d'une liste de produits classes. */
+    private static List<String> fmIds(List<AbcProduitDTO> rows) {
+        return rows.stream().map(AbcProduitDTO::getProduitId).filter(StringUtils::isNotBlank).distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Filtre optionnel sur le statut de l'objectif d'achat : ATTEINT (frequence <= objectif sur chaque mois observe) ou
+     * DEPASSE. Toute autre valeur = pas de filtre.
+     */
+    private List<AbcProduitDTO> applyObjectifFilter(List<AbcProduitDTO> rows, Map<String, long[][]> entrees,
+            int objectif, String objectifFilter) {
+        if (StringUtils.isBlank(objectifFilter) || "ALL".equalsIgnoreCase(objectifFilter)) {
+            return rows;
+        }
+        boolean atteint = "ATTEINT".equalsIgnoreCase(objectifFilter);
+        return rows.stream().filter(d -> {
+            long[][] e = entrees.getOrDefault(nz(d.getProduitId()), new long[4][2]);
+            boolean respecte = "Respecté".equals(fmObjectifStatut(e, objectif));
+            return atteint == respecte;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public JSONObject feuilleDeMatchGrid(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax, int start, int limit, Integer topN, Integer objectifAchat, String objectifFilter) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
+        int objectif = (objectifAchat != null && objectifAchat > 0) ? objectifAchat : 3;
+        boolean avecFiltreObjectif = StringUtils.isNotBlank(objectifFilter) && !"ALL".equalsIgnoreCase(objectifFilter);
+
+        // Avec filtre objectif : les entrees de tous les produits sont necessaires
+        // pour filtrer avant pagination ; sinon seules celles de la page suffisent.
+        Map<String, long[][]> entrees = avecFiltreObjectif ? fmEntrees(fmIds(rows)) : null;
+        if (avecFiltreObjectif) {
+            rows = applyObjectifFilter(rows, entrees, objectif, objectifFilter);
+        }
+
+        int total = rows.size();
+        List<AbcProduitDTO> page = rows;
+        if (limit > 0) {
+            int from = Math.max(0, start);
+            int to = Math.min(total, from + limit);
+            page = (from <= to) ? rows.subList(from, to) : Collections.emptyList();
+        }
+        if (entrees == null) {
+            entrees = fmEntrees(fmIds(page));
+        }
+
+        JSONArray data = new JSONArray();
+        for (AbcProduitDTO d : page) {
+            long[][] e = entrees.getOrDefault(nz(d.getProduitId()), new long[4][2]);
+            data.put(new JSONObject(d).put("freqM0", e[0][0]).put("qteM0", e[0][1]).put("objectifStatut",
+                    fmObjectifStatut(e, objectif)));
+        }
+        return new JSONObject().put("success", true).put("total", total).put("data", data).put("moisCourant",
+                fmNomMois(0));
+    }
+
     @Override
     public byte[] buildFeuilleDeMatchPdf(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax, Integer topN, Integer objectifAchat) {
+            Integer stockMax, Integer topN, Integer objectifAchat, String objectifFilter) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
                 codeGrossiste, stockFilter, stockMin, stockMax, topN);
+        int objectifFiltre = (objectifAchat != null && objectifAchat > 0) ? objectifAchat : 3;
+        if (StringUtils.isNotBlank(objectifFilter) && !"ALL".equalsIgnoreCase(objectifFilter) && !rows.isEmpty()) {
+            rows = applyObjectifFilter(rows, fmEntrees(fmIds(rows)), objectifFiltre, objectifFilter);
+        }
         if (rows.isEmpty()) {
             return new byte[0];
         }
         try {
-            int objectif = (objectifAchat != null && objectifAchat > 0) ? objectifAchat : 3;
+            int objectif = objectifFiltre;
             List<commonTasks.dto.FeuilleDeMatchLigneDTO> lignes = buildFeuilleDeMatchRows(rows, objectif);
 
             String typeLabel = "MARGE".equalsIgnoreCase(type) ? "marge"

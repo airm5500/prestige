@@ -110,6 +110,24 @@ public class AbcArticleRessource {
         return Response.ok(data).header("Content-Disposition", "inline; filename=\"classification_abc.pdf\"").build();
     }
 
+    /** Grille de la feuille de match : classification + achats du mois en cours + statut objectif. */
+    @GET
+    @Path("feuille-match")
+    public Response feuilleMatchGrid(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("QTY") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("50") @QueryParam("limit") int limit, @QueryParam("topN") Integer topN,
+            @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat,
+            @DefaultValue("ALL") @QueryParam("objectifFilter") String objectifFilter) {
+        JSONObject json = abcAnalysisService.feuilleDeMatchGrid(dtStart, dtEnd, type, classe, search, codeFamille,
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, start, limit, topN, objectifAchat,
+                objectifFilter);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     /** Impression PDF "Feuille de match" : frequences et quantites d'achat (mois courant + 3 derniers mois). */
     @GET
     @Path("feuille-match/print")
@@ -120,9 +138,10 @@ public class AbcArticleRessource {
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
             @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN,
-            @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat) {
+            @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat,
+            @DefaultValue("ALL") @QueryParam("objectifFilter") String objectifFilter) {
         byte[] data = abcAnalysisService.buildFeuilleDeMatchPdf(dtStart, dtEnd, type, classe, search, codeFamille,
-                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN, objectifAchat);
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN, objectifAchat, objectifFilter);
         return Response.ok(data).header("Content-Disposition", "inline; filename=\"feuille_de_match.pdf\"").build();
     }
 

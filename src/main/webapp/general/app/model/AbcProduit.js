@@ -23,6 +23,10 @@ Ext.define('testextjs.model.AbcProduit', {
         {name: 'q1', type: 'int'},
         {name: 'q2', type: 'int'},
         {name: 'q3', type: 'int'},
-        {name: 'uniteCalcul', type: 'string'}
+        {name: 'uniteCalcul', type: 'string'},
+        /* champs additionnels renvoyes par la grille feuille de match uniquement */
+        {name: 'freqM0', type: 'number', defaultValue: 0},
+        {name: 'qteM0', type: 'number', defaultValue: 0},
+        {name: 'objectifStatut', type: 'string'}
     ]
 });

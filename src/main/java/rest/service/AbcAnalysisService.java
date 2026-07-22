@@ -74,7 +74,16 @@ public interface AbcAnalysisService {
      */
     byte[] buildFeuilleDeMatchPdf(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax, Integer topN, Integer objectifAchat);
+            Integer stockMax, Integer topN, Integer objectifAchat, String objectifFilter);
+
+    /**
+     * Grille paginee de la feuille de match : resultat filtre (memes filtres que la classification + Top N), enrichi de
+     * la frequence et de la quantite achetees du mois en cours et du statut de l'objectif d'achat, avec filtre
+     * optionnel objectif ATTEINT / DEPASSE.
+     */
+    JSONObject feuilleDeMatchGrid(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax, int start, int limit, Integer topN, Integer objectifAchat, String objectifFilter);
 
     /** Detail achats d'un produit pour la vue feuille de match (memes donnees que l'impression). */
     JSONObject feuilleDeMatchProduitDetail(String produitId, Integer objectifAchat);

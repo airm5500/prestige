@@ -31,7 +31,7 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
             remoteSort: false,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/articles/abc',
+                url: '../api/v1/articles/abc/feuille-match',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -51,10 +51,29 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                     proxy.setExtraParam('type', v('comboType') || 'QTY');
                     proxy.setExtraParam('classe', v('comboClasse') || 'ALL');
                     proxy.setExtraParam('topN', v('topN'));
+                    proxy.setExtraParam('objectifAchat', v('objectifAchat') || 3);
+                    proxy.setExtraParam('objectifFilter', v('comboObjectif') || 'ALL');
                     proxy.setExtraParam('search', v('searchField'));
                     proxy.setExtraParam('codeRayon', v('rayons'));
                     proxy.setExtraParam('codeGrossiste', v('grossiste'));
                     proxy.setExtraParam('codeFamille', v('codeFamile'));
+                },
+                load: function (store) {
+                    // En-tete de colonne avec le nom du mois en cours renvoye par le serveur
+                    try {
+                        const raw = store.getProxy().getReader().rawData || {};
+                        if (raw.moisCourant) {
+                            const grid = me.down('gridpanel');
+                            Ext.Array.each(grid.columns, function (col) {
+                                if (col.dataIndex === 'freqM0') {
+                                    col.setText('Fréq. achat (' + raw.moisCourant + ')');
+                                } else if (col.dataIndex === 'qteM0') {
+                                    col.setText('Qté achetée (' + raw.moisCourant + ')');
+                                }
+                            });
+                        }
+                    } catch (e) {
+                    }
                 }
             }
         });
@@ -90,6 +109,14 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                 {id: 'C', libelle: 'Classe C'}
             ]
         });
+        const filtreObjectif = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            data: [
+                {id: 'ALL', libelle: 'Objectif : tous'},
+                {id: 'ATTEINT', libelle: 'Objectif atteint'},
+                {id: 'DEPASSE', libelle: 'Objectif pas atteint (dépassé)'}
+            ]
+        });
 
         Ext.applyIf(me, {
             dockedItems: [
@@ -107,7 +134,8 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                             listeners: {specialkey: function (f, e) { if (e.getKey() === e.ENTER) { me.gridStore.loadPage(1); } }}},
                         {xtype: 'numberfield', itemId: 'objectifAchat', width: 155, minValue: 1, allowDecimals: false,
                             fieldLabel: 'Objectif achat', labelWidth: 85, value: 3,
-                            fieldStyle: 'color:#1565C0;font-weight:bold;'}
+                            fieldStyle: 'color:#1565C0;font-weight:bold;',
+                            listeners: {specialkey: function (f, e) { if (e.getKey() === e.ENTER) { me.gridStore.loadPage(1); } }}}
                     ]
                 },
                 {
@@ -123,6 +151,7 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                                 }
                             }},
                         {xtype: 'combo', value: 'ALL', flex: 1, itemId: 'comboClasse', labelWidth: 1, editable: false, store: filtreClasse, valueField: 'id', displayField: 'libelle'},
+                        {xtype: 'combo', value: 'ALL', flex: 1.2, itemId: 'comboObjectif', labelWidth: 1, editable: false, store: filtreObjectif, valueField: 'id', displayField: 'libelle'},
                         {xtype: 'textfield', flex: 1.4, itemId: 'searchField', emptyText: 'Code CIP ou nom du produit',
                             fieldStyle: 'border:2px solid #1565C0;'},
                         {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon', scope: this},
@@ -166,11 +195,17 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                                 const map = {A: '#1a7e1a', B: '#e67e00', C: '#d10000'};
                                 return '<span style="color:' + (map[v] || '#000') + ';font-weight:bold">' + (v || '') + '</span>';
                             }},
-                        {header: 'Famille', dataIndex: 'famille', flex: 1},
                         {header: 'Rayon', dataIndex: 'rayon', flex: 1},
                         {header: 'Stock', dataIndex: 'stockDisponible', width: 70, align: 'right', renderer: moneyRenderer},
                         {header: 'Seuil', dataIndex: 'seuilMini', width: 70, align: 'right', renderer: moneyRenderer},
                         {header: 'Qté réappro', dataIndex: 'quantiteReappro', width: 85, align: 'right', renderer: moneyRenderer},
+                        {header: 'Fréq. achat (mois)', dataIndex: 'freqM0', width: 105, align: 'right',
+                            renderer: function (v, meta, rec) {
+                                const statut = rec.get('objectifStatut') || '';
+                                const c = statut.indexOf('Dépassé') === 0 ? '#d10000' : '#1a7e1a';
+                                return '<span style="color:' + c + ';font-weight:bold">' + Ext.util.Format.number(v || 0, '0,000.') + '</span>';
+                            }},
+                        {header: 'Qté achetée (mois)', dataIndex: 'qteM0', width: 110, align: 'right', renderer: moneyRenderer},
                         {header: 'Qté vendue', dataIndex: 'quantiteVendue', width: 85, align: 'right',
                             renderer: function (v) {
                                 const cmp = me.down('#comboType');
@@ -180,6 +215,12 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                             }},
                         {header: "Chiffre d'Affaires", dataIndex: 'chiffreAffaires', flex: 1, align: 'right', renderer: moneyRenderer},
                         {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right', renderer: moneyRenderer},
+                        {header: 'Marge %', dataIndex: 'marge', width: 75, align: 'right', sortable: false,
+                            renderer: function (v, meta, rec) {
+                                const ca = rec.get('chiffreAffaires') || 0;
+                                const pct = ca > 0 ? (v || 0) / ca * 100 : 0;
+                                return '<span style="color:#0000ff;font-weight:bold">' + Ext.util.Format.number(pct, '0.00') + ' %</span>';
+                            }},
                         {
                             xtype: 'actioncolumn', header: 'Détail achats', width: 85, align: 'center',
                             sortable: false, menuDisabled: true,
