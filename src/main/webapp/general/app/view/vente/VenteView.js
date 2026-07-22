@@ -111,6 +111,14 @@ Ext.define('testextjs.view.vente.VenteView', {
     // Point du jour (utilisateur connecte uniquement) : montants et nombre de
     // ventes par mode mobile money + carte bancaire, avec total general.
     showPointMobileMoney: function () {
+        var me = this;
+        // A la fermeture du point, le choix produit reprend le focus.
+        var focusProduit = function () {
+            var f = me.down('#produit');
+            if (f) {
+                f.focus(true, 100);
+            }
+        };
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Point mobile money');
         Ext.Ajax.request({
             url: '../api/v1/caisse/point-mobile-money',
@@ -121,7 +129,7 @@ Ext.define('testextjs.view.vente.VenteView', {
                 if (o.success !== true) {
                     Ext.MessageBox.show({title: 'Point mobile money', width: 420,
                         msg: o.message || 'Impossible de charger le point mobile money.',
-                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING, fn: focusProduit});
                     return;
                 }
                 var fmt = function (v) {
@@ -150,6 +158,9 @@ Ext.define('testextjs.view.vente.VenteView', {
                     autoShow: true,
                     bodyPadding: 10,
                     html: html,
+                    listeners: {
+                        close: focusProduit
+                    },
                     buttons: [{
                             text: 'Fermer',
                             handler: function (b) {
@@ -161,7 +172,7 @@ Ext.define('testextjs.view.vente.VenteView', {
             failure: function () {
                 progress.hide();
                 Ext.MessageBox.show({title: 'Point mobile money', width: 380, msg: 'Erreur de serveur',
-                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR});
+                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.ERROR, fn: focusProduit});
             }
         });
     },
