@@ -192,3 +192,56 @@ SELECT COUNT(*) AS nb_comptes_multi_ro FROM (
   GROUP BY cctp.lg_COMPTE_CLIENT_ID
   HAVING COUNT(*) > 1
 ) x;
+
+
+-- ============================================================================
+-- Q8 — CARNET DEVENU RO (le cas rapporte : "un compte carnet en tant que RO")
+-- ----------------------------------------------------------------------------
+-- Mecanisme identifie dans le code :
+--   a) creation/modification d'un carnet pour un client DEJA assure
+--      (updateCreateClientCarnet -> updateClientCarnet) : le lien assurance
+--      priorite 1 est DESACTIVE et le carnet est cree RO=1 ;
+--   b) modification d'une vente carnet (updateclientortierpayant) : le lien
+--      carnet est cree RO=1 priorite 1 et l'assurance retrogradee ;
+--   c) a la fin de toute modification de vente, updateTiersPayantPriority
+--      promeut RO=1 le lien coche "principal" (pre-coche = priorite 1, donc le
+--      carnet si b) est passe avant) et passe RO=0 tous les autres.
+-- Cette requete liste les liens ACTIFS dont le tiers-payant est de type carnet
+-- (lg_TYPE_TIERS_PAYANT_ID = 2) et qui portent b_IS_RO = 1 : tous anormaux.
+-- ============================================================================
+SELECT ccl.lg_COMPTE_CLIENT_ID                                   AS compte,
+       CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
+       tp.str_NAME                                               AS carnet_en_ro,
+       cctp.int_PRIORITY                                         AS priorite,
+       cctp.dt_CREATED, cctp.dt_UPDATED,
+       cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID                     AS lien
+FROM t_compte_client_tiers_payant cctp
+JOIN t_tiers_payant tp   ON tp.lg_TIERS_PAYANT_ID = cctp.lg_TIERS_PAYANT_ID
+JOIN t_compte_client ccl ON ccl.lg_COMPTE_CLIENT_ID = cctp.lg_COMPTE_CLIENT_ID
+JOIN t_client cl         ON cl.lg_CLIENT_ID = ccl.lg_CLIENT_ID
+WHERE cctp.str_STATUT = 'enable'
+  AND cctp.b_IS_RO = 1
+  AND tp.lg_TYPE_TIERS_PAYANT_ID = '2'
+ORDER BY cctp.dt_UPDATED DESC;
+
+-- Q8bis — liens ASSURANCE desactives dont le compte possede un carnet actif :
+-- traces probables du mecanisme a) (l'assurance a ete debranchee au profit du
+-- carnet). dt_UPDATED du lien desactive ~ dt_CREATED du lien carnet.
+SELECT ccl.lg_COMPTE_CLIENT_ID                                   AS compte,
+       CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
+       tpa.str_NAME                                              AS assurance_desactivee,
+       a.dt_UPDATED                                              AS desactivee_le,
+       tpc.str_NAME                                              AS carnet_actif,
+       c.dt_CREATED                                              AS carnet_cree_le
+FROM t_compte_client_tiers_payant a
+JOIN t_tiers_payant tpa  ON tpa.lg_TIERS_PAYANT_ID = a.lg_TIERS_PAYANT_ID
+                         AND tpa.lg_TYPE_TIERS_PAYANT_ID <> '2'
+JOIN t_compte_client_tiers_payant c
+                         ON c.lg_COMPTE_CLIENT_ID = a.lg_COMPTE_CLIENT_ID
+                         AND c.str_STATUT = 'enable'
+JOIN t_tiers_payant tpc  ON tpc.lg_TIERS_PAYANT_ID = c.lg_TIERS_PAYANT_ID
+                         AND tpc.lg_TYPE_TIERS_PAYANT_ID = '2'
+JOIN t_compte_client ccl ON ccl.lg_COMPTE_CLIENT_ID = a.lg_COMPTE_CLIENT_ID
+JOIN t_client cl         ON cl.lg_CLIENT_ID = ccl.lg_CLIENT_ID
+WHERE a.str_STATUT = 'delete'
+ORDER BY a.dt_UPDATED DESC;
