@@ -275,6 +275,10 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                             nf(freq) + ' &nbsp;&nbsp;|&nbsp;&nbsp; Qté total entrée : ' + nf(qte));
                 };
                 const statutColor = (d.objectifStatut || '').indexOf('Dépassé') === 0 ? '#d10000' : '#1a7e1a';
+                // Marge et marge % de la periode filtree, issues de la ligne de la grille
+                const marge = rec.get('marge') || 0;
+                const ca = rec.get('chiffreAffaires') || 0;
+                const margePct = ca > 0 ? (marge / ca * 100) : 0;
                 const html = '<div style="font-size:13px;">'
                         + '<div style="font-weight:bold;margin-bottom:6px;">' + enc(d.cip || '') + ' - ' + enc(d.libelle || '')
                         + '<br/>PRIX ACHAT : ' + nf(d.prixAchat) + ' FCFA &nbsp;&nbsp; PRIX DE VENTE : ' + nf(d.prixVente) + ' FCFA</div>'
@@ -287,6 +291,8 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                         + ligne('Stock Reserve', nf(d.stockReserve))
                         + ligne('Vente hebdo (MOY/4)', enc(d.venteHebdo || '0'))
                         + ligne('Moyenne d\'achat 3 mois', enc(d.moyenneAchat3Mois || '0'))
+                        + ligne('Marge (période)', nf(marge) + ' FCFA')
+                        + ligne('Marge %', '<span style="color:#0000ff;">' + Ext.util.Format.number(margePct, '0.00') + ' %</span>')
                         + '</table>'
                         + '<div style="margin-top:8px;font-weight:bold;color:' + statutColor + ';">'
                         + 'Objectif achat/mois (max ' + r.objectif + ') : ' + enc(d.objectifStatut || '') + '</div>'

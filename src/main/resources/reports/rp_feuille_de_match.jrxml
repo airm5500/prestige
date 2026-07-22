@@ -76,20 +76,23 @@
         </band>
     </title>
     <detail>
-        <band height="68" splitType="Prevent">
+        <band height="52" splitType="Prevent">
             <textField isBlankWhenNull="true" textAdjust="StretchHeight">
                 <reportElement x="0" y="2" width="802" height="13" uuid="7c6b5a49-0002-0000-0000-000000000001"/>
-                <textElement><font size="9" isBold="true"/></textElement>
+                <textElement markup="html"><font size="9" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{cip} + "    " + $F{libelle}
     + "    PRIX ACHAT: " + new java.text.DecimalFormat("#,##0").format($F{prixAchat} == null ? 0L : $F{prixAchat}) + " FCFA"
-    + "    PRIX DE VENTE: " + new java.text.DecimalFormat("#,##0").format($F{prixVente} == null ? 0L : $F{prixVente}) + " FCFA"]]></textFieldExpression>
+    + "    PRIX DE VENTE: " + new java.text.DecimalFormat("#,##0").format($F{prixVente} == null ? 0L : $F{prixVente}) + " FCFA"
+    + "    Objectif achat/mois (max " + $P{P_OBJECTIF_ACHAT} + ") : <font color=\""
+    + ($F{objectifStatut} != null && $F{objectifStatut}.startsWith("Dépassé") ? "#D10000" : "#1A7E1A")
+    + "\">" + $F{objectifStatut} + "</font>"]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true" textAdjust="StretchHeight">
                 <reportElement positionType="Float" x="10" y="17" width="792" height="12" uuid="7c6b5a49-0002-0000-0000-000000000002"/>
-                <textElement><font size="8"/></textElement>
+                <textElement markup="html"><font size="8"/></textElement>
                 <textFieldExpression><![CDATA["+ Date dernière entrée : " + $F{derniereEntree}
-    + "  |  Fréquence achat (" + $P{P_MOIS_COURANT} + ") : " + $F{freqM0}
-    + "  |  Qté total entrée (" + $P{P_MOIS_COURANT} + ") : " + $F{qteM0}
+    + "  |  <b>Fréquence achat (" + $P{P_MOIS_COURANT} + ") : " + $F{freqM0} + "</b>"
+    + "  |  <b>Qté total entrée (" + $P{P_MOIS_COURANT} + ") : " + $F{qteM0} + "</b>"
     + "  |  Stock Reserve : " + $F{stockReserve}
     + "  |  Vente hebdo (MOY/4) : " + $F{venteHebdo}]]></textFieldExpression>
             </textField>
@@ -102,13 +105,8 @@
     + "  |  Fréquence achat (" + $P{P_MOIS_3} + ") : " + $F{freqM3} + "  |  Qté total entrée (" + $P{P_MOIS_3} + ") : " + $F{qteM3}
     + "  |"]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
-                <reportElement positionType="Float" style="objStyle" x="10" y="45" width="792" height="12" uuid="7c6b5a49-0002-0000-0000-000000000004"/>
-                <textElement><font size="8" isBold="true"/></textElement>
-                <textFieldExpression><![CDATA["+ Objectif achat/mois (max " + $P{P_OBJECTIF_ACHAT} + ") : " + $F{objectifStatut}]]></textFieldExpression>
-            </textField>
             <line>
-                <reportElement positionType="Float" x="0" y="62" width="802" height="1" forecolor="#999999" uuid="7c6b5a49-0002-0000-0000-000000000005"/>
+                <reportElement positionType="Float" x="0" y="46" width="802" height="1" forecolor="#999999" uuid="7c6b5a49-0002-0000-0000-000000000005"/>
             </line>
         </band>
     </detail>
