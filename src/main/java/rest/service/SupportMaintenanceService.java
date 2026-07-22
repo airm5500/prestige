@@ -20,6 +20,7 @@ public interface SupportMaintenanceService {
     String ACTION_ETIQUETTES = "ETIQUETTES";
     String ACTION_SUGGESTIONS = "SUGGESTIONS";
     String ACTION_COMMANDES_EN_COURS = "COMMANDES_EN_COURS";
+    String ACTION_LOTS_PERIMES_FANTOMES = "LOTS_PERIMES_FANTOMES";
 
     /**
      * Compteurs courants des donnees concernees par chaque action (affiches avant confirmation).

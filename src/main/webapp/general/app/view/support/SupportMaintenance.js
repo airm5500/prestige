@@ -46,6 +46,19 @@ Ext.define('testextjs.view.support.SupportMaintenance', {
                 compteur: function (counts) {
                     return counts.commandesEnCours + ' commande(s) et ' + counts.commandeDetails + ' détail(s)';
                 }
+            },
+            {
+                action: 'LOTS_PERIMES_FANTOMES',
+                titre: 'Vider les stocks fantômes des lots périmés',
+                description: 'Remet à zéro le stock des lots déjà périmés dont toutes les unités ont en réalité été vendues '
+                        + '(le stock disponible du produit est déjà entièrement couvert par ses lots non périmés) : '
+                        + 'ces lots disparaissent de la recherche des produits périmés. '
+                        + 'Les lots périmés réellement encore en rayon ne sont jamais touchés. Aucune ligne n\'est supprimée.',
+                unite: 'lot(s) remis à zéro',
+                compteur: function (counts) {
+                    return counts.lotsPerimesFantomes + ' lot(s) sur ' + counts.produitsPerimesFantomes
+                            + ' produit(s), soit ' + counts.unitesPerimesFantomes + ' unité(s) fantôme(s)';
+                }
             }
         ];
 
@@ -93,7 +106,8 @@ Ext.define('testextjs.view.support.SupportMaintenance', {
                             return;
                         }
                         const res = result.data || {};
-                        let msg = 'Vidage effectué : ' + (res.lignes || 0) + ' ligne(s) supprimée(s)';
+                        let msg = 'Vidage effectué : ' + (res.lignes || 0) + ' '
+                                + (actionDef.unite || 'ligne(s) supprimée(s)');
                         if (res.details !== undefined) {
                             msg += ' (+ ' + res.details + ' détail(s))';
                         }
