@@ -70,8 +70,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
     @Override
     public JSONObject fetchProduits(List<TPrivilege> usersPrivileges, TUser user, String produitId, String search,
-            String diciId, String type, String zoneGeoId, String stockOperator, String stockValue, int limit,
-            int start) {
+            String diciId, String type, String zoneGeoId, String stockOperator, String stockValue, String tvaId,
+            int limit, int start) {
         boolean checkExpirationdate = checkDatePeremption();
         JSONObject data = new JSONObject();
         Object[] objs = getPrivilegeProductByUser(user.getLgUSERID());
@@ -92,10 +92,11 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             data.put("total", 1);
         } else {
-            getAllLite(false, search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, true, start, limit)
-                    .forEach(tuple -> arrayObj
+            getAllLite(false, search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true, start,
+                    limit).forEach(tuple -> arrayObj
                             .put(buildProduitDataLite(canceledBtn, tuple, objs, empl, checkExpirationdate)));
-            data.put("total", getAllCount(search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, true));
+            data.put("total",
+                    getAllCount(search, diciId, empl, type, zoneGeoId, stockOperator, stockValue, tvaId, true));
         }
         data.put("results", arrayObj);
         return data;
@@ -103,7 +104,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
 
     @Override
     public List<String> fetchProduitIds(TUser user, String search, String diciId, String type, String zoneGeoId,
-            String stockOperator, String stockValue, boolean onlyReserve) {
+            String stockOperator, String stockValue, String tvaId, boolean onlyReserve) {
         try {
             String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             StringBuilder sql = new StringBuilder();
@@ -115,13 +116,13 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
-            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, true);
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, tvaId, true);
             if (onlyReserve) {
                 sql.append("AND t.bool_RESERVE = 1 ");
             }
 
             Query q = em.createNativeQuery(sql.toString());
-            setFilterParameters(q, empl, search, diciId, zoneGeoId, stockOperator, stockValue);
+            setFilterParameters(q, empl, search, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
 
             List<?> rows = q.getResultList();
             List<String> ids = new java.util.ArrayList<>();
@@ -156,7 +157,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             }
             data.put("total", 1);
         } else {
-            long count = getAllCount(search, null, empl, null, null, null, null, false);
+            long count = getAllCount(search, null, empl, null, null, null, null, null, false);
             if (count == 0) {
                 JSONObject jSONObject = new JSONObject();
                 jSONObject.put("lg_FAMILLE_ID", "0");
@@ -227,7 +228,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
-            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, checkDeconditionne);
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, null, checkDeconditionne);
 
             sql.append(" ORDER BY t.str_DESCRIPTION ASC");
 
@@ -243,7 +244,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                     .addEntity("remise", dal.TRemise.class).addEntity("tva", dal.TCodeTva.class);
 
             // Set centralized filter parameters
-            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue);
+            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue, null);
 
             if (!all) {
                 q.setFirstResult(start);
@@ -263,8 +264,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      * data is not needed
      */
     private List<Object[]> getAllLite(boolean all, String search, String diciId, String emplacementId, String type,
-            String zoneGeoId, String stockOperator, String stockValue, boolean checkDeconditionne, int start,
-            int limit) {
+            String zoneGeoId, String stockOperator, String stockValue, String tvaId, boolean checkDeconditionne,
+            int start, int limit) {
         try {
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT DISTINCT {t.*}, fs.int_NUMBER_AVAILABLE as stock, {zone.*} ");
@@ -278,7 +279,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
-            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, checkDeconditionne);
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, tvaId, checkDeconditionne);
 
             sql.append(" ORDER BY t.str_DESCRIPTION ASC");
 
@@ -288,7 +289,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
                     .addEntity("zone", dal.TZoneGeographique.class);
 
             // Set centralized filter parameters
-            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue);
+            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
 
             if (!all) {
                 q.setFirstResult(start);
@@ -303,7 +304,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
     }
 
     private long getAllCount(String search, String diciId, String emplacementId, String type, String zoneGeoId,
-            String stockOperator, String stockValue, boolean checkDeconditionne) {
+            String stockOperator, String stockValue, String tvaId, boolean checkDeconditionne) {
         try {
             StringBuilder sql = new StringBuilder();
             sql.append("SELECT COUNT(DISTINCT t.lg_FAMILLE_ID) FROM t_famille t ");
@@ -315,12 +316,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             sql.append("WHERE t.str_STATUT = 'enable' AND fs.lg_EMPLACEMENT_ID = :emplacementId ");
 
             // Apply centralized filters
-            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, checkDeconditionne);
+            applyFilters(sql, search, diciId, type, zoneGeoId, stockOperator, stockValue, tvaId, checkDeconditionne);
 
             Query q = em.createNativeQuery(sql.toString());
 
             // Set centralized filter parameters
-            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue);
+            setFilterParameters(q, emplacementId, search, diciId, zoneGeoId, stockOperator, stockValue, tvaId);
 
             return ((Number) q.getSingleResult()).longValue();
 
@@ -335,7 +336,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      * Centralized method to apply common filters to product queries
      */
     private void applyFilters(StringBuilder sql, String search, String diciId, String type, String zoneGeoId,
-            String stockOperator, String stockValue, boolean checkDeconditionne) {
+            String stockOperator, String stockValue, String tvaId, boolean checkDeconditionne) {
         if (StringUtils.isNotEmpty(search)) {
             sql.append(
                     "AND (t.int_CIP LIKE :search  OR fg.str_CODE_ARTICLE LIKE :search OR t.int_EAN13 LIKE :search OR t.str_NAME LIKE :search OR t.code_ean_fabriquant LIKE :search ) ");
@@ -348,6 +349,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         }
         if (StringUtils.isNotEmpty(zoneGeoId) && !"ALL".equalsIgnoreCase(zoneGeoId)) {
             sql.append("AND t.lg_ZONE_GEO_ID = :zoneGeoId ");
+        }
+        if (StringUtils.isNotEmpty(tvaId) && !"ALL".equalsIgnoreCase(tvaId)) {
+            sql.append("AND t.lg_CODE_TVA_ID = :tvaId ");
         }
         String stockSymbol = resolveStockOperator(stockOperator);
         if (stockSymbol != null && parseStockValue(stockValue) != null) {
@@ -377,7 +381,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
      * Centralized method to set filter parameters on queries
      */
     private void setFilterParameters(Query q, String emplacementId, String search, String diciId, String zoneGeoId,
-            String stockOperator, String stockValue) {
+            String stockOperator, String stockValue, String tvaId) {
         q.setParameter("emplacementId", emplacementId);
         if (StringUtils.isNotEmpty(search)) {
             q.setParameter("search", search + "%");
@@ -387,6 +391,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         }
         if (StringUtils.isNotEmpty(zoneGeoId) && !"ALL".equalsIgnoreCase(zoneGeoId)) {
             q.setParameter("zoneGeoId", zoneGeoId);
+        }
+        if (StringUtils.isNotEmpty(tvaId) && !"ALL".equalsIgnoreCase(tvaId)) {
+            q.setParameter("tvaId", tvaId);
         }
         Integer stockNumber = parseStockValue(stockValue);
         if (resolveStockOperator(stockOperator) != null && stockNumber != null) {

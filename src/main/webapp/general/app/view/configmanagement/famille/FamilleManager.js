@@ -88,6 +88,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     const zoneCmp = Me_Workflow.fmField('lg_ZONE_GEO_ID');
                     const stockOpCmp = Me_Workflow.fmField('stock_operator');
                     const stockValCmp = Me_Workflow.fmField('stock_value');
+                    const tvaCmp = Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE');
 
                     proxy.setExtraParam('search_value', searchCmp ? (searchCmp.getValue() || '') : '');
                     proxy.setExtraParam('str_TYPE_TRANSACTION', typeCmp ? (typeCmp.getValue() || '') : '');
@@ -95,6 +96,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     proxy.setExtraParam('lg_ZONE_GEO_ID', zoneCmp ? (zoneCmp.getValue() || '') : '');
                     proxy.setExtraParam('stock_operator', stockOpCmp ? (stockOpCmp.getValue() || '') : '');
                     proxy.setExtraParam('stock_value', stockValCmp ? (stockValCmp.getValue() || '') : '');
+                    proxy.setExtraParam('lg_CODE_TVA_ID', tvaCmp ? (tvaCmp.getValue() || '') : '');
                 }
             }
         });
@@ -153,6 +155,21 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 reader: {
                     type: 'json',
                     root: 'data',
+                    totalProperty: 'total'
+                }
+            }
+        });
+
+        const store_codetva = Ext.create('Ext.data.Store', {
+            fields: ['lg_CODE_TVA_ID', 'str_NAME', 'int_VALUE'],
+            autoLoad: false,
+            pageSize: 9999,
+            proxy: {
+                type: 'ajax',
+                url: '../webservices/sm_user/famille/ws_data_codetva.jsp',
+                reader: {
+                    type: 'json',
+                    root: 'results',
                     totalProperty: 'total'
                 }
             }
@@ -849,6 +866,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
                                 Me_Workflow.fmField('stock_operator').clearValue();
                                 Me_Workflow.fmField('stock_value').setValue('');
+                                Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
                                 Me_Workflow.onRechClick();
                             }
                         },
@@ -958,6 +976,36 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
                                 Me_Workflow.onRechClick();
                             }
+                        },
+                        '-',
+                        {
+                            xtype: 'combobox',
+                            name: 'lg_CODE_TVA_ID_FILTRE',
+                            id: 'lg_CODE_TVA_ID_FILTRE',
+                            store: store_codetva,
+                            valueField: 'lg_CODE_TVA_ID',
+                            displayField: 'str_NAME',
+                            typeAhead: false,
+                            queryMode: 'remote',
+                            minChars: 0,
+                            width: 170,
+                            emptyText: 'Filtre TVA...',
+                            forceSelection: true,
+                            listeners: {
+                                select: function () {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
+                        },
+                        {
+                            text: 'Effacer TVA',
+                            tooltip: 'Effacer le filtre TVA',
+                            iconCls: 'cancelicon',
+                            scope: this,
+                            handler: function () {
+                                Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
+                                Me_Workflow.onRechClick();
+                            }
                         }
                     ]
                 }
@@ -978,6 +1026,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         const lg_ZONE_GEO_ID = Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue();
                         const stock_operator = Me_Workflow.fmField('stock_operator').getValue();
                         const stock_value = Me_Workflow.fmField('stock_value').getValue();
+                        const lg_CODE_TVA_ID = Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getValue();
 
                         myProxy.setExtraParam('str_TYPE_TRANSACTION', str_TYPE_TRANSACTION || '');
                         myProxy.setExtraParam('lg_DCI_ID', lg_DCI_PRINCIPAL_ID || '');
@@ -985,6 +1034,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         myProxy.setExtraParam('lg_ZONE_GEO_ID', lg_ZONE_GEO_ID || '');
                         myProxy.setExtraParam('stock_operator', stock_operator || '');
                         myProxy.setExtraParam('stock_value', stock_value || '');
+                        myProxy.setExtraParam('lg_CODE_TVA_ID', lg_CODE_TVA_ID || '');
                     }
 
                 }
@@ -1028,6 +1078,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         proxy.setExtraParam('lg_ZONE_GEO_ID', '');
         proxy.setExtraParam('stock_operator', '');
         proxy.setExtraParam('stock_value', '');
+        proxy.setExtraParam('lg_CODE_TVA_ID', '');
 
         store.loadPage(1, {
             params: {
@@ -1036,7 +1087,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 lg_DCI_ID: '',
                 lg_ZONE_GEO_ID: '',
                 stock_operator: '',
-                stock_value: ''
+                stock_value: '',
+                lg_CODE_TVA_ID: ''
             },
             callback: grid.onStoreLoad
         });
@@ -1155,7 +1207,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             str_TYPE_TRANSACTION = "",
             lg_ZONE_GEO_ID = "",
             stock_operator = "",
-            stock_value = "";
+            stock_value = "",
+            lg_CODE_TVA_ID = "";
 
     if (Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() != null) {
         lg_DCI_PRINCIPAL_ID = Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue();
@@ -1177,6 +1230,11 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         stock_value = Me_Workflow.fmField('stock_value').getValue();
     }
 
+    if (Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getValue() != null) {
+        lg_CODE_TVA_ID = Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getValue();
+    }
+
+    const tvaLabel = Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getRawValue();
     const rayonLabel = Me_Workflow.fmField('lg_ZONE_GEO_ID').getRawValue();
     const search_value = Me_Workflow.fmField('rechecher').getValue();
     const opSymbols = {LESS: '<', MORE: '>', EQUAL: '=', LESSOREQUAL: '<=', MOREOREQUAL: '>='};
@@ -1186,6 +1244,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     }
     if (stock_operator && opSymbols[stock_operator] && stock_value !== '') {
         filtreParts.push('stock ' + opSymbols[stock_operator] + ' ' + stock_value);
+    }
+    if (lg_CODE_TVA_ID && tvaLabel) {
+        filtreParts.push('TVA ' + tvaLabel);
     }
     if (search_value) {
         filtreParts.push('recherche "' + search_value + '"');
@@ -1198,6 +1259,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             + '&lg_ZONE_GEO_ID=' + lg_ZONE_GEO_ID
             + '&stock_operator=' + stock_operator
             + '&stock_value=' + stock_value
+            + '&lg_CODE_TVA_ID=' + lg_CODE_TVA_ID
             + '&titre_filtre=' + encodeURIComponent(titre_filtre)
             + '&search_value=' + Me_Workflow.fmField('rechecher').getValue();
 
@@ -1461,7 +1523,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 lg_DCI_ID: Me_Workflow.fmField('lg_DCI_PRINCIPAL_ID').getValue() || '',
                 lg_ZONE_GEO_ID: Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue() || '',
                 stock_operator: Me_Workflow.fmField('stock_operator').getValue() || '',
-                stock_value: Me_Workflow.fmField('stock_value').getValue() || ''
+                stock_value: Me_Workflow.fmField('stock_value').getValue() || '',
+                lg_CODE_TVA_ID: Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getValue() || ''
             }
         });
 
@@ -1542,6 +1605,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             lg_ZONE_GEO_ID: Me_Workflow.fmField('lg_ZONE_GEO_ID').getValue() || '',
             stock_operator: Me_Workflow.fmField('stock_operator').getValue() || '',
             stock_value: Me_Workflow.fmField('stock_value').getValue() || '',
+            lg_CODE_TVA_ID: Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').getValue() || '',
             mode: mode,
             name: name
         };

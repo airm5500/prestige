@@ -45,7 +45,8 @@ public class SearchProduitServcieRessource {
             @QueryParam(value = "search_value") String search, @QueryParam(value = "str_TYPE_TRANSACTION") String type,
             @QueryParam(value = "lg_DCI_ID") String diciId, @QueryParam(value = "lg_ZONE_GEO_ID") String zoneGeoId,
             @QueryParam(value = "stock_operator") String stockOperator,
-            @QueryParam(value = "stock_value") String stockValue, @QueryParam(value = "produitId") String produitId)
+            @QueryParam(value = "stock_value") String stockValue,
+            @QueryParam(value = "lg_CODE_TVA_ID") String tvaId, @QueryParam(value = "produitId") String produitId)
             throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
@@ -53,7 +54,7 @@ public class SearchProduitServcieRessource {
 
         List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         JSONObject jsono = this.searchProduitServcie.fetchProduits(attribute, tu, produitId, search, diciId, type,
-                zoneGeoId, stockOperator, stockValue, limit, start);
+                zoneGeoId, stockOperator, stockValue, tvaId, limit, start);
         return Response.ok().entity(jsono.toString()).build();
     }
 
@@ -79,12 +80,13 @@ public class SearchProduitServcieRessource {
         String zoneGeoId = in.optString("lg_ZONE_GEO_ID", "");
         String stockOperator = in.optString("stock_operator", "");
         String stockValue = in.optString("stock_value", "");
+        String tvaId = in.optString("lg_CODE_TVA_ID", "");
         String mode = in.optString("mode", "RAYON");
         String name = in.optString("name", "Inventaire");
         boolean onlyReserve = "RESERVE".equalsIgnoreCase(mode);
 
         List<String> idList = this.searchProduitServcie.fetchProduitIds(tu, search, diciId, type, zoneGeoId,
-                stockOperator, stockValue, onlyReserve);
+                stockOperator, stockValue, tvaId, onlyReserve);
         Set<String> ids = new LinkedHashSet<>(idList);
 
         JSONObject json = new JSONObject();

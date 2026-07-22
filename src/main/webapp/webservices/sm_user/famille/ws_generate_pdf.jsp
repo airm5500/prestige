@@ -88,6 +88,14 @@
                 + lg_ZONE_GEO_ID.trim() + "') ";
         new logger().OCategory.info("zone_condition " + zone_condition);
     }
+    // Filtre TVA (lg_CODE_TVA_ID) : meme principe que le filtre rayon, via une sous-requete sur t_famille.
+    String tva_condition = "";
+    String lg_CODE_TVA_ID = request.getParameter("lg_CODE_TVA_ID");
+    if (lg_CODE_TVA_ID != null && !lg_CODE_TVA_ID.trim().equals("") && !lg_CODE_TVA_ID.equalsIgnoreCase("ALL")) {
+        tva_condition = " AND lg_FAMILLE_ID IN (SELECT lg_FAMILLE_ID FROM t_famille WHERE lg_CODE_TVA_ID = '"
+                + lg_CODE_TVA_ID.trim().replace("'", "") + "') ";
+        new logger().OCategory.info("tva_condition " + tva_condition);
+    }
     // Filtre reserve : renseigne plus bas si str_TYPE_TRANSACTION = RESERVE.
     String reserve_condition = "";
 
@@ -180,7 +188,7 @@
     parameters.put("P_SEARCH", search_value + "%");
     // Parametres du filtre stock pour les reports (.jrxml). P_STOCK_CONDITION = fragment SQL
     // injectable via $P!{P_STOCK_CONDITION} (vide => aucun filtre stock).
-    parameters.put("P_STOCK_CONDITION", stock_condition + zone_condition + reserve_condition);
+    parameters.put("P_STOCK_CONDITION", stock_condition + zone_condition + tva_condition + reserve_condition);
     parameters.put("P_STOCK_OPERATOR", stock_sql_operator);
     parameters.put("P_STOCK_VALUE", stock_number);
     new logger().OCategory.info("emplacement:" + OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID() + "|boolDECONDITIONNE:"+boolDECONDITIONNE);
