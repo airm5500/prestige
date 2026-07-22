@@ -191,20 +191,6 @@ ORDER BY l.dt_PEREMPTION ASC]]>
             </textField>
         </band>
     </detail>
-    <summary>
-        <band height="20">
-            <staticText>
-                <reportElement x="0" y="0" width="90" height="20" uuid="a1b2c3d4-0005-0000-0000-000000000001"/>
-                <textElement verticalAlignment="Middle"><font isBold="true"/></textElement>
-                <text><![CDATA[ TOTAL]]></text>
-            </staticText>
-            <textField isBlankWhenNull="true">
-                <reportElement x="90" y="0" width="70" height="20" uuid="a1b2c3d4-0005-0000-0000-000000000002"/>
-                <textElement textAlignment="Right" verticalAlignment="Middle"><font isBold="true"/></textElement>
-                <textFieldExpression><![CDATA[$V{V_TOTAL_QTE}]]></textFieldExpression>
-            </textField>
-        </band>
-    </summary>
     <pageFooter>
         <band height="18">
             <textField isBlankWhenNull="true">
@@ -224,4 +210,18 @@ ORDER BY l.dt_PEREMPTION ASC]]>
             </textField>
         </band>
     </pageFooter>
+    <summary>
+        <band height="20">
+            <staticText>
+                <reportElement x="0" y="0" width="90" height="20" uuid="a1b2c3d4-0005-0000-0000-000000000001"/>
+                <textElement verticalAlignment="Middle"><font isBold="true"/></textElement>
+                <text><![CDATA[ TOTAL]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="90" y="0" width="70" height="20" uuid="a1b2c3d4-0005-0000-0000-000000000002"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$V{V_TOTAL_QTE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
 </jasperReport>
