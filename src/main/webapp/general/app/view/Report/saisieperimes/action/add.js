@@ -347,8 +347,8 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                 {
                                     text: 'Imprimer',
                                     id: 'btn_print_perime',
-                                    cls: 'btn-secondary',
                                     iconCls: 'printable',
+                                    style: 'background-color:#1565C0;border-color:#1565C0;',
                                     tooltip: 'Imprimer la saisie en cours pour la contr&ocirc;ler avant validation',
                                     scope: this,
                                     handler: this.onPrintSaisie
@@ -363,8 +363,8 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                                 }, {
                                     text: 'RETOUR',
                                     id: 'btn_cancel',
-                                    cls: 'btn-secondary',
                                     iconCls: 'icon-clear-group',
+                                    style: 'background-color:#d9534f;border-color:#d9534f;',
                                     scope: this,
                                     handler: this.onbtncancel
                                 }

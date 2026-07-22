@@ -202,7 +202,9 @@ Ext.define('testextjs.view.produits.AnalyseAjustement', {
                             align: 'right',
                             flex: 0.9,
                             renderer: function (v, metaData) {
-                                metaData.style = 'font-weight:700;';
+                                // vert si positif, rouge si negatif, orange si nul
+                                var couleur = v > 0 ? 'green' : (v < 0 ? 'red' : 'orange');
+                                metaData.style = 'font-weight:700;color:' + couleur + ';';
                                 return Ext.util.Format.number(v, '0,000.');
                             }
                         }, {
