@@ -1103,4 +1103,213 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
                 .put("A", nbA).put("B", nbB).put("C", nbC).put("dtStart", dtStart).put("dtEnd", dtEnd);
     }
 
+    // ----------------------- Feuille de match -------------------------------
+
+    private static final int FM_CHUNK = 900;
+
+    private static List<List<String>> fmChunks(List<String> ids) {
+        List<List<String>> chunks = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i += FM_CHUNK) {
+            chunks.add(ids.subList(i, Math.min(ids.size(), i + FM_CHUNK)));
+        }
+        return chunks;
+    }
+
+    /** Prix d'achat (int_PAF) et de vente (int_PRICE) par produit : id -> [paf, prix]. */
+    private Map<String, long[]> fmPrix(List<String> ids) {
+        Map<String, long[]> map = new HashMap<>();
+        for (List<String> chunk : fmChunks(ids)) {
+            List<Object[]> rows = em.createNativeQuery(
+                    "SELECT f.lg_FAMILLE_ID, COALESCE(f.int_PAF,0), COALESCE(f.int_PRICE,0) FROM t_famille f"
+                            + " WHERE f.lg_FAMILLE_ID IN (:ids)")
+                    .setParameter("ids", chunk).getResultList();
+            for (Object[] r : rows) {
+                map.put(asStr(r[0]), new long[] { Math.round(asDouble(r[1])), Math.round(asDouble(r[2])) });
+            }
+        }
+        return map;
+    }
+
+    /**
+     * Entrees en stock (receptions de bons de livraison clotures) du mois courant et des 3 mois precedents : id ->
+     * [4][2] avec [m][0] = frequence d'achat (nombre de receptions) et [m][1] = quantite totale entree, m = 0 (mois en
+     * cours) a 3 (mois -3).
+     */
+    private Map<String, long[][]> fmEntrees(List<String> ids) {
+        Map<String, long[][]> map = new HashMap<>();
+        for (List<String> chunk : fmChunks(ids)) {
+            List<Object[]> rows = em.createNativeQuery("SELECT bld.lg_FAMILLE_ID,"
+                    + " ((YEAR(CURDATE())*12+MONTH(CURDATE())) - (YEAR(bld.dt_UPDATED)*12+MONTH(bld.dt_UPDATED))) AS m_index,"
+                    + " COUNT(bld.lg_BON_LIVRAISON_DETAIL), SUM(COALESCE(bld.int_QTE_RECUE,0))"
+                    + " FROM t_bon_livraison_detail bld"
+                    + " INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID"
+                    + " WHERE bl.str_STATUT = 'is_Closed'"
+                    + " AND bld.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH),'%Y-%m-01')"
+                    + " AND bld.lg_FAMILLE_ID IN (:ids) GROUP BY bld.lg_FAMILLE_ID, m_index")
+                    .setParameter("ids", chunk).getResultList();
+            for (Object[] r : rows) {
+                int idx = asInt(r[1]);
+                if (idx < 0 || idx > 3) {
+                    continue;
+                }
+                long[][] arr = map.computeIfAbsent(asStr(r[0]), k -> new long[4][2]);
+                arr[idx][0] = Math.round(asDouble(r[2]));
+                arr[idx][1] = Math.round(asDouble(r[3]));
+            }
+        }
+        return map;
+    }
+
+    /** Derniere entree en stock par produit : id -> [date de reception (java.util.Date), quantite recue]. */
+    private Map<String, Object[]> fmDerniereEntree(List<String> ids) {
+        Map<String, Object[]> map = new HashMap<>();
+        for (List<String> chunk : fmChunks(ids)) {
+            List<Object[]> rows = em.createNativeQuery(
+                    "SELECT bld.lg_FAMILLE_ID, bld.dt_UPDATED, COALESCE(bld.int_QTE_RECUE,0)"
+                            + " FROM t_bon_livraison_detail bld"
+                            + " INNER JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID = bld.lg_BON_LIVRAISON_ID"
+                            + " INNER JOIN (SELECT bld2.lg_FAMILLE_ID AS fid, MAX(bld2.dt_UPDATED) AS maxdt"
+                            + "   FROM t_bon_livraison_detail bld2"
+                            + "   INNER JOIN t_bon_livraison bl2 ON bl2.lg_BON_LIVRAISON_ID = bld2.lg_BON_LIVRAISON_ID"
+                            + "   WHERE bl2.str_STATUT = 'is_Closed' AND bld2.lg_FAMILLE_ID IN (:ids)"
+                            + "   GROUP BY bld2.lg_FAMILLE_ID) last"
+                            + " ON last.fid = bld.lg_FAMILLE_ID AND bld.dt_UPDATED = last.maxdt"
+                            + " WHERE bl.str_STATUT = 'is_Closed' AND bld.lg_FAMILLE_ID IN (:ids)")
+                    .setParameter("ids", chunk).getResultList();
+            for (Object[] r : rows) {
+                map.putIfAbsent(asStr(r[0]), new Object[] { r[1], Math.round(asDouble(r[2])) });
+            }
+        }
+        return map;
+    }
+
+    /** Stock reserve par produit (t_type_stock_famille type '2') pour l'emplacement courant. */
+    private Map<String, Long> fmStockReserve(List<String> ids, String emplacement) {
+        Map<String, Long> map = new HashMap<>();
+        for (List<String> chunk : fmChunks(ids)) {
+            List<Object[]> rows = em.createNativeQuery(
+                    "SELECT t.lg_FAMILLE_ID, COALESCE(t.int_NUMBER,0) FROM t_type_stock_famille t"
+                            + " WHERE t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable'"
+                            + " AND t.lg_EMPLACEMENT_ID = :empl AND t.lg_FAMILLE_ID IN (:ids)")
+                    .setParameter("empl", emplacement).setParameter("ids", chunk).getResultList();
+            for (Object[] r : rows) {
+                map.put(asStr(r[0]), Math.round(asDouble(r[1])));
+            }
+        }
+        return map;
+    }
+
+    /**
+     * Vente hebdomadaire moyenne (MOY/4) par produit : quantites vendues (equivalent boite, consolidation
+     * deconditionne -> parent) des 28 derniers jours divisees par 4.
+     */
+    private Map<String, Double> fmVenteHebdo(List<String> ids, String emplacement) {
+        Map<String, Double> map = new HashMap<>();
+        for (List<String> chunk : fmChunks(ids)) {
+            List<Object[]> rows = em.createNativeQuery("SELECT t.eff_id, SUM(t.qty_equiv) FROM ("
+                    + "SELECT CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' "
+                    + "THEN f.lg_FAMILLE_PARENT_ID ELSE f.lg_FAMILLE_ID END AS eff_id, "
+                    + "CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' "
+                    + "THEN pd.int_QUANTITY/COALESCE(NULLIF(parent.int_NUMBERDETAIL,0),1) ELSE pd.int_QUANTITY END AS qty_equiv "
+                    + "FROM t_preenregistrement p JOIN t_user u ON p.lg_USER_ID=u.lg_USER_ID "
+                    + "JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID "
+                    + "JOIN t_famille f ON pd.lg_FAMILLE_ID=f.lg_FAMILLE_ID "
+                    + "LEFT JOIN t_famille parent ON parent.lg_FAMILLE_ID=f.lg_FAMILLE_PARENT_ID "
+                    + "WHERE p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5' "
+                    + "AND u.lg_EMPLACEMENT_ID=:empl AND p.dt_UPDATED >= DATE_SUB(CURDATE(), INTERVAL 28 DAY) "
+                    + "AND pd.lg_FAMILLE_ID IN (SELECT cf.lg_FAMILLE_ID FROM t_famille cf "
+                    + "WHERE cf.lg_FAMILLE_ID IN (:ids) OR cf.lg_FAMILLE_PARENT_ID IN (:ids))"
+                    + ") t GROUP BY t.eff_id").setParameter("empl", emplacement).setParameter("ids", chunk)
+                    .getResultList();
+            for (Object[] r : rows) {
+                map.put(asStr(r[0]), asDouble(r[1]) / 4.0);
+            }
+        }
+        return map;
+    }
+
+    @Override
+    public byte[] buildFeuilleDeMatchPdf(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax, Integer topN) {
+        List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
+                codeGrossiste, stockFilter, stockMin, stockMax, topN);
+        if (rows.isEmpty()) {
+            return new byte[0];
+        }
+        Document document = new Document(PageSize.A4, 24, 24, 24, 24);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            List<String> ids = rows.stream().map(AbcProduitDTO::getProduitId).filter(StringUtils::isNotBlank)
+                    .distinct().collect(Collectors.toList());
+            Map<String, long[]> prix = fmPrix(ids);
+            Map<String, long[][]> entrees = fmEntrees(ids);
+            Map<String, Object[]> dernieres = fmDerniereEntree(ids);
+            Map<String, Long> reserves = fmStockReserve(ids, emplacement);
+            Map<String, Double> hebdos = fmVenteHebdo(ids, emplacement);
+
+            String moisCourant = java.time.LocalDate.now().getMonth()
+                    .getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.FRENCH);
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+            DecimalFormat df = new DecimalFormat("0.00", new DecimalFormatSymbols(java.util.Locale.US));
+
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
+            Font produitFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
+            Font detailFont = FontFactory.getFont(FontFactory.HELVETICA, 8);
+
+            String typeLabel = "MARGE".equalsIgnoreCase(type) ? "marge"
+                    : ("CA".equalsIgnoreCase(type) ? "chiffre d'affaires" : "quantité");
+            Paragraph title = new Paragraph("Feuille de match (top " + rows.size() + " - " + typeLabel + ") du "
+                    + nz(dtStart) + " au " + nz(dtEnd), titleFont);
+            title.setSpacingAfter(10f);
+            document.add(title);
+
+            for (AbcProduitDTO d : rows) {
+                String id = nz(d.getProduitId());
+                long[] p = prix.getOrDefault(id, new long[] { 0, 0 });
+                long[][] e = entrees.getOrDefault(id, new long[4][2]);
+                Object[] derniere = dernieres.get(id);
+                long reserve = reserves.getOrDefault(id, 0L);
+                double hebdo = hebdos.getOrDefault(id, 0d);
+                double moyenneAchat3Mois = (e[1][1] + e[2][1] + e[3][1]) / 3.0;
+
+                Paragraph ligne1 = new Paragraph(nz(d.getCip()) + "    " + nz(d.getLibelle()) + "    PRIX ACHAT: "
+                        + formatFcfa(p[0]) + " FCFA    PRIX DE VENTE: " + formatFcfa(p[1]) + " FCFA", produitFont);
+                ligne1.setSpacingBefore(6f);
+                document.add(ligne1);
+
+                String derniereTxt = (derniere != null && derniere[0] != null)
+                        ? (sdf.format((Date) derniere[0]) + " (qté " + derniere[1] + ")") : "aucune";
+                Paragraph ligne2 = new Paragraph("    + " + nz(d.getLibelle()) + "  |  Date dernière entrée : "
+                        + derniereTxt + "  |  Fréquence achat (" + moisCourant + ") : " + e[0][0]
+                        + "  |  Qté total entrée (" + moisCourant + ") : " + e[0][1] + "  |  Stock Reserve : " + reserve
+                        + "  |  Vente hebdo (MOY/4) : " + df.format(hebdo), detailFont);
+                ligne2.setIndentationLeft(10f);
+                document.add(ligne2);
+
+                Paragraph ligne3 = new Paragraph("    + |  Moyenne d'achat 3mois : " + df.format(moyenneAchat3Mois)
+                        + "  |  Fréquence achat (mois -1) : " + e[1][0] + "  |  Qté total entrée (mois -1) : " + e[1][1]
+                        + "  |  Fréquence achat (mois -2) : " + e[2][0] + "  |  Qté total entrée (mois -2) : " + e[2][1]
+                        + "  |  Fréquence achat (mois -3) : " + e[3][0] + "  |  Qté total entrée (mois -3) : " + e[3][1]
+                        + "  |", detailFont);
+                ligne3.setIndentationLeft(10f);
+                ligne3.setSpacingAfter(4f);
+                document.add(ligne3);
+            }
+
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Impression PDF Feuille de match impossible", e);
+            if (document.isOpen()) {
+                document.close();
+            }
+            return new byte[0];
+        }
+    }
+
 }

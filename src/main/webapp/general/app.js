@@ -795,6 +795,7 @@ Ext.application({
         'FamilleArticleStatsCtr',
         'VingthManagerCtr',
         'AbcManagerCtr',
+        'FeuilleDeMatchCtr',
         'peremptionManagerCtr',
         'MargeManagerCtr',
         'UnitesVenduesCtr',

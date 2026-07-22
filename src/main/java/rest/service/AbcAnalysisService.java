@@ -66,6 +66,15 @@ public interface AbcAnalysisService {
             String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin, Integer stockMax,
             Integer topN);
 
+    /**
+     * Impression PDF "Feuille de match" du resultat filtre courant : pour chaque produit, prix achat/vente, date de
+     * derniere entree (+ quantite), frequence d'achat et quantite totale entree du mois en cours et des 3 derniers
+     * mois, stock reserve, vente hebdomadaire moyenne (MOY/4) et moyenne d'achat sur 3 mois.
+     */
+    byte[] buildFeuilleDeMatchPdf(String dtStart, String dtEnd, String type, String classe, String search,
+            String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
+            Integer stockMax, Integer topN);
+
     /** Cree un inventaire a partir de TOUT le resultat filtre courant. */
     JSONObject createInventaire(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,

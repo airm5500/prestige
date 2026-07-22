@@ -110,6 +110,21 @@ public class AbcArticleRessource {
         return Response.ok(data).header("Content-Disposition", "inline; filename=\"classification_abc.pdf\"").build();
     }
 
+    /** Impression PDF "Feuille de match" : frequences et quantites d'achat (mois courant + 3 derniers mois). */
+    @GET
+    @Path("feuille-match/print")
+    @Produces("application/pdf")
+    public Response feuilleMatchPrint(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @DefaultValue("QTY") @QueryParam("type") String type, @QueryParam("classe") String classe,
+            @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
+            @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
+            @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
+        byte[] data = abcAnalysisService.buildFeuilleDeMatchPdf(dtStart, dtEnd, type, classe, search, codeFamille,
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN);
+        return Response.ok(data).header("Content-Disposition", "inline; filename=\"feuille_de_match.pdf\"").build();
+    }
+
     @POST
     @Path("inventaire")
     @Consumes(MediaType.WILDCARD)
