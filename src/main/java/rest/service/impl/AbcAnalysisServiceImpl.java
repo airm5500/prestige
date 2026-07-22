@@ -75,6 +75,9 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     @EJB
     private AbcReclassWriter abcReclassWriter;
 
+    @EJB
+    private rest.report.ReportUtil reportUtil;
+
     private String procedureName(String type) {
         if (type == null) {
             return "analyse_abc_par_ca";
@@ -1228,88 +1231,132 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         return map;
     }
 
+    /** Nom francais du mois courant decale de {@code minus} mois (0 = mois en cours). */
+    private static String fmNomMois(int minus) {
+        return java.time.LocalDate.now().minusMonths(minus).getMonth().getDisplayName(java.time.format.TextStyle.FULL,
+                java.util.Locale.FRENCH);
+    }
+
+    /** Statut de l'objectif d'achat mensuel : respecte si chaque mois observe a une frequence <= objectif. */
+    private static String fmObjectifStatut(long[][] entrees, int objectif) {
+        StringBuilder depassements = new StringBuilder();
+        for (int m = 0; m <= 3; m++) {
+            if (entrees[m][0] > objectif) {
+                if (depassements.length() > 0) {
+                    depassements.append(", ");
+                }
+                depassements.append(fmNomMois(m)).append(" (").append(entrees[m][0]).append(")");
+            }
+        }
+        return depassements.length() == 0 ? "Respecté" : ("Dépassé : " + depassements);
+    }
+
+    /** Construit les lignes de la feuille de match (donnees d'achat) pour la liste de produits classee. */
+    private List<commonTasks.dto.FeuilleDeMatchLigneDTO> buildFeuilleDeMatchRows(List<AbcProduitDTO> rows,
+            int objectif) {
+        String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        List<String> ids = rows.stream().map(AbcProduitDTO::getProduitId).filter(StringUtils::isNotBlank).distinct()
+                .collect(Collectors.toList());
+        Map<String, long[]> prix = fmPrix(ids);
+        Map<String, long[][]> entrees = fmEntrees(ids);
+        Map<String, Object[]> dernieres = fmDerniereEntree(ids);
+        Map<String, Long> reserves = fmStockReserve(ids, emplacement);
+        Map<String, Double> hebdos = fmVenteHebdo(ids, emplacement);
+
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+        DecimalFormat df = new DecimalFormat("0.00", new DecimalFormatSymbols(java.util.Locale.US));
+
+        List<commonTasks.dto.FeuilleDeMatchLigneDTO> lignes = new ArrayList<>();
+        for (AbcProduitDTO d : rows) {
+            String id = nz(d.getProduitId());
+            long[] p = prix.getOrDefault(id, new long[] { 0, 0 });
+            long[][] e = entrees.getOrDefault(id, new long[4][2]);
+            Object[] derniere = dernieres.get(id);
+
+            commonTasks.dto.FeuilleDeMatchLigneDTO ligne = new commonTasks.dto.FeuilleDeMatchLigneDTO();
+            ligne.setCip(nz(d.getCip()));
+            ligne.setLibelle(nz(d.getLibelle()));
+            ligne.setPrixAchat(p[0]);
+            ligne.setPrixVente(p[1]);
+            ligne.setDerniereEntree((derniere != null && derniere[0] != null)
+                    ? (sdf.format((Date) derniere[0]) + " (qté " + derniere[1] + ")") : "aucune");
+            ligne.setFreqM0(e[0][0]);
+            ligne.setQteM0(e[0][1]);
+            ligne.setFreqM1(e[1][0]);
+            ligne.setQteM1(e[1][1]);
+            ligne.setFreqM2(e[2][0]);
+            ligne.setQteM2(e[2][1]);
+            ligne.setFreqM3(e[3][0]);
+            ligne.setQteM3(e[3][1]);
+            ligne.setStockReserve(reserves.getOrDefault(id, 0L));
+            ligne.setVenteHebdo(df.format(hebdos.getOrDefault(id, 0d)));
+            ligne.setMoyenneAchat3Mois(df.format((e[1][1] + e[2][1] + e[3][1]) / 3.0));
+            ligne.setObjectifStatut(fmObjectifStatut(e, objectif));
+            lignes.add(ligne);
+        }
+        return lignes;
+    }
+
     @Override
     public byte[] buildFeuilleDeMatchPdf(String dtStart, String dtEnd, String type, String classe, String search,
             String codeFamille, String codeRayon, String codeGrossiste, String stockFilter, Integer stockMin,
-            Integer stockMax, Integer topN) {
+            Integer stockMax, Integer topN, Integer objectifAchat) {
         List<AbcProduitDTO> rows = filteredList(dtStart, dtEnd, type, classe, search, codeFamille, codeRayon,
                 codeGrossiste, stockFilter, stockMin, stockMax, topN);
         if (rows.isEmpty()) {
             return new byte[0];
         }
-        Document document = new Document(PageSize.A4, 24, 24, 24, 24);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
-            String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-            List<String> ids = rows.stream().map(AbcProduitDTO::getProduitId).filter(StringUtils::isNotBlank).distinct()
-                    .collect(Collectors.toList());
-            Map<String, long[]> prix = fmPrix(ids);
-            Map<String, long[][]> entrees = fmEntrees(ids);
-            Map<String, Object[]> dernieres = fmDerniereEntree(ids);
-            Map<String, Long> reserves = fmStockReserve(ids, emplacement);
-            Map<String, Double> hebdos = fmVenteHebdo(ids, emplacement);
-
-            String moisCourant = java.time.LocalDate.now().getMonth().getDisplayName(java.time.format.TextStyle.FULL,
-                    java.util.Locale.FRENCH);
-            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
-            DecimalFormat df = new DecimalFormat("0.00", new DecimalFormatSymbols(java.util.Locale.US));
-
-            PdfWriter.getInstance(document, baos);
-            document.open();
-
-            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12);
-            Font produitFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
-            Font detailFont = FontFactory.getFont(FontFactory.HELVETICA, 8);
+            int objectif = (objectifAchat != null && objectifAchat > 0) ? objectifAchat : 3;
+            List<commonTasks.dto.FeuilleDeMatchLigneDTO> lignes = buildFeuilleDeMatchRows(rows, objectif);
 
             String typeLabel = "MARGE".equalsIgnoreCase(type) ? "marge"
                     : ("CA".equalsIgnoreCase(type) ? "chiffre d'affaires" : "quantité");
-            Paragraph title = new Paragraph("Feuille de match (top " + rows.size() + " - " + typeLabel + ") du "
-                    + nz(dtStart) + " au " + nz(dtEnd), titleFont);
-            title.setSpacingAfter(10f);
-            document.add(title);
+            Map<String, Object> parameters = reportUtil.officineData(sessionHelperService.getCurrentUser());
+            parameters.put("P_H_CLT_INFOS", "FEUILLE DE MATCH (TOP " + rows.size() + " - "
+                    + typeLabel.toUpperCase(java.util.Locale.FRENCH) + ") DU " + nz(dtStart) + " AU " + nz(dtEnd));
+            parameters.put("P_MOIS_COURANT", fmNomMois(0));
+            parameters.put("P_MOIS_1", fmNomMois(1));
+            parameters.put("P_MOIS_2", fmNomMois(2));
+            parameters.put("P_MOIS_3", fmNomMois(3));
+            parameters.put("P_OBJECTIF_ACHAT", objectif);
 
-            for (AbcProduitDTO d : rows) {
-                String id = nz(d.getProduitId());
-                long[] p = prix.getOrDefault(id, new long[] { 0, 0 });
-                long[][] e = entrees.getOrDefault(id, new long[4][2]);
-                Object[] derniere = dernieres.get(id);
-                long reserve = reserves.getOrDefault(id, 0L);
-                double hebdo = hebdos.getOrDefault(id, 0d);
-                double moyenneAchat3Mois = (e[1][1] + e[2][1] + e[3][1]) / 3.0;
-
-                Paragraph ligne1 = new Paragraph(nz(d.getCip()) + "    " + nz(d.getLibelle()) + "    PRIX ACHAT: "
-                        + formatFcfa(p[0]) + " FCFA    PRIX DE VENTE: " + formatFcfa(p[1]) + " FCFA", produitFont);
-                ligne1.setSpacingBefore(6f);
-                document.add(ligne1);
-
-                String derniereTxt = (derniere != null && derniere[0] != null)
-                        ? (sdf.format((Date) derniere[0]) + " (qté " + derniere[1] + ")") : "aucune";
-                Paragraph ligne2 = new Paragraph("    + " + nz(d.getLibelle()) + "  |  Date dernière entrée : "
-                        + derniereTxt + "  |  Fréquence achat (" + moisCourant + ") : " + e[0][0]
-                        + "  |  Qté total entrée (" + moisCourant + ") : " + e[0][1] + "  |  Stock Reserve : " + reserve
-                        + "  |  Vente hebdo (MOY/4) : " + df.format(hebdo), detailFont);
-                ligne2.setIndentationLeft(10f);
-                document.add(ligne2);
-
-                Paragraph ligne3 = new Paragraph("    + |  Moyenne d'achat 3mois : " + df.format(moyenneAchat3Mois)
-                        + "  |  Fréquence achat (mois -1) : " + e[1][0] + "  |  Qté total entrée (mois -1) : " + e[1][1]
-                        + "  |  Fréquence achat (mois -2) : " + e[2][0] + "  |  Qté total entrée (mois -2) : " + e[2][1]
-                        + "  |  Fréquence achat (mois -3) : " + e[3][0] + "  |  Qté total entrée (mois -3) : " + e[3][1]
-                        + "  |", detailFont);
-                ligne3.setIndentationLeft(10f);
-                ligne3.setSpacingAfter(4f);
-                document.add(ligne3);
-            }
-
-            document.close();
-            return baos.toByteArray();
+            // Modele .jrxml : version du repertoire de rapports du serveur si presente,
+            // sinon le modele embarque dans le war (src/main/resources/reports).
+            net.sf.jasperreports.engine.JasperReport report = reportUtil.getReport("rp_feuille_de_match",
+                    toolkits.utils.jdom.scr_report_file);
+            net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(
+                    report, parameters, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
+            return net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(print);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Impression PDF Feuille de match impossible", e);
-            if (document.isOpen()) {
-                document.close();
-            }
             return new byte[0];
         }
+    }
+
+    @Override
+    public JSONObject feuilleDeMatchProduitDetail(String produitId, Integer objectifAchat) {
+        JSONObject json = new JSONObject();
+        try {
+            TFamille famille = em.find(TFamille.class, produitId);
+            if (famille == null) {
+                return json.put("success", false);
+            }
+            int objectif = (objectifAchat != null && objectifAchat > 0) ? objectifAchat : 3;
+            AbcProduitDTO dto = new AbcProduitDTO();
+            dto.setProduitId(famille.getLgFAMILLEID());
+            dto.setCip(famille.getIntCIP());
+            dto.setLibelle(famille.getStrNAME());
+            commonTasks.dto.FeuilleDeMatchLigneDTO ligne = buildFeuilleDeMatchRows(Collections.singletonList(dto),
+                    objectif).get(0);
+            json.put("success", true).put("data", new JSONObject(ligne)).put("objectif", objectif)
+                    .put("moisCourant", fmNomMois(0)).put("mois1", fmNomMois(1)).put("mois2", fmNomMois(2))
+                    .put("mois3", fmNomMois(3));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "feuilleDeMatchProduitDetail", e);
+            json.put("success", false);
+        }
+        return json;
     }
 
 }

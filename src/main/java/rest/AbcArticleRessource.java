@@ -119,10 +119,20 @@ public class AbcArticleRessource {
             @QueryParam("search") String search, @QueryParam("codeFamille") String codeFamille,
             @QueryParam("codeRayon") String codeRayon, @QueryParam("codeGrossiste") String codeGrossiste,
             @QueryParam("stockFilter") String stockFilter, @QueryParam("stockMin") Integer stockMin,
-            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN) {
+            @QueryParam("stockMax") Integer stockMax, @QueryParam("topN") Integer topN,
+            @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat) {
         byte[] data = abcAnalysisService.buildFeuilleDeMatchPdf(dtStart, dtEnd, type, classe, search, codeFamille,
-                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN);
+                codeRayon, codeGrossiste, stockFilter, stockMin, stockMax, topN, objectifAchat);
         return Response.ok(data).header("Content-Disposition", "inline; filename=\"feuille_de_match.pdf\"").build();
+    }
+
+    /** Detail achats d'un produit pour la vue feuille de match. */
+    @GET
+    @Path("feuille-match/produit-detail")
+    public Response feuilleMatchProduitDetail(@QueryParam("produitId") String produitId,
+            @DefaultValue("3") @QueryParam("objectifAchat") Integer objectifAchat) {
+        return Response.ok().entity(abcAnalysisService.feuilleDeMatchProduitDetail(produitId, objectifAchat).toString())
+                .build();
     }
 
     @POST

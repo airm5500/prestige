@@ -104,7 +104,10 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                         {xtype: 'combobox', flex: 1, margin: '0 5 0 0', labelWidth: 5, itemId: 'codeFamile', store: familles, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'remote', minChars: 2, emptyText: 'Famille'},
                         {xtype: 'numberfield', itemId: 'topN', width: 90, minValue: 1, allowDecimals: false, emptyText: 'Top N', margin: '0 5 0 0',
                             fieldStyle: 'background-color:#FFA500;color:#000;font-weight:bold;',
-                            listeners: {specialkey: function (f, e) { if (e.getKey() === e.ENTER) { me.gridStore.loadPage(1); } }}}
+                            listeners: {specialkey: function (f, e) { if (e.getKey() === e.ENTER) { me.gridStore.loadPage(1); } }}},
+                        {xtype: 'numberfield', itemId: 'objectifAchat', width: 155, minValue: 1, allowDecimals: false,
+                            fieldLabel: 'Objectif achat', labelWidth: 85, value: 3,
+                            fieldStyle: 'color:#1565C0;font-weight:bold;'}
                     ]
                 },
                 {
@@ -176,7 +179,21 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
                                 return '<span style="color:' + c + ';font-weight:bold">' + Ext.util.Format.number(v, '0,000.') + '</span>';
                             }},
                         {header: "Chiffre d'Affaires", dataIndex: 'chiffreAffaires', flex: 1, align: 'right', renderer: moneyRenderer},
-                        {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right', renderer: moneyRenderer}
+                        {header: 'Marge', dataIndex: 'marge', flex: 1, align: 'right', renderer: moneyRenderer},
+                        {
+                            xtype: 'actioncolumn', header: 'Détail achats', width: 85, align: 'center',
+                            sortable: false, menuDisabled: true,
+                            items: [{
+                                iconCls: 'charticon',
+                                tooltip: 'Détail achats du produit : dernière entrée, fréquences et quantités d\'achat (mois en cours + 3 derniers mois), stock réserve, vente hebdo, objectif',
+                                handler: function (view, rowIndex) {
+                                    const rec = me.gridStore.getAt(rowIndex);
+                                    if (rec) {
+                                        me.showDetailAchats(rec);
+                                    }
+                                }
+                            }]
+                        }
                     ],
                     selModel: {selType: 'cellmodel'},
                     bbar: {xtype: 'pagingtoolbar', store: data, dock: 'bottom', displayInfo: true}
@@ -185,5 +202,64 @@ Ext.define('testextjs.view.Report.abc.FeuilleDeMatchManager', {
         });
 
         me.callParent(arguments);
+    },
+
+    // Detail achats d'un produit (memes informations que l'impression PDF),
+    // affiche dans une fenetre au clic sur la colonne 'Détail achats'.
+    showDetailAchats: function (rec) {
+        const me = this;
+        const objCmp = me.down('#objectifAchat');
+        const objectif = (objCmp && objCmp.getValue()) || 3;
+        const mask = Ext.MessageBox.wait('Chargement du détail achats...', 'Veuillez patienter');
+        Ext.Ajax.request({
+            url: '../api/v1/articles/abc/feuille-match/produit-detail',
+            method: 'GET',
+            params: {produitId: rec.get('produitId'), objectifAchat: objectif},
+            success: function (response) {
+                mask.hide();
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                if (r.success !== true || !r.data) {
+                    Ext.Msg.alert('Détail achats', 'Chargement du détail impossible.');
+                    return;
+                }
+                const d = r.data;
+                const enc = Ext.String.htmlEncode;
+                const nf = function (v) { return Ext.util.Format.number(v || 0, '0,000.'); };
+                const ligne = function (label, valeur) {
+                    return '<tr><td style="padding:3px 10px 3px 0;color:#555;white-space:nowrap;">' + label
+                            + '</td><td style="padding:3px 0;font-weight:bold;">' + valeur + '</td></tr>';
+                };
+                const moisRow = function (mois, freq, qte) {
+                    return ligne('Fréquence achat (' + enc(mois) + ')',
+                            nf(freq) + ' &nbsp;&nbsp;|&nbsp;&nbsp; Qté total entrée : ' + nf(qte));
+                };
+                const statutColor = (d.objectifStatut || '').indexOf('Dépassé') === 0 ? '#d10000' : '#1a7e1a';
+                const html = '<div style="font-size:13px;">'
+                        + '<div style="font-weight:bold;margin-bottom:6px;">' + enc(d.cip || '') + ' - ' + enc(d.libelle || '')
+                        + '<br/>PRIX ACHAT : ' + nf(d.prixAchat) + ' FCFA &nbsp;&nbsp; PRIX DE VENTE : ' + nf(d.prixVente) + ' FCFA</div>'
+                        + '<table style="border-collapse:collapse;">'
+                        + ligne('Date dernière entrée', enc(d.derniereEntree || 'aucune'))
+                        + moisRow(r.moisCourant, d.freqM0, d.qteM0)
+                        + moisRow(r.mois1, d.freqM1, d.qteM1)
+                        + moisRow(r.mois2, d.freqM2, d.qteM2)
+                        + moisRow(r.mois3, d.freqM3, d.qteM3)
+                        + ligne('Stock Reserve', nf(d.stockReserve))
+                        + ligne('Vente hebdo (MOY/4)', enc(d.venteHebdo || '0'))
+                        + ligne('Moyenne d\'achat 3 mois', enc(d.moyenneAchat3Mois || '0'))
+                        + '</table>'
+                        + '<div style="margin-top:8px;font-weight:bold;color:' + statutColor + ';">'
+                        + 'Objectif achat/mois (max ' + r.objectif + ') : ' + enc(d.objectifStatut || '') + '</div>'
+                        + '</div>';
+                Ext.create('Ext.window.Window', {
+                    title: 'Détail achats - [' + (rec.get('cip') || '') + '] ' + (rec.get('libelle') || ''),
+                    modal: true, autoShow: true, width: 560, bodyPadding: 12, html: html,
+                    buttons: [{text: 'Fermer', handler: function (b) { b.up('window').close(); }}]
+                });
+            },
+            failure: function (response) {
+                mask.hide();
+                Ext.Msg.alert('Erreur', 'Chargement impossible. Code HTTP : ' + response.status);
+            }
+        });
     }
 });

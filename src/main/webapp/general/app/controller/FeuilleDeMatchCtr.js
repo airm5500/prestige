@@ -48,6 +48,7 @@ Ext.define('testextjs.controller.FeuilleDeMatchCtr', {
             type: v('comboType') || 'QTY',
             classe: v('comboClasse') || 'ALL',
             topN: v('topN'),
+            objectifAchat: v('objectifAchat') || 3,
             search: v('searchField'),
             codeFamille: v('codeFamile'),
             codeRayon: v('rayons'),

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  rp_feuille_de_match.jrxml
+  Impression "Feuille de match" (Analyse de gestion) : une fiche par produit
+  avec prix achat/vente, date de derniere entree, frequences et quantites
+  d'achat du mois en cours et des 3 derniers mois (mois nommes), stock
+  reserve, vente hebdo (MOY/4), moyenne d'achat 3 mois et statut de
+  l'objectif d'achat mensuel.
+  Rempli par bean datasource (FeuilleDeMatchLigneDTO) via ReportUtil ;
+  embarque dans le war (src/main/resources/reports) avec possibilite de
+  surcharge par le fichier du repertoire de rapports du serveur.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_feuille_de_match" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail" uuid="7c6b5a49-3827-4160-95a4-b3c2d1e0f987">
+    <style name="objStyle" forecolor="#1A7E1A">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{objectifStatut} != null && $F{objectifStatut}.startsWith("Dépassé")]]></conditionExpression>
+            <style forecolor="#D10000"/>
+        </conditionalStyle>
+    </style>
+    <parameter name="P_H_LOGO" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_AUTRE_DESC" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS_COURANT" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS_1" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS_2" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_MOIS_3" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_OBJECTIF_ACHAT" class="java.lang.Integer" isForPrompting="false">
+        <defaultValueExpression><![CDATA[Integer.valueOf(3)]]></defaultValueExpression>
+    </parameter>
+    <field name="cip" class="java.lang.String"/>
+    <field name="libelle" class="java.lang.String"/>
+    <field name="prixAchat" class="java.lang.Long"/>
+    <field name="prixVente" class="java.lang.Long"/>
+    <field name="derniereEntree" class="java.lang.String"/>
+    <field name="freqM0" class="java.lang.Long"/>
+    <field name="qteM0" class="java.lang.Long"/>
+    <field name="freqM1" class="java.lang.Long"/>
+    <field name="qteM1" class="java.lang.Long"/>
+    <field name="freqM2" class="java.lang.Long"/>
+    <field name="qteM2" class="java.lang.Long"/>
+    <field name="freqM3" class="java.lang.Long"/>
+    <field name="qteM3" class="java.lang.Long"/>
+    <field name="stockReserve" class="java.lang.Long"/>
+    <field name="venteHebdo" class="java.lang.String"/>
+    <field name="moyenneAchat3Mois" class="java.lang.String"/>
+    <field name="objectifStatut" class="java.lang.String"/>
+    <title>
+        <band height="66">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="18" uuid="7c6b5a49-0001-0000-0000-000000000001"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement x="0" y="18" width="802" height="14" uuid="7c6b5a49-0001-0000-0000-000000000002"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="38" width="802" height="20" uuid="7c6b5a49-0001-0000-0000-000000000003"/>
+                <textElement textAlignment="Center"><font size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="62" width="802" height="1" uuid="7c6b5a49-0001-0000-0000-000000000004"/>
+            </line>
+        </band>
+    </title>
+    <detail>
+        <band height="68" splitType="Prevent">
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement x="0" y="2" width="802" height="13" uuid="7c6b5a49-0002-0000-0000-000000000001"/>
+                <textElement><font size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{cip} + "    " + $F{libelle}
+    + "    PRIX ACHAT: " + new java.text.DecimalFormat("#,##0").format($F{prixAchat} == null ? 0L : $F{prixAchat}) + " FCFA"
+    + "    PRIX DE VENTE: " + new java.text.DecimalFormat("#,##0").format($F{prixVente} == null ? 0L : $F{prixVente}) + " FCFA"]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="10" y="17" width="792" height="12" uuid="7c6b5a49-0002-0000-0000-000000000002"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["+ Date dernière entrée : " + $F{derniereEntree}
+    + "  |  Fréquence achat (" + $P{P_MOIS_COURANT} + ") : " + $F{freqM0}
+    + "  |  Qté total entrée (" + $P{P_MOIS_COURANT} + ") : " + $F{qteM0}
+    + "  |  Stock Reserve : " + $F{stockReserve}
+    + "  |  Vente hebdo (MOY/4) : " + $F{venteHebdo}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement positionType="Float" x="10" y="31" width="792" height="12" uuid="7c6b5a49-0002-0000-0000-000000000003"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["+ |  Moyenne d'achat 3mois : " + $F{moyenneAchat3Mois}
+    + "  |  Fréquence achat (" + $P{P_MOIS_1} + ") : " + $F{freqM1} + "  |  Qté total entrée (" + $P{P_MOIS_1} + ") : " + $F{qteM1}
+    + "  |  Fréquence achat (" + $P{P_MOIS_2} + ") : " + $F{freqM2} + "  |  Qté total entrée (" + $P{P_MOIS_2} + ") : " + $F{qteM2}
+    + "  |  Fréquence achat (" + $P{P_MOIS_3} + ") : " + $F{freqM3} + "  |  Qté total entrée (" + $P{P_MOIS_3} + ") : " + $F{qteM3}
+    + "  |"]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" textAdjust="StretchHeight">
+                <reportElement positionType="Float" style="objStyle" x="10" y="45" width="792" height="12" uuid="7c6b5a49-0002-0000-0000-000000000004"/>
+                <textElement><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA["+ Objectif achat/mois (max " + $P{P_OBJECTIF_ACHAT} + ") : " + $F{objectifStatut}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement positionType="Float" x="0" y="62" width="802" height="1" forecolor="#999999" uuid="7c6b5a49-0002-0000-0000-000000000005"/>
+            </line>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="30">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="802" height="12" uuid="7c6b5a49-0003-0000-0000-000000000001"/>
+                <textElement textAlignment="Center"><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="13" width="400" height="14" uuid="7c6b5a49-0003-0000-0000-000000000002"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé par : " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY})]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="662" y="13" width="100" height="14" uuid="7c6b5a49-0003-0000-0000-000000000003"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " /"]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="762" y="13" width="40" height="14" uuid="7c6b5a49-0003-0000-0000-000000000004"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>
