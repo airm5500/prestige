@@ -114,6 +114,10 @@ Ext.define('testextjs.view.sm_user.info_officine.OfficineManager', {
         store.load({
             callback: function () {
                 OFFICINE = store.getAt(0);
+                // Chargement interrompu (timeout, abandon, deconnexion) : ne pas planter l'ecran
+                if (!OFFICINE || Me.isDestroyed) {
+                    return;
+                }
                 str_NOM_ABREGE.setValue(OFFICINE.get('str_NOM_ABREGE'));
                 str_NOM_COMPLET.setValue(OFFICINE.get('str_NOM_COMPLET'));
                 str_FIRST_NAME.setValue(OFFICINE.get('str_FIRST_NAME'));
@@ -278,7 +282,11 @@ Ext.define('testextjs.view.sm_user.info_officine.OfficineManager', {
         }],
     onbtnsave: function () {
 
-
+        if (!OFFICINE) {
+            Ext.MessageBox.alert('Information',
+                    "Les informations de l'officine ne sont pas encore chargées. Veuillez rouvrir l'écran.");
+            return;
+        }
         var lg_OFFICINE_ID = OFFICINE.get('lg_OFFICINE_ID');
         var str_FIRST_NAME = Ext.getCmp('str_first_name').getValue();
         var str_LAST_NAME = Ext.getCmp('str_last_name').getValue();

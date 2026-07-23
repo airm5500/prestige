@@ -7,6 +7,7 @@ package dal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
@@ -47,6 +48,14 @@ public class dataManager {
                 if (factory == null || !factory.isOpen()) {
                     Map<String, Object> props = new HashMap<>();
                     props.put("eclipselink.session-name", ECLIPSELINK_SESSION_NAME);
+                    // Cache d'entites isole par EntityManager (pas de cache partage entre
+                    // requetes) : c'est la semantique qu'avait l'application quand chaque
+                    // requete creait sa propre factory (cache toujours vide au depart). Un
+                    // cache partage par toute l'application exposerait des donnees perimees
+                    // apres les updates SQL natifs du code metier et cree de la contention
+                    // sur les identity maps EclipseLink (evictAll() de bllBase.persiste()
+                    // a chaque ecriture, pendant que d'autres threads lisent).
+                    props.put("eclipselink.cache.shared.default", "false");
                     factory = Persistence.createEntityManagerFactory(PERSISTENCE_UNIT_NAME, props);
                     SHARED_EMF = factory;
                 }
@@ -143,8 +152,34 @@ public class dataManager {
 
     public void closeEntityManager() {
         // Ne ferme que l'EntityManager : la factory est partagee par toute l'application.
-        getEm().close();
+        // Une transaction RESOURCE_LOCAL encore active ici signifie qu'une exception est
+        // survenue entre begin et commit dans le code metier (les catch historiques ne font
+        // pas de rollback) : fermer l'EntityManager dans cet etat garderait la connexion
+        // JDBC hors du pool pour toujours (pool jdbc/__laborex_pool partage par toute
+        // l'application, qui finirait par se bloquer entierement). On rollback donc avant
+        // de fermer, et la fermeture ne doit jamais faire echouer la requete appelante.
+        EntityManager manager = getEm();
         isConected = false;
+        if (manager == null) {
+            return;
+        }
+        try {
+            if (manager.isOpen()) {
+                try {
+                    EntityTransaction transaction = manager.getTransaction();
+                    if (transaction != null && transaction.isActive()) {
+                        Logger.getLogger(dataManager.class.getName()).warning(
+                                "Transaction encore active a la fermeture de l'EntityManager : rollback automatique");
+                        transaction.rollback();
+                    }
+                } catch (RuntimeException e) {
+                    // au pire, la fermeture ci-dessous libere les ressources restantes
+                }
+                manager.close();
+            }
+        } catch (RuntimeException e) {
+            // ne jamais propager une erreur de fermeture a la requete appelante
+        }
     }
 
     /**
