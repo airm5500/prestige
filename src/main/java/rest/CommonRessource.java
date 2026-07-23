@@ -338,6 +338,20 @@ public class CommonRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Familles d'articles actives, memes cles JSON que la JSP historique ({total, results:[{lg_FAMILLEARTICLE_ID,
+     * str_LIBELLE...}]}) : utilisable en remplacement direct dans les combos des ecrans (etat de stock...).
+     */
+    @GET
+    @Path("famille-articles")
+    public Response loadFamillesArticles(@QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        JSONObject json = commonService.loadFamillesArticles(StringUtils.isNotEmpty(query) ? query : searchValue, start,
+                limit);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @GET
     @Path("famillearticles")
     public Response familleArticles(@QueryParam(value = "query") String query) throws JSONException {

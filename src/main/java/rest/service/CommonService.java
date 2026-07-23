@@ -129,4 +129,10 @@ public interface CommonService {
      */
     org.json.JSONObject loadDcis(String query, int start, int limit);
 
+    /**
+     * Familles d'articles actives pour les filtres d'ecrans (memes cles JSON que la JSP historique
+     * webservices/configmanagement/famillearticle/ws_data.jsp), paginees et filtrables par libelle/code.
+     */
+    org.json.JSONObject loadFamillesArticles(String query, int start, int limit);
+
 }

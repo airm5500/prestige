@@ -862,4 +862,38 @@ public class CommonServiceImpl implements Serializable, CommonService {
         }
     }
 
+    @Override
+    public JSONObject loadFamillesArticles(String query, int start, int limit) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        int lim = (limit > 0) ? limit : 20;
+        try {
+            String where = " FROM t_famillearticle f WHERE f.str_STATUT = 'enable'";
+            if (!StringUtils.isEmpty(query)) {
+                where += " AND (f.str_LIBELLE LIKE :query OR f.str_CODE_FAMILLE LIKE :query)";
+            }
+            Query qc = getEntityManager().createNativeQuery("SELECT COUNT(*)" + where);
+            Query q = getEntityManager()
+                    .createNativeQuery("SELECT f.lg_FAMILLEARTICLE_ID, f.str_LIBELLE, f.str_CODE_FAMILLE, f.str_STATUT"
+                            + where + " ORDER BY f.str_LIBELLE ASC");
+            if (!StringUtils.isEmpty(query)) {
+                qc.setParameter("query", query + "%");
+                q.setParameter("query", query + "%");
+            }
+            long total = ((Number) qc.getSingleResult()).longValue();
+            q.setFirstResult(Math.max(0, start));
+            q.setMaxResults(lim);
+            List<Object[]> rows = q.getResultList();
+            for (Object[] r : rows) {
+                results.put(new JSONObject().put("lg_FAMILLEARTICLE_ID", String.valueOf(r[0]))
+                        .put("str_LIBELLE", r[1] != null ? r[1] : "").put("str_CODE_FAMILLE", r[2] != null ? r[2] : "")
+                        .put("str_STATUT", r[3] != null ? r[3] : ""));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadFamillesArticles", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
 }

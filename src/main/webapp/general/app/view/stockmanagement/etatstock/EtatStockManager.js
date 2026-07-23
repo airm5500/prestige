@@ -6,6 +6,9 @@ var url_services_data_zonegeo = '../webservices/configmanagement/zonegeographiqu
 var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
 var url_services_data_dci = '../webservices/configmanagement/dci/ws_data.jsp';
 var url_services_data_famille_article = '../webservices/configmanagement/famillearticle/ws_data.jsp';
+// REST dedie a cet ecran (memes formats JSON et memes regles metier que les JSP)
+var url_rest_etat_stock = '../api/v1/etat-stock';
+var url_services_rest_etat_stock = '../api/v1/etat-stock/';
 var Me;
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
@@ -42,7 +45,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_etatstock_first,
+                url: url_rest_etat_stock,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -52,7 +55,6 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
             }
 
         });
-        url_services_data_zonegeo = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 
         var store_zonegeo = new Ext.data.Store({
             model: 'testextjs.model.ZoneGeographique',
@@ -60,7 +62,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_zonegeo,
+                url: '../api/v1/zones-geographiques',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -90,7 +92,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_dci,
+                url: '../api/v1/common/dcis',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -105,7 +107,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_famille_article,
+                url: '../api/v1/common/famille-articles',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -120,7 +122,7 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/stockmanagement/stock/ws_zone.jsp',
+                url: url_services_rest_etat_stock + 'zones',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -220,7 +222,8 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                                 var record = grid.getSelectionModel().getSelection();
 
                                 Ext.Ajax.request({
-                                    url: '../webservices/stockmanagement/stock/ws_transaction.jsp',
+                                    url: url_services_rest_etat_stock + 'update-zone',
+                                    method: 'POST',
                                     params: {
                                         lg_FAMILLE_ID: record[0].get("lg_FAMILLE_ID"),
                                         CODEEMPLACEMENT: field.getValue()
@@ -436,6 +439,34 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                         var linkUrl = "../webservices/stockmanagement/stock/ws_etatstock_pdf.jsp?lg_FAMILLEARTICLE_ID=" + lg_FAMILLEARTICLE_ID + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ID + "&lg_ZONE_GEO_ID=" + lg_ZONE_GEO_ID + "&search_value=" + val + "&int_NUMBER=" + int_NUMBER + "&str_TYPE_TRANSACTION=" + str_TYPE_TRANSACTION;
                         window.open(linkUrl);
                     }
+                }, '-', {
+                    text: 'Cr&eacute;er inventaire',
+                    tooltip: 'Cr&eacute;er un inventaire avec le r&eacute;sultat de la recherche en cours',
+                    iconCls: 'addicon',
+                    scope: this,
+                    handler: this.onCreerInventaireClick
+                }, '-', {
+                    text: 'Cr&eacute;er suggestion',
+                    tooltip: 'Cr&eacute;er une nouvelle suggestion manuelle avec le r&eacute;sultat de la recherche en cours',
+                    iconCls: 'pills',
+                    scope: this,
+                    handler: this.onCreerSuggestionClick
+                }, '-', {
+                    text: 'CSV',
+                    tooltip: 'Exporter le r&eacute;sultat de la recherche en cours en CSV',
+                    iconCls: 'export_csv_icon',
+                    scope: this,
+                    handler: function () {
+                        window.open(url_services_rest_etat_stock + 'export/csv?' + Me.filtresQueryString());
+                    }
+                }, '-', {
+                    text: 'EXCEL',
+                    tooltip: 'Exporter le r&eacute;sultat de la recherche en cours en Excel',
+                    iconCls: 'xls',
+                    scope: this,
+                    handler: function () {
+                        window.open(url_services_rest_etat_stock + 'export/excel?' + Me.filtresQueryString());
+                    }
                 }
 
 
@@ -565,6 +596,90 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
     },
     onEditpwdClick: function (grid, rowIndex) {
 
+    },
+    /* Valeurs courantes des filtres de recherche (memes noms de parametres que la liste) */
+    filtresCourants: function () {
+        var valeur = function (id) {
+            var cmp = Ext.getCmp(id);
+            return (cmp && cmp.getValue() !== null) ? cmp.getValue() : "";
+        };
+        return {
+            search_value: valeur('rechecher'),
+            str_TYPE_TRANSACTION: valeur('str_TYPE_TRANSACTION'),
+            lg_FAMILLEARTICLE_ID: valeur('lg_FAMILLEARTICLE_ID'),
+            lg_ZONE_GEO_ID: valeur('lg_ZONE_GEO_ID'),
+            lg_GROSSISTE_ID: valeur('lg_GROSSISTE_ID'),
+            int_NUMBER: valeur('int_NUMBER')
+        };
+    },
+    filtresQueryString: function () {
+        return Ext.Object.toQueryString(this.filtresCourants());
+    },
+    onCreerInventaireClick: function () {
+        var me = this;
+        var total = me.getStore().getTotalCount();
+        if (!total) {
+            Ext.MessageBox.alert('Information', 'Aucun produit dans le r&eacute;sultat de la recherche.');
+            return;
+        }
+        Ext.MessageBox.confirm('Message',
+                'Cr&eacute;er un inventaire avec les <b>' + total + '</b> produit(s) du r&eacute;sultat de la recherche ?',
+                function (btn) {
+                    if (btn === 'yes') {
+                        testextjs.app.getController('App').ShowWaitingProcess();
+                        Ext.Ajax.request({
+                            url: url_services_rest_etat_stock + 'create-inventaire',
+                            method: 'POST',
+                            timeout: 600000,
+                            params: me.filtresCourants(),
+                            success: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                var object = Ext.JSON.decode(response.responseText, false);
+                                Ext.MessageBox.alert(object.success == "0" ? 'Error Message' : 'Confirmation',
+                                        object.errors);
+                            },
+                            failure: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                console.log("Bug " + response.responseText);
+                                Ext.MessageBox.alert('Error Message', response.responseText);
+                            }
+                        });
+                    }
+                });
+    },
+    onCreerSuggestionClick: function () {
+        var me = this;
+        var total = me.getStore().getTotalCount();
+        if (!total) {
+            Ext.MessageBox.alert('Information', 'Aucun produit dans le r&eacute;sultat de la recherche.');
+            return;
+        }
+        Ext.MessageBox.confirm('Message',
+                'Cr&eacute;er une nouvelle suggestion manuelle avec les <b>' + total
+                + '</b> produit(s) du r&eacute;sultat de la recherche ?<br>(une suggestion par fournisseur, '
+                + 'quantit&eacute;s modifiables ensuite dans Sugg&eacute;rer commande)',
+                function (btn) {
+                    if (btn === 'yes') {
+                        testextjs.app.getController('App').ShowWaitingProcess();
+                        Ext.Ajax.request({
+                            url: url_services_rest_etat_stock + 'create-suggestion',
+                            method: 'POST',
+                            timeout: 600000,
+                            params: me.filtresCourants(),
+                            success: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                var object = Ext.JSON.decode(response.responseText, false);
+                                Ext.MessageBox.alert(object.success == "0" ? 'Error Message' : 'Confirmation',
+                                        object.errors);
+                            },
+                            failure: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                console.log("Bug " + response.responseText);
+                                Ext.MessageBox.alert('Error Message', response.responseText);
+                            }
+                        });
+                    }
+                });
     },
     onRechClick: function () {
         var val = Ext.getCmp('rechecher');
