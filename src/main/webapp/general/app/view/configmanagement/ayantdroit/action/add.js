@@ -2,6 +2,7 @@
 
 //var url_services_data_ayantdroit = '../webservices/configmanagement/ayantdroit/ws_data.jsp';
 var url_services_transaction_ayantdroit = '../webservices/configmanagement/ayantdroit/ws_transaction.jsp?mode=';
+var url_services_rest_ayantdroit = '../api/v1/ayants-droits/'; // create / update en REST (memes regles metier)
 var url_services_data_client = '../webservices/configmanagement/client/ws_data.jsp';
 var url_services_data_ville = '../webservices/configmanagement/ville/ws_data.jsp';
 var type;
@@ -325,9 +326,9 @@ Ext.define('testextjs.view.configmanagement.ayantdroit.action.add', {
         // var Oview = Ext.getCmp('ayantdroitgrid');
         //alert("Omode "+Omode);
         if (Omode === "create" || Omode === "createayantdroitByclt") {
-            internal_url = url_services_transaction_ayantdroit + 'create';
+            internal_url = url_services_rest_ayantdroit + 'create';
         } else {
-            internal_url = url_services_transaction_ayantdroit + 'update&lg_AYANTS_DROITS_ID=' + ref;
+            internal_url = url_services_rest_ayantdroit + 'update';
         }
         var fenetre = button.up('window'),
                 formulaire = fenetre.down('form');
@@ -335,7 +336,9 @@ Ext.define('testextjs.view.configmanagement.ayantdroit.action.add', {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    lg_AYANTS_DROITS_ID: ((Omode === "create" || Omode === "createayantdroitByclt") ? "" : ref),
                     str_FIRST_NAME: Ext.getCmp('str_FIRST_NAME').getValue(),
                     str_LAST_NAME: Ext.getCmp('str_LAST_NAME').getValue(),
                     dt_NAISSANCE: Ext.getCmp('dt_NAISSANCE').getSubmitValue(),

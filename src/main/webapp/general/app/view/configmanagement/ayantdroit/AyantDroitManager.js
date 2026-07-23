@@ -1,6 +1,9 @@
 var url_services_data_ayantdroit_list = '../webservices/configmanagement/ayantdroit/ws_data.jsp';
 var url_services_transaction_ayantdroit = '../webservices/configmanagement/ayantdroit/ws_transaction.jsp?mode=';
 var url_services_pdf_ayantdroit = '../webservices/configmanagement/ayantdroit/ws_generate_pdf.jsp';
+// REST dedie a cet ecran (memes formats JSON que les JSP) : liste + create/update/toggle-statut
+var url_rest_data_ayantdroit = '../api/v1/ayants-droits';
+var url_services_rest_ayantdroit = '../api/v1/ayants-droits/';
 
 var Oview;
 var Omode;
@@ -48,7 +51,7 @@ Ext.define('testextjs.view.configmanagement.ayantdroit.AyantDroitManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_ayantdroit_list,
+                url: url_rest_data_ayantdroit,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -140,6 +143,20 @@ Ext.define('testextjs.view.configmanagement.ayantdroit.AyantDroitManager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
+                            // La suppression definitive est remplacee par la desactivation
+                            // (reversible via le bouton 'Desactives' de la barre d'outils)
+                            icon: 'resources/images/icons/fam/disable.png',
+                            tooltip: 'D&eacute;sactiver / R&eacute;activer cet ayant droit',
+                            scope: this,
+                            handler: this.onToggleStatutClick
+                        }]
+                }, {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    hidden: true, // bouton 'Supprimer' masque a la demande (fonction conservee)
+                    items: [{
                             icon: 'resources/images/icons/fam/delete.png',
                             tooltip: 'Supprimer',
                             scope: this,
@@ -181,6 +198,19 @@ Ext.define('testextjs.view.configmanagement.ayantdroit.AyantDroitManager', {
                     id: 'P_BT_PRINT',
                     iconCls: 'printable',
                     handler: this.onPrintClick
+                }, '->', {
+                    text: 'D&eacute;sactiv&eacute;s',
+                    id: 'BT_AYANTDROIT_VOIR_DESACTIVES',
+                    enableToggle: true,
+                    hidden: true, // visible uniquement pour les profils administrateurs (voir est-admin)
+                    icon: 'resources/images/icons/fam/disable.png',
+                    tooltip: 'Afficher les ayants droits d&eacute;sactiv&eacute;s (pour les r&eacute;activer)',
+                    scope: this,
+                    toggleHandler: function (btn, pressed) {
+                        var store = this.getStore();
+                        store.getProxy().setExtraParam('actifs', !pressed);
+                        store.loadPage(1);
+                    }
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -198,15 +228,31 @@ Ext.define('testextjs.view.configmanagement.ayantdroit.AyantDroitManager', {
         });
 
         if (Omode === "detail") {
-            url_services_data_ayantdroit_list = url_services_data_ayantdroit_list + "?lgCLIENTID=" + this.getOdatasource().lg_CLIENT_ID;
+            // Filtre par client via extraParam (sans plus corrompre l'URL globale partagee)
+            store.getProxy().setExtraParam('lgCLIENTID', this.getOdatasource().lg_CLIENT_ID);
             lgCLIENTID = this.getOdatasource().lg_CLIENT_ID;
         }
+
+        // Le bouton 'Desactives' n'est propose qu'aux profils administrateurs
+        Ext.Ajax.request({
+            url: '../api/v1/roles/est-admin',
+            method: 'GET',
+            success: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true);
+                var bouton = Ext.getCmp('BT_AYANTDROIT_VOIR_DESACTIVES');
+                if (object && object.authorize === true && bouton) {
+                    bouton.show();
+                }
+            }
+        });
+
         this.on('edit', function(editor, e) {
 
 
 
             Ext.Ajax.request({
-                url: url_services_transaction_ayantdroit + 'update',
+                url: url_services_rest_ayantdroit + 'update',
+                method: 'POST',
                 params: {
                     lg_AYANTS_DROITS_ID: e.record.data.lg_AYANTS_DROITS_ID,
                     str_CODE_INTERNE: e.record.data.str_CODE_INTERNE,
@@ -309,12 +355,49 @@ testextjs.app.getController('App').StopWaitingProcess();
         });
     },
     onRechClick: function() {
+        // extraParam persistant : la recherche est conservee quand on change de page
         var val = Ext.getCmp('rechecher_ayantdroit');
-        this.getStore().load({
-            params: {
-                search_value: val.value
-            }
-        }, url_services_data_ayantdroit_list);
+        var store = this.getStore();
+        store.getProxy().setExtraParam('search_value', val.getValue());
+        store.loadPage(1);
+    },
+    onToggleStatutClick: function (grid, rowIndex) {
+        // En vue normale on desactive ; en vue 'Desactives' on reactive
+        var enDesactives = Ext.getCmp('BT_AYANTDROIT_VOIR_DESACTIVES')
+                && Ext.getCmp('BT_AYANTDROIT_VOIR_DESACTIVES').pressed;
+        var actif = enDesactives ? true : false;
+        var rec = grid.getStore().getAt(rowIndex);
+        Ext.MessageBox.confirm('Message',
+                (actif ? 'R&eacute;activer' : 'D&eacute;sactiver') + " l'ayant droit <br><b>"
+                + rec.get('str_FIRST_NAME') + ' ' + rec.get('str_LAST_NAME') + '</b> ?',
+                function (btn) {
+                    if (btn === 'yes') {
+                        testextjs.app.getController('App').ShowWaitingProcess();
+                        Ext.Ajax.request({
+                            url: url_services_rest_ayantdroit + 'toggle-statut',
+                            method: 'POST',
+                            params: {
+                                lg_AYANTS_DROITS_ID: rec.get('lg_AYANTS_DROITS_ID'),
+                                actif: actif
+                            },
+                            success: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                var object = Ext.JSON.decode(response.responseText, false);
+                                if (object.success == "0") {
+                                    Ext.MessageBox.alert('Error Message', object.errors);
+                                    return;
+                                }
+                                Ext.MessageBox.alert('Confirmation', object.errors);
+                                grid.getStore().reload();
+                            },
+                            failure: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                console.log("Bug " + response.responseText);
+                                Ext.MessageBox.alert('Error Message', response.responseText);
+                            }
+                        });
+                    }
+                });
     }
 
 });
