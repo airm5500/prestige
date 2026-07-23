@@ -4,6 +4,10 @@ var url_services_data_client_addcompteclttierpayant = '../webservices/configmana
 
 var url_services_transaction_client_addcompteclttierpayant = '../webservices/configmanagement/compteclienttierspayant/ws_transaction_clt.jsp?mode=';
 
+// REST dedie (memes cles JSON et memes regles metier que les JSP ci-dessus)
+var url_rest_data_client_tierspayants = '../api/v1/client/gestion/tiers-payants';
+var url_rest_transaction_client_tierspayants = '../api/v1/client/gestion/tiers-payants/';
+
 
 var OCltgridpanelID;
 var Oview;
@@ -84,7 +88,7 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_client_addcompteclttierpayant + "?lg_COMPTE_CLIENT_ID=" + this.getOdatasource().lg_COMPTE_CLIENT_ID,
+                url: url_rest_data_client_tierspayants + "?lg_COMPTE_CLIENT_ID=" + this.getOdatasource().lg_COMPTE_CLIENT_ID,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -320,8 +324,9 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
                     layout: 'anchor',
                     flex: 1,
                     defaultType: 'textfield',
-                    items: [id_customer_chosen,
-                        str_customer_chosen,
+                    // id_customer_chosen (Id.Client) volontairement non affiche : identifiant technique
+                    // sans interet pour l'utilisateur (le champ reste alimente en interne)
+                    items: [str_customer_chosen,
                         solde_customer_chosen
 
                     ]
@@ -418,7 +423,8 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
                     if (btn == 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_client_addcompteclttierpayant + 'delete',
+                            url: url_rest_transaction_client_tierspayants + 'delete',
+                            method: 'POST',
                             params: {
                                 lg_COMPTE_CLIENT_TIERS_PAYANT_ID: rec.get('lg_COMPTE_CLIENT_TIERS_PAYANT_ID'),
                                 // lg_CLIENT_ID: lg_CLIENT_ID

@@ -1,4 +1,5 @@
-var url_services_data_clientaccount_tierspayant = '../webservices/configmanagement/compteclienttierspayant/ws_data.jsp';
+// REST dedie (memes cles JSON que la JSP historique compteclienttierspayant/ws_data.jsp)
+var url_services_data_clientaccount_tierspayant = '../api/v1/client/gestion/tiers-payants';
 var url_services_transaction_clientaccount_tierspayant = "";
 
 function amountfarmat(val) {

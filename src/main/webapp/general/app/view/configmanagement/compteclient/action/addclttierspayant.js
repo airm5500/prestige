@@ -2,6 +2,8 @@
 
 var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
 var url_services_transaction_client_addcompteclttierpayant = '../webservices/configmanagement/compteclienttierspayant/ws_transaction_clt.jsp?mode=';
+// REST dedie (memes regles metier que la JSP ci-dessus)
+var url_rest_transaction_client_tierspayants = '../api/v1/client/gestion/tiers-payants/';
 
 var lg_COMPTE_CLIENT_ID;
 var isStandardClient;
@@ -246,18 +248,22 @@ lg_TYPE_CLIENT_ID="";
                 formulaire = fenetre.down('form');
         if (formulaire.isValid()) {
             if (Omode === "create" || Omode === "createtierspayantByclt") {
-                internal_url = url_services_transaction_client_addcompteclttierpayant + 'create';
+                internal_url = url_rest_transaction_client_tierspayants + 'create';
                 if(isStandardClient){
-                  internal_url= url_services_transaction_client_addcompteclttierpayant + 'createstandartdclient&lg_TYPE_CLIENT_ID='+lg_TYPE_CLIENT_ID; 
+                  internal_url= url_rest_transaction_client_tierspayants + 'create-standard';
                 }
             } else {
-                internal_url = url_services_transaction_client_addcompteclttierpayant + 'update&lg_COMPTE_CLIENT_TIERS_PAYANT_ID=' + ref;
+                internal_url = url_rest_transaction_client_tierspayants + 'update';
             }
             // alert("Omode "+Omode + " lg_COMPTE_CLIENT_ID "+lg_COMPTE_CLIENT_ID + " " + Ext.getCmp('lg_TIERS_PAYANT_ID').getValue());
             testextjs.app.getController('App').ShowWaitingProcess();
            Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    // Identifiants passes en parametres de formulaire (la JSP les recevait dans l'URL)
+                    lg_COMPTE_CLIENT_TIERS_PAYANT_ID: (Omode === "create" || Omode === "createtierspayantByclt") ? '' : ref,
+                    lg_TYPE_CLIENT_ID: isStandardClient ? lg_TYPE_CLIENT_ID : '',
                     lg_TIERS_PAYANT_ID: Ext.getCmp('lg_TIERS_PAYANT_ID').getValue(),
                     int_POURCENTAGE: Ext.getCmp('int_POURCENTAGE').getValue(),
                     int_PRIORITY: Ext.getCmp('int_PRIORITY').getValue(),

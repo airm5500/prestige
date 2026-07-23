@@ -552,6 +552,211 @@ public class ClientRessource {
         }
     }
 
+    /**
+     * Tiers payants d'un client (vue Gestion des tiers payants du client) : memes cles JSON et memes regles que la JSP
+     * historique webservices/configmanagement/compteclienttierspayant/ws_data.jsp, y compris le privilege BTNDELETE —
+     * mais avec une garde : la JSP plantait en NullPointerException quand le privilege ne pouvait pas etre evalue.
+     */
+    @GET
+    @Path("gestion/tiers-payants")
+    public Response listeTiersPayantsClient(@QueryParam("search_value") String searchValue,
+            @QueryParam("query") String query, @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue
+                    : org.apache.commons.lang3.StringUtils.defaultString(query);
+            String compte = org.apache.commons.lang3.StringUtils.isNotBlank(compteClientId) ? compteClientId : "%%";
+            String tp = org.apache.commons.lang3.StringUtils.isNotBlank(tiersPayantId) ? tiersPayantId : "%%";
+            boolean btnDelete = false;
+            try {
+                btnDelete = new bll.userManagement.privilege(odm, user)
+                        .isColonneStockMachineIsAuthorize(bll.common.Parameter.P_BT_DELETE);
+            } catch (Exception e) {
+                LOG_GESTION.log(java.util.logging.Level.WARNING, "privilege P_BT_DELETE indisponible", e);
+            }
+            List<dal.TCompteClientTiersPayant> liste = new clientManagement(odm).getTiersPayantsByClient(search, compte,
+                    tp);
+            org.json.JSONArray results = new org.json.JSONArray();
+            int fin = limit > 0 ? Math.min(liste.size(), Math.max(0, start) + limit) : liste.size();
+            for (int i = Math.max(0, start); i < fin; i++) {
+                dal.TCompteClientTiersPayant t = liste.get(i);
+                JSONObject json = new JSONObject();
+                json.put("str_FIRST_NAME", t.getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME());
+                json.put("str_LAST_NAME", t.getLgCOMPTECLIENTID().getLgCLIENTID().getStrLASTNAME());
+                json.put("lg_COMPTE_CLIENT_TIERS_PAYANT_ID", t.getLgCOMPTECLIENTTIERSPAYANTID());
+                json.put("lg_TIERS_PAYANT_ID", t.getLgTIERSPAYANTID().getStrFULLNAME());
+                json.put("str_TIERS_PAYANT_NAME", t.getLgTIERSPAYANTID().getStrFULLNAME());
+                json.put("lg_COMPTE_CLIENT_ID", t.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID());
+                json.put("lg_CLIENT_ID", t.getLgCOMPTECLIENTID().getLgCLIENTID().getLgCLIENTID());
+                json.put("int_POURCENTAGE", t.getIntPOURCENTAGE());
+                json.put("int_PRIORITY", t.getIntPRIORITY());
+                json.put("dbl_PLAFOND", t.getDblPLAFOND());
+                json.put("db_PLAFOND_ENCOURS", t.getDbPLAFONDENCOURS());
+                json.put("dbl_QUOTA_CONSO_MENSUELLE", t.getDblQUOTACONSOMENSUELLE());
+                json.put("dbl_QUOTA_CONSO_VENTE", t.getDblQUOTACONSOVENTE());
+                json.put("b_IsAbsolute", t.getBIsAbsolute());
+                json.put("b_CANBEUSE", t.getBCANBEUSE());
+                json.put("db_CONSOMMATION_MENSUELLE",
+                        t.getDbCONSOMMATIONMENSUELLE() != null ? t.getDbCONSOMMATIONMENSUELLE() : 0);
+                json.put("str_NUMERO_SECURITE_SOCIAL",
+                        t.getStrNUMEROSECURITESOCIAL() != null ? t.getStrNUMEROSECURITESOCIAL() : "");
+                json.put("BTNDELETE", btnDelete);
+                json.put("str_REGIME", t.getIntPRIORITY() == 1 ? "RO" : "RC" + (t.getIntPRIORITY() - 1));
+                json.put("dt_CREATED",
+                        toolkits.utils.date.DateToString(t.getDtCREATED(), toolkits.utils.date.formatterShort));
+                results.put(json);
+            }
+            return Response.ok().entity(new JSONObject().put("total", liste.size()).put("results", results).toString())
+                    .build();
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "tiers payants du client", e);
+            return Response.ok()
+                    .entity(new JSONObject().put("total", 0).put("results", new org.json.JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    private Response reponseSimple(String success, String errors) {
+        return Response.ok().entity(new JSONObject().put("success", success)
+                .put("errors", org.apache.commons.lang3.StringUtils.defaultString(errors)).toString()).build();
+    }
+
+    /** Ajout d'un tiers payant au client : MEME methode metier que la JSP ws_transaction_clt.jsp (mode=create). */
+    @POST
+    @Path("gestion/tiers-payants/create")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response creerTiersPayantClient(@FormParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @FormParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @DefaultValue("0") @FormParam("int_POURCENTAGE") int pourcentage,
+            @DefaultValue("1") @FormParam("int_PRIORITY") int priority,
+            @DefaultValue("0") @FormParam("dbl_PLAFOND") int plafond,
+            @DefaultValue("0") @FormParam("dbl_QUOTA_CONSO_VENTE") double quotaConsoVente,
+            @DefaultValue("") @FormParam("str_NUMERO_SECURITE_SOCIAL") String numeroSecuriteSocial,
+            @DefaultValue("0") @FormParam("db_PLAFOND_ENCOURS") int plafondEncours,
+            @DefaultValue("false") @FormParam("b_IsAbsolute") boolean isAbsolute) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            bll.tierspayantManagement.tierspayantManagement otm = new bll.tierspayantManagement.tierspayantManagement(
+                    odm);
+            otm.create_compteclt_tierspayant(compteClientId, tiersPayantId, pourcentage, priority, plafond,
+                    quotaConsoVente, numeroSecuriteSocial, plafondEncours, isAbsolute);
+            return reponseSimple(otm.getMessage(), otm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "creerTiersPayantClient", e);
+            return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible d'ajouter le tiers payant au client");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Ajout d'un tiers payant a un client standard : MEME methode metier que la JSP (mode=createstandartdclient). */
+    @POST
+    @Path("gestion/tiers-payants/create-standard")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response creerTiersPayantClientStandard(@FormParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @FormParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @DefaultValue("0") @FormParam("int_POURCENTAGE") int pourcentage,
+            @DefaultValue("1") @FormParam("int_PRIORITY") int priority,
+            @DefaultValue("") @FormParam("lg_TYPE_CLIENT_ID") String typeClientId) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            bll.tierspayantManagement.tierspayantManagement otm = new bll.tierspayantManagement.tierspayantManagement(
+                    odm);
+            otm.createCompteClientTiersPayant(compteClientId, tiersPayantId, pourcentage, priority, typeClientId);
+            return reponseSimple(otm.getMessage(), otm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "creerTiersPayantClientStandard", e);
+            return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible d'ajouter le tiers payant au client");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Modification d'un tiers payant du client : MEME methode metier que la JSP (mode=update). */
+    @POST
+    @Path("gestion/tiers-payants/update")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response modifierTiersPayantClient(
+            @FormParam("lg_COMPTE_CLIENT_TIERS_PAYANT_ID") String compteClientTiersPayantId,
+            @FormParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @FormParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @DefaultValue("0") @FormParam("int_POURCENTAGE") int pourcentage,
+            @DefaultValue("1") @FormParam("int_PRIORITY") int priority,
+            @DefaultValue("0") @FormParam("dbl_PLAFOND") int plafond,
+            @DefaultValue("0") @FormParam("dbl_QUOTA_CONSO_VENTE") double quotaConsoVente,
+            @DefaultValue("") @FormParam("str_NUMERO_SECURITE_SOCIAL") String numeroSecuriteSocial,
+            @DefaultValue("0") @FormParam("db_PLAFOND_ENCOURS") int plafondEncours,
+            @DefaultValue("false") @FormParam("modeupdate") boolean modeUpdate,
+            @DefaultValue("false") @FormParam("b_IsAbsolute") boolean isAbsolute) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            bll.tierspayantManagement.tierspayantManagement otm = new bll.tierspayantManagement.tierspayantManagement(
+                    odm);
+            otm.updateComptecltTierspayant(compteClientTiersPayantId, compteClientId, tiersPayantId, pourcentage,
+                    priority, plafond, quotaConsoVente, numeroSecuriteSocial, plafondEncours, modeUpdate, isAbsolute);
+            return reponseSimple(otm.getMessage(), otm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "modifierTiersPayantClient", e);
+            return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible de modifier le tiers payant du client");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Retrait d'un tiers payant du client : MEME methode metier que la JSP (mode=delete). */
+    @POST
+    @Path("gestion/tiers-payants/delete")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response supprimerTiersPayantClient(
+            @FormParam("lg_COMPTE_CLIENT_TIERS_PAYANT_ID") String compteClientTiersPayantId) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            bll.tierspayantManagement.tierspayantManagement otm = new bll.tierspayantManagement.tierspayantManagement(
+                    odm);
+            otm.deleteComptecltTierspayant(compteClientTiersPayantId);
+            return reponseSimple(otm.getMessage(), otm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "supprimerTiersPayantClient", e);
+            return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible de retirer le tiers payant du client");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     @POST
     @Path("gestion/toggle-statut")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
