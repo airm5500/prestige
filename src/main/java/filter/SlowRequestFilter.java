@@ -2,6 +2,10 @@ package filter;
 
 import dal.TUser;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.ejb.EJB;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -30,6 +34,28 @@ public class SlowRequestFilter implements Filter {
 
     private static final long CONFIG_TTL_MS = 60_000L;
 
+    /** Photographie d'une requete API en cours de traitement (pour le chien de garde BlocageWatchdog). */
+    public static final class RequeteEnCours {
+        public final String methode;
+        public final String uri;
+        public final long debutMs;
+        public final String nomThread;
+
+        private RequeteEnCours(String methode, String uri, long debutMs, String nomThread) {
+            this.methode = methode;
+            this.uri = uri;
+            this.debutMs = debutMs;
+            this.nomThread = nomThread;
+        }
+    }
+
+    private static final Set<RequeteEnCours> EN_COURS = ConcurrentHashMap.newKeySet();
+
+    /** Liste des requetes API actuellement en traitement (lecture seule, sans blocage). */
+    public static List<RequeteEnCours> requetesEnCours() {
+        return new ArrayList<>(EN_COURS);
+    }
+
     @EJB
     private SupportEventService supportEventService;
 
@@ -46,15 +72,30 @@ public class SlowRequestFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         long start = System.currentTimeMillis();
+        RequeteEnCours suivi = null;
+        if (request instanceof HttpServletRequest) {
+            HttpServletRequest req = (HttpServletRequest) request;
+            suivi = new RequeteEnCours(StringUtils.defaultString(req.getMethod()),
+                    StringUtils.defaultString(req.getRequestURI()), start, Thread.currentThread().getName());
+            EN_COURS.add(suivi);
+        }
         try {
             chain.doFilter(request, response);
         } finally {
+            if (suivi != null) {
+                EN_COURS.remove(suivi);
+            }
             try {
                 if (supportEventService != null && request instanceof HttpServletRequest) {
                     long duree = System.currentTimeMillis() - start;
-                    rafraichirConfig();
+                    // La configuration n'est relue (acces base) que pour les requetes deja lentes :
+                    // le chemin nominal ne fait aucun appel base, et si la base est bloquee seules
+                    // les requetes deja en difficulte attendent ici.
                     if (enabled && duree >= thresholdMs) {
-                        signalerLenteur((HttpServletRequest) request, duree);
+                        rafraichirConfig();
+                        if (enabled && duree >= thresholdMs) {
+                            signalerLenteur((HttpServletRequest) request, duree);
+                        }
                     }
                 }
             } catch (Exception ignore) {
