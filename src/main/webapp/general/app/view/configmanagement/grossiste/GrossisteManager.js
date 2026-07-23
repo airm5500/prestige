@@ -1,6 +1,9 @@
 var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
 var url_services_transaction_grossiste = '../webservices/configmanagement/grossiste/ws_transaction.jsp?mode=';
 var url_services_pdf_grossiste = '../webservices/configmanagement/grossiste/ws_generate_pdf.jsp';
+// REST dedie a cet ecran (memes formats JSON que les JSP) : liste + create/update/toggle-statut
+var url_rest_data_grossiste = '../api/v1/grossistes';
+var url_services_rest_grossiste = '../api/v1/grossistes/';
 var Me_Workflow;
 Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
     extend: 'Ext.grid.Panel',
@@ -37,7 +40,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste,
+                url: url_rest_data_grossiste,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -167,14 +170,29 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
+                            // La suppression definitive est remplacee par la desactivation
+                            // (reversible via le bouton 'Desactives' de la barre d'outils)
+                            icon: 'resources/images/icons/fam/disable.png',
+                            tooltip: 'D&eacute;sactiver / R&eacute;activer ce grossiste',
+                            scope: this,
+                            handler: this.onToggleStatutClick
+                        }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    hidden: true, // bouton 'Supprimer' masque a la demande (fonction conservee)
+                    items: [{
                             icon: 'resources/images/icons/fam/delete.gif',
                             tooltip: 'Supprimer un grossiste',
                             scope: this,
                             getClass: function (value, metadata, record) {
-                                if (record.get('BTNDELETE')) {  
-                                    return 'x-display-hide'; 
+                                if (record.get('BTNDELETE')) {
+                                    return 'x-display-hide';
                                 } else {
-                                    return 'x-hide-display'; 
+                                    return 'x-hide-display';
                                 }
                             },
                             handler: this.onRemoveClick
@@ -229,6 +247,19 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                     iconCls: 'export_excel_icon',
                     scope: this,
                     handler: this.onbtnexportExcel
+                }, '->', {
+                    text: 'D&eacute;sactiv&eacute;s',
+                    id: 'BT_GROSSISTE_VOIR_DESACTIVES',
+                    enableToggle: true,
+                    hidden: true, // visible uniquement pour les profils administrateurs (voir est-admin)
+                    icon: 'resources/images/icons/fam/disable.png',
+                    tooltip: 'Afficher les grossistes d&eacute;sactiv&eacute;s (pour les r&eacute;activer)',
+                    scope: this,
+                    toggleHandler: function (btn, pressed) {
+                        var store = this.getStore();
+                        store.getProxy().setExtraParam('actifs', !pressed);
+                        store.loadPage(1);
+                    }
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -245,10 +276,24 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
             delay: 1,
             single: true
         }),
+        // Le bouton 'Desactives' n'est propose qu'aux profils administrateurs
+        Ext.Ajax.request({
+            url: '../api/v1/roles/est-admin',
+            method: 'GET',
+            success: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true);
+                var bouton = Ext.getCmp('BT_GROSSISTE_VOIR_DESACTIVES');
+                if (object && object.authorize === true && bouton) {
+                    bouton.show();
+                }
+            }
+        });
+
         this.on('edit', function(editor, e) {
 
             Ext.Ajax.request({
-                url: url_services_transaction_grossiste + 'update',
+                url: url_services_rest_grossiste + 'update',
+                method: 'POST',
                 params: {
                     lg_GROSSISTE_ID: e.record.data.lg_GROSSISTE_ID,
                     str_LIBELLE: e.record.data.str_LIBELLE,
@@ -388,12 +433,49 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
 
     },
     onRechClick: function() {
+        // extraParam persistant : la recherche est conservee quand on change de page
         var val = Ext.getCmp('rechecher');
-        this.getStore().load({
-            params: {
-                search_value: val.getValue()
-            }
-        }, url_services_data_grossiste);
+        var store = this.getStore();
+        store.getProxy().setExtraParam('search_value', val.getValue());
+        store.loadPage(1);
+    },
+    onToggleStatutClick: function (grid, rowIndex) {
+        // En vue normale on desactive ; en vue 'Desactives' on reactive
+        var enDesactives = Ext.getCmp('BT_GROSSISTE_VOIR_DESACTIVES')
+                && Ext.getCmp('BT_GROSSISTE_VOIR_DESACTIVES').pressed;
+        var actif = enDesactives ? true : false;
+        var rec = grid.getStore().getAt(rowIndex);
+        Ext.MessageBox.confirm('Message',
+                (actif ? 'R&eacute;activer' : 'D&eacute;sactiver') + ' le grossiste <br><b>'
+                + rec.get('str_LIBELLE') + '</b> ?',
+                function (btn) {
+                    if (btn === 'yes') {
+                        testextjs.app.getController('App').ShowWaitingProcess();
+                        Ext.Ajax.request({
+                            url: url_services_rest_grossiste + 'toggle-statut',
+                            method: 'POST',
+                            params: {
+                                lg_GROSSISTE_ID: rec.get('lg_GROSSISTE_ID'),
+                                actif: actif
+                            },
+                            success: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                var object = Ext.JSON.decode(response.responseText, false);
+                                if (object.success == "0") {
+                                    Ext.MessageBox.alert('Error Message', object.errors);
+                                    return;
+                                }
+                                Ext.MessageBox.alert('Confirmation', object.errors);
+                                grid.getStore().reload();
+                            },
+                            failure: function (response) {
+                                testextjs.app.getController('App').StopWaitingProcess();
+                                console.log("Bug " + response.responseText);
+                                Ext.MessageBox.alert('Error Message', response.responseText);
+                            }
+                        });
+                    }
+                });
     }
 
 });

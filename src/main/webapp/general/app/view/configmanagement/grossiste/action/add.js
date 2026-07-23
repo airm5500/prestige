@@ -2,6 +2,7 @@ var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_
 var url_services_data_ville = '../webservices/configmanagement/ville/ws_data.jsp';
 var url_services_data_typereglement = "../webservices/sm_user/typereglement/ws_data.jsp";
 var url_services_transaction_grossiste = '../webservices/configmanagement/grossiste/ws_transaction.jsp?mode=';
+var url_services_rest_grossiste = '../api/v1/grossistes/'; // create / update en REST (memes regles metier)
 var Oview;
 var Omode;
 var Me;
@@ -483,9 +484,9 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
         if (formulaire.isValid()) {
             var internal_url = "";
             if (Omode === "create") {
-                internal_url = url_services_transaction_grossiste + 'create';
+                internal_url = url_services_rest_grossiste + 'create';
             } else {
-                internal_url = url_services_transaction_grossiste + 'update&lg_GROSSISTE_ID=' + ref;
+                internal_url = url_services_rest_grossiste + 'update';
             }
             if (Ext.getCmp('int_DATE_BUTOIR_ARTICLE').getValue() < 15) {
                 Ext.MessageBox.alert('Impossible', 'La date butoire ne doit pas etre inferieure a 15');
@@ -495,7 +496,9 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    lg_GROSSISTE_ID: (Omode === "update" ? ref : ""),
                     str_LIBELLE: Ext.getCmp('str_LIBELLE').getValue(),
                     str_DESCRIPTION: Ext.getCmp('str_DESCRIPTION').getValue(),
                     str_ADRESSE_RUE_1: Ext.getCmp('str_ADRESSE_RUE_1').getValue(),
