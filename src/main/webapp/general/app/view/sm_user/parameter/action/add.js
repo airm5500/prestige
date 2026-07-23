@@ -2,6 +2,7 @@
 
 var url_services_data_parameter = '../webservices/sm_user/parameter/ws_data.jsp';
 var url_services_transaction_parameter = '../webservices/sm_user/parameter/ws_transaction.jsp?mode=';
+var url_rest_update_parameter = '../api/v1/app-params/update'; // update en REST (memes regles metier)
 
 var Oview;
 var Omode;
@@ -104,7 +105,8 @@ Ext.define('testextjs.view.sm_user.parameter.action.add', {
         var doSave = function () {
             if (Omode === "update") {
                 Ext.Ajax.request({
-                    url: url_services_transaction_parameter + 'update',
+                    url: url_rest_update_parameter,
+                    method: 'POST',
                     params: {
                         str_KEY: ref,
                         str_VALUE: Ext.getCmp('str_VALUE').getValue(),

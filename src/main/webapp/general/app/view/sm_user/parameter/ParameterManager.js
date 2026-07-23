@@ -1,5 +1,7 @@
 var url_services_data_parametre = '../webservices/sm_user/parameter/ws_data_all.jsp';
 var url_services_data_parametre_transaction = '../webservices/sm_user/parameter/ws_transaction.jsp';
+// REST dedie a cet ecran (memes formats JSON et memes regles de visibilite que la JSP)
+var url_rest_data_parametre = '../api/v1/app-params/liste';
 
 var Me;
 Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
@@ -34,7 +36,7 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_parametre,
+                url: url_rest_data_parametre,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -228,12 +230,11 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
 //        }
 //    },
     onRechClick: function () {
+        // extraParam persistant : la recherche est conservee quand on change de page
         var val = Ext.getCmp('rechecher');
-        this.getStore().load({
-            params: {
-                search_value: val.getValue()
-            }
-        }, url_services_data_parametre);
+        var store = this.getStore();
+        store.getProxy().setExtraParam('search_value', val.getValue());
+        store.loadPage(1);
     }
 
 });
