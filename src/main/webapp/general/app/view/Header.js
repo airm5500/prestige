@@ -520,6 +520,12 @@ function refreshNotificationBadge() {
 }
 
 function showNotificationCenter() {
+    // Toggle : si le panneau est deja affiche, un nouveau clic sur la cloche le ferme
+    var existing = Ext.getCmp('notif-center-win');
+    if (existing) {
+        existing.close();
+        return;
+    }
     // full=true : le panneau a besoin des listes completes
     PrestigeNotif.loadAll(function (total) {
         PrestigeNotif.updateBadge(total);

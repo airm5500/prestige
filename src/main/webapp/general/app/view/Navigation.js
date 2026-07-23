@@ -270,8 +270,23 @@ Ext.define('testextjs.view.Navigation', {
         if (icon) {
             icon.addCls('fa-spin');
         }
+        /* Fermer un eventuel flyout ouvert : ses noeuds vont etre detruits par le rechargement */
+        if (me._flyoutMenu) {
+            me._flyoutMenu.destroy();
+            me._flyoutMenu = null;
+            me._flyoutRecord = null;
+        }
         var store = me.getStore();
         store._menuRetries = 0;
+        /*
+         * Bug ExtJS 4.2 : au reload d'un TreeStore la vue conserve les anciens noeuds et les
+         * nouveaux s'ajoutent a la suite (menus dupliques a chaque clic sur actualiser).
+         * On vide explicitement la racine avant le load pour repartir d'un arbre propre.
+         */
+        var root = store.getRootNode();
+        if (root) {
+            root.removeAll();
+        }
         store.load({
             callback: function () {
                 if (icon) {
