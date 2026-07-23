@@ -83,4 +83,14 @@ public interface ClientService {
 
     void updateTiersPayantPriority(TClient tc, List<TiersPayantParams> tierspayants);
 
+    /**
+     * Liste paginee des clients pour l'ecran Gestion des Clients, en remplacement de la JSP
+     * webservices/configmanagement/client/ws_data.jsp : memes cles JSON et memes regles que
+     * bll.clientManagement.getClients, mais avec des requetes regroupees par page au lieu de plusieurs requetes par
+     * ligne. actifs=true : statut enable (comportement historique) ; false : les desactives. btnDelete / btnDesactiver
+     * : privileges de l'utilisateur connecte (calcules dans la ressource depuis la session).
+     */
+    JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete, boolean btnDesactiver,
+            int start, int limit);
+
 }

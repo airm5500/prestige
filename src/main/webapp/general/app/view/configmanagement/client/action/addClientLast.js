@@ -2,7 +2,7 @@
 
 var url_services_data_client = '../webservices/configmanagement/client/ws_data.jsp';
 var url_services_transaction_client = '../webservices/configmanagement/client/ws_transaction.jsp?mode=';
-var url_services_rest_clients = '../api/v1/clients/'; // create / update en REST (memes regles metier)
+var url_services_rest_clients = '../api/v1/client/gestion/'; // create / update en REST (memes regles metier)
 var url_services_data_ville_client = '../webservices/configmanagement/ville/ws_data.jsp';
 var url_services_data_medecin_client = '../webservices/configmanagement/medecin/ws_data.jsp';
 var url_services_data_typeclient_client = '../webservices/configmanagement/typeclient/ws_data.jsp';

@@ -5,8 +5,8 @@ var url_services_transaction_client = '../webservices/configmanagement/client/ws
 var url_services_pdf_client = '../webservices/configmanagement/client/ws_generate_pdf.jsp';
 var url_services_data_typetierspayant = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
 // REST dedie a cet ecran (memes formats JSON que les JSP) : liste optimisee + toggle-statut
-var url_rest_data_clients = '../api/v1/clients';
-var url_services_rest_clients = '../api/v1/clients/';
+var url_rest_data_clients = '../api/v1/client/gestion';
+var url_services_rest_clients = '../api/v1/client/gestion/';
 
 var Me_Workflow;
 var lg_TYPE_CLIENT_ID = "";

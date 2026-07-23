@@ -5,20 +5,28 @@
  */
 package rest;
 
+import bll.configManagement.clientManagement;
 import commonTasks.dto.AyantDroitDTO;
 import commonTasks.dto.ClientDTO;
 import commonTasks.dto.ClientLambdaDTO;
 import commonTasks.dto.TiersPayantDTO;
 import commonTasks.dto.TiersPayantParams;
 import dal.TClient;
+import dal.TCompteClient;
+import dal.TPrivilege;
 import dal.TUser;
+import dal.dataManager;
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
+import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
@@ -32,7 +40,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.ClientConsommationService;
 import rest.service.ClientService;
+import toolkits.parameters.commonparameter;
+import util.CommonUtils;
 import util.Constant;
+import util.DateConverter;
 
 /**
  *
@@ -371,5 +382,199 @@ public class ClientRessource {
          * return Response.ok(output, MediaType.APPLICATION_OCTET_STREAM) .header("content-disposition",
          * "attachment; filename = " + filename).build(); }
          */
+    }
+
+    // =============================================================================================
+    // Ecran Gestion des Clients (remplace webservices/configmanagement/client/ws_data.jsp et
+    // ws_transaction.jsp). La CONSULTATION passe par une requete groupee par page ; la CREATION,
+    // la MODIFICATION et la DESACTIVATION deleguent aux MEMES methodes metier bll.clientManagement
+    // que la JSP historique (createClient / update2 / enableOrDisableClient) : memes regles, memes
+    // messages, zero changement de comportement.
+    // =============================================================================================
+
+    private static final Logger LOG_GESTION = Logger.getLogger(ClientRessource.class.getName());
+    /** Valeurs par defaut historiques de ws_transaction.jsp. */
+    private static final String CATEGORIE_AYANT_DROIT_DEFAUT = "555146116095894790";
+    private static final String RISQUE_DEFAUT = "55181642844215217016";
+
+    private TUser utilisateurSession() {
+        return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<TPrivilege> privilegesSession() {
+        return (List<TPrivilege>) servletRequest.getSession().getAttribute(commonparameter.USER_LIST_PRIVILEGE);
+    }
+
+    private Response reponseDeconnecte() {
+        return Response.ok().entity(new JSONObject().put("success", commonparameter.PROCESS_FAILED)
+                .put("errors", Constant.DECONNECTED_MESSAGE).put("total", 0).toString()).build();
+    }
+
+    private Response reponseTransaction(String success, String errors) {
+        return Response.ok().entity(new JSONObject().put("success", success)
+                .put("errors", org.apache.commons.lang3.StringUtils.defaultString(errors)).put("total_differe", 0)
+                .put("isCustSolvable", 0).put("results", new org.json.JSONArray().put(new JSONObject())).toString())
+                .build();
+    }
+
+    @GET
+    @Path("gestion")
+    public Response listeGestion(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
+            @QueryParam("lg_TYPE_CLIENT_ID") String typeClientId,
+            @DefaultValue("true") @QueryParam("actifs") boolean actifs,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser user = utilisateurSession();
+        if (user == null) {
+            return reponseDeconnecte();
+        }
+        String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
+        List<TPrivilege> privileges = privilegesSession();
+        boolean btnDelete = CommonUtils.hasAuthorityById(privileges, DateConverter.ACTIONDELETE);
+        boolean btnDesactiver = CommonUtils.hasAuthorityByName(privileges, DateConverter.P_BTN_DESACTIVER_CLIENT);
+        return Response
+                .ok().entity(clientService
+                        .listClients(search, typeClientId, actifs, btnDelete, btnDesactiver, start, limit).toString())
+                .build();
+    }
+
+    @POST
+    @Path("gestion/create")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response creerGestion(@FormParam("str_FIRST_NAME") String firstName,
+            @FormParam("str_LAST_NAME") String lastName,
+            @FormParam("str_NUMERO_SECURITE_SOCIAL") String numeroSecuriteSocial,
+            @FormParam("dt_NAISSANCE") String dtNaissance, @FormParam("str_SEXE") String sexe,
+            @FormParam("str_ADRESSE") String adresse, @FormParam("str_DOMICILE") String domicile,
+            @FormParam("str_AUTRE_ADRESSE") String autreAdresse, @FormParam("str_CODE_POSTAL") String codePostal,
+            @FormParam("str_COMMENTAIRE") String commentaire, @FormParam("lg_VILLE_ID") String villeId,
+            @DefaultValue("0") @FormParam("dbl_QUOTA_CONSO_MENSUELLE") double quotaConsoMensuelle,
+            @DefaultValue("0") @FormParam("dbl_CAUTION") double caution,
+            @DefaultValue("0") @FormParam("dbl_SOLDE") int solde, @FormParam("lg_TYPE_CLIENT_ID") String typeClientId,
+            @FormParam("lg_CATEGORIE_AYANTDROIT_ID") String categorieAyantDroitId,
+            @FormParam("lg_RISQUE_ID") String risqueId, @FormParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @DefaultValue("0") @FormParam("int_POURCENTAGE") int pourcentage,
+            @DefaultValue("1") @FormParam("int_PRIORITY") int priority,
+            @FormParam("str_CODE_INTERNE") String codeInterne,
+            @DefaultValue("0") @FormParam("dbl_PLAFOND") double plafond, @FormParam("lg_COMPANY_ID") String companyId,
+            @DefaultValue("0") @FormParam("db_PLAFOND_ENCOURS") int plafondEncours,
+            @DefaultValue("false") @FormParam("b_IsAbsolute") boolean isAbsolute,
+            @FormParam("remiseId") String remiseId, @FormParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            clientManagement ocm = new clientManagement(odm, user);
+            // Regles historiques de ws_transaction.jsp (mode=create)
+            String typeClient = org.apache.commons.lang3.StringUtils.defaultString(typeClientId);
+            if ("1".equals(typeTiersPayantId) || "2".equals(typeTiersPayantId)) {
+                typeClient = typeTiersPayantId;
+            }
+            String categorie = org.apache.commons.lang3.StringUtils.isNotBlank(categorieAyantDroitId)
+                    ? categorieAyantDroitId : CATEGORIE_AYANT_DROIT_DEFAUT;
+            String risque = org.apache.commons.lang3.StringUtils.isNotBlank(risqueId) ? risqueId : RISQUE_DEFAUT;
+            Date naissance = org.apache.commons.lang3.StringUtils.isNotBlank(dtNaissance)
+                    ? new toolkits.utils.date().stringToDate(dtNaissance, toolkits.utils.date.formatterMysqlShort)
+                    : null;
+            // MEME appel que la JSP historique : dbl_PLAFOND est bien passe dans le meme emplacement d'argument
+            TCompteClient compte = ocm.createClient(firstName, lastName, numeroSecuriteSocial, naissance, sexe, adresse,
+                    domicile, autreAdresse, codePostal, commentaire, villeId, quotaConsoMensuelle, caution, solde,
+                    typeClient, categorie, risque, tiersPayantId, pourcentage, priority, codeInterne, plafond,
+                    companyId, plafondEncours, isAbsolute, org.apache.commons.lang3.StringUtils.trimToNull(remiseId));
+            if (compte != null) {
+                return reponseTransaction(commonparameter.PROCESS_SUCCESS, "Opération effectuée avec succès");
+            }
+            return reponseTransaction(ocm.getMessage(), ocm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "createClient", e);
+            return reponseTransaction(commonparameter.PROCESS_FAILED, "Impossible de créer le client");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    @POST
+    @Path("gestion/update")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response modifierGestion(@FormParam("lg_CLIENT_ID") String clientId,
+            @FormParam("str_CODE_INTERNE") String codeInterne, @FormParam("str_FIRST_NAME") String firstName,
+            @FormParam("str_LAST_NAME") String lastName,
+            @FormParam("str_NUMERO_SECURITE_SOCIAL") String numeroSecuriteSocial,
+            @FormParam("dt_NAISSANCE") String dtNaissance, @FormParam("str_SEXE") String sexe,
+            @FormParam("str_ADRESSE") String adresse, @FormParam("str_DOMICILE") String domicile,
+            @FormParam("str_AUTRE_ADRESSE") String autreAdresse, @FormParam("str_CODE_POSTAL") String codePostal,
+            @FormParam("str_COMMENTAIRE") String commentaire, @FormParam("lg_VILLE_ID") String villeId,
+            @FormParam("lg_MEDECIN_ID") String medecinId,
+            @DefaultValue("0") @FormParam("dbl_QUOTA_CONSO_MENSUELLE") double quotaConsoMensuelle,
+            @DefaultValue("0") @FormParam("dbl_CAUTION") double caution,
+            @FormParam("lg_TYPE_CLIENT_ID") String typeClientId,
+            @FormParam("lg_AYANTS_DROITS_ID") String ayantsDroitsId,
+            @FormParam("lg_CATEGORIE_AYANTDROIT_ID") String categorieAyantDroitId,
+            @FormParam("lg_RISQUE_ID") String risqueId, @FormParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @DefaultValue("0") @FormParam("int_POURCENTAGE") int pourcentage,
+            @DefaultValue("1") @FormParam("int_PRIORITY") int priority,
+            @DefaultValue("0") @FormParam("dbl_QUOTA_CONSO_VENTE") double quotaConsoVente,
+            @FormParam("lg_COMPANY_ID") String companyId, @DefaultValue("0") @FormParam("dbl_PLAFOND") double plafond,
+            @DefaultValue("0") @FormParam("db_PLAFOND_ENCOURS") int plafondEncours,
+            @DefaultValue("false") @FormParam("b_IsAbsolute") boolean isAbsolute,
+            @FormParam("remiseId") String remiseId) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            clientManagement ocm = new clientManagement(odm, user);
+            String categorie = org.apache.commons.lang3.StringUtils.isNotBlank(categorieAyantDroitId)
+                    ? categorieAyantDroitId : CATEGORIE_AYANT_DROIT_DEFAUT;
+            String risque = org.apache.commons.lang3.StringUtils.isNotBlank(risqueId) ? risqueId : RISQUE_DEFAUT;
+            Date naissance = org.apache.commons.lang3.StringUtils.isNotBlank(dtNaissance)
+                    ? new toolkits.utils.date().stringToDate(dtNaissance, toolkits.utils.date.formatterMysqlShort)
+                    : null;
+            ocm.update2(clientId, codeInterne, firstName, lastName, numeroSecuriteSocial, naissance, sexe, adresse,
+                    domicile, autreAdresse, codePostal, commentaire, villeId,
+                    org.apache.commons.lang3.StringUtils.defaultString(medecinId), quotaConsoMensuelle, caution,
+                    typeClientId, org.apache.commons.lang3.StringUtils.defaultString(ayantsDroitsId), categorie, risque,
+                    tiersPayantId, pourcentage, priority, quotaConsoVente, companyId, (int) plafond, plafondEncours,
+                    isAbsolute, org.apache.commons.lang3.StringUtils.trimToNull(remiseId));
+            return reponseTransaction(ocm.getMessage(), ocm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "updateClient", e);
+            return reponseTransaction(commonparameter.PROCESS_FAILED, "Impossible de modifier le client");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    @POST
+    @Path("gestion/toggle-statut")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response basculerStatutGestion(@FormParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @FormParam("actif") boolean actif) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            clientManagement ocm = new clientManagement(odm, user);
+            // MEMES methodes metier que les modes disable/enable de la JSP historique
+            ocm.enableOrDisableClient(compteClientId,
+                    actif ? commonparameter.statut_enable : commonparameter.statut_disable);
+            return reponseTransaction(ocm.getMessage(), ocm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "toggleStatutClient", e);
+            return reponseTransaction(commonparameter.PROCESS_FAILED, "Impossible de changer le statut de ce client");
+        } finally {
+            odm.closeEntityManager();
+        }
     }
 }
