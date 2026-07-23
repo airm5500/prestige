@@ -1,4 +1,5 @@
 var url_services_transaction_role = '../webservices/sm_user/role/ws_transaction.jsp?mode=';
+var url_services_rest_role = '../api/v1/roles/'; // create / update en REST
 var Oview;
 var Omode;
 var Me;
@@ -111,15 +112,17 @@ Ext.getCmp('str_TYPE').setValue(this.getOdatasource().str_TYPE);
                 formulaire = fenetre.down('form');
         var internal_url = "";
         if (Omode === "create") {
-            internal_url = url_services_transaction_role + 'create';
+            internal_url = url_services_rest_role + 'create';
         } else if (Omode === "update") {
-            internal_url = url_services_transaction_role + 'update&lg_ROLE_ID=' + ref;
+            internal_url = url_services_rest_role + 'update';
         }
         if (formulaire.isValid()) {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    lg_ROLE_ID: (Omode === "update" ? ref : ""),
                     str_NAME: Ext.getCmp('str_NAME').getValue(),
                     str_DESIGNATION: Ext.getCmp('str_DESIGNATION').getValue(),
                     str_TYPE: (Ext.getCmp('str_TYPE').getValue() != null ? Ext.getCmp('str_TYPE').getValue() : "")
@@ -132,7 +135,7 @@ Ext.getCmp('str_TYPE').setValue(this.getOdatasource().str_TYPE);
                         Ext.MessageBox.alert('Error Message', object.errors);
                         return;
                     } else {
-                        Ext.MessageBox.alert('Confirmation', object.errors);
+                        Ext.MessageBox.alert('Confirmation', object.errors || 'Op&eacute;ration effectu&eacute;e avec succ&egrave;s');
                         fenetre.close();
                         Me_Workflow = Oview;
                         Me_Workflow.getStore().reload();

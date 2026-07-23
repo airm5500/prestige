@@ -6,6 +6,7 @@ var url_services_data_language = '../webservices/sm_user/language/ws_data.jsp';
 var url_services_data_utilisateur = '../webservices/sm_user/utilisateur/ws_data.jsp';
 var url_services_transaction_utilisateur = '../webservices/sm_user/utilisateur/ws_transaction.jsp?mode=';
 var url_services_data_emplacement = '../webservices/configmanagement/emplacement/ws_data.jsp';
+var url_services_rest_utilisateur = '../api/v1/utilisateurs/'; // create / update en REST
 var Oview;
 var Omode;
 var Me;
@@ -291,7 +292,7 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
             }
 
             if (Omode === "create") {
-                internal_url = url_services_transaction_utilisateur + 'create';
+                internal_url = url_services_rest_utilisateur + 'create';
                 if (pass1 !== pass2) {
                     Ext.MessageBox.alert('ERREUR', 'mot de passe differents');
                     Ext.getCmp('str_PASSWORDnew').setValue("");
@@ -303,7 +304,7 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
                     return;
                 }
             } else {
-                internal_url = url_services_transaction_utilisateur + 'update&lg_USER_ID=' + ref;
+                internal_url = url_services_rest_utilisateur + 'update';
             }
 
             if (isNaN(parseInt(Ext.getCmp('str_IDS').getValue()))) {
@@ -313,7 +314,9 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    lg_USER_ID: (Omode === "update" ? ref : ""),
                     lg_ROLE_ID: Ext.getCmp('lg_ROLE_ID').getValue(),
                     str_FIRST_NAME: Ext.getCmp('str_FIRST_NAME').getValue(),
                     str_LAST_NAME: Ext.getCmp('str_LAST_NAME').getValue(),

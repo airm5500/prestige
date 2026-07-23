@@ -1,5 +1,7 @@
-var url_services_data_addprivilegebis = '../webservices/sm_user/role/ws_data_privilege.jsp';
-var url_services_transaction_addprivilegebis = '../webservices/sm_user/privilege/ws_role_transaction.jsp?mode=';
+// REST (meme format que les anciennes JSP ws_data_privilege / ws_role_transaction)
+var url_services_data_addprivilegebis = '../api/v1/roles/privileges';
+var url_services_toggle_addprivilegebis = '../api/v1/roles/privileges/toggle';
+var url_services_toggleall_addprivilegebis = '../api/v1/roles/privileges/toggle-all';
 
 
 var OCltgridpanelID;
@@ -53,7 +55,10 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
 //            proxy: proxy
             proxy: {
                 type: 'ajax',
-                url: url_services_data_addprivilegebis + "?lg_ROLE_ID=" + ref,
+                url: url_services_data_addprivilegebis,
+                extraParams: {
+                    lg_ROLE_ID: ref
+                },
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -185,6 +190,22 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
                             tooltip: 'rechercher',
                             scope: this,
                             handler: this.onRechClick
+                        }, '->', {
+                            text: 'Tout s&eacute;lectionner',
+                            tooltip: 'Attribuer tous les privil&egrave;ges affich&eacute;s par la recherche courante (toutes les pages)',
+                            icon: 'resources/images/icons/fam/accept.png',
+                            scope: this,
+                            handler: function () {
+                                Me.onToggleAll(true);
+                            }
+                        }, {
+                            text: 'Tout d&eacute;s&eacute;lectionner',
+                            tooltip: 'Retirer tous les privil&egrave;ges affich&eacute;s par la recherche courante (toutes les pages)',
+                            icon: 'resources/images/icons/fam/cross.gif',
+                            scope: this,
+                            handler: function () {
+                                Me.onToggleAll(false);
+                            }
                         }],
                     bbar: {
                         xtype: 'pagingtoolbar',
@@ -280,10 +301,12 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
     },
     onCheckTrueClick: function(record) {
         Ext.Ajax.request({
-            url: url_services_transaction_addprivilegebis + 'create',
+            url: url_services_toggle_addprivilegebis,
+            method: 'POST',
             params: {
                 lg_PRIVELEGE_ID: record.get('lg_PRIVELEGE_ID'),
-                lg_ROLE_ID: ref
+                lg_ROLE_ID: ref,
+                checked: true
             },
             success: function(response)
             {
@@ -306,10 +329,12 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
     onCheckFalseClick: function(record) {
 
         Ext.Ajax.request({
-            url: url_services_transaction_addprivilegebis + 'delete',
+            url: url_services_toggle_addprivilegebis,
+            method: 'POST',
             params: {
                 lg_PRIVELEGE_ID: record.get('lg_PRIVELEGE_ID'),
-                lg_ROLE_ID: ref
+                lg_ROLE_ID: ref,
+                checked: false
             },
             success: function(response)
             {
@@ -326,10 +351,47 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
     }, 
      onRechClick: function () {
         var val = Ext.getCmp('rechercher_bis');
-        Ext.getCmp('CltgridpanelID').getStore().load({
-            params: {
-                search_value: val.value
-            }
-        }, url_services_data_addprivilegebis);
+        var store = Ext.getCmp('CltgridpanelID').getStore();
+        // parametre persistant : la pagination conserve la recherche (fix 2/13)
+        store.getProxy().setExtraParam('search_value', val.value || '');
+        store.loadPage(1);
+    },
+    // Attribution / retrait en masse de tous les privileges de la recherche courante (toutes pages)
+    onToggleAll: function (checked) {
+        var val = Ext.getCmp('rechercher_bis');
+        var libelle = checked ? 'attribuer TOUS les privil&egrave;ges' : 'retirer TOUS les privil&egrave;ges';
+        Ext.MessageBox.confirm('Confirmation',
+                'Voulez-vous ' + libelle + ' correspondant &agrave; la recherche courante (toutes les pages) &agrave; ce profil ?',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    var progress = Ext.MessageBox.wait('Mise &agrave; jour en cours . . .', 'Veuillez patienter');
+                    Ext.Ajax.request({
+                        url: url_services_toggleall_addprivilegebis,
+                        method: 'POST',
+                        timeout: 600000,
+                        params: {
+                            lg_ROLE_ID: ref,
+                            search_value: val ? (val.value || '') : '',
+                            checked: checked
+                        },
+                        success: function (response) {
+                            progress.hide();
+                            var o = Ext.JSON.decode(response.responseText, true) || {};
+                            if (o.success == "0") {
+                                Ext.MessageBox.alert('Message', o.errors || 'Mise &agrave; jour impossible');
+                                return;
+                            }
+                            Ext.MessageBox.alert('Message', '<b>' + (o.count || 0) + '</b> privil&egrave;ge(s) '
+                                    + (checked ? 'attribu&eacute;(s)' : 'retir&eacute;(s)') + '.');
+                            Ext.getCmp('CltgridpanelID').getStore().reload();
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.MessageBox.alert('Message', 'Un probl&egrave;me avec le serveur');
+                        }
+                    });
+                });
     }
 });

@@ -1,6 +1,7 @@
 
 var url_services_data_utilisateur = '../webservices/sm_user/utilisateur/ws_data.jsp';
 var url_services_transaction_utilisateur = '../webservices/sm_user/utilisateur/ws_transaction.jsp?mode=';
+var url_services_rest_utilisateur = '../api/v1/utilisateurs/'; // update-password en REST
 var Oview;
 var Omode;
 var Me;
@@ -115,11 +116,13 @@ Ext.define('testextjs.view.sm_user.user.action.addpwd', {
         if (pass1 === pass2 && (nbCaractere >= 8)) {
             var internal_url = "";
 
-            internal_url = url_services_transaction_utilisateur + 'updatepassword&lg_USER_ID=' + ref;
+            internal_url = url_services_rest_utilisateur + 'update-password';
 
             Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    lg_USER_ID: ref,
                     str_PASSWORD: Ext.getCmp('str_PASSWORDn').getValue()
                 },
                 success: function(response)

@@ -1,5 +1,8 @@
 var url_services_data_utilisateur = '../webservices/sm_user/utilisateur/ws_data.jsp';
 var url_services_transaction_utilisateur = '../webservices/sm_user/utilisateur/ws_transaction.jsp?mode=';
+// REST dedie a cet ecran (memes formats JSON que les JSP) : liste + create/update/update-password
+var url_rest_data_utilisateur = '../api/v1/utilisateurs';
+var url_services_rest_utilisateur = '../api/v1/utilisateurs/';
 var Me_Workflow;
 var url_services_pdf_fiche_utilisateur = '../webservices/sm_user/utilisateur/ws_generate_pdf.jsp';
 
@@ -38,7 +41,7 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_utilisateur + "?etat="+true,
+                url: url_rest_data_utilisateur + "?etat="+true,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -153,6 +156,7 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
+                    hidden: true, // bouton 'Associer' masque a la demande (fonction conservee)
                     items: [{
                             icon: 'resources/images/icons/fam/folder_go.png',
                             tooltip: 'Associer Numero',
@@ -258,7 +262,8 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
 
 
             Ext.Ajax.request({
-                url: url_services_transaction_utilisateur + 'update',
+                url: url_services_rest_utilisateur + 'update',
+                method: 'POST',
                 params: {
                     lg_USER_ID: e.record.data.lg_USER_ID,
                     lg_ROLE_ID: e.record.data.lg_ROLE_ID,
@@ -419,11 +424,9 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
     },
     onRechClick: function() {
         var val = Ext.getCmp('TXT_SEARCH');
-        this.getStore().load({
-            params: {
-                search_value: val.value
-            }
-        }, url_services_data_utilisateur);
+        // parametre persistant : la pagination conserve la recherche
+        this.getStore().getProxy().setExtraParam('search_value', val.value || '');
+        this.getStore().loadPage(1);
     }
 
     , checkPrivilegeToUI: function() {
