@@ -26,6 +26,12 @@ public interface PromotionService {
     /** Produits d'une promotion (pagines, recherche CIP/nom). */
     JSONObject listProduits(int promotionId, String search, int start, int limit);
 
+    /**
+     * Recherche legere de produits (nom ou CIP) pour le combo d'ajout a une promotion : uniquement les champs utiles au
+     * choix, sans les stocks/lots que construisait la JSP famille historique.
+     */
+    JSONObject rechercherProduits(String search, int start, int limit);
+
     /** Ajout (ou mise a jour) d'un produit dans la promotion, avec calcul du prix promotionnel selon le type. */
     JSONObject addProduit(int promotionId, String familleId, int discount, double promoPrice, int packNumber,
             int activeAt);

@@ -108,7 +108,7 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/disable.png',
-                            tooltip: 'Cl&ocirc;turer la promotion (sort tous ses produits de promotion)',
+                            tooltip: 'Cl&ocirc;turer la promotion',
                             scope: this,
                             handler: this.onCloturerClick
                         }]
@@ -294,22 +294,24 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                 }
             }
         });
-        // Choix du produit : meme webservice famille que les autres ecrans
+        // Choix du produit : recherche REST legere dediee (nom ou CIP), la JSP famille
+        // historique construisait des lignes tres lourdes et rendait la recherche lente
         var storeFamille = new Ext.data.Store({
             model: 'testextjs.model.Famille',
             pageSize: 20,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/sm_user/famille/ws_data.jsp',
+                url: url_services_rest_promotions + 'produits-recherche',
                 reader: {
                     type: 'json',
                     root: 'results',
                     totalProperty: 'total'
-                },
-                timeout: 240000
+                }
             }
         });
+        // Affecte apres la creation de la fenetre ; declenche l'ajout du produit choisi
+        var declencherAjout = null;
 
         var win = Ext.create('Ext.window.Window', {
             title: 'Produits de la promotion [' + promoType + ' du ' + promo.get('dt_START_DATE')
@@ -436,37 +438,9 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             text: 'Ajouter',
                             iconCls: 'addicon',
                             handler: function () {
-                                var conteneur = win.down('gridpanel');
-                                var familleId = conteneur.down('#choixProduit').getValue();
-                                if (!familleId) {
-                                    Ext.MessageBox.alert('Information', 'Choisissez d\'abord un produit.');
-                                    return;
+                                if (declencherAjout) {
+                                    declencherAjout();
                                 }
-                                Ext.Ajax.request({
-                                    url: url_services_rest_promotions + 'produits/add',
-                                    method: 'POST',
-                                    params: {
-                                        lg_CODE_PROMOTION_ID: promoId,
-                                        lg_FAMILLE_ID: familleId,
-                                        int_DISCOUNT: conteneur.down('#champRemise').getValue() || 0,
-                                        db_PROMOTION_PRICE: conteneur.down('#champPrixPromo').getValue() || 0,
-                                        int_PACK_NUMBER: conteneur.down('#champPack').getValue() || 0,
-                                        int_ACTIVE_AT: conteneur.down('#champSeuil').getValue() || 0
-                                    },
-                                    success: function (response) {
-                                        var object = Ext.JSON.decode(response.responseText, false);
-                                        if (object.success == "0") {
-                                            Ext.MessageBox.alert('Error Message', object.errors);
-                                            return;
-                                        }
-                                        conteneur.down('#choixProduit').setValue('');
-                                        storeProduits.reload();
-                                        me.getStore().reload();
-                                    },
-                                    failure: function (response) {
-                                        Ext.MessageBox.alert('Error Message', response.responseText);
-                                    }
-                                });
                             }
                         }],
                     bbar: {
@@ -482,6 +456,73 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                     }
                 }]
         });
+
+        var conteneur = win.down('gridpanel');
+        var champsSaisie = ['#champRemise', '#champPrixPromo', '#champPack', '#champSeuil'];
+
+        declencherAjout = function () {
+            var familleId = conteneur.down('#choixProduit').getValue();
+            if (!familleId) {
+                Ext.MessageBox.alert('Information', 'Choisissez d\'abord un produit.');
+                return;
+            }
+            Ext.Ajax.request({
+                url: url_services_rest_promotions + 'produits/add',
+                method: 'POST',
+                params: {
+                    lg_CODE_PROMOTION_ID: promoId,
+                    lg_FAMILLE_ID: familleId,
+                    int_DISCOUNT: conteneur.down('#champRemise').getValue() || 0,
+                    db_PROMOTION_PRICE: conteneur.down('#champPrixPromo').getValue() || 0,
+                    int_PACK_NUMBER: conteneur.down('#champPack').getValue() || 0,
+                    int_ACTIVE_AT: conteneur.down('#champSeuil').getValue() || 0
+                },
+                success: function (response) {
+                    var object = Ext.JSON.decode(response.responseText, false);
+                    if (object.success == "0") {
+                        Ext.MessageBox.alert('Error Message', object.errors);
+                        return;
+                    }
+                    // Prepare la saisie suivante : champs vides, focus sur la recherche produit
+                    conteneur.down('#choixProduit').setValue('');
+                    Ext.each(champsSaisie, function (sel) {
+                        var champ = conteneur.down(sel);
+                        if (champ) {
+                            champ.setValue(null);
+                        }
+                    });
+                    conteneur.down('#choixProduit').focus(false, 100);
+                    storeProduits.reload();
+                    me.getStore().reload();
+                },
+                failure: function (response) {
+                    Ext.MessageBox.alert('Error Message', response.responseText);
+                }
+            });
+        };
+
+        // Apres le choix du produit, focus automatique sur le premier champ de saisie visible
+        conteneur.down('#choixProduit').on('select', function () {
+            for (var i = 0; i < champsSaisie.length; i++) {
+                var champ = conteneur.down(champsSaisie[i]);
+                if (champ && !champ.hidden) {
+                    champ.focus(true, 100);
+                    return;
+                }
+            }
+        });
+        // La touche Entree dans un champ de saisie valide l'ajout (fait descendre le produit)
+        Ext.each(champsSaisie, function (sel) {
+            var champ = conteneur.down(sel);
+            if (champ) {
+                champ.on('specialkey', function (f, e) {
+                    if (e.getKey() === e.ENTER) {
+                        declencherAjout();
+                    }
+                });
+            }
+        });
+
         win.show();
     }
 });

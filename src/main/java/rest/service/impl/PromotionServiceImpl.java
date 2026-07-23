@@ -210,8 +210,7 @@ public class PromotionServiceImpl implements PromotionService {
                         .put("int_CIP", r[5] != null ? r[5] : "")
                         .put("int_PRICE", r[6] != null ? ((Number) r[6]).doubleValue() : 0)
                         .put("int_ORIGINAL_PRICE", r[6] != null ? ((Number) r[6]).doubleValue() : 0)
-                        .put("int_DISCOUNT", r[7] != null ? String.valueOf(r[7]) : "")
-                        .put("bl_MODE", r[8] != null && ((Number) r[8]).intValue() != 0)
+                        .put("int_DISCOUNT", r[7] != null ? String.valueOf(r[7]) : "").put("bl_MODE", versBooleen(r[8]))
                         .put("int_PROMOTION_PRICE", r[9] != null ? ((Number) r[9]).doubleValue() : 0)
                         .put("int_PACK_NUMBER", r[10] != null ? ((Number) r[10]).intValue() : 0)
                         .put("int_ACTIVE_AT", r[11] != null ? ((Number) r[11]).intValue() : 0));
@@ -219,6 +218,48 @@ public class PromotionServiceImpl implements PromotionService {
             return json.put("total", total).put("results", results);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "listProduits promotion", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
+    /**
+     * Colonne BIT/TINYINT(1) : selon la definition de la colonne, le pilote MySQL renvoie java.lang.Boolean ou un
+     * nombre. Un cast direct en Number provoquait un ClassCastException sur bl_MODE.
+     */
+    private static boolean versBooleen(Object valeur) {
+        if (valeur instanceof Boolean) {
+            return (Boolean) valeur;
+        }
+        return valeur instanceof Number && ((Number) valeur).intValue() != 0;
+    }
+
+    @Override
+    public JSONObject rechercherProduits(String search, int start, int limit) {
+        // Recherche legere dediee au combo d'ajout de produit : l'ecran utilisait la JSP
+        // historique famille/ws_data.jsp qui construit des lignes tres lourdes (stocks,
+        // reserve, lots...) — d'ou une recherche lente et du bruit d'erreurs dans le log.
+        JSONObject json = new JSONObject();
+        JSONArray results = new JSONArray();
+        try {
+            String like = StringUtils.defaultString(search).trim() + "%";
+            String where = " FROM t_famille f WHERE f.str_STATUT = 'enable'"
+                    + " AND (f.str_NAME LIKE ?1 OR f.int_CIP LIKE ?1)";
+            long total = ((Number) em.createNativeQuery("SELECT COUNT(*)" + where).setParameter(1, like)
+                    .getSingleResult()).longValue();
+            Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.str_DESCRIPTION,"
+                    + " f.int_PRICE" + where + " ORDER BY f.str_NAME ASC").setParameter(1, like);
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+            }
+            for (Object[] r : (List<Object[]>) q.getResultList()) {
+                results.put(new JSONObject().put("lg_FAMILLE_ID", String.valueOf(r[0]))
+                        .put("int_CIP", r[1] != null ? r[1] : "").put("str_NAME", r[2] != null ? r[2] : "")
+                        .put("str_DESCRIPTION", r[3] != null ? r[3] : "")
+                        .put("int_PRICE", r[4] != null ? ((Number) r[4]).doubleValue() : 0));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "rechercherProduits promotion", e);
             return json.put("total", 0).put("results", results);
         }
     }

@@ -99,6 +99,19 @@ public class PromotionRessource {
                 .build();
     }
 
+    /** Recherche legere de produits (nom ou CIP) pour le combo d'ajout de produit a une promotion. */
+    @GET
+    @Path("produits-recherche")
+    public Response rechercherProduits(@QueryParam("search_value") String searchValue,
+            @QueryParam("query") String query, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("20") @QueryParam("limit") int limit) {
+        if (currentUser() == null) {
+            return deconnecte();
+        }
+        String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
+        return Response.ok().entity(promotionService.rechercherProduits(search, start, limit).toString()).build();
+    }
+
     @POST
     @Path("produits/add")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
