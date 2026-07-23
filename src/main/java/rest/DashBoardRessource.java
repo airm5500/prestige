@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.ejb.EJB;
 import javax.inject.Inject;
@@ -197,8 +198,7 @@ public class DashBoardRessource {
     }
 
     private String buildCaGraphePayload() {
-        Dashboard dashboard = dashboardReport();
-        JSONArray data = dashboard.getCaGrapheData();
+        JSONArray data = avecDashboard(Dashboard::getCaGrapheData);
         int thisYear = Integer.valueOf(date.FORMATTERYEAR.format(new Date()));
         JSONObject json = new JSONObject();
         long janv = 0, fev = 0, mars = 0, mai = 0, avril = 0, juin = 0, juillet = 0, aout = 0, sept = 0, oct = 0,
@@ -265,7 +265,7 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
-        return dashboardDataResponse(dashboardReport().getTOP5ArticleVendueQTY());
+        return dashboardDataResponse(avecDashboard(Dashboard::getTOP5ArticleVendueQTY));
     }
 
     @GET
@@ -275,7 +275,7 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
-        return dashboardDataResponse(dashboardReport().getTOP5ArticleVendueCA());
+        return dashboardDataResponse(avecDashboard(Dashboard::getTOP5ArticleVendueCA));
     }
 
     @GET
@@ -287,7 +287,7 @@ public class DashBoardRessource {
         }
         return okDashboard(cachedPayload("achat-grossiste", 120_000, () -> {
             JSONObject json = new JSONObject();
-            json.put("data", dashboardReport().getValeurAchatByGrossiste());
+            json.put("data", avecDashboard(Dashboard::getValeurAchatByGrossiste));
             return json.toString();
         }));
     }
@@ -299,7 +299,7 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
-        return dashboardDataResponse(dashboardReport().getAllAchatByGrossiste());
+        return dashboardDataResponse(avecDashboard(Dashboard::getAllAchatByGrossiste));
     }
 
     @GET
@@ -309,7 +309,7 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
-        return dashboardDataResponse(dashboardReport().getBestClients());
+        return dashboardDataResponse(avecDashboard(Dashboard::getBestClients));
     }
 
     @GET
@@ -319,11 +319,14 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
-        return dashboardDataResponse(dashboardReport().getListMVT());
+        return dashboardDataResponse(avecDashboard(Dashboard::getListMVT));
     }
 
     private JSONObject dashboardDailyData() {
-        Dashboard dashboard = dashboardReport();
+        return avecDashboard(this::construireDonneesJournalieres);
+    }
+
+    private JSONObject construireDonneesJournalieres(Dashboard dashboard) {
         JSONObject data = dashboard.getDailyCA_AND_SalesCount();
         JSONObject achat = dashboard.getAchatAmount();
         JSONObject panierMoyen = dashboard.getPanierMoyen();
@@ -346,8 +349,19 @@ public class DashBoardRessource {
         return okDashboard(json.toString());
     }
 
-    private Dashboard dashboardReport() {
-        return new Dashboard(new dataManager());
+    /**
+     * Execute une lecture du tableau de bord puis FERME l'EntityManager dans tous les cas. Ces endpoints sont
+     * rafraichis en continu par le tableau de bord : sans fermeture, chaque rafraichissement abandonnait un
+     * EntityManager ouvert, au risque de confisquer peu a peu les connexions du pool partage jdbc/__laborex_pool
+     * (symptome : plus aucune donnee dans toute l'application jusqu'au redemarrage).
+     */
+    private <T> T avecDashboard(Function<Dashboard, T> action) {
+        dataManager odm = new dataManager();
+        try {
+            return action.apply(new Dashboard(odm));
+        } finally {
+            odm.closeEntityManager();
+        }
     }
 
     private TUser connectedUser() {

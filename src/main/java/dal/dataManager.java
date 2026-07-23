@@ -48,14 +48,13 @@ public class dataManager {
                 if (factory == null || !factory.isOpen()) {
                     Map<String, Object> props = new HashMap<>();
                     props.put("eclipselink.session-name", ECLIPSELINK_SESSION_NAME);
-                    // Cache d'entites isole par EntityManager (pas de cache partage entre
-                    // requetes) : c'est la semantique qu'avait l'application quand chaque
-                    // requete creait sa propre factory (cache toujours vide au depart). Un
-                    // cache partage par toute l'application exposerait des donnees perimees
-                    // apres les updates SQL natifs du code metier et cree de la contention
-                    // sur les identity maps EclipseLink (evictAll() de bllBase.persiste()
-                    // a chaque ecriture, pendant que d'autres threads lisent).
-                    props.put("eclipselink.cache.shared.default", "false");
+                    // NE PAS desactiver le cache partage (eclipselink.cache.shared.default=false) :
+                    // avec des entites isolees, EclipseLink sert les lectures via la connexion
+                    // propre de la ClientSession, connexion qui n'est rendue au pool qu'a la
+                    // fermeture de l'EntityManager. Or de nombreux flux historiques (JSP,
+                    // tableau de bord) ne ferment jamais leur EntityManager : chaque lecture
+                    // confisquerait alors une connexion du pool jdbc/__laborex_pool jusqu'a
+                    // l'epuisement complet (plus aucune donnee dans toute l'application).
                     factory = Persistence.createEntityManagerFactory(PERSISTENCE_UNIT_NAME, props);
                     SHARED_EMF = factory;
                 }
