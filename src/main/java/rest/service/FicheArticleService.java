@@ -33,6 +33,13 @@ public interface FicheArticleService {
             String dtStart, String dtEnd, String codeFamile, String codeRayon, String codeGrossiste, int start,
             int limit, boolean all);
 
+    /**
+     * Nombre de lots concernes uniquement (une seule requete COUNT) : utilise par le badge de la cloche de
+     * notifications, qui n'a pas besoin de la liste ni du resume valorise.
+     */
+    long produitPerimesCount(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
+            String codeRayon, String codeGrossiste);
+
     /* Visualisation des perimes (peremptionquery) : exports et creation d'inventaire sur la liste filtree */
     byte[] exportPerimesCsv(String query, int nbreMois, String dtStart, String dtEnd, String codeFamile,
             String codeRayon, String codeGrossiste) throws java.io.IOException;

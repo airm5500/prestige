@@ -67,6 +67,22 @@ public class FicheArticleRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Compteur leger pour le badge de la cloche de notifications : une seule requete COUNT, sans la liste ni le resume
+     * valorise que calcule l'endpoint complet ci-dessus.
+     */
+    @GET
+    @Path("perimes/count")
+    public Response produitPerimesCount(@QueryParam(value = "nbreMois") int nbreMois,
+            @QueryParam(value = "codeFamile") String codeFamile, @QueryParam(value = "query") String query,
+            @QueryParam(value = "codeRayon") String codeRayon,
+            @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        long total = ficheArticleService.produitPerimesCount(query, nbreMois, dtStart, dtEnd, codeFamile, codeRayon,
+                codeGrossiste);
+        return Response.ok().entity(new JSONObject().put("total", total).toString()).build();
+    }
+
     @PUT
     @Path("dateperemption/{id}/{date}")
     public Response modifierDatePeremption(@PathParam("id") String id, @PathParam("date") String datePeremption)

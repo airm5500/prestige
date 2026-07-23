@@ -334,24 +334,35 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equals("ALL")) {
             predicates.add(cb.equal(joinFaG.get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
         }
+        // Bornes appliquees DIRECTEMENT sur la colonne dt_PEREMPTION (memes resultats que
+        // l'ancien DATE(dt_PEREMPTION), qui interdisait tout usage d'index : chaque appel
+        // parcourait la table t_lot entiere — jusqu'a saturer les threads HTTP du serveur
+        // via le rafraichissement de la cloche de notifications).
+        // Rappel : DATE(col) <= J <=> col < J+1 jour ; DATE(col) = J <=> J <= col < J+1.
         if (nbreMois > 0) {
-            predicates.add(cb.between(cb.function("DATE", Date.class, root.get(TLot_.dtPEREMPTION)),
-                    java.sql.Date.valueOf(today), java.sql.Date.valueOf(today.plusMonths(nbreMois))));
+            predicates.add(cb.greaterThanOrEqualTo(root.get(TLot_.dtPEREMPTION), java.sql.Date.valueOf(today)));
+            predicates.add(cb.lessThan(root.get(TLot_.dtPEREMPTION),
+                    java.sql.Date.valueOf(today.plusMonths(nbreMois).plusDays(1))));
         } else {
             if (StringUtils.isEmpty(dtEnd) && StringUtils.isEmpty(dtStart)) {
-                predicates.add(cb.lessThanOrEqualTo(cb.function("DATE", Date.class, root.get(TLot_.dtPEREMPTION)),
-                        new Date()));
+                predicates.add(cb.lessThan(root.get(TLot_.dtPEREMPTION), java.sql.Date.valueOf(today.plusDays(1))));
             } else {
                 if (!StringUtils.isEmpty(dtEnd) && !StringUtils.isEmpty(dtStart)) {
-                    predicates.add(cb.between(cb.function("DATE", Date.class, root.get(TLot_.dtPEREMPTION)),
-                            java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd)));
+                    predicates
+                            .add(cb.greaterThanOrEqualTo(root.get(TLot_.dtPEREMPTION), java.sql.Date.valueOf(dtStart)));
+                    predicates.add(cb.lessThan(root.get(TLot_.dtPEREMPTION),
+                            java.sql.Date.valueOf(LocalDate.parse(dtEnd).plusDays(1))));
                 } else {
                     if (!StringUtils.isEmpty(dtStart)) {
-                        predicates.add(cb.equal(cb.function("DATE", Date.class, root.get(TLot_.dtPEREMPTION)),
-                                java.sql.Date.valueOf(dtStart)));
+                        predicates.add(
+                                cb.greaterThanOrEqualTo(root.get(TLot_.dtPEREMPTION), java.sql.Date.valueOf(dtStart)));
+                        predicates.add(cb.lessThan(root.get(TLot_.dtPEREMPTION),
+                                java.sql.Date.valueOf(LocalDate.parse(dtStart).plusDays(1))));
                     } else if (!StringUtils.isEmpty(dtEnd)) {
-                        predicates.add(cb.equal(cb.function("DATE", Date.class, root.get(TLot_.dtPEREMPTION)),
-                                java.sql.Date.valueOf(dtEnd)));
+                        predicates.add(
+                                cb.greaterThanOrEqualTo(root.get(TLot_.dtPEREMPTION), java.sql.Date.valueOf(dtEnd)));
+                        predicates.add(cb.lessThan(root.get(TLot_.dtPEREMPTION),
+                                java.sql.Date.valueOf(LocalDate.parse(dtEnd).plusDays(1))));
                     }
                 }
 
@@ -1230,6 +1241,13 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             res.put("success", false).put("count", 0);
         }
         return res;
+    }
+
+    @Override
+    public long produitPerimesCount(String query, int nbreMois, String dtStart, String dtEnd, String codeFamille,
+            String codeRayon, String codeGrossiste) {
+        return produitPerimesCount(query, nbreMois, dtStart, dtEnd, codeFamille, codeRayon, codeGrossiste,
+                sessionHelperService.getCurrentUser().getLgEMPLACEMENTID());
     }
 
     private long produitPerimesCount(String query, int nbreMois, String dtStart, String dtEnd, String codeFamille,
