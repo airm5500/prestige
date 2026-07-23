@@ -764,3 +764,12 @@
     margin-right: 6px;
 }
 
+
+/* ---- Fiche article : ligne selectionnee bien visible (violet pas tres fonce) ---- */
+#GridArticleID .x-grid-row-selected .x-grid-cell,
+#GridArticleID .x-grid-row-selected .x-grid-cell-inner,
+#GridArticleID .x-grid-row-focused .x-grid-cell,
+#GridArticleID .x-grid-row-focused .x-grid-cell-inner {
+    background-color: #CE93D8 !important; /* violet moyen-clair */
+    color: #1a1a1a !important;
+}

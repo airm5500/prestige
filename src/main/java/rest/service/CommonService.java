@@ -117,4 +117,16 @@ public interface CommonService {
 
     boolean isNormalUse();
 
+    /**
+     * Liste des codes TVA actifs, au format historique {total, results:[{lg_CODE_TVA_ID, str_NAME, int_VALUE,
+     * str_STATUT}]} pour remplacer ws_data_codetva.jsp sans toucher aux combos existants.
+     */
+    org.json.JSONObject loadTvas(String query);
+
+    /**
+     * Liste paginee des DCI actifs, au format historique {total, results:[{lg_DCI_ID, str_CODE, str_NAME, str_STATUT}]}
+     * pour remplacer les ws_data.jsp DCI sans toucher aux combos existants.
+     */
+    org.json.JSONObject loadDcis(String query, int start, int limit);
+
 }

@@ -107,7 +107,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_dci,
+                // service REST rapide (meme format que l'ancienne JSP DCI)
+                url: '../api/v1/common/dcis',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -166,7 +167,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             pageSize: 9999,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/sm_user/famille/ws_data_codetva.jsp',
+                // service REST rapide (meme format que l'ancienne JSP ws_data_codetva)
+                url: '../api/v1/common/tvas',
                 reader: {
                     type: 'json',
                     root: 'results',

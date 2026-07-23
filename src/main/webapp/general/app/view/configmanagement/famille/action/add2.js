@@ -9,7 +9,7 @@ var url_services_data_famille = '../webservices/sm_user/famille/ws_data.jsp';
 var url_services_transaction_famille = '../webservices/sm_user/famille/ws_transaction.jsp?mode=';
 var url_services_data_typeetiquette = '../webservices/configmanagement/typeetiquette/ws_data.jsp';
 var url_services_data_remise = '../webservices/configmanagement/remise/ws_data.jsp';
-var url_services_data_codetva = '../webservices/sm_user/famille/ws_data_codetva.jsp';
+var url_services_data_codetva = '../api/v1/common/tvas'; // service REST rapide (meme format que ws_data_codetva.jsp)
 var url_services_data_dci = '../webservices/configmanagement/famillearticle/ws_data_initial.jsp';
 var url_services_data_dci_famille = '../webservices/configmanagement/dci/ws_data_dci_famille.jsp';
 var url_services_transaction_dci_famille = '../webservices/configmanagement/dci/ws_transaction_dci_famille.jsp?mode=';

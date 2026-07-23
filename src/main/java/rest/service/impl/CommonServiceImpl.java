@@ -801,4 +801,65 @@ public class CommonServiceImpl implements Serializable, CommonService {
         return tq.getResultList();
     }
 
+    @Override
+    public JSONObject loadTvas(String query) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        try {
+            StringBuilder sql = new StringBuilder(
+                    "SELECT t.lg_CODE_TVA_ID, t.str_NAME, t.int_VALUE, t.str_STATUT FROM t_code_tva t"
+                            + " WHERE t.str_STATUT = 'enable'");
+            if (!StringUtils.isEmpty(query)) {
+                sql.append(" AND t.str_NAME LIKE :query");
+            }
+            sql.append(" ORDER BY t.int_VALUE ASC");
+            Query q = getEntityManager().createNativeQuery(sql.toString());
+            if (!StringUtils.isEmpty(query)) {
+                q.setParameter("query", query + "%");
+            }
+            List<Object[]> rows = q.getResultList();
+            for (Object[] r : rows) {
+                results.put(new JSONObject().put("lg_CODE_TVA_ID", String.valueOf(r[0]))
+                        .put("str_NAME", r[1] != null ? r[1] : "").put("int_VALUE", r[2] != null ? r[2] : 0)
+                        .put("str_STATUT", r[3] != null ? r[3] : ""));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadTvas", e);
+        }
+        return json.put("total", results.length()).put("results", results);
+    }
+
+    @Override
+    public JSONObject loadDcis(String query, int start, int limit) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        int lim = (limit > 0) ? limit : 20;
+        try {
+            String where = " FROM t_dci d WHERE d.str_STATUT = 'enable'";
+            if (!StringUtils.isEmpty(query)) {
+                where += " AND (d.str_NAME LIKE :query OR d.str_CODE LIKE :query)";
+            }
+            Query qc = getEntityManager().createNativeQuery("SELECT COUNT(*)" + where);
+            Query q = getEntityManager().createNativeQuery(
+                    "SELECT d.lg_DCI_ID, d.str_CODE, d.str_NAME, d.str_STATUT" + where + " ORDER BY d.str_NAME ASC");
+            if (!StringUtils.isEmpty(query)) {
+                qc.setParameter("query", query + "%");
+                q.setParameter("query", query + "%");
+            }
+            long total = ((Number) qc.getSingleResult()).longValue();
+            q.setFirstResult(Math.max(0, start));
+            q.setMaxResults(lim);
+            List<Object[]> rows = q.getResultList();
+            for (Object[] r : rows) {
+                results.put(new JSONObject().put("lg_DCI_ID", String.valueOf(r[0]))
+                        .put("str_CODE", r[1] != null ? r[1] : "").put("str_NAME", r[2] != null ? r[2] : "")
+                        .put("str_STATUT", r[3] != null ? r[3] : ""));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadDcis", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
 }

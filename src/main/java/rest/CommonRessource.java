@@ -35,6 +35,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.CacheControl;
 import javax.ws.rs.core.Response;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.CommonService;
@@ -310,6 +311,31 @@ public class CommonRessource {
     public Response loadEmplacement(@QueryParam(value = "query") String query) throws JSONException {
         List<ComboDTO> data = commonService.loadRayons(query);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
+    }
+
+    /**
+     * Codes TVA actifs, format historique {total, results} (remplacant rapide de ws_data_codetva.jsp : memes noms de
+     * champs, les combos existants basculent en changeant seulement l'URL).
+     */
+    @GET
+    @Path("tvas")
+    public Response loadTvas(@QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue) throws JSONException {
+        JSONObject json = commonService.loadTvas(StringUtils.isNotEmpty(query) ? query : searchValue);
+        CacheControl cc = new CacheControl();
+        cc.setMaxAge(3600);
+        cc.setPrivate(true);
+        return Response.ok().cacheControl(cc).entity(json.toString()).build();
+    }
+
+    /** DCI actifs pagines, format historique {total, results} (remplacant rapide des ws_data.jsp DCI). */
+    @GET
+    @Path("dcis")
+    public Response loadDcis(@QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        JSONObject json = commonService.loadDcis(StringUtils.isNotEmpty(query) ? query : searchValue, start, limit);
+        return Response.ok().entity(json.toString()).build();
     }
 
     @GET
