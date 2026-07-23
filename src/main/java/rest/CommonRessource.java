@@ -483,9 +483,12 @@ public class CommonRessource {
 
     }
 
-    /** Villes actives (memes cles JSON que la JSP historique ville/ws_data.jsp). */
+    /**
+     * Villes actives (memes cles JSON que la JSP historique ville/ws_data.jsp). Chemin "referentiel/..." car un
+     * endpoint "villes" au format ComboDTO existe deja plus haut.
+     */
     @GET
-    @Path("villes")
+    @Path("referentiel/villes")
     public Response villes(@QueryParam(value = "query") String query,
             @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit) throws JSONException {
@@ -513,9 +516,12 @@ public class CommonRessource {
         return Response.ok().entity(commonService.loadCategoriesAyantDroit(q, start, limit).toString()).build();
     }
 
-    /** Risques actifs (memes cles que risque/ws_data.jsp). */
+    /**
+     * Risques actifs (memes cles que risque/ws_data.jsp). Chemin "referentiel/..." car un endpoint "risques" au format
+     * ComboDTO existe deja plus haut.
+     */
     @GET
-    @Path("risques")
+    @Path("referentiel/risques")
     public Response risques(@QueryParam(value = "query") String query,
             @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit) throws JSONException {
