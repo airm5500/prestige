@@ -99,6 +99,9 @@ Ext.define('testextjs.view.Navigation', {
                             }
                         } else {
                             store._menuRetries = 0;
+                            /* Drapeau consulte par le dashboard : le menu est disponible,
+                             * le dashboard peut lancer ses propres requetes. */
+                            store._menuCharge = true;
                         }
                     }
                 }
@@ -112,6 +115,21 @@ Ext.define('testextjs.view.Navigation', {
         });
 
         me.callParent();
+
+        /*
+         * Prechargement du menu des le demarrage de l'application. Le volet ouest etant
+         * cree replie (collapsed), l'arbre ne se rend qu'au premier depliage : sans ce
+         * prechargement la requete ws_tree_menu.jsp ne partait qu'a ce moment-la et se
+         * retrouvait en file d'attente derriere la rafale de requetes du dashboard
+         * (limite de connexions du navigateur + pool JDBC). Ici elle part en premier.
+         */
+        (function () {
+            var store = me.getStore();
+            var root = store.getRootNode ? store.getRootNode() : null;
+            if (root && !store.isLoading() && root.childNodes.length === 0) {
+                store.load();
+            }
+        })();
 
         me.listeners = {
             /* Clic sur un menu parent : toggle du flyout */
