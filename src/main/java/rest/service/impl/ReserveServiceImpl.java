@@ -130,44 +130,12 @@ public class ReserveServiceImpl implements ReserveService {
     public JSONObject suggestions(TUser user, String search, int start, int limit) {
         LOG.log(Level.FINE, "suggestions (reassort rayon) search={0} start={1} limit={2} user={3}",
                 new Object[] { search, start, limit, user.getLgUSERID() });
-        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-        String like = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
-
-        String base = "FROM t_type_stock_famille tsf " + "JOIN t_famille f ON f.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID "
-                + "WHERE tsf.lg_TYPE_STOCK_ID = '" + TYPE_STOCK_RESERVE + "' "
-                + "AND tsf.lg_EMPLACEMENT_ID = ?1 AND tsf.str_STATUT = 'enable' " + "AND f.bool_RESERVE = 1 "
-                + "AND (f.str_NAME LIKE ?2 OR f.str_DESCRIPTION LIKE ?2 OR f.int_CIP LIKE ?2) ";
-
-        Query q = em.createNativeQuery("SELECT DISTINCT tsf.lg_FAMILLE_ID " + base + " ORDER BY f.str_DESCRIPTION ASC");
-        q.setParameter(1, empl);
-        q.setParameter(2, like);
-        @SuppressWarnings("unchecked")
-        List<String> ids = q.getResultList();
-
-        // On ne garde que les articles dont la suggestion > 0
-        List<JSONObject> suggested = new ArrayList<>();
-        for (String familleId : ids) {
-            TFamille f = em.find(TFamille.class, familleId);
-            if (f == null) {
-                continue;
-            }
-            JSONObject json = buildArticleJson(f, empl, false);
-            Integer seuilMini = f.getIntSEUILMINIRAYON();
-            int stockRayon = json.optInt("int_STOCK_RAYON", 0);
-            int stockReserve = json.optInt("int_STOCK_RESERVE", 0);
-            int seuilReserve = json.optInt("int_SEUIL_RESERVE", 0);
-            // Declencheur : stock_rayon <= seuil_mini_rayon ET stock_reserve > 0
-            if (seuilMini == null || stockRayon > seuilMini || stockReserve <= 0) {
-                continue;
-            }
-            // int sugg = Math.max(0, seuilReserve - stockRayon);
-            int sugg = Math.min(stockReserve, Math.max(0, seuilReserve - stockRayon));
-            if (sugg <= 0) {
-                continue;
-            }
-            json.put("int_QTE_SUGGEREE", sugg);
-            suggested.add(json);
-        }
+        // Une SEULE requete ensembliste : l'ancienne version listait tous les articles en
+        // reserve puis executait 3 requetes PAR article (em.find + stock rayon + stock
+        // reserve) pour n'en garder que quelques-uns. Rafraichie en continu par la cloche
+        // de notifications, elle prenait plusieurs secondes et encombrait les threads HTTP.
+        // Regles et cles JSON strictement identiques.
+        List<JSONObject> suggested = lignesSuggestions(user, search);
 
         long total = suggested.size();
         JSONArray results = new JSONArray();
@@ -177,6 +145,70 @@ public class ReserveServiceImpl implements ReserveService {
             results.put(suggested.get(i));
         }
         return new JSONObject().put("total", total).put("results", results);
+    }
+
+    @Override
+    public long suggestionsCount(TUser user, String search) {
+        // Compteur pour le badge de la cloche : meme regle metier, sans construire la liste JSON paginee.
+        return lignesSuggestions(user, search).size();
+    }
+
+    /**
+     * Lignes de suggestion de reassort du rayon, calculees en une seule requete SQL. Declencheur identique a
+     * l'historique : stock_rayon <= seuil_mini_rayon ET stock_reserve > 0 ET min(stock_reserve, max(0, seuil_reserve -
+     * stock_rayon)) > 0, tri par designation.
+     */
+    private List<JSONObject> lignesSuggestions(TUser user, String search) {
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        String like = (search == null || search.trim().isEmpty()) ? "%" : "%" + search.trim() + "%";
+
+        Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.str_DESCRIPTION, "
+                + "COALESCE(z.str_LIBELLEE, '') AS zone_libelle, "
+                + "COALESCE(MAX(fs.int_NUMBER_AVAILABLE), 0) AS stock_rayon, "
+                + "COALESCE(MAX(tsf.int_NUMBER), 0) AS stock_reserve, "
+                + "COALESCE(f.int_SEUIL_RESERVE, 0) AS seuil_reserve, " + "f.int_SEUIL_MINI_RAYON AS seuil_mini, "
+                + "COALESCE(f.int_PAF, 0) AS paf, " + "COALESCE(f.int_PRICE, 0) AS prix "
+                + "FROM t_type_stock_famille tsf " + "JOIN t_famille f ON f.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID "
+                + "LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID "
+                + "LEFT JOIN t_famille_stock fs ON fs.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID "
+                + "  AND fs.lg_EMPLACEMENT_ID = tsf.lg_EMPLACEMENT_ID AND fs.str_STATUT = 'enable' "
+                + "WHERE tsf.lg_TYPE_STOCK_ID = '" + TYPE_STOCK_RESERVE + "' "
+                + "AND tsf.lg_EMPLACEMENT_ID = ?1 AND tsf.str_STATUT = 'enable' " + "AND f.bool_RESERVE = 1 "
+                + "AND f.int_SEUIL_MINI_RAYON IS NOT NULL "
+                + "AND (f.str_NAME LIKE ?2 OR f.str_DESCRIPTION LIKE ?2 OR f.int_CIP LIKE ?2) "
+                + "GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.str_DESCRIPTION, z.str_LIBELLEE, "
+                + "f.int_SEUIL_RESERVE, f.int_SEUIL_MINI_RAYON, f.int_PAF, f.int_PRICE "
+                + "HAVING stock_rayon <= seuil_mini AND stock_reserve > 0 "
+                + "AND LEAST(stock_reserve, GREATEST(0, seuil_reserve - stock_rayon)) > 0 "
+                + "ORDER BY f.str_DESCRIPTION ASC");
+        q.setParameter(1, empl);
+        q.setParameter(2, like);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = q.getResultList();
+
+        List<JSONObject> suggested = new ArrayList<>();
+        for (Object[] row : rows) {
+            int stockRayon = row[5] != null ? ((Number) row[5]).intValue() : 0;
+            int stockReserve = row[6] != null ? ((Number) row[6]).intValue() : 0;
+            int seuilReserve = row[7] != null ? ((Number) row[7]).intValue() : 0;
+            int sugg = Math.min(stockReserve, Math.max(0, seuilReserve - stockRayon));
+            JSONObject json = new JSONObject();
+            json.put("lg_FAMILLE_ID", (String) row[0]);
+            json.put("int_CIP", row[1] != null ? String.valueOf(row[1]) : "");
+            json.put("str_NAME", row[2] != null ? String.valueOf(row[2]) : "");
+            json.put("str_DESCRIPTION", row[3] != null ? String.valueOf(row[3]) : "");
+            json.put("lg_ZONE_GEO_ID", row[4] != null ? String.valueOf(row[4]) : "");
+            json.put("int_STOCK_RAYON", stockRayon);
+            json.put("int_STOCK_RESERVE", stockReserve);
+            json.put("int_SEUIL_RESERVE", seuilReserve);
+            json.put("int_SEUIL_MINI_RAYON", row[8] != null ? ((Number) row[8]).intValue() : JSONObject.NULL);
+            json.put("int_PAF", row[9] != null ? ((Number) row[9]).intValue() : 0);
+            json.put("int_PRICE", row[10] != null ? ((Number) row[10]).intValue() : 0);
+            json.put("bool_RESERVE", true);
+            json.put("int_QTE_SUGGEREE", sugg);
+            suggested.add(json);
+        }
+        return suggested;
     }
 
     @Override

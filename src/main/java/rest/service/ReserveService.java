@@ -36,6 +36,12 @@ public interface ReserveService {
     JSONObject suggestions(TUser user, String search, int start, int limit);
 
     /**
+     * Nombre d'articles a reassortir uniquement (une seule requete) : utilise par le badge de la cloche de
+     * notifications, qui n'a pas besoin de la liste detaillee.
+     */
+    long suggestionsCount(TUser user, String search);
+
+    /**
      * Liste des articles a reapprovisionner en reserve (rayon -&gt; reserve) avec quantite suggeree = max(0,
      * stock_rayon - stock_reserve).
      */

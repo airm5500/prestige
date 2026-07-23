@@ -67,6 +67,22 @@ public class ReserveRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Compteur leger pour le badge de la cloche de notifications : nombre d'articles a reassortir, sans construire la
+     * liste detaillee.
+     */
+    @GET
+    @Path("suggestions/count")
+    public Response suggestionsCount(@QueryParam("search_value") String search) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok()
+                .entity(new JSONObject().put("total", reserveService.suggestionsCount(user, search)).toString())
+                .build();
+    }
+
     @GET
     @Path("suggestions-reappro")
     public Response suggestionsReappro(@QueryParam("search_value") String search, @QueryParam("start") int start,
