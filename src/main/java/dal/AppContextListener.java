@@ -1,5 +1,8 @@
 package dal;
 
+import java.io.IOException;
+import java.util.logging.Filter;
+import java.util.logging.Logger;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
 import javax.servlet.annotation.WebListener;
@@ -16,13 +19,58 @@ import javax.servlet.annotation.WebListener;
 @WebListener
 public class AppContextListener implements ServletContextListener {
 
+    /**
+     * Supprime le bruit "le client a raccroche" du log serveur : quand le navigateur abandonne une requete en cours
+     * (changement d'ecran qui detruit le tableau de bord et ses rafraichissements, timeout Ext, F5...), Jersey ne peut
+     * plus ecrire la reponse et journalise un SEVERE "An I/O error has occurred while writing a response message
+     * entity" cause par IOException "Connection is closed". Le traitement metier, lui, s'est termine normalement : ces
+     * entrees n'ont aucune valeur diagnostique et noient les vraies erreurs. Ce filtre ne retire QUE les
+     * enregistrements dont la cause est un abandon de connexion par le client ; toute autre erreur reste journalisee.
+     */
+    private static final Filter FILTRE_ABANDON_CLIENT = record -> {
+        for (Throwable t = record.getThrown(); t != null; t = t.getCause()) {
+            if (t.getClass().getName().endsWith("ClientAbortException")) {
+                return false;
+            }
+            if (t instanceof IOException && t.getMessage() != null) {
+                String message = t.getMessage();
+                if (message.contains("Connection is closed") || message.contains("Broken pipe")
+                        || message.contains("Connection reset") || message.contains("connexion")
+                        || message.contains("abandonn")) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    // Reference forte : le LogManager ne garde que des references faibles sur les loggers,
+    // sans elle le filtre pourrait disparaitre silencieusement au premier passage du GC.
+    private static Logger jerseyServerRuntimeLogger;
+
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-        // Rien a initialiser : la factory est creee a la demande.
+        try {
+            jerseyServerRuntimeLogger = Logger.getLogger("org.glassfish.jersey.server.ServerRuntime");
+            jerseyServerRuntimeLogger.setFilter(FILTRE_ABANDON_CLIENT);
+        } catch (RuntimeException e) {
+            // la configuration du log ne doit jamais empecher le demarrage
+        }
     }
 
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
+        // Retire le filtre du logger (qui vit au niveau du serveur) pour ne pas retenir le
+        // classloader de ce deploiement apres un undeploy.
+        try {
+            Logger logger = jerseyServerRuntimeLogger;
+            if (logger != null && logger.getFilter() == FILTRE_ABANDON_CLIENT) {
+                logger.setFilter(null);
+            }
+            jerseyServerRuntimeLogger = null;
+        } catch (RuntimeException e) {
+            // rien : l'application s'arrete
+        }
         dataManager.closeSharedEntityManagerFactory();
     }
 }
