@@ -53,6 +53,16 @@ public class RoleRessource {
         return Response.ok().entity(roleService.listRoles(user, search, actifs, start, limit).toString()).build();
     }
 
+    @GET
+    @Path("est-admin")
+    public Response estAdmin() {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(roleService.isAdmin(user).toString()).build();
+    }
+
     @POST
     @Path("toggle-statut")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)

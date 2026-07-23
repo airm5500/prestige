@@ -56,15 +56,24 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    public JSONObject isAdmin(TUser user) {
+        return new JSONObject().put("authorize", isAdminOrSuperAdmin(user));
+    }
+
+    @Override
     public JSONObject listRoles(TUser user, String search, boolean actifs, int start, int limit) {
         JSONObject json = new JSONObject();
         JSONArray results = new JSONArray();
         try {
+            boolean admin = isAdminOrSuperAdmin(user);
+            if (!actifs && !admin) {
+                // La vue des profils desactives est reservee aux administrateurs
+                return json.put("total", 0).put("results", results);
+            }
             String like = (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
             String statut = actifs ? commonparameter.statut_enable : commonparameter.statut_disable;
             StringBuilder where = new StringBuilder(" FROM TRole t WHERE t.strSTATUT = '" + statut
                     + "' AND (t.strNAME LIKE ?1 OR t.strDESIGNATION LIKE ?1)");
-            boolean admin = isAdminOrSuperAdmin(user);
             if (!admin) {
                 // Les autres profils ne voient ni administrateur ni super administrateur
                 where.append(" AND t.strNAME NOT LIKE ?2 AND t.strNAME NOT LIKE ?3")

@@ -238,6 +238,7 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                     text: 'D&eacute;sactiv&eacute;s',
                     id: 'BT_USER_VOIR_DESACTIVES',
                     enableToggle: true,
+                    hidden: true, // visible uniquement pour les profils administrateurs (voir est-admin)
                     icon: 'resources/images/icons/fam/disable.png',
                     tooltip: 'Afficher les utilisateurs d&eacute;sactiv&eacute;s (pour les r&eacute;activer)',
                     scope: this,
@@ -266,6 +267,19 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
+        });
+
+        // Le bouton 'Desactives' n'est propose qu'aux profils administrateurs
+        Ext.Ajax.request({
+            url: '../api/v1/roles/est-admin',
+            method: 'GET',
+            success: function(response) {
+                var object = Ext.JSON.decode(response.responseText, true);
+                var bouton = Ext.getCmp('BT_USER_VOIR_DESACTIVES');
+                if (object && object.authorize === true && bouton) {
+                    bouton.show();
+                }
+            }
         });
 
 

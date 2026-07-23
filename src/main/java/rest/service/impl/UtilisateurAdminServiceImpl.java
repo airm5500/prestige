@@ -76,6 +76,10 @@ public class UtilisateurAdminServiceImpl implements UtilisateurAdminService {
             String roleName = connectedRoleName(connecte);
             boolean superAdmin = bll.userManagement.user.isSuperAdminRole(roleName);
             boolean admin = bll.userManagement.user.isAdminRole(roleName);
+            if (!actifs && !superAdmin && !admin) {
+                // La vue des utilisateurs desactives est reservee aux administrateurs
+                return json.put("total", 0).put("results", results);
+            }
             String like = (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
             // etat=true (ou super admin) : tous les emplacements ; sinon celui de l'utilisateur connecte
             String emplacement = (superAdmin || etat) ? "%%" : connecte.getLgEMPLACEMENTID().getLgEMPLACEMENTID();

@@ -168,6 +168,7 @@ Ext.define('testextjs.view.sm_user.role.RoleManager', {
                     text: 'D&eacute;sactiv&eacute;s',
                     id: 'BT_ROLE_VOIR_DESACTIVES',
                     enableToggle: true,
+                    hidden: true, // visible uniquement pour les profils administrateurs (voir est-admin)
                     icon: 'resources/images/icons/fam/disable.png',
                     tooltip: 'Afficher les profils d&eacute;sactiv&eacute;s (pour les r&eacute;activer)',
                     scope: this,
@@ -192,6 +193,19 @@ Ext.define('testextjs.view.sm_user.role.RoleManager', {
             delay: 1,
             single: true
         })
+
+        // Le bouton 'Desactives' n'est propose qu'aux profils administrateurs
+        Ext.Ajax.request({
+            url: url_services_rest_role + 'est-admin',
+            method: 'GET',
+            success: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true);
+                var bouton = Ext.getCmp('BT_ROLE_VOIR_DESACTIVES');
+                if (object && object.authorize === true && bouton) {
+                    bouton.show();
+                }
+            }
+        });
 
 
         this.on('edit', function (editor, e) {

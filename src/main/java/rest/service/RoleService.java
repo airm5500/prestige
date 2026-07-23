@@ -23,6 +23,9 @@ public interface RoleService {
      */
     JSONObject toggleRoleStatus(TUser user, String roleId, boolean actif);
 
+    /** {authorize:true} si l'utilisateur connecte est administrateur ou super administrateur. */
+    JSONObject isAdmin(TUser user);
+
     /** Creation d'un profil. Renvoie {success:"1"|"0", errors}. */
     JSONObject createRole(String name, String designation, String type);
 
