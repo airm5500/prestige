@@ -107,7 +107,8 @@ public class ZoneGeographiqueServiceImpl implements ZoneGeographiqueService {
             // Meme visibilite que le flux historique : tout voir avec le privilege, sinon son officine
             String emplacement = hasPrivilege(user, bll.common.Parameter.P_SHOW_ALL_ACTIVITY_ADMIN) ? "%%"
                     : user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-            String like = (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
+            // Recherche en 'contient' : "sir" remonte tous les emplacements contenant "sir"
+            String like = "%" + (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
             String statut = actifs ? commonparameter.statut_enable : commonparameter.statut_disable;
             String where = " FROM TZoneGeographique t WHERE (t.strLIBELLEE LIKE ?1 OR t.strCODE LIKE ?1)"
                     + " AND t.strSTATUT = ?2 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?3";
@@ -214,6 +215,14 @@ public class ZoneGeographiqueServiceImpl implements ZoneGeographiqueService {
         }
     }
 
+    /** Nombre de produits actifs rattaches a l'emplacement. */
+    private long nbProduits(String zoneId) {
+        return em
+                .createQuery("SELECT COUNT(f) FROM TFamille f WHERE f.lgZONEGEOID.lgZONEGEOID = ?1"
+                        + " AND f.strSTATUT = ?2", Long.class)
+                .setParameter(1, zoneId).setParameter(2, commonparameter.statut_enable).getSingleResult();
+    }
+
     /** Applique le changement de statut a une zone. Renvoie null si OK, sinon le message d'erreur. */
     private String changerStatut(TZoneGeographique zone, boolean actif) {
         if (zone == null) {
@@ -221,6 +230,13 @@ public class ZoneGeographiqueServiceImpl implements ZoneGeographiqueService {
         }
         if (!actif && CODE_ZONE_DEFAUT.equalsIgnoreCase(StringUtils.defaultString(zone.getStrCODE()))) {
             return "L'emplacement par défaut '" + zone.getStrCODE() + "' ne peut pas être désactivé";
+        }
+        if (!actif) {
+            long produits = nbProduits(zone.getLgZONEGEOID());
+            if (produits > 0) {
+                return "L'emplacement '" + zone.getStrCODE() + "' contient " + produits
+                        + " produit(s) : déplacez-les avant de le désactiver";
+            }
         }
         zone.setStrSTATUT(actif ? commonparameter.statut_enable : commonparameter.statut_disable);
         zone.setDtUPDATED(new Date());

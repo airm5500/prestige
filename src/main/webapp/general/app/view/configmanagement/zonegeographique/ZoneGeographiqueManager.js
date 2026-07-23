@@ -34,7 +34,8 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
     initComponent: function () {
 
         Me_Workflow = this;
-        var itemsPerPage = 20;
+        // Pas de pagination sur cet ecran : tous les emplacements sont affiches
+        var itemsPerPage = 100000;
         var store = new Ext.data.Store({
             model: 'testextjs.model.ZoneGeographique',
             pageSize: itemsPerPage,
@@ -59,7 +60,9 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
             plugins: [
                 {
                     ptype: "rowediting",
-                    clicksToEdit: 2
+                    clicksToEdit: 2,
+                    saveBtnText: 'Enregistrer',
+                    cancelBtnText: 'Annuler'
 
                 }],
             store: store,
@@ -264,8 +267,20 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
 
             ],
             listeners: {
+                canceledit: function (src, e) {
+                    // L'edition en ligne coche la ligne au passage : on la decoche a l'annulation
+                    var grid = Ext.getCmp('zonegeographiquegridID');
+                    if (grid && e.record) {
+                        grid.getSelectionModel().deselect(e.record);
+                    }
+                },
                 edit: function (src, e) {
                     var record = e.record;
+                    // L'edition en ligne coche la ligne au passage : on la decoche aussitot
+                    var gridZone = Ext.getCmp('zonegeographiquegridID');
+                    if (gridZone) {
+                        gridZone.getSelectionModel().deselect(record);
+                    }
                     Ext.Ajax.request({
                         url: url_services_rest_zone_geo + 'update',
                         method: 'POST',
@@ -296,12 +311,22 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
 
                 }
             },
+            // Pas de barre de pagination : tous les emplacements sont affiches d'un bloc
             bbar: {
-                xtype: 'pagingtoolbar',
-                pageSize: itemsPerPage,
-                store: store,
-                displayInfo: true,
-                plugins: new Ext.ux.ProgressBarPager()
+                xtype: 'toolbar',
+                items: [{
+                        xtype: 'tbtext',
+                        id: 'zone-geo-total-text',
+                        text: ''
+                    }]
+            }
+        });
+
+        // Affiche le nombre total d'emplacements en pied de grille
+        store.on('load', function (s) {
+            var texte = Ext.getCmp('zone-geo-total-text');
+            if (texte) {
+                texte.setText(s.getTotalCount() + ' emplacement(s)');
             }
         });
 
@@ -569,25 +594,8 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
         });
     },
     genererPdfEmplacements: function (tri) {
-        var progress = Ext.MessageBox.wait('Generation du PDF . . .', 'Veuillez patienter');
-        Ext.Ajax.request({
-            url: '../api/v1/emplacements/pdf',
-            method: 'GET',
-            params: {tri: tri},
-            timeout: 2400000,
-            success: function (resp) {
-                progress.hide();
-                var r = Ext.JSON.decode(resp.responseText, true);
-                if (r && r.success && r.url) {
-                    window.open(r.url);
-                } else {
-                    Ext.MessageBox.alert('Impression', "La generation du PDF n'a pas abouti.");
-                }
-            },
-            failure: function () {
-                progress.hide();
-                Ext.MessageBox.alert('Impression', "La generation du PDF a echoue.");
-            }
-        });
+        // Ouverture directe dans le clic utilisateur (comme les autres impressions PDF) :
+        // l'onglet s'ouvre sans blocage de popup et affiche le PDF des qu'il est genere.
+        testextjs.app.getController('App').onGeneratePdfFile('../api/v1/emplacements/pdf-direct?tri=' + tri);
     }
 });

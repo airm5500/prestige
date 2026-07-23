@@ -97,6 +97,20 @@ public class ErpRessource {
         return Response.ok().entity(new JSONObject().put("success", true).put("url", url).toString()).build();
     }
 
+    // Variante directe : l'onglet est ouvert par window.open dans le clic utilisateur puis redirige vers le
+    // PDF genere (302). Evite le blocage de popup rencontre avec le flux Ajax + window.open differe.
+    @GET
+    @Path("emplacements/pdf-direct")
+    public Response emplacementsPdfDirect(@QueryParam(value = "tri") String tri) throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        Map<String, Object> params = reportUtil.officineData(tu);
+        String libTri = "nom".equalsIgnoreCase(tri) ? "NOM" : "CODE";
+        params.put("P_H_CLT_INFOS", "FEUILLE DE COMPTAGE DES EMPLACEMENTS (TRI PAR " + libTri + ")");
+        List<EmplacementReportDTO> data = erpService.emplacementsComptage(tri);
+        String url = servletRequest.getContextPath() + reportUtil.buildReport(params, "rp_emplacements_comptage", data);
+        return Response.status(Response.Status.FOUND).header("Location", url).build();
+    }
+
     private String formatDate(String d) {
         try {
             return LocalDate.parse(d).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
