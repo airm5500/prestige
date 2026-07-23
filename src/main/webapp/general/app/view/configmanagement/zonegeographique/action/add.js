@@ -1,4 +1,5 @@
 var url_services_transaction_zonegeographique = '../webservices/configmanagement/zonegeographique/ws_transaction.jsp?mode=';
+var url_services_rest_zone_geo = '../api/v1/zones-geographiques/'; // create / update en REST
 var Oview;
 var Omode;
 var Me;
@@ -102,15 +103,17 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.add', {
                 formulaire = fenetre.down('form');
         var internal_url = "";
         if (Omode === "create") {
-            internal_url = url_services_transaction_zonegeographique + 'create';
+            internal_url = url_services_rest_zone_geo + 'create';
         } else if (Omode === "update") {
-            internal_url = url_services_transaction_zonegeographique + 'update&lg_ZONE_GEO_ID=' + ref;
+            internal_url = url_services_rest_zone_geo + 'update';
         }
         if (formulaire.isValid()) {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    lg_ZONE_GEO_ID: (Omode === "update" ? ref : ""),
                     str_LIBELLEE: Ext.getCmp('str_LIBELLEE').getValue(),
                     str_CODE: Ext.getCmp('str_CODE').getValue()
                 },
