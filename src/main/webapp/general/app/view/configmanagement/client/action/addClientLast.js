@@ -2,6 +2,7 @@
 
 var url_services_data_client = '../webservices/configmanagement/client/ws_data.jsp';
 var url_services_transaction_client = '../webservices/configmanagement/client/ws_transaction.jsp?mode=';
+var url_services_rest_clients = '../api/v1/clients/'; // create / update en REST (memes regles metier)
 var url_services_data_ville_client = '../webservices/configmanagement/ville/ws_data.jsp';
 var url_services_data_medecin_client = '../webservices/configmanagement/medecin/ws_data.jsp';
 var url_services_data_typeclient_client = '../webservices/configmanagement/typeclient/ws_data.jsp';
@@ -693,7 +694,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                 formulaire = fenetre.down('form');
         if (formulaire.isValid()) {
             if (Omode === "create") {
-                internal_url = url_services_transaction_client + 'create';
+                internal_url = url_services_rest_clients + 'create';
                 testextjs.app.getController('App').ShowWaitingProcess();
                 Ext.Ajax.request({
                     url: internal_url,
@@ -764,12 +765,12 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                     }
                 });
             } else {
-                internal_url = url_services_transaction_client + 'update&lg_CLIENT_ID=' + ref;
+                internal_url = url_services_rest_clients + 'update';
                 testextjs.app.getController('App').ShowWaitingProcess();
                 Ext.Ajax.request({
                     url: internal_url,
                     params: {
-                        // lg_CLIENT_ID : Ext.getCmp('lg_CLIENT_ID').getValue(),
+                        lg_CLIENT_ID: ref,
                         str_CODE_INTERNE: Ext.getCmp('str_CODE_INTERNE').getValue(),
                         str_FIRST_NAME: Ext.getCmp('str_FIRST_NAME').getValue(),
                         str_LAST_NAME: Ext.getCmp('str_LAST_NAME').getValue(),

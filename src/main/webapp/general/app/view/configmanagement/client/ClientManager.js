@@ -4,6 +4,9 @@ var url_services_data_client = '../webservices/configmanagement/client/ws_data.j
 var url_services_transaction_client = '../webservices/configmanagement/client/ws_transaction.jsp?mode=';
 var url_services_pdf_client = '../webservices/configmanagement/client/ws_generate_pdf.jsp';
 var url_services_data_typetierspayant = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
+// REST dedie a cet ecran (memes formats JSON que les JSP) : liste optimisee + toggle-statut
+var url_rest_data_clients = '../api/v1/clients';
+var url_services_rest_clients = '../api/v1/clients/';
 
 var Me_Workflow;
 var lg_TYPE_CLIENT_ID = "";
@@ -49,7 +52,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_client,
+                url: url_rest_data_clients,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -98,6 +101,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                 }, {
                     header: 'Code Interne',
                     dataIndex: 'str_CODE_INTERNE',
+                    hidden: true, // colonne retiree a la demande
                     flex: 0.6
                 }, {
                     header: 'Nom',
@@ -113,13 +117,24 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     dataIndex: 'lg_TYPE_CLIENT_ID',
                     flex: 0.7
                 }, {
+                    header: 'Organisme',
+                    dataIndex: 'lg_TIERS_PAYANT_ID',
+                    flex: 1,
+                    renderer: function (val) {
+                        // Tiers payant principal du client : en gras et en bleu
+                        if (!val) {
+                            return '';
+                        }
+                        return "<span style='font-weight: bold; color: #1565C0;'>" + val + "</span>";
+                    }
+                }, {
                     header: 'Encours',
                     dataIndex: 'dbl_total_differe',
                     align: 'right',
 //                    hidden: true,
                     flex: 0.6,
                     renderer: function (val) {
-                        var result = "<div style='text-align: right; font-weight: bold;'>" + amountformat(val) + "</div>";
+                        var result = "<div style='text-align: right; font-weight: bold; color: #C62828;'>" + amountformat(val) + "</div>";
                         return result;
                     }
                 },
@@ -166,6 +181,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                 {
                     header: 'Société',
                     dataIndex: 'lg_COMPANY_ID',
+                    hidden: true, // colonne retiree a la demande
                     flex: 1
 
 
@@ -247,6 +263,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     width: 30,
                     sortable: false,
                     menuDisabled: true,
+                    hidden: true, // bouton 'Attribution medecin' retire a la demande (fonction conservee)
                     items: [{
                             icon: 'resources/images/icons/fam/folder_wrench.png',
                             tooltip: 'Attribution.Medecin',
@@ -261,7 +278,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/disable.png',
-                            tooltip: 'Desactiver le client',
+                            tooltip: 'D&eacute;sactiver / R&eacute;activer le client',
                             scope: this, getClass: function (value, metadata, record) {
                                 if (record.get('P_BTN_DESACTIVER_CLIENT')) {
                                     return 'x-display-hide';
@@ -386,6 +403,19 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     scope: this,
                     iconCls: 'export_excel_icon',
                     handler: this.onbtnexportExcel
+                }, '->', {
+                    text: 'D&eacute;sactiv&eacute;s',
+                    id: 'BT_CLIENT_VOIR_DESACTIVES',
+                    enableToggle: true,
+                    hidden: true, // visible uniquement pour les profils administrateurs (voir est-admin)
+                    icon: 'resources/images/icons/fam/disable.png',
+                    tooltip: 'Afficher les clients d&eacute;sactiv&eacute;s (pour les r&eacute;activer)',
+                    scope: this,
+                    toggleHandler: function (btn, pressed) {
+                        var store = this.getStore();
+                        store.getProxy().setExtraParam('actifs', !pressed);
+                        store.loadPage(1);
+                    }
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -415,6 +445,19 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
+        });
+
+        // Le bouton 'Desactives' n'est propose qu'aux profils administrateurs
+        Ext.Ajax.request({
+            url: '../api/v1/roles/est-admin',
+            method: 'GET',
+            success: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true);
+                var bouton = Ext.getCmp('BT_CLIENT_VOIR_DESACTIVES');
+                if (object && object.authorize === true && bouton) {
+                    bouton.show();
+                }
+            }
         });
     },
      loadStore: function () {
@@ -554,15 +597,22 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
     onDesableClick: function (grid, rowIndex) {
 
         var rec = grid.getStore().getAt(rowIndex);
+        // En vue normale on desactive ; en vue 'Desactives' on reactive
+        var enDesactives = Ext.getCmp('BT_CLIENT_VOIR_DESACTIVES')
+                && Ext.getCmp('BT_CLIENT_VOIR_DESACTIVES').pressed;
+        var actif = enDesactives ? true : false;
         Ext.MessageBox.confirm('Message',
-                "Voulez-vous d&eacute;sactiver le client " + "<br><b>" + rec.get('str_FIRST_LAST_NAME') + "</b>",
+                "Voulez-vous " + (actif ? "r&eacute;activer" : "d&eacute;sactiver") + " le client "
+                + "<br><b>" + rec.get('str_FIRST_LAST_NAME') + "</b>",
                 function (btn) {
                     if (btn === 'yes') {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_client + 'disable',
+                            url: url_services_rest_clients + 'toggle-statut',
+                            method: 'POST',
                             params: {
-                                lg_COMPTE_CLIENT_ID: rec.get('lg_COMPTE_CLIENT_ID')
+                                lg_COMPTE_CLIENT_ID: rec.get('lg_COMPTE_CLIENT_ID'),
+                                actif: actif
                             },
                             success: function (response)
                             {
