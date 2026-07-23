@@ -153,3 +153,37 @@ WHERE cctp.str_STATUT = 'enable'
       SELECT 1 FROM t_preenregistrement_compte_client_tiers_payent pcctp
       WHERE pcctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID )
 ORDER BY tp.str_NAME, cctp.dt_CREATED DESC;
+
+-- ----------------------------------------------------------------------------
+-- 5b — SOUS-ENSEMBLE SUR : parasites quasi certains parmi les liens sans vente
+-- ----------------------------------------------------------------------------
+-- Un lien RO sans aucune vente, alors que le MEME compte possede un AUTRE lien
+-- RO actif qui, lui, a deja servi a des ventes : l'ancien RO n'a jamais servi
+-- et un RO plus recent travaille a sa place => desactivable sans risque.
+-- (Ces cas sont aussi couverts par la reparation multi-RO des etapes 1-2 ;
+--  cette requete sert de contre-verification.)
+-- ----------------------------------------------------------------------------
+SELECT ccl.lg_COMPTE_CLIENT_ID                                   AS compte,
+       CONCAT(cl.str_FIRST_NAME,' ',cl.str_LAST_NAME)            AS client,
+       tp.str_NAME                                               AS ro_sans_vente,
+       cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID                     AS lien,
+       cctp.dt_CREATED                                           AS lien_cree_le,
+       tp2.str_NAME                                              AS ro_qui_travaille
+FROM t_compte_client_tiers_payant cctp
+JOIN t_compte_client ccl ON ccl.lg_COMPTE_CLIENT_ID = cctp.lg_COMPTE_CLIENT_ID
+JOIN t_client cl         ON cl.lg_CLIENT_ID = ccl.lg_CLIENT_ID
+JOIN t_tiers_payant tp   ON tp.lg_TIERS_PAYANT_ID = cctp.lg_TIERS_PAYANT_ID
+JOIN t_compte_client_tiers_payant autre
+      ON autre.lg_COMPTE_CLIENT_ID = cctp.lg_COMPTE_CLIENT_ID
+     AND autre.lg_COMPTE_CLIENT_TIERS_PAYANT_ID <> cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID
+     AND autre.str_STATUT = 'enable' AND autre.b_IS_RO = 1
+JOIN t_tiers_payant tp2  ON tp2.lg_TIERS_PAYANT_ID = autre.lg_TIERS_PAYANT_ID
+WHERE cctp.str_STATUT = 'enable'
+  AND cctp.b_IS_RO = 1
+  AND NOT EXISTS (
+      SELECT 1 FROM t_preenregistrement_compte_client_tiers_payent pcctp
+      WHERE pcctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = cctp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID )
+  AND EXISTS (
+      SELECT 1 FROM t_preenregistrement_compte_client_tiers_payent pcctp2
+      WHERE pcctp2.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = autre.lg_COMPTE_CLIENT_TIERS_PAYANT_ID )
+ORDER BY cctp.dt_CREATED DESC;
