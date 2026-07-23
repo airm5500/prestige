@@ -49,11 +49,13 @@ public class StatistiqueProduitServiceImpl implements StatistiqueProduitService 
             + ", SUM(CASE WHEN MONTH(p.`dt_UPDATED`)=12 THEN d.`int_QUANTITY` ELSE 0 END ) AS decembre "
             + " FROM  t_preenregistrement p,t_preenregistrement_detail d,t_famille f,t_user u WHERE p.`lg_PREENREGISTREMENT_ID`=d.`lg_PREENREGISTREMENT_ID` "
             + " AND f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` AND p.`int_PRICE` >0 AND p.`b_IS_CANCEL`=0 AND p.`lg_TYPE_VENTE_ID` <> ?1 AND  u.`lg_USER_ID`=p.`lg_USER_ID` AND u.`lg_EMPLACEMENT_ID`=?2 "
-            + "  AND p.`str_STATUT`=?3 AND YEAR(p.`dt_UPDATED`)=?4 {likeStatement} {rayonStatement}  GROUP  BY  id ORDER BY libelle ";
+            // Bornes >= / < au lieu de YEAR(...)=? : la fonction sur la colonne empechait
+            // l'utilisation de l'index sur dt_UPDATED (parcours complet de la table des ventes)
+            + "  AND p.`str_STATUT`=?3 AND p.`dt_UPDATED` >= ?4 AND p.`dt_UPDATED` < ?5 {likeStatement} {rayonStatement}  GROUP  BY  id ORDER BY libelle ";
 
     private static final String YEAR_COUNT_SQL_QUERY = "SELECT  count(DISTINCT f.`lg_FAMILLE_ID`) FROM  t_preenregistrement p,t_preenregistrement_detail d,t_famille f,t_user u WHERE p.`lg_PREENREGISTREMENT_ID`=d.`lg_PREENREGISTREMENT_ID` "
             + " AND f.`lg_FAMILLE_ID`=d.`lg_FAMILLE_ID` AND p.`int_PRICE` >0 AND p.`b_IS_CANCEL`=0 AND p.`lg_TYPE_VENTE_ID` <> ?1 AND  u.`lg_USER_ID`=p.`lg_USER_ID` AND u.`lg_EMPLACEMENT_ID`=?2  "
-            + "  AND p.`str_STATUT`=?3 AND YEAR(p.`dt_UPDATED`)=?4 {likeStatement} {rayonStatement}  ";
+            + "  AND p.`str_STATUT`=?3 AND p.`dt_UPDATED` >= ?4 AND p.`dt_UPDATED` < ?5 {likeStatement} {rayonStatement}  ";
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
@@ -118,7 +120,8 @@ public class StatistiqueProduitServiceImpl implements StatistiqueProduitService 
         try {
             Query query = em.createNativeQuery(builQuery(search, rayonId, YEAR_SQL_QUERY), Tuple.class)
                     .setParameter(1, DateConverter.DEPOT_EXTENSION).setParameter(2, userEmplacement)
-                    .setParameter(3, STATUT).setParameter(4, year);
+                    .setParameter(3, STATUT).setParameter(4, java.sql.Timestamp.valueOf(year + "-01-01 00:00:00"))
+                    .setParameter(5, java.sql.Timestamp.valueOf((year + 1) + "-01-01 00:00:00"));
             if (!all) {
                 query.setFirstResult(start);
                 query.setMaxResults(limit);
@@ -137,7 +140,8 @@ public class StatistiqueProduitServiceImpl implements StatistiqueProduitService 
             query.setParameter(1, DateConverter.DEPOT_EXTENSION);
             query.setParameter(2, userEmplacement);
             query.setParameter(3, STATUT);
-            query.setParameter(4, year);
+            query.setParameter(4, java.sql.Timestamp.valueOf(year + "-01-01 00:00:00"));
+            query.setParameter(5, java.sql.Timestamp.valueOf((year + 1) + "-01-01 00:00:00"));
             return ((BigInteger) query.getSingleResult()).longValue();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);

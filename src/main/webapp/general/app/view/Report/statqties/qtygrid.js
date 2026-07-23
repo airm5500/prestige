@@ -95,7 +95,9 @@ Ext.define('testextjs.view.Report.statqties.qtygrid', {
 
 
                     ],
-            autoLoad: true,
+            // Pas de chargement automatique a l'ouverture : l'utilisateur lance la
+            // recherche lui-meme (annee/emplacement/produit) avec le bouton Rechercher
+            autoLoad: false,
             pageSize: page,
 
             proxy: {
