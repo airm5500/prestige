@@ -11,8 +11,17 @@ import org.json.JSONObject;
 @Local
 public interface RoleService {
 
-    /** Liste paginee des profils visibles par l'utilisateur connecte (recherche libelle/description). */
-    JSONObject listRoles(TUser user, String search, int start, int limit);
+    /**
+     * Liste paginee des profils visibles par l'utilisateur connecte (recherche libelle/description). actifs=true :
+     * profils au statut enable (comportement historique) ; false : les desactives.
+     */
+    JSONObject listRoles(TUser user, String search, boolean actifs, int start, int limit);
+
+    /**
+     * Desactivation (actif=false) ou reactivation (actif=true) d'un profil. Refus pour les profils systeme et pour un
+     * profil encore attribue a des utilisateurs. Remplace la suppression definitive cote ecran.
+     */
+    JSONObject toggleRoleStatus(TUser user, String roleId, boolean actif);
 
     /** Creation d'un profil. Renvoie {success:"1"|"0", errors}. */
     JSONObject createRole(String name, String designation, String type);

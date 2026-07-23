@@ -184,10 +184,12 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                     sortable: false,
                     menuDisabled: true,
                     items: [{
-                            icon: 'resources/images/icons/fam/delete.png',
-                            tooltip: 'Supprimer',
+                            // La suppression definitive est remplacee par la desactivation
+                            // (reversible via le bouton 'Desactives' de la barre d'outils)
+                            icon: 'resources/images/icons/fam/disable.png',
+                            tooltip: 'D&eacute;sactiver / R&eacute;activer cet utilisateur',
                             scope: this,
-                            handler: this.onRemoveClick
+                            handler: this.onToggleStatutClick
                         }]
                 }],
             selModel: {
@@ -232,6 +234,18 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                     iconCls: 'printable',
                     // disabled: true,
                     handler: this.onPrintClick
+                }, '->', {
+                    text: 'D&eacute;sactiv&eacute;s',
+                    id: 'BT_USER_VOIR_DESACTIVES',
+                    enableToggle: true,
+                    icon: 'resources/images/icons/fam/disable.png',
+                    tooltip: 'Afficher les utilisateurs d&eacute;sactiv&eacute;s (pour les r&eacute;activer)',
+                    scope: this,
+                    toggleHandler: function(btn, pressed) {
+                        var store = this.getStore();
+                        store.getProxy().setExtraParam('actifs', !pressed);
+                        store.loadPage(1);
+                    }
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -327,20 +341,24 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
 
 
     },
-    onRemoveClick: function(grid, rowIndex) {
+    onToggleStatutClick: function(grid, rowIndex) {
+        // En vue normale on desactive ; en vue 'Desactives' on reactive
+        var enDesactives = Ext.getCmp('BT_USER_VOIR_DESACTIVES')
+                && Ext.getCmp('BT_USER_VOIR_DESACTIVES').pressed;
+        var actif = enDesactives ? true : false;
         Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
+                (actif ? 'R&eacute;activer cet utilisateur ? Il pourra de nouveau se connecter.'
+                        : 'D&eacute;sactiver cet utilisateur ? Il ne pourra plus se connecter.'),
                 function(btn) {
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            // REST : verifie l'activite liee (caisse, ventes...) et renvoie un
-                            // message clair au lieu de l'erreur de cle etrangere du flux historique
-                            url: url_services_rest_utilisateur + 'delete',
+                            url: url_services_rest_utilisateur + 'toggle-statut',
                             method: 'POST',
                             params: {
-                                lg_USER_ID: rec.get('lg_USER_ID')
+                                lg_USER_ID: rec.get('lg_USER_ID'),
+                                actif: actif
                             },
                             success: function(response)
                             {

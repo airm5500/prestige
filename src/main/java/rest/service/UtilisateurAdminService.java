@@ -11,8 +11,18 @@ import org.json.JSONObject;
 @Local
 public interface UtilisateurAdminService {
 
-    /** Liste paginee des utilisateurs visibles par l'utilisateur connecte. etat=true : tous les emplacements. */
-    JSONObject listUsers(TUser connecte, String search, boolean etat, int start, int limit);
+    /**
+     * Liste paginee des utilisateurs visibles par l'utilisateur connecte. etat=true : tous les emplacements.
+     * actifs=true : utilisateurs au statut enable (comportement historique) ; false : les desactives.
+     */
+    JSONObject listUsers(TUser connecte, String search, boolean etat, boolean actifs, int start, int limit);
+
+    /**
+     * Desactivation (actif=false) ou reactivation (actif=true) d'un utilisateur. Un utilisateur desactive disparait de
+     * la liste active et ne peut plus se connecter (la connexion ne retient que le statut enable). Remplace la
+     * suppression definitive, impossible des que l'utilisateur a une activite (caisse, ventes...).
+     */
+    JSONObject toggleUserStatus(TUser connecte, String userId, boolean actif);
 
     /** Creation d'un utilisateur (login unique, mot de passe hache en MD5 comme le flux de connexion). */
     JSONObject createUser(String login, String password, int ids, String firstName, String lastName, String roleId,

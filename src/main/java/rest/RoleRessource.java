@@ -43,13 +43,25 @@ public class RoleRessource {
 
     @GET
     public Response list(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
+            @DefaultValue("true") @QueryParam("actifs") boolean actifs,
             @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
-        return Response.ok().entity(roleService.listRoles(user, search, start, limit).toString()).build();
+        return Response.ok().entity(roleService.listRoles(user, search, actifs, start, limit).toString()).build();
+    }
+
+    @POST
+    @Path("toggle-statut")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response toggleStatut(@FormParam("lg_ROLE_ID") String roleId, @FormParam("actif") boolean actif) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(roleService.toggleRoleStatus(user, roleId, actif).toString()).build();
     }
 
     @POST

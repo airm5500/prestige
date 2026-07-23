@@ -56,13 +56,14 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public JSONObject listRoles(TUser user, String search, int start, int limit) {
+    public JSONObject listRoles(TUser user, String search, boolean actifs, int start, int limit) {
         JSONObject json = new JSONObject();
         JSONArray results = new JSONArray();
         try {
             String like = (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
-            StringBuilder where = new StringBuilder(
-                    " FROM TRole t WHERE t.strSTATUT = 'enable' AND (t.strNAME LIKE ?1 OR t.strDESIGNATION LIKE ?1)");
+            String statut = actifs ? commonparameter.statut_enable : commonparameter.statut_disable;
+            StringBuilder where = new StringBuilder(" FROM TRole t WHERE t.strSTATUT = '" + statut
+                    + "' AND (t.strNAME LIKE ?1 OR t.strDESIGNATION LIKE ?1)");
             boolean admin = isAdminOrSuperAdmin(user);
             if (!admin) {
                 // Les autres profils ne voient ni administrateur ni super administrateur
@@ -188,6 +189,42 @@ public class RoleServiceImpl implements RoleService {
                 .createNativeQuery("SELECT kcu.TABLE_NAME, kcu.COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE kcu"
                         + " WHERE kcu.REFERENCED_TABLE_SCHEMA = DATABASE() AND kcu.REFERENCED_TABLE_NAME = ?1")
                 .setParameter(1, tableReferencee).getResultList();
+    }
+
+    @Override
+    public JSONObject toggleRoleStatus(TUser user, String roleId, boolean actif) {
+        JSONObject json = new JSONObject();
+        try {
+            TRole role = em.find(TRole.class, roleId);
+            if (role == null) {
+                return json.put("success", FAILED).put("errors", "Profil introuvable");
+            }
+            String nom = StringUtils.defaultString(role.getStrNAME());
+            String designation = StringUtils.defaultString(role.getStrDESIGNATION());
+            if (bll.userManagement.user.isAdminRole(nom) || bll.userManagement.user.isSuperAdminRole(nom)
+                    || bll.userManagement.user.isAdminRole(designation)
+                    || bll.userManagement.user.isSuperAdminRole(designation)
+                    || commonparameter.ROLE_PHARMACIEN.equalsIgnoreCase(nom)) {
+                return json.put("success", FAILED).put("errors", "Ce profil système ne peut pas être désactivé");
+            }
+            if (!actif) {
+                long nbUtilisateurs = ((Number) em
+                        .createNativeQuery("SELECT COUNT(*) FROM t_role_user WHERE lg_ROLE_ID = ?1")
+                        .setParameter(1, roleId).getSingleResult()).longValue();
+                if (nbUtilisateurs > 0) {
+                    return json.put("success", FAILED).put("errors", "Ce profil est attribué à " + nbUtilisateurs
+                            + " utilisateur(s) : retirez-le d'abord de ces utilisateurs");
+                }
+            }
+            role.setStrSTATUT(actif ? commonparameter.statut_enable : commonparameter.statut_disable);
+            role.setDtUPDATED(new Date());
+            em.merge(role);
+            return json.put("success", SUCCESS).put("errors",
+                    actif ? "Profil réactivé avec succès" : "Profil désactivé avec succès");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "toggleRoleStatus", e);
+            return json.put("success", FAILED).put("errors", "Impossible de changer le statut de ce profil");
+        }
     }
 
     @Override

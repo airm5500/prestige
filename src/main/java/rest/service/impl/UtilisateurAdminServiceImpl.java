@@ -69,7 +69,7 @@ public class UtilisateurAdminServiceImpl implements UtilisateurAdminService {
     }
 
     @Override
-    public JSONObject listUsers(TUser connecte, String search, boolean etat, int start, int limit) {
+    public JSONObject listUsers(TUser connecte, String search, boolean etat, boolean actifs, int start, int limit) {
         JSONObject json = new JSONObject();
         JSONArray results = new JSONArray();
         try {
@@ -94,7 +94,8 @@ public class UtilisateurAdminServiceImpl implements UtilisateurAdminService {
                     TRoleUser.class);
             for (Object query : new Object[] { qc, q }) {
                 TypedQuery<?> tq = (TypedQuery<?>) query;
-                tq.setParameter(1, like).setParameter(2, emplacement).setParameter(3, commonparameter.statut_enable);
+                tq.setParameter(1, like).setParameter(2, emplacement).setParameter(3,
+                        actifs ? commonparameter.statut_enable : commonparameter.statut_disable);
                 if (!superAdmin && !admin) {
                     tq.setParameter(4, commonparameter.ROLE_SUPERADMIN + "%").setParameter(5,
                             commonparameter.ROLE_ADMIN + "%");
@@ -321,6 +322,28 @@ public class UtilisateurAdminServiceImpl implements UtilisateurAdminService {
             return "téléphones d'alerte";
         default:
             return "données liées : " + table;
+        }
+    }
+
+    @Override
+    public JSONObject toggleUserStatus(TUser connecte, String userId, boolean actif) {
+        JSONObject json = new JSONObject();
+        try {
+            TUser user = em.find(TUser.class, userId);
+            if (user == null) {
+                return json.put("success", FAILED).put("errors", "Utilisateur introuvable");
+            }
+            if (!actif && connecte != null && connecte.getLgUSERID().equals(userId)) {
+                return json.put("success", FAILED).put("errors", "Impossible de désactiver l'utilisateur connecté");
+            }
+            user.setStrSTATUT(actif ? commonparameter.statut_enable : commonparameter.statut_disable);
+            user.setDtUPDATED(new Date());
+            em.merge(user);
+            return json.put("success", SUCCESS).put("errors", actif ? "Utilisateur réactivé avec succès"
+                    : "Utilisateur désactivé avec succès : il ne peut plus se connecter");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "toggleUserStatus", e);
+            return json.put("success", FAILED).put("errors", "Impossible de changer le statut de cet utilisateur");
         }
     }
 
