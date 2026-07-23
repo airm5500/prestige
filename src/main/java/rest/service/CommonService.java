@@ -147,4 +147,7 @@ public interface CommonService {
     /** Risques actifs (memes cles que risque/ws_data.jsp). */
     org.json.JSONObject loadRisques(String query, int start, int limit);
 
+    /** Types de tiers payant actifs (memes cles que typetierspayant/ws_data.jsp). */
+    org.json.JSONObject loadTypesTiersPayant(String query, int start, int limit);
+
 }

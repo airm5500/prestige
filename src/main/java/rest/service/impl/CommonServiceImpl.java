@@ -1047,4 +1047,40 @@ public class CommonServiceImpl implements Serializable, CommonService {
         }
     }
 
+    @Override
+    public JSONObject loadTypesTiersPayant(String query, int start, int limit) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        try {
+            String where = " FROM TTypeTiersPayant t WHERE t.strSTATUT = 'enable'";
+            if (!StringUtils.isEmpty(query)) {
+                where += " AND (t.strLIBELLETYPETIERSPAYANT LIKE :query OR t.strCODETYPETIERSPAYANT LIKE :query)";
+            }
+            javax.persistence.TypedQuery<Long> qc = getEntityManager().createQuery("SELECT COUNT(t)" + where,
+                    Long.class);
+            javax.persistence.TypedQuery<dal.TTypeTiersPayant> q = getEntityManager().createQuery(
+                    "SELECT t" + where + " ORDER BY t.strLIBELLETYPETIERSPAYANT ASC", dal.TTypeTiersPayant.class);
+            if (!StringUtils.isEmpty(query)) {
+                qc.setParameter("query", query + "%");
+                q.setParameter("query", query + "%");
+            }
+            long total = qc.getSingleResult();
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+            }
+            for (dal.TTypeTiersPayant t : q.getResultList()) {
+                results.put(new JSONObject().put("lg_TYPE_TIERS_PAYANT_ID", t.getLgTYPETIERSPAYANTID())
+                        .put("str_CODE_TYPE_TIERS_PAYANT",
+                                t.getStrCODETYPETIERSPAYANT() != null ? t.getStrCODETYPETIERSPAYANT() : "")
+                        .put("str_LIBELLE_TYPE_TIERS_PAYANT",
+                                t.getStrLIBELLETYPETIERSPAYANT() != null ? t.getStrLIBELLETYPETIERSPAYANT() : "")
+                        .put("str_STATUT", t.getStrSTATUT()));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadTypesTiersPayant", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
 }

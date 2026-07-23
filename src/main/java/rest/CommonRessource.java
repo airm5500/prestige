@@ -516,6 +516,16 @@ public class CommonRessource {
         return Response.ok().entity(commonService.loadCategoriesAyantDroit(q, start, limit).toString()).build();
     }
 
+    /** Types de tiers payant actifs (memes cles que typetierspayant/ws_data.jsp). */
+    @GET
+    @Path("types-tiers-payant")
+    public Response typesTiersPayant(@QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        String q = StringUtils.isNotEmpty(query) ? query : searchValue;
+        return Response.ok().entity(commonService.loadTypesTiersPayant(q, start, limit).toString()).build();
+    }
+
     /**
      * Risques actifs (memes cles que risque/ws_data.jsp). Chemin "referentiel/..." car un endpoint "risques" au format
      * ComboDTO existe deja plus haut.

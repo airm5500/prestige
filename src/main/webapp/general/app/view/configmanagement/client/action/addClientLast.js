@@ -10,7 +10,9 @@ var url_services_data_typeclient_client = '../api/v1/common/types-client';
 var url_services_data_categorie_ayant_droit = '../api/v1/common/categories-ayant-droit';
 var url_services_data_risque = '../api/v1/common/referentiel/risques';
 var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
-var url_services_data_type_tierspayant = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
+// Variable dediee (le nom url_services_data_type_tierspayant est un global partage par
+// plusieurs ecrans encore en JSP : on ne change que l'ecran client)
+var url_rest_data_type_tierspayant = '../api/v1/common/types-tiers-payant';
 var Oview;
 var Omode;
 var Me;
@@ -152,7 +154,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_type_tierspayant,
+                url: url_rest_data_type_tierspayant,
                 reader: {
                     type: 'json',
                     root: 'results',

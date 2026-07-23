@@ -129,10 +129,16 @@ public class ayantDroitManagement extends bllBase {
                 OTAyantDroitOld = this.getAyantDroit(str_NUMERO_SECURITE_SOCIAL);
             }
             TAyantDroit OTAyantDroit = this.getOdataManager().getEm().find(TAyantDroit.class, lg_AYANTS_DROITS_ID);
-            if (OTAyantDroit != null) {
+            // Recherche par numero de securite sociale UNIQUEMENT en secours quand l'ID n'a rien
+            // donne (meme logique que la variante avec TClient ci-dessous). L'ancienne condition
+            // inversee (!= null) remplacait l'ayant droit choisi par le resultat de getSingleResult
+            // sur le numero : des que plusieurs ayants droits partageaient le meme numero (ou un
+            // numero vide), la modification plantait avec "More than one result was returned".
+            if (OTAyantDroit == null && !str_NUMERO_SECURITE_SOCIAL.equals("")) {
                 OTAyantDroit = this.getOdataManager().getEm()
                         .createNamedQuery("TAyantDroit.findByStrNUMEROSECURITESOCIAL", TAyantDroit.class)
-                        .setParameter("strNUMEROSECURITESOCIAL", str_NUMERO_SECURITE_SOCIAL).getSingleResult();
+                        .setMaxResults(1).setParameter("strNUMEROSECURITESOCIAL", str_NUMERO_SECURITE_SOCIAL)
+                        .getSingleResult();
 
             }
             TVille OTVille = getOdataManager().getEm().find(dal.TVille.class, lg_VILLE_ID);
