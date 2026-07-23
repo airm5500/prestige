@@ -21,7 +21,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
-import rest.service.AyantDroitAdminService;
+import rest.service.AyantDroitService;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.date;
 import util.Constant;
@@ -35,9 +35,9 @@ import util.Constant;
 @Path("v1/ayants-droits")
 @Produces("application/json")
 @Consumes("application/json")
-public class AyantDroitAdminRessource {
+public class AyantDroitRessource {
 
-    private static final Logger LOG = Logger.getLogger(AyantDroitAdminRessource.class.getName());
+    private static final Logger LOG = Logger.getLogger(AyantDroitRessource.class.getName());
     /** Valeurs par defaut historiques de ws_transaction.jsp. */
     private static final String CATEGORIE_AYANT_DROIT_DEFAUT = "555146116095894790";
     private static final String RISQUE_DEFAUT = "55181642844215217016";
@@ -45,7 +45,7 @@ public class AyantDroitAdminRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    private AyantDroitAdminService ayantDroitAdminService;
+    private AyantDroitService ayantDroitService;
 
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
@@ -73,7 +73,7 @@ public class AyantDroitAdminRessource {
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
         String client = StringUtils.isNotBlank(clientId) ? clientId : clientIdBis;
-        return Response.ok().entity(ayantDroitAdminService.list(user, search, client, actifs, start, limit).toString())
+        return Response.ok().entity(ayantDroitService.list(user, search, client, actifs, start, limit).toString())
                 .build();
     }
 
@@ -157,6 +157,6 @@ public class AyantDroitAdminRessource {
         if (user == null) {
             return deconnecte();
         }
-        return Response.ok().entity(ayantDroitAdminService.toggleStatus(user, ayantDroitId, actif).toString()).build();
+        return Response.ok().entity(ayantDroitService.toggleStatus(user, ayantDroitId, actif).toString()).build();
     }
 }

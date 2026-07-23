@@ -17,7 +17,7 @@ import javax.persistence.TypedQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import rest.service.ClientAdminService;
+import rest.service.ClientsService;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.conversion;
 import toolkits.utils.date;
@@ -29,9 +29,9 @@ import toolkits.utils.date;
  * est nettement plus rapide, sans changement de comportement.
  */
 @Stateless
-public class ClientAdminServiceImpl implements ClientAdminService {
+public class ClientsServiceImpl implements ClientsService {
 
-    private static final Logger LOG = Logger.getLogger(ClientAdminServiceImpl.class.getName());
+    private static final Logger LOG = Logger.getLogger(ClientsServiceImpl.class.getName());
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;

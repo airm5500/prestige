@@ -9,7 +9,7 @@ import org.json.JSONObject;
  * webservices/configmanagement/ayantdroit (memes cles JSON, memes filtres) avec une vraie pagination SQL.
  */
 @Local
-public interface AyantDroitAdminService {
+public interface AyantDroitService {
 
     /**
      * Liste paginee des ayants droits (filtre optionnel par client). actifs=true : statut enable (comportement

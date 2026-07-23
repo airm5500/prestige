@@ -15,7 +15,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.json.JSONObject;
-import rest.service.UtilisateurAdminService;
+import rest.service.UtilisateurService;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -31,7 +31,7 @@ public class UtilisateurRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    private UtilisateurAdminService utilisateurAdminService;
+    private UtilisateurService utilisateurService;
 
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
@@ -52,8 +52,8 @@ public class UtilisateurRessource {
             return deconnecte();
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
-        return Response.ok()
-                .entity(utilisateurAdminService.listUsers(user, search, etat, actifs, start, limit).toString()).build();
+        return Response.ok().entity(utilisateurService.listUsers(user, search, etat, actifs, start, limit).toString())
+                .build();
     }
 
     @POST
@@ -64,7 +64,7 @@ public class UtilisateurRessource {
         if (user == null) {
             return deconnecte();
         }
-        return Response.ok().entity(utilisateurAdminService.toggleUserStatus(user, userId, actif).toString()).build();
+        return Response.ok().entity(utilisateurService.toggleUserStatus(user, userId, actif).toString()).build();
     }
 
     @POST
@@ -78,7 +78,7 @@ public class UtilisateurRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(utilisateurAdminService
+        return Response.ok().entity(utilisateurService
                 .createUser(login, password, ids, firstName, lastName, roleId, languageId, emplacementId).toString())
                 .build();
     }
@@ -95,7 +95,7 @@ public class UtilisateurRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(utilisateurAdminService
+        return Response.ok().entity(utilisateurService
                 .updateUser(userId, login, ids, firstName, lastName, languageId, emplacementId, roleId).toString())
                 .build();
     }
@@ -108,7 +108,7 @@ public class UtilisateurRessource {
         if (user == null) {
             return deconnecte();
         }
-        return Response.ok().entity(utilisateurAdminService.deleteUser(user, userId).toString()).build();
+        return Response.ok().entity(utilisateurService.deleteUser(user, userId).toString()).build();
     }
 
     @POST
@@ -118,6 +118,6 @@ public class UtilisateurRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(utilisateurAdminService.updatePassword(userId, password).toString()).build();
+        return Response.ok().entity(utilisateurService.updatePassword(userId, password).toString()).build();
     }
 }

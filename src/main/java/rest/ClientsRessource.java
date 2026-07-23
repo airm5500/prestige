@@ -25,7 +25,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import rest.service.ClientAdminService;
+import rest.service.ClientsService;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.date;
 import util.CommonUtils;
@@ -41,9 +41,9 @@ import util.DateConverter;
 @Path("v1/clients")
 @Produces("application/json")
 @Consumes("application/json")
-public class ClientAdminRessource {
+public class ClientsRessource {
 
-    private static final Logger LOG = Logger.getLogger(ClientAdminRessource.class.getName());
+    private static final Logger LOG = Logger.getLogger(ClientsRessource.class.getName());
     /** Valeurs par defaut historiques de ws_transaction.jsp. */
     private static final String CATEGORIE_AYANT_DROIT_DEFAUT = "555146116095894790";
     private static final String RISQUE_DEFAUT = "55181642844215217016";
@@ -51,7 +51,7 @@ public class ClientAdminRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    private ClientAdminService clientAdminService;
+    private ClientsService clientsService;
 
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
@@ -88,8 +88,8 @@ public class ClientAdminRessource {
         List<TPrivilege> privileges = sessionPrivileges();
         boolean btnDelete = CommonUtils.hasAuthorityById(privileges, DateConverter.ACTIONDELETE);
         boolean btnDesactiver = CommonUtils.hasAuthorityByName(privileges, DateConverter.P_BTN_DESACTIVER_CLIENT);
-        return Response.ok()
-                .entity(clientAdminService
+        return Response
+                .ok().entity(clientsService
                         .listClients(search, typeClientId, actifs, btnDelete, btnDesactiver, start, limit).toString())
                 .build();
     }

@@ -9,7 +9,7 @@ import org.json.JSONObject;
  * par ligne : l'affichage est beaucoup plus rapide, sans changement de comportement.
  */
 @Local
-public interface ClientAdminService {
+public interface ClientsService {
 
     /**
      * Liste paginee des clients. actifs=true : statut enable (comportement historique) ; false : les desactives.

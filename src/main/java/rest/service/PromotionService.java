@@ -9,7 +9,7 @@ import org.json.JSONObject;
  * tant que sa date de fin n'est pas depassee.
  */
 @Local
-public interface PromotionAdminService {
+public interface PromotionService {
 
     /** Liste paginee des promotions (recherche par type), avec bl_ACTIVE calcule et le nombre de produits. */
     JSONObject listPromotions(String search, int start, int limit);

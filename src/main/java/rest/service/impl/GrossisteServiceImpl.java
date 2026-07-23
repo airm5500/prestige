@@ -12,7 +12,7 @@ import javax.persistence.TypedQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import rest.service.GrossisteAdminService;
+import rest.service.GrossisteService;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.date;
 
@@ -21,9 +21,9 @@ import toolkits.utils.date;
  * (grossisteManagement.getListeGrossiste) avec une vraie pagination SQL au lieu du chargement complet en memoire.
  */
 @Stateless
-public class GrossisteAdminServiceImpl implements GrossisteAdminService {
+public class GrossisteServiceImpl implements GrossisteService {
 
-    private static final Logger LOG = Logger.getLogger(GrossisteAdminServiceImpl.class.getName());
+    private static final Logger LOG = Logger.getLogger(GrossisteServiceImpl.class.getName());
     private static final String SUCCESS = commonparameter.PROCESS_SUCCESS;
     private static final String FAILED = commonparameter.PROCESS_FAILED;
 

@@ -12,7 +12,7 @@ import javax.persistence.TypedQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import rest.service.AyantDroitAdminService;
+import rest.service.AyantDroitService;
 import toolkits.parameters.commonparameter;
 import toolkits.utils.date;
 
@@ -22,9 +22,9 @@ import toolkits.utils.date;
  * memoire suivi d'un refresh par ligne.
  */
 @Stateless
-public class AyantDroitAdminServiceImpl implements AyantDroitAdminService {
+public class AyantDroitServiceImpl implements AyantDroitService {
 
-    private static final Logger LOG = Logger.getLogger(AyantDroitAdminServiceImpl.class.getName());
+    private static final Logger LOG = Logger.getLogger(AyantDroitServiceImpl.class.getName());
     private static final String SUCCESS = commonparameter.PROCESS_SUCCESS;
     private static final String FAILED = commonparameter.PROCESS_FAILED;
 

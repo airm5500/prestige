@@ -17,7 +17,7 @@ import javax.persistence.TypedQuery;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import rest.service.UtilisateurAdminService;
+import rest.service.UtilisateurService;
 import toolkits.parameters.commonparameter;
 import toolkits.security.Md5;
 import util.KeyUtilGen;
@@ -28,9 +28,9 @@ import util.KeyUtilGen;
  * passe (Md5.encode) que la connexion : aucun changement de comportement, seulement un chargement plus rapide.
  */
 @Stateless
-public class UtilisateurAdminServiceImpl implements UtilisateurAdminService {
+public class UtilisateurServiceImpl implements UtilisateurService {
 
-    private static final Logger LOG = Logger.getLogger(UtilisateurAdminServiceImpl.class.getName());
+    private static final Logger LOG = Logger.getLogger(UtilisateurServiceImpl.class.getName());
     private static final String SUCCESS = commonparameter.PROCESS_SUCCESS;
     private static final String FAILED = commonparameter.PROCESS_FAILED;
     private static final String JAMAIS = "<span style='color: blue;'>Jamais</span>";

@@ -9,7 +9,7 @@ import org.json.JSONObject;
  * webservices/configmanagement/grossiste (memes cles JSON, memes regles) avec une vraie pagination SQL.
  */
 @Local
-public interface GrossisteAdminService {
+public interface GrossisteService {
 
     /** Liste paginee des grossistes. actifs=true : statut enable (comportement historique) ; false : desactives. */
     JSONObject list(TUser user, String search, boolean actifs, int start, int limit);

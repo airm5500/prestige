@@ -20,7 +20,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
-import rest.service.GrossisteAdminService;
+import rest.service.GrossisteService;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -32,14 +32,14 @@ import util.Constant;
 @Path("v1/grossistes")
 @Produces("application/json")
 @Consumes("application/json")
-public class GrossisteAdminRessource {
+public class GrossisteRessource {
 
-    private static final Logger LOG = Logger.getLogger(GrossisteAdminRessource.class.getName());
+    private static final Logger LOG = Logger.getLogger(GrossisteRessource.class.getName());
 
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    private GrossisteAdminService grossisteAdminService;
+    private GrossisteService grossisteService;
 
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
@@ -65,7 +65,7 @@ public class GrossisteAdminRessource {
             return deconnecte();
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
-        return Response.ok().entity(grossisteAdminService.list(user, search, actifs, start, limit).toString()).build();
+        return Response.ok().entity(grossisteService.list(user, search, actifs, start, limit).toString()).build();
     }
 
     @POST
@@ -165,6 +165,6 @@ public class GrossisteAdminRessource {
         if (user == null) {
             return deconnecte();
         }
-        return Response.ok().entity(grossisteAdminService.toggleStatus(user, grossisteId, actif).toString()).build();
+        return Response.ok().entity(grossisteService.toggleStatus(user, grossisteId, actif).toString()).build();
     }
 }

@@ -17,7 +17,7 @@ import javax.persistence.Query;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import rest.service.PromotionAdminService;
+import rest.service.PromotionService;
 import toolkits.parameters.commonparameter;
 
 /**
@@ -27,9 +27,9 @@ import toolkits.parameters.commonparameter;
  * promotion reste active tant que sa date de fin n'est pas depassee.
  */
 @Stateless
-public class PromotionAdminServiceImpl implements PromotionAdminService {
+public class PromotionServiceImpl implements PromotionService {
 
-    private static final Logger LOG = Logger.getLogger(PromotionAdminServiceImpl.class.getName());
+    private static final Logger LOG = Logger.getLogger(PromotionServiceImpl.class.getName());
     private static final String SUCCESS = commonparameter.PROCESS_SUCCESS;
     private static final String FAILED = commonparameter.PROCESS_FAILED;
     private static final String TYPE_REMISE = "REMISE";

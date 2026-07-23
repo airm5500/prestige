@@ -15,7 +15,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.json.JSONObject;
-import rest.service.PromotionAdminService;
+import rest.service.PromotionService;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -32,7 +32,7 @@ public class PromotionRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
-    private PromotionAdminService promotionAdminService;
+    private PromotionService promotionService;
 
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
@@ -50,7 +50,7 @@ public class PromotionRessource {
             return deconnecte();
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
-        return Response.ok().entity(promotionAdminService.listPromotions(search, start, limit).toString()).build();
+        return Response.ok().entity(promotionService.listPromotions(search, start, limit).toString()).build();
     }
 
     @POST
@@ -61,7 +61,7 @@ public class PromotionRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(promotionAdminService.createPromotion(type, dtStart, dtEnd).toString()).build();
+        return Response.ok().entity(promotionService.createPromotion(type, dtStart, dtEnd).toString()).build();
     }
 
     @POST
@@ -72,7 +72,7 @@ public class PromotionRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(promotionAdminService.updatePromotion(promotionId, type, dtStart, dtEnd).toString())
+        return Response.ok().entity(promotionService.updatePromotion(promotionId, type, dtStart, dtEnd).toString())
                 .build();
     }
 
@@ -83,7 +83,7 @@ public class PromotionRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(promotionAdminService.cloturerPromotion(promotionId).toString()).build();
+        return Response.ok().entity(promotionService.cloturerPromotion(promotionId).toString()).build();
     }
 
     @GET
@@ -95,7 +95,7 @@ public class PromotionRessource {
             return deconnecte();
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
-        return Response.ok().entity(promotionAdminService.listProduits(promotionId, search, start, limit).toString())
+        return Response.ok().entity(promotionService.listProduits(promotionId, search, start, limit).toString())
                 .build();
     }
 
@@ -110,8 +110,8 @@ public class PromotionRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok()
-                .entity(promotionAdminService
+        return Response
+                .ok().entity(promotionService
                         .addProduit(promotionId, familleId, discount, promoPrice, packNumber, activeAt).toString())
                 .build();
     }
@@ -123,7 +123,7 @@ public class PromotionRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(promotionAdminService.removeProduit(promotionProductId).toString()).build();
+        return Response.ok().entity(promotionService.removeProduit(promotionProductId).toString()).build();
     }
 
     @GET
@@ -134,6 +134,6 @@ public class PromotionRessource {
             return deconnecte();
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
-        return Response.ok().entity(promotionAdminService.listHistorique(search, start, limit).toString()).build();
+        return Response.ok().entity(promotionService.listHistorique(search, start, limit).toString()).build();
     }
 }

@@ -9,7 +9,7 @@ import org.json.JSONObject;
  * {total, results}, memes regles de visibilite et MEME hachage de mot de passe Md5.encode que l'existant).
  */
 @Local
-public interface UtilisateurAdminService {
+public interface UtilisateurService {
 
     /**
      * Liste paginee des utilisateurs visibles par l'utilisateur connecte. etat=true : tous les emplacements.
