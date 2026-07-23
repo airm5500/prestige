@@ -626,6 +626,129 @@ public class ClientRessource {
         }
     }
 
+    /**
+     * Ventes du client (vue Détails ventes) : MEMES methodes metier et MEMES cles JSON que la JSP historique
+     * webservices/configmanagement/client/ws_vente.jsp, y compris le repli sur les ventes directes du client standard
+     * quand aucune ligne tiers payant n'existe. Reponse {total, data} comme la JSP.
+     */
+    @GET
+    @Path("gestion/ventes")
+    public Response ventesClient(@QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @QueryParam("dt_start_vente") String dtStart, @QueryParam("dt_end_vente") String dtEnd,
+            @QueryParam("tierpayantClient") String tierPayantClient, @QueryParam("search_value") String searchValue,
+            @QueryParam("query") String query, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("10") @QueryParam("limit") int limit) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            clientManagement m = new clientManagement(odm);
+            String jour = toolkits.utils.date.formatterMysqlShort.format(new Date());
+            String debut = org.apache.commons.lang3.StringUtils.isNotBlank(dtStart) ? dtStart : jour;
+            String fin = org.apache.commons.lang3.StringUtils.isNotBlank(dtEnd) ? dtEnd : jour;
+            String tp = org.apache.commons.lang3.StringUtils.isNotBlank(tierPayantClient) ? tierPayantClient : "%%";
+            String search = org.apache.commons.lang3.StringUtils.isNotBlank(searchValue) ? searchValue
+                    : (org.apache.commons.lang3.StringUtils.isNotBlank(query) ? query : "%%");
+            String compte = org.apache.commons.lang3.StringUtils.defaultString(compteClientId);
+
+            long count = m.getClientAchatsCount(compte.trim(), debut, fin, tp, search);
+            List<dal.TPreenregistrementCompteClientTiersPayent> lignes = m.getClientAchats(compte, debut, fin, tp,
+                    search, start, limit);
+            JSONObject totaux = m.getClientAchats(compte, debut, fin, tp, search);
+
+            org.json.JSONArray data = new org.json.JSONArray();
+            for (dal.TPreenregistrementCompteClientTiersPayent o : lignes) {
+                JSONObject json = new JSONObject();
+                json.put("REFVENTE", o.getLgPREENREGISTREMENTID().getStrREF());
+                json.put("IDVENTE", o.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID());
+                json.put("DATEVENTE",
+                        toolkits.utils.date.formatterShort.format(o.getLgPREENREGISTREMENTID().getDtUPDATED()));
+                json.put("MONTANTVENTE",
+                        toolkits.utils.conversion.AmountFormat(o.getLgPREENREGISTREMENTID().getIntPRICE()));
+                json.put("MONTANTCLIENT", o.getLgPREENREGISTREMENTID().getIntCUSTPART());
+                json.put("MONTANTTP", o.getIntPRICE());
+                json.put("POURCENTAGE", o.getIntPERCENT());
+                json.put("REFFACTURE", m.getFatucreRef(o.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID()));
+                json.put("TIERSPAYANT", o.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrFULLNAME());
+                json.put("REFBON", o.getStrREFBON());
+                json.put("TOTALVENTE", totaux.get("TOTALVENTE"));
+                json.put("TOTALCLIENT", totaux.get("TOTALCLIENT"));
+                json.put("TOTALTTP", totaux.get("TOTALTP"));
+                data.put(json);
+            }
+
+            // Clients standards : aucune ligne tiers payant -> ventes reliees directement au client
+            if (count == 0) {
+                count = m.getClientVentesStandardsCount(compte.trim(), debut, fin, search);
+                if (count > 0) {
+                    List<dal.TPreenregistrement> ventes = m.getClientVentesStandards(compte, debut, fin, search, start,
+                            limit);
+                    JSONObject totauxStandards = m.getClientVentesStandardsTotaux(compte, debut, fin, search);
+                    for (dal.TPreenregistrement vente : ventes) {
+                        JSONObject json = new JSONObject();
+                        json.put("REFVENTE", vente.getStrREF());
+                        json.put("IDVENTE", vente.getLgPREENREGISTREMENTID());
+                        json.put("DATEVENTE", toolkits.utils.date.formatterShort.format(vente.getDtUPDATED()));
+                        json.put("MONTANTVENTE", toolkits.utils.conversion.AmountFormat(vente.getIntPRICE()));
+                        json.put("MONTANTCLIENT", vente.getIntPRICE());
+                        json.put("MONTANTTP", 0);
+                        json.put("POURCENTAGE", 0);
+                        json.put("REFFACTURE", "");
+                        json.put("TIERSPAYANT", "");
+                        json.put("REFBON", "");
+                        json.put("TOTALVENTE", totauxStandards.get("TOTALVENTE"));
+                        json.put("TOTALCLIENT", totauxStandards.get("TOTALCLIENT"));
+                        json.put("TOTALTTP", totauxStandards.get("TOTALTP"));
+                        data.put(json);
+                    }
+                }
+            }
+            return Response.ok().entity(new JSONObject().put("data", data).put("total", count).toString()).build();
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "ventesClient", e);
+            return Response.ok()
+                    .entity(new JSONObject().put("data", new org.json.JSONArray()).put("total", 0).toString()).build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Tiers payants d'un client pour le filtre de la vue Détails ventes : MEMES cles JSON que la JSP historique
+     * ws_clientTierspayant.jsp (reponse {total, data}).
+     */
+    @GET
+    @Path("gestion/tiers-payants-liste")
+    public Response tiersPayantsListeClient(@QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            clientManagement m = new clientManagement(odm);
+            org.json.JSONArray data = new org.json.JSONArray();
+            List<dal.TTiersPayant> liste = m
+                    .getClientTiersPayants(org.apache.commons.lang3.StringUtils.defaultString(compteClientId));
+            for (dal.TTiersPayant t : liste) {
+                data.put(new JSONObject().put("lg_TIERS_PAYANT_ID", t.getLgTIERSPAYANTID()).put("str_TIERS_PAYANT_NAME",
+                        t.getStrFULLNAME()));
+            }
+            return Response.ok().entity(new JSONObject().put("data", data).put("total", liste.size()).toString())
+                    .build();
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "tiersPayantsListeClient", e);
+            return Response.ok()
+                    .entity(new JSONObject().put("data", new org.json.JSONArray()).put("total", 0).toString()).build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     private Response reponseSimple(String success, String errors) {
         return Response.ok().entity(new JSONObject().put("success", success)
                 .put("errors", org.apache.commons.lang3.StringUtils.defaultString(errors)).toString()).build();

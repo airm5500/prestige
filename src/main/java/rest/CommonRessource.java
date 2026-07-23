@@ -482,4 +482,44 @@ public class CommonRessource {
         return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(allowed)).build();
 
     }
+
+    /** Villes actives (memes cles JSON que la JSP historique ville/ws_data.jsp). */
+    @GET
+    @Path("villes")
+    public Response villes(@QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        String q = StringUtils.isNotEmpty(query) ? query : searchValue;
+        return Response.ok().entity(commonService.loadVilles(q, start, limit).toString()).build();
+    }
+
+    /** Types de client actifs, filtrables par str_TYPE (memes cles que typeclient/ws_data.jsp). */
+    @GET
+    @Path("types-client")
+    public Response typesClient(@QueryParam(value = "str_TYPE") String type, @QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        String q = StringUtils.isNotEmpty(query) ? query : searchValue;
+        return Response.ok().entity(commonService.loadTypesClient(type, q, start, limit).toString()).build();
+    }
+
+    /** Categories d'ayant droit actives (memes cles que categorieayantdroit/ws_data.jsp). */
+    @GET
+    @Path("categories-ayant-droit")
+    public Response categoriesAyantDroit(@QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        String q = StringUtils.isNotEmpty(query) ? query : searchValue;
+        return Response.ok().entity(commonService.loadCategoriesAyantDroit(q, start, limit).toString()).build();
+    }
+
+    /** Risques actifs (memes cles que risque/ws_data.jsp). */
+    @GET
+    @Path("risques")
+    public Response risques(@QueryParam(value = "query") String query,
+            @QueryParam(value = "search_value") String searchValue, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        String q = StringUtils.isNotEmpty(query) ? query : searchValue;
+        return Response.ok().entity(commonService.loadRisques(q, start, limit).toString()).build();
+    }
 }

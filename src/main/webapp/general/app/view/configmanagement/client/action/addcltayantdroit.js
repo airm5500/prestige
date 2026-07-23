@@ -82,7 +82,8 @@ Ext.define('testextjs.view.configmanagement.client.action.addcltayantdroit', {
 //            autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_client_addclt_ayantdroit + "?lg_CLIENT_ID=" + this.getOdatasource().lg_CLIENT_ID,
+                // REST : memes cles JSON que la JSP historique ayantdroit/ws_data.jsp
+                url: '../api/v1/ayants-droits?lg_CLIENT_ID=' + this.getOdatasource().lg_CLIENT_ID,
                 reader: {
                     type: 'json',
                     root: 'results',

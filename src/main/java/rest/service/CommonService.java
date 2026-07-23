@@ -135,4 +135,16 @@ public interface CommonService {
      */
     org.json.JSONObject loadFamillesArticles(String query, int start, int limit);
 
+    /** Villes actives (memes cles JSON que la JSP historique ville/ws_data.jsp). */
+    org.json.JSONObject loadVilles(String query, int start, int limit);
+
+    /** Types de client actifs, filtrables par str_TYPE (memes cles que typeclient/ws_data.jsp). */
+    org.json.JSONObject loadTypesClient(String type, String query, int start, int limit);
+
+    /** Categories d'ayant droit actives (memes cles que categorieayantdroit/ws_data.jsp). */
+    org.json.JSONObject loadCategoriesAyantDroit(String query, int start, int limit);
+
+    /** Risques actifs (memes cles que risque/ws_data.jsp). */
+    org.json.JSONObject loadRisques(String query, int start, int limit);
+
 }

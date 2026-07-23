@@ -43,10 +43,11 @@ Ext.define('testextjs.view.configmanagement.client.action.detailsclient', {
             model: 'testextjs.model.AyantDroit',
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/client/clientayantdroits.jsp',
+                // REST : memes cles que la JSP historique clientayantdroits.jsp
+                url: '../api/v1/ayants-droits',
                 reader: {
                     type: 'json',
-                    root: 'data',
+                    root: 'results',
                     totalProperty: 'total'
                 }
 
@@ -64,10 +65,11 @@ Ext.define('testextjs.view.configmanagement.client.action.detailsclient', {
             model: 'testextjs.model.CompteClientTierspayant',
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/client/clienttierspayants.jsp',
+                // REST : memes cles que la JSP historique clienttierspayants.jsp
+                url: '../api/v1/client/gestion/tiers-payants',
                 reader: {
                     type: 'json',
-                    root: 'data',
+                    root: 'results',
                     totalProperty: 'total'
                 }
             }

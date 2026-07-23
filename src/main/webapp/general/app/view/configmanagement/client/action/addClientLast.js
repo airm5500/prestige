@@ -3,11 +3,12 @@
 var url_services_data_client = '../webservices/configmanagement/client/ws_data.jsp';
 var url_services_transaction_client = '../webservices/configmanagement/client/ws_transaction.jsp?mode=';
 var url_services_rest_clients = '../api/v1/client/gestion/'; // create / update en REST (memes regles metier)
-var url_services_data_ville_client = '../webservices/configmanagement/ville/ws_data.jsp';
+// Referentiels en REST (memes cles JSON que les JSP historiques correspondantes)
+var url_services_data_ville_client = '../api/v1/common/villes';
 var url_services_data_medecin_client = '../webservices/configmanagement/medecin/ws_data.jsp';
-var url_services_data_typeclient_client = '../webservices/configmanagement/typeclient/ws_data.jsp';
-var url_services_data_categorie_ayant_droit = '../webservices/configmanagement/categorieayantdroit/ws_data.jsp';
-var url_services_data_risque = '../webservices/configmanagement/risque/ws_data.jsp';
+var url_services_data_typeclient_client = '../api/v1/common/types-client';
+var url_services_data_categorie_ayant_droit = '../api/v1/common/categories-ayant-droit';
+var url_services_data_risque = '../api/v1/common/risques';
 var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
 var url_services_data_type_tierspayant = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
 var Oview;

@@ -52,7 +52,8 @@ Ext.define('testextjs.view.configmanagement.client.action.venteClient', {
             pageSize: 10,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/client/ws_vente.jsp',
+                // REST : memes cles et meme reponse {total, data} que la JSP historique ws_vente.jsp
+                url: '../api/v1/client/gestion/ventes',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -95,7 +96,8 @@ Ext.define('testextjs.view.configmanagement.client.action.venteClient', {
             model: 'testextjs.model.CompteClientTierspayant',
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/client/ws_clientTierspayant.jsp?lg_COMPTE_CLIENT_ID=' + this.getOdatasource().lg_COMPTE_CLIENT_ID,
+                // REST : memes cles et meme reponse {total, data} que la JSP historique ws_clientTierspayant.jsp
+                url: '../api/v1/client/gestion/tiers-payants-liste?lg_COMPTE_CLIENT_ID=' + this.getOdatasource().lg_COMPTE_CLIENT_ID,
                 reader: {
                     type: 'json',
                     root: 'data',

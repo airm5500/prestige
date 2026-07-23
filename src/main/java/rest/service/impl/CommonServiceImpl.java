@@ -896,4 +896,155 @@ public class CommonServiceImpl implements Serializable, CommonService {
         }
     }
 
+    @Override
+    public JSONObject loadVilles(String query, int start, int limit) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        try {
+            String where = " FROM TVille t WHERE t.strStatut = 'enable'";
+            if (!StringUtils.isEmpty(query)) {
+                where += " AND t.strName LIKE :query";
+            }
+            javax.persistence.TypedQuery<Long> qc = getEntityManager().createQuery("SELECT COUNT(t)" + where,
+                    Long.class);
+            javax.persistence.TypedQuery<dal.TVille> q = getEntityManager()
+                    .createQuery("SELECT t" + where + " ORDER BY t.strName ASC", dal.TVille.class);
+            if (!StringUtils.isEmpty(query)) {
+                qc.setParameter("query", query + "%");
+                q.setParameter("query", query + "%");
+            }
+            long total = qc.getSingleResult();
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+            }
+            for (dal.TVille t : q.getResultList()) {
+                results.put(new JSONObject().put("lg_VILLE_ID", t.getLgVILLEID())
+                        .put("STR_NAME", t.getStrName() != null ? t.getStrName() : "")
+                        .put("str_CODE", t.getStrCODE() != null ? t.getStrCODE() : "")
+                        .put("STR_CODE_POSTAL", t.getStrCodePostal() != null ? t.getStrCodePostal() : "")
+                        .put("STR_BUREAU_DISTRIBUTEUR",
+                                t.getStrBureauDistributeur() != null ? t.getStrBureauDistributeur() : "")
+                        .put("str_STATUT", t.getStrStatut()));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadVilles", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
+    @Override
+    public JSONObject loadTypesClient(String type, String query, int start, int limit) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        try {
+            String where = " FROM TTypeClient t WHERE t.strSTATUT = 'enable'";
+            if (!StringUtils.isEmpty(type)) {
+                where += " AND t.strTYPE = :type";
+            }
+            if (!StringUtils.isEmpty(query)) {
+                where += " AND t.strNAME LIKE :query";
+            }
+            javax.persistence.TypedQuery<Long> qc = getEntityManager().createQuery("SELECT COUNT(t)" + where,
+                    Long.class);
+            javax.persistence.TypedQuery<dal.TTypeClient> q = getEntityManager()
+                    .createQuery("SELECT t" + where + " ORDER BY t.strNAME ASC", dal.TTypeClient.class);
+            if (!StringUtils.isEmpty(type)) {
+                qc.setParameter("type", type);
+                q.setParameter("type", type);
+            }
+            if (!StringUtils.isEmpty(query)) {
+                qc.setParameter("query", query + "%");
+                q.setParameter("query", query + "%");
+            }
+            long total = qc.getSingleResult();
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+            }
+            for (dal.TTypeClient t : q.getResultList()) {
+                results.put(new JSONObject().put("lg_TYPE_CLIENT_ID", t.getLgTYPECLIENTID())
+                        .put("str_NAME", t.getStrNAME() != null ? t.getStrNAME() : "")
+                        .put("str_DESCRIPTION", t.getStrDESCRIPTION() != null ? t.getStrDESCRIPTION() : "")
+                        .put("str_STATUT", t.getStrSTATUT()));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadTypesClient", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
+    @Override
+    public JSONObject loadCategoriesAyantDroit(String query, int start, int limit) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        try {
+            String where = " FROM TCategorieAyantdroit t WHERE t.strSTATUT = 'enable'";
+            if (!StringUtils.isEmpty(query)) {
+                where += " AND t.strLIBELLECATEGORIEAYANTDROIT LIKE :query";
+            }
+            javax.persistence.TypedQuery<Long> qc = getEntityManager().createQuery("SELECT COUNT(t)" + where,
+                    Long.class);
+            javax.persistence.TypedQuery<dal.TCategorieAyantdroit> q = getEntityManager().createQuery(
+                    "SELECT t" + where + " ORDER BY t.strLIBELLECATEGORIEAYANTDROIT ASC",
+                    dal.TCategorieAyantdroit.class);
+            if (!StringUtils.isEmpty(query)) {
+                qc.setParameter("query", query + "%");
+                q.setParameter("query", query + "%");
+            }
+            long total = qc.getSingleResult();
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+            }
+            for (dal.TCategorieAyantdroit t : q.getResultList()) {
+                results.put(
+                        new JSONObject().put("lg_CATEGORIE_AYANTDROIT_ID", t.getLgCATEGORIEAYANTDROITID())
+                                .put("str_CODE", t.getStrCODE() != null ? t.getStrCODE() : "")
+                                .put("str_LIBELLE_CATEGORIE_AYANTDROIT",
+                                        t.getStrLIBELLECATEGORIEAYANTDROIT() != null
+                                                ? t.getStrLIBELLECATEGORIEAYANTDROIT() : "")
+                                .put("str_STATUT", t.getStrSTATUT()));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadCategoriesAyantDroit", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
+    @Override
+    public JSONObject loadRisques(String query, int start, int limit) {
+        JSONObject json = new JSONObject();
+        org.json.JSONArray results = new org.json.JSONArray();
+        try {
+            String where = " FROM TRisque t WHERE t.strSTATUT = 'enable'";
+            if (!StringUtils.isEmpty(query)) {
+                where += " AND (t.strLIBELLERISQUE LIKE :query OR t.strCODERISQUE LIKE :query)";
+            }
+            javax.persistence.TypedQuery<Long> qc = getEntityManager().createQuery("SELECT COUNT(t)" + where,
+                    Long.class);
+            javax.persistence.TypedQuery<dal.TRisque> q = getEntityManager()
+                    .createQuery("SELECT t" + where + " ORDER BY t.strLIBELLERISQUE ASC", dal.TRisque.class);
+            if (!StringUtils.isEmpty(query)) {
+                qc.setParameter("query", query + "%");
+                q.setParameter("query", query + "%");
+            }
+            long total = qc.getSingleResult();
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+            }
+            for (dal.TRisque t : q.getResultList()) {
+                results.put(new JSONObject().put("lg_RISQUE_ID", t.getLgRISQUEID())
+                        .put("str_CODE_RISQUE", t.getStrCODERISQUE() != null ? t.getStrCODERISQUE() : "")
+                        .put("str_LIBELLE_RISQUE", t.getStrLIBELLERISQUE() != null ? t.getStrLIBELLERISQUE() : "")
+                        .put("str_RISQUE_OFFICIEL", t.getStrRISQUEOFFICIEL() != null ? t.getStrRISQUEOFFICIEL() : "")
+                        .put("str_STATUT", t.getStrSTATUT()));
+            }
+            return json.put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "loadRisques", e);
+            return json.put("total", 0).put("results", results);
+        }
+    }
+
 }
