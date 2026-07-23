@@ -298,4 +298,68 @@ public class UtilisateurAdminServiceImpl implements UtilisateurAdminService {
                     "Impossible de réinitialiser le mot de passe de l'utilisateur sélectionné");
         }
     }
+
+    /** Tables et colonnes referencant la table donnee par cle etrangere (schema courant). */
+    @SuppressWarnings("unchecked")
+    private List<Object[]> referencesVers(String tableReferencee) {
+        return em
+                .createNativeQuery("SELECT kcu.TABLE_NAME, kcu.COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE kcu"
+                        + " WHERE kcu.REFERENCED_TABLE_SCHEMA = DATABASE() AND kcu.REFERENCED_TABLE_NAME = ?1")
+                .setParameter(1, tableReferencee).getResultList();
+    }
+
+    /** Libelle parlant des tables d'activite les plus courantes pour le message d'erreur. */
+    private String libelleActivite(String table) {
+        switch (table.toLowerCase()) {
+        case "t_caisse":
+            return "opérations de caisse";
+        case "t_preenregistrement":
+            return "ventes";
+        case "t_order":
+            return "commandes";
+        case "t_user_phone":
+            return "téléphones d'alerte";
+        default:
+            return "données liées : " + table;
+        }
+    }
+
+    @Override
+    public JSONObject deleteUser(TUser connecte, String userId) {
+        JSONObject json = new JSONObject();
+        try {
+            TUser user = em.find(TUser.class, userId);
+            if (user == null) {
+                return json.put("success", FAILED).put("errors", "Utilisateur introuvable");
+            }
+            if (connecte != null && connecte.getLgUSERID().equals(userId)) {
+                return json.put("success", FAILED).put("errors", "Impossible de supprimer un utilisateur connecté");
+            }
+            // Verification generique de toute l'activite liee AVANT suppression : le flux historique laissait
+            // l'erreur de cle etrangere se produire (t_caisse, etc.) puis affichait un message generique.
+            for (Object[] ref : referencesVers("t_user")) {
+                String table = String.valueOf(ref[0]);
+                String colonne = String.valueOf(ref[1]);
+                if ("t_role_user".equalsIgnoreCase(table)) {
+                    continue; // lien profil purge ci-dessous
+                }
+                long nb = ((Number) em
+                        .createNativeQuery("SELECT COUNT(*) FROM " + table + " WHERE " + colonne + " = ?1")
+                        .setParameter(1, userId).getSingleResult()).longValue();
+                if (nb > 0) {
+                    return json.put("success", FAILED).put("errors",
+                            "Impossible de supprimer cet utilisateur : il a déjà une activité dans l'application (" + nb
+                                    + " enregistrement(s) - " + libelleActivite(table) + ")");
+                }
+            }
+            em.createNativeQuery("DELETE FROM t_role_user WHERE lg_USER_ID = ?1").setParameter(1, userId)
+                    .executeUpdate();
+            em.remove(user);
+            em.flush();
+            return json.put("success", SUCCESS).put("errors", "Utilisateur supprimé avec succès");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "deleteUser", e);
+            return json.put("success", FAILED).put("errors", "Impossible de supprimer cet utilisateur");
+        }
+    }
 }

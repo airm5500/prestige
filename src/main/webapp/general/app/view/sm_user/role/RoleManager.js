@@ -126,7 +126,7 @@ Ext.define('testextjs.view.sm_user.role.RoleManager', {
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/delete.gif',
-                            tooltip: 'Supprimer des privileges a dans ce role',
+                            tooltip: 'Supprimer ce profil',
                             scope: this,
                             handler: this.onRemoveClick
                         }]
@@ -278,7 +278,10 @@ Ext.define('testextjs.view.sm_user.role.RoleManager', {
                     if (btn == 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_role + 'delete',
+                            // REST : purge les privileges du profil avant suppression et renvoie
+                            // un message clair si le profil est encore attribue a des utilisateurs
+                            url: url_services_rest_role + 'delete',
+                            method: 'POST',
                             params: {
                                 lg_ROLE_ID: rec.get('lg_ROLE_ID')
                             },

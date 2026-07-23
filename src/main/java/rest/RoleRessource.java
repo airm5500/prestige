@@ -86,6 +86,17 @@ public class RoleRessource {
         return Response.ok().entity(roleService.duplicateRole(user, roleId, name, designation).toString()).build();
     }
 
+    @POST
+    @Path("delete")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response delete(@FormParam("lg_ROLE_ID") String roleId) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(roleService.deleteRole(user, roleId).toString()).build();
+    }
+
     @GET
     @Path("privileges")
     public Response privileges(@QueryParam("lg_ROLE_ID") String roleId, @QueryParam("search_value") String searchValue,

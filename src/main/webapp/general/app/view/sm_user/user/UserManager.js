@@ -335,7 +335,10 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_utilisateur + 'delete',
+                            // REST : verifie l'activite liee (caisse, ventes...) et renvoie un
+                            // message clair au lieu de l'erreur de cle etrangere du flux historique
+                            url: url_services_rest_utilisateur + 'delete',
+                            method: 'POST',
                             params: {
                                 lg_USER_ID: rec.get('lg_USER_ID')
                             },

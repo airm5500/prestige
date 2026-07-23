@@ -24,4 +24,10 @@ public interface UtilisateurAdminService {
 
     /** Reinitialisation du mot de passe d'un utilisateur (hachage MD5 identique a l'existant). */
     JSONObject updatePassword(String userId, String password);
+
+    /**
+     * Suppression d'un utilisateur sans activite. Refus explicite (message clair) si l'utilisateur est connecte ou s'il
+     * est deja lie a des operations (caisse, ventes...), au lieu de l'erreur de cle etrangere du flux historique.
+     */
+    JSONObject deleteUser(TUser connecte, String userId);
 }

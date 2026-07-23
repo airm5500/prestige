@@ -24,6 +24,12 @@ public interface RoleService {
     JSONObject duplicateRole(TUser user, String roleId, String name, String designation);
 
     /**
+     * Suppression d'un profil : purge de ses liens privileges puis du profil. Refus explicite (message clair) si le
+     * profil est un profil systeme, s'il est attribue a des utilisateurs ou s'il est reference ailleurs.
+     */
+    JSONObject deleteRole(TUser user, String roleId);
+
+    /**
      * Privileges attribuables a un profil (catalogue scope selon le role de l'utilisateur connecte), pagines, avec
      * l'etat is_select calcule en une seule requete.
      */

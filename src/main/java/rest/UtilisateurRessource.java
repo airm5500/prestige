@@ -89,6 +89,17 @@ public class UtilisateurRessource {
     }
 
     @POST
+    @Path("delete")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response delete(@FormParam("lg_USER_ID") String userId) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(utilisateurAdminService.deleteUser(user, userId).toString()).build();
+    }
+
+    @POST
     @Path("update-password")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response updatePassword(@FormParam("lg_USER_ID") String userId, @FormParam("str_PASSWORD") String password) {

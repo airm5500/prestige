@@ -181,6 +181,65 @@ public class RoleServiceImpl implements RoleService {
         }
     }
 
+    /** Tables et colonnes referencant la table donnee par cle etrangere (schema courant). */
+    @SuppressWarnings("unchecked")
+    private List<Object[]> referencesVers(String tableReferencee) {
+        return em
+                .createNativeQuery("SELECT kcu.TABLE_NAME, kcu.COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE kcu"
+                        + " WHERE kcu.REFERENCED_TABLE_SCHEMA = DATABASE() AND kcu.REFERENCED_TABLE_NAME = ?1")
+                .setParameter(1, tableReferencee).getResultList();
+    }
+
+    @Override
+    public JSONObject deleteRole(TUser user, String roleId) {
+        JSONObject json = new JSONObject();
+        try {
+            TRole role = em.find(TRole.class, roleId);
+            if (role == null) {
+                return json.put("success", FAILED).put("errors", "Profil introuvable");
+            }
+            String nom = StringUtils.defaultString(role.getStrNAME());
+            String designation = StringUtils.defaultString(role.getStrDESIGNATION());
+            if (bll.userManagement.user.isAdminRole(nom) || bll.userManagement.user.isSuperAdminRole(nom)
+                    || bll.userManagement.user.isAdminRole(designation)
+                    || bll.userManagement.user.isSuperAdminRole(designation)
+                    || commonparameter.ROLE_PHARMACIEN.equalsIgnoreCase(nom)) {
+                return json.put("success", FAILED).put("errors", "Ce profil système ne peut pas être supprimé");
+            }
+            long nbUtilisateurs = ((Number) em
+                    .createNativeQuery("SELECT COUNT(*) FROM t_role_user WHERE lg_ROLE_ID = ?1").setParameter(1, roleId)
+                    .getSingleResult()).longValue();
+            if (nbUtilisateurs > 0) {
+                return json.put("success", FAILED).put("errors", "Ce profil est attribué à " + nbUtilisateurs
+                        + " utilisateur(s) : retirez-le d'abord de ces utilisateurs");
+            }
+            // Verification generique des autres references (evite l'erreur de cle etrangere du flux historique)
+            for (Object[] ref : referencesVers("t_role")) {
+                String table = String.valueOf(ref[0]);
+                String colonne = String.valueOf(ref[1]);
+                if ("t_role_privelege".equalsIgnoreCase(table) || "t_role_user".equalsIgnoreCase(table)) {
+                    continue;
+                }
+                long nb = ((Number) em
+                        .createNativeQuery("SELECT COUNT(*) FROM " + table + " WHERE " + colonne + " = ?1")
+                        .setParameter(1, roleId).getSingleResult()).longValue();
+                if (nb > 0) {
+                    return json.put("success", FAILED).put("errors",
+                            "Ce profil est encore utilisé (données liées : " + table + ") : suppression impossible");
+                }
+            }
+            // Purge des liens privileges du profil puis du profil lui-meme
+            em.createNativeQuery("DELETE FROM t_role_privelege WHERE lg_ROLE_ID = ?1").setParameter(1, roleId)
+                    .executeUpdate();
+            em.remove(role);
+            em.flush();
+            return json.put("success", SUCCESS).put("errors", "Profil supprimé avec succès");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "deleteRole", e);
+            return json.put("success", FAILED).put("errors", "Echec de suppression de ce profil");
+        }
+    }
+
     /**
      * Clause du catalogue de privileges visibles par l'utilisateur connecte (memes regles que
      * privilege.getListePrivilege : superadmin = tout ; admin/pharmacien = CUSTOMER+ADMIN ; autres = CUSTOMER).
