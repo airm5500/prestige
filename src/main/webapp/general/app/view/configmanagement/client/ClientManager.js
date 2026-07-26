@@ -40,6 +40,13 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
     frame: true,
     initComponent: function () {
 
+        // Info-bulles de la grille (apercu des organismes du client au survol)
+        try {
+            if (Ext.tip && Ext.tip.QuickTipManager && !Ext.tip.QuickTipManager.tip) {
+                Ext.tip.QuickTipManager.init();
+            }
+        } catch (e) {
+        }
         Me_Workflow = this;
         lg_TYPE_CLIENT_ID = "";
         var itemsPerPage = 20;
@@ -126,16 +133,26 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     flex: 1.6,
                     renderer: function (val, metadata, record) {
                         // Tiers payant principal du client : en gras et en bleu. Quand le client a
-                        // plusieurs assurances, le nombre de complementaires est indique : "ASCOMA +3"
+                        // plusieurs assurances actives, le nombre de complementaires est indique en
+                        // vert gras ("ASCOMA +3") et le survol liste les organismes concernes.
                         if (!val) {
                             return '';
                         }
                         var total = record ? (record.get('int_NOMBRE_TIERS_PAYANT') || 0) : 0;
-                        var complement = total > 1
-                                ? " <span style='color: #6A1B9A;'>+" + (total - 1) + "</span>" : "";
-                        if (metadata) {
-                            metadata.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(val)
-                                    + (total > 1 ? ' (+' + (total - 1) + ' autre(s) organisme(s))' : '') + '"';
+                        var complement = '';
+                        if (total > 1) {
+                            complement = " <span style='font-weight: bold; color: #1B9E3E;'>+"
+                                    + (total - 1) + "</span>";
+                            if (metadata) {
+                                // Apercu des organismes du client (liste deja fournie par le serveur,
+                                // aucun appel supplementaire)
+                                var liste = record.get('str_LISTE_TIERS_PAYANT') || val;
+                                var lignes = Ext.Array.map(liste.split('|'), function (nom, i) {
+                                    return (i + 1) + '. ' + Ext.String.htmlEncode(nom);
+                                }).join('<br>');
+                                metadata.tdAttr = 'data-qtip="<b>' + total
+                                        + ' organismes actifs</b><br>' + lignes + '"';
+                            }
                         }
                         return "<span style='font-weight: bold; color: #1565C0;'>" + val + "</span>" + complement;
                     }

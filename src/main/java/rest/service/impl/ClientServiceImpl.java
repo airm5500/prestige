@@ -1686,7 +1686,7 @@ public class ClientServiceImpl implements ClientService {
             Map<String, Long> differeParCompte = new HashMap<>();
             Map<String, Long> encoursTpParCompte = new HashMap<>();
             Map<String, TCompteClientTiersPayant> tpPrincipalParCompte = new HashMap<>();
-            Map<String, Integer> nombreTpParCompte = new HashMap<>();
+            Map<String, List<String>> tiersPayantsParCompte = new HashMap<>();
             Map<String, TAyantDroit> ayantDroitParClient = new HashMap<>();
             if (!clientIds.isEmpty()) {
                 for (TCompteClient compte : em
@@ -1726,15 +1726,18 @@ public class ClientServiceImpl implements ClientService {
                             TCompteClientTiersPayant.class).setParameter(1, compteIds).getResultList()) {
                         tpPrincipalParCompte.putIfAbsent(tp.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID(), tp);
                     }
-                    // Nombre total de tiers payants par client : permet d'afficher "ORGANISME +N"
-                    // quand le client a plusieurs assurances (principale + complementaires)
+                    // Tiers payants ACTIFS de chaque client (une seule requete de champs simples pour
+                    // toute la page) : sert a afficher "ORGANISME +N" et, au survol, la liste des
+                    // organismes concernes. Aucun cout par ligne.
                     for (Object[] r : (List<Object[]>) em
-                            .createQuery("SELECT o.lgCOMPTECLIENTID.lgCOMPTECLIENTID, COUNT(o)"
-                                    + " FROM TCompteClientTiersPayant o"
-                                    + " WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID IN ?1"
-                                    + " GROUP BY o.lgCOMPTECLIENTID.lgCOMPTECLIENTID")
-                            .setParameter(1, compteIds).getResultList()) {
-                        nombreTpParCompte.put(String.valueOf(r[0]), r[1] != null ? ((Number) r[1]).intValue() : 0);
+                            .createQuery("SELECT o.lgCOMPTECLIENTID.lgCOMPTECLIENTID,"
+                                    + " o.lgTIERSPAYANTID.strFULLNAME FROM TCompteClientTiersPayant o"
+                                    + " WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID IN ?1 AND o.strSTATUT = ?2"
+                                    + " ORDER BY o.lgCOMPTECLIENTID.lgCOMPTECLIENTID, o.intPRIORITY ASC")
+                            .setParameter(1, compteIds).setParameter(2, commonparameter.statut_enable)
+                            .getResultList()) {
+                        tiersPayantsParCompte.computeIfAbsent(String.valueOf(r[0]), k -> new ArrayList<>())
+                                .add(r[1] != null ? String.valueOf(r[1]) : "");
                     }
                 }
                 for (TAyantDroit ad : em
@@ -1768,7 +1771,13 @@ public class ClientServiceImpl implements ClientService {
                     row.put("remiseId", c.getRemise().getLgREMISEID());
                 }
 
-                row.put("int_NOMBRE_TIERS_PAYANT", nombreTpParCompte.getOrDefault(compteId, 0));
+                List<String> tiersPayantsActifs = tiersPayantsParCompte.get(compteId);
+                int nombreTiersPayants = tiersPayantsActifs != null ? tiersPayantsActifs.size() : 0;
+                row.put("int_NOMBRE_TIERS_PAYANT", nombreTiersPayants);
+                // Liste transmise uniquement quand il y a plusieurs organismes actifs (apercu au survol)
+                if (nombreTiersPayants > 1) {
+                    row.put("str_LISTE_TIERS_PAYANT", String.join("|", tiersPayantsActifs));
+                }
                 TCompteClientTiersPayant tp = tpPrincipalParCompte.get(compteId);
                 if (tp != null) {
                     row.put("lg_TYPE_TIERS_PAYANT_ID",
