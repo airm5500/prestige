@@ -287,12 +287,13 @@ public class Dashboard extends bll.bllBase {
 
         JSONArray array = new JSONArray();
         String query = "SELECT COUNT(b.`lg_BON_LIVRAISON_ID`),"
-                + "SUM(CASE WHEN g.`str_LIBELLE` LIKE 'UBI%' THEN b.`int_MHT` ELSE 0 END),"
+                + "SUM(CASE WHEN g.`str_LIBELLE` LIKE 'UBI%' OR g.`str_LIBELLE` LIKE 'LABOR%' THEN b.`int_MHT` ELSE 0 END),"
                 + "SUM(CASE WHEN g.`str_LIBELLE` LIKE 'DPCI%' THEN b.`int_MHT` ELSE 0 END),"
                 + "SUM(CASE WHEN g.`str_LIBELLE` LIKE 'COPHARMED%' THEN b.`int_MHT` ELSE 0 END),"
                 + "SUM(CASE WHEN g.`str_LIBELLE` LIKE 'TEDIS PHARMA%' THEN b.`int_MHT` ELSE 0 END),"
                 + "SUM(CASE WHEN g.`str_LIBELLE` NOT LIKE 'TEDIS PHARMA%' AND g.`str_LIBELLE` NOT LIKE 'COPHARMED%' "
-                + "AND g.`str_LIBELLE` NOT LIKE 'DPCI%' AND g.`str_LIBELLE` NOT LIKE 'UBI%' THEN b.`int_MHT` ELSE 0 END) "
+                + "AND g.`str_LIBELLE` NOT LIKE 'DPCI%' AND g.`str_LIBELLE` NOT LIKE 'UBI%' "
+                + "AND g.`str_LIBELLE` NOT LIKE 'LABOR%' THEN b.`int_MHT` ELSE 0 END) "
                 + "FROM t_bon_livraison b,t_order o,t_grossiste g WHERE o.`lg_ORDER_ID`=b.`lg_ORDER_ID` "
                 + "AND o.`lg_GROSSISTE_ID`=g.`lg_GROSSISTE_ID` AND b.`str_STATUT`='is_Closed' "
                 + "AND b.`dt_UPDATED` >= ?1 AND b.`dt_UPDATED` <= ?2";

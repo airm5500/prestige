@@ -15,6 +15,9 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import rest.service.SupportEventService;
 import rest.service.SupportMaintenanceService;
+import static rest.service.SupportMaintenanceService.ACTION_COMMANDES_EN_COURS;
+import static rest.service.SupportMaintenanceService.ACTION_ETIQUETTES;
+import static rest.service.SupportMaintenanceService.ACTION_SUGGESTIONS;
 
 /**
  * Vidages de maintenance : suppressions en SQL natif, details supprimes AVANT les entetes pour respecter les liens
