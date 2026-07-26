@@ -578,9 +578,16 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
     onDesableClick: function (grid, rowIndex) {
 
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                "Voulez-vous d&eacute;sactiver le tiers payant " + "<br><b>" + rec.get('str_FULLNAME') + "</b>",
-                function (btn) {
+        // Boite large : avec la largeur par defaut, les libelles longs debordaient et la derniere
+        // ligne du message etait coupee
+        Ext.MessageBox.show({
+            title: 'Message',
+            msg: "Voulez-vous d&eacute;sactiver le tiers payant " + "<br><b>" + rec.get('str_FULLNAME') + "</b>",
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.QUESTION,
+            minWidth: 460,
+            maxWidth: 640,
+            fn: function (btn) {
                     if (btn === 'yes') {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -621,7 +628,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                         });
                         return;
                     }
-                });
+                }
+        });
 
 
     },

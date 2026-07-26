@@ -133,6 +133,11 @@ Ext.define('testextjs.model.Client', {
             type: 'string'
         },
         {
+            // Nombre total de tiers payants du client (principal + complementaires)
+            name: 'int_NOMBRE_TIERS_PAYANT',
+            type: 'int'
+        },
+        {
             name: 'int_POURCENTAGE',
             type: 'int'
         },

@@ -1686,6 +1686,7 @@ public class ClientServiceImpl implements ClientService {
             Map<String, Long> differeParCompte = new HashMap<>();
             Map<String, Long> encoursTpParCompte = new HashMap<>();
             Map<String, TCompteClientTiersPayant> tpPrincipalParCompte = new HashMap<>();
+            Map<String, Integer> nombreTpParCompte = new HashMap<>();
             Map<String, TAyantDroit> ayantDroitParClient = new HashMap<>();
             if (!clientIds.isEmpty()) {
                 for (TCompteClient compte : em
@@ -1725,6 +1726,16 @@ public class ClientServiceImpl implements ClientService {
                             TCompteClientTiersPayant.class).setParameter(1, compteIds).getResultList()) {
                         tpPrincipalParCompte.putIfAbsent(tp.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID(), tp);
                     }
+                    // Nombre total de tiers payants par client : permet d'afficher "ORGANISME +N"
+                    // quand le client a plusieurs assurances (principale + complementaires)
+                    for (Object[] r : (List<Object[]>) em
+                            .createQuery("SELECT o.lgCOMPTECLIENTID.lgCOMPTECLIENTID, COUNT(o)"
+                                    + " FROM TCompteClientTiersPayant o"
+                                    + " WHERE o.lgCOMPTECLIENTID.lgCOMPTECLIENTID IN ?1"
+                                    + " GROUP BY o.lgCOMPTECLIENTID.lgCOMPTECLIENTID")
+                            .setParameter(1, compteIds).getResultList()) {
+                        nombreTpParCompte.put(String.valueOf(r[0]), r[1] != null ? ((Number) r[1]).intValue() : 0);
+                    }
                 }
                 for (TAyantDroit ad : em
                         .createQuery("SELECT o FROM TAyantDroit o WHERE o.lgCLIENTID.lgCLIENTID IN ?1"
@@ -1757,6 +1768,7 @@ public class ClientServiceImpl implements ClientService {
                     row.put("remiseId", c.getRemise().getLgREMISEID());
                 }
 
+                row.put("int_NOMBRE_TIERS_PAYANT", nombreTpParCompte.getOrDefault(compteId, 0));
                 TCompteClientTiersPayant tp = tpPrincipalParCompte.get(compteId);
                 if (tp != null) {
                     row.put("lg_TYPE_TIERS_PAYANT_ID",

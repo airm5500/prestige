@@ -111,21 +111,33 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                 }, {
                     header: 'Prenoms',
                     dataIndex: 'str_LAST_NAME',
-                    flex: 1
+                    flex: 1.3
                 }, {
                     header: 'Type.Client',
                     dataIndex: 'lg_TYPE_CLIENT_ID',
-                    flex: 0.7
+                    flex: 0.45
+                }, {
+                    header: 'Securite Sociale',
+                    dataIndex: 'str_NUMERO_SECURITE_SOCIAL',
+                    flex: 0.8
                 }, {
                     header: 'Organisme',
                     dataIndex: 'lg_TIERS_PAYANT_ID',
-                    flex: 1,
-                    renderer: function (val) {
-                        // Tiers payant principal du client : en gras et en bleu
+                    flex: 1.6,
+                    renderer: function (val, metadata, record) {
+                        // Tiers payant principal du client : en gras et en bleu. Quand le client a
+                        // plusieurs assurances, le nombre de complementaires est indique : "ASCOMA +3"
                         if (!val) {
                             return '';
                         }
-                        return "<span style='font-weight: bold; color: #1565C0;'>" + val + "</span>";
+                        var total = record ? (record.get('int_NOMBRE_TIERS_PAYANT') || 0) : 0;
+                        var complement = total > 1
+                                ? " <span style='color: #6A1B9A;'>+" + (total - 1) + "</span>" : "";
+                        if (metadata) {
+                            metadata.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(val)
+                                    + (total > 1 ? ' (+' + (total - 1) + ' autre(s) organisme(s))' : '') + '"';
+                        }
+                        return "<span style='font-weight: bold; color: #1565C0;'>" + val + "</span>" + complement;
                     }
                 }, {
                     header: 'Encours',
@@ -153,11 +165,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     header: 'Genre',
                     dataIndex: 'str_SEXE',
                     align: 'center',
+                    hidden: true, // colonne retiree pour elargir l'organisme
                     flex: 0.4
-                }, {
-                    header: 'Securite Sociale',
-                    dataIndex: 'str_NUMERO_SECURITE_SOCIAL',
-                    flex: 0.8
                 }, {
                     header: 'Adresse',
                     dataIndex: 'str_ADRESSE',
@@ -602,10 +611,17 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
         var enDesactives = Ext.getCmp('BT_CLIENT_VOIR_DESACTIVES')
                 && Ext.getCmp('BT_CLIENT_VOIR_DESACTIVES').pressed;
         var actif = enDesactives ? true : false;
-        Ext.MessageBox.confirm('Message',
-                "Voulez-vous " + (actif ? "r&eacute;activer" : "d&eacute;sactiver") + " le client "
-                + "<br><b>" + rec.get('str_FIRST_LAST_NAME') + "</b>",
-                function (btn) {
+        // Boite large : avec la largeur par defaut, les noms longs debordaient et la derniere
+        // ligne du message etait coupee
+        Ext.MessageBox.show({
+            title: 'Message',
+            msg: "Voulez-vous " + (actif ? "r&eacute;activer" : "d&eacute;sactiver") + " le client "
+                    + "<br><b>" + rec.get('str_FIRST_LAST_NAME') + "</b>",
+            buttons: Ext.MessageBox.YESNO,
+            icon: Ext.MessageBox.QUESTION,
+            minWidth: 460,
+            maxWidth: 640,
+            fn: function (btn) {
                     if (btn === 'yes') {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -646,7 +662,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                         });
                         return;
                     }
-                });
+                }
+        });
 
 
     },
