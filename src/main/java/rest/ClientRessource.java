@@ -553,6 +553,36 @@ public class ClientRessource {
     }
 
     /**
+     * Suppression d'un client : MEME methode metier bll.clientManagement.delete que la JSP historique
+     * (client/ws_transaction.jsp mode=delete), memes refus (client ayant deja realise des actions). Contrairement a la
+     * JSP, aucune recherche de tiers payant associe n'est faite apres coup : cet epilogue provoquait une
+     * NoResultException et le message trompeur "Le tiers payant n'est pas associe au client en cours" alors que la
+     * suppression avait reussi.
+     */
+    @POST
+    @Path("gestion/delete")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response supprimerGestion(@FormParam("lg_CLIENT_ID") String clientId) {
+        TUser sessionUser = utilisateurSession();
+        if (sessionUser == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            clientManagement ocm = new clientManagement(odm, user);
+            ocm.delete(org.apache.commons.lang3.StringUtils.defaultString(clientId));
+            return reponseTransaction(ocm.getMessage(), ocm.getDetailmessage());
+        } catch (Exception e) {
+            LOG_GESTION.log(java.util.logging.Level.SEVERE, "deleteClient", e);
+            return reponseTransaction(commonparameter.PROCESS_FAILED, "Impossible de supprimer ce client");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
      * Tiers payants d'un client (vue Gestion des tiers payants du client) : memes cles JSON et memes regles que la JSP
      * historique webservices/configmanagement/compteclienttierspayant/ws_data.jsp, y compris le privilege BTNDELETE —
      * mais avec une garde : la JSP plantait en NullPointerException quand le privilege ne pouvait pas etre evalue.

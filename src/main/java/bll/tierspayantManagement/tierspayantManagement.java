@@ -1766,11 +1766,20 @@ public class tierspayantManagement extends bllBase {
         TCompteClientTiersPayant OTCompteClientTiersPayant = null;
 
         try {
-
-            OTCompteClientTiersPayant = (TCompteClientTiersPayant) this.getOdataManager().getEm().createQuery(
-                    "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?2 AND (t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?3 OR t.lgTIERSPAYANTID.strFULLNAME LIKE ?3 OR t.lgTIERSPAYANTID.strNAME LIKE ?3) AND t.strSTATUT = ?4")
-                    .setParameter(2, lg_COMPTE_CLIENT_ID).setParameter(3, lg_TIERS_PAYANT_ID)
-                    .setParameter(4, commonparameter.statut_enable).getSingleResult();
+            // getResultList (et non getSingleResult) : l'absence d'association est un cas NORMAL
+            // (client sans tiers payant, client venant d'etre supprime...). L'ancienne version
+            // levait une NoResultException tracee en FATAL avec le message trompeur ci-dessous,
+            // alors que l'operation appelante s'etait bien deroulee.
+            List<TCompteClientTiersPayant> trouves = this.getOdataManager().getEm().createQuery(
+                    "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID LIKE ?2 AND (t.lgTIERSPAYANTID.lgTIERSPAYANTID LIKE ?3 OR t.lgTIERSPAYANTID.strFULLNAME LIKE ?3 OR t.lgTIERSPAYANTID.strNAME LIKE ?3) AND t.strSTATUT = ?4",
+                    TCompteClientTiersPayant.class).setParameter(2, lg_COMPTE_CLIENT_ID)
+                    .setParameter(3, lg_TIERS_PAYANT_ID).setParameter(4, commonparameter.statut_enable).setMaxResults(1)
+                    .getResultList();
+            if (trouves.isEmpty()) {
+                this.buildErrorTraceMessage("Le tiers payant n'est pas associé au client en cours");
+                return null;
+            }
+            OTCompteClientTiersPayant = trouves.get(0);
 
         } catch (Exception e) {
             e.printStackTrace();

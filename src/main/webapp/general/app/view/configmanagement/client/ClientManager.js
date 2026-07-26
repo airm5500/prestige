@@ -517,7 +517,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_client + 'delete',
+                            url: url_services_rest_clients + 'delete',
+                            method: 'POST',
                             params: {
                                 lg_CLIENT_ID: rec.get('lg_CLIENT_ID')
                             },

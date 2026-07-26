@@ -984,7 +984,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                 //alert("CREATION DE TP OK");
 
             } else {
-                internal_url = url_services_transaction_tierspayant + 'update&lg_TIERS_PAYANT_ID=' + ref;
+                // Modification en REST (memes regles metier que la JSP) ; l'identifiant est
+                // transmis en parametre de formulaire et non plus dans l'URL
+                internal_url = '../api/v1/tierspayant/gestion/update';
             }
             var lg_GROUPE_ID = Ext.getCmp('lg_GROUPE_ID').getValue();
 
@@ -996,7 +998,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             testextjs.app.getController('App').ShowWaitingProcess();
             Ext.Ajax.request({
                 url: internal_url,
+                method: 'POST',
                 params: {
+                    lg_TIERS_PAYANT_ID: (Omode === "create" ? '' : ref),
                     str_CODE_ORGANISME: Ext.getCmp('str_CODE_ORGANISME').getValue(),
                     str_NAME: Ext.getCmp('str_NAME_ADD').getValue(),
                     str_FULLNAME: Ext.getCmp('str_FULLNAME').getValue(),

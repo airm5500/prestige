@@ -45,7 +45,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
             pageSize: 10,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/tierspayantmanagement/tierspayant/ws_client.jsp?lg_TIERS_PAYANT_ID=' + this.getOdatasource().lg_TIERS_PAYANT_ID,
+                // REST : memes cles et meme reponse {total, data} que la JSP historique ws_client.jsp
+                url: '../api/v1/tierspayant/gestion/clients?lg_TIERS_PAYANT_ID=' + this.getOdatasource().lg_TIERS_PAYANT_ID,
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -60,7 +61,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.detailstiers
             model: 'testextjs.model.TierspayantAccount',
             proxy: {
                 type: 'ajax',
-                url: '../webservices/tierspayantmanagement/tierspayant/ws_tierspayantaccount.jsp',
+                // REST : memes cles et meme reponse {total, data} que la JSP ws_tierspayantaccount.jsp
+                url: '../api/v1/tierspayant/gestion/compte',
                 reader: {
                     type: 'json',
                     root: 'data',

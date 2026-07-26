@@ -2,6 +2,8 @@
 
 
 var url_services_transaction_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
+// REST dedie a cet ecran (memes methodes metier et memes messages que la JSP ci-dessus)
+var url_rest_tierspayant = '../api/v1/tierspayant/gestion/';
 var url_services_data_ville = '../webservices/configmanagement/ville/ws_data.jsp';
 var url_services_data_typetierspayant = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
 var url_services_data_typecontrat = '../webservices/configmanagement/typecontrat/ws_data.jsp';
@@ -392,7 +394,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                 this.on('edit', function (editor, e) {
 
                     Ext.Ajax.request({
-                        url: url_services_transaction_tierspayant + 'update',
+                        url: url_rest_tierspayant + 'update',
+                        method: 'POST',
                         params: {
                             lg_TIERS_PAYANT_ID: e.record.data.lg_TIERS_PAYANT_ID,
                             str_CODE_ORGANISME: e.record.data.str_CODE_ORGANISME,
@@ -503,7 +506,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_tierspayant + 'delete',
+                            url: url_rest_tierspayant + 'delete',
+                            method: 'POST',
                             params: {
                                 lg_TIERS_PAYANT_ID: rec.get('lg_TIERS_PAYANT_ID')
                             },
@@ -580,9 +584,11 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                     if (btn === 'yes') {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_tierspayant + 'disable',
+                            url: url_rest_tierspayant + 'toggle-statut',
+                            method: 'POST',
                             params: {
-                                lg_TIERS_PAYANT_ID: rec.get('lg_TIERS_PAYANT_ID')
+                                lg_TIERS_PAYANT_ID: rec.get('lg_TIERS_PAYANT_ID'),
+                                actif: false
                             },
                             success: function (response)
                             {

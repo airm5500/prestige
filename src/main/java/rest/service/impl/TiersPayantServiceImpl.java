@@ -10,7 +10,10 @@ import dal.TTiersPayant_;
 import dal.TTypeTiersPayant;
 import dal.TTypeTiersPayant_;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -63,9 +66,21 @@ public class TiersPayantServiceImpl implements TiersPayantService {
         data.put("total", count);
         JSONArray jsonarray = new JSONArray();
 
+        // Chargements GROUPES pour la page : l'ancienne version executait par ligne un
+        // getTCompteClient, un getAccount (agregat sur les ventes) et un chargement de TOUS les
+        // comptes clients du tiers payant (avec navigation paresseuse vers chaque client) juste
+        // pour construire la liste HTML des clients — d'ou plusieurs secondes d'affichage.
+        List<String> idsPage = new ArrayList<>();
+        for (TTiersPayant t : list) {
+            idsPage.add(t.getLgTIERSPAYANTID());
+        }
+        Map<String, TCompteClient> comptesParTp = comptesClientParTiersPayant(idsPage);
+        Map<String, Integer> encoursParTp = encoursParTiersPayant(idsPage);
+        Map<String, ClientsAssocies> clientsParTp = clientsAssociesParTiersPayant(idsPage);
+
         for (TTiersPayant tTiersPayant : list) {
             JSONObject json = new JSONObject();
-            TCompteClient compteClient = getTCompteClient(tTiersPayant.getLgTIERSPAYANTID());
+            TCompteClient compteClient = comptesParTp.get(tTiersPayant.getLgTIERSPAYANTID());
             Caution c = tTiersPayant.getCaution();
             if (Objects.nonNull(c)) {
                 json.put("caution", c.getMontant());
@@ -155,7 +170,7 @@ public class TiersPayantServiceImpl implements TiersPayantService {
             json.put("groupingByTaux", tTiersPayant.getGroupingByTaux());
             json.put("str_STATUT", tTiersPayant.getStrSTATUT());
             json.put("b_IsAbsolute", tTiersPayant.getBIsAbsolute());
-            json.put("db_CONSOMMATION_MENSUELLE", getAccount(tTiersPayant.getLgTIERSPAYANTID()));
+            json.put("db_CONSOMMATION_MENSUELLE", encoursParTp.getOrDefault(tTiersPayant.getLgTIERSPAYANTID(), 0));
             json.put("dbl_PLAFOND_CREDIT", tTiersPayant.getDblPLAFONDCREDIT());
             json.put("nbrbons", (tTiersPayant.getIntNBREBONS() != null)
                     ? (tTiersPayant.getIntNBREBONS() > 0 ? tTiersPayant.getIntNBREBONS() : 0) : 0);
@@ -178,31 +193,14 @@ public class TiersPayantServiceImpl implements TiersPayantService {
                 json.put("dbl_QUOTA_CONSO_MENSUELLE", compteClient.getDblQUOTACONSOMENSUELLE());
             }
 
-            List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = getTiersPayantsByClient(
-                    tTiersPayant.getLgTIERSPAYANTID());
-
-            String strProduct = "";
-            for (int k = 0; k < lstTCompteClientTiersPayant.size(); k++) {
-                if (lstTCompteClientTiersPayant.get(k).getLgCOMPTECLIENTID().getLgCLIENTID() != null) {
-                    strProduct = "<b><span style='display:inline-block;width: 15%;'>"
-                            + (!lstTCompteClientTiersPayant.get(k).getStrNUMEROSECURITESOCIAL().equalsIgnoreCase("")
-                                    ? lstTCompteClientTiersPayant.get(k).getStrNUMEROSECURITESOCIAL()
-                                    : lstTCompteClientTiersPayant.get(k).getLgCOMPTECLIENTID().getLgCLIENTID()
-                                            .getStrCODEINTERNE())
-                            + "</span><span style='display:inline-block;width: 15%;'>"
-                            + lstTCompteClientTiersPayant.get(k).getLgCOMPTECLIENTID().getLgCLIENTID().getStrFIRSTNAME()
-                            + "</span><span style='display:inline-block;width: 25%;'>"
-                            + lstTCompteClientTiersPayant.get(k).getLgCOMPTECLIENTID().getLgCLIENTID().getStrLASTNAME()
-                            + "</span></b><br> " + strProduct;
-                }
-            }
-
+            ClientsAssocies clients = clientsParTp.get(tTiersPayant.getLgTIERSPAYANTID());
+            String strProduct = clients != null ? clients.libelles : "";
             if (strProduct.equalsIgnoreCase("")) {
                 strProduct = "Aucun client associé";
             }
             json.put("BTNDELETE", delete);
             json.put("P_BTN_DESACTIVER_TIERS_PAYANT", btnDesactive);
-            json.put("int_NUMBER_CLIENT", lstTCompteClientTiersPayant.size());
+            json.put("int_NUMBER_CLIENT", clients != null ? clients.nombre : 0);
             json.put("str_FAMILLE_ITEM", strProduct);
             jsonarray.put(json);
 
@@ -287,6 +285,115 @@ public class TiersPayantServiceImpl implements TiersPayantService {
         Query q = em.createQuery(cq);
         return ((Long) q.getSingleResult()).intValue();
 
+    }
+
+    /** Clients associes a un tiers payant : libelles HTML prets a afficher + nombre total d'associations. */
+    private static final class ClientsAssocies {
+        private final String libelles;
+        private final int nombre;
+
+        private ClientsAssocies(String libelles, int nombre) {
+            this.libelles = libelles;
+            this.nombre = nombre;
+        }
+    }
+
+    /** Comptes clients des tiers payants de la page, en une seule requete (etait une requete par ligne). */
+    private Map<String, TCompteClient> comptesClientParTiersPayant(List<String> tiersPayantIds) {
+        Map<String, TCompteClient> comptes = new HashMap<>();
+        if (tiersPayantIds.isEmpty()) {
+            return comptes;
+        }
+        try {
+            for (TCompteClient compte : em
+                    .createQuery("SELECT t FROM TCompteClient t WHERE t.pKey IN ?1 AND t.strSTATUT = ?2",
+                            TCompteClient.class)
+                    .setParameter(1, tiersPayantIds).setParameter(2, Constant.STATUT_ENABLE).getResultList()) {
+                comptes.putIfAbsent(compte.getPKey(), compte);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "comptesClientParTiersPayant", e);
+        }
+        return comptes;
+    }
+
+    /**
+     * Encours (consommation) des tiers payants de la page, en une seule requete groupee : memes criteres que getAccount
+     * (facture non payee, vente cloturee, non annulee, montant positif).
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Integer> encoursParTiersPayant(List<String> tiersPayantIds) {
+        Map<String, Integer> encours = new HashMap<>();
+        if (tiersPayantIds.isEmpty()) {
+            return encours;
+        }
+        try {
+            List<Object[]> lignes = em
+                    .createQuery("SELECT p.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID,"
+                            + " SUM(p.intPRICERESTE) FROM TPreenregistrementCompteClientTiersPayent p"
+                            + " WHERE p.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID IN ?1"
+                            + " AND p.strSTATUTFACTURE <> ?2 AND p.lgPREENREGISTREMENTID.strSTATUT = ?3"
+                            + " AND p.lgPREENREGISTREMENTID.bISCANCEL = false"
+                            + " AND p.lgPREENREGISTREMENTID.intPRICE > 0"
+                            + " GROUP BY p.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID")
+                    .setParameter(1, tiersPayantIds).setParameter(2, Constant.STATUT_PAID)
+                    .setParameter(3, Constant.STATUT_IS_CLOSED).getResultList();
+            for (Object[] ligne : lignes) {
+                encours.put(String.valueOf(ligne[0]), ligne[1] != null ? ((Number) ligne[1]).intValue() : 0);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "encoursParTiersPayant", e);
+        }
+        return encours;
+    }
+
+    /**
+     * Clients associes aux tiers payants de la page, en une seule requete de champs simples : evite de charger toutes
+     * les entites TCompteClientTiersPayant et leurs clients (navigation paresseuse) uniquement pour composer une chaine
+     * HTML. Meme contenu, meme ordre (le libelle de chaque client est prefixe, donc la liste finale est dans l'ordre
+     * inverse des priorites, comme historiquement).
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, ClientsAssocies> clientsAssociesParTiersPayant(List<String> tiersPayantIds) {
+        Map<String, ClientsAssocies> resultat = new HashMap<>();
+        if (tiersPayantIds.isEmpty()) {
+            return resultat;
+        }
+        try {
+            List<Object[]> lignes = em
+                    .createQuery("SELECT t.lgTIERSPAYANTID.lgTIERSPAYANTID,"
+                            + " t.strNUMEROSECURITESOCIAL, t.lgCOMPTECLIENTID.lgCLIENTID.strCODEINTERNE,"
+                            + " t.lgCOMPTECLIENTID.lgCLIENTID.strFIRSTNAME, t.lgCOMPTECLIENTID.lgCLIENTID.strLASTNAME"
+                            + " FROM TCompteClientTiersPayant t WHERE t.lgTIERSPAYANTID.lgTIERSPAYANTID IN ?1"
+                            + " ORDER BY t.lgTIERSPAYANTID.lgTIERSPAYANTID, t.intPRIORITY ASC")
+                    .setParameter(1, tiersPayantIds).getResultList();
+            Map<String, StringBuilder> libellesParTp = new LinkedHashMap<>();
+            Map<String, Integer> nombreParTp = new HashMap<>();
+            for (Object[] ligne : lignes) {
+                String tpId = String.valueOf(ligne[0]);
+                nombreParTp.merge(tpId, 1, Integer::sum);
+                // Le client peut etre absent (association orpheline) : ligne ignoree, comme historiquement
+                if (ligne[3] == null && ligne[4] == null && ligne[2] == null) {
+                    continue;
+                }
+                String numeroSecu = ligne[1] != null ? String.valueOf(ligne[1]) : "";
+                String reference = !numeroSecu.isEmpty() ? numeroSecu
+                        : (ligne[2] != null ? String.valueOf(ligne[2]) : "");
+                String libelle = "<b><span style='display:inline-block;width: 15%;'>" + reference
+                        + "</span><span style='display:inline-block;width: 15%;'>" + (ligne[3] != null ? ligne[3] : "")
+                        + "</span><span style='display:inline-block;width: 25%;'>" + (ligne[4] != null ? ligne[4] : "")
+                        + "</span></b><br> ";
+                libellesParTp.computeIfAbsent(tpId, k -> new StringBuilder()).insert(0, libelle);
+            }
+            for (String tpId : nombreParTp.keySet()) {
+                StringBuilder libelles = libellesParTp.get(tpId);
+                resultat.put(tpId, new ClientsAssocies(libelles != null ? libelles.toString() : "",
+                        nombreParTp.getOrDefault(tpId, 0)));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "clientsAssociesParTiersPayant", e);
+        }
+        return resultat;
     }
 
     private TCompteClient getTCompteClient(String pkey) {
