@@ -146,12 +146,21 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                             if (metadata) {
                                 // Apercu des organismes du client (liste deja fournie par le serveur,
                                 // aucun appel supplementaire)
-                                var liste = record.get('str_LISTE_TIERS_PAYANT') || val;
-                                var lignes = Ext.Array.map(liste.split('|'), function (nom, i) {
+                                var noms = (record.get('str_LISTE_TIERS_PAYANT') || val).split('|');
+                                var plusLong = 0;
+                                var lignes = Ext.Array.map(noms, function (nom, i) {
+                                    var ligne = (i + 1) + '. ' + nom;
+                                    if (ligne.length > plusLong) {
+                                        plusLong = ligne.length;
+                                    }
                                     return (i + 1) + '. ' + Ext.String.htmlEncode(nom);
                                 }).join('<br>');
-                                metadata.tdAttr = 'data-qtip="<b>' + total
-                                        + ' organismes actifs</b><br>' + lignes + '"';
+                                // Largeur explicite : sans elle, l'info-bulle est bridee a 300 px et
+                                // les noms longs sont coupes. Calculee sur la ligne la plus longue.
+                                var largeur = Math.min(620, Math.max(320, (plusLong * 8) + 40));
+                                metadata.tdAttr = 'data-qwidth="' + largeur + '" '
+                                        + 'data-qtitle="' + total + ' organismes actifs" '
+                                        + 'data-qtip="' + lignes + '"';
                             }
                         }
                         return "<span style='font-weight: bold; color: #1565C0;'>" + val + "</span>" + complement;
