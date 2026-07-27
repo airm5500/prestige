@@ -270,23 +270,31 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         tbar.push({text: 'Tout decocher', scope: me, handler: me.onToutDecocher});
         tbar.push({xtype: 'tbtext', itemId: 'lblSelection', text: 'Coches : 0',
             style: 'font-weight:bold;color:#6a1b9a;'});
-        tbar.push('-');
-        tbar.push({text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaire});
-        tbar.push({text: 'Imprimer', scope: me, handler: me.onPrint});
-        tbar.push({text: 'Historiques', scope: me, handler: me.onHistoriquesGlobal});
-        tbar.push({text: 'Exporter (CSV)', scope: me, handler: me.onExportCsv});
-        tbar.push({
-            text: 'Exporter (Excel)', scope: me, handler: me.onExportExcel,
-            tooltip: tip('Telecharge TOUTES les lignes de cet onglet au format Excel,<br>'
-                    + 'en respectant la recherche en cours (et non la seule page affichee).')
-        });
+
+        // Seconde ligne : les actions sur la liste entiere. Sur un ecran etroit, une barre unique
+        // repoussait ces boutons hors du champ visible et ils devenaient introuvables.
+        var tbarActions = [
+            {text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaire},
+            {text: 'Imprimer', scope: me, handler: me.onPrint},
+            {text: 'Historiques', scope: me, handler: me.onHistoriquesGlobal},
+            '-',
+            {text: 'Exporter (CSV)', scope: me, handler: me.onExportCsv},
+            {
+                text: 'Exporter (Excel)', scope: me, handler: me.onExportExcel,
+                tooltip: tip('Telecharge TOUTES les lignes de cet onglet au format Excel,<br>'
+                        + 'en respectant la recherche en cours (et non la seule page affichee).')
+            }
+        ];
 
         Ext.apply(me, {
             store: store,
             columns: columns,
             selModel: selModel,
-            tbar: tbar,
-            bbar: {xtype: 'pagingtoolbar', store: store, dock: 'bottom', displayInfo: true}
+            dockedItems: [
+                {xtype: 'toolbar', dock: 'top', items: tbar},
+                {xtype: 'toolbar', dock: 'top', items: tbarActions},
+                {xtype: 'pagingtoolbar', store: store, dock: 'bottom', displayInfo: true}
+            ]
         });
 
         me.callParent();
