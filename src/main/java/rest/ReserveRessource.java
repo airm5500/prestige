@@ -55,6 +55,24 @@ public class ReserveRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Export Excel de l'onglet courant. Les parametres sont ceux de {@code articles} : l'export respecte donc le
+     * filtre de recherche actif et contient les memes lignes que la grille.
+     */
+    @GET
+    @Path("export/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportExcel(@QueryParam("search_value") String search,
+            @QueryParam("str_TYPE_TRANSACTION") String type) throws Exception {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        byte[] data = reserveService.exportExcel(user, search, type);
+        String fichier = "reserves_" + (type == null || type.trim().isEmpty() ? "ALL" : type.trim()) + ".xls";
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + fichier + "\"").build();
+    }
+
     @GET
     @Path("suggestions")
     public Response suggestions(@QueryParam("search_value") String search, @QueryParam("start") int start,

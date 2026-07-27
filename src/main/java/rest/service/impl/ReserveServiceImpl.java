@@ -68,6 +68,9 @@ public class ReserveServiceImpl implements ReserveService {
     @javax.ejb.EJB
     private rest.service.InventaireService inventaireService;
 
+    @javax.ejb.EJB
+    private rest.service.utils.ReportExcelExportService reportExcelExportService;
+
     // ----------------------------------------------------------------- LISTING
 
     @Override
@@ -478,6 +481,53 @@ public class ReserveServiceImpl implements ReserveService {
         } catch (Exception ignore) {
             LOG.log(Level.FINE, "markRollback: pas de transaction active");
         }
+    }
+
+    // ----------------------------------------------------------------- EXPORT
+
+    @Override
+    public byte[] exportExcel(TUser user, String search, String type) throws java.io.IOException {
+        // On repasse par listArticles : l'export contient exactement les memes lignes et les memes quantites
+        // suggerees que la grille, avec le meme filtre de recherche. Aucune regle n'est dupliquee ici.
+        JSONObject data = listArticles(user, search, type, 0, 0);
+        JSONArray results = data.optJSONArray("results");
+        List<JSONObject> lignes = new ArrayList<>();
+        if (results != null) {
+            for (int i = 0; i < results.length(); i++) {
+                lignes.add(results.getJSONObject(i));
+            }
+        }
+        LOG.log(Level.INFO, "exportExcel type={0} lignes={1} user={2}",
+                new Object[] { type, lignes.size(), user.getLgUSERID() });
+        if (lignes.isEmpty()) {
+            return new byte[0];
+        }
+        String[] entetes = { "CIP", "Designation", "Emplacement", "Stock rayon", "Stock reserve", "Seuil reserve",
+                "Seuil mini rayon", "Suggere", "Prix achat", "Prix vente" };
+        return reportExcelExportService.createExcelReport(titreExport(type), entetes, lignes, (row, o) -> {
+            int col = 0;
+            row.createCell(col++).setCellValue(o.optString("int_CIP", ""));
+            row.createCell(col++).setCellValue(o.optString("str_NAME", ""));
+            row.createCell(col++).setCellValue(o.optString("lg_ZONE_GEO_ID", ""));
+            row.createCell(col++).setCellValue(o.optInt("int_STOCK_RAYON", 0));
+            row.createCell(col++).setCellValue(o.optInt("int_STOCK_RESERVE", 0));
+            row.createCell(col++).setCellValue(o.optInt("int_SEUIL_RESERVE", 0));
+            row.createCell(col++).setCellValue(o.optInt("int_SEUIL_MINI_RAYON", 0));
+            row.createCell(col++).setCellValue(o.optInt("int_QTE_SUGGEREE", 0));
+            row.createCell(col++).setCellValue(o.optInt("int_PAF", 0));
+            row.createCell(col).setCellValue(o.optInt("int_PRICE", 0));
+        });
+    }
+
+    /** Titre du classeur, aligne sur le libelle de l'onglet d'ou part l'export. */
+    private static String titreExport(String type) {
+        if ("REAPPRO".equalsIgnoreCase(type)) {
+            return "Reappro reserve (envoi en reserve)";
+        }
+        if ("REASSORT_RAYON".equalsIgnoreCase(type) || "REASSORT".equalsIgnoreCase(type)) {
+            return "Reappro rayon (envoi en rayon)";
+        }
+        return "Articles en reserve";
     }
 
     // ---------------------------------------------------------------- HISTORY

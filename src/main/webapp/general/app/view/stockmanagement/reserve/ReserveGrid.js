@@ -163,6 +163,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             columns.push(colAssort, colReassort, colHisto);
         }
 
+        // Conserve pour l'export : c'est le meme parametre que celui envoye par la grille.
+        me.typeParam = typeParam;
+
+        // Explication au survol, en bleu et en gras. Style en ligne pour rester prioritaire sur l'infobulle.
+        var tip = function (texte) {
+            return '<span style="color:#0b57d0;font-weight:bold;">' + texte + '</span>';
+        };
+
         // ---- Barre d'outils : recherche + boutons communs + boutons specifiques
         var tbar = [{
                 xtype: 'textfield', itemId: 'rechFld', emptyText: 'Rech (code ou nom)', width: 180
@@ -171,12 +179,32 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             }, '-'];
 
         if (mode === 'REAPPRO') {
-            tbar.push({text: 'Faire un reappro', iconCls: '', scope: me, handler: me.onFaireReappro});
-            tbar.push({text: 'Suggerer un reappro', cls: 'btn-reappro-orange', scope: me, handler: me.onSuggererReappro});
+            tbar.push({
+                text: 'Faire un reappro de la reserve (manuel)', iconCls: '', scope: me, handler: me.onFaireReappro,
+                tooltip: tip('Vous choisissez vous-meme l\'article et la quantite.<br>'
+                        + 'Le stock est retire DU RAYON &rarr; et ajoute EN RESERVE.')
+            });
+            tbar.push({
+                text: 'Voir les suggestions de reappro de la reserve', cls: 'btn-reappro-orange',
+                scope: me, handler: me.onSuggererReappro,
+                tooltip: tip('Le systeme liste les articles dont le rayon depasse le seuil reserve<br>'
+                        + 'et propose pour chacun la quantite a ranger EN RESERVE.<br>'
+                        + 'Vous pouvez corriger chaque quantite avant de valider.')
+            });
             tbar.push('-');
         } else if (mode === 'REASSORT') {
-            tbar.push({text: 'Faire un reassort rayon', scope: me, handler: me.onFaireReassort});
-            tbar.push({text: 'Suggerer un reassort rayon', cls: 'btn-reassort-green', scope: me, handler: me.onSuggererReassort});
+            tbar.push({
+                text: 'Faire un reappro manuel du rayon', scope: me, handler: me.onFaireReassort,
+                tooltip: tip('Vous choisissez vous-meme l\'article et la quantite.<br>'
+                        + 'Le stock est retire DE LA RESERVE &rarr; et ajoute AU RAYON.')
+            });
+            tbar.push({
+                text: 'Voir les suggestions de reappro du rayon', cls: 'btn-reassort-green',
+                scope: me, handler: me.onSuggererReassort,
+                tooltip: tip('Le systeme liste les articles dont le rayon est tombe au seuil mini<br>'
+                        + 'et propose pour chacun la quantite a sortir DE LA RESERVE.<br>'
+                        + 'La quantite proposee ne depasse jamais le stock reserve disponible.')
+            });
             tbar.push('-');
         }
 
@@ -185,6 +213,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         tbar.push({text: 'Imprimer', scope: me, handler: me.onPrint});
         tbar.push({text: 'Historiques', scope: me, handler: me.onHistoriquesGlobal});
         tbar.push({text: 'Exporter (CSV)', scope: me, handler: me.onExportCsv});
+        tbar.push({
+            text: 'Exporter (Excel)', scope: me, handler: me.onExportExcel,
+            tooltip: tip('Telecharge TOUTES les lignes de cet onglet au format Excel,<br>'
+                    + 'en respectant la recherche en cours (et non la seule page affichee).')
+        });
 
         Ext.apply(me, {
             store: store,
@@ -592,5 +625,27 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
         }
+    },
+
+    // ---- Bouton commun : export Excel (genere par le serveur) --------------
+    // Contrairement a l'export CSV qui ne prend que la page affichee, celui-ci exporte TOUTES les lignes de
+    // l'onglet : le serveur rejoue la meme requete que la grille, avec la recherche en cours.
+    onExportExcel: function () {
+        var me = this;
+        var rech = me.down('#rechFld');
+        var search = (rech && rech.getValue()) ? rech.getValue() : '';
+        var url = '../api/v1/reserve/export/excel'
+                + '?str_TYPE_TRANSACTION=' + encodeURIComponent(me.typeParam)
+                + '&search_value=' + encodeURIComponent(search)
+                + '&_dc=' + new Date().getTime();
+        // Iframe cachee : le telechargement demarre sans quitter ni recharger l'ecran courant.
+        var frame = document.getElementById('reserve-export-frame');
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.id = 'reserve-export-frame';
+            frame.style.display = 'none';
+            document.body.appendChild(frame);
+        }
+        frame.src = url;
     }
 });

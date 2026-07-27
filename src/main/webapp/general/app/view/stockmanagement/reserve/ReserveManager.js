@@ -56,15 +56,39 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
             });
         };
 
+        // Explication au survol de chaque onglet : phrase simple, en bleu et en gras, qui dit d'ou part le stock
+        // et ou il arrive. Le style est en ligne pour rester prioritaire sur l'habillage de l'infobulle.
+        var tip = function (texte) {
+            return '<span style="color:#0b57d0;font-weight:bold;">' + texte + '</span>';
+        };
+
         this.items = [
-            {xtype: 'reservegrid', title: 'TOUT', baseTitle: 'TOUT', gridmode: 'ALL'},
             {
-                xtype: 'reservegrid', gridmode: 'REAPPRO', title: 'REAPPRO RESERVE', baseTitle: 'REAPPRO RESERVE',
-                tabConfig: {cls: 'tab-reappro'}
+                xtype: 'reservegrid', title: 'TOUT', baseTitle: 'TOUT', gridmode: 'ALL',
+                tabConfig: {
+                    tooltip: tip('Tous les articles suivis en reserve.<br>'
+                            + 'Vue d\'ensemble : le rayon et la reserve sont affiches cote a cote.')
+                }
             },
             {
-                xtype: 'reservegrid', gridmode: 'REASSORT', title: 'REASSORT RAYON', baseTitle: 'REASSORT RAYON',
-                tabConfig: {cls: 'tab-reassort'}
+                xtype: 'reservegrid', gridmode: 'REAPPRO',
+                title: 'REAPPRO RESERVE (ENVOI EN RESERVE)', baseTitle: 'REAPPRO RESERVE (ENVOI EN RESERVE)',
+                tabConfig: {
+                    cls: 'tab-reappro',
+                    tooltip: tip('On REMPLIT LA RESERVE avec le trop-plein du rayon.<br>'
+                            + 'Le stock part DU RAYON &rarr; et arrive EN RESERVE.<br>'
+                            + 'Articles proposes : ceux dont le rayon depasse le seuil reserve.')
+                }
+            },
+            {
+                xtype: 'reservegrid', gridmode: 'REASSORT',
+                title: 'REASSORT RAYON (ENVOI EN RAYON)', baseTitle: 'REASSORT RAYON (ENVOI EN RAYON)',
+                tabConfig: {
+                    cls: 'tab-reassort',
+                    tooltip: tip('On REGARNIT LE RAYON en puisant dans la reserve.<br>'
+                            + 'Le stock part DE LA RESERVE &rarr; et arrive AU RAYON.<br>'
+                            + 'Articles proposes : ceux dont le rayon est tombe au seuil mini.')
+                }
             }
         ];
         this.listeners = {

@@ -78,6 +78,17 @@ public interface ReserveService {
     JSONObject assortBatch(TUser user, List<JSONObject> items);
 
     /**
+     * Export Excel de la liste des articles de l'onglet courant. Les donnees sont produites par
+     * {@link #listArticles} : les chiffres exportes sont donc rigoureusement ceux affiches a l'ecran, filtres compris.
+     *
+     * @param type
+     *            ALL, REAPPRO ou REASSORT_RAYON (meme valeur que l'onglet affiche)
+     *
+     * @return contenu du classeur, ou un tableau vide s'il n'y a aucune ligne
+     */
+    byte[] exportExcel(TUser user, String search, String type) throws java.io.IOException;
+
+    /**
      * Historique des mouvements d'un article, avec filtre periode optionnel.
      */
     JSONObject mouvements(String familleId, String dtStart, String dtEnd, int start, int limit);
