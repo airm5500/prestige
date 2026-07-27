@@ -9,7 +9,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
     xtype: 'reservemanager',
     id: 'reservemanagerID',
     requires: [
-        'testextjs.view.stockmanagement.reserve.ReserveGrid'
+        'testextjs.view.stockmanagement.reserve.ReserveGrid',
+        'testextjs.view.stockmanagement.reserve.SuggestionsGrid'
     ],
     title: 'Gestion des reserves',
     width: '98%',
@@ -34,6 +35,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 '.btn-reappro-orange.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
                 '.btn-reassort-green.x-btn { background-color: #3daa42 !important; background-image: none !important; border-color: #1a4a1e !important; }',
                 '.btn-reassort-green.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                // Onglet SUGGESTIONS : violet
+                '.tab-suggestions.x-tab { background-color: #6a1b9a !important; border-color: #4a137a !important; }',
+                '.tab-suggestions.x-tab .x-tab-inner, .tab-suggestions.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
+                '.tab-suggestions.x-tab-active { background-color: #8e24aa !important; border-top: 3px solid #fff !important; }',
+                '.btn-suggestions-violet.x-btn { background-color: #8e24aa !important; background-image: none !important; border-color: #4a137a !important; }',
+                '.btn-suggestions-violet.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
                 // Pastille sur l'onglet ACTIF (copie isolee de la pastille des avoirs)
                 '.reserve-pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid rgba(0,0,0,0.35); margin-right:7px; vertical-align:middle; box-shadow:0 0 0 2px rgba(255,255,255,0.65); animation:reservePastille 1.1s infinite; }',
                 '@keyframes reservePastille { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.3); opacity:0.7; } }',
@@ -88,6 +95,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                     tooltip: tip('On REGARNIT LE RAYON en puisant dans la reserve.<br>'
                             + 'Le stock part DE LA RESERVE &rarr; et arrive AU RAYON.<br>'
                             + 'Articles proposes : ceux dont le rayon est tombe au seuil mini.')
+                }
+            },
+            {
+                xtype: 'reservesuggestionsgrid', itemId: 'ongletSuggestions',
+                title: 'SUGGESTIONS', baseTitle: 'SUGGESTIONS',
+                tabConfig: {
+                    cls: 'tab-suggestions',
+                    tooltip: tip('Les suggestions enregistrees, a traiter ou deja traitees.<br>'
+                            + 'Chaque suggestion garde la trace de ce qui a ete propose,<br>'
+                            + 'de ce qui a ete retenu et de ce qui a reellement ete deplace.')
                 }
             }
         ];
