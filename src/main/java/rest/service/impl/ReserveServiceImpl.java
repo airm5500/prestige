@@ -329,14 +329,21 @@ public class ReserveServiceImpl implements ReserveService {
         @SuppressWarnings("unchecked")
         List<String> ids = q.getResultList();
 
-        // suggestion reappro = max(0, stock_rayon - stock_reserve), on garde > 0
+        // Produits et stocks charges en DEUX requetes pour toute la liste. Auparavant chaque
+        // article coutait un chargement plus deux lectures de stock : pour 83 articles, plus de
+        // deux cents aller-retours, d'ou la seconde et demie d'attente.
+        java.util.Map<String, TFamille> produits = chargerFamilles(ids);
+        java.util.Map<String, int[]> stocks = chargerStocks(ids, empl);
+
+        // suggestion reappro = max(0, stock_rayon - seuil_reserve), on garde > 0
         List<JSONObject> suggested = new ArrayList<>();
         for (String familleId : ids) {
-            TFamille f = em.find(TFamille.class, familleId);
+            TFamille f = produits.get(familleId);
             if (f == null) {
                 continue;
             }
-            JSONObject json = buildArticleJson(f, empl, true);
+            int[] st = stocks.get(familleId);
+            JSONObject json = buildArticleJson(f, st == null ? 0 : st[0], st == null ? 0 : st[1], true);
             int sugg = Math.max(0, json.optInt("int_STOCK_RAYON", 0) - json.optInt("int_SEUIL_RESERVE", 0));
             json.put("int_QTE_SUGGEREE", sugg);
             if (sugg > 0) {

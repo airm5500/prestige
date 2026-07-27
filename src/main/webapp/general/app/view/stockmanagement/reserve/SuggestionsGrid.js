@@ -162,6 +162,24 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 }]
         };
 
+        var colAnnuler = {
+            xtype: 'actioncolumn', header: 'Annuler', width: 60, align: 'center',
+            sortable: false, menuDisabled: true,
+            items: [{
+                    icon: 'resources/images/icons/fam/control_rewind.png',
+                    tooltip: 'Annuler les mouvements par mouvement inverse',
+                    getClass: function (v, m, rec) {
+                        // Rien a annuler tant que rien n'a ete deplace, et action reservee
+                        // aux detenteurs du privilege.
+                        return (rec.get('str_STATUT') === 'TRAITEE' && me.peutAnnuler)
+                                ? '' : 'x-hidden';
+                    },
+                    handler: function (g, rowIndex) {
+                        me.onAnnuler(g.getStore().getAt(rowIndex));
+                    }
+                }]
+        };
+
         // Colonne separee, avec une marge : plus de confusion possible avec l'action d'ouverture.
         var colSupprimer = {
             xtype: 'actioncolumn', header: '', width: 40, align: 'center',
@@ -219,6 +237,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 colOuvrir,
                 colInventaire,
                 colImprimer,
+                colAnnuler,
                 colSupprimer
             ],
             dockedItems: [
@@ -282,6 +301,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         // remonter plus loin.
         if (!this.filtreInitialise) {
             this.filtreInitialise = true;
+            // Le droit d'annuler est demande une seule fois : il pilote l'affichage de l'icone.
+            var grille = this;
+            Ext.Ajax.request({
+                method: 'GET', url: '../api/v1/reserve/peut-annuler',
+                success: function (rep) {
+                    var droit = Ext.JSON.decode(rep.responseText, true) || {};
+                    grille.peutAnnuler = (droit.autorise === true);
+                    grille.getView().refresh();
+                }
+            });
             var auj = new Date();
             var d = this.down('#fDebut'), fin = this.down('#fFin');
             if (d && !d.getValue()) {
@@ -304,6 +333,40 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             suggestionid: rec.get('lg_SUGGESTION_RESERVE_ID'),
             parentview: this
         });
+    },
+
+    onAnnuler: function (rec) {
+        var me = this;
+        if (!rec) {
+            return;
+        }
+        Ext.MessageBox.prompt('Annuler les mouvements',
+                'Motif de l\'annulation pour ' + Ext.String.htmlEncode(rec.get('str_REF') || '') + ' :',
+                function (btn, texte) {
+                    if (btn !== 'ok') {
+                        return;
+                    }
+                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Annulation en cours');
+                    Ext.Ajax.request({
+                        method: 'PUT',
+                        url: '../api/v1/suggestion-reserve/'
+                                + encodeURIComponent(rec.get('lg_SUGGESTION_RESERVE_ID')) + '/annuler',
+                        jsonData: {motif: texte || ''},
+                        success: function (response) {
+                            progress.hide();
+                            var res = Ext.JSON.decode(response.responseText, true) || {};
+                            Ext.MessageBox.alert('Resultat de l\'annulation',
+                                    (res.message || '')
+                                    + (res.total_refuse > 0
+                                        ? '<br><br>Ouvrez la suggestion pour le detail des refus.' : ''));
+                            me.reloadGrid();
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.MessageBox.alert('Erreur', 'L\'annulation a echoue.');
+                        }
+                    });
+                });
     },
 
     onImprimerLigne: function (rec) {
