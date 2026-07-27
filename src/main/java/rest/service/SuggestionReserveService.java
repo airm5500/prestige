@@ -39,9 +39,28 @@ public interface SuggestionReserveService {
      */
     JSONObject creer(TUser user, String categorie, Integer motifId, String commentaire, List<JSONObject> items);
 
-    /** Liste paginee des suggestions, avec tous les filtres de recherche et le tri demande. */
+    /**
+     * Liste paginee des suggestions, avec tous les filtres de recherche et le tri demande.
+     *
+     * @param controle
+     *            {@code "O"} pour ne garder que les suggestions controlees, {@code "N"} pour les traitees non encore
+     *            controlees, {@code null} pour ne pas filtrer
+     */
     JSONObject lister(TUser user, String statut, String categorie, String origine, Integer motifId, String search,
-            String dtStart, String dtEnd, String userId, String tri, int start, int limit);
+            String dtStart, String dtEnd, String userId, String controle, String tri, int start, int limit);
+
+    /**
+     * Confirme qu'une suggestion traitee a bien ete realisee sur le terrain.
+     *
+     * <p>
+     * Le traitement deplace le stock dans le systeme ; le controle atteste que le deplacement physique a reellement eu
+     * lieu. Il n'est donc possible que sur une suggestion TRAITEE, et une seule fois : un controle deja pose n'est pas
+     * remplace, sans quoi la trace du premier controleur serait perdue.
+     *
+     * @param observation
+     *            constat facultatif du controleur
+     */
+    JSONObject controler(TUser user, String suggestionId, String observation);
 
     /** En-tete et lignes d'une suggestion, avec l'explication de chaque proposition et le stock actuel. */
     JSONObject detail(TUser user, String suggestionId);

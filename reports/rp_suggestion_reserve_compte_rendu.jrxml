@@ -17,6 +17,7 @@
 	<parameter name="P_CREATEUR" class="java.lang.String"/>
 	<parameter name="P_CLOTURANT" class="java.lang.String"/>
 	<parameter name="P_DATES" class="java.lang.String"/>
+	<parameter name="P_CONTROLE" class="java.lang.String"/>
 	<queryString>
 		<![CDATA[SELECT CAST(f.int_CIP AS CHAR) AS int_CIP, f.str_NAME AS str_NAME,
 d.int_QTE_PROPOSEE AS int_QTE_PROPOSEE,
@@ -50,7 +51,7 @@ ORDER BY FIELD(d.str_ETAT,'ECHEC','TRAITEE','SUPPRIMEE') , f.str_NAME ASC]]>
 	</variable>
 	<background><band/></background>
 	<pageHeader>
-		<band height="176">
+		<band height="189">
 			<image onErrorType="Blank">
 				<reportElement mode="Transparent" x="2" y="4" width="78" height="58" uuid="47a55b24-771b-4847-acdc-0493aee6cf3d"/>
 				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
@@ -64,6 +65,11 @@ ORDER BY FIELD(d.str_ETAT,'ECHEC','TRAITEE','SUPPRIMEE') , f.str_NAME ASC]]>
 				<reportElement x="82" y="38" width="640" height="14" uuid="f93c0a33-28fe-4041-a653-2a844f8e3c1a"/>
 				<textElement textAlignment="Center"><font size="8" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="158" width="822" height="13" uuid="3c9a1d20-77aa-4c11-9c9e-5b1a0c7e4401"/>
+				<textElement><font size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA["Controle : " + ($P{P_CONTROLE} != null ? $P{P_CONTROLE} : "Non controlee")]]></textFieldExpression>
 			</textField>
 			<staticText>
 				<reportElement mode="Opaque" x="0" y="66" width="822" height="2" backcolor="#CCCCCC" uuid="eb9d7893-996d-48d5-b735-7be0956904b0"/>
@@ -112,43 +118,43 @@ ORDER BY FIELD(d.str_ETAT,'ECHEC','TRAITEE','SUPPRIMEE') , f.str_NAME ASC]]>
 				<textFieldExpression><![CDATA["Creee par : " + ($P{P_CREATEUR} != null ? $P{P_CREATEUR} : "-") + "     Cloturee par : " + ($P{P_CLOTURANT} != null ? $P{P_CLOTURANT} : "-")]]></textFieldExpression>
 			</textField>
 			<staticText>
-				<reportElement mode="Opaque" x="0" y="158" width="70" height="18" backcolor="#CCCCCC" uuid="1af0ffbf-d290-4b90-b54c-5d54ce43091d"/>
+				<reportElement mode="Opaque" x="0" y="171" width="70" height="18" backcolor="#CCCCCC" uuid="1af0ffbf-d290-4b90-b54c-5d54ce43091d"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[CIP]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="70" y="158" width="230" height="18" backcolor="#CCCCCC" uuid="b4e2012b-c60b-4b32-a55c-ec4c05424e16"/>
+				<reportElement mode="Opaque" x="70" y="171" width="230" height="18" backcolor="#CCCCCC" uuid="b4e2012b-c60b-4b32-a55c-ec4c05424e16"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[DESIGNATION]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="300" y="158" width="60" height="18" backcolor="#CCCCCC" uuid="9ad8168e-35fc-443c-9b6c-25e0f471db08"/>
+				<reportElement mode="Opaque" x="300" y="171" width="60" height="18" backcolor="#CCCCCC" uuid="9ad8168e-35fc-443c-9b6c-25e0f471db08"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[PROPOSEE]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="360" y="158" width="60" height="18" backcolor="#CCCCCC" uuid="50f60592-d9c3-49bf-88d8-b84b20c6740a"/>
+				<reportElement mode="Opaque" x="360" y="171" width="60" height="18" backcolor="#CCCCCC" uuid="50f60592-d9c3-49bf-88d8-b84b20c6740a"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[RETENUE]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="420" y="158" width="60" height="18" backcolor="#CCCCCC" uuid="5241637e-824d-4020-b474-ab5cb7ecab74"/>
+				<reportElement mode="Opaque" x="420" y="171" width="60" height="18" backcolor="#CCCCCC" uuid="5241637e-824d-4020-b474-ab5cb7ecab74"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[DEPLACEE]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="480" y="158" width="80" height="18" backcolor="#CCCCCC" uuid="dbbc506e-4dfc-48b0-a5d4-8bc367440a54"/>
+				<reportElement mode="Opaque" x="480" y="171" width="80" height="18" backcolor="#CCCCCC" uuid="dbbc506e-4dfc-48b0-a5d4-8bc367440a54"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[ETAT]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="560" y="158" width="262" height="18" backcolor="#CCCCCC" uuid="551f128c-b88a-46b6-8bd8-ce193fbe9561"/>
+				<reportElement mode="Opaque" x="560" y="171" width="262" height="18" backcolor="#CCCCCC" uuid="551f128c-b88a-46b6-8bd8-ce193fbe9561"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[CODE / MESSAGE]]></text>

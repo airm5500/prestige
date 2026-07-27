@@ -216,7 +216,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
     @Override
     public JSONObject lister(TUser user, String statut, String categorie, String origine, Integer motifId,
-            String search, String dtStart, String dtEnd, String userId, String tri, int start, int limit) {
+            String search, String dtStart, String dtEnd, String userId, String controle, String tri, int start,
+            int limit) {
         StringBuilder jpql = new StringBuilder("SELECT s FROM TSuggestionReserve s WHERE 1=1");
         if (notBlank(statut)) {
             jpql.append(" AND s.strSTATUT = :statut");
@@ -246,6 +247,13 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             jpql.append(" AND EXISTS (SELECT d FROM TSuggestionReserveDetail d"
                     + " WHERE d.lgSUGGESTIONRESERVEID = s AND (d.lgFAMILLEID.strNAME LIKE :search"
                     + " OR d.lgFAMILLEID.intCIP LIKE :search))");
+        }
+        // Controle : seules les suggestions traitees peuvent l'etre, une suggestion a traiter n'est
+        // donc jamais rendue par ce filtre, dans un sens comme dans l'autre.
+        if ("O".equalsIgnoreCase(controle)) {
+            jpql.append(" AND s.dtCONTROLE IS NOT NULL");
+        } else if ("N".equalsIgnoreCase(controle)) {
+            jpql.append(" AND s.dtCONTROLE IS NULL AND s.strSTATUT = '" + TSuggestionReserve.STATUT_TRAITEE + "'");
         }
         jpql.append(ordreDeTri(tri));
 
@@ -757,7 +765,15 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 + (s.getDtCLOTURE() != null
                         ? " - cloturee le " + dateTexte(s.getDtCLOTURE()) + " par "
                                 + nomUtilisateur(s.getLgUSERCLOTUREID())
-                        : "");
+                        : "")
+                // Le controle fait partie du compte rendu : un classeur archive doit dire si
+                // quelqu'un a constate que le deplacement avait bien ete fait.
+                + (s.getDtCONTROLE() != null
+                        ? " - controlee le " + dateTexte(s.getDtCONTROLE()) + " par "
+                                + nomUtilisateur(s.getLgUSERCONTROLEID())
+                                + (notBlank(s.getStrOBSERVATIONCONTROLE())
+                                        ? " (" + s.getStrOBSERVATIONCONTROLE() + ")" : "")
+                        : " - NON CONTROLEE");
         String[] entetes = { "CIP", "Designation", "Declencheur", "Qte proposee", "Qte retenue", "Qte deplacee",
                 "Etat", "Code echec", "Motif / message" };
         return reportExcelExportService.createExcelReport(titre, entetes, lignes, (row, d) -> {
@@ -802,6 +818,35 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         LOG.log(Level.INFO, "creerDepuisRecherche type={0} articles={1} user={2}",
                 new Object[] { type, items.size(), user.getLgUSERID() });
         return creer(user, categorie, motifId, commentaire, items);
+    }
+
+    @Override
+    public JSONObject controler(TUser user, String suggestionId, String observation) {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return echec("Suggestion introuvable.");
+        }
+        // Le controle atteste d'un deplacement physique : il n'a de sens que sur une suggestion
+        // dont les mouvements ont ete executes.
+        if (!TSuggestionReserve.STATUT_TRAITEE.equals(s.getStrSTATUT())) {
+            return echec("Seule une suggestion traitee peut etre controlee.");
+        }
+        // Un controle deja pose n'est pas remplace : on perdrait la trace du premier controleur.
+        if (s.getDtCONTROLE() != null) {
+            return echec("Cette suggestion a deja ete controlee par " + nomUtilisateur(s.getLgUSERCONTROLEID())
+                    + " le " + dateTexte(s.getDtCONTROLE()) + ".");
+        }
+        s.setLgUSERCONTROLEID(user);
+        s.setDtCONTROLE(new java.util.Date());
+        s.setStrOBSERVATIONCONTROLE(notBlank(observation) ? observation.trim() : null);
+        s.setDtUPDATED(new java.util.Date());
+        em.merge(s);
+
+        LOG.log(Level.INFO, "controle suggestion={0} user={1}",
+                new Object[] { suggestionId, user.getLgUSERID() });
+        return new JSONObject().put("success", true).put("str_USER_CONTROLE", nomUtilisateur(user))
+                .put("dt_CONTROLE", dateTexte(s.getDtCONTROLE()))
+                .put("message", "Controle enregistre.");
     }
 
     @Override
@@ -1177,7 +1222,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 .put("str_USER_TRAITANT", nomUtilisateur(s.getLgUSERTRAITANTID()))
                 .put("str_USER_CLOTURE", nomUtilisateur(s.getLgUSERCLOTUREID()))
                 .put("dt_CREATED", dateTexte(s.getDtCREATED())).put("dt_UPDATED", dateTexte(s.getDtUPDATED()))
-                .put("dt_TRAITEE", dateTexte(s.getDtTRAITEE())).put("dt_CLOTURE", dateTexte(s.getDtCLOTURE()));
+                .put("dt_TRAITEE", dateTexte(s.getDtTRAITEE())).put("dt_CLOTURE", dateTexte(s.getDtCLOTURE()))
+                .put("str_USER_CONTROLE", nomUtilisateur(s.getLgUSERCONTROLEID()))
+                .put("dt_CONTROLE", dateTexte(s.getDtCONTROLE()))
+                .put("str_OBSERVATION_CONTROLE", texte(s.getStrOBSERVATIONCONTROLE()))
+                .put("bl_CONTROLEE", s.getDtCONTROLE() != null);
     }
 
     private JSONObject ligneJson(TUser user, TSuggestionReserveDetail d) {

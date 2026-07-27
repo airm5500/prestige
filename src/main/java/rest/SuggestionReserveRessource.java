@@ -64,14 +64,15 @@ public class SuggestionReserveRessource {
     public Response liste(@QueryParam("statut") String statut, @QueryParam("categorie") String categorie,
             @QueryParam("origine") String origine, @QueryParam("motifId") Integer motifId,
             @QueryParam("search_value") String search, @QueryParam("dtStart") String dtStart,
-            @QueryParam("dtEnd") String dtEnd, @QueryParam("userId") String userId, @QueryParam("tri") String tri,
+            @QueryParam("dtEnd") String dtEnd, @QueryParam("userId") String userId,
+            @QueryParam("controle") String controle, @QueryParam("tri") String tri,
             @QueryParam("start") int start, @QueryParam("limit") int limit) {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
         }
         JSONObject json = suggestionReserveService.lister(user, statut, categorie, origine, motifId, search, dtStart,
-                dtEnd, userId, tri, start, limit > 0 ? limit : 20);
+                dtEnd, userId, controle, tri, start, limit > 0 ? limit : 20);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -234,6 +235,19 @@ public class SuggestionReserveRessource {
             return deconnecte();
         }
         return Response.ok().entity(suggestionReserveService.libererVerrou(user, id).toString()).build();
+    }
+
+    /** Confirme qu'une suggestion traitee a bien ete realisee sur le terrain. */
+    @PUT
+    @Path("{id}/controler")
+    public Response controler(@PathParam("id") String id, String body) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject o = (body == null || body.trim().isEmpty()) ? new JSONObject() : new JSONObject(body);
+        String observation = o.optString("observation", null);
+        return Response.ok().entity(suggestionReserveService.controler(user, id, observation).toString()).build();
     }
 
     /** Cree un inventaire reserve portant sur les produits de la suggestion. */

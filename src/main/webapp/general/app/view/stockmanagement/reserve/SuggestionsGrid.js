@@ -37,6 +37,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 'str_COMMENTAIRE', 'motif_id', 'motif_libelle',
                 'str_USER_CREATEUR', 'str_USER_TRAITANT', 'str_USER_CLOTURE',
                 'dt_CREATED', 'dt_UPDATED', 'dt_TRAITEE', 'dt_CLOTURE',
+                'str_USER_CONTROLE', 'dt_CONTROLE', 'str_OBSERVATION_CONTROLE',
+                {name: 'bl_CONTROLEE', type: 'boolean'},
                 {name: 'nb_produits', type: 'int'}
             ],
             proxy: {
@@ -114,6 +116,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                         me.onRechercher();
                     }}},
             '-',
+            combo('fControle', 'Controle : tous', [
+                {valeur: 'N', libelle: 'A controler'},
+                {valeur: 'O', libelle: 'Controlees'}
+            ], 140),
+            '-',
             combo('fTri', 'Tri : date', [
                 {valeur: 'date', libelle: 'Tri : date'},
                 {valeur: 'statut', libelle: 'Tri : statut'},
@@ -180,6 +187,31 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 }]
         };
 
+        // Validation du controle : confirme que le deplacement a bien ete fait dans les rayons.
+        // Une suggestion deja controlee affiche la coche verte, sans action possible : le nom du
+        // premier controleur ne doit pas pouvoir etre remplace.
+        var colControler = {
+            xtype: 'actioncolumn', header: 'Controle', width: 65, align: 'center',
+            sortable: false, menuDisabled: true,
+            items: [{
+                    getClass: function (v, m, rec) {
+                        // Seule une suggestion traitee peut etre controlee ; une fois controlee,
+                        // la coche reste visible mais l'action ne fait plus rien.
+                        return (rec.get('str_STATUT') === 'TRAITEE') ? '' : 'x-hidden';
+                    },
+                    getTip: function (v, m, rec) {
+                        return rec.get('bl_CONTROLEE')
+                                ? 'Controlee par ' + (rec.get('str_USER_CONTROLE') || '')
+                                        + ' le ' + (rec.get('dt_CONTROLE') || '')
+                                : 'Confirmer que le deplacement a bien ete realise';
+                    },
+                    icon: 'resources/images/icons/fam/accept.png',
+                    handler: function (g, rowIndex) {
+                        me.onControler(g.getStore().getAt(rowIndex));
+                    }
+                }]
+        };
+
         // Colonne separee, avec une marge : plus de confusion possible avec l'action d'ouverture.
         var colSupprimer = {
             xtype: 'actioncolumn', header: '', width: 40, align: 'center',
@@ -234,9 +266,29 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {header: 'Motif', dataIndex: 'motif_libelle', flex: 1, minWidth: 140},
                 {header: 'Creee par', dataIndex: 'str_USER_CREATEUR', width: 120},
                 {header: 'Traitee par', dataIndex: 'str_USER_TRAITANT', width: 120},
+                {
+                    header: 'Controle par', dataIndex: 'str_USER_CONTROLE', width: 140,
+                    renderer: function (v, m, rec) {
+                        if (rec.get('bl_CONTROLEE')) {
+                            m.style = 'color:#2a6b2e;font-weight:bold;';
+                            var obs = rec.get('str_OBSERVATION_CONTROLE');
+                            m.tdAttr = 'data-qtip="Controlee le ' + (rec.get('dt_CONTROLE') || '')
+                                    + (obs ? ' - ' + Ext.String.htmlEncode(obs) : '') + '"';
+                            return v;
+                        }
+                        // Une suggestion non traitee n'a pas vocation a etre controlee : on ne
+                        // signale l'attente que sur celles dont les mouvements sont passes.
+                        if (rec.get('str_STATUT') === 'TRAITEE') {
+                            m.style = 'color:#b06000;font-weight:bold;';
+                            return 'A controler';
+                        }
+                        return '';
+                    }
+                },
                 colOuvrir,
                 colInventaire,
                 colImprimer,
+                colControler,
                 colAnnuler,
                 colSupprimer
             ],
@@ -277,6 +329,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             motifId: val('fMotif'),
             dtStart: dateVal('fDebut'),
             dtEnd: dateVal('fFin'),
+            controle: val('fControle'),
             tri: val('fTri')
         };
         me.store.loadPage(1);
@@ -284,7 +337,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
 
     onReinitialiser: function () {
         var me = this;
-        Ext.each(['fSearch', 'fStatut', 'fCategorie', 'fOrigine', 'fMotif', 'fDebut', 'fFin', 'fTri'],
+        Ext.each(['fSearch', 'fStatut', 'fCategorie', 'fOrigine', 'fMotif', 'fDebut', 'fFin', 'fControle', 'fTri'],
                 function (itemId) {
                     var c = me.down('#' + itemId);
                     if (c) {
@@ -364,6 +417,46 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                         failure: function () {
                             progress.hide();
                             Ext.MessageBox.alert('Erreur', 'L\'annulation a echoue.');
+                        }
+                    });
+                });
+    },
+
+    // Confirme que le deplacement a bien ete realise sur le terrain. L'observation est
+    // facultative : elle sert a signaler un ecart constate au moment du controle.
+    onControler: function (rec) {
+        var me = this;
+        if (!rec || rec.get('bl_CONTROLEE')) {
+            if (rec && rec.get('bl_CONTROLEE')) {
+                Ext.MessageBox.alert('Deja controlee',
+                        'Controlee par ' + Ext.String.htmlEncode(rec.get('str_USER_CONTROLE') || '')
+                        + ' le ' + Ext.String.htmlEncode(rec.get('dt_CONTROLE') || '') + '.');
+            }
+            return;
+        }
+        Ext.MessageBox.prompt('Confirmer le controle',
+                'Vous confirmez que le deplacement de la suggestion '
+                + Ext.String.htmlEncode(rec.get('str_REF') || '')
+                + ' a bien ete realise.<br>Observation (facultative) :',
+                function (btn, texte) {
+                    if (btn !== 'ok') {
+                        return;
+                    }
+                    Ext.Ajax.request({
+                        method: 'PUT',
+                        url: '../api/v1/suggestion-reserve/'
+                                + encodeURIComponent(rec.get('lg_SUGGESTION_RESERVE_ID')) + '/controler',
+                        jsonData: {observation: texte || ''},
+                        success: function (response) {
+                            var res = Ext.JSON.decode(response.responseText, true) || {};
+                            if (res.success === false) {
+                                Ext.MessageBox.alert('Controle impossible', res.message || '');
+                                return;
+                            }
+                            me.reloadGrid();
+                        },
+                        failure: function () {
+                            Ext.MessageBox.alert('Erreur', 'L\'enregistrement du controle a echoue.');
                         }
                     });
                 });

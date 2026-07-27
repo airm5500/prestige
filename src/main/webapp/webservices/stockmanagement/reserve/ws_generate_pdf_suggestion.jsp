@@ -115,6 +115,15 @@
     parameters.put("P_MOTIF", suggestion.getMotif() != null ? suggestion.getMotif().getLibelle() : "-");
     parameters.put("P_CREATEUR", nomUtilisateur(suggestion.getLgUSERCREATEURID()));
     parameters.put("P_CLOTURANT", nomUtilisateur(suggestion.getLgUSERCLOTUREID()));
+    // Le controle atteste que le deplacement a bien ete fait dans les rayons : le compte rendu
+    // imprime doit le porter, sans quoi rien ne distingue une operation verifiee d'une autre.
+    parameters.put("P_CONTROLE", suggestion.getDtCONTROLE() != null
+            ? "Controlee le " + dateTexte(suggestion.getDtCONTROLE()) + " par "
+                    + nomUtilisateur(suggestion.getLgUSERCONTROLEID())
+                    + (suggestion.getStrOBSERVATIONCONTROLE() != null
+                            && !suggestion.getStrOBSERVATIONCONTROLE().trim().isEmpty()
+                                    ? "  -  " + suggestion.getStrOBSERVATIONCONTROLE() : "")
+            : "Non controlee");
     parameters.put("P_DATES", "Creee le " + dateTexte(suggestion.getDtCREATED())
             + "     Traitee le " + dateTexte(suggestion.getDtTRAITEE())
             + "     Cloturee le " + dateTexte(suggestion.getDtCLOTURE()));

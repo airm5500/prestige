@@ -112,8 +112,48 @@ public class TSuggestionReserve implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtVERROU;
 
+    /**
+     * Controle du travail fait : qui a constate sur le terrain que le deplacement a bien ete realise, quand, et ce
+     * qu'il a eventuellement observe. Tant que {@code dtCONTROLE} est nul, la suggestion est traitee mais non
+     * controlee.
+     */
+    @JoinColumn(name = "lg_USER_CONTROLE_ID", referencedColumnName = "lg_USER_ID")
+    @ManyToOne
+    private TUser lgUSERCONTROLEID;
+
+    @Column(name = "dt_CONTROLE")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date dtCONTROLE;
+
+    @Column(name = "str_OBSERVATION_CONTROLE", length = 500)
+    private String strOBSERVATIONCONTROLE;
+
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "lgSUGGESTIONRESERVEID")
     private Collection<TSuggestionReserveDetail> details;
+
+    public TUser getLgUSERCONTROLEID() {
+        return lgUSERCONTROLEID;
+    }
+
+    public void setLgUSERCONTROLEID(TUser lgUSERCONTROLEID) {
+        this.lgUSERCONTROLEID = lgUSERCONTROLEID;
+    }
+
+    public Date getDtCONTROLE() {
+        return dtCONTROLE;
+    }
+
+    public void setDtCONTROLE(Date dtCONTROLE) {
+        this.dtCONTROLE = dtCONTROLE;
+    }
+
+    public String getStrOBSERVATIONCONTROLE() {
+        return strOBSERVATIONCONTROLE;
+    }
+
+    public void setStrOBSERVATIONCONTROLE(String strOBSERVATIONCONTROLE) {
+        this.strOBSERVATIONCONTROLE = strOBSERVATIONCONTROLE;
+    }
 
     public TSuggestionReserve() {
     }
