@@ -11,19 +11,29 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import java.util.Comparator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.annotation.Resource;
+import javax.ejb.SessionContext;
 import javax.ejb.Stateless;
+import javax.ejb.TransactionAttribute;
+import javax.ejb.TransactionAttributeType;
 import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
+import javax.persistence.LockTimeoutException;
+import javax.persistence.OptimisticLockException;
 import javax.persistence.PersistenceContext;
+import javax.persistence.PessimisticLockException;
 import javax.persistence.Query;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.ReserveService;
 
 /**
- * Implementation du service de reserve. Toute mutation rayon/reserve se fait dans une transaction JTA unique
- * (atomicite), avec validation prealable et trace systematique dans t_mouvement_reserve.
+ * Implementation du service de reserve. Chaque mutation rayon/reserve s'execute dans sa PROPRE transaction JTA
+ * (REQUIRES_NEW) : validation prealable, verrou pessimiste sur la ligne de stock reserve, et trace systematique dans
+ * t_mouvement_reserve.
  */
 @Stateless
 public class ReserveServiceImpl implements ReserveService {
@@ -35,8 +45,25 @@ public class ReserveServiceImpl implements ReserveService {
     private static final int DEFAULT_DELAI_REAPPRO = 3;
     private static final int DEFAULT_COEF_SECURITY = 1;
 
+    // Codes d'echec exploitables par l'interface (compte rendu detaille des traitements).
+    private static final String CODE_ARTICLE_INTROUVABLE = "ARTICLE_INTROUVABLE";
+    private static final String CODE_QUANTITE_INVALIDE = "QUANTITE_INVALIDE";
+    private static final String CODE_CONFIG_INCOMPLETE = "CONFIG_STOCK_INCOMPLETE";
+    private static final String CODE_STOCK_RAYON_INSUFFISANT = "STOCK_RAYON_INSUFFISANT";
+    private static final String CODE_STOCK_RESERVE_INSUFFISANT = "STOCK_RESERVE_INSUFFISANT";
+    private static final String CODE_CONFLIT_CONCURRENCE = "CONFLIT_CONCURRENCE";
+    private static final String CODE_ERREUR_TECHNIQUE = "ERREUR_TECHNIQUE";
+
+    // Delai d'attente maximal du verrou sur la ligne de stock reserve. Si le moteur ne sait pas honorer ce hint
+    // (cas de MySQL/InnoDB), c'est le innodb_lock_wait_timeout du serveur qui s'applique.
+    private static final String LOCK_TIMEOUT_HINT = "javax.persistence.lock.timeout";
+    private static final int LOCK_TIMEOUT_MS = 5000;
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+
+    @Resource
+    private SessionContext sessionContext;
 
     @javax.ejb.EJB
     private rest.service.InventaireService inventaireService;
@@ -259,12 +286,14 @@ public class ReserveServiceImpl implements ReserveService {
     // -------------------------------------------------------------- MUTATIONS
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public JSONObject assort(TUser user, String familleId, int qte) {
         LOG.log(Level.INFO, "assort famille={0} qte={1} user={2}", new Object[] { familleId, qte, user.getLgUSERID() });
         return doMove(user, familleId, qte, TMouvementReserve.TYPE_ASSORT);
     }
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public JSONObject reassort(TUser user, String familleId, int qte) {
         LOG.log(Level.INFO, "reassort famille={0} qte={1} user={2}",
                 new Object[] { familleId, qte, user.getLgUSERID() });
@@ -273,78 +302,104 @@ public class ReserveServiceImpl implements ReserveService {
 
     @Override
     public JSONObject reassortBatch(TUser user, List<JSONObject> items) {
-        LOG.log(Level.INFO, "reassortBatch {0} articles user={1}", new Object[] { items.size(), user.getLgUSERID() });
-        JSONArray details = new JSONArray();
-        int ok = 0;
-        for (JSONObject item : items) {
-            String familleId = item.optString("lg_FAMILLE_ID", null);
-            int qte = item.optInt("int_QTE", 0);
-            JSONObject r = doMove(user, familleId, qte, TMouvementReserve.TYPE_REASSORT);
-            if (r.optBoolean("success", false)) {
-                ok++;
-            } else {
-                LOG.log(Level.WARNING, "reassortBatch echec article famille={0}: {1}",
-                        new Object[] { familleId, r.optString("message") });
-            }
-            details.put(r);
-        }
-        LOG.log(Level.INFO, "reassortBatch termine: {0}/{1} ok", new Object[] { ok, items.size() });
-        return new JSONObject().put("success", ok == items.size()).put("traites", ok).put("total", items.size())
-                .put("details", details);
+        return doBatch(user, items, TMouvementReserve.TYPE_REASSORT, "reassortBatch");
     }
 
     @Override
     public JSONObject assortBatch(TUser user, List<JSONObject> items) {
-        LOG.log(Level.INFO, "assortBatch {0} articles user={1}", new Object[] { items.size(), user.getLgUSERID() });
-        JSONArray details = new JSONArray();
-        int ok = 0;
-        for (JSONObject item : items) {
-            String familleId = item.optString("lg_FAMILLE_ID", null);
-            int qte = item.optInt("int_QTE", 0);
-            JSONObject r = doMove(user, familleId, qte, TMouvementReserve.TYPE_ASSORT);
-            if (r.optBoolean("success", false)) {
-                ok++;
-            } else {
-                LOG.log(Level.WARNING, "assortBatch echec article famille={0}: {1}",
-                        new Object[] { familleId, r.optString("message") });
-            }
-            details.put(r);
-        }
-        LOG.log(Level.INFO, "assortBatch termine: {0}/{1} ok", new Object[] { ok, items.size() });
-        return new JSONObject().put("success", ok == items.size()).put("traites", ok).put("total", items.size())
-                .put("details", details);
+        return doBatch(user, items, TMouvementReserve.TYPE_ASSORT, "assortBatch");
     }
 
     /**
-     * Coeur transactionnel. Valide AVANT toute mutation : en cas d'erreur metier on retourne un echec sans avoir touche
-     * au stock. En cas d'erreur technique la transaction JTA est annulee automatiquement.
+     * Traitement en lot. Chaque ligne s'execute dans sa PROPRE transaction (REQUIRES_NEW) via le proxy du bean : une
+     * ligne en echec n'annule plus les lignes deja passees, et le verrou pris sur la ligne de stock est relache
+     * immediatement (pas un seul verrou geant tenu jusqu'a la fin du lot).
+     *
+     * <p>
+     * Les lignes sont triees par identifiant produit : l'ordre d'acquisition des verrous est ainsi deterministe et
+     * identique d'un lot a l'autre, ce qui supprime tout risque d'interblocage entre deux lots concurrents.
+     */
+    private JSONObject doBatch(TUser user, List<JSONObject> items, String typeMouvement, String label) {
+        int total = (items == null) ? 0 : items.size();
+        LOG.log(Level.INFO, "{0} {1} articles user={2}", new Object[] { label, total, user.getLgUSERID() });
+        JSONArray details = new JSONArray();
+        if (total == 0) {
+            return new JSONObject().put("success", true).put("traites", 0).put("total", 0).put("echecs", 0)
+                    .put("details", details);
+        }
+
+        List<JSONObject> ordonnes = new ArrayList<>(items);
+        ordonnes.sort(Comparator.comparing((JSONObject i) -> i.optString("lg_FAMILLE_ID", "")));
+
+        ReserveService self = sessionContext.getBusinessObject(ReserveService.class);
+        int ok = 0;
+        for (JSONObject item : ordonnes) {
+            String familleId = item.optString("lg_FAMILLE_ID", null);
+            int qte = item.optInt("int_QTE", 0);
+            JSONObject r;
+            try {
+                r = TMouvementReserve.TYPE_ASSORT.equals(typeMouvement) ? self.assort(user, familleId, qte)
+                        : self.reassort(user, familleId, qte);
+            } catch (Exception e) {
+                // Echec au commit de la transaction isolee : on confine l'erreur a cette ligne et on continue.
+                LOG.log(Level.SEVERE, label + " echec commit famille=" + familleId, e);
+                r = fail(CODE_ERREUR_TECHNIQUE, "Echec technique sur cet article.").put("lg_FAMILLE_ID", familleId);
+            }
+            if (r.optBoolean("success", false)) {
+                ok++;
+            } else {
+                LOG.log(Level.WARNING, "{0} echec article famille={1}: {2}",
+                        new Object[] { label, familleId, r.optString("message") });
+            }
+            details.put(r);
+        }
+        LOG.log(Level.INFO, "{0} termine: {1}/{2} ok", new Object[] { label, ok, total });
+        return new JSONObject().put("success", ok == total).put("traites", ok).put("total", total)
+                .put("echecs", total - ok).put("details", details);
+    }
+
+    /**
+     * Coeur transactionnel, execute dans la transaction REQUIRES_NEW de {@link #assort} / {@link #reassort}.
+     *
+     * <p>
+     * La ligne de stock reserve est lue SOUS VERROU EXCLUSIF (PESSIMISTIC_WRITE) : la lecture du disponible et
+     * l'ecriture qui en decoule sont donc serialisees, ce qui interdit qu'un mouvement concurrent consomme deux fois le
+     * meme stock ou rende la reserve negative. Le stock rayon reste protege par son @Version (verrou optimiste
+     * existant), volontairement inchange pour ne pas serialiser le flux de vente.
+     *
+     * <p>
+     * Une erreur metier retourne un echec sans avoir touche au stock. Une erreur technique marque la transaction en
+     * rollback : aucune ecriture partielle ne peut etre validee.
      */
     private JSONObject doMove(TUser user, String familleId, int qte, String typeMouvement) {
         LOG.log(Level.INFO, "doMove type={0} famille={1} qte={2} user={3}",
                 new Object[] { typeMouvement, familleId, qte, user.getLgUSERID() });
         if (familleId == null || familleId.trim().isEmpty()) {
             LOG.log(Level.WARNING, "doMove: familleId null ou vide");
-            return fail("Article introuvable.");
+            return fail(CODE_ARTICLE_INTROUVABLE, "Article introuvable.");
         }
         if (qte <= 0) {
             LOG.log(Level.WARNING, "doMove: qte invalide ({0})", qte);
-            return fail("La quantite doit etre superieure a zero.");
+            return fail(CODE_QUANTITE_INVALIDE, "La quantite doit etre superieure a zero.")
+                    .put("lg_FAMILLE_ID", familleId);
         }
         try {
             String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
             TFamille famille = em.find(TFamille.class, familleId);
             if (famille == null) {
                 LOG.log(Level.WARNING, "doMove: TFamille introuvable pour id={0}", familleId);
-                return fail("Article introuvable.");
+                return fail(CODE_ARTICLE_INTROUVABLE, "Article introuvable.").put("lg_FAMILLE_ID", familleId);
             }
             TFamilleStock stockRayon = findFamilleStock(familleId, empl);
             TTypeStockFamille typeRayon = findTypeStock(TYPE_STOCK_RAYON, familleId, empl);
-            TTypeStockFamille typeReserve = findTypeStock(TYPE_STOCK_RESERVE, familleId, empl);
+            // Verrou exclusif sur la ligne reserve : tout autre mouvement sur ce produit attend ici.
+            TTypeStockFamille typeReserve = findTypeStockForUpdate(TYPE_STOCK_RESERVE, familleId, empl);
             if (stockRayon == null || typeRayon == null || typeReserve == null) {
                 LOG.log(Level.WARNING,
                         "doMove: config stock incomplete famille={0} empl={1} stockRayon={2} typeRayon={3} typeReserve={4}",
                         new Object[] { familleId, empl, stockRayon, typeRayon, typeReserve });
-                return fail("Configuration de stock incomplete pour cet article.");
+                return fail(CODE_CONFIG_INCOMPLETE, "Configuration de stock incomplete pour cet article.")
+                        .put("lg_FAMILLE_ID", familleId);
             }
 
             int rayonAvant = nz(stockRayon.getIntNUMBERAVAILABLE());
@@ -357,7 +412,9 @@ public class ReserveServiceImpl implements ReserveService {
                 if (rayonAvant < qte) {
                     LOG.log(Level.WARNING, "doMove ASSORT: stock rayon insuffisant famille={0} rayon={1} qte={2}",
                             new Object[] { familleId, rayonAvant, qte });
-                    return fail("Stock rayon insuffisant (" + rayonAvant + " disponible).");
+                    return fail(CODE_STOCK_RAYON_INSUFFISANT,
+                            "Stock rayon insuffisant (" + rayonAvant + " disponible).").put("lg_FAMILLE_ID", familleId)
+                                    .put("int_DISPONIBLE", rayonAvant);
                 }
                 stockRayon.setIntNUMBERAVAILABLE(rayonAvant - qte);
                 stockRayon.setIntNUMBER(nz(stockRayon.getIntNUMBER()) - qte);
@@ -368,7 +425,9 @@ public class ReserveServiceImpl implements ReserveService {
                 if (reserveAvant < qte) {
                     LOG.log(Level.WARNING, "doMove REASSORT: stock reserve insuffisant famille={0} reserve={1} qte={2}",
                             new Object[] { familleId, reserveAvant, qte });
-                    return fail("Stock reserve insuffisant (" + reserveAvant + " disponible).");
+                    return fail(CODE_STOCK_RESERVE_INSUFFISANT,
+                            "Stock reserve insuffisant (" + reserveAvant + " disponible).")
+                                    .put("lg_FAMILLE_ID", familleId).put("int_DISPONIBLE", reserveAvant);
                 }
                 stockRayon.setIntNUMBERAVAILABLE(rayonAvant + qte);
                 stockRayon.setIntNUMBER(nz(stockRayon.getIntNUMBER()) + qte);
@@ -395,9 +454,29 @@ public class ReserveServiceImpl implements ReserveService {
             return new JSONObject().put("success", true).put("message", "Operation effectuee avec succes.")
                     .put("lg_FAMILLE_ID", familleId).put("int_NUMBER", stockRayon.getIntNUMBERAVAILABLE())
                     .put("int_STOCK_RESERVE", typeReserve.getIntNUMBER());
+        } catch (PessimisticLockException | LockTimeoutException | OptimisticLockException e) {
+            // Un autre traitement (vente, cloture d'inventaire, autre mouvement) detient la ligne ou l'a modifiee
+            // entre-temps : rien n'est ecrit, l'utilisateur peut simplement reessayer.
+            LOG.log(Level.WARNING, "doMove CONFLIT type=" + typeMouvement + " famille=" + familleId + " qte=" + qte, e);
+            markRollback();
+            return fail(CODE_CONFLIT_CONCURRENCE,
+                    "Cet article est en cours de modification par un autre traitement. Veuillez reessayer.")
+                            .put("lg_FAMILLE_ID", familleId);
         } catch (Exception e) {
+            // Erreur technique : on annule explicitement la transaction pour interdire toute ecriture partielle.
             LOG.log(Level.SEVERE, "doMove ECHEC type=" + typeMouvement + " famille=" + familleId + " qte=" + qte, e);
-            return fail("Echec de l'operation: " + e.getMessage());
+            markRollback();
+            return fail(CODE_ERREUR_TECHNIQUE, "Echec de l'operation: " + e.getMessage()).put("lg_FAMILLE_ID",
+                    familleId);
+        }
+    }
+
+    /** Marque la transaction courante en rollback (aucune ecriture partielle ne sera validee). */
+    private void markRollback() {
+        try {
+            sessionContext.setRollbackOnly();
+        } catch (Exception ignore) {
+            LOG.log(Level.FINE, "markRollback: pas de transaction active");
         }
     }
 
@@ -658,6 +737,32 @@ public class ReserveServiceImpl implements ReserveService {
         }
     }
 
+    /**
+     * Identique a {@link #findTypeStock} mais pose un VERROU EXCLUSIF sur la ligne (SELECT ... FOR UPDATE). Tout autre
+     * traitement voulant modifier cette meme ligne attend la fin de la transaction courante : la sequence
+     * lecture-du-disponible puis ecriture devient atomique.
+     *
+     * <p>
+     * Les exceptions de verrou sont volontairement PROPAGEES (elles ne doivent pas etre confondues avec une
+     * configuration de stock absente) : {@link #doMove} les traduit en conflit de concurrence.
+     */
+    private TTypeStockFamille findTypeStockForUpdate(String typeStockId, String familleId, String empl) {
+        Query q = em.createQuery("SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = ?1 "
+                + "AND t.lgFAMILLEID.lgFAMILLEID = ?2 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?3");
+        q.setParameter(1, typeStockId);
+        q.setParameter(2, familleId);
+        q.setParameter(3, empl);
+        q.setMaxResults(1);
+        q.setLockMode(LockModeType.PESSIMISTIC_WRITE);
+        q.setHint(LOCK_TIMEOUT_HINT, LOCK_TIMEOUT_MS);
+        try {
+            return (TTypeStockFamille) q.getSingleResult();
+        } catch (javax.persistence.NoResultException | javax.persistence.NonUniqueResultException e) {
+            // Absence de ligne de stock reserve : c'est un probleme de configuration, pas un conflit.
+            return null;
+        }
+    }
+
     private Integer getNumberAvailable(String familleId, String empl) {
         try {
             Query q = em.createNativeQuery(
@@ -729,7 +834,11 @@ public class ReserveServiceImpl implements ReserveService {
         return user.getLgUSERID();
     }
 
-    private static JSONObject fail(String message) {
-        return new JSONObject().put("success", false).put("message", message);
+    /**
+     * Echec avec un code exploitable par l'interface (compte rendu detaille). Le champ {@code message} reste present et
+     * inchange dans sa forme : les ecrans existants continuent de fonctionner sans modification.
+     */
+    private static JSONObject fail(String code, String message) {
+        return new JSONObject().put("success", false).put("code", code).put("message", message);
     }
 }

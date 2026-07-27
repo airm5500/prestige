@@ -62,6 +62,7 @@ import javax.ejb.TransactionManagement;
 import javax.ejb.TransactionManagementType;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
@@ -721,19 +722,31 @@ public class CommandeServiceImpl implements CommandeService {
      * stock rayon (t_famille_stock).
      */
     private void updateStockReserve(EntityManager emg, String familleId, String emplacementId, int qte) {
+        TTypeStockFamille typeStock;
         try {
-            TTypeStockFamille typeStock = (TTypeStockFamille) emg
+            // Verrou exclusif sur la ligne reserve : un mouvement rayon<->reserve concurrent sur ce produit ne peut
+            // plus etre ecrase silencieusement par la valeur comptee de l'inventaire.
+            typeStock = (TTypeStockFamille) emg
                     .createQuery("SELECT t FROM TTypeStockFamille t WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = '2' "
                             + "AND t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 "
                             + "AND t.strSTATUT = 'enable'")
-                    .setParameter(1, familleId).setParameter(2, emplacementId).setMaxResults(1).getSingleResult();
-            typeStock.setIntNUMBER(qte);
-            typeStock.setDtUPDATED(new Date());
-            emg.merge(typeStock);
+                    .setParameter(1, familleId).setParameter(2, emplacementId).setMaxResults(1)
+                    .setLockMode(LockModeType.PESSIMISTIC_WRITE).getSingleResult();
+        } catch (javax.persistence.PessimisticLockException | javax.persistence.LockTimeoutException e) {
+            // Conflit de verrou : on NE POURSUIT PAS en silence (cela laisserait l'inventaire partiellement applique).
+            // IllegalStateException est traitee par le catch de cloturerInvetaire -> rollback complet et message clair.
+            LOG.log(Level.SEVERE, "updateStockReserve: conflit de verrou famille=" + familleId, e);
+            throw new IllegalStateException("Article " + familleId
+                    + " en cours de modification par un autre traitement : cloture interrompue.", e);
         } catch (Exception e) {
+            // Absence de ligne de stock reserve : comportement historique conserve (on trace et on continue).
             LOG.log(Level.WARNING, "updateStockReserve: pas de stock reserve pour famille={0} empl={1} : {2}",
                     new Object[] { familleId, emplacementId, e.getMessage() });
+            return;
         }
+        typeStock.setIntNUMBER(qte);
+        typeStock.setDtUPDATED(new Date());
+        emg.merge(typeStock);
     }
 
     @Override

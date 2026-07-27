@@ -2,6 +2,7 @@ package rest.service;
 
 import dal.TUser;
 import java.util.List;
+import javax.ejb.Local;
 import org.json.JSONObject;
 
 /**
@@ -11,7 +12,13 @@ import org.json.JSONObject;
 /**
  * Service de gestion des reserves : listing, mouvements rayon&lt;-&gt;reserve, suggestions de reassort et historique.
  * Remplace l'ancien backend JSP (ws_data / ws_transaction).
+ *
+ * <p>
+ * Interface locale declaree explicitement : elle est resolue par
+ * {@code SessionContext.getBusinessObject(ReserveService.class)} pour executer chaque ligne d'un lot dans sa propre
+ * transaction (REQUIRES_NEW).
  */
+@Local
 public interface ReserveService {
 
     /**
@@ -58,12 +65,15 @@ public interface ReserveService {
     JSONObject reassort(TUser user, String familleId, int qte);
 
     /**
-     * Applique en lot une serie de reassorts dans une seule transaction.
+     * Applique en lot une serie de reassorts (reserve -&gt; rayon). Chaque ligne est traitee dans sa PROPRE transaction :
+     * une ligne en echec n'annule pas les lignes deja passees. Le detail ligne par ligne est retourne dans
+     * {@code details}, avec un {@code code} d'echec exploitable.
      */
     JSONObject reassortBatch(TUser user, List<JSONObject> items);
 
     /**
-     * Applique en lot une serie d'assorts (rayon -&gt; reserve).
+     * Applique en lot une serie d'assorts (rayon -&gt; reserve). Meme garantie d'isolation par ligne que
+     * {@link #reassortBatch}.
      */
     JSONObject assortBatch(TUser user, List<JSONObject> items);
 
