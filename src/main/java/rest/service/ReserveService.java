@@ -183,7 +183,13 @@ public interface ReserveService {
     /**
      * Historique global des mouvements, filtre optionnel par type et periode, classe par date decroissante.
      */
-    JSONObject allMouvements(String type, String dtStart, String dtEnd, int start, int limit);
+    /**
+     * Mouvements de reserve, tous produits confondus.
+     *
+     * @param search
+     *            nom ou code CIP du produit, facultatif
+     */
+    JSONObject allMouvements(String type, String dtStart, String dtEnd, String search, int start, int limit);
 
     /**
      * Cree un inventaire a partir des articles affiches dans l'onglet courant (selon le filtre type + recherche). Nom :

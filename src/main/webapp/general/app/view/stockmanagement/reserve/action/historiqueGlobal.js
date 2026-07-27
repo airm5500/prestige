@@ -39,6 +39,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             if (typeFilter !== 'ALL') {
                 extra.type = typeFilter;
             }
+            var terme = rechField.getValue();
+            if (terme && terme.trim() !== '') {
+                extra.search_value = terme.trim();
+            }
             var dtStart = dtStartField.getValue();
             var dtEnd   = dtEndField.getValue();
             if (dtStart) {
@@ -50,6 +54,36 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             store.getProxy().extraParams = extra;
             store.load();
         };
+
+        // Recherche par produit : designation ou code CIP. Meme comportement que les autres
+        // zones de recherche de la reserve - Entree cherche tout de suite, et a partir de trois
+        // caracteres la recherche part seule apres une pause de frappe.
+        var rechField = Ext.create('Ext.form.field.Text', {
+            width: 200,
+            emptyText: 'Produit ou CIP',
+            listeners: {
+                specialkey: function (f, e) {
+                    if (e.getKey() === e.ENTER) {
+                        f.dernierTerme = (f.getValue() || '').trim();
+                        loadWithFilters();
+                    }
+                },
+                change: {
+                    buffer: 400,
+                    fn: function (f, v) {
+                        var terme = (v || '').trim();
+                        if (terme.length > 0 && terme.length < 3) {
+                            return;
+                        }
+                        if (terme === f.dernierTerme) {
+                            return;
+                        }
+                        f.dernierTerme = terme;
+                        loadWithFilters();
+                    }
+                }
+            }
+        });
 
         var dtStartField = Ext.create('Ext.form.field.Date', {
             fieldLabel: 'Du',
@@ -85,6 +119,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             store: store,
             border: false,
             tbar: [
+                rechField, ' ',
                 dtStartField, ' ',
                 dtEndField, ' ',
                 typeCombo, ' ',
@@ -93,6 +128,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
                 {
                     text: 'Effacer',
                     handler: function () {
+                        rechField.setValue('');
+                        rechField.dernierTerme = '';
                         dtStartField.reset();
                         dtEndField.reset();
                         typeCombo.setValue(me.getTypeFilter() || 'ALL');
@@ -173,6 +210,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
 
         // Chargement initial avec le filtre type passe en config
         loadWithFilters();
+
+        // La recherche prend la main des l'ouverture : le delai laisse la fenetre finir son
+        // rendu, sans quoi le focus se perdrait a l'affichage.
+        Ext.defer(function () {
+            if (rechField.inputEl && rechField.inputEl.dom) {
+                rechField.inputEl.dom.focus();
+            } else {
+                rechField.focus(true, 50);
+            }
+        }, 200);
 
         me.callParent();
     }

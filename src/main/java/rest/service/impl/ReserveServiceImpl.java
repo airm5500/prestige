@@ -1056,7 +1056,7 @@ public class ReserveServiceImpl implements ReserveService {
     }
 
     @Override
-    public JSONObject allMouvements(String type, String dtStart, String dtEnd, int start, int limit) {
+    public JSONObject allMouvements(String type, String dtStart, String dtEnd, String search, int start, int limit) {
         java.util.Date dStart = parseDate(dtStart);
         java.util.Date dEnd = parseDate(dtEnd);
         if (dEnd != null) {
@@ -1064,9 +1064,13 @@ public class ReserveServiceImpl implements ReserveService {
         }
 
         boolean hasType = type != null && !type.trim().isEmpty() && !"ALL".equalsIgnoreCase(type);
+        boolean hasSearch = search != null && !search.trim().isEmpty();
         StringBuilder jpql = new StringBuilder("SELECT t FROM TMouvementReserve t WHERE 1=1");
         if (hasType)
             jpql.append(" AND t.strTYPE = :type");
+        // Recherche par produit : designation ou code CIP.
+        if (hasSearch)
+            jpql.append(" AND (t.lgFAMILLEID.strNAME LIKE :search OR t.lgFAMILLEID.intCIP LIKE :search)");
         if (dStart != null)
             jpql.append(" AND t.dtCREATED >= :dStart");
         if (dEnd != null)
@@ -1076,6 +1080,8 @@ public class ReserveServiceImpl implements ReserveService {
         Query q = em.createQuery(jpql.toString());
         if (hasType)
             q.setParameter("type", type);
+        if (hasSearch)
+            q.setParameter("search", "%" + search.trim() + "%");
         if (dStart != null)
             q.setParameter("dStart", dStart, javax.persistence.TemporalType.TIMESTAMP);
         if (dEnd != null)

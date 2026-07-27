@@ -234,13 +234,13 @@ public class ReserveRessource {
     @GET
     @Path("mouvements")
     public Response allMouvements(@QueryParam("type") String type, @QueryParam("dtStart") String dtStart,
-            @QueryParam("dtEnd") String dtEnd, @QueryParam("start") int start, @QueryParam("limit") int limit)
-            throws JSONException {
+            @QueryParam("dtEnd") String dtEnd, @QueryParam("search_value") String search,
+            @QueryParam("start") int start, @QueryParam("limit") int limit) throws JSONException {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = reserveService.allMouvements(type, dtStart, dtEnd, start, limit > 0 ? limit : 500);
+        JSONObject json = reserveService.allMouvements(type, dtStart, dtEnd, search, start, limit > 0 ? limit : 500);
         return Response.ok().entity(json.toString()).build();
     }
 
