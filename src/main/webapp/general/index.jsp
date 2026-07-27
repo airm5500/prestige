@@ -57,8 +57,15 @@
         <title><%= jdom.APP_NAME%> :: Ver <%= jdom.APP_VERSION%></title>
         <!-- <x-compile> -->
         <!-- <x-bootstrap> -->
-        <!-- Font Awesome 6 -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <!-- Font Awesome 6 : servi par l'application, et non par un CDN.
+             Cette feuille bloque le rendu de la page : tant qu'elle n'est pas recue, l'ecran
+             reste blanc. Passer par cdnjs imposait donc a chaque connexion une resolution DNS
+             puis une negociation TLS vers l'exterieur, d'ou l'attente "Etablissement d'une
+             liaison TLS avec cdnjs.cloudflare.com" - et un poste sans acces Internet restait
+             bloque jusqu'au delai d'expiration.
+             Le fichier est celui du paquet officiel 6.5.1, identique au bit pres a celui du CDN
+             (son empreinte sha512 correspond a l'attribut integrity qui figurait ici). -->
+        <link rel="stylesheet" type="text/css" href="resources/font-awesome-6.5.1/css/all.min.css" />
         <!-- Navigation moderne -->
         <link rel="stylesheet" type="text/css" href="resources/css/navigation.css" />
         <link rel="stylesheet" href="bootstrap.css">
