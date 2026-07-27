@@ -125,7 +125,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/fleche_orange_droite.svg',
-                    tooltip: 'Faire un reappro (rayon -> reserve)',
+                    tooltip: 'Creer une suggestion de reappro (rayon -> reserve)',
                     scope: me,
                     handler: me.onAssortClick,
                     getClass: function (value, metadata, record) {
@@ -137,7 +137,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/fleche_verte_gauche.svg',
-                    tooltip: 'Faire un reassort (reserve -> rayon)',
+                    tooltip: 'Creer une suggestion de reappro (reserve -> rayon)',
                     scope: me,
                     handler: me.onReassortClick,
                     getClass: function (value, metadata, record) {
