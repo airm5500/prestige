@@ -1,5 +1,15 @@
 -- Realignement de la copie du stock rayon (t_type_stock_famille, type 1).
 --
+-- A JOUER A LA MAIN. Ce script n'est volontairement PAS une migration Flyway : il ne part pas
+-- au deploiement, c'est vous qui decidez quand l'executer. Le passer plusieurs fois est sans
+-- danger, il ne touche que les lignes encore divergentes.
+--
+-- Marche a suivre :
+--   1. sauvegarde de la base, comme pour toute ecriture en masse ;
+--   2. requete de comptage ci-dessous, pour savoir combien de lignes sont concernees ;
+--   3. l'UPDATE final, de preference hors heures de vente ;
+--   4. la meme requete de comptage : elle doit renvoyer zero.
+--
 -- CONTEXTE
 -- Le stock rayon existe a deux endroits : t_famille_stock.int_NUMBER_AVAILABLE, qui est la
 -- valeur reelle et celle que la vente decremente, et t_type_stock_famille de type 1, qui n'en
