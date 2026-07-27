@@ -28,6 +28,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
         var store = new Ext.data.Store({
             model: 'testextjs.model.FamilleStock',
             autoLoad: true,
+            listeners: {
+                // Le nombre d'articles proposes est affiche en clair : on sait tout de suite
+                // sur combien de produits porte la suggestion qu'on s'apprete a creer.
+                load: function (st, recs) {
+                    var lbl = win && win.down('#lblNbProduits');
+                    if (lbl) {
+                        lbl.setText((recs ? recs.length : 0) + ' article(s) propose(s)');
+                    }
+                }
+            },
             proxy: {
                 type: 'ajax',
                 url: url,
@@ -106,7 +116,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                 {
                     xtype: 'textfield', itemId: 'txtCommentaire', flex: 1,
                     emptyText: 'Commentaire (facultatif)'
-                }
+                },
+                '->',
+                {xtype: 'tbtext', itemId: 'lblNbProduits', text: '',
+                    style: 'font-weight:bold;color:#0b57d0;'}
             ]
         };
 

@@ -131,11 +131,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
         Ext.apply(me, {
             store: store,
             columns: [
-                {header: 'Date', dataIndex: 'dt_CREATED', width: 115},
+                {header: 'Date', dataIndex: 'dt_CREATED', width: 140},
                 {header: 'CIP', dataIndex: 'int_CIP', width: 85},
                 {header: 'Designation', dataIndex: 'str_NAME', flex: 2, minWidth: 180},
                 {
-                    header: 'Mouvement', dataIndex: 'str_MOUVEMENT', width: 145,
+                    header: 'Mouvement', dataIndex: 'str_MOUVEMENT', width: 185,
                     renderer: function (v, m, rec) {
                         m.style = 'color:' + (me.couleurMouvement[rec.get('str_TYPE')] || '#555555')
                                 + ';font-weight:bold;';

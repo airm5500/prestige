@@ -42,6 +42,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 '.tab-suggestions.x-tab-active { background-color: #8e24aa !important; border-top: 3px solid #fff !important; }',
                 '.btn-suggestions-violet.x-btn { background-color: #8e24aa !important; background-image: none !important; border-color: #4a137a !important; }',
                 '.btn-suggestions-violet.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                '.btn-deja-traitee.x-btn { background-color: #2a6b2e !important; background-image: none !important; border-color: #1a4a1e !important; }',
+                '.btn-deja-traitee.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
                 // Onglet HISTORIQUE : gris
                 '.tab-historique.x-tab { background-color: #5f6368 !important; border-color: #3c4043 !important; }',
                 '.tab-historique.x-tab .x-tab-inner, .tab-historique.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',

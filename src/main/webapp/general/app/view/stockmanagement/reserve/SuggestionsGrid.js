@@ -36,7 +36,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 'lg_SUGGESTION_RESERVE_ID', 'str_REF', 'str_CATEGORIE', 'str_ORIGINE', 'str_STATUT',
                 'str_COMMENTAIRE', 'motif_id', 'motif_libelle',
                 'str_USER_CREATEUR', 'str_USER_TRAITANT', 'str_USER_CLOTURE',
-                'dt_CREATED', 'dt_UPDATED', 'dt_TRAITEE', 'dt_CLOTURE'
+                'dt_CREATED', 'dt_UPDATED', 'dt_TRAITEE', 'dt_CLOTURE',
+                {name: 'nb_produits', type: 'int'}
             ],
             proxy: {
                 type: 'ajax',
@@ -123,33 +124,42 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser}
         ];
 
-        // Bouton texte plutot qu'une icone : l'action principale doit se voir sans hesitation.
+        // Boutons a icone, sur le meme modele que la suppression.
         var colOuvrir = {
-            xtype: 'actioncolumn', header: 'Ouvrir', width: 90, align: 'center',
+            xtype: 'actioncolumn', header: 'Ouvrir', width: 55, align: 'center',
             sortable: false, menuDisabled: true,
-            renderer: function (v, m) {
-                m.tdAttr = 'data-qtip="Ouvrir la suggestion pour la consulter ou la traiter"';
-                m.style = 'padding:2px;';
-                return '<span style="display:inline-block;padding:1px 8px;background:#8e24aa;color:#fff;'
-                        + 'border-radius:3px;font-weight:bold;cursor:pointer;">Ouvrir</span>';
-            },
-            handler: function (g, rowIndex) {
-                me.ouvrir(g.getStore().getAt(rowIndex));
-            }
+            items: [{
+                    icon: 'resources/images/icons/fam/page_white_edit.png',
+                    tooltip: 'Ouvrir la suggestion pour la consulter ou la traiter',
+                    handler: function (g, rowIndex) {
+                        me.ouvrir(g.getStore().getAt(rowIndex));
+                    }
+                }]
         };
 
         var colInventaire = {
-            xtype: 'actioncolumn', header: 'Inventaire', width: 90, align: 'center',
+            xtype: 'actioncolumn', header: 'Inventaire', width: 65, align: 'center',
             sortable: false, menuDisabled: true,
-            renderer: function (v, m) {
-                m.tdAttr = 'data-qtip="Creer un inventaire reserve a partir des produits de cette suggestion"';
-                m.style = 'padding:2px;';
-                return '<span style="display:inline-block;padding:1px 8px;background:#2c7873;color:#fff;'
-                        + 'border-radius:3px;font-weight:bold;cursor:pointer;">Inventaire</span>';
-            },
-            handler: function (g, rowIndex) {
-                me.onCreerInventaire(g.getStore().getAt(rowIndex));
-            }
+            items: [{
+                    icon: 'resources/images/icons/fam/inventaire.png',
+                    tooltip: 'Creer un inventaire reserve sur les produits de cette suggestion',
+                    handler: function (g, rowIndex) {
+                        me.onCreerInventaire(g.getStore().getAt(rowIndex));
+                    }
+                }]
+        };
+
+        // Impression : le compte rendu si la suggestion a ete traitee, la suggestion sinon.
+        var colImprimer = {
+            xtype: 'actioncolumn', header: 'PDF', width: 45, align: 'center',
+            sortable: false, menuDisabled: true,
+            items: [{
+                    icon: 'resources/images/icons/fam/printer.png',
+                    tooltip: 'Imprimer (compte rendu si la suggestion est traitee)',
+                    handler: function (g, rowIndex) {
+                        me.onImprimerLigne(g.getStore().getAt(rowIndex));
+                    }
+                }]
         };
 
         // Colonne separee, avec une marge : plus de confusion possible avec l'action d'ouverture.
@@ -180,7 +190,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {header: 'Creee le', dataIndex: 'dt_CREATED', width: 135},
                 {
                     header: 'Sens du mouvement', dataIndex: 'str_CATEGORIE', flex: 1, minWidth: 200,
-                    renderer: function (v) {
+                    renderer: function (v, m) {
+                        // Meme code couleur que les onglets : reserve en orange, rayon en vert.
+                        m.style = 'color:' + (v === 'RESERVE' ? '#c26500' : '#256b2a')
+                                + ';font-weight:bold;';
                         return me.libelleCategorie[v] || v;
                     }
                 },
@@ -205,6 +218,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {header: 'Traitee par', dataIndex: 'str_USER_TRAITANT', width: 120},
                 colOuvrir,
                 colInventaire,
+                colImprimer,
                 colSupprimer
             ],
             dockedItems: [
@@ -263,6 +277,22 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
     },
 
     reloadGrid: function () {
+        // Au premier affichage on se limite a la journee en cours : c'est ce qu'on vient
+        // consulter dans la quasi-totalite des cas. Les dates restent modifiables pour
+        // remonter plus loin.
+        if (!this.filtreInitialise) {
+            this.filtreInitialise = true;
+            var auj = new Date();
+            var d = this.down('#fDebut'), fin = this.down('#fFin');
+            if (d && !d.getValue()) {
+                d.setValue(auj);
+            }
+            if (fin && !fin.getValue()) {
+                fin.setValue(auj);
+            }
+            this.onRechercher();
+            return;
+        }
         this.store.loadPage(1);
     },
 
@@ -274,6 +304,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             suggestionid: rec.get('lg_SUGGESTION_RESERVE_ID'),
             parentview: this
         });
+    },
+
+    onImprimerLigne: function (rec) {
+        if (!rec) {
+            return;
+        }
+        // Une suggestion traitee s'imprime sous forme de compte rendu ; sinon on imprime la
+        // suggestion elle-meme, celle qu'on emmene dans les rayons.
+        var mode = (rec.get('str_STATUT') === 'TRAITEE') ? 'compte_rendu' : 'suggestion';
+        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
+                + mode + '&id=' + encodeURIComponent(rec.get('lg_SUGGESTION_RESERVE_ID')), '_blank');
     },
 
     onCreerInventaire: function (rec) {

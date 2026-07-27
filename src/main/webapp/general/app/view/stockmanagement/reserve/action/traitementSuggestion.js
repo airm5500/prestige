@@ -486,9 +486,20 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                             focusLigne(0);
                         }
                     }
+                    // Une suggestion close ne se retraite pas : le bouton le dit au lieu
+                    // de rester actif et de laisser croire qu'il reste quelque chose a faire.
                     var cloturee = res.entete && (res.entete.str_STATUT === 'TRAITEE'
                             || res.entete.str_STATUT === 'SUPPRIMEE');
                     me.btnTraiter.setDisabled(cloturee);
+                    if (res.entete && res.entete.str_STATUT === 'TRAITEE') {
+                        me.btnTraiter.setText('Deja traitee');
+                        me.btnTraiter.removeCls('btn-suggestions-violet');
+                        me.btnTraiter.addCls('btn-deja-traitee');
+                    } else {
+                        me.btnTraiter.setText('Traiter la suggestion');
+                        me.btnTraiter.removeCls('btn-deja-traitee');
+                        me.btnTraiter.addCls('btn-suggestions-violet');
+                    }
                     var echec = false;
                     Ext.each(res.lignes || [], function (l) {
                         if (l.str_ETAT === 'ECHEC') {
