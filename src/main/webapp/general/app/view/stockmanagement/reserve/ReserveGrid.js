@@ -125,7 +125,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/fleche_orange_droite.svg',
-                    tooltip: '<div style="white-space:normal;width:230px;line-height:1.5"><b>Creer une suggestion de reappro</b><br>Le stock part <b>du rayon</b> et arrive <b>en reserve</b>.<br>Rien ne bouge tant que la suggestion n\'est pas traitee.</div>',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Creer une suggestion de reappro</b><br>Le stock part <b>du rayon</b> et arrive <b>en reserve</b>.<br>Rien ne bouge tant que la suggestion n\'est pas traitee.</div>',
                     scope: me,
                     handler: me.onAssortClick,
                     getClass: function (value, metadata, record) {
@@ -137,7 +137,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/fleche_verte_gauche.svg',
-                    tooltip: '<div style="white-space:normal;width:230px;line-height:1.5"><b>Creer une suggestion de reappro</b><br>Le stock part <b>de la reserve</b> et arrive <b>au rayon</b>.<br>Rien ne bouge tant que la suggestion n\'est pas traitee.</div>',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Creer une suggestion de reappro</b><br>Le stock part <b>de la reserve</b> et arrive <b>au rayon</b>.<br>Rien ne bouge tant que la suggestion n\'est pas traitee.</div>',
                     scope: me,
                     handler: me.onReassortClick,
                     getClass: function (value, metadata, record) {
