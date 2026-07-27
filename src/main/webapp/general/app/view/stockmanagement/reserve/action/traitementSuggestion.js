@@ -432,11 +432,115 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                         }
                     });
                     btnReessayer.setVisible(echec);
+
+                    // L'annulation n'apparait que s'il existe un mouvement a defaire ET que le
+                    // privilege est detenu. Le serveur revalide de toute facon.
+                    var traitees = 0;
+                    Ext.each(res.lignes || [], function (l) {
+                        if (l.str_ETAT === 'TRAITEE') {
+                            traitees++;
+                        }
+                    });
+                    if (traitees > 0) {
+                        Ext.Ajax.request({
+                            method: 'GET',
+                            url: '../api/v1/reserve/peut-annuler',
+                            success: function (rep) {
+                                var droit = Ext.JSON.decode(rep.responseText, true) || {};
+                                me.btnAnnuler.setVisible(droit.autorise === true);
+                            }
+                        });
+                    } else {
+                        me.btnAnnuler.setVisible(false);
+                    }
                 },
                 failure: function () {
                     Ext.MessageBox.alert('Erreur', 'Chargement impossible.');
                 }
             });
+        };
+
+        // Annulation par mouvement inverse : masquee tant que le privilege dedie n'est pas detenu,
+        // et de toute facon revalidee cote serveur.
+        me.btnAnnuler = Ext.create('Ext.button.Button', {
+            text: 'Annuler les mouvements',
+            hidden: true,
+            handler: function () {
+                var traitees = 0;
+                store.each(function (r) {
+                    if (r.get('str_ETAT') === 'TRAITEE') {
+                        traitees++;
+                    }
+                });
+                if (traitees === 0) {
+                    Ext.MessageBox.alert('Message', 'Aucun mouvement a annuler.');
+                    return;
+                }
+                Ext.MessageBox.prompt('Annuler les mouvements',
+                        'Motif de l\'annulation (' + traitees + ' ligne(s)) :',
+                        function (btn, texte) {
+                            if (btn !== 'ok') {
+                                return;
+                            }
+                            var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Annulation en cours');
+                            Ext.Ajax.request({
+                                method: 'PUT',
+                                url: baseUrl + encodeURIComponent(id) + '/annuler',
+                                jsonData: {motif: texte || ''},
+                                success: function (response) {
+                                    progress.hide();
+                                    var res = Ext.JSON.decode(response.responseText, true) || {};
+                                    charger();
+                                    afficherResultatAnnulation(res);
+                                    var pv = me.getParentview();
+                                    if (pv && pv.reloadGrid) {
+                                        pv.reloadGrid();
+                                    }
+                                },
+                                failure: function () {
+                                    progress.hide();
+                                    Ext.MessageBox.alert('Erreur', 'L\'annulation a echoue.');
+                                }
+                            });
+                        });
+            }
+        });
+
+        // Chaque refus est explique individuellement : une ligne bloquee n'empeche pas les autres.
+        var afficherResultatAnnulation = function (res) {
+            var bloc = function (titre, arr, couleur) {
+                if (!arr || arr.length === 0) {
+                    return '';
+                }
+                var h = '<br><b style="color:' + couleur + ';">' + titre + '</b>';
+                for (var i = 0; i < arr.length; i++) {
+                    var a = arr[i];
+                    var ident = a.identite || a;
+                    h += '<div style="padding:3px 6px;border-bottom:1px solid #eee;">'
+                            + Ext.String.htmlEncode(ident.int_CIP || '') + ' - '
+                            + Ext.String.htmlEncode(ident.str_NAME || '')
+                            + (a.code ? ' <b style="color:#c0392b;">[' + Ext.String.htmlEncode(a.code) + ']</b> ' : ' ')
+                            + Ext.String.htmlEncode(a.message || a.motif_refus || '')
+                            + '</div>';
+                }
+                return h;
+            };
+            Ext.create('Ext.window.Window', {
+                title: 'Resultat de l\'annulation',
+                width: 700, height: 420, modal: true, autoScroll: true, bodyPadding: 8,
+                html: '<div style="font-size:12px;">'
+                        + '<div style="padding:6px;background:#f5f7fa;border:1px solid #ddd;">'
+                        + '<b style="color:#2a6b2e;">Annulees :</b> ' + (res.total_annule || 0)
+                        + ' &nbsp;|&nbsp; <b style="color:#c0392b;">Refusees :</b> ' + (res.total_refuse || 0)
+                        + '</div>'
+                        + bloc('Lignes annulees', res.lignes_annulees, '#2a6b2e')
+                        + bloc('Lignes refusees', res.lignes_refusees, '#c0392b')
+                        + bloc('Lignes sans mouvement a annuler', res.lignes_non_annulables, '#777777')
+                        + '</div>',
+                buttons: [{text: 'Fermer', handler: function () {
+                            this.up('window').close();
+                        }}]
+            }).show();
         };
 
         me.btnTraiter = Ext.create('Ext.button.Button', {
@@ -479,6 +583,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             buttons: [
                 me.btnTraiter,
                 btnReessayer,
+                me.btnAnnuler,
                 {
                     text: 'Imprimer la suggestion',
                     handler: function () {

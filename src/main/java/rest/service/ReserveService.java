@@ -78,6 +78,26 @@ public interface ReserveService {
      */
     JSONObject assortBatch(TUser user, List<JSONObject> items);
 
+    /** Nom du privilege requis pour annuler un mouvement de reserve. */
+    String PRIVILEGE_ANNULATION = "P_ANNULER_MOUVEMENT_RESERVE";
+
+    /** Indique si l'utilisateur detient le privilege d'annulation, pour masquer l'action a l'ecran. */
+    boolean peutAnnuler(TUser user);
+
+    /**
+     * Annule un mouvement en creant le mouvement INVERSE de meme quantite.
+     *
+     * <p>
+     * L'historique n'est jamais retouche : le mouvement initial reste en base, le mouvement inverse s'y ajoute en
+     * pointant vers lui, avec son auteur, sa date et son motif.
+     *
+     * <p>
+     * L'annulation est refusee, avec un motif explicite, si le privilege manque, si le mouvement a deja ete annule, ou
+     * si la zone qui devient source n'a pas le stock necessaire. Le controle du stock est celui des mouvements
+     * ordinaires : une annulation ne peut pas davantage rendre un stock negatif.
+     */
+    JSONObject annulerMouvement(TUser user, String mouvementId, String motif);
+
     /**
      * Historique complet des mouvements, avec l'ensemble des filtres de recherche.
      *

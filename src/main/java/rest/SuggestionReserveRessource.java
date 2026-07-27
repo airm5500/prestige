@@ -191,6 +191,32 @@ public class SuggestionReserveRessource {
         return Response.ok().entity(suggestionReserveService.compteRendu(user, id).toString()).build();
     }
 
+    /** Annule UNE ligne deja traitee, par mouvement inverse. */
+    @PUT
+    @Path("ligne/{detailId}/annuler")
+    public Response annulerLigne(@PathParam("detailId") String detailId, String body) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        JSONObject json = suggestionReserveService.annulerLigne(user, detailId, in.optString("motif", null));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /** Annule toutes les lignes traitees d'une suggestion, chaque refus etant explique individuellement. */
+    @PUT
+    @Path("{id}/annuler")
+    public Response annulerSuggestion(@PathParam("id") String id, String body) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        JSONObject json = suggestionReserveService.annulerSuggestion(user, id, in.optString("motif", null));
+        return Response.ok().entity(json.toString()).build();
+    }
+
     /** Export Excel du compte rendu, en-tete de la suggestion comprise. */
     @GET
     @Path("{id}/compte-rendu/excel")

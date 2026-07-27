@@ -73,6 +73,18 @@ public class ReserveRessource {
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + fichier + "\"").build();
     }
 
+    /** Indique si l'utilisateur peut annuler un mouvement : l'ecran masque l'action dans le cas contraire. */
+    @GET
+    @Path("peut-annuler")
+    public Response peutAnnuler() {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(new JSONObject().put("autorise", reserveService.peutAnnuler(user)).toString())
+                .build();
+    }
+
     /** Historique complet, avec recherche produit, type, periode, plage horaire et utilisateur. */
     @GET
     @Path("historique")

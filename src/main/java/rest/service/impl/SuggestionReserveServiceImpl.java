@@ -614,6 +614,131 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 : "REAPPRO RAYON (envoi en rayon)";
     }
 
+    // ------------------------------------------------------------- ANNULATION
+
+    @Override
+    public JSONObject annulerLigne(TUser user, String detailId, String motif) {
+        SuggestionReserveService self = sessionContext.getBusinessObject(SuggestionReserveService.class);
+        JSONObject r = self.annulerLigneIsolee(user, detailId, motif);
+        TSuggestionReserveDetail d = em.find(TSuggestionReserveDetail.class, detailId);
+        if (d != null) {
+            recalculerStatutApresAnnulation(d.getLgSUGGESTIONRESERVEID().getLgSUGGESTIONRESERVEID(), user);
+        }
+        return r;
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public JSONObject annulerLigneIsolee(TUser user, String detailId, String motif) {
+        TSuggestionReserveDetail d = em.find(TSuggestionReserveDetail.class, detailId);
+        if (d == null) {
+            return echec("Ligne introuvable.").put("code", "LIGNE_INTROUVABLE");
+        }
+        JSONObject identite = new JSONObject()
+                .put("lg_SUGGESTION_RESERVE_DETAIL_ID", detailId)
+                .put("int_CIP", d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getIntCIP()) : "")
+                .put("str_NAME", d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getStrNAME()) : "");
+
+        if (!TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
+            return echec("Cette ligne n'a pas ete traitee : il n'y a aucun mouvement a annuler.")
+                    .put("code", "LIGNE_NON_TRAITEE").put("identite", identite);
+        }
+        if (d.getLgMOUVEMENTID() == null || d.getLgMOUVEMENTID().trim().isEmpty()) {
+            return echec("Aucun mouvement n'est rattache a cette ligne : annulation impossible.")
+                    .put("code", "MOUVEMENT_ABSENT").put("identite", identite);
+        }
+
+        // Le mouvement inverse passe par le service de reserve : privilege, verrou, controle du
+        // disponible dans la nouvelle zone source et interdiction des stocks negatifs y sont deja.
+        JSONObject r = reserveService.annulerMouvement(user, d.getLgMOUVEMENTID(), motif);
+        if (!r.optBoolean("success", false)) {
+            return r.put("identite", identite);
+        }
+
+        // La ligne repasse a l'etat retire : la trace de ce qui avait ete propose subsiste, mais
+        // plus aucune quantite n'est comptee comme deplacee.
+        d.setStrETAT(TSuggestionReserveDetail.ETAT_SUPPRIMEE);
+        d.setIntQTEDEPLACEE(0);
+        d.setStrMOTIFLIGNE("Annulee par mouvement inverse"
+                + (motif == null || motif.trim().isEmpty() ? "" : " : " + motif.trim()));
+        d.setDtUPDATED(new Date());
+        em.merge(d);
+        return r.put("identite", identite);
+    }
+
+    @Override
+    public JSONObject annulerSuggestion(TUser user, String suggestionId, String motif) {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return echec("Suggestion introuvable.");
+        }
+        if (!reserveService.peutAnnuler(user)) {
+            return echec("Vous n'avez pas le privilege requis pour annuler un mouvement de reserve.");
+        }
+
+        List<String> traitees = new ArrayList<>();
+        JSONArray nonAnnulables = new JSONArray();
+        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
+            if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
+                traitees.add(d.getLgSUGGESTIONRESERVEDETAILID());
+            } else if (!TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(d.getStrETAT())) {
+                // Rien n'a bouge pour cette ligne : il n'y a tout simplement rien a defaire.
+                nonAnnulables.put(ligneJson(user, d).put("motif_refus",
+                        "Ligne non traitee : aucun mouvement a annuler."));
+            }
+        }
+
+        SuggestionReserveService self = sessionContext.getBusinessObject(SuggestionReserveService.class);
+        JSONArray annulees = new JSONArray();
+        JSONArray refusees = new JSONArray();
+        for (String detailId : traitees) {
+            JSONObject r;
+            try {
+                r = self.annulerLigneIsolee(user, detailId, motif);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "annulation ligne " + detailId, e);
+                r = echec("Echec technique sur cette ligne.").put("code", "ERREUR_TECHNIQUE");
+            }
+            if (r.optBoolean("success", false)) {
+                annulees.put(r);
+            } else {
+                refusees.put(r);
+            }
+        }
+
+        recalculerStatutApresAnnulation(suggestionId, user);
+        LOG.log(Level.INFO, "annulation suggestion={0} annulees={1} refusees={2} user={3}",
+                new Object[] { suggestionId, annulees.length(), refusees.length(), user.getLgUSERID() });
+        return new JSONObject().put("success", refusees.length() == 0)
+                .put("total_annule", annulees.length()).put("total_refuse", refusees.length())
+                .put("lignes_annulees", annulees).put("lignes_refusees", refusees)
+                .put("lignes_non_annulables", nonAnnulables)
+                .put("message", annulees.length() + " ligne(s) annulee(s), " + refusees.length() + " refusee(s).");
+    }
+
+    /** Une suggestion dont plus aucune ligne n'est traitee redevient traitable. */
+    private void recalculerStatutApresAnnulation(String suggestionId, TUser user) {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return;
+        }
+        boolean resteDuTraite = false;
+        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
+            if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
+                resteDuTraite = true;
+                break;
+            }
+        }
+        if (!resteDuTraite && TSuggestionReserve.STATUT_TRAITEE.equals(s.getStrSTATUT())) {
+            s.setStrSTATUT(TSuggestionReserve.STATUT_EN_COURS);
+            s.setDtCLOTURE(null);
+            s.setLgUSERCLOTUREID(null);
+        }
+        s.setLgUSERTRAITANTID(user);
+        s.setDtUPDATED(new Date());
+        em.merge(s);
+    }
+
     // --------------------------------------------------- GENERATION AUTOMATIQUE
 
     @Override

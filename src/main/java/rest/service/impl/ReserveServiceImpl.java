@@ -54,6 +54,9 @@ public class ReserveServiceImpl implements ReserveService {
     private static final String CODE_STOCK_RESERVE_INSUFFISANT = "STOCK_RESERVE_INSUFFISANT";
     private static final String CODE_CONFLIT_CONCURRENCE = "CONFLIT_CONCURRENCE";
     private static final String CODE_ERREUR_TECHNIQUE = "ERREUR_TECHNIQUE";
+    private static final String CODE_PRIVILEGE_MANQUANT = "PRIVILEGE_MANQUANT";
+    private static final String CODE_MOUVEMENT_INTROUVABLE = "MOUVEMENT_INTROUVABLE";
+    private static final String CODE_DEJA_ANNULE = "DEJA_ANNULE";
 
     // Delai d'attente maximal du verrou sur la ligne de stock reserve. Si le moteur ne sait pas honorer ce hint
     // (cas de MySQL/InnoDB), c'est le innodb_lock_wait_timeout du serveur qui s'applique.
@@ -587,6 +590,107 @@ public class ReserveServiceImpl implements ReserveService {
             return "Reappro rayon (envoi en rayon)";
         }
         return "Articles en reserve";
+    }
+
+    // ----------------------------------------------------------- ANNULATION
+
+    @Override
+    public boolean peutAnnuler(TUser user) {
+        return user != null && hasPrivilege(user, PRIVILEGE_ANNULATION);
+    }
+
+    /**
+     * Meme chaine de verification que le reste de l'application : t_role_user -> t_user -> t_role -> t_role_privelege
+     * -> t_privilege.
+     */
+    private boolean hasPrivilege(TUser user, String privilegeName) {
+        try {
+            Object result = em.createNativeQuery("SELECT COUNT(t_privilege.str_NAME) FROM t_role_user "
+                    + "INNER JOIN t_user ON t_role_user.lg_USER_ID = t_user.lg_USER_ID "
+                    + "INNER JOIN t_role ON t_role_user.lg_ROLE_ID = t_role.lg_ROLE_ID "
+                    + "INNER JOIN t_role_privelege ON t_role.lg_ROLE_ID = t_role_privelege.lg_ROLE_ID "
+                    + "INNER JOIN t_privilege ON t_role_privelege.lg_PRIVILEGE_ID = t_privilege.lg_PRIVELEGE_ID "
+                    + "WHERE t_user.lg_USER_ID = ?1 AND t_privilege.str_NAME = ?2 "
+                    + "AND t_privilege.str_STATUT = 'enable'").setParameter(1, user.getLgUSERID())
+                    .setParameter(2, privilegeName).getSingleResult();
+            return result != null && ((Number) result).intValue() > 0;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "hasPrivilege " + privilegeName, e);
+            return false;
+        }
+    }
+
+    @Override
+    public JSONObject annulerMouvement(TUser user, String mouvementId, String motif) {
+        if (!peutAnnuler(user)) {
+            return fail(CODE_PRIVILEGE_MANQUANT,
+                    "Vous n'avez pas le privilege requis pour annuler un mouvement de reserve.");
+        }
+        if (mouvementId == null || mouvementId.trim().isEmpty()) {
+            return fail(CODE_MOUVEMENT_INTROUVABLE, "Mouvement introuvable.");
+        }
+        TMouvementReserve source = em.find(TMouvementReserve.class, mouvementId.trim());
+        if (source == null) {
+            return fail(CODE_MOUVEMENT_INTROUVABLE, "Mouvement introuvable.");
+        }
+        // Un mouvement d'annulation n'est pas lui-meme annulable : on n'empile pas les allers-retours.
+        if (source.getLgMOUVEMENTSOURCEID() != null) {
+            return fail(CODE_DEJA_ANNULE, "Ce mouvement est lui-meme une annulation : il ne peut pas etre annule.")
+                    .put("lg_MOUVEMENT_ID", mouvementId);
+        }
+        if (dejaAnnule(source.getLgMOUVEMENTID())) {
+            return fail(CODE_DEJA_ANNULE, "Ce mouvement a deja ete annule.").put("lg_MOUVEMENT_ID", mouvementId);
+        }
+
+        String familleId = source.getLgFAMILLEID() != null ? source.getLgFAMILLEID().getLgFAMILLEID() : null;
+        int qte = nz(source.getIntQTE());
+        if (familleId == null || qte <= 0) {
+            return fail(CODE_MOUVEMENT_INTROUVABLE, "Ce mouvement ne peut pas etre annule : donnees incompletes.")
+                    .put("lg_MOUVEMENT_ID", mouvementId);
+        }
+
+        // Sens inverse : ce qui etait parti du rayon y revient, et reciproquement.
+        String typeInverse = TMouvementReserve.TYPE_ASSORT.equals(source.getStrTYPE())
+                ? TMouvementReserve.TYPE_REASSORT
+                : TMouvementReserve.TYPE_ASSORT;
+
+        // doMove applique le meme controle de disponible et le meme verrou que tout autre mouvement :
+        // une annulation ne peut pas davantage rendre un stock negatif.
+        JSONObject r = doMove(user, familleId, qte, typeInverse);
+        if (!r.optBoolean("success", false)) {
+            return r.put("lg_MOUVEMENT_ID", mouvementId);
+        }
+
+        // Rattachement du mouvement inverse a son mouvement d'origine.
+        String inverseId = r.optString("lg_MOUVEMENT_ID", null);
+        if (inverseId != null) {
+            TMouvementReserve inverse = em.find(TMouvementReserve.class, inverseId);
+            if (inverse != null) {
+                inverse.setLgMOUVEMENTSOURCEID(source.getLgMOUVEMENTID());
+                inverse.setStrMOTIFANNULATION(
+                        motif == null || motif.trim().isEmpty() ? "Annulation" : motif.trim());
+                em.merge(inverse);
+            }
+        }
+        LOG.log(Level.INFO, "annulation mouvement={0} par inverse={1} user={2}",
+                new Object[] { mouvementId, inverseId, user.getLgUSERID() });
+        return new JSONObject().put("success", true).put("message", "Mouvement annule.")
+                .put("lg_MOUVEMENT_ID", mouvementId).put("lg_MOUVEMENT_INVERSE_ID", inverseId)
+                .put("int_QTE", qte).put("lg_FAMILLE_ID", familleId);
+    }
+
+    /** Un mouvement est deja annule des lors qu'un autre mouvement pointe vers lui. */
+    private boolean dejaAnnule(String mouvementId) {
+        try {
+            Query q = em.createNativeQuery(
+                    "SELECT COUNT(*) FROM t_mouvement_reserve WHERE lg_MOUVEMENT_SOURCE_ID = ?1");
+            q.setParameter(1, mouvementId);
+            return ((Number) q.getSingleResult()).intValue() > 0;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "dejaAnnule " + mouvementId, e);
+            // Dans le doute on bloque : mieux vaut refuser une annulation legitime que d'en passer deux.
+            return true;
+        }
     }
 
     // ------------------------------------------------------ HISTORIQUE COMPLET

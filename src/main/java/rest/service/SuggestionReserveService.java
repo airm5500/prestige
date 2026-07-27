@@ -113,6 +113,25 @@ public interface SuggestionReserveService {
     void evaluerApresMouvementLot(TUser user, java.util.Collection<String> familleIds);
 
     /**
+     * Annule UNE ligne deja traitee, par mouvement inverse. Permet de defaire un seul produit parmi plusieurs.
+     */
+    JSONObject annulerLigne(TUser user, String detailId, String motif);
+
+    /**
+     * Annule toutes les lignes traitees d'une suggestion, par mouvements inverses.
+     *
+     * <p>
+     * Les lignes encore annulables et celles qui ne le sont pas sont traitees separement : chaque refus est explique
+     * individuellement, sans empecher les autres lignes d'aboutir.
+     */
+    JSONObject annulerSuggestion(TUser user, String suggestionId, String motif);
+
+    /**
+     * Annule UNE ligne dans sa propre transaction. Expose pour l'appel via le proxy du bean, comme le traitement.
+     */
+    JSONObject annulerLigneIsolee(TUser user, String detailId, String motif);
+
+    /**
      * Programme l'evaluation d'un produit pour qu'elle s'execute UNE FOIS LA VENTE VALIDEE.
      *
      * <p>
