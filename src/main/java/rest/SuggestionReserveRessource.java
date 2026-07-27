@@ -190,4 +190,18 @@ public class SuggestionReserveRessource {
         }
         return Response.ok().entity(suggestionReserveService.compteRendu(user, id).toString()).build();
     }
+
+    /** Export Excel du compte rendu, en-tete de la suggestion comprise. */
+    @GET
+    @Path("{id}/compte-rendu/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response compteRenduExcel(@PathParam("id") String id) throws Exception {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        byte[] data = suggestionReserveService.exportCompteRenduExcel(user, id);
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"compte_rendu_suggestion.xls\"").build();
+    }
 }

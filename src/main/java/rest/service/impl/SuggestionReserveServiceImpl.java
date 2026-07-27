@@ -53,6 +53,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     @EJB
     private ReserveService reserveService;
 
+    @EJB
+    private rest.service.utils.ReportExcelExportService reportExcelExportService;
+
     // ------------------------------------------------------------------ MOTIFS
 
     @Override
@@ -562,6 +565,45 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 .put("total_supprime", supprimes).put("total_ignore", ignores)
                 .put("articles_traites", traites).put("articles_non_traites", nonTraites)
                 .put("relancable", echoues > 0);
+    }
+
+    @Override
+    public byte[] exportCompteRenduExcel(TUser user, String suggestionId) throws java.io.IOException {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return new byte[0];
+        }
+        List<TSuggestionReserveDetail> lignes = chargerLignes(suggestionId);
+        if (lignes.isEmpty()) {
+            return new byte[0];
+        }
+        // Le titre porte l'identite de la suggestion : un classeur exporte reste interpretable seul.
+        String titre = "Compte rendu " + texte(s.getStrREF()) + " - " + libelleSens(s.getStrCATEGORIE()) + " - statut "
+                + texte(s.getStrSTATUT()) + " - motif " + (s.getMotif() != null ? s.getMotif().getLibelle() : "-")
+                + " - creee le " + dateTexte(s.getDtCREATED()) + " par " + nomUtilisateur(s.getLgUSERCREATEURID())
+                + (s.getDtCLOTURE() != null
+                        ? " - cloturee le " + dateTexte(s.getDtCLOTURE()) + " par "
+                                + nomUtilisateur(s.getLgUSERCLOTUREID())
+                        : "");
+        String[] entetes = { "CIP", "Designation", "Declencheur", "Qte proposee", "Qte retenue", "Qte deplacee",
+                "Etat", "Code echec", "Motif / message" };
+        return reportExcelExportService.createExcelReport(titre, entetes, lignes, (row, d) -> {
+            int col = 0;
+            row.createCell(col++).setCellValue(d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getIntCIP()) : "");
+            row.createCell(col++).setCellValue(d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getStrNAME()) : "");
+            row.createCell(col++).setCellValue(texte(d.getStrFORMULE()));
+            row.createCell(col++).setCellValue(nz(d.getIntQTEPROPOSEE()));
+            row.createCell(col++).setCellValue(d.getIntQTERETENUE() != null ? d.getIntQTERETENUE() : 0);
+            row.createCell(col++).setCellValue(nz(d.getIntQTEDEPLACEE()));
+            row.createCell(col++).setCellValue(texte(d.getStrETAT()));
+            row.createCell(col++).setCellValue(texte(d.getStrCODEECHEC()));
+            row.createCell(col).setCellValue(texte(d.getStrMOTIFLIGNE()));
+        });
+    }
+
+    private static String libelleSens(String categorie) {
+        return TSuggestionReserve.CATEGORIE_RESERVE.equals(categorie) ? "REAPPRO RESERVE (envoi en reserve)"
+                : "REAPPRO RAYON (envoi en rayon)";
     }
 
     // ------------------------------------------------------------------- JSON

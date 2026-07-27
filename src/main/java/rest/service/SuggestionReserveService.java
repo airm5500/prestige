@@ -84,4 +84,10 @@ public interface SuggestionReserveService {
 
     /** Relit le compte rendu d'une suggestion deja traitee, pour affichage, export ou impression. */
     JSONObject compteRendu(TUser user, String suggestionId);
+
+    /**
+     * Export Excel du compte rendu : en-tete de la suggestion (reference, statut, motif, dates, createur et
+     * cloturant) puis le detail ligne par ligne, echecs compris.
+     */
+    byte[] exportCompteRenduExcel(TUser user, String suggestionId) throws java.io.IOException;
 }

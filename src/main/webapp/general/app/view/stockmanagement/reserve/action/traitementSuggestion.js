@@ -304,7 +304,26 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 }
                 return h;
             };
+            // Identite de la suggestion rappelee dans le compte rendu : reference, statut, motif,
+            // dates, et les utilisateurs qui l'ont creee puis cloturee.
+            var e = res.entete || {};
+            var identite = '<div style="padding:6px;background:#efe7f5;border:1px solid #cbb4dc;margin-bottom:8px;">'
+                    + '<b>' + Ext.String.htmlEncode(e.str_REF || '') + '</b>'
+                    + ' &nbsp;|&nbsp; Statut : <b>' + Ext.String.htmlEncode(e.str_STATUT || '') + '</b>'
+                    + ' &nbsp;|&nbsp; Motif : ' + Ext.String.htmlEncode(e.motif_libelle || '-')
+                    + '<br><span style="color:#555;">Creee le ' + Ext.String.htmlEncode(e.dt_CREATED || '')
+                    + ' par <b>' + Ext.String.htmlEncode(e.str_USER_CREATEUR || '-') + '</b>'
+                    + (e.str_USER_TRAITANT
+                            ? ' &nbsp;|&nbsp; Traitee par <b>' + Ext.String.htmlEncode(e.str_USER_TRAITANT) + '</b>'
+                            : '')
+                    + (e.dt_CLOTURE
+                            ? ' &nbsp;|&nbsp; Cloturee le ' + Ext.String.htmlEncode(e.dt_CLOTURE)
+                              + ' par <b>' + Ext.String.htmlEncode(e.str_USER_CLOTURE || '-') + '</b>'
+                            : '')
+                    + '</span></div>';
+
             var html = '<div style="font-size:12px;">'
+                    + identite
                     + '<div style="padding:6px;background:#f5f7fa;border:1px solid #ddd;margin-bottom:8px;">'
                     + '<b>Demandes :</b> ' + (res.total_demande || 0)
                     + ' &nbsp;|&nbsp; <b style="color:#2a6b2e;">Reussis :</b> ' + (res.total_reussi || 0)
@@ -317,12 +336,24 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     + '</div>';
             Ext.create('Ext.window.Window', {
                 title: 'Compte rendu du traitement',
-                width: 700, height: 460, modal: true, autoScroll: true,
+                width: 760, height: 520, modal: true, autoScroll: true,
                 bodyPadding: 8, html: html,
                 buttons: [{
                         text: 'Exporter (CSV)',
                         handler: function () {
                             exporterCompteRendu(res);
+                        }
+                    }, {
+                        text: 'Exporter (Excel)',
+                        handler: function () {
+                            telechargerFichier(baseUrl + encodeURIComponent(id) + '/compte-rendu/excel');
+                        }
+                    }, {
+                        text: 'Imprimer',
+                        handler: function () {
+                            window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
+                                    + 'compte_rendu&id=' + encodeURIComponent(id), '_blank',
+                                    'width=1100,height=750,scrollbars=yes,resizable=yes');
                         }
                     }, {
                         text: 'Fermer',
@@ -332,6 +363,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     }]
             }).show();
             btnReessayer.setVisible(!!res.relancable);
+        };
+
+        // Telechargement par iframe cachee : la fenetre courante n'est ni quittee ni rechargee.
+        var telechargerFichier = function (url) {
+            var frame = document.getElementById('suggestion-export-frame');
+            if (!frame) {
+                frame = document.createElement('iframe');
+                frame.id = 'suggestion-export-frame';
+                frame.style.display = 'none';
+                document.body.appendChild(frame);
+            }
+            frame.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_dc=' + new Date().getTime();
         };
 
         var exporterCompteRendu = function (res) {
@@ -437,10 +480,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 me.btnTraiter,
                 btnReessayer,
                 {
-                    text: 'Imprimer',
+                    text: 'Imprimer la suggestion',
                     handler: function () {
-                        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?id='
-                                + encodeURIComponent(id), '_blank',
+                        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
+                                + 'suggestion&id=' + encodeURIComponent(id), '_blank',
                                 'width=1100,height=750,scrollbars=yes,resizable=yes');
                     }
                 },
