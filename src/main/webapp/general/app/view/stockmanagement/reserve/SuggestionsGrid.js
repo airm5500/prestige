@@ -78,11 +78,29 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         // Choisir dans une liste lance directement la recherche : plus besoin de cliquer.
         var filtres = [
             {xtype: 'textfield', itemId: 'fSearch', emptyText: 'Produit ou CIP', width: 150,
-                listeners: {specialkey: function (f, e) {
+                listeners: {
+                    specialkey: function (f, e) {
                         if (e.getKey() === e.ENTER) {
+                            f.dernierTerme = (f.getValue() || '').trim();
                             me.onRechercher();
                         }
-                    }}},
+                    },
+                    // Recherche automatique a partir de 3 caracteres, apres une pause de frappe.
+                    change: {
+                        buffer: 400,
+                        fn: function (f, v) {
+                            var terme = (v || '').trim();
+                            if (terme.length > 0 && terme.length < 3) {
+                                return;
+                            }
+                            if (terme === f.dernierTerme) {
+                                return;
+                            }
+                            f.dernierTerme = terme;
+                            me.onRechercher();
+                        }
+                    }
+                }},
             '-',
             combo('fStatut', 'Tous les statuts', [
                 {valeur: 'A_TRAITER', libelle: 'A traiter'},

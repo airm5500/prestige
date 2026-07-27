@@ -70,11 +70,29 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
         // Tous les filtres sur UNE seule ligne, separes par de vrais separateurs.
         var filtres = [
             {xtype: 'textfield', itemId: 'hSearch', emptyText: 'Produit ou CIP', width: 150,
-                listeners: {specialkey: function (f, e) {
+                listeners: {
+                    specialkey: function (f, e) {
                         if (e.getKey() === e.ENTER) {
+                            f.dernierTerme = (f.getValue() || '').trim();
                             me.onRechercher();
                         }
-                    }}},
+                    },
+                    // Recherche automatique a partir de 3 caracteres, apres une pause de frappe.
+                    change: {
+                        buffer: 400,
+                        fn: function (f, v) {
+                            var terme = (v || '').trim();
+                            if (terme.length > 0 && terme.length < 3) {
+                                return;
+                            }
+                            if (terme === f.dernierTerme) {
+                                return;
+                            }
+                            f.dernierTerme = terme;
+                            me.onRechercher();
+                        }
+                    }
+                }},
             '-',
             {
                 xtype: 'combo', itemId: 'hType', emptyText: 'Tous les mouvements', width: 185,

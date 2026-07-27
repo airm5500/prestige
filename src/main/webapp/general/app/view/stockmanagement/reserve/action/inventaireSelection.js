@@ -98,9 +98,30 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                     xtype: 'textfield', itemId: 'invRech', width: 220,
                     emptyText: 'Rechercher (CIP ou nom du produit)',
                     value: search,
+                    // La fenetre s'ouvre deja sur cette recherche : on la memorise pour que la
+                    // recherche automatique ne la rejoue pas une seconde fois a l'affichage.
+                    dernierTerme: search.trim(),
                     listeners: {
                         specialkey: function (f, e) {
                             if (e.getKey() === e.ENTER) {
+                                f.dernierTerme = (f.getValue() || '').trim();
+                                lancerRecherche();
+                            }
+                        },
+                        // Recherche automatique a partir de 3 caracteres, apres une pause de
+                        // frappe. Les produits deja coches ne sont pas perdus : la recherche ne
+                        // change que ce qui est affiche.
+                        change: {
+                            buffer: 400,
+                            fn: function (f, v) {
+                                var terme = (v || '').trim();
+                                if (terme.length > 0 && terme.length < 3) {
+                                    return;
+                                }
+                                if (terme === f.dernierTerme) {
+                                    return;
+                                }
+                                f.dernierTerme = terme;
                                 lancerRecherche();
                             }
                         }

@@ -204,7 +204,35 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
 
         // ---- Barre d'outils : recherche + boutons communs + boutons specifiques
         var tbar = [{
-                xtype: 'textfield', itemId: 'rechFld', emptyText: 'Rech (code ou nom)', width: 180
+                xtype: 'textfield', itemId: 'rechFld', emptyText: 'Rech (code ou nom)', width: 180,
+                listeners: {
+                    // Entree : recherche immediate, quel que soit le nombre de caracteres.
+                    specialkey: function (f, e) {
+                        if (e.getKey() === e.ENTER) {
+                            f.dernierTerme = (f.getValue() || '').trim();
+                            me.onRechClick();
+                        }
+                    },
+                    // Recherche automatique a partir de 3 caracteres. Le buffer attend une pause
+                    // de frappe : taper un nom complet ne declenche qu'une requete, pas une par
+                    // lettre. En dessous de 3 caracteres le terme est trop large pour cibler quoi
+                    // que ce soit, on attend donc la touche Entree. Le champ vide relance la
+                    // liste complete, sinon on resterait bloque sur le dernier resultat.
+                    change: {
+                        buffer: 400,
+                        fn: function (f, v) {
+                            var terme = (v || '').trim();
+                            if (terme.length > 0 && terme.length < 3) {
+                                return;
+                            }
+                            if (terme === f.dernierTerme) {
+                                return;
+                            }
+                            f.dernierTerme = terme;
+                            me.onRechClick();
+                        }
+                    }
+                }
             }, {
                 text: 'rechercher', scope: me, handler: me.onRechClick
             }, '-'];
