@@ -65,6 +65,19 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
 
                 });
 
+        // Motif et commentaire sont saisis ICI, dans la meme vue que la quantite. Ils ouvraient
+        // auparavant une seconde fenetre par-dessus celle-ci : deux vues superposees pour une
+        // seule decision, alors que tout tient sur un seul ecran.
+        var categorieSuggestion = (Omode === 'assort') ? 'RESERVE' : 'RAYON';
+        var storeMotifs = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            proxy: {
+                type: 'ajax', url: '../api/v1/suggestion-reserve/motifs',
+                extraParams: {categorie: categorieSuggestion}, reader: {type: 'json'}
+            }
+        });
+        storeMotifs.load();
+
         var form = new Ext.form.Panel({
             bodyPadding: 10,
             fieldDefaults: {
@@ -87,8 +100,23 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                             emptyText: qteLabel,
                             name: 'int_NUMBER_REASSORT',
                             id: 'int_NUMBER_REASSORT'
+                        },
+                        {
+                            xtype: 'combo', itemId: 'cboMotifLigne', fieldLabel: 'Motif *',
+                            editable: false, allowBlank: false, forceSelection: true,
+                            queryMode: 'local', displayField: 'libelle', valueField: 'id',
+                            emptyText: 'Motif (obligatoire)', store: storeMotifs
+                        },
+                        {
+                            xtype: 'textfield', itemId: 'txtComLigne', fieldLabel: 'Commentaire',
+                            emptyText: 'Facultatif'
                         }
                     ]
+                },
+                {
+                    xtype: 'component',
+                    html: '<div style="padding:4px 10px;color:#555;">Le stock ne bougera '
+                            + 'qu\'apres traitement depuis l\'onglet SUGGESTIONS.</div>'
                 }
             ]
         });
@@ -113,15 +141,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         var win = new Ext.window.Window({
             autoShow: false,
             title: this.getTitre(),
-            width: 500,
-            height: 300,
+            width: 560,
+            height: 380,
             minWidth: 300,
             minHeight: 200,
             layout: 'fit',
             plain: true,
             items: form,
             buttons: [{
-                    text: 'Enregistrer',
+                    text: 'Creer la suggestion',
+                    cls: 'btn-suggestions-violet',
                     handler: this.onbtnsave
                 }, {
                     text: 'Annuler',
@@ -198,103 +227,51 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         //   assort   = le trop-plein du rayon part EN RESERVE
         //   reassort = la reserve remonte AU RAYON
         var categorie = (Omode === 'assort') ? 'RESERVE' : 'RAYON';
-        var libOp = (Omode === 'assort')
-                ? 'envoyer ' + qte + ' unite(s) DU RAYON VERS LA RESERVE'
-                : 'envoyer ' + qte + ' unite(s) DE LA RESERVE VERS LE RAYON';
 
-        demanderMotif(categorie, libOp, function (motifId, commentaire) {
-            Ext.Ajax.request({
-                method: 'POST',
-                url: '../api/v1/suggestion-reserve/creer',
-                jsonData: {
-                    categorie: categorie,
-                    motifId: motifId,
-                    commentaire: commentaire,
-                    items: [{lg_FAMILLE_ID: ref, int_QTE: qte}]
-                },
-                success: function (response) {
-                    var res = Ext.JSON.decode(response.responseText, true) || {};
-                    if (res.success === false) {
-                        // Erreur metier : on garde la fenetre ouverte pour corriger
-                        qteField.markInvalid(res.message || "Creation impossible");
-                        Ext.MessageBox.alert('Message', res.message || "Creation impossible", focusQte);
-                        return;
-                    }
-                    win.close();
-                    if (Oview && Oview.getStore) {
-                        Oview.getStore().reload();
-                    }
-                    ouvrirSuggestionCreee(res);
-                },
-                failure: function (response) {
-                    console.log("Bug " + response.responseText);
-                    Ext.MessageBox.alert('Error Message', "Echec de la communication avec le serveur", focusQte);
+        // Motif obligatoire : chaque mouvement de reserve doit pouvoir etre justifie.
+        var cboMotif = win.down('#cboMotifLigne');
+        if (!cboMotif || !cboMotif.getValue()) {
+            if (cboMotif) {
+                cboMotif.markInvalid('Motif obligatoire');
+                cboMotif.focus();
+            }
+            Ext.MessageBox.alert('Motif obligatoire',
+                    'Indiquez le motif de cette suggestion avant de la creer.');
+            return;
+        }
+        var txtCom = win.down('#txtComLigne');
+        var motifId = cboMotif.getValue();
+        var commentaire = (txtCom && txtCom.getValue()) ? txtCom.getValue() : null;
+
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/suggestion-reserve/creer',
+            jsonData: {
+                categorie: categorie,
+                motifId: motifId,
+                commentaire: commentaire,
+                items: [{lg_FAMILLE_ID: ref, int_QTE: qte}]
+            },
+            success: function (response) {
+                var res = Ext.JSON.decode(response.responseText, true) || {};
+                if (res.success === false) {
+                    // Erreur metier : on garde la fenetre ouverte pour corriger
+                    qteField.markInvalid(res.message || "Creation impossible");
+                    Ext.MessageBox.alert('Message', res.message || "Creation impossible", focusQte);
+                    return;
                 }
-            });
-        }, focusQte);
+                win.close();
+                if (Oview && Oview.getStore) {
+                    Oview.getStore().reload();
+                }
+                ouvrirSuggestionCreee(res);
+            },
+            failure: function (response) {
+                Ext.MessageBox.alert('Error Message', "Echec de la communication avec le serveur", focusQte);
+            }
+        });
     }
 });
-
-// Demande le motif (obligatoire) avant de creer la suggestion, en rappelant le sens du mouvement.
-function demanderMotif(categorie, libelleOperation, onValide, onAnnule) {
-    var storeMotifs = new Ext.data.Store({
-        fields: ['id', 'libelle'],
-        proxy: {
-            type: 'ajax', url: '../api/v1/suggestion-reserve/motifs',
-            extraParams: {categorie: categorie}, reader: {type: 'json'}
-        }
-    });
-    storeMotifs.load();
-
-    var w = Ext.create('Ext.window.Window', {
-        title: 'Creer la suggestion',
-        width: 480, modal: true, bodyPadding: 10, layout: 'anchor',
-        defaults: {anchor: '100%', labelWidth: 90},
-        items: [
-            {
-                xtype: 'component',
-                html: '<div style="margin-bottom:8px;color:#0b57d0;font-weight:bold;">'
-                        + 'Vous allez creer une suggestion pour ' + Ext.String.htmlEncode(libelleOperation) + '.'
-                        + '</div><div style="margin-bottom:8px;color:#555;">'
-                        + 'Le stock ne bougera qu\'apres traitement depuis l\'onglet SUGGESTIONS.</div>'
-            },
-            {
-                xtype: 'combo', itemId: 'cboMotifLigne', fieldLabel: 'Motif *',
-                editable: false, allowBlank: false, forceSelection: true, queryMode: 'local',
-                displayField: 'libelle', valueField: 'id',
-                emptyText: 'Motif (obligatoire)', store: storeMotifs
-            },
-            {xtype: 'textfield', itemId: 'txtComLigne', fieldLabel: 'Commentaire', emptyText: 'Facultatif'}
-        ],
-        buttons: [
-            {
-                text: 'Creer la suggestion', cls: 'btn-suggestions-violet',
-                handler: function () {
-                    var cbo = w.down('#cboMotifLigne');
-                    if (!cbo || !cbo.getValue()) {
-                        cbo.markInvalid('Motif obligatoire');
-                        Ext.MessageBox.alert('Motif obligatoire',
-                                'Indiquez le motif de cette suggestion avant de la creer.');
-                        return;
-                    }
-                    var com = w.down('#txtComLigne');
-                    w.close();
-                    onValide(cbo.getValue(), com ? com.getValue() : null);
-                }
-            },
-            {
-                text: 'Annuler',
-                handler: function () {
-                    w.close();
-                    if (onAnnule) {
-                        onAnnule();
-                    }
-                }
-            }
-        ]
-    });
-    w.show();
-}
 
 // Bascule sur l'onglet SUGGESTIONS et ouvre la suggestion qui vient d'etre creee.
 function ouvrirSuggestionCreee(res) {
