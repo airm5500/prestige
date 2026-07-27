@@ -98,9 +98,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
             xtype: 'toolbar', dock: 'bottom',
             items: [
                 {
-                    xtype: 'combo', itemId: 'cboMotif', fieldLabel: 'Motif', labelWidth: 40, width: 250,
-                    editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'id',
-                    emptyText: 'Motif (facultatif)', store: storeMotifs
+                    xtype: 'combo', itemId: 'cboMotif', fieldLabel: 'Motif *', labelWidth: 50, width: 260,
+                    editable: false, allowBlank: false, forceSelection: true, queryMode: 'local',
+                    displayField: 'libelle', valueField: 'id',
+                    emptyText: 'Motif (obligatoire)', store: storeMotifs
                 },
                 {
                     xtype: 'textfield', itemId: 'txtCommentaire', flex: 1,
@@ -141,6 +142,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                             return;
                         }
                         var cboMotif = win.down('#cboMotif');
+                        // Motif obligatoire : chaque mouvement de reserve doit pouvoir etre justifie.
+                        if (!cboMotif || !cboMotif.getValue()) {
+                            Ext.MessageBox.alert('Motif obligatoire',
+                                    'Indiquez le motif de cette suggestion avant de la creer.');
+                            if (cboMotif) {
+                                cboMotif.markInvalid('Motif obligatoire');
+                                cboMotif.focus();
+                            }
+                            return;
+                        }
                         var txtCom = win.down('#txtCommentaire');
                         var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation en cours');
                         Ext.Ajax.request({
@@ -148,7 +159,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                             url: '../api/v1/suggestion-reserve/creer',
                             jsonData: {
                                 categorie: categorie,
-                                motifId: (cboMotif && cboMotif.getValue()) ? cboMotif.getValue() : null,
+                                motifId: cboMotif.getValue(),
                                 commentaire: (txtCom && txtCom.getValue()) ? txtCom.getValue() : null,
                                 items: items
                             },

@@ -209,6 +209,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         }
 
         // Boutons communs aux 3 onglets
+        tbar.push({
+            text: 'Suggestion sur tout le resultat', cls: 'btn-suggestions-violet',
+            scope: me, handler: me.onSuggestionRecherche,
+            tooltip: tip('Cree une suggestion portant sur TOUS les articles<br>'
+                    + 'du resultat de recherche, et pas seulement sur la page affichee.')
+        });
         tbar.push({text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaire});
         tbar.push({text: 'Imprimer', scope: me, handler: me.onPrint});
         tbar.push({text: 'Historiques', scope: me, handler: me.onHistoriquesGlobal});
@@ -554,6 +560,100 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
 
         win.show();
         selStore.loadPage(1);
+    },
+
+    // ---- Bouton commun : suggestion sur TOUT le resultat de recherche ------
+    // Le serveur rejoue la recherche lui-meme : la suggestion couvre toutes les lignes
+    // trouvees, et non la seule page affichee.
+    onSuggestionRecherche: function () {
+        var me = this;
+        var rech = me.down('#rechFld');
+        var search = (rech && rech.getValue()) ? rech.getValue() : '';
+        var categorie = (me.typeParam === 'REAPPRO') ? 'RESERVE' : 'RAYON';
+
+        var storeMotifs = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            proxy: {
+                type: 'ajax', url: '../api/v1/suggestion-reserve/motifs',
+                extraParams: {categorie: categorie}, reader: {type: 'json'}
+            }
+        });
+        storeMotifs.load();
+
+        var win = Ext.create('Ext.window.Window', {
+            title: 'Creer une suggestion sur tout le resultat',
+            width: 520, modal: true, bodyPadding: 10, layout: 'anchor',
+            defaults: {anchor: '100%', labelWidth: 90},
+            items: [
+                {
+                    xtype: 'component',
+                    html: '<div style="margin-bottom:8px;color:#0b57d0;font-weight:bold;">'
+                            + 'La suggestion portera sur TOUS les articles du resultat de recherche'
+                            + (search ? ' correspondant a &laquo; ' + Ext.String.htmlEncode(search) + ' &raquo;' : '')
+                            + ', et non sur la seule page affichee.</div>'
+                },
+                {
+                    xtype: 'combo', itemId: 'cboMotifRech', fieldLabel: 'Motif *',
+                    editable: false, allowBlank: false, forceSelection: true, queryMode: 'local',
+                    displayField: 'libelle', valueField: 'id',
+                    emptyText: 'Motif (obligatoire)', store: storeMotifs
+                },
+                {xtype: 'textfield', itemId: 'txtComRech', fieldLabel: 'Commentaire',
+                    emptyText: 'Facultatif'}
+            ],
+            buttons: [
+                {
+                    text: 'Creer la suggestion', cls: 'btn-suggestions-violet',
+                    handler: function () {
+                        var cbo = win.down('#cboMotifRech');
+                        if (!cbo || !cbo.getValue()) {
+                            cbo.markInvalid('Motif obligatoire');
+                            Ext.MessageBox.alert('Motif obligatoire',
+                                    'Indiquez le motif de cette suggestion avant de la creer.');
+                            return;
+                        }
+                        var com = win.down('#txtComRech');
+                        var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation en cours');
+                        Ext.Ajax.request({
+                            method: 'POST',
+                            url: '../api/v1/suggestion-reserve/creer-depuis-recherche',
+                            jsonData: {
+                                type: me.typeParam,
+                                search: search,
+                                motifId: cbo.getValue(),
+                                commentaire: com ? com.getValue() : null
+                            },
+                            success: function (response) {
+                                progress.hide();
+                                var res = Ext.JSON.decode(response.responseText, true) || {};
+                                if (res.success === false) {
+                                    Ext.MessageBox.alert('Message', res.message || 'Creation impossible.');
+                                    return;
+                                }
+                                win.close();
+                                var manager = Ext.getCmp('reservemanagerID');
+                                var onglet = manager ? manager.down('#ongletSuggestions') : null;
+                                if (manager && onglet) {
+                                    manager.setActiveTab(onglet);
+                                    onglet.reloadGrid();
+                                } else {
+                                    Ext.MessageBox.alert('Suggestion creee',
+                                            (res.lignes || 0) + ' article(s).');
+                                }
+                            },
+                            failure: function () {
+                                progress.hide();
+                                Ext.MessageBox.alert('Erreur', 'La creation a echoue.');
+                            }
+                        });
+                    }
+                },
+                {text: 'Annuler', handler: function () {
+                        win.close();
+                    }}
+            ]
+        });
+        win.show();
     },
 
     // ---- Bouton commun : impression PDF (modele JasperReports) -------------

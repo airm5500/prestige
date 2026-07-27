@@ -192,6 +192,26 @@ public class SuggestionReserveRessource {
     }
 
     /**
+     * Cree une suggestion sur TOUT le resultat de recherche d'un onglet.
+     *
+     * <p>
+     * Corps attendu : {@code {type, search, motifId, commentaire}}. Le serveur rejoue la recherche lui-meme.
+     */
+    @POST
+    @Path("creer-depuis-recherche")
+    public Response creerDepuisRecherche(String body) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        Integer motifId = in.has("motifId") && !in.isNull("motifId") ? in.optInt("motifId") : null;
+        JSONObject json = suggestionReserveService.creerDepuisRecherche(user, in.optString("type", null),
+                in.optString("search", null), motifId, in.optString("commentaire", null));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
      * Ouvre la suggestion pour la traiter, en la reservant si personne ne l'occupe. Reponse enrichie de
      * {@code modifiable} et, le cas echeant, du nom de la personne qui la detient.
      */

@@ -132,6 +132,18 @@ public interface SuggestionReserveService {
     void evaluerApresMouvementLot(TUser user, java.util.Collection<String> familleIds);
 
     /**
+     * Cree une suggestion portant sur TOUS les articles d'un resultat de recherche, et non sur une selection.
+     *
+     * <p>
+     * Le serveur rejoue la meme recherche que la grille : la suggestion couvre donc exactement les lignes affichees,
+     * pagination comprise, sans que l'ecran ait a les transmettre.
+     *
+     * @param type
+     *            ALL, REAPPRO ou REASSORT_RAYON, comme l'onglet d'ou part la demande
+     */
+    JSONObject creerDepuisRecherche(TUser user, String type, String search, Integer motifId, String commentaire);
+
+    /**
      * Cree un inventaire reserve portant sur les produits d'une suggestion, hors lignes retirees.
      */
     JSONObject creerInventaire(TUser user, String suggestionId);

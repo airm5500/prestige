@@ -96,6 +96,16 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (items == null || items.isEmpty()) {
             return echec("Aucun article selectionne.");
         }
+        // Motif obligatoire : chaque mouvement de reserve doit pouvoir etre justifie a posteriori.
+        // Controle cote serveur, l'ecran ne fait qu'anticiper le refus.
+        if (motifId == null) {
+            return echec("Le motif est obligatoire : precisez pourquoi cette suggestion est creee.")
+                    .put("code", "MOTIF_OBLIGATOIRE");
+        }
+        MotifSuggestionReserve motif = em.find(MotifSuggestionReserve.class, motifId);
+        if (motif == null) {
+            return echec("Motif inconnu.").put("code", "MOTIF_OBLIGATOIRE");
+        }
 
         TSuggestionReserve s = new TSuggestionReserve(IdGenerator.getComplexId());
         s.setStrREF(genererReference(cat));
@@ -107,9 +117,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         s.setLgUSERCREATEURID(user);
         s.setDtCREATED(new Date());
         s.setDtUPDATED(s.getDtCREATED());
-        if (motifId != null) {
-            s.setMotif(em.find(MotifSuggestionReserve.class, motifId));
-        }
+        s.setMotif(motif);
         em.persist(s);
 
         int ajoutees = 0;
@@ -757,6 +765,31 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     private static String libelleSens(String categorie) {
         return TSuggestionReserve.CATEGORIE_RESERVE.equals(categorie) ? "REAPPRO RESERVE (envoi en reserve)"
                 : "REAPPRO RAYON (envoi en rayon)";
+    }
+
+    @Override
+    public JSONObject creerDepuisRecherche(TUser user, String type, String search, Integer motifId,
+            String commentaire) {
+        // Le sens decoule de l'onglet : REAPPRO range le trop-plein en reserve, les autres regarnissent le rayon.
+        String categorie = "REAPPRO".equalsIgnoreCase(type) ? TSuggestionReserve.CATEGORIE_RESERVE
+                : TSuggestionReserve.CATEGORIE_RAYON;
+
+        // limit a 0 : on reprend TOUT le resultat de recherche, pas seulement la page affichee.
+        JSONObject data = reserveService.listArticles(user, search, type, 0, 0);
+        JSONArray articles = data.optJSONArray("results");
+        List<JSONObject> items = new ArrayList<>();
+        if (articles != null) {
+            for (int i = 0; i < articles.length(); i++) {
+                JSONObject a = articles.getJSONObject(i);
+                items.add(new JSONObject().put("lg_FAMILLE_ID", a.optString("lg_FAMILLE_ID", "")));
+            }
+        }
+        if (items.isEmpty()) {
+            return echec("La recherche ne ramene aucun article.");
+        }
+        LOG.log(Level.INFO, "creerDepuisRecherche type={0} articles={1} user={2}",
+                new Object[] { type, items.size(), user.getLgUSERID() });
+        return creer(user, categorie, motifId, commentaire, items);
     }
 
     @Override
