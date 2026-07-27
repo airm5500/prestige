@@ -557,18 +557,19 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         selStore.loadPage(1);
     },
 
-    // ---- Bouton commun : imprimer via reserveprint.html -------------------
+    // ---- Bouton commun : impression PDF (modele JasperReports) -------------
+    // Un modele .jrxml dedie par onglet, avec un en-tete qui nomme sans ambiguite
+    // le sens du mouvement. La recherche en cours est transmise au rapport.
     onPrint: function () {
         var me = this;
         var mode = me.getGridmode();
-        var search = me.down('#rechFld').getValue() || '';
-        var qs = 'mode=articles&tabMode=' + encodeURIComponent(mode)
-                + '&titre=' + encodeURIComponent('Gestion des reserves - ' + mode)
-                + '&autoload=1';
-        if (search) {
-            qs += '&search=' + encodeURIComponent(search);
-        }
-        window.open('reserveprint.html?' + qs, '_blank',
+        var pdfMode = (mode === 'REAPPRO') ? 'liste_reappro_reserve'
+                : (mode === 'REASSORT') ? 'liste_reappro_rayon'
+                : 'liste_tout';
+        var rech = me.down('#rechFld');
+        var search = (rech && rech.getValue()) ? rech.getValue() : '';
+        var qs = 'mode=' + encodeURIComponent(pdfMode) + '&search=' + encodeURIComponent(search);
+        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank',
                 'width=1100,height=750,scrollbars=yes,resizable=yes');
     },
 

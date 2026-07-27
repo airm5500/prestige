@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_reserve_liste_tout" language="groovy" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="575" leftMargin="10" rightMargin="10" topMargin="10" bottomMargin="10" uuid="051d1c01-8e20-40ee-a6b3-a97b87e31a34">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+	<parameter name="P_H_LOGO" class="java.lang.String"/>
+	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+	<parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+	<parameter name="P_PRINTED_BY" class="java.lang.String"/>
+	<parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+	<parameter name="P_EMPLACEMENT_ID" class="java.lang.String"/>
+	<parameter name="P_SEARCH" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[SELECT CAST(f.int_CIP AS CHAR) AS int_CIP, f.str_NAME AS str_NAME,
+COALESCE(z.str_LIBELLEE, '') AS zone_libelle,
+COALESCE(MAX(fs.int_NUMBER_AVAILABLE), 0) AS stock_rayon,
+COALESCE(MAX(tsf.int_NUMBER), 0) AS stock_reserve,
+COALESCE(f.int_SEUIL_RESERVE, 0) AS seuil_reserve,
+f.int_SEUIL_MINI_RAYON AS seuil_mini,
+COALESCE(f.int_PAF, 0) AS paf, COALESCE(f.int_PRICE, 0) AS prix
+FROM t_type_stock_famille tsf
+JOIN t_famille f ON f.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID
+LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID
+LEFT JOIN t_famille_stock fs ON fs.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID
+  AND fs.lg_EMPLACEMENT_ID = tsf.lg_EMPLACEMENT_ID AND fs.str_STATUT = 'enable'
+WHERE tsf.lg_TYPE_STOCK_ID = '2' AND tsf.lg_EMPLACEMENT_ID = $P{P_EMPLACEMENT_ID}
+AND tsf.str_STATUT = 'enable' AND f.bool_RESERVE = 1
+AND (f.str_NAME LIKE $P{P_SEARCH} OR f.str_DESCRIPTION LIKE $P{P_SEARCH} OR CAST(f.int_CIP AS CHAR) LIKE $P{P_SEARCH})
+GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, z.str_LIBELLEE,
+f.int_SEUIL_RESERVE, f.int_SEUIL_MINI_RAYON, f.int_PAF, f.int_PRICE
+ORDER BY f.str_DESCRIPTION ASC]]>
+	</queryString>
+	<field name="int_CIP" class="java.lang.String"/>
+	<field name="str_NAME" class="java.lang.String"/>
+	<field name="zone_libelle" class="java.lang.String"/>
+	<field name="stock_rayon" class="java.lang.Integer"/>
+	<field name="stock_reserve" class="java.lang.Integer"/>
+	<field name="seuil_reserve" class="java.lang.Integer"/>
+	<field name="seuil_mini" class="java.lang.Integer"/>
+	<field name="paf" class="java.lang.Integer"/>
+	<field name="prix" class="java.lang.Integer"/>
+
+	<background><band/></background>
+	<pageHeader>
+		<band height="158">
+			<image onErrorType="Blank">
+				<reportElement mode="Transparent" x="2" y="4" width="78" height="58" uuid="9c0f3a1f-1540-4a0c-b5ac-670fd40985d5"/>
+				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+			</image>
+			<textField isBlankWhenNull="true">
+				<reportElement x="82" y="10" width="400" height="26" uuid="cb1742eb-aec1-40cb-84ba-858b2a238cf2"/>
+				<textElement textAlignment="Center"><font fontName="Century Gothic" size="17" isBold="true" isItalic="true"/></textElement>
+				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="82" y="38" width="400" height="14" uuid="266adeef-de1f-4905-9caa-0fd43206acf1"/>
+				<textElement textAlignment="Center"><font size="8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="66" width="575" height="2" backcolor="#CCCCCC" uuid="ea00ba9a-6ab6-441f-b871-29a33e5cd44e"/>
+				<box><pen lineWidth="0.0"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement mode="Opaque" x="120" y="78" width="335" height="26" backcolor="#CCCCCC" uuid="14ca384f-3fdb-4240-a30c-252493cd65b3"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="Times New Roman" size="12" isBold="true" isUnderline="true"/></textElement>
+				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+			</textField>
+			<textField pattern="EEEEE dd MMMMM yyyy">
+				<reportElement x="440" y="108" width="135" height="14" uuid="d0ac9340-21ef-4d3c-adc6-9867faa9ffbb"/>
+				<textElement textAlignment="Right"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="440" y="122" width="100" height="14" uuid="14408ecc-6b5f-47b6-a0ce-6d4f7e379e27"/>
+				<textElement textAlignment="Right"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA["Page "+$V{PAGE_NUMBER}+"/"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="540" y="122" width="35" height="14" uuid="b36ff2bf-74df-4691-beb1-40adfd2d3947"/>
+				<textElement><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[" "+$V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="0" y="122" width="430" height="14" uuid="5e2000ac-964d-4c5f-937f-2a74a310612e"/>
+				<textElement><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[Stock rayon = ce qui est en rayon  /  Stock reserve = ce qui est garde en reserve]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="140" width="52" height="18" backcolor="#CCCCCC" uuid="9ed11e95-865e-4411-91b5-18cb0adb006a"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[CIP]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="52" y="140" width="178" height="18" backcolor="#CCCCCC" uuid="b57e41b0-7b75-4b30-8b23-d21fb08c5b56"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[DESIGNATION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="230" y="140" width="105" height="18" backcolor="#CCCCCC" uuid="2ea25855-d598-4346-a771-f34d0002e268"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[EMPLACEMENT]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="335" y="140" width="55" height="18" backcolor="#CCCCCC" uuid="b4664a46-a2f8-4cad-a57a-318e5d979109"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[STOCK RAYON]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="390" y="140" width="60" height="18" backcolor="#CCCCCC" uuid="0e5e0557-3f56-4417-ba99-b5b4b1ea7128"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[STOCK RESERVE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="450" y="140" width="50" height="18" backcolor="#CCCCCC" uuid="a3034aa4-3f1d-4b17-9d35-28de0ceca097"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[SEUIL RESERVE]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="500" y="140" width="50" height="18" backcolor="#CCCCCC" uuid="227951b8-e57e-4d6d-aaab-3ddba95f4102"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[SEUIL MINI]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="550" y="140" width="25" height="18" backcolor="#CCCCCC" uuid="ed48dbac-d5af-46f8-97a9-0b7ea2cfc882"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[PAF]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<detail>
+		<band height="16">
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="0" width="52" height="16" uuid="562b1d25-f476-4477-869b-080b274119a4"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[$F{int_CIP}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="52" y="0" width="178" height="16" uuid="4ee51ace-2bfa-47bc-8109-643042598e62"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[$F{str_NAME}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="230" y="0" width="105" height="16" uuid="53af9890-c067-415c-98eb-24e674056967"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[$F{zone_libelle}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="335" y="0" width="55" height="16" uuid="2f5dd885-7bc9-4372-99bc-754dd67dde3f"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[($F{stock_rayon} != null ? $F{stock_rayon} : 0)]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="390" y="0" width="60" height="16" uuid="bc7a1c98-ca04-42fd-bf21-5cb96cee6c36"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[($F{stock_reserve} != null ? $F{stock_reserve} : 0)]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="450" y="0" width="50" height="16" uuid="e4c80e24-f7cf-48a7-8c49-6c92f1d1338d"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[($F{seuil_reserve} != null ? $F{seuil_reserve} : 0)]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="500" y="0" width="50" height="16" uuid="c5fd9150-b9b4-49e4-8e3a-da3162928106"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[($F{seuil_mini} != null ? $F{seuil_mini} : 0)]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true" pattern="#,##0">
+				<reportElement x="550" y="0" width="25" height="16" uuid="75171bbe-8546-4fe5-a34d-8dd970d991fc"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+				<textFieldExpression><![CDATA[($F{paf} != null ? $F{paf} : 0)]]></textFieldExpression>
+			</textField>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="40">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="4" width="575" height="2" backcolor="#CCCCCC" uuid="a159b1e4-dfb1-4ff8-b885-3506a6b64b75"/>
+				<box><pen lineWidth="0.0"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="8" width="575" height="12" uuid="51063629-ce4b-468a-a1d3-c8526f5fd9ab"/>
+				<textElement textAlignment="Center"><font size="7"/></textElement>
+				<textFieldExpression><![CDATA[($P{P_INSTITUTION_ADRESSE} != null ? $P{P_INSTITUTION_ADRESSE} : "")]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy HH:mm:ss">
+				<reportElement x="0" y="22" width="150" height="12" uuid="49081534-c3a1-4c2b-a76a-d2759b7d4e33"/>
+				<textElement><font size="7"/></textElement>
+				<textFieldExpression><![CDATA[new java.util.Date()]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="300" y="22" width="275" height="12" uuid="924efe54-73c1-4845-9ef0-dc9d044c63a0"/>
+				<textElement textAlignment="Right"><font size="7"/></textElement>
+				<textFieldExpression><![CDATA[($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement x="300" y="30" width="275" height="10" uuid="867e4fd4-870c-41ed-940a-8e0a56597c8b"/>
+				<textElement textAlignment="Right"><font size="6"/></textElement>
+				<text><![CDATA[Genere par DICI]]></text>
+			</staticText>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="24">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="2" width="380" height="18" backcolor="#CCCCCC" uuid="2d7755b5-85af-4351-8806-96e5da019b96"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[NOMBRE D'ARTICLES EN RESERVE]]></text>
+			</staticText>
+			<textField>
+				<reportElement mode="Opaque" x="380" y="2" width="60" height="18" backcolor="#CCCCCC" uuid="61ee3d14-e3a8-4880-a5f4-e8af018354db"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$V{REPORT_COUNT}]]></textFieldExpression>
+			</textField>
+
+		</band>
+	</summary>
+</jasperReport>

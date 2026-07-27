@@ -133,21 +133,22 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             viewConfig: {emptyText: 'Aucun mouvement enregistre.', deferEmptyText: false}
         });
 
+        // Impression PDF via le modele JasperReports correspondant au type de mouvement
+        // affiche : un modele dedie par zone, avec un en-tete explicite.
         var openPrint = function () {
             var proxy = store.getProxy();
             var extra = proxy.extraParams || {};
-            var qs = 'mode=historique&titre=' + encodeURIComponent(me.getTitre() || 'Historique des mouvements');
-            if (extra.type) {
-                qs += '&type=' + encodeURIComponent(extra.type);
-            }
+            var pdfMode = (extra.type === 'ASSORT') ? 'historique_reserve'
+                    : (extra.type === 'REASSORT') ? 'historique_rayon'
+                    : 'historique_global';
+            var qs = 'mode=' + encodeURIComponent(pdfMode);
             if (extra.dtStart) {
                 qs += '&dtStart=' + encodeURIComponent(extra.dtStart);
             }
             if (extra.dtEnd) {
                 qs += '&dtEnd=' + encodeURIComponent(extra.dtEnd);
             }
-            qs += '&autoload=1';
-            window.open('reserveprint.html?' + qs, '_blank',
+            window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank',
                     'width=1100,height=750,scrollbars=yes,resizable=yes');
         };
 
