@@ -191,6 +191,17 @@ public class SuggestionReserveRessource {
         return Response.ok().entity(suggestionReserveService.compteRendu(user, id).toString()).build();
     }
 
+    /** Cree un inventaire reserve portant sur les produits de la suggestion. */
+    @POST
+    @Path("{id}/inventaire")
+    public Response creerInventaire(@PathParam("id") String id) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(suggestionReserveService.creerInventaire(user, id).toString()).build();
+    }
+
     /** Annule UNE ligne deja traitee, par mouvement inverse. */
     @PUT
     @Path("ligne/{detailId}/annuler")

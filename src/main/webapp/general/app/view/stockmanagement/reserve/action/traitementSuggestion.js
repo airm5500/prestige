@@ -165,7 +165,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     header: 'Proposee', dataIndex: 'int_QTE_PROPOSEE', width: 70, align: 'center',
                     renderer: function (v, m) {
                         // Immuable : c'est la trace de ce que le systeme avait propose.
-                        m.style = 'color:#777777;';
+                        m.style = 'color:#0b57d0;font-weight:bold;';
                         return v;
                     }
                 },
@@ -174,7 +174,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     editor: {
                         xtype: 'numberfield', minValue: 0, allowBlank: false, selectOnFocus: true,
                         enableKeyEvents: true, hideTrigger: true,
+                        // Meme mise en evidence que le champ de recherche produit de la vente :
+                        // la case en cours de saisie se repere immediatement.
+                        fieldStyle: 'background-color:#fff8c4;font-weight:bold;text-align:center;',
                         listeners: {
+                            focus: function (fld) {
+                                Ext.defer(function () {
+                                    if (fld.inputEl && fld.inputEl.dom) {
+                                        fld.inputEl.dom.select();
+                                    }
+                                }, 30);
+                            },
                             specialkey: function (field, e) {
                                 if (e.getKey() !== e.ENTER) {
                                     return;
@@ -196,8 +206,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                         }
                     },
                     renderer: function (v, m, rec) {
-                        if (rec.get('str_ETAT') === 'SUPPRIMEE') {
+                        var etat = rec.get('str_ETAT');
+                        if (etat === 'SUPPRIMEE') {
                             m.style = 'color:#999999;text-decoration:line-through;';
+                            return v;
+                        }
+                        // Vert et gras des qu'une quantite a ete validee : on distingue d'un coup d'oeil
+                        // ce qui a ete confirme de ce qui attend encore une saisie.
+                        if (etat === 'MODIFIEE' || etat === 'TRAITEE') {
+                            m.style = 'color:#1e7e34;font-weight:bold;';
                             return v;
                         }
                         m.style = 'color:#6600cc;font-weight:bold;';
@@ -410,10 +427,20 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
         };
 
         // Charge en-tete et lignes en une seule requete.
+        var premierChargement = true;
         var charger = function () {
+            // Voile d'attente : l'utilisateur voit que la suggestion est en cours de chargement.
+            if (me.win && me.win.body) {
+                me.win.setLoading('Chargement de la suggestion...');
+            }
             Ext.Ajax.request({
                 method: 'GET',
                 url: baseUrl + encodeURIComponent(id),
+                callback: function () {
+                    if (me.win && me.win.body) {
+                        me.win.setLoading(false);
+                    }
+                },
                 success: function (response) {
                     var res = Ext.JSON.decode(response.responseText, true) || {};
                     if (res.success === false) {
@@ -422,6 +449,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     }
                     majEntete(res.entete);
                     store.loadData(res.lignes || []);
+
+                    // A l'ouverture, la main est donnee directement a la premiere quantite saisissable :
+                    // la saisie peut commencer sans toucher la souris.
+                    if (premierChargement) {
+                        premierChargement = false;
+                        focusLigne(0);
+                    }
                     var cloturee = res.entete && (res.entete.str_STATUT === 'TRAITEE'
                             || res.entete.str_STATUT === 'SUPPRIMEE');
                     me.btnTraiter.setDisabled(cloturee);
@@ -598,7 +632,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                         win.close();
                     }
                 }
-            ]
+            ],
+            listeners: {
+                // A la fermeture, la liste des suggestions est rechargee : le statut passe a "En cours"
+                // des la premiere quantite saisie s'affiche immediatement, sans avoir a relancer une
+                // recherche.
+                close: function () {
+                    var pv = me.getParentview();
+                    if (pv && pv.reloadGrid) {
+                        pv.reloadGrid();
+                    }
+                }
+            }
         });
         me.win = win;
 

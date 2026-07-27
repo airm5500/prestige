@@ -247,11 +247,46 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             q.setMaxResults(limit);
         }
 
+        List<TSuggestionReserve> page = q.getResultList();
+        // Nombre de produits par suggestion : une seule requete pour toute la page, et non une par
+        // ligne, pour ne pas alourdir l'affichage de la liste.
+        java.util.Map<String, Integer> compteurs = compterLignes(page);
+
         JSONArray results = new JSONArray();
-        for (TSuggestionReserve s : q.getResultList()) {
-            results.put(enteteJson(s));
+        for (TSuggestionReserve s : page) {
+            Integer nb = compteurs.get(s.getLgSUGGESTIONRESERVEID());
+            results.put(enteteJson(s).put("nb_produits", nb == null ? 0 : nb));
         }
         return new JSONObject().put("total", total).put("results", results);
+    }
+
+    /** Compte les lignes non retirees de chaque suggestion de la page, en une seule requete. */
+    private java.util.Map<String, Integer> compterLignes(List<TSuggestionReserve> page) {
+        java.util.Map<String, Integer> out = new java.util.HashMap<>();
+        if (page == null || page.isEmpty()) {
+            return out;
+        }
+        List<String> ids = new ArrayList<>();
+        for (TSuggestionReserve s : page) {
+            ids.add(s.getLgSUGGESTIONRESERVEID());
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = em
+                    .createQuery("SELECT d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID, COUNT(d)"
+                            + " FROM TSuggestionReserveDetail d"
+                            + " WHERE d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID IN :ids"
+                            + " AND d.strETAT <> :retiree"
+                            + " GROUP BY d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID")
+                    .setParameter("ids", ids).setParameter("retiree", TSuggestionReserveDetail.ETAT_SUPPRIMEE)
+                    .getResultList();
+            for (Object[] r : rows) {
+                out.put(String.valueOf(r[0]), ((Number) r[1]).intValue());
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "compterLignes", e);
+        }
+        return out;
     }
 
     private void appliquerParametres(Query q, String statut, String categorie, String origine, Integer motifId,
@@ -334,8 +369,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
 
         d.setIntQTERETENUE(qte);
-        d.setStrETAT(qte == nz(d.getIntQTEPROPOSEE()) ? TSuggestionReserveDetail.ETAT_PROPOSEE
-                : TSuggestionReserveDetail.ETAT_MODIFIEE);
+        // Valider une quantite est un acte de l'utilisateur, meme lorsqu'il confirme la valeur proposee :
+        // la ligne passe donc a MODIFIEE, ce qui la distingue visuellement de celles encore non vues.
+        d.setStrETAT(TSuggestionReserveDetail.ETAT_MODIFIEE);
         if (notBlank(motif)) {
             d.setStrMOTIFLIGNE(motif.trim());
         }
@@ -612,6 +648,26 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     private static String libelleSens(String categorie) {
         return TSuggestionReserve.CATEGORIE_RESERVE.equals(categorie) ? "REAPPRO RESERVE (envoi en reserve)"
                 : "REAPPRO RAYON (envoi en rayon)";
+    }
+
+    @Override
+    public JSONObject creerInventaire(TUser user, String suggestionId) {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return echec("Suggestion introuvable.");
+        }
+        java.util.Set<String> produits = new java.util.LinkedHashSet<>();
+        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
+            // Une ligne retiree ne fait plus partie de la suggestion : elle n'a pas a etre inventoriee.
+            if (!TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(d.getStrETAT()) && d.getLgFAMILLEID() != null) {
+                produits.add(d.getLgFAMILLEID().getLgFAMILLEID());
+            }
+        }
+        if (produits.isEmpty()) {
+            return echec("Cette suggestion ne contient aucun produit a inventorier.");
+        }
+        String commentaire = "Inventaire issu de la suggestion " + texte(s.getStrREF());
+        return reserveService.createInventaireFromSelection(user, produits, commentaire);
     }
 
     // ------------------------------------------------------------- ANNULATION

@@ -113,6 +113,11 @@ public interface SuggestionReserveService {
     void evaluerApresMouvementLot(TUser user, java.util.Collection<String> familleIds);
 
     /**
+     * Cree un inventaire reserve portant sur les produits d'une suggestion, hors lignes retirees.
+     */
+    JSONObject creerInventaire(TUser user, String suggestionId);
+
+    /**
      * Annule UNE ligne deja traitee, par mouvement inverse. Permet de defaire un seul produit parmi plusieurs.
      */
     JSONObject annulerLigne(TUser user, String detailId, String motif);

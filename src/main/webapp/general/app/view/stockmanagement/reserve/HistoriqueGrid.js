@@ -52,40 +52,56 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
         });
         storeUsers.load();
 
-        var filtres1 = [
-            {xtype: 'textfield', itemId: 'hSearch', emptyText: 'Produit ou CIP', width: 170},
+        // Choisir une valeur lance directement la recherche.
+        var rechercher = {select: function () {
+                me.onRechercher();
+            }};
+
+        var comboHeure = function (itemId, empty) {
+            return {
+                xtype: 'combo', itemId: itemId, emptyText: empty, width: 100,
+                editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'valeur',
+                store: new Ext.data.Store({fields: ['valeur', 'libelle'], data: heures}),
+                listeners: rechercher
+            };
+        };
+
+        // Tous les filtres sur UNE seule ligne, separes par de vrais separateurs.
+        var filtres = [
+            {xtype: 'textfield', itemId: 'hSearch', emptyText: 'Produit ou CIP', width: 150,
+                listeners: {specialkey: function (f, e) {
+                        if (e.getKey() === e.ENTER) {
+                            me.onRechercher();
+                        }
+                    }}},
+            '-',
             {
-                xtype: 'combo', itemId: 'hType', emptyText: 'Tous les mouvements', width: 190,
+                xtype: 'combo', itemId: 'hType', emptyText: 'Tous les mouvements', width: 185,
                 editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'valeur',
                 store: new Ext.data.Store({
                     fields: ['valeur', 'libelle'],
                     data: [
                         {valeur: '', libelle: 'Tous les mouvements'},
                         {valeur: 'ASSORT', libelle: 'REAPPRO RESERVE (vers la reserve)'},
-                        {valeur: 'REASSORT', libelle: 'REAPPRO RAYON (vers le rayon)'}
+                        {valeur: 'REASSORT', libelle: 'REAPPRO RAYON (vers le rayon)'},
+                        {valeur: 'AJUSTEMENT', libelle: 'AJUSTEMENT RESERVE'}
                     ]
-                })
+                }),
+                listeners: rechercher
             },
             {
-                xtype: 'combo', itemId: 'hUser', emptyText: 'Tous les utilisateurs', width: 180,
+                xtype: 'combo', itemId: 'hUser', emptyText: 'Tous les utilisateurs', width: 165,
                 editable: false, queryMode: 'local', displayField: 'nom', valueField: 'lg_USER_ID',
-                store: storeUsers
-            }
-        ];
-
-        var comboHeure = function (itemId, empty) {
-            return {
-                xtype: 'combo', itemId: itemId, emptyText: empty, width: 110,
-                editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'valeur',
-                store: new Ext.data.Store({fields: ['valeur', 'libelle'], data: heures})
-            };
-        };
-
-        var filtres2 = [
-            {xtype: 'datefield', itemId: 'hDebut', emptyText: 'Du', format: 'd/m/Y', width: 110},
-            {xtype: 'datefield', itemId: 'hFin', emptyText: 'Au', format: 'd/m/Y', width: 110},
-            comboHeure('hHeureDebut', 'De (heure)'),
-            comboHeure('hHeureFin', 'A (heure)'),
+                store: storeUsers, listeners: rechercher
+            },
+            '-',
+            {xtype: 'datefield', itemId: 'hDebut', emptyText: 'Du', format: 'd/m/Y', width: 100,
+                listeners: rechercher},
+            {xtype: 'datefield', itemId: 'hFin', emptyText: 'Au', format: 'd/m/Y', width: 100,
+                listeners: rechercher},
+            comboHeure('hHeureDebut', 'De (h)'),
+            comboHeure('hHeureFin', 'A (h)'),
+            '-',
             {text: 'Rechercher', scope: me, handler: me.onRechercher},
             {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser},
             '->',
@@ -148,8 +164,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
                 {header: 'Utilisateur', dataIndex: 'str_USER', flex: 1, minWidth: 130}
             ],
             dockedItems: [
-                {xtype: 'toolbar', dock: 'top', items: filtres1},
-                {xtype: 'toolbar', dock: 'top', items: filtres2},
+                {xtype: 'toolbar', dock: 'top', items: filtres},
                 {xtype: 'pagingtoolbar', store: store, dock: 'bottom', displayInfo: true}
             ],
             viewConfig: {emptyText: 'Aucun mouvement enregistre.', deferEmptyText: false}

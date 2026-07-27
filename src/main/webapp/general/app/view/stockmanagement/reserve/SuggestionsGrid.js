@@ -53,7 +53,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 store: new Ext.data.Store({
                     fields: ['valeur', 'libelle'],
                     data: [{valeur: '', libelle: empty}].concat(donnees)
-                })
+                }),
+                // Choisir une valeur declenche la recherche : le bouton devient facultatif.
+                listeners: {
+                    select: function () {
+                        me.onRechercher();
+                    }
+                }
             };
         };
 
@@ -64,52 +70,93 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         });
         storeMotifs.load();
 
-        var filtres1 = [
-            {xtype: 'textfield', itemId: 'fSearch', emptyText: 'Produit ou CIP', width: 160},
+        // Tous les filtres sur UNE seule ligne, separes par de vrais separateurs.
+        // Choisir dans une liste lance directement la recherche : plus besoin de cliquer.
+        var filtres = [
+            {xtype: 'textfield', itemId: 'fSearch', emptyText: 'Produit ou CIP', width: 150,
+                listeners: {specialkey: function (f, e) {
+                        if (e.getKey() === e.ENTER) {
+                            me.onRechercher();
+                        }
+                    }}},
+            '-',
             combo('fStatut', 'Tous les statuts', [
                 {valeur: 'A_TRAITER', libelle: 'A traiter'},
                 {valeur: 'EN_COURS', libelle: 'En cours'},
                 {valeur: 'TRAITEE', libelle: 'Traitee'},
                 {valeur: 'SUPPRIMEE', libelle: 'Supprimee'}
-            ]),
+            ], 135),
             combo('fCategorie', 'Les deux sens', [
                 {valeur: 'RAYON', libelle: 'Vers le rayon'},
                 {valeur: 'RESERVE', libelle: 'Vers la reserve'}
-            ]),
+            ], 135),
             combo('fOrigine', 'Toutes origines', [
                 {valeur: 'MANUELLE', libelle: 'Manuelle'},
                 {valeur: 'AUTOMATIQUE', libelle: 'Automatique'},
                 {valeur: 'SYSTEME', libelle: 'Systeme'}
-            ], 140)
-        ];
-
-        var filtres2 = [
+            ], 130),
             {
-                xtype: 'combo', itemId: 'fMotif', emptyText: 'Tous les motifs', width: 190,
+                xtype: 'combo', itemId: 'fMotif', emptyText: 'Tous les motifs', width: 165,
                 editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'id',
-                store: storeMotifs
+                store: storeMotifs,
+                listeners: {select: function () {
+                        me.onRechercher();
+                    }}
             },
-            {xtype: 'datefield', itemId: 'fDebut', emptyText: 'Du', format: 'd/m/Y', width: 110},
-            {xtype: 'datefield', itemId: 'fFin', emptyText: 'Au', format: 'd/m/Y', width: 110},
+            '-',
+            {xtype: 'datefield', itemId: 'fDebut', emptyText: 'Du', format: 'd/m/Y', width: 100,
+                listeners: {select: function () {
+                        me.onRechercher();
+                    }}},
+            {xtype: 'datefield', itemId: 'fFin', emptyText: 'Au', format: 'd/m/Y', width: 100,
+                listeners: {select: function () {
+                        me.onRechercher();
+                    }}},
+            '-',
             combo('fTri', 'Tri : date', [
                 {valeur: 'date', libelle: 'Tri : date'},
                 {valeur: 'statut', libelle: 'Tri : statut'},
                 {valeur: 'utilisateur', libelle: 'Tri : utilisateur'}
-            ], 140),
+            ], 130),
+            '-',
             {text: 'Rechercher', scope: me, handler: me.onRechercher},
             {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser}
         ];
 
-        var colAction = {
-            xtype: 'actioncolumn', header: 'Actions', width: 60, sortable: false, menuDisabled: true,
+        // Bouton texte plutot qu'une icone : l'action principale doit se voir sans hesitation.
+        var colOuvrir = {
+            xtype: 'actioncolumn', header: 'Ouvrir', width: 90, align: 'center',
+            sortable: false, menuDisabled: true,
+            renderer: function (v, m) {
+                m.tdAttr = 'data-qtip="Ouvrir la suggestion pour la consulter ou la traiter"';
+                m.style = 'padding:2px;';
+                return '<span style="display:inline-block;padding:1px 8px;background:#8e24aa;color:#fff;'
+                        + 'border-radius:3px;font-weight:bold;cursor:pointer;">Ouvrir</span>';
+            },
+            handler: function (g, rowIndex) {
+                me.ouvrir(g.getStore().getAt(rowIndex));
+            }
+        };
+
+        var colInventaire = {
+            xtype: 'actioncolumn', header: 'Inventaire', width: 90, align: 'center',
+            sortable: false, menuDisabled: true,
+            renderer: function (v, m) {
+                m.tdAttr = 'data-qtip="Creer un inventaire reserve a partir des produits de cette suggestion"';
+                m.style = 'padding:2px;';
+                return '<span style="display:inline-block;padding:1px 8px;background:#2c7873;color:#fff;'
+                        + 'border-radius:3px;font-weight:bold;cursor:pointer;">Inventaire</span>';
+            },
+            handler: function (g, rowIndex) {
+                me.onCreerInventaire(g.getStore().getAt(rowIndex));
+            }
+        };
+
+        // Colonne separee, avec une marge : plus de confusion possible avec l'action d'ouverture.
+        var colSupprimer = {
+            xtype: 'actioncolumn', header: '', width: 40, align: 'center',
+            sortable: false, menuDisabled: true,
             items: [
-                {
-                    icon: 'resources/images/icons/fam/application_form_edit.png',
-                    tooltip: 'Ouvrir et traiter',
-                    handler: function (g, rowIndex) {
-                        me.ouvrir(g.getStore().getAt(rowIndex));
-                    }
-                },
                 {
                     icon: 'resources/images/icons/fam/delete.png',
                     tooltip: 'Supprimer la suggestion',
@@ -128,12 +175,20 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         Ext.apply(me, {
             store: store,
             columns: [
-                {header: 'Reference', dataIndex: 'str_REF', width: 130},
-                {header: 'Creee le', dataIndex: 'dt_CREATED', width: 115},
+                // Reference et date/heure elargies : elles doivent se lire en entier, sans troncature.
+                {header: 'Reference', dataIndex: 'str_REF', width: 175},
+                {header: 'Creee le', dataIndex: 'dt_CREATED', width: 135},
                 {
                     header: 'Sens du mouvement', dataIndex: 'str_CATEGORIE', flex: 1, minWidth: 200,
                     renderer: function (v) {
                         return me.libelleCategorie[v] || v;
+                    }
+                },
+                {
+                    header: 'Produits', dataIndex: 'nb_produits', width: 70, align: 'center',
+                    renderer: function (v, m) {
+                        m.style = 'font-weight:bold;';
+                        return v === null || v === undefined ? 0 : v;
                     }
                 },
                 {header: 'Origine', dataIndex: 'str_ORIGINE', width: 100},
@@ -148,11 +203,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {header: 'Motif', dataIndex: 'motif_libelle', flex: 1, minWidth: 140},
                 {header: 'Creee par', dataIndex: 'str_USER_CREATEUR', width: 120},
                 {header: 'Traitee par', dataIndex: 'str_USER_TRAITANT', width: 120},
-                colAction
+                colOuvrir,
+                colInventaire,
+                colSupprimer
             ],
             dockedItems: [
-                {xtype: 'toolbar', dock: 'top', items: filtres1},
-                {xtype: 'toolbar', dock: 'top', items: filtres2},
+                {xtype: 'toolbar', dock: 'top', items: filtres},
                 {xtype: 'pagingtoolbar', store: store, dock: 'bottom', displayInfo: true}
             ],
             viewConfig: {
@@ -219,6 +275,38 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             suggestionid: rec.get('lg_SUGGESTION_RESERVE_ID'),
             parentview: this
         });
+    },
+
+    onCreerInventaire: function (rec) {
+        var me = this;
+        if (!rec) {
+            return;
+        }
+        Ext.MessageBox.confirm('Creer un inventaire',
+                'Creer un inventaire reserve sur les ' + (rec.get('nb_produits') || 0)
+                + ' produit(s) de la suggestion ' + Ext.String.htmlEncode(rec.get('str_REF') || '') + ' ?',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/suggestion-reserve/'
+                                + encodeURIComponent(rec.get('lg_SUGGESTION_RESERVE_ID')) + '/inventaire',
+                        jsonData: {},
+                        success: function (response) {
+                            progress.hide();
+                            var res = Ext.JSON.decode(response.responseText, true) || {};
+                            Ext.MessageBox.alert(res.success === false ? 'Message' : 'Inventaire cree',
+                                    res.message || res.msg || 'Inventaire cree.');
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.MessageBox.alert('Erreur', 'La creation de l\'inventaire a echoue.');
+                        }
+                    });
+                });
     },
 
     onSupprimer: function (rec) {
