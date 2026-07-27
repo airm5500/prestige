@@ -171,7 +171,6 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
         });
 
         me.callParent();
-        me.on('afterlayout', me.reloadGrid, me, {delay: 1, single: true});
     },
 
     /** Filtres actifs, partages par l'affichage, l'export et l'impression. */

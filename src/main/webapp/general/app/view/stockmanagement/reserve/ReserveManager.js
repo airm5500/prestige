@@ -123,15 +123,26 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 }
             }
         ];
+        // Chargement pilote UNIQUEMENT ici. Les grilles ne se chargent plus d'elles-memes a
+        // l'affichage : leur chargement automatique se cumulait avec celui declenche au
+        // changement d'onglet, et la meme requete partait deux fois.
+        var chargerOnglet = function (card) {
+            if (card && card.reloadGrid) {
+                card.reloadGrid();
+            }
+        };
+
         this.listeners = {
             tabchange: function (tabPanel, newCard) {
-                if (newCard && newCard.reloadGrid) {
-                    newCard.reloadGrid();
-                }
+                chargerOnglet(newCard);
                 updateReservePastille(tabPanel);
             },
             afterrender: function (tabPanel) {
                 updateReservePastille(tabPanel);
+                // Le premier onglet affiche n'a pas recu d'evenement de changement : on le charge ici.
+                Ext.defer(function () {
+                    chargerOnglet(tabPanel.getActiveTab());
+                }, 1);
             }
         };
         this.callParent();

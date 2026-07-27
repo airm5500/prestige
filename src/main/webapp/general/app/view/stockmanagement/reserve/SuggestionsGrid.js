@@ -223,7 +223,6 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         });
 
         me.callParent();
-        me.on('afterlayout', me.reloadGrid, me, {delay: 1, single: true});
     },
 
     /** Applique les filtres actifs puis recharge depuis la premiere page. */

@@ -127,14 +127,22 @@ public class ReserveServiceImpl implements ReserveService {
             List<String> ids = q.getResultList();
 
             LOG.log(Level.INFO, "listArticles empl={0} type={1} total={2}", new Object[] { empl, type, total });
+
+            // Les produits et leurs stocks sont ramenes en DEUX requetes pour toute la page. Auparavant
+            // chaque ligne coutait un chargement de produit plus deux lectures de stock, soit une
+            // soixantaine d'aller-retours pour vingt lignes : c'etait la cause de la lenteur.
+            java.util.Map<String, TFamille> produits = chargerFamilles(ids);
+            java.util.Map<String, int[]> stocks = chargerStocks(ids, empl);
+
             JSONArray results = new JSONArray();
             for (String familleId : ids) {
-                TFamille f = em.find(TFamille.class, familleId);
+                TFamille f = produits.get(familleId);
                 if (f == null) {
                     LOG.log(Level.WARNING, "listArticles: TFamille introuvable pour id={0}", familleId);
                     continue;
                 }
-                JSONObject json = buildArticleJson(f, empl, true);
+                int[] st = stocks.get(familleId);
+                JSONObject json = buildArticleJson(f, st == null ? 0 : st[0], st == null ? 0 : st[1], true);
                 if (reapproSuggestion) {
                     // REAPPRO rayon->reserve : suggestion = stock_rayon - int_SEUIL_RESERVE
                     int sr = json.optInt("int_STOCK_RAYON", 0);
@@ -156,6 +164,62 @@ public class ReserveServiceImpl implements ReserveService {
             LOG.log(Level.SEVERE, "listArticles ECHEC type=" + type + " user=" + user.getLgUSERID(), e);
             return new JSONObject().put("total", 0).put("results", new JSONArray());
         }
+    }
+
+    /** Charge en UNE requete les produits d'une page, plutot qu'un par un. */
+    private java.util.Map<String, TFamille> chargerFamilles(List<String> ids) {
+        java.util.Map<String, TFamille> out = new java.util.HashMap<>();
+        if (ids == null || ids.isEmpty()) {
+            return out;
+        }
+        try {
+            List<TFamille> familles = em.createQuery("SELECT f FROM TFamille f WHERE f.lgFAMILLEID IN :ids",
+                    TFamille.class).setParameter("ids", ids).getResultList();
+            for (TFamille f : familles) {
+                out.put(f.getLgFAMILLEID(), f);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "chargerFamilles", e);
+        }
+        return out;
+    }
+
+    /**
+     * Charge en UNE requete le stock rayon et le stock reserve de toute une page.
+     *
+     * @return pour chaque produit, un couple {stock rayon, stock reserve}
+     */
+    private java.util.Map<String, int[]> chargerStocks(List<String> ids, String empl) {
+        java.util.Map<String, int[]> out = new java.util.HashMap<>();
+        if (ids == null || ids.isEmpty()) {
+            return out;
+        }
+        try {
+            StringBuilder in = new StringBuilder();
+            for (int i = 0; i < ids.size(); i++) {
+                in.append(i == 0 ? "?" : ",?").append(i + 2);
+            }
+            Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID, "
+                    + "COALESCE(MAX(fs.int_NUMBER_AVAILABLE), 0), COALESCE(MAX(tsf.int_NUMBER), 0) "
+                    + "FROM t_famille f "
+                    + "LEFT JOIN t_famille_stock fs ON fs.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
+                    + "  AND fs.lg_EMPLACEMENT_ID = ?1 AND fs.str_STATUT = 'enable' "
+                    + "LEFT JOIN t_type_stock_famille tsf ON tsf.lg_FAMILLE_ID = f.lg_FAMILLE_ID "
+                    + "  AND tsf.lg_EMPLACEMENT_ID = ?1 AND tsf.lg_TYPE_STOCK_ID = '" + TYPE_STOCK_RESERVE + "' "
+                    + "WHERE f.lg_FAMILLE_ID IN (" + in + ") GROUP BY f.lg_FAMILLE_ID");
+            q.setParameter(1, empl);
+            for (int i = 0; i < ids.size(); i++) {
+                q.setParameter(i + 2, ids.get(i));
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = q.getResultList();
+            for (Object[] r : rows) {
+                out.put(String.valueOf(r[0]), new int[] { nombre(r[1]), nombre(r[2]) });
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "chargerStocks", e);
+        }
+        return out;
     }
 
     // ------------------------------------------------------------ SUGGESTIONS
@@ -1083,9 +1147,21 @@ public class ReserveServiceImpl implements ReserveService {
     // ----------------------------------------------------------------- HELPERS
 
     private JSONObject buildArticleJson(TFamille f, String empl, boolean withSuggestion) {
-        int stockRayon = nz(getNumberAvailable(f.getLgFAMILLEID(), empl));
-        int stockReserve = nz(getTypeStockNumber(TYPE_STOCK_RESERVE, f.getLgFAMILLEID(), empl));
+        // Chemin unitaire : deux requetes de stock pour ce seul produit. Reserve aux appels isoles ;
+        // les listes passent par la surcharge ci-dessous, qui recoit les stocks deja charges en lot.
+        return buildArticleJson(f, nz(getNumberAvailable(f.getLgFAMILLEID(), empl)),
+                nz(getTypeStockNumber(TYPE_STOCK_RESERVE, f.getLgFAMILLEID(), empl)), withSuggestion);
+    }
 
+    /**
+     * Variante recevant les stocks DEJA CONNUS.
+     *
+     * <p>
+     * C'est ce qui permet aux listes de ne plus interroger la base produit par produit : les stocks de toute la page
+     * sont ramenes en une seule requete, puis distribues ici. Le contenu produit est rigoureusement identique a celui
+     * de la version unitaire.
+     */
+    private JSONObject buildArticleJson(TFamille f, int stockRayon, int stockReserve, boolean withSuggestion) {
         JSONObject json = new JSONObject();
         json.put("lg_FAMILLE_ID", f.getLgFAMILLEID());
         json.put("int_CIP", f.getIntCIP());

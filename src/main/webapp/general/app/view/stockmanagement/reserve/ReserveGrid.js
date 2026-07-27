@@ -229,7 +229,6 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
 
         me.callParent();
 
-        me.on('afterlayout', me.loadStore, me, {delay: 1, single: true});
     },
 
     loadStore: function () {
