@@ -90,4 +90,25 @@ public interface SuggestionReserveService {
      * cloturant) puis le detail ligne par ligne, echecs compris.
      */
     byte[] exportCompteRenduExcel(TUser user, String suggestionId) throws java.io.IOException;
+
+    /**
+     * Evalue un produit apres un mouvement ayant modifie son stock rayon, et rattache le cas echeant une ligne a la
+     * suggestion automatique ouverte.
+     *
+     * <p>
+     * Les DEUX sens sont examines, ce sont les donnees qui decident : un rayon retombe sous son seuil mini appelle un
+     * reappro depuis la reserve, un rayon au-dessus du seuil reserve appelle un rangement en reserve. Une vente
+     * declenche donc le premier cas, une entree en stock le second, sans que l'appelant ait a le savoir.
+     *
+     * <p>
+     * A APPELER APRES VALIDATION DU STOCK. La methode s'execute dans sa propre transaction et ne verrait pas des
+     * ecritures non encore validees.
+     *
+     * <p>
+     * Ne leve jamais : un incident de suggestion ne doit jamais faire echouer une vente ni une entree en stock.
+     */
+    void evaluerApresMouvement(TUser user, String familleId);
+
+    /** Variante pour plusieurs produits, typiquement a la cloture d'un bon de livraison. */
+    void evaluerApresMouvementLot(TUser user, java.util.Collection<String> familleIds);
 }

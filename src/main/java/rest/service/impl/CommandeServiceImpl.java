@@ -128,6 +128,8 @@ public class CommandeServiceImpl implements CommandeService {
     private LogService logService;
     @EJB
     private OrderService orderService;
+    @EJB
+    private rest.service.SuggestionReserveService suggestionReserveService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
@@ -196,8 +198,12 @@ public class CommandeServiceImpl implements CommandeService {
             List<TBonLivraisonDetail> lstTBonLivraisonDetail = bonLivraisonDetail(id);
             userTransaction.begin();
             JSONArray ugArray = new JSONArray();
+            // Produits dont le stock rayon augmente : ils seront evalues APRES le commit, pour voir
+            // s'ils passent au-dessus du seuil reserve et appellent un rangement en reserve.
+            Set<String> famillesEntreesEnStock = new java.util.LinkedHashSet<>();
             for (TBonLivraisonDetail bn : lstTBonLivraisonDetail) {
                 TFamille oFamille = bn.getLgFAMILLEID();
+                famillesEntreesEnStock.add(oFamille.getLgFAMILLEID());
                 List<TLot> lots = getLot(oFamille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON());
                 if (peremptionDateIsEnabled && oFamille.getBoolCHECKEXPIRATIONDATE()
                         && (lots.isEmpty() || lots.stream().anyMatch(l -> Objects.isNull(l.getDtPEREMPTION())))) {
@@ -369,6 +375,15 @@ public class CommandeServiceImpl implements CommandeService {
 
             });
             userTransaction.commit();
+
+            // Suggestions de reserve : evaluation APRES le commit, sinon le stock lu serait celui
+            // d'avant l'entree. Rien n'est propage : un incident de suggestion ne doit pas remettre
+            // en cause une entree en stock deja validee.
+            try {
+                suggestionReserveService.evaluerApresMouvementLot(user, famillesEntreesEnStock);
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Suggestions de reserve non evaluees apres cloture du BL " + id, e);
+            }
 
             // Envoi immédiat des SMS d'avoir (après commit pour que la notification
             // soit persistée). Asynchrone : n'impacte pas la réponse de l'entrée en

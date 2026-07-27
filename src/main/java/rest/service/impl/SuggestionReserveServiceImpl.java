@@ -606,6 +606,147 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 : "REAPPRO RAYON (envoi en rayon)";
     }
 
+    // --------------------------------------------------- GENERATION AUTOMATIQUE
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void evaluerApresMouvement(TUser user, String familleId) {
+        try {
+            evaluerUnProduit(user, familleId);
+        } catch (Exception e) {
+            // Un incident ici ne doit jamais remonter : la vente ou l'entree en stock qui nous a appeles prime.
+            LOG.log(Level.WARNING, "evaluerApresMouvement famille=" + familleId, e);
+            markRollback();
+        }
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void evaluerApresMouvementLot(TUser user, java.util.Collection<String> familleIds) {
+        if (familleIds == null || familleIds.isEmpty()) {
+            return;
+        }
+        for (String familleId : familleIds) {
+            try {
+                evaluerUnProduit(user, familleId);
+            } catch (Exception e) {
+                // Un produit en erreur ne prive pas les autres de leur evaluation.
+                LOG.log(Level.WARNING, "evaluerApresMouvementLot famille=" + familleId, e);
+            }
+        }
+    }
+
+    /**
+     * Examine les deux sens pour un produit. Le rayon sous son seuil mini l'emporte sur l'excedent : regarnir le rayon
+     * prime toujours sur ranger du stock en reserve. Avec un seuil reserve superieur au seuil mini, configuration que
+     * produit le calcul automatique des seuils, les deux cas s'excluent de toute facon.
+     */
+    private void evaluerUnProduit(TUser user, String familleId) {
+        if (familleId == null || familleId.trim().isEmpty()) {
+            return;
+        }
+        TFamille f = em.find(TFamille.class, familleId);
+        // Garde-fou en tete : l'immense majorite des lignes vendues n'est pas geree en reserve et ressort ici,
+        // sans avoir declenche la moindre requete de stock.
+        if (f == null || !Boolean.TRUE.equals(f.getBoolRESERVE())) {
+            return;
+        }
+        Integer seuilMini = f.getIntSEUILMINIRAYON();
+        int seuilReserve = nz(f.getIntSEUILRESERVE());
+        if (seuilMini == null && seuilReserve <= 0) {
+            return;
+        }
+
+        JSONObject versRayon = reserveService.proposition(user, familleId, TSuggestionReserve.CATEGORIE_RAYON);
+        if (versRayon == null) {
+            return;
+        }
+        int stockRayon = versRayon.optInt("int_STOCK_RAYON", 0);
+
+        if (seuilMini != null && stockRayon <= seuilMini && versRayon.optInt("int_PROPOSITION", 0) > 0) {
+            rattacher(user, TSuggestionReserve.CATEGORIE_RAYON, familleId);
+            return;
+        }
+        if (seuilReserve > 0 && stockRayon > seuilReserve) {
+            JSONObject versReserve = reserveService.proposition(user, familleId,
+                    TSuggestionReserve.CATEGORIE_RESERVE);
+            if (versReserve != null && versReserve.optInt("int_PROPOSITION", 0) > 0) {
+                rattacher(user, TSuggestionReserve.CATEGORIE_RESERVE, familleId);
+            }
+        }
+    }
+
+    /** Ajoute le produit a la suggestion automatique ouverte de ce sens, ou en ouvre une. */
+    private void rattacher(TUser user, String categorie, String familleId) {
+        TSuggestionReserve s = suggestionAutoOuverte(user, categorie);
+        if (s == null) {
+            s = ouvrirSuggestionAuto(user, categorie);
+        }
+        // ajouterLigne ignore un produit deja present et une proposition nulle : la quantite proposee
+        // initiale reste donc figee, meme si le stock a encore bouge depuis.
+        if (ajouterLigne(user, s, familleId, 0) != null) {
+            LOG.log(Level.INFO, "suggestion auto: produit={0} rattache a {1} ({2})",
+                    new Object[] { familleId, s.getStrREF(), categorie });
+        }
+    }
+
+    private TSuggestionReserve suggestionAutoOuverte(TUser user, String categorie) {
+        try {
+            TypedQuery<TSuggestionReserve> q = em.createNamedQuery("TSuggestionReserve.findOuverteAuto",
+                    TSuggestionReserve.class);
+            q.setParameter("empl", user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+            q.setParameter("categorie", categorie);
+            q.setParameter("origine", TSuggestionReserve.ORIGINE_AUTOMATIQUE);
+            q.setMaxResults(1);
+            List<TSuggestionReserve> l = q.getResultList();
+            return l.isEmpty() ? null : l.get(0);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "suggestionAutoOuverte", e);
+            return null;
+        }
+    }
+
+    private TSuggestionReserve ouvrirSuggestionAuto(TUser user, String categorie) {
+        TSuggestionReserve s = new TSuggestionReserve(IdGenerator.getComplexId());
+        s.setStrREF(genererReference(categorie));
+        s.setStrCATEGORIE(categorie);
+        s.setStrORIGINE(TSuggestionReserve.ORIGINE_AUTOMATIQUE);
+        s.setStrSTATUT(TSuggestionReserve.STATUT_A_TRAITER);
+        s.setStrCOMMENTAIRE("Generee automatiquement par les mouvements de stock");
+        s.setLgEMPLACEMENTID(user.getLgEMPLACEMENTID());
+        s.setLgUSERCREATEURID(user);
+        s.setDtCREATED(new Date());
+        s.setDtUPDATED(s.getDtCREATED());
+        s.setMotif(motifParDefaut(categorie));
+        em.persist(s);
+        LOG.log(Level.INFO, "suggestion auto ouverte {0} ({1})", new Object[] { s.getStrREF(), categorie });
+        return s;
+    }
+
+    /** Premier motif actif du sens concerne : avec le referentiel livre, le motif journalier. */
+    private MotifSuggestionReserve motifParDefaut(String categorie) {
+        try {
+            TypedQuery<MotifSuggestionReserve> q = em.createQuery(
+                    "SELECT m FROM MotifSuggestionReserve m WHERE m.actif = true AND m.categorie = :cat"
+                            + " ORDER BY m.id ASC",
+                    MotifSuggestionReserve.class);
+            q.setParameter("cat", categorie);
+            q.setMaxResults(1);
+            List<MotifSuggestionReserve> l = q.getResultList();
+            return l.isEmpty() ? null : l.get(0);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void markRollback() {
+        try {
+            sessionContext.setRollbackOnly();
+        } catch (Exception ignore) {
+            LOG.log(Level.FINE, "markRollback: pas de transaction active");
+        }
+    }
+
     // ------------------------------------------------------------------- JSON
 
     private JSONObject enteteJson(TSuggestionReserve s) {
