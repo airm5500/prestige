@@ -73,6 +73,51 @@ public class ReserveRessource {
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + fichier + "\"").build();
     }
 
+    /** Historique complet, avec recherche produit, type, periode, plage horaire et utilisateur. */
+    @GET
+    @Path("historique")
+    public Response historique(@QueryParam("search_value") String search, @QueryParam("type") String type,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("heureDebut") Integer heureDebut, @QueryParam("heureFin") Integer heureFin,
+            @QueryParam("userId") String userId, @QueryParam("start") int start, @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = reserveService.historique(user, search, type, dtStart, dtEnd, heureDebut, heureFin, userId,
+                start, limit > 0 ? limit : 25);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /** Export Excel de l'historique, respectant les filtres actifs. */
+    @GET
+    @Path("historique/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response historiqueExcel(@QueryParam("search_value") String search, @QueryParam("type") String type,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("heureDebut") Integer heureDebut, @QueryParam("heureFin") Integer heureFin,
+            @QueryParam("userId") String userId) throws Exception {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        byte[] data = reserveService.exportHistoriqueExcel(user, search, type, dtStart, dtEnd, heureDebut, heureFin,
+                userId);
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"historique_reserve.xls\"").build();
+    }
+
+    /** Utilisateurs ayant effectue au moins un mouvement, pour le filtre correspondant. */
+    @GET
+    @Path("historique/utilisateurs")
+    public Response historiqueUtilisateurs() {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(reserveService.utilisateursMouvements(user).toString()).build();
+    }
+
     @GET
     @Path("suggestions")
     public Response suggestions(@QueryParam("search_value") String search, @QueryParam("start") int start,

@@ -589,6 +589,172 @@ public class ReserveServiceImpl implements ReserveService {
         return "Articles en reserve";
     }
 
+    // ------------------------------------------------------ HISTORIQUE COMPLET
+
+    /** Libelles metier des types techniques : l'utilisateur ne voit jamais ASSORT ni REASSORT. */
+    private static String libelleMouvement(String type) {
+        if (TMouvementReserve.TYPE_ASSORT.equals(type)) {
+            return "REAPPRO RESERVE";
+        }
+        if (TMouvementReserve.TYPE_REASSORT.equals(type)) {
+            return "REAPPRO RAYON";
+        }
+        return type == null ? "" : type;
+    }
+
+    /**
+     * Construit la clause de filtrage de l'historique, partagee par la liste et par l'export : les deux voient donc
+     * rigoureusement les memes lignes.
+     */
+    private String clauseHistorique(String search, String type, String dtStart, String dtEnd, Integer heureDebut,
+            Integer heureFin, String userId) {
+        StringBuilder w = new StringBuilder(" WHERE m.lg_EMPLACEMENT_ID = ?1 ");
+        if (notBlank(search)) {
+            w.append(" AND (f.str_NAME LIKE ?2 OR CAST(f.int_CIP AS CHAR) LIKE ?2) ");
+        }
+        if (notBlank(type) && !"ALL".equalsIgnoreCase(type)) {
+            w.append(" AND m.str_TYPE = '").append(type.trim().toUpperCase().replace("'", "")).append("' ");
+        }
+        if (notBlank(dtStart)) {
+            w.append(" AND DATE(m.dt_CREATED) >= '").append(nettoyerDate(dtStart)).append("' ");
+        }
+        if (notBlank(dtEnd)) {
+            w.append(" AND DATE(m.dt_CREATED) <= '").append(nettoyerDate(dtEnd)).append("' ");
+        }
+        if (heureDebut != null) {
+            w.append(" AND HOUR(m.dt_CREATED) >= ").append(Math.max(0, Math.min(23, heureDebut))).append(" ");
+        }
+        if (heureFin != null) {
+            w.append(" AND HOUR(m.dt_CREATED) <= ").append(Math.max(0, Math.min(23, heureFin))).append(" ");
+        }
+        if (notBlank(userId)) {
+            w.append(" AND m.lg_USER_ID = '").append(userId.trim().replace("'", "")).append("' ");
+        }
+        return w.toString();
+    }
+
+    /** Ne laisse passer qu'une date ISO : rien d'autre ne peut atteindre la requete. */
+    private static String nettoyerDate(String iso) {
+        String s = iso.trim();
+        return s.matches("\\d{4}-\\d{2}-\\d{2}") ? s : "1900-01-01";
+    }
+
+    private static final String HISTORIQUE_FROM = " FROM t_mouvement_reserve m "
+            + "JOIN t_famille f ON f.lg_FAMILLE_ID = m.lg_FAMILLE_ID "
+            + "LEFT JOIN t_user u ON u.lg_USER_ID = m.lg_USER_ID ";
+
+    @Override
+    public JSONObject historique(TUser user, String search, String type, String dtStart, String dtEnd,
+            Integer heureDebut, Integer heureFin, String userId, int start, int limit) {
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        String where = clauseHistorique(search, type, dtStart, dtEnd, heureDebut, heureFin, userId);
+        try {
+            Query countQ = em.createNativeQuery("SELECT COUNT(*)" + HISTORIQUE_FROM + where);
+            countQ.setParameter(1, empl);
+            if (notBlank(search)) {
+                countQ.setParameter(2, "%" + search.trim() + "%");
+            }
+            long total = ((Number) countQ.getSingleResult()).longValue();
+
+            Query q = em.createNativeQuery("SELECT m.dt_CREATED, CAST(f.int_CIP AS CHAR), f.str_NAME, m.str_TYPE, "
+                    + "m.int_QTE, m.int_STOCK_RAYON_AVANT, m.int_STOCK_RAYON_APRES, "
+                    + "m.int_STOCK_RESERVE_AVANT, m.int_STOCK_RESERVE_APRES, "
+                    + "TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))), "
+                    + "m.lg_MOUVEMENT_ID" + HISTORIQUE_FROM + where + " ORDER BY m.dt_CREATED DESC");
+            q.setParameter(1, empl);
+            if (notBlank(search)) {
+                q.setParameter(2, "%" + search.trim() + "%");
+            }
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start));
+                q.setMaxResults(limit);
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = q.getResultList();
+
+            JSONArray results = new JSONArray();
+            java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+            for (Object[] r : rows) {
+                String typeTechnique = r[3] == null ? "" : String.valueOf(r[3]);
+                results.put(new JSONObject().put("dt_CREATED", r[0] == null ? "" : fmt.format((java.util.Date) r[0]))
+                        .put("int_CIP", r[1] == null ? "" : String.valueOf(r[1]))
+                        .put("str_NAME", r[2] == null ? "" : String.valueOf(r[2]))
+                        .put("str_TYPE", typeTechnique).put("str_MOUVEMENT", libelleMouvement(typeTechnique))
+                        .put("int_QTE", nombre(r[4])).put("int_STOCK_RAYON_AVANT", nombre(r[5]))
+                        .put("int_STOCK_RAYON_APRES", nombre(r[6])).put("int_STOCK_RESERVE_AVANT", nombre(r[7]))
+                        .put("int_STOCK_RESERVE_APRES", nombre(r[8]))
+                        .put("str_USER", r[9] == null ? "" : String.valueOf(r[9]))
+                        .put("lg_MOUVEMENT_ID", r[10] == null ? "" : String.valueOf(r[10])));
+            }
+            return new JSONObject().put("total", total).put("results", results);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "historique", e);
+            return new JSONObject().put("total", 0).put("results", new JSONArray());
+        }
+    }
+
+    @Override
+    public byte[] exportHistoriqueExcel(TUser user, String search, String type, String dtStart, String dtEnd,
+            Integer heureDebut, Integer heureFin, String userId) throws java.io.IOException {
+        // limit a 0 : l'export porte sur TOUTES les lignes filtrees, pas sur la seule page affichee.
+        JSONObject data = historique(user, search, type, dtStart, dtEnd, heureDebut, heureFin, userId, 0, 0);
+        JSONArray results = data.optJSONArray("results");
+        List<JSONObject> lignes = new ArrayList<>();
+        if (results != null) {
+            for (int i = 0; i < results.length(); i++) {
+                lignes.add(results.getJSONObject(i));
+            }
+        }
+        if (lignes.isEmpty()) {
+            return new byte[0];
+        }
+        String[] entetes = { "Date", "CIP", "Designation", "Mouvement", "Quantite", "Rayon avant", "Rayon apres",
+                "Reserve avant", "Reserve apres", "Utilisateur" };
+        return reportExcelExportService.createExcelReport("Historique des mouvements de reserve", entetes, lignes,
+                (row, o) -> {
+                    int col = 0;
+                    row.createCell(col++).setCellValue(o.optString("dt_CREATED", ""));
+                    row.createCell(col++).setCellValue(o.optString("int_CIP", ""));
+                    row.createCell(col++).setCellValue(o.optString("str_NAME", ""));
+                    row.createCell(col++).setCellValue(o.optString("str_MOUVEMENT", ""));
+                    row.createCell(col++).setCellValue(o.optInt("int_QTE", 0));
+                    row.createCell(col++).setCellValue(o.optInt("int_STOCK_RAYON_AVANT", 0));
+                    row.createCell(col++).setCellValue(o.optInt("int_STOCK_RAYON_APRES", 0));
+                    row.createCell(col++).setCellValue(o.optInt("int_STOCK_RESERVE_AVANT", 0));
+                    row.createCell(col++).setCellValue(o.optInt("int_STOCK_RESERVE_APRES", 0));
+                    row.createCell(col).setCellValue(o.optString("str_USER", ""));
+                });
+    }
+
+    @Override
+    public JSONArray utilisateursMouvements(TUser user) {
+        JSONArray out = new JSONArray();
+        try {
+            Query q = em.createNativeQuery("SELECT DISTINCT u.lg_USER_ID, "
+                    + "TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))) AS nom "
+                    + "FROM t_mouvement_reserve m JOIN t_user u ON u.lg_USER_ID = m.lg_USER_ID "
+                    + "WHERE m.lg_EMPLACEMENT_ID = ?1 ORDER BY nom ASC");
+            q.setParameter(1, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = q.getResultList();
+            for (Object[] r : rows) {
+                out.put(new JSONObject().put("lg_USER_ID", String.valueOf(r[0]))
+                        .put("nom", r[1] == null ? "" : String.valueOf(r[1])));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "utilisateursMouvements", e);
+        }
+        return out;
+    }
+
+    private static int nombre(Object o) {
+        return o == null ? 0 : ((Number) o).intValue();
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
     // ---------------------------------------------------------------- HISTORY
 
     private java.util.Date parseDate(String iso) {

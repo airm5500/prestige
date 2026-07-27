@@ -3,6 +3,7 @@ package rest.service;
 import dal.TUser;
 import java.util.List;
 import javax.ejb.Local;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -76,6 +77,28 @@ public interface ReserveService {
      * {@link #reassortBatch}.
      */
     JSONObject assortBatch(TUser user, List<JSONObject> items);
+
+    /**
+     * Historique complet des mouvements, avec l'ensemble des filtres de recherche.
+     *
+     * <p>
+     * L'historique est immuable : un mouvement execute n'est jamais supprime ni retouche. Une erreur se corrige par un
+     * mouvement inverse, qui vient s'ajouter a la suite.
+     *
+     * @param heureDebut
+     *            heure de debut dans la journee (0 a 23), ou null
+     * @param heureFin
+     *            heure de fin dans la journee (0 a 23), ou null
+     */
+    JSONObject historique(TUser user, String search, String type, String dtStart, String dtEnd, Integer heureDebut,
+            Integer heureFin, String userId, int start, int limit);
+
+    /** Export Excel de l'historique, respectant exactement les filtres actifs. */
+    byte[] exportHistoriqueExcel(TUser user, String search, String type, String dtStart, String dtEnd,
+            Integer heureDebut, Integer heureFin, String userId) throws java.io.IOException;
+
+    /** Utilisateurs ayant effectue au moins un mouvement, pour alimenter le filtre correspondant. */
+    JSONArray utilisateursMouvements(TUser user);
 
     /**
      * Deplacement rayon&lt;-&gt;reserve qui REJOINT la transaction de l'appelant, au lieu d'ouvrir la sienne.

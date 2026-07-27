@@ -10,7 +10,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
     id: 'reservemanagerID',
     requires: [
         'testextjs.view.stockmanagement.reserve.ReserveGrid',
-        'testextjs.view.stockmanagement.reserve.SuggestionsGrid'
+        'testextjs.view.stockmanagement.reserve.SuggestionsGrid',
+        'testextjs.view.stockmanagement.reserve.HistoriqueGrid'
     ],
     title: 'Gestion des reserves',
     width: '98%',
@@ -41,6 +42,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 '.tab-suggestions.x-tab-active { background-color: #8e24aa !important; border-top: 3px solid #fff !important; }',
                 '.btn-suggestions-violet.x-btn { background-color: #8e24aa !important; background-image: none !important; border-color: #4a137a !important; }',
                 '.btn-suggestions-violet.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                // Onglet HISTORIQUE : gris
+                '.tab-historique.x-tab { background-color: #5f6368 !important; border-color: #3c4043 !important; }',
+                '.tab-historique.x-tab .x-tab-inner, .tab-historique.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
+                '.tab-historique.x-tab-active { background-color: #80868b !important; border-top: 3px solid #fff !important; }',
                 // Pastille sur l'onglet ACTIF (copie isolee de la pastille des avoirs)
                 '.reserve-pastille { display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid rgba(0,0,0,0.35); margin-right:7px; vertical-align:middle; box-shadow:0 0 0 2px rgba(255,255,255,0.65); animation:reservePastille 1.1s infinite; }',
                 '@keyframes reservePastille { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.3); opacity:0.7; } }',
@@ -105,6 +110,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                     tooltip: tip('Les suggestions enregistrees, a traiter ou deja traitees.<br>'
                             + 'Chaque suggestion garde la trace de ce qui a ete propose,<br>'
                             + 'de ce qui a ete retenu et de ce qui a reellement ete deplace.')
+                }
+            },
+            {
+                xtype: 'reservehistoriquegrid', itemId: 'ongletHistorique',
+                title: 'HISTORIQUE', baseTitle: 'HISTORIQUE',
+                tabConfig: {
+                    cls: 'tab-historique',
+                    tooltip: tip('Tous les mouvements entre le rayon et la reserve.<br>'
+                            + 'Rien n\'y est jamais supprime : une erreur se corrige<br>'
+                            + 'par un mouvement inverse, qui s\'ajoute a la suite.')
                 }
             }
         ];
