@@ -7,6 +7,7 @@
 Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
     extend: 'Ext.grid.Panel',
     xtype: 'reservehistoriquegrid',
+    requires: ['testextjs.view.stockmanagement.reserve.action.inventaireSelection'],
     border: false,
     frame: true,
     columnLines: true,
@@ -105,6 +106,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
             {text: 'Rechercher', scope: me, handler: me.onRechercher},
             {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser},
             '->',
+            {text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaire},
             {text: 'Exporter (Excel)', scope: me, handler: me.onExportExcel},
             {text: 'Imprimer', scope: me, handler: me.onImprimer}
         ];
@@ -215,6 +217,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
 
     reloadGrid: function () {
         this.store.loadPage(1);
+    },
+
+    // Creer un inventaire depuis n'importe quel onglet : la fenetre de selection porte sa
+    // propre recherche par CIP ou par nom, elle ne depend donc pas des filtres de l'historique.
+    onCreateInventaire: function () {
+        Ext.create('testextjs.view.stockmanagement.reserve.action.inventaireSelection', {
+            typetransaction: 'ALL'
+        });
     },
 
     onExportExcel: function () {

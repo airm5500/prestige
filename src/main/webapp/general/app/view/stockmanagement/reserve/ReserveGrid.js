@@ -22,7 +22,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         'testextjs.view.stockmanagement.reserve.action.historique',
         'testextjs.view.stockmanagement.reserve.action.reappro',
         'testextjs.view.stockmanagement.reserve.action.suggestion',
-        'testextjs.view.stockmanagement.reserve.action.historiqueGlobal'
+        'testextjs.view.stockmanagement.reserve.action.historiqueGlobal',
+        'testextjs.view.stockmanagement.reserve.action.inventaireSelection'
     ],
     config: {
         gridmode: 'ALL'
@@ -423,207 +424,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
     },
 
     // ---- Bouton commun : creer un inventaire (selection des produits) ----
+    // La fenetre de selection est partagee avec les autres onglets : elle vit dans sa propre
+    // vue, et la recherche en cours dans l'onglet lui sert de point de depart.
     onCreateInventaire: function () {
         var me = this;
-        var mode = me.getGridmode();
-        var typeParam = (mode === 'REAPPRO') ? 'REAPPRO'
-                : (mode === 'REASSORT') ? 'REASSORT_RAYON' : 'ALL';
-        var search = me.down('#rechFld').getValue() || '';
-
-        // Map des ids coches, conserve a travers les pages : { lg_FAMILLE_ID: true }
-        var selectedIds = {};
-        var totalAll = 0; // total d'articles (toutes pages) pour "tout selectionner"
-
-        var selStore = new Ext.data.Store({
-            model: 'testextjs.model.FamilleStock',
-            pageSize: 20,
-            autoLoad: false,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/reserve/articles',
-                extraParams: {str_TYPE_TRANSACTION: typeParam, search_value: search},
-                reader: {type: 'json', root: 'results', totalProperty: 'total'}
-            }
+        var rech = me.down('#rechFld');
+        Ext.create('testextjs.view.stockmanagement.reserve.action.inventaireSelection', {
+            typetransaction: me.typeParam,
+            recherche: (rech && rech.getValue()) ? rech.getValue() : ''
         });
-
-        var selModel = Ext.create('Ext.selection.CheckboxModel', {checkOnly: true});
-
-        var prixRenderer = function (v) {
-            return (v === null || v === undefined || v === '') ? '' : Ext.util.Format.number(v, '0,000');
-        };
-
-        var win;
-        var updateCounter = function () {
-            var n = 0, k;
-            for (k in selectedIds) {
-                if (selectedIds.hasOwnProperty(k)) {
-                    n++;
-                }
-            }
-            // selCount est docke sur la grille (disponible des la creation de grid)
-            var cmp = grid && grid.down('#selCount');
-            if (cmp) {
-                cmp.setText('Selectionnes : ' + n);
-            }
-        };
-
-        // Re-coche les lignes de la page courante presentes dans selectedIds
-        var reapplySelection = function () {
-            selModel.suspendEvents();
-            selStore.each(function (rec) {
-                if (selectedIds[rec.get('lg_FAMILLE_ID')]) {
-                    selModel.select(rec, true, true);
-                }
-            });
-            selModel.resumeEvents();
-            updateCounter();
-        };
-
-        selModel.on('select', function (sm, rec) {
-            selectedIds[rec.get('lg_FAMILLE_ID')] = true;
-            updateCounter();
-        });
-        selModel.on('deselect', function (sm, rec) {
-            delete selectedIds[rec.get('lg_FAMILLE_ID')];
-            updateCounter();
-        });
-        selStore.on('load', function (store, records, success, op, eOpts) {
-            if (totalAll === 0) {
-                totalAll = store.getTotalCount();
-            }
-            reapplySelection();
-        });
-
-        var pager = Ext.create('Ext.toolbar.Paging', {
-            store: selStore,
-            dock: 'bottom',
-            displayInfo: true
-        });
-
-        var grid = Ext.create('Ext.grid.Panel', {
-            border: false,
-            flex: 1,
-            store: selStore,
-            selModel: selModel,
-            columns: [
-                {header: 'CIP', dataIndex: 'int_CIP', flex: 1},
-                {header: 'Designation', dataIndex: 'str_NAME', flex: 2},
-                {header: 'Stock Reserve', dataIndex: 'int_STOCK_RESERVE', align: 'center', flex: 1},
-                {header: 'Prix achat', dataIndex: 'int_PAF', align: 'right', flex: 1, renderer: prixRenderer},
-                {header: 'Prix vente', dataIndex: 'int_PRICE', align: 'right', flex: 1, renderer: prixRenderer}
-            ],
-            dockedItems: [
-                {
-                    xtype: 'toolbar', dock: 'top',
-                    items: [{
-                            text: 'Tout selectionner (toutes les pages)',
-                            handler: function () {
-                                var prog = Ext.MessageBox.wait('Chargement...', 'Selection de tous les articles');
-                                Ext.Ajax.request({
-                                    url: '../api/v1/reserve/articles',
-                                    method: 'GET',
-                                    params: {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
-                                    timeout: 600000,
-                                    success: function (response) {
-                                        prog.hide();
-                                        var res = Ext.JSON.decode(response.responseText, true);
-                                        var list = (res && res.results) ? res.results : [];
-                                        Ext.each(list, function (a) {
-                                            if (a.lg_FAMILLE_ID) {
-                                                selectedIds[a.lg_FAMILLE_ID] = true;
-                                            }
-                                        });
-                                        reapplySelection();
-                                    },
-                                    failure: function () {
-                                        prog.hide();
-                                        Ext.MessageBox.alert('Erreur', 'Echec du chargement de la liste complete.');
-                                    }
-                                });
-                            }
-                        }, {
-                            text: 'Tout deselectionner',
-                            handler: function () {
-                                selectedIds = {};
-                                selModel.deselectAll();
-                                updateCounter();
-                            }
-                        }, '->', {
-                            xtype: 'tbtext', itemId: 'selCount', text: 'Selectionnes : 0'
-                        }]
-                },
-                pager
-            ]
-        });
-
-        win = Ext.create('Ext.window.Window', {
-            title: 'Creer un inventaire reserve',
-            modal: true,
-            width: 860,
-            height: 580,
-            layout: {type: 'vbox', align: 'stretch'},
-            constrainHeader: true,
-            bodyPadding: '8 8 0 8',
-            items: [{
-                    xtype: 'textarea',
-                    itemId: 'commentFld',
-                    fieldLabel: 'Commentaire',
-                    labelAlign: 'top',
-                    height: 70,
-                    emptyText: 'Commentaire optionnel (enregistre dans la description de l\'inventaire)'
-                }, grid],
-            buttons: [{
-                    text: 'Creer l\'inventaire',
-                    handler: function () {
-                        var ids = [], k;
-                        for (k in selectedIds) {
-                            if (selectedIds.hasOwnProperty(k)) {
-                                ids.push(k);
-                            }
-                        }
-                        if (ids.length === 0) {
-                            Ext.MessageBox.alert('Message', 'Veuillez selectionner au moins un produit.');
-                            return;
-                        }
-                        var comment = win.down('#commentFld').getValue() || '';
-                        // Recapitulatif : controle du nombre de produits avant confirmation
-                        Ext.MessageBox.confirm('Confirmation',
-                                'Vous allez creer un inventaire contenant <b>' + ids.length
-                                + '</b> produit(s) (toutes pages confondues).<br/>Confirmez-vous ?',
-                                function (btn) {
-                                    if (btn !== 'yes') {
-                                        return;
-                                    }
-                                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
-                                    Ext.Ajax.request({
-                                        url: '../api/v1/reserve/create-inventaire-selection',
-                                        method: 'POST',
-                                        jsonData: {ids: ids, description: comment},
-                                        timeout: 600000,
-                                        success: function (response) {
-                                            progress.hide();
-                                            var res = Ext.JSON.decode(response.responseText, true);
-                                            win.close();
-                                            Ext.MessageBox.alert('Inventaire',
-                                                    'Inventaire cree.<br/>Produits en compte : <b>' + (res.count || 0) + '</b>');
-                                        },
-                                        failure: function () {
-                                            progress.hide();
-                                            Ext.MessageBox.alert('Erreur', "La creation de l'inventaire a echoue. Aucun inventaire partiel n'a ete cree.");
-                                        }
-                                    });
-                                });
-                    }
-                }, {
-                    text: 'Annuler',
-                    handler: function () {
-                        win.close();
-                    }
-                }]
-        });
-
-        win.show();
-        selStore.loadPage(1);
     },
 
     // ---- Cases a cocher : compteur et remise a zero -------------------------

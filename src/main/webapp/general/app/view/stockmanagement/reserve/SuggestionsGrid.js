@@ -7,7 +7,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
     extend: 'Ext.grid.Panel',
     xtype: 'reservesuggestionsgrid',
     requires: [
-        'testextjs.view.stockmanagement.reserve.action.traitementSuggestion'
+        'testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
+        'testextjs.view.stockmanagement.reserve.action.inventaireSelection'
     ],
     border: false,
     frame: true,
@@ -128,7 +129,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             ], 130),
             '-',
             {text: 'Rechercher', scope: me, handler: me.onRechercher},
-            {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser}
+            {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser},
+            '->',
+            {text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaireLibre}
         ];
 
         // Boutons a icone, sur le meme modele que la suppression.
@@ -471,6 +474,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         var mode = (rec.get('str_STATUT') === 'TRAITEE') ? 'compte_rendu' : 'suggestion';
         window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
                 + mode + '&id=' + encodeURIComponent(rec.get('lg_SUGGESTION_RESERVE_ID')), '_blank');
+    },
+
+    // Inventaire libre, sans partir d'une suggestion : la fenetre de selection porte sa propre
+    // recherche par CIP ou par nom. A distinguer de l'icone par ligne, qui inventorie les
+    // produits d'une suggestion precise.
+    onCreateInventaireLibre: function () {
+        Ext.create('testextjs.view.stockmanagement.reserve.action.inventaireSelection', {
+            typetransaction: 'ALL'
+        });
     },
 
     onCreerInventaire: function (rec) {
