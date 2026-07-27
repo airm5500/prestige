@@ -369,8 +369,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                         text: 'Imprimer',
                         handler: function () {
                             window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
-                                    + 'compte_rendu&id=' + encodeURIComponent(id), '_blank',
-                                    'width=1100,height=750,scrollbars=yes,resizable=yes');
+                                    + 'compte_rendu&id=' + encodeURIComponent(id), '_blank');
                         }
                     }, {
                         text: 'Fermer',
@@ -622,8 +621,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     text: 'Imprimer la suggestion',
                     handler: function () {
                         window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
-                                + 'suggestion&id=' + encodeURIComponent(id), '_blank',
-                                'width=1100,height=750,scrollbars=yes,resizable=yes');
+                                + 'suggestion&id=' + encodeURIComponent(id), '_blank');
                     }
                 },
                 {

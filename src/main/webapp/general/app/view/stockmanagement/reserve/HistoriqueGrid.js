@@ -241,7 +241,6 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
                 + '&search=' + encodeURIComponent(p.search_value || '')
                 + '&dtStart=' + encodeURIComponent(p.dtStart || '')
                 + '&dtEnd=' + encodeURIComponent(p.dtEnd || '');
-        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank',
-                'width=1100,height=750,scrollbars=yes,resizable=yes');
+        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank');
     }
 });

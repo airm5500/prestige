@@ -169,8 +169,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historique', {
                 qs += '&dtEnd=' + encodeURIComponent(extra.dtEnd);
             }
             qs += '&autoload=1';
-            window.open('reserveprint.html?' + qs, '_blank',
-                    'width=1100,height=750,scrollbars=yes,resizable=yes');
+            window.open('reserveprint.html?' + qs, '_blank');
         };
 
         var win = new Ext.window.Window({

@@ -148,8 +148,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             if (extra.dtEnd) {
                 qs += '&dtEnd=' + encodeURIComponent(extra.dtEnd);
             }
-            window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank',
-                    'width=1100,height=750,scrollbars=yes,resizable=yes');
+            window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank');
         };
 
         var win = new Ext.window.Window({

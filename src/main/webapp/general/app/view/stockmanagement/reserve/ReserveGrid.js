@@ -569,8 +569,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         var rech = me.down('#rechFld');
         var search = (rech && rech.getValue()) ? rech.getValue() : '';
         var qs = 'mode=' + encodeURIComponent(pdfMode) + '&search=' + encodeURIComponent(search);
-        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank',
-                'width=1100,height=750,scrollbars=yes,resizable=yes');
+        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_reserve.jsp?' + qs, '_blank');
     },
 
     // ---- Bouton commun : historiques globaux ----------------------------

@@ -4,8 +4,7 @@
 <%@page import="dal.TOfficine"%>
 <%@page import="dal.TParameters"%>
 <%@page import="toolkits.utils.jdom"%>
-<%@page import="dal.jconnexion"%>
-<%@page import="report.reportManager"%>
+<%@page import="rest.report.ReserveReportBuilder"%>
 <%@page import="toolkits.utils.logger"  %>
 <%@page import="dal.dataManager"  %>
 <%@page import="dal.TUser"  %>
@@ -102,15 +101,11 @@
     jdom Ojdom = new jdom();
     Ojdom.InitRessource();
     Ojdom.LoadRessource();
-    jconnexion Ojconnexion = new jconnexion();
-    Ojconnexion.initConnexion();
-    Ojconnexion.OpenConnexion();
     date key = new date();
-    reportManager OreportManager = new reportManager();
 
     String report_generate_file = key.GetNumberRandom() + ".pdf";
-    OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
-    OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + prefixe + report_generate_file);
+    String cheminModele = Ojdom.scr_report_file + scr_report_file + ".jrxml";
+    String cheminPdf = Ojdom.scr_report_pdf + prefixe + report_generate_file;
 
     Map parameters = new HashMap();
     parameters.put("P_SUGGESTION_ID", suggestionId);
@@ -152,13 +147,12 @@
     }
     parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
 
-    OreportManager.BuildReport(parameters, Ojconnexion);
+    // Generation depuis le POOL de l'application : le rapport lit la meme base que l'ecran.
+    ReserveReportBuilder.build(cheminModele, cheminPdf, parameters);
 
     ObllBase.setKey(new date());
     ObllBase.setOTranslate(OTranslate);
     ObllBase.setOTUser(OTUser);
-
-    Ojconnexion.CloseConnexion();
 
     response.sendRedirect("../../../data/reports/pdf/" + prefixe + report_generate_file);
 %>
