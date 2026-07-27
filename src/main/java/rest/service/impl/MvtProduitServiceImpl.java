@@ -79,6 +79,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     @EJB
     private rest.service.SuggestionReserveService suggestionReserveService;
     @EJB
+    private rest.service.ReserveService reserveService;
+    @EJB
     private LogService logService;
     @EJB
     private MouvementProduitService mouvementProduitService;
@@ -570,6 +572,10 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             ajustement.setLgUSERID(params.getOperateur());
             ajustement.setStrNAME(desc);
             ajustement.setStrCOMMENTAIRE(params.getDescription());
+            // Zone ciblee : rayon par defaut, la reserve doit etre demandee explicitement.
+            ajustement.setStrZONE(dal.TAjustement.ZONE_RESERVE.equalsIgnoreCase(params.getZone())
+                    ? dal.TAjustement.ZONE_RESERVE
+                    : dal.TAjustement.ZONE_RAYON);
             ajustement.setDtCREATED(new Date());
             ajustement.setDtUPDATED(ajustement.getDtCREATED());
             ajustement.setStrSTATUT(STATUT_IS_PROGRESS);
@@ -620,6 +626,51 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             ajustementDetail.setStrSTATUT(STATUT_IS_PROGRESS);
             this.getEmg().persist(ajustementDetail);
         }
+    }
+
+    /**
+     * Cloture d'une ligne d'ajustement ciblant la RESERVE.
+     *
+     * <p>
+     * Le stock reserve est ajuste par le service de reserve : verrou, interdiction du stock negatif et trace dans
+     * l'historique de reserve y sont deja. Le journal d'ajustement est renseigne comme pour le rayon, avec les valeurs
+     * avant et apres : un ajustement de reserve laisse donc DEUX traces, celle de l'ajustement et celle du mouvement
+     * de reserve.
+     */
+    private void clorerLigneSurReserve(TAjustementDetail it, TFamille famille, TAjustement ajustement, TUser tUser,
+            JSONArray items) {
+        String motif = it.getTypeAjustement() != null ? it.getTypeAjustement().getLibelle()
+                : ajustement.getStrCOMMENTAIRE();
+        JSONObject r = reserveService.ajusterReserve(tUser, famille.getLgFAMILLEID(), it.getIntNUMBER(), motif);
+        if (!r.optBoolean("success", false)) {
+            // La ligne reste non validee et son motif porte la raison : les autres lignes ne sont pas penalisees.
+            it.setStrSTATUT(STATUT_IS_PROGRESS);
+            it.setDtUPDATED(ajustement.getDtUPDATED());
+            getEmg().merge(it);
+            LOG.log(Level.WARNING, "Ajustement reserve refuse pour {0} : {1}",
+                    new Object[] { famille.getIntCIP(), r.optString("message") });
+            return;
+        }
+        int avant = r.optInt("int_AVANT", 0);
+        int apres = r.optInt("int_APRES", 0);
+        it.setIntNUMBERCURRENTSTOCK(avant);
+        it.setIntNUMBERAFTERSTOCK(apres);
+        it.setDtUPDATED(ajustement.getDtUPDATED());
+        it.setStrSTATUT(STATUT_ENABLE);
+        getEmg().merge(it);
+
+        String desc = "Ajustement RESERVE du produit :[  " + famille.getIntCIP() + "  " + famille.getStrNAME()
+                + " ] : Quantite initiale : [ " + avant + " ] : Quantite ajustee [ " + it.getIntNUMBER()
+                + " ] :Quantite finale [ " + apres + " ]";
+        logService.updateItem(tUser, famille.getIntCIP(), desc, TypeLog.AJUSTEMENT_DE_PRODUIT, famille);
+
+        JSONObject jsonItem = new JSONObject();
+        jsonItem.put(NotificationUtils.ITEM_KEY.getId(), famille.getIntCIP());
+        jsonItem.put(NotificationUtils.ITEM_DESC.getId(), famille.getStrNAME());
+        jsonItem.put(NotificationUtils.ITEM_QTY.getId(), it.getIntNUMBER());
+        jsonItem.put(NotificationUtils.ITEM_QTY_INIT.getId(), avant);
+        jsonItem.put(NotificationUtils.ITEM_QTY_FINALE.getId(), apres);
+        items.put(jsonItem);
     }
 
     private void updateFinalyseItem(TAjustementDetail ajustementDetail, TFamilleStock familleStock, Date dateUpdated) {
@@ -691,8 +742,14 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             TEmplacement emplacement = tUser.getLgEMPLACEMENTID();
             List<TAjustementDetail> ajustementDetails = findAjustementDetailsByParenId(ajustement.getLgAJUSTEMENTID());
             JSONArray items = new JSONArray();
+            // Zone ciblee : RESERVE ajuste le stock reserve, RAYON conserve le comportement historique.
+            boolean surReserve = dal.TAjustement.ZONE_RESERVE.equalsIgnoreCase(ajustement.getStrZONE());
             ajustementDetails.forEach(it -> {
                 TFamille famille = it.getLgFAMILLEID();
+                if (surReserve) {
+                    clorerLigneSurReserve(it, famille, ajustement, tUser, items);
+                    return;
+                }
                 TFamilleStock familleStock = findStockByProduitId(famille.getLgFAMILLEID(),
                         emplacement.getLgEMPLACEMENTID());
                 Integer initStock = familleStock.getIntNUMBERAVAILABLE();

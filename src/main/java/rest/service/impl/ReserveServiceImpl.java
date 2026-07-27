@@ -592,6 +592,73 @@ public class ReserveServiceImpl implements ReserveService {
         return "Articles en reserve";
     }
 
+    // ------------------------------------------------------ AJUSTEMENT RESERVE
+
+    @Override
+    public JSONObject ajusterReserve(TUser user, String familleId, int delta, String motif) {
+        if (familleId == null || familleId.trim().isEmpty()) {
+            return fail(CODE_ARTICLE_INTROUVABLE, "Article introuvable.");
+        }
+        if (delta == 0) {
+            return fail(CODE_QUANTITE_INVALIDE, "La quantite d'ajustement ne peut pas etre nulle.")
+                    .put("lg_FAMILLE_ID", familleId);
+        }
+        try {
+            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            TFamille famille = em.find(TFamille.class, familleId);
+            if (famille == null) {
+                return fail(CODE_ARTICLE_INTROUVABLE, "Article introuvable.").put("lg_FAMILLE_ID", familleId);
+            }
+            // Meme verrou que pour un mouvement ordinaire : lecture et ecriture du disponible sont serialisees.
+            TTypeStockFamille typeReserve = findTypeStockForUpdate(TYPE_STOCK_RESERVE, familleId, empl);
+            if (typeReserve == null) {
+                return fail(CODE_CONFIG_INCOMPLETE, "Cet article n'a pas de stock reserve configure.")
+                        .put("lg_FAMILLE_ID", familleId);
+            }
+
+            int avant = nz(typeReserve.getIntNUMBER());
+            int apres = avant + delta;
+            if (apres < 0) {
+                return fail(CODE_STOCK_RESERVE_INSUFFISANT,
+                        "Stock reserve insuffisant (" + avant + " disponible, retrait de " + Math.abs(delta)
+                                + " demande).").put("lg_FAMILLE_ID", familleId).put("int_DISPONIBLE", avant);
+            }
+
+            typeReserve.setIntNUMBER(apres);
+            typeReserve.setDtUPDATED(new Date());
+            em.merge(typeReserve);
+
+            // Le rayon n'est pas touche : ses valeurs avant et apres sont identiques dans la trace.
+            int rayon = nz(getNumberAvailable(familleId, empl));
+            String mouvementId = recordMouvement(famille, user, user.getLgEMPLACEMENTID(),
+                    TMouvementReserve.TYPE_AJUSTEMENT, Math.abs(delta), rayon, avant, rayon, apres);
+            if (mouvementId != null && motif != null && !motif.trim().isEmpty()) {
+                TMouvementReserve m = em.find(TMouvementReserve.class, mouvementId);
+                if (m != null) {
+                    m.setStrMOTIFANNULATION(motif.trim());
+                    em.merge(m);
+                }
+            }
+
+            LOG.log(Level.INFO, "ajusterReserve famille={0} avant={1} apres={2} user={3}",
+                    new Object[] { familleId, avant, apres, user.getLgUSERID() });
+            return new JSONObject().put("success", true).put("message", "Stock reserve ajuste.")
+                    .put("lg_FAMILLE_ID", familleId).put("int_AVANT", avant).put("int_APRES", apres)
+                    .put("lg_MOUVEMENT_ID", mouvementId);
+        } catch (PessimisticLockException | LockTimeoutException | OptimisticLockException e) {
+            LOG.log(Level.WARNING, "ajusterReserve CONFLIT famille=" + familleId, e);
+            markRollback();
+            return fail(CODE_CONFLIT_CONCURRENCE,
+                    "Cet article est en cours de modification par un autre traitement. Veuillez reessayer.")
+                            .put("lg_FAMILLE_ID", familleId);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "ajusterReserve ECHEC famille=" + familleId, e);
+            markRollback();
+            return fail(CODE_ERREUR_TECHNIQUE, "Echec de l'ajustement: " + e.getMessage()).put("lg_FAMILLE_ID",
+                    familleId);
+        }
+    }
+
     // ----------------------------------------------------------- ANNULATION
 
     @Override
@@ -702,6 +769,9 @@ public class ReserveServiceImpl implements ReserveService {
         }
         if (TMouvementReserve.TYPE_REASSORT.equals(type)) {
             return "REAPPRO RAYON";
+        }
+        if (TMouvementReserve.TYPE_AJUSTEMENT.equals(type)) {
+            return "AJUSTEMENT RESERVE";
         }
         return type == null ? "" : type;
     }

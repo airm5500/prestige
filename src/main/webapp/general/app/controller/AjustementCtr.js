@@ -215,13 +215,17 @@ Ext.define('testextjs.controller.AjustementCtr', {
                 if (record) {
                     var commentaire = me.getCommentaire().getValue();
                     var qte = parseInt(field.getValue());
+                    // Zone ciblee : n'est prise en compte qu'a la creation de l'ajustement,
+                    // elle vaut ensuite pour toutes ses lignes.
+                    var cboZone = Ext.getCmp('str_ZONE_AJUSTEMENT');
                     var params = {
                         "refParent": ajustementId,
                         "value": qte,
                         "description": commentaire,
                         "refTwo": record.get('lgFAMILLEID'),
                         "valueTwo": record.get('intNUMBERAVAILABLE'),
-                        "valueFour": typeAjustement
+                        "valueFour": typeAjustement,
+                        "zone": (cboZone && cboZone.getValue()) ? cboZone.getValue() : 'RAYON'
                     };
                     me.addAjustement(params, url, field, produitCmp);
                 }

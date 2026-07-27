@@ -34,6 +34,8 @@ public class Params implements Serializable {
     boolean scheduled;
     boolean checkug;
     private String userId;
+    /** Zone ciblee par un ajustement : RAYON (defaut) ou RESERVE. */
+    private String zone;
 
     public String getHrEnd() {
         return hrEnd;
@@ -257,6 +259,15 @@ public class Params implements Serializable {
                 + valueFour + ", dtStart=" + dtStart + ", dtEnd=" + dtEnd + ", hrEnd=" + hrEnd + ", hrStart=" + hrStart
                 + ", operateur=" + operateur + ", scheduled=" + scheduled + ", checkug=" + checkug + ", userId="
                 + userId + '}';
+    }
+
+
+    public String getZone() {
+        return zone;
+    }
+
+    public void setZone(String zone) {
+        this.zone = zone;
     }
 
 }

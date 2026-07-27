@@ -78,6 +78,22 @@ public interface ReserveService {
      */
     JSONObject assortBatch(TUser user, List<JSONObject> items);
 
+    /**
+     * Ajuste le stock RESERVE d'un produit, sans toucher au stock rayon.
+     *
+     * <p>
+     * Destine a l'ajustement de stock lorsque la zone ciblee est la reserve. La ligne est verrouillee, le stock ne
+     * peut pas devenir negatif, et le mouvement est trace dans l'historique de reserve au meme titre qu'un
+     * reappro : un ajustement de reserve reste donc visible et auditable.
+     *
+     * <p>
+     * REJOINT la transaction de l'appelant : l'ajustement et sa trace sont valides ou annules ensemble.
+     *
+     * @param delta
+     *            quantite a ajouter (positive) ou a retirer (negative)
+     */
+    JSONObject ajusterReserve(TUser user, String familleId, int delta, String motif);
+
     /** Nom du privilege requis pour annuler un mouvement de reserve. */
     String PRIVILEGE_ANNULATION = "P_ANNULER_MOUVEMENT_RESERVE";
 

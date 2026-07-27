@@ -41,6 +41,11 @@ import javax.xml.bind.annotation.XmlTransient;
 public class TAjustement implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    /** Ajustement du stock rayon : comportement historique, valeur par defaut. */
+    public static final String ZONE_RAYON = "RAYON";
+    /** Ajustement du stock reserve, sans toucher au rayon. */
+    public static final String ZONE_RESERVE = "RESERVE";
     @Id
     @Basic(optional = false)
     @Column(name = "lg_AJUSTEMENT_ID", nullable = false, length = 40)
@@ -49,6 +54,9 @@ public class TAjustement implements Serializable {
     private String strNAME;
     @Column(name = "str_COMMENTAIRE", length = 100)
     private String strCOMMENTAIRE;
+    /** Zone ciblee : RAYON (comportement historique) ou RESERVE. */
+    @Column(name = "str_ZONE", length = 10)
+    private String strZONE = ZONE_RAYON;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
     @Column(name = "dt_CREATED")
@@ -88,6 +96,14 @@ public class TAjustement implements Serializable {
 
     public String getStrCOMMENTAIRE() {
         return strCOMMENTAIRE;
+    }
+
+    public String getStrZONE() {
+        return strZONE == null || strZONE.trim().isEmpty() ? ZONE_RAYON : strZONE;
+    }
+
+    public void setStrZONE(String strZONE) {
+        this.strZONE = strZONE;
     }
 
     public void setStrCOMMENTAIRE(String strCOMMENTAIRE) {

@@ -29,6 +29,8 @@ public class TMouvementReserve implements Serializable {
     public static final String TYPE_ASSORT = "ASSORT";
     public static final String TYPE_REASSORT = "REASSORT";
     public static final String TYPE_DESTOCKAGE = "DESTOCKAGE";
+    /** Ajustement direct du stock reserve, sans contrepartie en rayon. */
+    public static final String TYPE_AJUSTEMENT = "AJUSTEMENT";
 
     private static final long serialVersionUID = 1L;
     @Id

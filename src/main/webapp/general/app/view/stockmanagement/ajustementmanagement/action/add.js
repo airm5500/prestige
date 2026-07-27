@@ -360,6 +360,52 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.action.add', {
                 
                 {
                     xtype: 'fieldset',
+                    title: 'Zone ajustee',
+                    layout: 'hbox',
+                    collapsible: false,
+                    items: [
+                        {
+                            // Zone obligatoire. Rayon par defaut : le comportement historique reste
+                            // celui qui s'applique tant qu'on ne demande pas explicitement la reserve.
+                            xtype: 'combo',
+                            id: 'str_ZONE_AJUSTEMENT',
+                            fieldLabel: 'Zone',
+                            labelWidth: 40,
+                            width: 320,
+                            editable: false,
+                            allowBlank: false,
+                            forceSelection: true,
+                            queryMode: 'local',
+                            displayField: 'libelle',
+                            valueField: 'valeur',
+                            value: 'RAYON',
+                            store: new Ext.data.Store({
+                                fields: ['valeur', 'libelle'],
+                                data: [
+                                    {valeur: 'RAYON', libelle: 'Rayon (stock en rayon)'},
+                                    {valeur: 'RESERVE', libelle: 'Reserve (stock garde en reserve)'}
+                                ]
+                            }),
+                            listeners: {
+                                change: function (cbo, val) {
+                                    // Le sens de l'ajustement change de zone : on le dit clairement.
+                                    if (val === 'RESERVE') {
+                                        cbo.setFieldStyle('background-color:#efe7f5;font-weight:bold;');
+                                        if (Ext.toast) {
+                                            Ext.toast('Les quantites saisies ajusteront le STOCK RESERVE, '
+                                                    + 'sans toucher au rayon.', 'Zone ajustee', 4000);
+                                        }
+                                    } else {
+                                        cbo.setFieldStyle('');
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+
+                {
+                    xtype: 'fieldset',
                     title: 'Espace commentaire',
                     layout: 'hbox',
                     collapsible: true,
