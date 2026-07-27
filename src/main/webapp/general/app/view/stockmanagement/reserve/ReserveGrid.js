@@ -166,6 +166,36 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         // Conserve pour l'export : c'est le meme parametre que celui envoye par la grille.
         me.typeParam = typeParam;
 
+        // ---- Cases a cocher : selection conservee d'une page a l'autre.
+        // La grille est paginee : si l'on se contentait de la selection ExtJS, tout cochage
+        // serait perdu au changement de page. On memorise donc les identifiants coches, et
+        // on re-coche les lignes correspondantes a chaque chargement.
+        me.selectedIds = {};
+        var selModel = Ext.create('Ext.selection.CheckboxModel', {
+            checkOnly: true,
+            mode: 'MULTI'
+        });
+        selModel.on('select', function (sm, rec) {
+            me.selectedIds[rec.get('lg_FAMILLE_ID')] = rec.get('int_QTE_SUGGEREE') || 0;
+            me.majCompteurSelection();
+        });
+        selModel.on('deselect', function (sm, rec) {
+            delete me.selectedIds[rec.get('lg_FAMILLE_ID')];
+            me.majCompteurSelection();
+        });
+        store.on('load', function () {
+            selModel.suspendEvents();
+            store.each(function (rec) {
+                if (me.selectedIds.hasOwnProperty(rec.get('lg_FAMILLE_ID'))) {
+                    // La quantite suggeree a pu changer depuis le cochage : on reprend la valeur du serveur.
+                    me.selectedIds[rec.get('lg_FAMILLE_ID')] = rec.get('int_QTE_SUGGEREE') || 0;
+                    selModel.select(rec, true, true);
+                }
+            });
+            selModel.resumeEvents();
+            me.majCompteurSelection();
+        });
+
         // Explication au survol, en bleu et en gras. Style en ligne pour rester prioritaire sur l'infobulle.
         var tip = function (texte) {
             return '<span style="color:#0b57d0;font-weight:bold;">' + texte + '</span>';
@@ -206,6 +236,22 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                         + 'La quantite proposee ne depasse jamais le stock reserve disponible.')
             });
             tbar.push('-');
+        } else {
+            // Onglet TOUT : les deux sens sont concernes, on propose donc les deux listes de
+            // suggestions. Elles manquaient ici alors que l'onglet affiche les deux flèches.
+            tbar.push({
+                text: 'Suggestions de reappro de la reserve', cls: 'btn-reappro-orange',
+                scope: me, handler: me.onSuggererReappro,
+                tooltip: tip('Articles dont le rayon depasse le seuil reserve :<br>'
+                        + 'le systeme propose la quantite a ranger EN RESERVE.')
+            });
+            tbar.push({
+                text: 'Suggestions de reappro du rayon', cls: 'btn-reassort-green',
+                scope: me, handler: me.onSuggererReassort,
+                tooltip: tip('Articles dont le rayon est tombe au seuil mini :<br>'
+                        + 'le systeme propose la quantite a sortir DE LA RESERVE.')
+            });
+            tbar.push('-');
         }
 
         // Boutons communs aux 3 onglets
@@ -215,6 +261,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             tooltip: tip('Cree une suggestion portant sur TOUS les articles<br>'
                     + 'du resultat de recherche, et pas seulement sur la page affichee.')
         });
+        tbar.push({
+            text: 'Suggestion sur la selection', cls: 'btn-suggestions-violet',
+            scope: me, handler: me.onSuggestionSelection,
+            tooltip: tip('Cree une suggestion portant UNIQUEMENT sur les lignes cochees.<br>'
+                    + 'Les lignes cochees sur les autres pages sont conservees.')
+        });
+        tbar.push({text: 'Tout decocher', scope: me, handler: me.onToutDecocher});
+        tbar.push({xtype: 'tbtext', itemId: 'lblSelection', text: 'Coches : 0',
+            style: 'font-weight:bold;color:#6a1b9a;'});
+        tbar.push('-');
         tbar.push({text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaire});
         tbar.push({text: 'Imprimer', scope: me, handler: me.onPrint});
         tbar.push({text: 'Historiques', scope: me, handler: me.onHistoriquesGlobal});
@@ -228,7 +284,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         Ext.apply(me, {
             store: store,
             columns: columns,
-            selModel: {selType: 'cellmodel'},
+            selModel: selModel,
             tbar: tbar,
             bbar: {xtype: 'pagingtoolbar', store: store, dock: 'bottom', displayInfo: true}
         });
@@ -562,15 +618,35 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         selStore.loadPage(1);
     },
 
-    // ---- Bouton commun : suggestion sur TOUT le resultat de recherche ------
-    // Le serveur rejoue la recherche lui-meme : la suggestion couvre toutes les lignes
-    // trouvees, et non la seule page affichee.
-    onSuggestionRecherche: function () {
-        var me = this;
-        var rech = me.down('#rechFld');
-        var search = (rech && rech.getValue()) ? rech.getValue() : '';
-        var categorie = (me.typeParam === 'REAPPRO') ? 'RESERVE' : 'RAYON';
+    // ---- Cases a cocher : compteur et remise a zero -------------------------
+    majCompteurSelection: function () {
+        var me = this, n = 0, k;
+        for (k in me.selectedIds) {
+            if (me.selectedIds.hasOwnProperty(k)) {
+                n++;
+            }
+        }
+        var lbl = me.down('#lblSelection');
+        if (lbl) {
+            lbl.setText('Coches : ' + n);
+        }
+    },
 
+    onToutDecocher: function () {
+        var me = this;
+        me.selectedIds = {};
+        me.getSelectionModel().deselectAll();
+        me.majCompteurSelection();
+    },
+
+    // Fenetre de saisie du motif, commune aux deux boutons de creation de suggestion.
+    // Le motif est obligatoire : tout mouvement de reserve doit pouvoir etre justifie.
+    demanderMotif: function (titre, htmlInfo, onValider) {
+        var me = this;
+        // Sur l'onglet TOUT les deux sens coexistent : on demande lequel avant tout le reste,
+        // car il conditionne la liste des motifs proposes.
+        var choixSens = (me.typeParam === 'ALL');
+        var categorie = (me.typeParam === 'REAPPRO') ? 'RESERVE' : 'RAYON';
         var storeMotifs = new Ext.data.Store({
             fields: ['id', 'libelle'],
             proxy: {
@@ -581,16 +657,38 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         storeMotifs.load();
 
         var win = Ext.create('Ext.window.Window', {
-            title: 'Creer une suggestion sur tout le resultat',
+            title: titre,
             width: 520, modal: true, bodyPadding: 10, layout: 'anchor',
             defaults: {anchor: '100%', labelWidth: 90},
             items: [
+                {xtype: 'component', html: htmlInfo},
                 {
-                    xtype: 'component',
-                    html: '<div style="margin-bottom:8px;color:#0b57d0;font-weight:bold;">'
-                            + 'La suggestion portera sur TOUS les articles du resultat de recherche'
-                            + (search ? ' correspondant a &laquo; ' + Ext.String.htmlEncode(search) + ' &raquo;' : '')
-                            + ', et non sur la seule page affichee.</div>'
+                    xtype: 'combo', itemId: 'cboSens', fieldLabel: 'Sens *', hidden: !choixSens,
+                    editable: false, allowBlank: false, forceSelection: true, queryMode: 'local',
+                    displayField: 'libelle', valueField: 'id',
+                    value: categorie,
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['id', 'libelle'],
+                        data: [
+                            {id: 'RAYON', libelle: 'Reappro du rayon (la reserve remonte au rayon)'},
+                            {id: 'RESERVE', libelle: 'Reappro de la reserve (le rayon descend en reserve)'}
+                        ]
+                    }),
+                    listeners: {
+                        change: function (cbo, v) {
+                            // Les motifs sont propres a chaque sens : on recharge a chaque bascule.
+                            categorie = v;
+                            if (!win) {
+                                return; // valeur initiale posee avant la creation de la fenetre
+                            }
+                            var cboMotif = win.down('#cboMotifRech');
+                            if (cboMotif) {
+                                cboMotif.clearValue();
+                            }
+                            storeMotifs.getProxy().setExtraParam('categorie', v);
+                            storeMotifs.load();
+                        }
+                    }
                 },
                 {
                     xtype: 'combo', itemId: 'cboMotifRech', fieldLabel: 'Motif *',
@@ -613,39 +711,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                             return;
                         }
                         var com = win.down('#txtComRech');
-                        var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation en cours');
-                        Ext.Ajax.request({
-                            method: 'POST',
-                            url: '../api/v1/suggestion-reserve/creer-depuis-recherche',
-                            jsonData: {
-                                type: me.typeParam,
-                                search: search,
-                                motifId: cbo.getValue(),
-                                commentaire: com ? com.getValue() : null
-                            },
-                            success: function (response) {
-                                progress.hide();
-                                var res = Ext.JSON.decode(response.responseText, true) || {};
-                                if (res.success === false) {
-                                    Ext.MessageBox.alert('Message', res.message || 'Creation impossible.');
-                                    return;
-                                }
-                                win.close();
-                                var manager = Ext.getCmp('reservemanagerID');
-                                var onglet = manager ? manager.down('#ongletSuggestions') : null;
-                                if (manager && onglet) {
-                                    manager.setActiveTab(onglet);
-                                    onglet.reloadGrid();
-                                } else {
-                                    Ext.MessageBox.alert('Suggestion creee',
-                                            (res.lignes || 0) + ' article(s).');
-                                }
-                            },
-                            failure: function () {
-                                progress.hide();
-                                Ext.MessageBox.alert('Erreur', 'La creation a echoue.');
-                            }
-                        });
+                        onValider(win, categorie, cbo.getValue(), com ? com.getValue() : null);
                     }
                 },
                 {text: 'Annuler', handler: function () {
@@ -654,6 +720,113 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
             ]
         });
         win.show();
+        return win;
+    },
+
+    // Bascule sur l'onglet SUGGESTIONS apres une creation reussie.
+    allerAuxSuggestions: function (res) {
+        var manager = Ext.getCmp('reservemanagerID');
+        var onglet = manager ? manager.down('#ongletSuggestions') : null;
+        if (manager && onglet) {
+            manager.setActiveTab(onglet);
+            onglet.reloadGrid();
+        } else {
+            Ext.MessageBox.alert('Suggestion creee', (res.lignes || 0) + ' article(s).');
+        }
+    },
+
+    // ---- Bouton commun : suggestion sur les seules lignes cochees -----------
+    onSuggestionSelection: function () {
+        var me = this;
+        var items = [], k, qte;
+        for (k in me.selectedIds) {
+            if (me.selectedIds.hasOwnProperty(k)) {
+                qte = parseInt(me.selectedIds[k], 10);
+                items.push({lg_FAMILLE_ID: k, int_QTE: (isNaN(qte) || qte < 0) ? 0 : qte});
+            }
+        }
+        if (items.length === 0) {
+            Ext.MessageBox.alert('Message',
+                    'Cochez au moins une ligne pour creer une suggestion sur la selection.');
+            return;
+        }
+        var info = '<div style="margin-bottom:8px;color:#0b57d0;font-weight:bold;">'
+                + 'La suggestion portera sur les <b>' + items.length + '</b> ligne(s) cochee(s) '
+                + 'uniquement, toutes pages confondues.</div>';
+        me.demanderMotif('Creer une suggestion sur la selection', info,
+                function (win, categorie, motifId, commentaire) {
+                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation en cours');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/suggestion-reserve/creer',
+                        jsonData: {
+                            categorie: categorie,
+                            motifId: motifId,
+                            commentaire: commentaire,
+                            items: items
+                        },
+                        success: function (response) {
+                            progress.hide();
+                            var res = Ext.JSON.decode(response.responseText, true) || {};
+                            if (res.success === false) {
+                                Ext.MessageBox.alert('Message', res.message || 'Creation impossible.');
+                                return;
+                            }
+                            win.close();
+                            me.onToutDecocher();
+                            me.allerAuxSuggestions(res);
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.MessageBox.alert('Erreur', 'La creation a echoue.');
+                        }
+                    });
+                });
+    },
+
+    // ---- Bouton commun : suggestion sur TOUT le resultat de recherche ------
+    // Le serveur rejoue la recherche lui-meme : la suggestion couvre toutes les lignes
+    // trouvees, et non la seule page affichee.
+    onSuggestionRecherche: function () {
+        var me = this;
+        var rech = me.down('#rechFld');
+        var search = (rech && rech.getValue()) ? rech.getValue() : '';
+        var info = '<div style="margin-bottom:8px;color:#0b57d0;font-weight:bold;">'
+                + 'La suggestion portera sur TOUS les articles du resultat de recherche'
+                + (search ? ' correspondant a &laquo; ' + Ext.String.htmlEncode(search) + ' &raquo;' : '')
+                + ', et non sur la seule page affichee.</div>';
+        me.demanderMotif('Creer une suggestion sur tout le resultat', info,
+                function (win, categorie, motifId, commentaire) {
+                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation en cours');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/suggestion-reserve/creer-depuis-recherche',
+                        jsonData: {
+                            // Onglet TOUT : le sens choisi determine la liste a reprendre, sinon
+                            // le serveur retomberait par defaut sur le reappro du rayon.
+                            type: (me.typeParam === 'ALL')
+                                    ? (categorie === 'RESERVE' ? 'REAPPRO' : 'REASSORT_RAYON')
+                                    : me.typeParam,
+                            search: search,
+                            motifId: motifId,
+                            commentaire: commentaire
+                        },
+                        success: function (response) {
+                            progress.hide();
+                            var res = Ext.JSON.decode(response.responseText, true) || {};
+                            if (res.success === false) {
+                                Ext.MessageBox.alert('Message', res.message || 'Creation impossible.');
+                                return;
+                            }
+                            win.close();
+                            me.allerAuxSuggestions(res);
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.MessageBox.alert('Erreur', 'La creation a echoue.');
+                        }
+                    });
+                });
     },
 
     // ---- Bouton commun : impression PDF (modele JasperReports) -------------
