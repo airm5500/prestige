@@ -222,10 +222,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
             items: [{
                     xtype: 'textarea',
                     itemId: 'commentFld',
-                    fieldLabel: 'Commentaire',
+                    fieldLabel: 'Commentaire *',
                     labelAlign: 'top',
                     height: 70,
-                    emptyText: 'Commentaire optionnel (enregistre dans la description de l\'inventaire)'
+                    allowBlank: false,
+                    // Obligatoire : c'est ce commentaire qui dit POURQUOI cet inventaire a ete
+                    // lance. Il est enregistre dans la description et reste la seule trace du
+                    // motif une fois l'inventaire cloture.
+                    emptyText: 'Motif de cet inventaire (obligatoire)'
                 }, grid],
             buttons: [{
                     text: 'Creer l\'inventaire',
@@ -240,7 +244,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                             Ext.MessageBox.alert('Message', 'Veuillez selectionner au moins un produit.');
                             return;
                         }
-                        var comment = win.down('#commentFld').getValue() || '';
+                        var champCom = win.down('#commentFld');
+                        var comment = (champCom && champCom.getValue()) ? champCom.getValue().trim() : '';
+                        if (comment === '') {
+                            if (champCom) {
+                                champCom.markInvalid('Commentaire obligatoire');
+                                champCom.focus();
+                            }
+                            Ext.MessageBox.alert('Commentaire obligatoire',
+                                    'Indiquez le motif de cet inventaire avant de le creer.');
+                            return;
+                        }
                         // Recapitulatif : controle du nombre de produits avant confirmation.
                         Ext.MessageBox.confirm('Confirmation',
                                 'Vous allez creer un inventaire contenant <b>' + ids.length
@@ -258,7 +272,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                                         timeout: 600000,
                                         success: function (response) {
                                             progress.hide();
-                                            var res = Ext.JSON.decode(response.responseText, true);
+                                            var res = Ext.JSON.decode(response.responseText, true) || {};
+                                            // Un refus metier revient avec un code 200 : sans ce
+                                            // controle, la fenetre se fermait en annoncant une
+                                            // creation qui n'avait pas eu lieu.
+                                            if (res.success === false) {
+                                                Ext.MessageBox.alert('Creation impossible',
+                                                        res.message || 'Creation impossible.');
+                                                return;
+                                            }
                                             win.close();
                                             Ext.MessageBox.alert('Inventaire',
                                                     'Inventaire cree.<br/>Produits en compte : <b>'
@@ -282,6 +304,18 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
         });
 
         win.show();
+        // Le champ de recherche prend la main des l'ouverture : on vient chercher un produit,
+        // la frappe doit partir directement dedans sans passer par la souris. Le delai laisse
+        // la fenetre finir son rendu, sans quoi le focus se perdrait a l'affichage.
+        Ext.defer(function () {
+            var champ = grid.down('#invRech');
+            if (champ && champ.inputEl && champ.inputEl.dom) {
+                champ.inputEl.dom.focus();
+                champ.inputEl.dom.select();
+            } else if (champ) {
+                champ.focus(true, 50);
+            }
+        }, 200);
         selStore.loadPage(1);
 
         me.callParent();

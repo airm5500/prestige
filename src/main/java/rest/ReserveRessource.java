@@ -265,6 +265,14 @@ public class ReserveRessource {
         }
         JSONObject in = new JSONObject(body);
         String commentaire = in.optString("description", null);
+        // Le commentaire porte le motif de l'inventaire : c'est la seule trace du POURQUOI une
+        // fois l'inventaire cloture. L'ecran le rend obligatoire, le serveur le verifie aussi.
+        if (commentaire == null || commentaire.trim().isEmpty()) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false)
+                            .put("message", "Indiquez le motif de cet inventaire avant de le creer.").toString())
+                    .build();
+        }
         JSONArray arr = in.optJSONArray("ids");
         java.util.Set<String> ids = new java.util.LinkedHashSet<>();
         if (arr != null) {
