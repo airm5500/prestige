@@ -243,6 +243,33 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             html: ''
         });
 
+        // Bandeau d'avertissement : n'apparait que si quelqu'un d'autre occupe la suggestion.
+        var bandeauVerrou = Ext.create('Ext.Component', {
+            hidden: true,
+            padding: '6 10',
+            style: 'background:#fdecea;border:1px solid #e0b4b0;color:#a02620;font-weight:bold;',
+            html: ''
+        });
+
+        // Applique le resultat du verrou : saisie autorisee, ou consultation seule.
+        var appliquerVerrou = function (res) {
+            me.modifiable = (res.modifiable !== false);
+            if (me.modifiable) {
+                bandeauVerrou.hide();
+            } else {
+                bandeauVerrou.update('&#9888; ' + Ext.String.htmlEncode(res.motif_lecture_seule
+                        || 'Cette suggestion est occupee : consultation seule.'));
+                bandeauVerrou.show();
+            }
+            // La saisie et les actions qui modifient le stock sont coupees en consultation seule.
+            cellEditing.disabled = !me.modifiable;
+            me.btnTraiter.setDisabled(!me.modifiable);
+            if (!me.modifiable) {
+                btnReessayer.hide();
+                me.btnAnnuler.hide();
+            }
+        };
+
         var majEntete = function (e) {
             if (!e) {
                 return;
@@ -433,8 +460,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 me.win.setLoading('Chargement de la suggestion...');
             }
             Ext.Ajax.request({
-                method: 'GET',
-                url: baseUrl + encodeURIComponent(id),
+                // PUT .../ouvrir : lit la suggestion ET la reserve si personne ne l'occupe.
+                method: 'PUT',
+                url: baseUrl + encodeURIComponent(id) + '/ouvrir',
                 callback: function () {
                     if (me.win && me.win.body) {
                         me.win.setLoading(false);
@@ -448,12 +476,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     }
                     majEntete(res.entete);
                     store.loadData(res.lignes || []);
+                    appliquerVerrou(res);
 
                     // A l'ouverture, la main est donnee directement a la premiere quantite saisissable :
                     // la saisie peut commencer sans toucher la souris.
                     if (premierChargement) {
                         premierChargement = false;
-                        focusLigne(0);
+                        if (me.modifiable) {
+                            focusLigne(0);
+                        }
                     }
                     var cloturee = res.entete && (res.entete.str_STATUT === 'TRAITEE'
                             || res.entete.str_STATUT === 'SUPPRIMEE');
@@ -474,7 +505,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                             traitees++;
                         }
                     });
-                    if (traitees > 0) {
+                    if (traitees > 0 && me.modifiable) {
                         Ext.Ajax.request({
                             method: 'GET',
                             url: '../api/v1/reserve/peut-annuler',
@@ -612,7 +643,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             maximizable: true,
             constrainHeader: true,
             layout: {type: 'vbox', align: 'stretch'},
-            items: [entete, grid],
+            items: [entete, bandeauVerrou, grid],
             buttons: [
                 me.btnTraiter,
                 btnReessayer,
@@ -636,10 +667,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 // des la premiere quantite saisie s'affiche immediatement, sans avoir a relancer une
                 // recherche.
                 close: function () {
-                    var pv = me.getParentview();
-                    if (pv && pv.reloadGrid) {
-                        pv.reloadGrid();
-                    }
+                    // On rend la suggestion aux autres des la fermeture.
+                    Ext.Ajax.request({
+                        method: 'PUT',
+                        url: baseUrl + encodeURIComponent(id) + '/liberer',
+                        callback: function () {
+                            var pv = me.getParentview();
+                            if (pv && pv.reloadGrid) {
+                                pv.reloadGrid();
+                            }
+                        }
+                    });
                 }
             }
         });

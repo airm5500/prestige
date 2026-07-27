@@ -349,6 +349,99 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         return q.getResultList();
     }
 
+    // ---------------------------------------------------------------- VERROU
+
+    /**
+     * Au-dela de ce delai sans activite, le verrou est considere comme abandonne. Sans cela, un poste ferme
+     * brutalement condamnerait la suggestion pour tout le monde.
+     */
+    private static final long VERROU_EXPIRATION_MS = 20L * 60L * 1000L;
+
+    @Override
+    public JSONObject ouvrirPourTraitement(TUser user, String suggestionId) {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return echec("Suggestion introuvable.");
+        }
+        JSONObject detail = detail(user, suggestionId);
+        if (!detail.optBoolean("success", false)) {
+            return detail;
+        }
+
+        TUser occupant = s.getLgUSERVERROUID();
+        boolean perime = s.getDtVERROU() == null
+                || (System.currentTimeMillis() - s.getDtVERROU().getTime()) > VERROU_EXPIRATION_MS;
+        boolean libre = occupant == null || perime;
+        boolean parMoi = occupant != null && occupant.getLgUSERID().equals(user.getLgUSERID());
+
+        // Une suggestion close n'est plus modifiable : inutile de la verrouiller.
+        boolean close = TSuggestionReserve.STATUT_TRAITEE.equals(s.getStrSTATUT())
+                || TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT());
+
+        if (close) {
+            return detail.put("modifiable", false).put("verrou_par", "").put("verrou_depuis", "")
+                    .put("motif_lecture_seule", "Cette suggestion est cloturee : elle est consultable uniquement.");
+        }
+        if (libre || parMoi) {
+            s.setLgUSERVERROUID(user);
+            s.setDtVERROU(new Date());
+            em.merge(s);
+            LOG.log(Level.INFO, "verrou pris suggestion={0} user={1}",
+                    new Object[] { suggestionId, user.getLgUSERID() });
+            return detail.put("modifiable", true).put("verrou_par", "").put("verrou_depuis", "");
+        }
+
+        // Occupee par quelqu'un d'autre : on laisse consulter, sans autoriser la saisie.
+        LOG.log(Level.INFO, "verrou refuse suggestion={0} occupant={1} demandeur={2}",
+                new Object[] { suggestionId, occupant.getLgUSERID(), user.getLgUSERID() });
+        return detail.put("modifiable", false).put("verrou_par", nomUtilisateur(occupant))
+                .put("verrou_depuis", dateTexte(s.getDtVERROU()))
+                .put("motif_lecture_seule", nomUtilisateur(occupant) + " a ouvert cette suggestion depuis "
+                        + dateTexte(s.getDtVERROU())
+                        + ". Vous pouvez la consulter, mais pas la modifier tant qu'elle est occupee.");
+    }
+
+    @Override
+    public JSONObject libererVerrou(TUser user, String suggestionId) {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return echec("Suggestion introuvable.");
+        }
+        // On ne libere que SON propre verrou : personne ne peut deloger quelqu'un d'autre.
+        if (s.getLgUSERVERROUID() != null && s.getLgUSERVERROUID().getLgUSERID().equals(user.getLgUSERID())) {
+            s.setLgUSERVERROUID(null);
+            s.setDtVERROU(null);
+            em.merge(s);
+            LOG.log(Level.INFO, "verrou libere suggestion={0} user={1}",
+                    new Object[] { suggestionId, user.getLgUSERID() });
+        }
+        return new JSONObject().put("success", true);
+    }
+
+    /**
+     * Verifie que l'utilisateur detient bien la suggestion avant toute modification, et prolonge son verrou.
+     *
+     * @return {@code null} si l'operation peut se poursuivre, sinon le refus a retourner tel quel
+     */
+    private JSONObject verifierVerrou(TUser user, TSuggestionReserve s) {
+        if (s == null) {
+            return echec("Suggestion introuvable.");
+        }
+        TUser occupant = s.getLgUSERVERROUID();
+        boolean perime = s.getDtVERROU() == null
+                || (System.currentTimeMillis() - s.getDtVERROU().getTime()) > VERROU_EXPIRATION_MS;
+        if (occupant != null && !perime && !occupant.getLgUSERID().equals(user.getLgUSERID())) {
+            return echec(nomUtilisateur(occupant) + " a ouvert cette suggestion depuis " + dateTexte(s.getDtVERROU())
+                    + " : vos modifications ne peuvent pas etre enregistrees tant qu'elle est occupee.")
+                            .put("code", "SUGGESTION_OCCUPEE");
+        }
+        // L'utilisateur travaille dessus : on repousse l'expiration.
+        s.setLgUSERVERROUID(user);
+        s.setDtVERROU(new Date());
+        em.merge(s);
+        return null;
+    }
+
     // ------------------------------------------------------------ SAISIE LIGNES
 
     @Override
@@ -362,6 +455,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         if (qte < 0) {
             return echec("La quantite ne peut pas etre negative.");
+        }
+        JSONObject refus = verifierVerrou(user, d.getLgSUGGESTIONRESERVEID());
+        if (refus != null) {
+            return refus;
         }
         // Zero retire la ligne, sans creer le moindre mouvement de stock.
         if (qte == 0) {
@@ -391,6 +488,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
             return echec("Cette ligne a deja ete traitee : elle ne peut plus etre retiree.");
         }
+        JSONObject refusVerrou = verifierVerrou(user, d.getLgSUGGESTIONRESERVEID());
+        if (refusVerrou != null) {
+            return refusVerrou;
+        }
         // La ligne est conservee en base, marquee SUPPRIMEE : la trace de ce qui avait ete propose subsiste.
         d.setStrETAT(TSuggestionReserveDetail.ETAT_SUPPRIMEE);
         d.setIntQTERETENUE(0);
@@ -411,6 +512,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         if (TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())) {
             return echec("Cette suggestion est deja supprimee.");
+        }
+        JSONObject refusVerrou = verifierVerrou(user, s);
+        if (refusVerrou != null) {
+            return refusVerrou;
         }
         // Un mouvement de stock deja execute ne doit jamais pouvoir etre masque par une suppression.
         for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
@@ -448,6 +553,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         if (TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())) {
             return echec("Cette suggestion est supprimee : elle ne peut plus etre traitee.");
+        }
+        JSONObject refus = verifierVerrou(user, s);
+        if (refus != null) {
+            return refus;
         }
 
         List<String> aTraiter = new ArrayList<>();

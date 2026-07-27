@@ -191,6 +191,31 @@ public class SuggestionReserveRessource {
         return Response.ok().entity(suggestionReserveService.compteRendu(user, id).toString()).build();
     }
 
+    /**
+     * Ouvre la suggestion pour la traiter, en la reservant si personne ne l'occupe. Reponse enrichie de
+     * {@code modifiable} et, le cas echeant, du nom de la personne qui la detient.
+     */
+    @PUT
+    @Path("{id}/ouvrir")
+    public Response ouvrir(@PathParam("id") String id) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(suggestionReserveService.ouvrirPourTraitement(user, id).toString()).build();
+    }
+
+    /** Rend la suggestion disponible pour les autres. */
+    @PUT
+    @Path("{id}/liberer")
+    public Response liberer(@PathParam("id") String id) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(suggestionReserveService.libererVerrou(user, id).toString()).build();
+    }
+
     /** Cree un inventaire reserve portant sur les produits de la suggestion. */
     @POST
     @Path("{id}/inventaire")

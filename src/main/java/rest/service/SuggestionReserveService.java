@@ -47,6 +47,25 @@ public interface SuggestionReserveService {
     JSONObject detail(TUser user, String suggestionId);
 
     /**
+     * Prend la suggestion pour la traiter, si personne d'autre ne l'occupe.
+     *
+     * <p>
+     * Deux personnes ne doivent pas saisir les quantites d'une meme suggestion en meme temps : leurs saisies
+     * s'ecraseraient mutuellement sans que ni l'une ni l'autre s'en apercoive. Tant qu'une personne l'occupe, les
+     * autres peuvent la CONSULTER mais pas la modifier, et sont averties de qui la detient.
+     *
+     * <p>
+     * Un poste ferme brutalement ne condamne pas la suggestion : passe un delai d'inactivite, le verrou est considere
+     * comme perime et repris automatiquement.
+     *
+     * @return le detail habituel, enrichi de {@code verrou_par}, {@code verrou_depuis} et {@code modifiable}
+     */
+    JSONObject ouvrirPourTraitement(TUser user, String suggestionId);
+
+    /** Rend la suggestion disponible pour les autres. Sans effet si elle est occupee par quelqu'un d'autre. */
+    JSONObject libererVerrou(TUser user, String suggestionId);
+
+    /**
      * Enregistre la quantite retenue d'une ligne. Aucun stock ne bouge a ce stade.
      *
      * <p>

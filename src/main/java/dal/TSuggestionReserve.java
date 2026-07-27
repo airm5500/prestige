@@ -103,6 +103,15 @@ public class TSuggestionReserve implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCLOTURE;
 
+    /** Utilisateur occupant actuellement la suggestion, et depuis quand. */
+    @JoinColumn(name = "lg_USER_VERROU_ID", referencedColumnName = "lg_USER_ID")
+    @ManyToOne
+    private TUser lgUSERVERROUID;
+
+    @Column(name = "dt_VERROU")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date dtVERROU;
+
     @OneToMany(cascade = CascadeType.ALL, mappedBy = "lgSUGGESTIONRESERVEID")
     private Collection<TSuggestionReserveDetail> details;
 
@@ -231,6 +240,22 @@ public class TSuggestionReserve implements Serializable {
 
     public void setDtCLOTURE(Date dtCLOTURE) {
         this.dtCLOTURE = dtCLOTURE;
+    }
+
+    public TUser getLgUSERVERROUID() {
+        return lgUSERVERROUID;
+    }
+
+    public void setLgUSERVERROUID(TUser lgUSERVERROUID) {
+        this.lgUSERVERROUID = lgUSERVERROUID;
+    }
+
+    public Date getDtVERROU() {
+        return dtVERROU;
+    }
+
+    public void setDtVERROU(Date dtVERROU) {
+        this.dtVERROU = dtVERROU;
     }
 
     public Collection<TSuggestionReserveDetail> getDetails() {
