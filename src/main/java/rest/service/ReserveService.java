@@ -78,6 +78,34 @@ public interface ReserveService {
     JSONObject assortBatch(TUser user, List<JSONObject> items);
 
     /**
+     * Deplacement rayon&lt;-&gt;reserve qui REJOINT la transaction de l'appelant, au lieu d'ouvrir la sienne.
+     *
+     * <p>
+     * Destine au traitement d'une suggestion : le mouvement de stock et la mise a jour de la ligne de suggestion
+     * doivent etre valides ensemble. Sans cela, une ecriture de ligne en echec apres un mouvement reussi laisserait la
+     * ligne rejouable, et le stock pourrait etre deplace deux fois.
+     *
+     * @param categorie
+     *            RAYON (reserve -&gt; rayon) ou RESERVE (rayon -&gt; reserve)
+     */
+    JSONObject deplacer(TUser user, String familleId, int qte, String categorie);
+
+    /**
+     * Proposition de mouvement pour UN produit et un sens donne, accompagnee de son explication.
+     *
+     * <p>
+     * Source de verite unique du calcul : le service de suggestions l'appelle au lieu de reecrire la formule, ce qui
+     * garantit que la quantite persistee est celle qu'affichent les ecrans.
+     *
+     * @param categorie
+     *            RAYON (reserve -&gt; rayon) ou RESERVE (rayon -&gt; reserve)
+     *
+     * @return {@code {declencheur, int_STOCK_RAYON, int_STOCK_RESERVE, int_SEUIL_DECLENCHEUR, int_CIBLE,
+     *         int_DISPONIBLE, int_PROPOSITION, str_FORMULE}}, ou {@code null} si le produit est introuvable
+     */
+    JSONObject proposition(TUser user, String familleId, String categorie);
+
+    /**
      * Export Excel de la liste des articles de l'onglet courant. Les donnees sont produites par
      * {@link #listArticles} : les chiffres exportes sont donc rigoureusement ceux affiches a l'ecran, filtres compris.
      *

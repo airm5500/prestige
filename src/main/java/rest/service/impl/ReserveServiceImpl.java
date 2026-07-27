@@ -5,6 +5,7 @@ import dal.TFamille;
 import dal.TFamilleStock;
 import dal.TGrossiste;
 import dal.TMouvementReserve;
+import dal.TSuggestionReserve;
 import dal.TTypeStockFamille;
 import dal.TUser;
 import java.util.ArrayList;
@@ -449,14 +450,16 @@ public class ReserveServiceImpl implements ReserveService {
             em.merge(typeRayon);
             em.merge(typeReserve);
 
-            recordMouvement(famille, user, stockRayon.getLgEMPLACEMENTID(), typeMouvement, qte, rayonAvant,
-                    reserveAvant, stockRayon.getIntNUMBERAVAILABLE(), typeReserve.getIntNUMBER());
+            String mouvementId = recordMouvement(famille, user, stockRayon.getLgEMPLACEMENTID(), typeMouvement, qte,
+                    rayonAvant, reserveAvant, stockRayon.getIntNUMBERAVAILABLE(), typeReserve.getIntNUMBER());
 
             LOG.log(Level.INFO, "doMove apres: famille={0} rayonApres={1} reserveApres={2}",
                     new Object[] { familleId, stockRayon.getIntNUMBERAVAILABLE(), typeReserve.getIntNUMBER() });
             return new JSONObject().put("success", true).put("message", "Operation effectuee avec succes.")
                     .put("lg_FAMILLE_ID", familleId).put("int_NUMBER", stockRayon.getIntNUMBERAVAILABLE())
-                    .put("int_STOCK_RESERVE", typeReserve.getIntNUMBER());
+                    .put("int_STOCK_RESERVE", typeReserve.getIntNUMBER())
+                    // Permet a une suggestion de rattacher sa ligne au mouvement genere (tracabilite, annulation).
+                    .put("lg_MOUVEMENT_ID", mouvementId).put("int_QTE", qte);
         } catch (PessimisticLockException | LockTimeoutException | OptimisticLockException e) {
             // Un autre traitement (vente, cloture d'inventaire, autre mouvement) detient la ligne ou l'a modifiee
             // entre-temps : rien n'est ecrit, l'utilisateur peut simplement reessayer.
@@ -481,6 +484,62 @@ public class ReserveServiceImpl implements ReserveService {
         } catch (Exception ignore) {
             LOG.log(Level.FINE, "markRollback: pas de transaction active");
         }
+    }
+
+    /**
+     * Volontairement SANS REQUIRES_NEW : ce deplacement rejoint la transaction de l'appelant pour que le mouvement de
+     * stock et ce que l'appelant en fait (mise a jour d'une ligne de suggestion) soient valides ou annules ensemble.
+     */
+    @Override
+    public JSONObject deplacer(TUser user, String familleId, int qte, String categorie) {
+        String type = TSuggestionReserve.CATEGORIE_RESERVE.equalsIgnoreCase(categorie) ? TMouvementReserve.TYPE_ASSORT
+                : TMouvementReserve.TYPE_REASSORT;
+        return doMove(user, familleId, qte, type);
+    }
+
+    // ------------------------------------------------------------ PROPOSITION
+
+    @Override
+    public JSONObject proposition(TUser user, String familleId, String categorie) {
+        TFamille f = em.find(TFamille.class, familleId);
+        if (f == null) {
+            return null;
+        }
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        int stockRayon = nz(getNumberAvailable(familleId, empl));
+        int stockReserve = nz(getTypeStockNumber(TYPE_STOCK_RESERVE, familleId, empl));
+        int seuilReserve = nz(f.getIntSEUILRESERVE());
+        Integer seuilMini = f.getIntSEUILMINIRAYON();
+
+        JSONObject json = new JSONObject();
+        json.put("lg_FAMILLE_ID", familleId);
+        json.put("int_STOCK_RAYON", stockRayon);
+        json.put("int_STOCK_RESERVE", stockReserve);
+
+        if (TSuggestionReserve.CATEGORIE_RESERVE.equalsIgnoreCase(categorie)) {
+            // Excedent en rayon : on range le trop-plein en reserve. Meme formule que l'onglet REAPPRO.
+            int proposition = Math.max(0, stockRayon - seuilReserve);
+            json.put("declencheur", "Excedent en rayon");
+            json.put("int_SEUIL_DECLENCHEUR", seuilReserve);
+            json.put("int_CIBLE", seuilReserve);
+            json.put("int_DISPONIBLE", stockRayon);
+            json.put("int_PROPOSITION", proposition);
+            json.put("str_FORMULE", "stock rayon (" + stockRayon + ") - seuil reserve (" + seuilReserve + ") = "
+                    + proposition);
+        } else {
+            // Rayon sous le seuil mini : on regarnit depuis la reserve, sans jamais depasser le disponible.
+            // Meme formule que lignesSuggestions() et que l'onglet REASSORT.
+            int manque = Math.max(0, seuilReserve - stockRayon);
+            int proposition = Math.min(stockReserve, manque);
+            json.put("declencheur", "Rayon sous le seuil mini");
+            json.put("int_SEUIL_DECLENCHEUR", seuilMini != null ? seuilMini : JSONObject.NULL);
+            json.put("int_CIBLE", seuilReserve);
+            json.put("int_DISPONIBLE", stockReserve);
+            json.put("int_PROPOSITION", proposition);
+            json.put("str_FORMULE", "min( stock reserve (" + stockReserve + ") ; seuil reserve (" + seuilReserve
+                    + ") - stock rayon (" + stockRayon + ") = " + manque + " ) = " + proposition);
+        }
+        return json;
     }
 
     // ----------------------------------------------------------------- EXPORT
@@ -743,7 +802,8 @@ public class ReserveServiceImpl implements ReserveService {
         return Math.max(seuilManuel, seuilVentes);
     }
 
-    private void recordMouvement(TFamille famille, TUser user, TEmplacement emplacement, String type, int qte,
+    /** @return l'identifiant du mouvement cree, pour que l'appelant puisse s'y rattacher. */
+    private String recordMouvement(TFamille famille, TUser user, TEmplacement emplacement, String type, int qte,
             int rayonAvant, int reserveAvant, int rayonApres, int reserveApres) {
         TMouvementReserve m = new TMouvementReserve();
         m.setLgMOUVEMENTID(UUID.randomUUID().toString());
@@ -758,6 +818,7 @@ public class ReserveServiceImpl implements ReserveService {
         m.setIntSTOCKRESERVEAPRES(reserveApres);
         m.setDtCREATED(new Date());
         em.persist(m);
+        return m.getLgMOUVEMENTID();
     }
 
     private TFamilleStock findFamilleStock(String familleId, String empl) {
