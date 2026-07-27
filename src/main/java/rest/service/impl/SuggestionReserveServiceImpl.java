@@ -44,11 +44,19 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
     private static final Logger LOG = Logger.getLogger(SuggestionReserveServiceImpl.class.getName());
 
+    /** Interrupteur du declenchement sur vente : mettre a 0 en base pour le desactiver sans redeploiement. */
+    private static final String PARAM_HOOK_VENTE = "SUGGESTION_RESERVE_HOOK_VENTE";
+    /** Cle de regroupement des produits d'une meme vente, portee par la transaction en cours. */
+    private static final String CLE_PRODUITS_VENTE = "SUGGESTION_RESERVE_PRODUITS_VENTE";
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
     @Resource
     private SessionContext sessionContext;
+
+    @Resource
+    private javax.transaction.TransactionSynchronizationRegistry txRegistry;
 
     @EJB
     private ReserveService reserveService;
@@ -633,6 +641,80 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 // Un produit en erreur ne prive pas les autres de leur evaluation.
                 LOG.log(Level.WARNING, "evaluerApresMouvementLot famille=" + familleId, e);
             }
+        }
+    }
+
+    @Override
+    public void planifierEvaluationApresVente(TUser user, String familleId) {
+        if (familleId == null || familleId.trim().isEmpty()) {
+            return;
+        }
+        try {
+            // Un seul regroupement par transaction : les produits d'un meme ticket sont evalues ensemble.
+            @SuppressWarnings("unchecked")
+            java.util.Set<String> enAttente = (java.util.Set<String>) txRegistry.getResource(CLE_PRODUITS_VENTE);
+            if (enAttente != null) {
+                enAttente.add(familleId);
+                return;
+            }
+            final java.util.Set<String> produits = new java.util.LinkedHashSet<>();
+            produits.add(familleId);
+            txRegistry.putResource(CLE_PRODUITS_VENTE, produits);
+
+            // Le proxy est capte maintenant : il servira a declencher l'evaluation dans sa propre
+            // transaction, une fois celle de la vente terminee.
+            final SuggestionReserveService self = sessionContext.getBusinessObject(SuggestionReserveService.class);
+            final TUser vendeur = user;
+            txRegistry.registerInterposedSynchronization(new javax.transaction.Synchronization() {
+                @Override
+                public void beforeCompletion() {
+                    // Rien : tout se joue apres la validation.
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                    // Vente annulee ou en erreur : aucune suggestion a produire.
+                    if (status != javax.transaction.Status.STATUS_COMMITTED) {
+                        return;
+                    }
+                    try {
+                        self.evaluerApresVente(vendeur, produits);
+                    } catch (Exception e) {
+                        LOG.log(Level.WARNING, "Suggestions de reserve non evaluees apres la vente", e);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            // Inscription impossible : on renonce silencieusement, la vente prime.
+            LOG.log(Level.WARNING, "planifierEvaluationApresVente famille=" + familleId, e);
+        }
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void evaluerApresVente(TUser user, java.util.Collection<String> familleIds) {
+        if (!hookVenteActif()) {
+            return;
+        }
+        evaluerApresMouvementLot(user, familleIds);
+    }
+
+    /**
+     * Declenchement sur vente actif par defaut. Positionner le parametre en base a {@code 0} le desactive sans
+     * redeploiement : le reste du module continue de fonctionner, seules les suggestions issues des ventes cessent
+     * d'etre generees.
+     */
+    private boolean hookVenteActif() {
+        try {
+            dal.TParameters p = em.find(dal.TParameters.class, PARAM_HOOK_VENTE);
+            if (p == null || p.getStrVALUE() == null) {
+                return true;
+            }
+            String v = p.getStrVALUE().trim();
+            return !("0".equals(v) || "false".equalsIgnoreCase(v) || "non".equalsIgnoreCase(v));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "hookVenteActif", e);
+            return true;
         }
     }
 

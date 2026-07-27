@@ -77,6 +77,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     @EJB
     private SuggestionService suggestionService;
     @EJB
+    private rest.service.SuggestionReserveService suggestionReserveService;
+    @EJB
     private LogService logService;
     @EJB
     private MouvementProduitService mouvementProduitService;
@@ -223,6 +225,11 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             this.getEmg().merge(it);
             updateStockDepot(typeMvtProduit, tu, tFamille, it.getIntQUANTITY(), depot);
             suggestionService.makeSuggestionAuto(familleStock, tFamille);
+            try {
+                suggestionReserveService.planifierEvaluationApresVente(tu, tFamille.getLgFAMILLEID());
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Suggestion de reserve non planifiee pour " + tFamille.getLgFAMILLEID(), e);
+            }
         }
         if (!items.isEmpty()) {
             Map<String, Object> donnee = new HashMap<>();
@@ -323,6 +330,13 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 this.suggestionService.makeSuggestionAuto(stockParent, otFamilleParent);
             } else {
                 this.suggestionService.makeSuggestionAuto(familleStock, tFamille);
+            }
+            // Suggestions de reserve : on se contente d'inscrire le produit, l'evaluation se fera une
+            // fois la vente validee. Encadre : la vente prime sur toute suggestion.
+            try {
+                suggestionReserveService.planifierEvaluationApresVente(tu, tFamille.getLgFAMILLEID());
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Suggestion de reserve non planifiee pour " + tFamille.getLgFAMILLEID(), e);
             }
 
         });

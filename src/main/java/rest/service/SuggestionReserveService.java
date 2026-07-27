@@ -111,4 +111,31 @@ public interface SuggestionReserveService {
 
     /** Variante pour plusieurs produits, typiquement a la cloture d'un bon de livraison. */
     void evaluerApresMouvementLot(TUser user, java.util.Collection<String> familleIds);
+
+    /**
+     * Programme l'evaluation d'un produit pour qu'elle s'execute UNE FOIS LA VENTE VALIDEE.
+     *
+     * <p>
+     * Le flux de vente est en transaction geree par le conteneur : il n'offre aucun point apres validation. On
+     * s'inscrit donc sur la transaction en cours, et l'evaluation se declenche a sa cloture, quand le stock est
+     * definitif. Sans cela, la vente qui fait franchir le seuil ne serait pas vue et le declenchement aurait une
+     * vente de retard.
+     *
+     * <p>
+     * Les produits d'une meme vente sont regroupes : une seule evaluation pour l'ensemble du ticket.
+     *
+     * <p>
+     * L'inscription ne touche pas la base et ne leve jamais. L'evaluation, elle, se declenche alors que la vente est
+     * DEJA VALIDEE : elle ne peut donc structurellement pas la remettre en cause.
+     */
+    void planifierEvaluationApresVente(TUser user, String familleId);
+
+    /**
+     * Evaluation declenchee apres validation d'une vente, soumise au parametre d'activation.
+     *
+     * <p>
+     * Usage interne, appelee par le mecanisme ci-dessus. Positionner le parametre
+     * {@code SUGGESTION_RESERVE_HOOK_VENTE} a {@code 0} desactive ce declenchement sans redeploiement.
+     */
+    void evaluerApresVente(TUser user, java.util.Collection<String> familleIds);
 }
