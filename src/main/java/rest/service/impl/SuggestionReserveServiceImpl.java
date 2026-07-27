@@ -171,20 +171,32 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return null;
         }
 
+        // Quand l'utilisateur saisit lui-meme une quantite alors que la regle automatique ne
+        // propose rien, c'est LUI qui propose : sa valeur devient la proposition initiale.
+        // Enregistrer zero afficherait une suggestion vide et marquerait la ligne "modifiee"
+        // des son ouverture, alors que l'utilisateur n'a encore rien change.
+        boolean saisieManuelle = (proposition <= 0 && qteRetenueDemandee > 0);
+        int propositionInitiale = saisieManuelle ? qteRetenueDemandee : proposition;
+
         TSuggestionReserveDetail d = new TSuggestionReserveDetail(IdGenerator.getComplexId());
         d.setLgSUGGESTIONRESERVEID(s);
         d.setLgFAMILLEID(famille);
-        d.setIntQTEPROPOSEE(proposition);
-        // Une quantite transmise par l'ecran est une quantite RETENUE, jamais une proposition.
-        d.setIntQTERETENUE(qteRetenueDemandee > 0 ? qteRetenueDemandee : proposition);
+        d.setIntQTEPROPOSEE(propositionInitiale);
+        d.setIntQTERETENUE(qteRetenueDemandee > 0 ? qteRetenueDemandee : propositionInitiale);
         d.setIntQTEDEPLACEE(0);
         d.setIntSTOCKRAYON(p.optInt("int_STOCK_RAYON", 0));
         d.setIntSTOCKRESERVE(p.optInt("int_STOCK_RESERVE", 0));
         d.setIntSEUILDECLENCHEUR(p.isNull("int_SEUIL_DECLENCHEUR") ? null : p.optInt("int_SEUIL_DECLENCHEUR"));
         d.setIntCIBLE(p.optInt("int_CIBLE", 0));
         d.setIntDISPONIBLE(p.optInt("int_DISPONIBLE", 0));
-        d.setStrFORMULE(p.optString("str_FORMULE", ""));
-        d.setStrETAT(qteRetenueDemandee > 0 && qteRetenueDemandee != proposition
+        // L'explication doit dire la verite : afficher une soustraction qui donne zero alors
+        // que la ligne porte une quantite serait incomprehensible.
+        d.setStrFORMULE(saisieManuelle
+                ? "Quantite saisie manuellement (" + qteRetenueDemandee + "). La regle automatique ne "
+                        + "proposait rien : " + p.optString("str_FORMULE", "")
+                : p.optString("str_FORMULE", ""));
+        // La ligne n'est "modifiee" que si l'utilisateur s'ecarte reellement de ce qui a ete propose.
+        d.setStrETAT(qteRetenueDemandee > 0 && qteRetenueDemandee != propositionInitiale
                 ? TSuggestionReserveDetail.ETAT_MODIFIEE
                 : TSuggestionReserveDetail.ETAT_PROPOSEE);
         d.setDtCREATED(new Date());
