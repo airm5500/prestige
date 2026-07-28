@@ -120,6 +120,30 @@ public interface SuggestionReserveService {
      */
     JSONObject traiterLigneIsolee(TUser user, String detailId);
 
+    /**
+     * Controles prealables au traitement, dans sa propre transaction : verrou, statut, et liste des lignes a traiter.
+     *
+     * <p>
+     * Expose pour l'appel via le proxy du bean. Doit etre VALIDE avant que les lignes ne soient traitees, sans quoi la
+     * relecture finale ne verrait pas leurs modifications.
+     */
+    JSONObject preparerTraitement(TUser user, String suggestionId, boolean seulementEchecs);
+
+    /**
+     * Recalcule le statut puis rend le compte rendu, dans une transaction NEUVE.
+     *
+     * <p>
+     * Indispensable : la base travaille en lecture repetable, une transaction ouverte avant le traitement continuerait
+     * de voir les lignes telles qu'elles etaient AVANT, et compterait comme ignoree une ligne pourtant deplacee.
+     */
+    JSONObject finaliserEtCompteRendu(TUser user, String suggestionId);
+
+    /** Controles prealables a l'annulation et liste des lignes annulables, dans sa propre transaction. */
+    JSONObject preparerAnnulation(TUser user, String suggestionId);
+
+    /** Recalcule le statut apres annulation, dans une transaction neuve. Meme raison qu'au traitement. */
+    void finaliserAnnulation(TUser user, String suggestionId);
+
     /** Relit le compte rendu d'une suggestion deja traitee, pour affichage, export ou impression. */
     JSONObject compteRendu(TUser user, String suggestionId);
 

@@ -565,16 +565,58 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     // ---------------------------------------------------------------- TRAITEMENT
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject traiter(TUser user, String suggestionId) {
         return executer(user, suggestionId, false);
     }
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject reessayerEchecs(TUser user, String suggestionId) {
         return executer(user, suggestionId, true);
     }
 
+    /**
+     * Orchestre le traitement SANS transaction englobante.
+     *
+     * <p>
+     * C'est le point cle. La base travaille en lecture repetable : une transaction qui a deja lu conserve son image des
+     * donnees jusqu'a sa fin, et ne verrait donc jamais les lignes validees entre-temps par les traitements isoles.
+     * Elle compterait comme ignoree une ligne pourtant deplacee, et laisserait le statut a En cours. Les trois etapes
+     * s'executent donc chacune dans SA PROPRE transaction, par le proxy du bean.
+     */
     private JSONObject executer(TUser user, String suggestionId, boolean seulementEchecs) {
+        SuggestionReserveService self = sessionContext.getBusinessObject(SuggestionReserveService.class);
+
+        JSONObject prepa = self.preparerTraitement(user, suggestionId, seulementEchecs);
+        if (!prepa.optBoolean("success", false)) {
+            return prepa;
+        }
+        JSONArray ids = prepa.optJSONArray("ids");
+        int nb = ids == null ? 0 : ids.length();
+
+        LOG.log(Level.INFO, "traitement suggestion={0} lignes={1} reprise={2} user={3}",
+                new Object[] { suggestionId, nb, seulementEchecs, user.getLgUSERID() });
+
+        // Chaque ligne dans sa propre transaction : un echec ne condamne pas les lignes deja passees.
+        for (int i = 0; i < nb; i++) {
+            String detailId = ids.optString(i, null);
+            if (detailId == null || detailId.isEmpty()) {
+                continue;
+            }
+            try {
+                self.traiterLigneIsolee(user, detailId);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "traitement ligne " + detailId, e);
+            }
+        }
+
+        return self.finaliserEtCompteRendu(user, suggestionId);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public JSONObject preparerTraitement(TUser user, String suggestionId, boolean seulementEchecs) {
         TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
         if (s == null) {
             return echec("Suggestion introuvable.");
@@ -587,53 +629,24 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return refus;
         }
 
-        List<String> aTraiter = new ArrayList<>();
+        JSONArray ids = new JSONArray();
         for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
             if (seulementEchecs) {
                 if (TSuggestionReserveDetail.ETAT_ECHEC.equals(d.getStrETAT())) {
-                    aTraiter.add(d.getLgSUGGESTIONRESERVEDETAILID());
+                    ids.put(d.getLgSUGGESTIONRESERVEDETAILID());
                 }
             } else if (estTraitable(d)) {
-                aTraiter.add(d.getLgSUGGESTIONRESERVEDETAILID());
+                ids.put(d.getLgSUGGESTIONRESERVEDETAILID());
             }
         }
-
-        LOG.log(Level.INFO, "traitement suggestion={0} lignes={1} reprise={2} user={3}",
-                new Object[] { suggestionId, aTraiter.size(), seulementEchecs, user.getLgUSERID() });
-
-        // Chaque ligne dans sa propre transaction : un echec ne condamne pas les lignes deja passees.
-        SuggestionReserveService self = sessionContext.getBusinessObject(SuggestionReserveService.class);
-        for (String detailId : aTraiter) {
-            try {
-                self.traiterLigneIsolee(user, detailId);
-            } catch (Exception e) {
-                LOG.log(Level.SEVERE, "traitement ligne " + detailId, e);
-            }
-        }
-        // Les lignes viennent d'etre modifiees et validees dans des transactions SEPAREES. Le
-        // contexte de persistance courant garde encore les versions chargees avant traitement :
-        // relire sans le vider renverrait ces valeurs perimees, et une ligne pourtant deplacee
-        // serait comptee comme ignoree, le statut restant a tort En cours.
-        rafraichirContexte();
-
-        finaliserStatut(suggestionId, user);
-        return compteRendu(user, suggestionId);
+        return new JSONObject().put("success", true).put("ids", ids);
     }
 
-    /**
-     * Vide le contexte de persistance apres des ecritures faites dans des transactions separees, pour que les lectures
-     * suivantes viennent de la base et non du cache.
-     *
-     * <p>
-     * Les modifications en attente sont d'abord ecrites : sans cela, vider le contexte les perdrait.
-     */
-    private void rafraichirContexte() {
-        try {
-            em.flush();
-        } catch (RuntimeException e) {
-            LOG.log(Level.WARNING, "rafraichirContexte: flush impossible", e);
-        }
-        em.clear();
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public JSONObject finaliserEtCompteRendu(TUser user, String suggestionId) {
+        finaliserStatut(suggestionId, user);
+        return compteRendu(user, suggestionId);
     }
 
     private static boolean estTraitable(TSuggestionReserveDetail d) {
@@ -964,31 +977,28 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     }
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject annulerSuggestion(TUser user, String suggestionId, String motif) {
-        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
-        if (s == null) {
-            return echec("Suggestion introuvable.");
-        }
-        if (!reserveService.peutAnnuler(user)) {
-            return echec("Vous n'avez pas le privilege requis pour annuler un mouvement de reserve.");
-        }
-
-        List<String> traitees = new ArrayList<>();
-        JSONArray nonAnnulables = new JSONArray();
-        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
-            if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
-                traitees.add(d.getLgSUGGESTIONRESERVEDETAILID());
-            } else if (!TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(d.getStrETAT())) {
-                // Rien n'a bouge pour cette ligne : il n'y a tout simplement rien a defaire.
-                nonAnnulables.put(ligneJson(user, d).put("motif_refus",
-                        "Ligne non traitee : aucun mouvement a annuler."));
-            }
-        }
-
+        // Sans transaction englobante, pour la meme raison qu'au traitement : une transaction deja
+        // ouverte conserverait son image des lignes et recalculerait le statut sur des valeurs
+        // anterieures aux annulations.
         SuggestionReserveService self = sessionContext.getBusinessObject(SuggestionReserveService.class);
+
+        JSONObject prepa = self.preparerAnnulation(user, suggestionId);
+        if (!prepa.optBoolean("success", false)) {
+            return prepa;
+        }
+        JSONArray ids = prepa.optJSONArray("ids");
+        JSONArray nonAnnulables = prepa.optJSONArray("lignes_non_annulables");
+        int nb = ids == null ? 0 : ids.length();
+
         JSONArray annulees = new JSONArray();
         JSONArray refusees = new JSONArray();
-        for (String detailId : traitees) {
+        for (int i = 0; i < nb; i++) {
+            String detailId = ids.optString(i, null);
+            if (detailId == null || detailId.isEmpty()) {
+                continue;
+            }
             JSONObject r;
             try {
                 r = self.annulerLigneIsolee(user, detailId, motif);
@@ -1003,21 +1013,44 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             }
         }
 
-        // Meme precaution qu'au traitement : les annulations ont ete validees dans des
-        // transactions separees, il faut relire depuis la base et non depuis le cache.
-        rafraichirContexte();
-
-        recalculerStatutApresAnnulation(suggestionId, user);
+        self.finaliserAnnulation(user, suggestionId);
         LOG.log(Level.INFO, "annulation suggestion={0} annulees={1} refusees={2} user={3}",
                 new Object[] { suggestionId, annulees.length(), refusees.length(), user.getLgUSERID() });
         return new JSONObject().put("success", refusees.length() == 0)
                 .put("total_annule", annulees.length()).put("total_refuse", refusees.length())
                 .put("lignes_annulees", annulees).put("lignes_refusees", refusees)
-                .put("lignes_non_annulables", nonAnnulables)
+                .put("lignes_non_annulables", nonAnnulables == null ? new JSONArray() : nonAnnulables)
                 .put("message", annulees.length() + " ligne(s) annulee(s), " + refusees.length() + " refusee(s).");
     }
 
-    /** Une suggestion dont plus aucune ligne n'est traitee redevient traitable. */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public JSONObject preparerAnnulation(TUser user, String suggestionId) {
+        TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
+        if (s == null) {
+            return echec("Suggestion introuvable.");
+        }
+        if (!reserveService.peutAnnuler(user)) {
+            return echec("Vous n'avez pas le privilege requis pour annuler un mouvement de reserve.");
+        }
+        JSONArray ids = new JSONArray();
+        JSONArray nonAnnulables = new JSONArray();
+        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
+            if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
+                ids.put(d.getLgSUGGESTIONRESERVEDETAILID());
+            } else if (!TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(d.getStrETAT())) {
+                // Rien n'a bouge pour cette ligne : il n'y a tout simplement rien a defaire.
+                nonAnnulables.put(ligneJson(user, d).put("motif_refus",
+                        "Ligne non traitee : aucun mouvement a annuler."));
+            }
+        }
+        return new JSONObject().put("success", true).put("ids", ids)
+                .put("lignes_non_annulables", nonAnnulables);
+    }
+
+    /**
+     * Apres annulation : si plus aucune ligne n'est traitee, la suggestion ne peut plus etre close.
+     */
     private void recalculerStatutApresAnnulation(String suggestionId, TUser user) {
         TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
         if (s == null) {
@@ -1040,7 +1073,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         em.merge(s);
     }
 
-    // --------------------------------------------------- GENERATION AUTOMATIQUE
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void finaliserAnnulation(TUser user, String suggestionId) {
+        recalculerStatutApresAnnulation(suggestionId, user);
+    }
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
