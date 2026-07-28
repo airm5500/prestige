@@ -612,7 +612,12 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         if (ajustementDetail == null) {
             TEmplacement emplacement = ajustement.getLgUSERID().getLgEMPLACEMENTID();
             TFamilleStock familleStock = findStockByProduitId(params.getRefTwo(), emplacement.getLgEMPLACEMENTID());
-            Integer currentStock = familleStock.getIntNUMBERAVAILABLE();
+            // Stock de depart de la ligne : celui de la zone REELLEMENT ajustee. Prendre le stock
+            // rayon pour un ajustement de reserve affichait un "stock avant" sans rapport avec ce
+            // qui allait etre corrige, et donc une quantite finale fausse a l'ecran.
+            Integer currentStock = dal.TAjustement.ZONE_RESERVE.equalsIgnoreCase(ajustement.getStrZONE())
+                    ? reserveService.stockReserve(ajustement.getLgUSERID(), params.getRefTwo())
+                    : familleStock.getIntNUMBERAVAILABLE();
             ajustementDetail = new TAjustementDetail();
             ajustementDetail.setLgAJUSTEMENTDETAILID(UUID.randomUUID().toString());
             ajustementDetail.setLgAJUSTEMENTID(ajustement);
@@ -694,7 +699,13 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 return json;
             }
             ajustementDetail.setIntNUMBER(params.getValue());
-            ajustementDetail.setIntNUMBERAFTERSTOCK(params.getValue() + params.getValueTwo());
+            // Le stock de depart est celui deja enregistre sur la ligne, dans la zone reellement
+            // ajustee. S'en remettre a la valeur transmise par l'ecran donnerait une quantite
+            // finale fausse des que la zone n'est pas le rayon.
+            Integer depart = ajustementDetail.getIntNUMBERCURRENTSTOCK() != null
+                    ? ajustementDetail.getIntNUMBERCURRENTSTOCK()
+                    : params.getValueTwo();
+            ajustementDetail.setIntNUMBERAFTERSTOCK(params.getValue() + depart);
             ajustementDetail.setDtUPDATED(new Date());
             emg.merge(ajustementDetail);
             json.put("success", true).put("msg", "L'opération effectuée avec success");

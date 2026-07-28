@@ -73,6 +73,23 @@ public class ReserveRessource {
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + fichier + "\"").build();
     }
 
+    /**
+     * Stock reserve d'un produit, pour les ecrans qui doivent l'afficher sans reconstruire une proposition
+     * (l'ajustement, notamment, quand la zone Reserve est choisie).
+     */
+    @GET
+    @Path("stock-reserve/{familleId}")
+    public Response stockReserve(@PathParam("familleId") String familleId) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok()
+                .entity(new JSONObject().put("int_STOCK_RESERVE", reserveService.stockReserve(user, familleId))
+                        .toString())
+                .build();
+    }
+
     /** Indique si l'utilisateur peut annuler un mouvement : l'ecran masque l'action dans le cas contraire. */
     @GET
     @Path("peut-annuler")

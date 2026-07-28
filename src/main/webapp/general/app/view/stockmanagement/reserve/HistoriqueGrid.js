@@ -15,7 +15,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
     // Code couleur conserve depuis les historiques existants.
     couleurMouvement: {
         ASSORT: '#d97200',
-        REASSORT: '#2a6b2e'
+        REASSORT: '#2a6b2e',
+        AJUSTEMENT: '#6a1b9a'
     },
 
     initComponent: function () {
@@ -150,13 +151,27 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
         var explication = function (rec) {
             var type = rec.get('str_TYPE');
             var qte = rec.get('int_QTE');
-            var versReserve = (type === 'ASSORT');
-            var source = versReserve ? 'du RAYON' : 'de la RESERVE';
-            var dest = versReserve ? 'la RESERVE' : 'le RAYON';
-            return qte + ' unite(s) retiree(s) ' + source + ' pour aller dans ' + dest + '.'
-                    + ' Rayon : ' + rec.get('int_STOCK_RAYON_AVANT') + ' puis ' + rec.get('int_STOCK_RAYON_APRES')
-                    + '. Reserve : ' + rec.get('int_STOCK_RESERVE_AVANT') + ' puis '
-                    + rec.get('int_STOCK_RESERVE_APRES') + '.'
+            var rayonAvant = rec.get('int_STOCK_RAYON_AVANT');
+            var rayonApres = rec.get('int_STOCK_RAYON_APRES');
+            var reserveAvant = rec.get('int_STOCK_RESERVE_AVANT');
+            var reserveApres = rec.get('int_STOCK_RESERVE_APRES');
+            var phrase;
+            if (type === 'AJUSTEMENT') {
+                // Un ajustement n'est PAS un transfert : rien ne passe d'une zone a l'autre, une
+                // seule zone est corrigee. Le texte des transferts, applique ici, laissait croire
+                // a un mouvement rayon-reserve qui n'a jamais eu lieu.
+                var ecart = reserveApres - reserveAvant;
+                phrase = 'Ajustement du stock RESERVE de ' + (ecart >= 0 ? '+' : '') + ecart
+                        + ' unite(s). Aucun transfert : le stock rayon n\'est pas concerne.';
+            } else {
+                var versReserve = (type === 'ASSORT');
+                var source = versReserve ? 'du RAYON' : 'de la RESERVE';
+                var dest = versReserve ? 'la RESERVE' : 'le RAYON';
+                phrase = qte + ' unite(s) retiree(s) ' + source + ' pour aller dans ' + dest + '.';
+            }
+            return phrase
+                    + ' Rayon : ' + rayonAvant + ' puis ' + rayonApres
+                    + '. Reserve : ' + reserveAvant + ' puis ' + reserveApres + '.'
                     + ' Effectue par ' + (rec.get('str_USER') || '-') + ' le ' + rec.get('dt_CREATED') + '.';
         };
         var avecInfobulle = function (texte, m, rec) {

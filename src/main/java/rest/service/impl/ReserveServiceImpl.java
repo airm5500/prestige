@@ -574,6 +574,21 @@ public class ReserveServiceImpl implements ReserveService {
     // ------------------------------------------------------------ PROPOSITION
 
     @Override
+    public int stockReserve(TUser user, String familleId) {
+        if (user == null || familleId == null || familleId.trim().isEmpty()) {
+            return 0;
+        }
+        try {
+            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            TTypeStockFamille t = findTypeStock(TYPE_STOCK_RESERVE, familleId.trim(), empl);
+            return t == null ? 0 : nz(t.getIntNUMBER());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stockReserve famille=" + familleId, e);
+            return 0;
+        }
+    }
+
+    @Override
     public JSONObject proposition(TUser user, String familleId, String categorie) {
         TFamille f = em.find(TFamille.class, familleId);
         if (f == null) {

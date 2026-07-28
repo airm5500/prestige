@@ -168,6 +168,15 @@ public interface ReserveService {
     JSONObject proposition(TUser user, String familleId, String categorie);
 
     /**
+     * Stock actuellement en reserve pour un produit, dans l'emplacement de l'utilisateur.
+     *
+     * <p>
+     * Utile a tout ecran qui doit afficher ou controler le stock reserve sans avoir a reconstruire une proposition.
+     * Renvoie zero si le produit n'est pas suivi en reserve.
+     */
+    int stockReserve(TUser user, String familleId);
+
+    /**
      * Export Excel de la liste des articles de l'onglet courant. Les donnees sont produites par
      * {@link #listArticles} : les chiffres exportes sont donc rigoureusement ceux affiches a l'ecran, filtres compris.
      *
