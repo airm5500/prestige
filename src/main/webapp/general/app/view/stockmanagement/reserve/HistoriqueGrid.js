@@ -32,7 +32,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
                 {name: 'int_STOCK_RAYON_APRES', type: 'int'},
                 {name: 'int_STOCK_RESERVE_AVANT', type: 'int'},
                 {name: 'int_STOCK_RESERVE_APRES', type: 'int'},
-                'str_USER', 'lg_MOUVEMENT_ID'
+                'str_USER', 'lg_MOUVEMENT_ID', 'str_MOTIF_ANNULATION',
+                {name: 'bl_EST_ANNULATION', type: 'boolean'},
+                {name: 'bl_ANNULE', type: 'boolean'}
             ],
             proxy: {
                 type: 'ajax',
