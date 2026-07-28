@@ -46,6 +46,14 @@ public class TSuggestionReserve implements Serializable {
     public static final String STATUT_EN_COURS = "EN_COURS";
     public static final String STATUT_TRAITEE = "TRAITEE";
     public static final String STATUT_SUPPRIMEE = "SUPPRIMEE";
+    /**
+     * Traitee puis integralement defaite par mouvements inverses.
+     *
+     * <p>
+     * Statut TERMINAL : une suggestion annulee ne se retraite pas. La reprendre reproduirait des mouvements que l'on
+     * vient justement d'annuler. Pour refaire l'operation, on cree une nouvelle suggestion.
+     */
+    public static final String STATUT_ANNULEE = "ANNULEE";
 
     @Id
     @Basic(optional = false)

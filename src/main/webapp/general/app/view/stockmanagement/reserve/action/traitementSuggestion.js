@@ -24,7 +24,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
         MODIFIEE: {libelle: 'Modifiee', couleur: '#6600cc'},
         SUPPRIMEE: {libelle: 'Retiree', couleur: '#999999'},
         TRAITEE: {libelle: 'Traitee', couleur: '#2a6b2e'},
-        ECHEC: {libelle: 'Echec', couleur: '#c0392b'}
+        ECHEC: {libelle: 'Echec', couleur: '#c0392b'},
+        ANNULEE: {libelle: 'Annulee', couleur: '#a8231c'}
     },
 
     initComponent: function () {
@@ -68,7 +69,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     // a bouge de l'ancienne valeur. Le serveur refuse deja, l'ecran ne doit pas
                     // laisser croire que c'est possible.
                     var etat = e.record && e.record.get('str_ETAT');
-                    if (etat === 'TRAITEE' || etat === 'SUPPRIMEE' || me.suggestionCloturee) {
+                    if (etat === 'TRAITEE' || etat === 'SUPPRIMEE' || etat === 'ANNULEE'
+                            || me.suggestionCloturee) {
                         return false;
                     }
                     me.ligneEnCours = e.rowIdx;
@@ -88,7 +90,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     return;
                 }
                 // On saute les lignes qui ne sont plus saisissables.
-                if (rec.get('str_ETAT') === 'SUPPRIMEE' || rec.get('str_ETAT') === 'TRAITEE') {
+                var etatLigne = rec.get('str_ETAT');
+                if (etatLigne === 'SUPPRIMEE' || etatLigne === 'TRAITEE' || etatLigne === 'ANNULEE') {
                     focusLigne(rowIndex + 1);
                     return;
                 }
@@ -217,6 +220,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                         var etat = rec.get('str_ETAT');
                         if (etat === 'SUPPRIMEE') {
                             m.style = 'color:#999999;text-decoration:line-through;';
+                            return v;
+                        }
+                        if (etat === 'ANNULEE') {
+                            m.style = 'color:#a8231c;text-decoration:line-through;font-weight:bold;';
                             return v;
                         }
                         // Vert et gras des qu'une quantite a ete validee : on distingue d'un coup d'oeil
@@ -504,17 +511,25 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     // Une suggestion close ne se retraite pas : le bouton le dit au lieu
                     // de rester actif et de laisser croire qu'il reste quelque chose a faire.
                     var cloturee = res.entete && (res.entete.str_STATUT === 'TRAITEE'
-                            || res.entete.str_STATUT === 'SUPPRIMEE');
+                            || res.entete.str_STATUT === 'SUPPRIMEE'
+                            || res.entete.str_STATUT === 'ANNULEE');
                     me.suggestionCloturee = cloturee;
                     me.btnTraiter.setDisabled(cloturee);
                     // Une fois la suggestion traitee, le document utile n'est plus la suggestion a
                     // emmener dans les rayons mais le compte rendu de ce qui a ete fait.
-                    var traitee = res.entete && res.entete.str_STATUT === 'TRAITEE';
+                    var traitee = res.entete && (res.entete.str_STATUT === 'TRAITEE'
+                            || res.entete.str_STATUT === 'ANNULEE');
                     me.imprimerCompteRendu = traitee;
                     me.btnImprimer.setText(traitee ? 'Imprimer le compte rendu'
                             : 'Imprimer la suggestion');
+                    // Visible des qu'un traitement a eu lieu, meme annule depuis : c'est
+                    // justement dans ce cas qu'on veut relire ce qui s'est passe.
                     me.btnCompteRendu.setVisible(traitee);
-                    if (res.entete && res.entete.str_STATUT === 'TRAITEE') {
+                    if (res.entete && res.entete.str_STATUT === 'ANNULEE') {
+                        me.btnTraiter.setText('Annulee');
+                        me.btnTraiter.removeCls('btn-suggestions-violet');
+                        me.btnTraiter.addCls('btn-deja-traitee');
+                    } else if (res.entete && res.entete.str_STATUT === 'TRAITEE') {
                         me.btnTraiter.setText('Deja traitee');
                         me.btnTraiter.removeCls('btn-suggestions-violet');
                         me.btnTraiter.addCls('btn-deja-traitee');
@@ -653,6 +668,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 var aTraiter = 0;
                 store.each(function (r) {
                     if (r.get('str_ETAT') !== 'SUPPRIMEE' && r.get('str_ETAT') !== 'TRAITEE'
+                            && r.get('str_ETAT') !== 'ANNULEE'
                             && r.get('int_QTE_RETENUE') > 0) {
                         aTraiter++;
                     }

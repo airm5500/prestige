@@ -48,6 +48,15 @@ public class TSuggestionReserveDetail implements Serializable {
     public static final String ETAT_TRAITEE = "TRAITEE";
     /** Le traitement a echoue : voir strCODEECHEC. */
     public static final String ETAT_ECHEC = "ECHEC";
+    /**
+     * Traitee puis defaite par un mouvement inverse.
+     *
+     * <p>
+     * Distinct de {@link #ETAT_SUPPRIMEE}, qui designe une ligne ecartee AVANT tout mouvement. Ici le stock a bouge
+     * puis a ete remis en place : la ligne compte toujours comme un produit de la suggestion, et son historique reste
+     * lisible.
+     */
+    public static final String ETAT_ANNULEE = "ANNULEE";
 
     @Id
     @Basic(optional = false)

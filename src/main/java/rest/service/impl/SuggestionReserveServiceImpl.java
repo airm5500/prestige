@@ -483,6 +483,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
             return echec("Cette ligne a deja ete traitee : sa quantite n'est plus modifiable.");
         }
+        if (TSuggestionReserveDetail.ETAT_ANNULEE.equals(d.getStrETAT())) {
+            return echec("Cette ligne a ete annulee : sa quantite n'est plus modifiable.");
+        }
         if (qte < 0) {
             return echec("La quantite ne peut pas etre negative.");
         }
@@ -542,6 +545,12 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         if (TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())) {
             return echec("Cette suggestion est deja supprimee.");
+        }
+        if (TSuggestionReserve.STATUT_ANNULEE.equals(s.getStrSTATUT())) {
+            // Elle porte la trace de mouvements executes puis defaits : la supprimer effacerait
+            // cet historique de l'ecran.
+            return echec("Cette suggestion a ete annulee : elle est conservee pour l'historique "
+                    + "et ne peut plus etre supprimee.");
         }
         JSONObject refusVerrou = verifierVerrou(user, s);
         if (refusVerrou != null) {
@@ -626,6 +635,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())) {
             return echec("Cette suggestion est supprimee : elle ne peut plus etre traitee.");
         }
+        if (TSuggestionReserve.STATUT_ANNULEE.equals(s.getStrSTATUT())) {
+            return echec("Cette suggestion a ete annulee : elle ne peut plus etre traitee. "
+                    + "Creez une nouvelle suggestion pour refaire l'operation.");
+        }
         JSONObject refus = verifierVerrou(user, s);
         if (refus != null) {
             return refus;
@@ -653,8 +666,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
     private static boolean estTraitable(TSuggestionReserveDetail d) {
         String etat = d.getStrETAT();
+        // ANNULEE comprise : rejouer une ligne annulee reproduirait exactement le mouvement que
+        // l'on vient de defaire.
         if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)
-                || TSuggestionReserveDetail.ETAT_TRAITEE.equals(etat)) {
+                || TSuggestionReserveDetail.ETAT_TRAITEE.equals(etat)
+                || TSuggestionReserveDetail.ETAT_ANNULEE.equals(etat)) {
             return false;
         }
         return quantiteARetenir(d) > 0;
@@ -767,7 +783,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 echoues++;
                 demandes++;
                 nonTraites.put(l);
-            } else if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)) {
+            } else if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)
+                    || TSuggestionReserveDetail.ETAT_ANNULEE.equals(etat)) {
                 supprimes++;
                 nonTraites.put(l.put("str_RAISON", raisonNonTraitee(d)));
             } else {
@@ -790,6 +807,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
      */
     private static String raisonNonTraitee(TSuggestionReserveDetail d) {
         String etat = d.getStrETAT();
+        if (TSuggestionReserveDetail.ETAT_ANNULEE.equals(etat)) {
+            String motif = texte(d.getStrMOTIFLIGNE());
+            return motif.isEmpty() ? "Mouvement annule : le stock a ete remis en place."
+                    : motif;
+        }
         if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)) {
             String motif = texte(d.getStrMOTIFLIGNE());
             return motif.isEmpty() ? "Ligne retiree de la suggestion avant le traitement."
@@ -967,9 +989,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return r.put("identite", identite);
         }
 
-        // La ligne repasse a l'etat retire : la trace de ce qui avait ete propose subsiste, mais
-        // plus aucune quantite n'est comptee comme deplacee.
-        d.setStrETAT(TSuggestionReserveDetail.ETAT_SUPPRIMEE);
+        // Etat propre a l'annulation, distinct d'une ligne ecartee avant tout mouvement : ici le
+        // stock a bouge puis a ete remis en place. La ligne reste un produit de la suggestion et
+        // continue donc d'etre comptee.
+        d.setStrETAT(TSuggestionReserveDetail.ETAT_ANNULEE);
         d.setIntQTEDEPLACEE(0);
         d.setStrMOTIFLIGNE("Annulee par mouvement inverse"
                 + (motif == null || motif.trim().isEmpty() ? "" : " : " + motif.trim()));
@@ -1040,6 +1063,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
             if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
                 ids.put(d.getLgSUGGESTIONRESERVEDETAILID());
+            } else if (TSuggestionReserveDetail.ETAT_ANNULEE.equals(d.getStrETAT())) {
+                nonAnnulables.put(ligneJson(user, d).put("motif_refus",
+                        "Ligne deja annulee : son mouvement a deja ete defait."));
             } else if (!TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(d.getStrETAT())) {
                 // Rien n'a bouge pour cette ligne : il n'y a tout simplement rien a defaire.
                 nonAnnulables.put(ligneJson(user, d).put("motif_refus",
@@ -1059,13 +1085,23 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return;
         }
         boolean resteDuTraite = false;
+        boolean auMoinsUneAnnulee = false;
         for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
             if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
                 resteDuTraite = true;
-                break;
+            } else if (TSuggestionReserveDetail.ETAT_ANNULEE.equals(d.getStrETAT())) {
+                auMoinsUneAnnulee = true;
             }
         }
-        if (!resteDuTraite && TSuggestionReserve.STATUT_TRAITEE.equals(s.getStrSTATUT())) {
+        if (!resteDuTraite && auMoinsUneAnnulee) {
+            // Plus rien n'est traite et au moins une ligne a ete defaite : la suggestion est
+            // ANNULEE, statut terminal. La remettre a En cours laisserait croire qu'on peut la
+            // reprendre, et la reprendre reproduirait les mouvements qu'on vient d'annuler.
+            s.setStrSTATUT(TSuggestionReserve.STATUT_ANNULEE);
+            s.setDtCLOTURE(new Date());
+            s.setLgUSERCLOTUREID(user);
+        } else if (resteDuTraite && TSuggestionReserve.STATUT_TRAITEE.equals(s.getStrSTATUT())) {
+            // Annulation partielle : il reste des mouvements en vigueur, la suggestion n'est plus close.
             s.setStrSTATUT(TSuggestionReserve.STATUT_EN_COURS);
             s.setDtCLOTURE(null);
             s.setLgUSERCLOTUREID(null);

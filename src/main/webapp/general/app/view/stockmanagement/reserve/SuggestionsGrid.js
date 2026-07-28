@@ -23,7 +23,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         A_TRAITER: {texte: 'A traiter', couleur: '#b06000'},
         EN_COURS: {texte: 'En cours', couleur: '#0b57d0'},
         TRAITEE: {texte: 'Traitee', couleur: '#2a6b2e'},
-        SUPPRIMEE: {texte: 'Supprimee', couleur: '#999999'}
+        SUPPRIMEE: {texte: 'Supprimee', couleur: '#999999'},
+        ANNULEE: {texte: 'Annulee', couleur: '#a8231c'}
     },
 
     initComponent: function () {
@@ -106,7 +107,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {valeur: 'A_TRAITER', libelle: 'A traiter'},
                 {valeur: 'EN_COURS', libelle: 'En cours'},
                 {valeur: 'TRAITEE', libelle: 'Traitee'},
-                {valeur: 'SUPPRIMEE', libelle: 'Supprimee'}
+                {valeur: 'SUPPRIMEE', libelle: 'Supprimee'},
+                {valeur: 'ANNULEE', libelle: 'Annulee'}
             ], 135),
             combo('fCategorie', 'Les deux sens', [
                 {valeur: 'RAYON', libelle: 'Vers le rayon'},
@@ -244,7 +246,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                     getClass: function (v, m, rec) {
                         // Une suggestion cloturee ne peut plus etre supprimee : l'icone disparait.
                         var s = rec.get('str_STATUT');
-                        return (s === 'TRAITEE' || s === 'SUPPRIMEE') ? 'x-hidden' : '';
+                        return (s === 'TRAITEE' || s === 'SUPPRIMEE' || s === 'ANNULEE') ? 'x-hidden' : '';
                     },
                     handler: function (g, rowIndex) {
                         me.onSupprimer(g.getStore().getAt(rowIndex));
