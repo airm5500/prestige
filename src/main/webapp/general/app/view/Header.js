@@ -689,9 +689,26 @@ PrestigeNotif.register({
                 + ' &nbsp;|&nbsp; ' + statut
                 + ' &nbsp;|&nbsp; ' + (n.dt_CREATED || '') + '</div>';
     },
-    onItemClick: function () {
+    onItemClick: function (item) {
         try {
             testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
+            // On vient de cliquer une SUGGESTION : c'est l'onglet SUGGESTIONS qu'on veut voir,
+            // pas la liste generale des articles. Le differe laisse la vue finir son rendu.
+            Ext.defer(function () {
+                var manager = Ext.getCmp('reservemanagerID');
+                var onglet = manager ? manager.down('#ongletSuggestions') : null;
+                if (!manager || !onglet) {
+                    return;
+                }
+                manager.setActiveTab(onglet);
+                // La suggestion cliquee est ouverte directement, prete a etre traitee.
+                if (item && item.lg_SUGGESTION_RESERVE_ID) {
+                    Ext.create('testextjs.view.stockmanagement.reserve.action.traitementSuggestion', {
+                        suggestionid: item.lg_SUGGESTION_RESERVE_ID,
+                        parentview: onglet
+                    });
+                }
+            }, 400);
         } catch (e) {
         }
     }
