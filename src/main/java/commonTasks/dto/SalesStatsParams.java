@@ -42,6 +42,8 @@ public class SalesStatsParams implements Serializable {
     private String prixachatFiltre;
     private String stockFiltre;
     private String typeFiltre;
+    /** Zone ajustee : RAYON, RESERVE, ou vide pour ne pas filtrer. */
+    private String zone;
     private String rayonId;
     private String user;
     private Integer qteVendu;
@@ -406,4 +408,12 @@ public class SalesStatsParams implements Serializable {
         return sb.toString();
     }
 
+
+    public String getZone() {
+        return zone;
+    }
+
+    public void setZone(String zone) {
+        this.zone = zone;
+    }
 }

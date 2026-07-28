@@ -48,6 +48,10 @@ public class AjustementRessource {
     MvtProduitService mvtProduitService;
     @EJB
     private AjustementAnalyseService ajustementAnalyseService;
+    @EJB
+    private rest.service.ReserveService reserveService;
+    @EJB
+    private rest.service.SuggestionReserveService suggestionReserveService;
 
     private TUser getUser() {
         HttpSession hs = servletRequest.getSession();
@@ -121,11 +125,66 @@ public class AjustementRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Cree un inventaire reserve sur les produits d'un ajustement.
+     *
+     * <p>
+     * Enchainement naturel : on vient de corriger des quantites, on veut les recompter.
+     */
+    @POST
+    @Path("{id}/inventaire")
+    public Response inventaireDepuisAjustement(@PathParam("id") String id) throws JSONException {
+        TUser user = getUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        java.util.Set<String> produits = mvtProduitService.produitsDeLAjustement(id);
+        if (produits.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Cet ajustement ne contient aucun produit.").toString()).build();
+        }
+        JSONObject json = reserveService.createInventaireFromSelection(user, produits,
+                "Inventaire issu de l'ajustement " + id);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Cree une suggestion de reserve sur les produits d'un ajustement.
+     *
+     * <p>
+     * Le sens et la quantite proposee restent calcules par le service des suggestions : l'ajustement ne fournit que la
+     * liste des produits.
+     */
+    @POST
+    @Path("{id}/suggestion")
+    public Response suggestionDepuisAjustement(@PathParam("id") String id, String body) throws JSONException {
+        TUser user = getUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        String categorie = in.optString("categorie", null);
+        Integer motifId = in.has("motifId") && !in.isNull("motifId") ? in.optInt("motifId") : null;
+        String commentaire = in.optString("commentaire", "Suggestion issue de l'ajustement " + id);
+
+        java.util.Set<String> produits = mvtProduitService.produitsDeLAjustement(id);
+        if (produits.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Cet ajustement ne contient aucun produit.").toString()).build();
+        }
+        java.util.List<JSONObject> items = new java.util.ArrayList<>();
+        for (String familleId : produits) {
+            items.add(new JSONObject().put("lg_FAMILLE_ID", familleId));
+        }
+        JSONObject json = suggestionReserveService.creer(user, categorie, motifId, commentaire, items);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @GET
     public Response allAjustement(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "query") String query, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "typeFiltre") String typeFiltre)
-            throws JSONException {
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "typeFiltre") String typeFiltre,
+            @QueryParam(value = "zone") String zone) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -143,6 +202,7 @@ public class AjustementRessource {
         body.setAll(false);
         body.setUserId(tu);
         body.setTypeFiltre(typeFiltre);
+        body.setZone(zone);
         try {
             body.setDtEnd(LocalDate.parse(dtEnd));
             body.setDtStart(LocalDate.parse(dtStart));

@@ -115,8 +115,18 @@ Ext.define('testextjs.controller.AjusteListCtr', {
                 toItem: this.toItem,
                 print: this.print
             },
-            'ajustementgestion #addBtn': {
-                click: this.onAddClick
+            'ajustementgestion #addBtnRayon': {
+                click: this.onAddRayonClick
+            },
+            'ajustementgestion #addBtnReserve': {
+                click: this.onAddReserveClick
+            },
+            'ajustementgestion #zoneFiltre': {
+                select: this.doSearch
+            },
+            'ajustementgestion gridpanel': {
+                inventaireAjustement: this.onInventaireAjustement,
+                suggestionAjustement: this.onSuggestionAjustement
             }, 'itemAjustement [xtype=toolbar] #btnGoBack': {
                 click: this.goBack
             },
@@ -198,11 +208,135 @@ Ext.define('testextjs.controller.AjusteListCtr', {
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
     },
 
-    onAddClick: function () {
+    onAddRayonClick: function () {
+        this.ouvrirCreation('RAYON');
+    },
+
+    onAddReserveClick: function () {
+        this.ouvrirCreation('RESERVE');
+    },
+
+    /**
+     * Ouvre la saisie sur la zone choisie.
+     *
+     * La zone est portee par le bouton et non plus par une liste deroulante : elle est donc
+     * connue avant le premier produit, ne peut pas etre changee en cours de saisie, et le meme
+     * produit dans les deux zones se traite naturellement par deux ajustements distincts.
+     */
+    ouvrirCreation: function (zone) {
+        window.PRESTIGE_AJUSTEMENT_ZONE = zone;
         var xtype = "doajustementmanager";
         var data = {'isEdit': false, 'record': {}};
         testextjs.app.getController('App').onRedirectTo(xtype, data);
+    },
 
+    /** Inventaire portant sur les produits de l'ajustement de la ligne. */
+    onInventaireAjustement: function (record) {
+        var id = record.get('lgAJUSTEMENTID');
+        Ext.MessageBox.confirm('Creer un inventaire',
+                'Creer un inventaire sur les produits de cet ajustement ?',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire');
+                    Ext.Ajax.request({
+                        method: 'POST',
+                        url: '../api/v1/ajustement/' + encodeURIComponent(id) + '/inventaire',
+                        jsonData: {},
+                        success: function (response) {
+                            progress.hide();
+                            var res = Ext.JSON.decode(response.responseText, true) || {};
+                            Ext.MessageBox.alert(res.success === false ? 'Message' : 'Inventaire cree',
+                                    res.message || res.msg || 'Inventaire cree.');
+                        },
+                        failure: function () {
+                            progress.hide();
+                            Ext.MessageBox.alert('Erreur', 'La creation de l\'inventaire a echoue.');
+                        }
+                    });
+                });
+    },
+
+    /** Suggestion de reserve portant sur les produits de l'ajustement de la ligne. */
+    onSuggestionAjustement: function (record) {
+        var id = record.get('lgAJUSTEMENTID');
+        // Le sens est celui de la zone ajustee : un ajustement de la reserve appelle un
+        // rangement en reserve, un ajustement du rayon un reappro du rayon.
+        var categorie = (record.get('zone') === 'RESERVE') ? 'RESERVE' : 'RAYON';
+        var storeMotifs = Ext.create('Ext.data.Store', {
+            fields: ['id', 'libelle'],
+            proxy: {
+                type: 'ajax', url: '../api/v1/suggestion-reserve/motifs',
+                extraParams: {categorie: categorie}, reader: {type: 'json'}
+            }
+        });
+        storeMotifs.load();
+
+        var win = Ext.create('Ext.window.Window', {
+            title: 'Creer une suggestion depuis cet ajustement',
+            width: 520, modal: true, bodyPadding: 10, layout: 'anchor',
+            defaults: {anchor: '100%', labelWidth: 90},
+            items: [
+                {
+                    xtype: 'component',
+                    html: '<div style="margin-bottom:8px;color:#0b57d0;font-weight:bold;">'
+                            + 'La suggestion portera sur les produits de cet ajustement.</div>'
+                },
+                {
+                    xtype: 'combo', itemId: 'cboMotifAj', fieldLabel: 'Motif *',
+                    editable: false, allowBlank: false, forceSelection: true, queryMode: 'local',
+                    displayField: 'libelle', valueField: 'id',
+                    emptyText: 'Motif (obligatoire)', store: storeMotifs
+                },
+                {xtype: 'textfield', itemId: 'txtComAj', fieldLabel: 'Commentaire', emptyText: 'Facultatif'}
+            ],
+            buttons: [
+                {
+                    text: 'Creer la suggestion',
+                    handler: function () {
+                        var cbo = win.down('#cboMotifAj');
+                        if (!cbo || !cbo.getValue()) {
+                            cbo.markInvalid('Motif obligatoire');
+                            Ext.MessageBox.alert('Motif obligatoire',
+                                    'Indiquez le motif de cette suggestion avant de la creer.');
+                            return;
+                        }
+                        var com = win.down('#txtComAj');
+                        var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation en cours');
+                        Ext.Ajax.request({
+                            method: 'POST',
+                            url: '../api/v1/ajustement/' + encodeURIComponent(id) + '/suggestion',
+                            jsonData: {
+                                categorie: categorie,
+                                motifId: cbo.getValue(),
+                                commentaire: com ? com.getValue() : null
+                            },
+                            success: function (response) {
+                                progress.hide();
+                                var res = Ext.JSON.decode(response.responseText, true) || {};
+                                if (res.success === false) {
+                                    Ext.MessageBox.alert('Message', res.message || 'Creation impossible.');
+                                    return;
+                                }
+                                win.close();
+                                Ext.MessageBox.alert('Suggestion creee',
+                                        (res.message || '') + '<br>Retrouvez-la dans la gestion des reserves, '
+                                        + 'onglet SUGGESTIONS.');
+                            },
+                            failure: function () {
+                                progress.hide();
+                                Ext.MessageBox.alert('Erreur', 'La creation a echoue.');
+                            }
+                        });
+                    }
+                },
+                {text: 'Annuler', handler: function () {
+                        win.close();
+                    }}
+            ]
+        });
+        win.show();
     },
     toItem: function (view, rowIndex, colIndex, item, e, record, row) {
         var me = this;
@@ -244,6 +378,8 @@ Ext.define('testextjs.controller.AjusteListCtr', {
         };
 
         myProxy.setExtraParam('typeFiltre', me.getTypeAjustement().getValue());
+        var zone = me.getZoneFiltre();
+        myProxy.setExtraParam('zone', (zone && zone.getValue()) ? zone.getValue() : '');
         myProxy.setExtraParam('query', me.getQueryField().getValue());
         myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());

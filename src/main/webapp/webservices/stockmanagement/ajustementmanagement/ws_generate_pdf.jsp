@@ -83,7 +83,12 @@
     Paper paper = new Paper();
     PageFormat format = new PageFormat();
 
-    String P_H_CLT_INFOS = "Fiche d'ajustement de stock";
+    // La zone figure dans le TITRE plutot que dans une colonne : le modele .jrxml n'a pas a
+    // changer, l'intitule etant un parametre. Un ajustement anterieur a la gestion par zone
+    // releve du rayon, comportement historique.
+    String zoneAjustement = oTAjustement.getStrZONE() == null ? "RAYON" : oTAjustement.getStrZONE();
+    String P_H_CLT_INFOS = "Fiche d'ajustement de stock - "
+            + ("RESERVE".equalsIgnoreCase(zoneAjustement) ? "RESERVE" : "RAYON");
     String P_H_CC_P_H_RC = "", P_H_CI_P_H_RI = "";
     if ((oTOfficine.getStrCOMPTECONTRIBUABLE() != null && !"".equals(oTOfficine.getStrCOMPTECONTRIBUABLE())) && (oTOfficine.getStrREGISTRECOMMERCE() != null && !"".equals(oTOfficine.getStrREGISTRECOMMERCE()))) {
         P_H_CC_P_H_RC = oTOfficine.getStrCOMPTECONTRIBUABLE() + " / " + oTOfficine.getStrREGISTRECOMMERCE();

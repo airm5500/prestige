@@ -873,6 +873,21 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     }
 
     @Override
+    public java.util.Set<String> produitsDeLAjustement(String ajustementId) {
+        java.util.Set<String> produits = new java.util.LinkedHashSet<>();
+        try {
+            for (TAjustementDetail d : findAjustementDetailsByParenId(ajustementId)) {
+                if (d.getLgFAMILLEID() != null) {
+                    produits.add(d.getLgFAMILLEID().getLgFAMILLEID());
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitsDeLAjustement " + ajustementId, e);
+        }
+        return produits;
+    }
+
+    @Override
     public JSONObject ajsutements(SalesStatsParams params) throws JSONException {
         JSONObject json = new JSONObject();
 
@@ -1011,6 +1026,17 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         if (StringUtils.isNotEmpty(params.getTypeFiltre())) {
             predicates.add(cb.equal(root.get(TAjustementDetail_.typeAjustement).get(MotifAjustement_.id),
                     Integer.valueOf(params.getTypeFiltre())));
+        }
+        // Zone ajustee. Les ajustements anterieurs a la gestion par zone n'ont pas de valeur :
+        // ils relevent du rayon, comportement historique, et doivent donc rester visibles quand
+        // on filtre sur RAYON.
+        if (StringUtils.isNotEmpty(params.getZone())) {
+            if (dal.TAjustement.ZONE_RAYON.equalsIgnoreCase(params.getZone())) {
+                predicates.add(cb.or(cb.equal(st.get("strZONE"), dal.TAjustement.ZONE_RAYON),
+                        cb.isNull(st.get("strZONE"))));
+            } else {
+                predicates.add(cb.equal(st.get("strZONE"), params.getZone()));
+            }
         }
         return predicates;
     }

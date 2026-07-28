@@ -1,5 +1,17 @@
 /* global Ext */
 
+// Montant d'un ajustement : c'est un ECART, il peut donc etre negatif. Le signe est
+// conserve et souligne par la couleur, sans quoi on lirait une valeur absolue trompeuse.
+function montantAjustement(v) {
+    var n = parseInt(v, 10);
+    if (isNaN(n) || n === 0) {
+        return '';
+    }
+    var texte = Ext.util.Format.number(n, '0,000');
+    return '<span style="color:' + (n < 0 ? '#a8231c' : '#256b2a') + ';font-weight:bold;">'
+            + (n > 0 ? '+' : '') + texte + '</span>';
+}
+
 Ext.define('testextjs.view.produits.Ajustement', {
     extend: 'Ext.panel.Panel',
     /* onglet "Gestion des ajustements" : le xtype ajustementmanager est
@@ -78,13 +90,20 @@ Ext.define('testextjs.view.produits.Ajustement', {
                     dock: 'top',
                     items: [
                         {
-                            text: 'Faire un ajustement',
+                            text: 'Ajustement rayon',
                             scope: this,
-                            itemId: 'addBtn',
-                            iconCls: 'addicon'
-
+                            itemId: 'addBtnRayon',
+                            iconCls: 'addicon',
+                            tooltip: 'Corriger le stock du RAYON'
                         },
-                        , '-',
+                        {
+                            text: 'Ajustement reserve',
+                            scope: this,
+                            itemId: 'addBtnReserve',
+                            iconCls: 'addicon',
+                            tooltip: 'Corriger le stock de la RESERVE'
+                        },
+                        '-',
                         {
                             xtype: 'textfield',
                             itemId: 'query',
@@ -109,6 +128,25 @@ Ext.define('testextjs.view.produits.Ajustement', {
                             emptyText: 'Sélectionnez un motif'
                         },
                         
+                         '-',
+                        {
+                            xtype: 'combobox',
+                            itemId: 'zoneFiltre',
+                            width: 150,
+                            editable: false,
+                            queryMode: 'local',
+                            displayField: 'libelle',
+                            valueField: 'valeur',
+                            emptyText: 'Toutes les zones',
+                            store: Ext.create('Ext.data.Store', {
+                                fields: ['valeur', 'libelle'],
+                                data: [
+                                    {valeur: '', libelle: 'Toutes les zones'},
+                                    {valeur: 'RAYON', libelle: 'Rayon'},
+                                    {valeur: 'RESERVE', libelle: 'Reserve'}
+                                ]
+                            })
+                        },
                          '-',
                         {
                             xtype: 'datefield',
@@ -225,6 +263,43 @@ Ext.define('testextjs.view.produits.Ajustement', {
                         },
 
                         {
+                            header: 'Zone',
+                            dataIndex: 'zone',
+                            flex: 0.6,
+                            sortable: false,
+                            menuDisabled: true,
+                            align: 'center',
+                            renderer: function (v) {
+                                var reserve = (v === 'RESERVE');
+                                return '<span style="font-weight:bold;color:'
+                                        + (reserve ? '#c26500' : '#256b2a') + ';">'
+                                        + (reserve ? 'Reserve' : 'Rayon') + '</span>';
+                            }
+                        },
+                        {
+                            // Valorisation de l'ECART : negative quand l'ajustement retire du stock.
+                            header: 'Valeur achat',
+                            dataIndex: 'valeurAchat',
+                            flex: 0.8,
+                            sortable: false,
+                            menuDisabled: true,
+                            align: 'right',
+                            renderer: function (v) {
+                                return montantAjustement(v);
+                            }
+                        },
+                        {
+                            header: 'Valeur vente',
+                            dataIndex: 'valeurVente',
+                            flex: 0.8,
+                            sortable: false,
+                            menuDisabled: true,
+                            align: 'right',
+                            renderer: function (v) {
+                                return montantAjustement(v);
+                            }
+                        },
+                        {
                             header: 'Date',
                             dataIndex: 'dtUPDATED',
                             sortable: false,
@@ -241,6 +316,39 @@ Ext.define('testextjs.view.produits.Ajustement', {
                         }
 
                         , {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/inventaire.png',
+                                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'>'
+                                            + '<b>Inventaire de cet ajustement</b><br>Cree un inventaire portant sur '
+                                            + 'les produits qui viennent d\'etre ajustes.</div>',
+                                    menuDisabled: true,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('inventaireAjustement', record);
+                                    }
+                                }]
+                        },
+                        {
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/fleche_orange_droite.svg',
+                                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'>'
+                                            + '<b>Suggestion de reserve</b><br>Cree une suggestion portant sur les '
+                                            + 'produits de cet ajustement. Rien ne bouge tant qu\'elle n\'est pas '
+                                            + 'traitee.</div>',
+                                    menuDisabled: true,
+                                    handler: function (view, rowIndex, colIndex, item, e, record, row) {
+                                        this.fireEvent('suggestionAjustement', record);
+                                    }
+                                }]
+                        },
+                        {
                             xtype: 'actioncolumn',
                             width: 30,
                             sortable: false,

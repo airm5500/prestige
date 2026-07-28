@@ -152,41 +152,24 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                 },
 
                                 {
-                                    // Zone ciblee par l'ajustement. Rayon par defaut : le
-                                    // comportement historique reste celui qui s'applique tant
-                                    // qu'on ne demande pas explicitement la reserve. La zone est
-                                    // lue a la CREATION de l'ajustement et vaut ensuite pour
-                                    // toutes ses lignes, d'ou le verrouillage une fois la
-                                    // premiere ligne ajoutee.
-                                    xtype: 'combobox',
+                                    // Zone ciblee, choisie au bouton d'ou l'on vient : "Ajustement
+                                    // rayon" ou "Ajustement reserve". Elle n'est donc plus
+                                    // modifiable ici - le meme produit dans les deux zones se
+                                    // traite par deux ajustements distincts, ce qui evite toute
+                                    // ambiguite sur le stock corrige.
+                                    xtype: 'displayfield',
                                     id: 'str_ZONE_AJUSTEMENT',
                                     fieldLabel: 'Zone',
                                     labelWidth: 40,
                                     flex: 1,
                                     margin: '0 0 0 10',
-                                    editable: false,
-                                    allowBlank: false,
-                                    forceSelection: true,
-                                    queryMode: 'local',
-                                    displayField: 'libelle',
-                                    valueField: 'valeur',
-                                    value: 'RAYON',
-                                    store: Ext.create('Ext.data.Store', {
-                                        fields: ['valeur', 'libelle'],
-                                        data: [
-                                            {valeur: 'RAYON', libelle: 'Rayon'},
-                                            {valeur: 'RESERVE', libelle: 'Reserve'}
-                                        ]
-                                    }),
-                                    listeners: {
-                                        change: function (cbo, val) {
-                                            // Le sens de l'ajustement change de zone : on le dit
-                                            // clairement plutot que de laisser deviner.
-                                            var reserve = (val === 'RESERVE');
-                                            cbo.setFieldStyle(reserve
-                                                    ? 'color:#c26500;font-weight:bold;'
-                                                    : '');
-                                        }
+                                    value: (window.PRESTIGE_AJUSTEMENT_ZONE === 'RESERVE')
+                                            ? 'RESERVE' : 'RAYON',
+                                    renderer: function (v) {
+                                        var reserve = (v === 'RESERVE');
+                                        return '<span style="font-weight:bold;color:'
+                                                + (reserve ? '#c26500' : '#256b2a') + ';">'
+                                                + (reserve ? 'RESERVE' : 'RAYON') + '</span>';
                                     }
                                 },
                                 {

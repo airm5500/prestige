@@ -25,6 +25,41 @@ public class AjustementDTO implements Serializable {
     private String lgUSERID, userFullName, details = " ", lgAJUSTEMENTID, description, commentaire;
     private String dtUPDATED, heure;
     private boolean beCancel = false;
+    /** Zone ajustee : RAYON ou RESERVE. */
+    private String zone;
+    /**
+     * Valorisation de l'ECART, au prix d'achat puis au prix de vente.
+     *
+     * <p>
+     * C'est bien la quantite ajustee qui est valorisee, et non le stock final : un ajustement represente une
+     * correction. La valeur est donc negative quand l'ajustement retire du stock.
+     */
+    private long valeurAchat;
+    private long valeurVente;
+
+    public String getZone() {
+        return zone;
+    }
+
+    public void setZone(String zone) {
+        this.zone = zone;
+    }
+
+    public long getValeurAchat() {
+        return valeurAchat;
+    }
+
+    public void setValeurAchat(long valeurAchat) {
+        this.valeurAchat = valeurAchat;
+    }
+
+    public long getValeurVente() {
+        return valeurVente;
+    }
+
+    public void setValeurVente(long valeurVente) {
+        this.valeurVente = valeurVente;
+    }
 
     public String getLgUSERID() {
         return lgUSERID;
@@ -107,6 +142,7 @@ public class AjustementDTO implements Serializable {
         this.dtUPDATED = dateFormat.format(ajustement.getDtUPDATED());
         this.heure = heureFormat.format(ajustement.getDtUPDATED());
         this.lgAJUSTEMENTID = ajustement.getLgAJUSTEMENTID();
+        this.zone = ajustement.getStrZONE() == null ? "RAYON" : ajustement.getStrZONE();
 
         tpds.forEach((tpd) -> {
             MotifAjustement motif = tpd.getTypeAjustement();
@@ -122,6 +158,15 @@ public class AjustementDTO implements Serializable {
                     + DateConverter.amountFormat(tpd.getLgFAMILLEID().getIntPAF(), '.') + " F CFA "
                     + "</span><span style='display:inline-block;width: 15%;'>" + typeLibelle + "</span></b><br> "
                     + this.details;
+
+            // Valorisation de l'ecart : quantite ajustee multipliee par le prix. Les lignes
+            // negatives diminuent donc le total, ce qui est le comportement attendu d'une
+            // correction de stock.
+            int qte = tpd.getIntNUMBER() == null ? 0 : tpd.getIntNUMBER();
+            Integer paf = tpd.getLgFAMILLEID().getIntPAF();
+            Integer pv = tpd.getLgFAMILLEID().getIntPRICE();
+            this.valeurAchat += (long) qte * (paf == null ? 0 : paf);
+            this.valeurVente += (long) qte * (pv == null ? 0 : pv);
         });
     }
 

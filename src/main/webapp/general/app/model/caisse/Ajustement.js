@@ -49,6 +49,18 @@ Ext.define('testextjs.model.caisse.Ajustement', {
         {
             name: 'canCancel',
             type: 'boolean'
+        },
+        {
+            name: 'zone',
+            type: 'string'
+        },
+        {
+            name: 'valeurAchat',
+            type: 'int'
+        },
+        {
+            name: 'valeurVente',
+            type: 'int'
         }
 
 
