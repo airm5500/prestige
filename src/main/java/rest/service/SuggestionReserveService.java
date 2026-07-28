@@ -62,6 +62,17 @@ public interface SuggestionReserveService {
      */
     JSONObject controler(TUser user, String suggestionId, String observation);
 
+    /**
+     * Suggestions restant a traiter dans l'emplacement de l'utilisateur, pour la cloche de notifications.
+     *
+     * <p>
+     * La cloche annonce des SUGGESTIONS et non plus des produits : un chiffre y correspond a un dossier a ouvrir.
+     */
+    JSONArray suggestionsEnAttente(TUser user, int limit);
+
+    /** Compteur seul, pour le badge : une requete de comptage, sans construire la liste. */
+    long compterSuggestionsEnAttente(TUser user);
+
     /** En-tete et lignes d'une suggestion, avec l'explication de chaque proposition et le stock actuel. */
     JSONObject detail(TUser user, String suggestionId);
 

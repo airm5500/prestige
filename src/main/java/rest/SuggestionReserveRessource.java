@@ -76,6 +76,34 @@ public class SuggestionReserveRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Suggestions restant a traiter, pour le panneau de la cloche de notifications. */
+    @GET
+    @Path("en-attente")
+    public Response enAttente(@QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        // Le panneau de la cloche attend {results:[...], total:n} : un tableau nu serait ignore.
+        JSONArray liste = suggestionReserveService.suggestionsEnAttente(user, limit > 0 ? limit : 50);
+        return Response.ok().entity(new JSONObject().put("results", liste)
+                .put("total", suggestionReserveService.compterSuggestionsEnAttente(user)).toString()).build();
+    }
+
+    /** Compteur seul, pour le badge de la cloche. */
+    @GET
+    @Path("en-attente/count")
+    public Response enAttenteCount() {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok()
+                .entity(new JSONObject().put("total", suggestionReserveService.compterSuggestionsEnAttente(user))
+                        .toString())
+                .build();
+    }
+
     /** En-tete et lignes d'une suggestion, avec l'explication de chaque proposition. */
     @GET
     @Path("{id}")

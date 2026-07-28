@@ -290,6 +290,51 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         return new JSONObject().put("total", total).put("results", results);
     }
 
+    /** Statuts d'une suggestion qui reste a traiter. */
+    private static final String STATUTS_EN_ATTENTE = "('" + TSuggestionReserve.STATUT_A_TRAITER + "','"
+            + TSuggestionReserve.STATUT_EN_COURS + "')";
+
+    @Override
+    public JSONArray suggestionsEnAttente(TUser user, int limit) {
+        JSONArray out = new JSONArray();
+        try {
+            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            TypedQuery<TSuggestionReserve> q = em.createQuery(
+                    "SELECT s FROM TSuggestionReserve s WHERE s.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl"
+                            + " AND s.strSTATUT IN " + STATUTS_EN_ATTENTE + " ORDER BY s.dtCREATED DESC",
+                    TSuggestionReserve.class);
+            q.setParameter("empl", empl);
+            if (limit > 0) {
+                q.setMaxResults(limit);
+            }
+            List<TSuggestionReserve> page = q.getResultList();
+            java.util.Map<String, Integer> compteurs = compterLignes(page);
+            for (TSuggestionReserve s : page) {
+                Integer nb = compteurs.get(s.getLgSUGGESTIONRESERVEID());
+                out.put(enteteJson(s).put("nb_produits", nb == null ? 0 : nb));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "suggestionsEnAttente", e);
+        }
+        return out;
+    }
+
+    @Override
+    public long compterSuggestionsEnAttente(TUser user) {
+        try {
+            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            TypedQuery<Long> q = em.createQuery(
+                    "SELECT COUNT(s) FROM TSuggestionReserve s WHERE s.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl"
+                            + " AND s.strSTATUT IN " + STATUTS_EN_ATTENTE,
+                    Long.class);
+            q.setParameter("empl", empl);
+            return q.getSingleResult();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "compterSuggestionsEnAttente", e);
+            return 0L;
+        }
+    }
+
     /** Compte les lignes non retirees de chaque suggestion de la page, en une seule requete. */
     private java.util.Map<String, Integer> compterLignes(List<TSuggestionReserve> page) {
         java.util.Map<String, Integer> out = new java.util.HashMap<>();
