@@ -1084,6 +1084,29 @@ public class ReserveServiceImpl implements ReserveService {
     }
 
     @Override
+    public JSONObject rechercheProduitsReserve(TUser user, String query, int start, int limit) {
+        // On s'appuie sur la liste des articles en reserve, deja filtree sur bool_RESERVE et sur
+        // l'emplacement : un produit non suivi en reserve n'a pas de stock reserve a corriger et
+        // n'a donc rien a faire dans cette recherche.
+        JSONObject data = listArticles(user, query, "ALL", start, limit);
+        JSONArray source = data.optJSONArray("results");
+        JSONArray out = new JSONArray();
+        if (source != null) {
+            for (int i = 0; i < source.length(); i++) {
+                JSONObject a = source.getJSONObject(i);
+                // Meme forme que la recherche de la vente, pour que l'ecran n'ait rien a adapter.
+                // intNUMBERAVAILABLE porte ici le stock RESERVE : c'est celui que l'on ajuste.
+                out.put(new JSONObject().put("lgFAMILLEID", a.optString("lg_FAMILLE_ID", ""))
+                        .put("intCIP", a.optString("int_CIP", "")).put("strNAME", a.optString("str_NAME", ""))
+                        .put("strLIBELLEE", a.optString("str_NAME", ""))
+                        .put("intNUMBERAVAILABLE", a.optInt("int_STOCK_RESERVE", 0))
+                        .put("intPRICE", a.optInt("int_PRICE", 0)).put("intPAF", a.optInt("int_PAF", 0)));
+            }
+        }
+        return new JSONObject().put("total", data.optLong("total", 0)).put("data", out);
+    }
+
+    @Override
     public JSONArray utilisateursMouvements(TUser user) {
         JSONArray out = new JSONArray();
         try {

@@ -90,6 +90,22 @@ public class ReserveRessource {
                 .build();
     }
 
+    /**
+     * Recherche de produits pour un ajustement de la RESERVE : le stock renvoye est celui de la reserve.
+     */
+    @GET
+    @Path("recherche-produits")
+    public Response rechercheProduits(@QueryParam("query") String query, @QueryParam("start") int start,
+            @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok()
+                .entity(reserveService.rechercheProduitsReserve(user, query, start, limit > 0 ? limit : 10).toString())
+                .build();
+    }
+
     /** Indique si l'utilisateur peut annuler un mouvement : l'ecran masque l'action dans le cas contraire. */
     @GET
     @Path("peut-annuler")

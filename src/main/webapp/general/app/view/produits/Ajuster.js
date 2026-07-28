@@ -50,13 +50,22 @@ Ext.define('testextjs.view.produits.Ajuster', {
             }
 
         });
+        // Zone ajustee, choisie au bouton d'ou l'on vient.
+        var zoneAjustement = (window.PRESTIGE_AJUSTEMENT_ZONE === 'RESERVE') ? 'RESERVE' : 'RAYON';
+        // La liste deroulante affiche un stock : ce doit etre celui de la zone que l'on corrige.
+        // La recherche de la vente ne connait que le stock rayon, d'ou une recherche dediee pour
+        // la reserve. Elle rend la meme forme, et ne propose que les produits suivis en reserve.
+        var urlRechercheProduit = (zoneAjustement === 'RESERVE')
+                ? '../api/v1/reserve/recherche-produits'
+                : '../api/v1/vente/search';
+
         var produit = new Ext.data.Store({
             model: 'testextjs.model.caisse.Produit',
             pageSize: 10,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/vente/search',
+                url: urlRechercheProduit,
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -124,7 +133,9 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                     forceSelection: true,
                                     minChars: 3,
                                     queryCaching: false,
-                                    emptyText: 'Choisir un article par Nom ou Cip...',
+                                    emptyText: (zoneAjustement === 'RESERVE')
+                                            ? 'Choisir un article suivi en reserve (Nom ou Cip)...'
+                                            : 'Choisir un article par Nom ou Cip...',
                                     listConfig: {
                                         loadingText: 'Recherche...',
                                         emptyText: 'Pas de données trouvées.',
@@ -163,8 +174,7 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                     labelWidth: 40,
                                     flex: 1,
                                     margin: '0 0 0 10',
-                                    value: (window.PRESTIGE_AJUSTEMENT_ZONE === 'RESERVE')
-                                            ? 'RESERVE' : 'RAYON',
+                                    value: zoneAjustement,
                                     renderer: function (v) {
                                         var reserve = (v === 'RESERVE');
                                         return '<span style="font-weight:bold;color:'

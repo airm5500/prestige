@@ -156,6 +156,16 @@ public interface ReserveService {
      */
     JSONArray articlesJson(java.util.List<String> familleIds, TUser user);
 
+    /**
+     * Recherche de produits pour un ajustement de la RESERVE.
+     *
+     * <p>
+     * Rend la meme forme que la recherche de la vente, mais {@code intNUMBERAVAILABLE} y porte le stock RESERVE et non
+     * le stock rayon : la liste deroulante affiche donc le stock de la zone reellement ajustee. Seuls les produits
+     * suivis en reserve sont proposes, les autres n'ayant pas de stock reserve a corriger.
+     */
+    JSONObject rechercheProduitsReserve(TUser user, String query, int start, int limit);
+
     /** Utilisateurs ayant effectue au moins un mouvement, pour alimenter le filtre correspondant. */
     JSONArray utilisateursMouvements(TUser user);
 
