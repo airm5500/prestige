@@ -74,6 +74,9 @@ Ext.define('testextjs.controller.AjusteListCtr', {
         , {
             ref: 'addBtn',
             selector: 'ajustementgestion #addBtn'
+        }, {
+            ref: 'zoneFiltre',
+            selector: 'ajustementgestion #zoneFiltre'
         }
     ],
     config: {
