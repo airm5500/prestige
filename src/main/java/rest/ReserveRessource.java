@@ -91,13 +91,14 @@ public class ReserveRessource {
     public Response historique(@QueryParam("search_value") String search, @QueryParam("type") String type,
             @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("heureDebut") Integer heureDebut, @QueryParam("heureFin") Integer heureFin,
-            @QueryParam("userId") String userId, @QueryParam("start") int start, @QueryParam("limit") int limit) {
+            @QueryParam("userId") String userId, @QueryParam("annulation") String annulation,
+            @QueryParam("start") int start, @QueryParam("limit") int limit) {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = reserveService.historique(user, search, type, dtStart, dtEnd, heureDebut, heureFin, userId,
-                start, limit > 0 ? limit : 25);
+                annulation, start, limit > 0 ? limit : 25);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -108,13 +109,13 @@ public class ReserveRessource {
     public Response historiqueExcel(@QueryParam("search_value") String search, @QueryParam("type") String type,
             @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("heureDebut") Integer heureDebut, @QueryParam("heureFin") Integer heureFin,
-            @QueryParam("userId") String userId) throws Exception {
+            @QueryParam("userId") String userId, @QueryParam("annulation") String annulation) throws Exception {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         byte[] data = reserveService.exportHistoriqueExcel(user, search, type, dtStart, dtEnd, heureDebut, heureFin,
-                userId);
+                userId, annulation);
         return Response.ok(data)
                 .header("Content-Disposition", "attachment; filename=\"historique_reserve.xls\"").build();
     }

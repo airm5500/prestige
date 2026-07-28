@@ -414,9 +414,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         if (!rec) {
             return;
         }
-        Ext.MessageBox.prompt('Annuler les mouvements',
-                'Motif de l\'annulation pour ' + Ext.String.htmlEncode(rec.get('str_REF') || '') + ' :',
-                function (btn, texte) {
+        Ext.MessageBox.show({
+            title: 'Annuler les mouvements',
+            msg: 'Motif de l\'annulation pour ' + Ext.String.htmlEncode(rec.get('str_REF') || '') + ' :',
+            buttons: Ext.MessageBox.OKCANCEL,
+            prompt: true,
+            width: 460,
+            fn: function (btn, texte) {
                     if (btn !== 'ok') {
                         return;
                     }
@@ -440,7 +444,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                             Ext.MessageBox.alert('Erreur', 'L\'annulation a echoue.');
                         }
                     });
-                });
+                }
+        });
     },
 
     // Confirme que le deplacement a bien ete realise sur le terrain. L'observation est
@@ -455,11 +460,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             }
             return;
         }
-        Ext.MessageBox.prompt('Confirmer le controle',
-                'Vous confirmez que le deplacement de la suggestion '
-                + Ext.String.htmlEncode(rec.get('str_REF') || '')
-                + ' a bien ete realise.<br>Observation (facultative) :',
-                function (btn, texte) {
+        Ext.MessageBox.show({
+            title: 'Confirmer le controle',
+            msg: 'Vous confirmez que le deplacement de la suggestion '
+                    + Ext.String.htmlEncode(rec.get('str_REF') || '')
+                    + ' a bien ete realise.<br>Observation (facultative) :',
+            buttons: Ext.MessageBox.OKCANCEL,
+            prompt: true,
+            width: 480,
+            fn: function (btn, texte) {
                     if (btn !== 'ok') {
                         return;
                     }
@@ -480,7 +489,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                             Ext.MessageBox.alert('Erreur', 'L\'enregistrement du controle a echoue.');
                         }
                     });
-                });
+                }
+        });
     },
 
     onImprimerLigne: function (rec) {
@@ -540,9 +550,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         if (!rec) {
             return;
         }
-        Ext.MessageBox.prompt('Supprimer la suggestion',
-                'Motif de la suppression (facultatif) :',
-                function (btn, text) {
+        Ext.MessageBox.show({
+            title: 'Supprimer la suggestion',
+            msg: 'Motif de la suppression (facultatif) :',
+            buttons: Ext.MessageBox.OKCANCEL,
+            prompt: true,
+            width: 460,
+            fn: function (btn, text) {
                     if (btn !== 'ok') {
                         return;
                     }
@@ -563,6 +577,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                             Ext.MessageBox.alert('Erreur', 'Suppression impossible.');
                         }
                     });
-                });
+                }
+        });
     }
 });

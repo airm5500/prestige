@@ -857,7 +857,7 @@ public class ReserveServiceImpl implements ReserveService {
      * rigoureusement les memes lignes.
      */
     private String clauseHistorique(String search, String type, String dtStart, String dtEnd, Integer heureDebut,
-            Integer heureFin, String userId) {
+            Integer heureFin, String userId, String annulation) {
         StringBuilder w = new StringBuilder(" WHERE m.lg_EMPLACEMENT_ID = ?1 ");
         if (notBlank(search)) {
             w.append(" AND (f.str_NAME LIKE ?2 OR CAST(f.int_CIP AS CHAR) LIKE ?2) ");
@@ -880,6 +880,17 @@ public class ReserveServiceImpl implements ReserveService {
         if (notBlank(userId)) {
             w.append(" AND m.lg_USER_ID = '").append(userId.trim().replace("'", "")).append("' ");
         }
+        // Deux angles differents : le mouvement qui DEFAIT, ou celui qui A ETE defait.
+        if ("ANNULATION".equalsIgnoreCase(annulation)) {
+            w.append(" AND m.lg_MOUVEMENT_SOURCE_ID IS NOT NULL ");
+        } else if ("ANNULE".equalsIgnoreCase(annulation)) {
+            w.append(" AND EXISTS (SELECT 1 FROM t_mouvement_reserve a"
+                    + " WHERE a.lg_MOUVEMENT_SOURCE_ID = m.lg_MOUVEMENT_ID) ");
+        } else if ("NORMAL".equalsIgnoreCase(annulation)) {
+            w.append(" AND m.lg_MOUVEMENT_SOURCE_ID IS NULL"
+                    + " AND NOT EXISTS (SELECT 1 FROM t_mouvement_reserve a"
+                    + " WHERE a.lg_MOUVEMENT_SOURCE_ID = m.lg_MOUVEMENT_ID) ");
+        }
         return w.toString();
     }
 
@@ -895,9 +906,9 @@ public class ReserveServiceImpl implements ReserveService {
 
     @Override
     public JSONObject historique(TUser user, String search, String type, String dtStart, String dtEnd,
-            Integer heureDebut, Integer heureFin, String userId, int start, int limit) {
+            Integer heureDebut, Integer heureFin, String userId, String annulation, int start, int limit) {
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-        String where = clauseHistorique(search, type, dtStart, dtEnd, heureDebut, heureFin, userId);
+        String where = clauseHistorique(search, type, dtStart, dtEnd, heureDebut, heureFin, userId, annulation);
         try {
             Query countQ = em.createNativeQuery("SELECT COUNT(*)" + HISTORIQUE_FROM + where);
             countQ.setParameter(1, empl);
@@ -910,7 +921,10 @@ public class ReserveServiceImpl implements ReserveService {
                     + "m.int_QTE, m.int_STOCK_RAYON_AVANT, m.int_STOCK_RAYON_APRES, "
                     + "m.int_STOCK_RESERVE_AVANT, m.int_STOCK_RESERVE_APRES, "
                     + "TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))), "
-                    + "m.lg_MOUVEMENT_ID" + HISTORIQUE_FROM + where + " ORDER BY m.dt_CREATED DESC");
+                    + "m.lg_MOUVEMENT_ID, m.lg_MOUVEMENT_SOURCE_ID, m.str_MOTIF_ANNULATION, "
+                    + "EXISTS (SELECT 1 FROM t_mouvement_reserve a"
+                    + "        WHERE a.lg_MOUVEMENT_SOURCE_ID = m.lg_MOUVEMENT_ID)"
+                    + HISTORIQUE_FROM + where + " ORDER BY m.dt_CREATED DESC");
             q.setParameter(1, empl);
             if (notBlank(search)) {
                 q.setParameter(2, "%" + search.trim() + "%");
@@ -934,7 +948,13 @@ public class ReserveServiceImpl implements ReserveService {
                         .put("int_STOCK_RAYON_APRES", nombre(r[6])).put("int_STOCK_RESERVE_AVANT", nombre(r[7]))
                         .put("int_STOCK_RESERVE_APRES", nombre(r[8]))
                         .put("str_USER", r[9] == null ? "" : String.valueOf(r[9]))
-                        .put("lg_MOUVEMENT_ID", r[10] == null ? "" : String.valueOf(r[10])));
+                        .put("lg_MOUVEMENT_ID", r[10] == null ? "" : String.valueOf(r[10]))
+                        // Deux informations distinctes : cette ligne DEFAIT un mouvement anterieur,
+                        // ou cette ligne A ETE defaite par une ligne posterieure.
+                        .put("lg_MOUVEMENT_SOURCE_ID", r[11] == null ? "" : String.valueOf(r[11]))
+                        .put("str_MOTIF_ANNULATION", r[12] == null ? "" : String.valueOf(r[12]))
+                        .put("bl_EST_ANNULATION", r[11] != null)
+                        .put("bl_ANNULE", nombre(r[13]) == 1));
             }
             return new JSONObject().put("total", total).put("results", results);
         } catch (Exception e) {
@@ -945,9 +965,10 @@ public class ReserveServiceImpl implements ReserveService {
 
     @Override
     public byte[] exportHistoriqueExcel(TUser user, String search, String type, String dtStart, String dtEnd,
-            Integer heureDebut, Integer heureFin, String userId) throws java.io.IOException {
+            Integer heureDebut, Integer heureFin, String userId, String annulation) throws java.io.IOException {
         // limit a 0 : l'export porte sur TOUTES les lignes filtrees, pas sur la seule page affichee.
-        JSONObject data = historique(user, search, type, dtStart, dtEnd, heureDebut, heureFin, userId, 0, 0);
+        JSONObject data = historique(user, search, type, dtStart, dtEnd, heureDebut, heureFin, userId, annulation, 0,
+                0);
         JSONArray results = data.optJSONArray("results");
         List<JSONObject> lignes = new ArrayList<>();
         if (results != null) {
@@ -959,7 +980,7 @@ public class ReserveServiceImpl implements ReserveService {
             return new byte[0];
         }
         String[] entetes = { "Date", "CIP", "Designation", "Mouvement", "Quantite", "Rayon avant", "Rayon apres",
-                "Reserve avant", "Reserve apres", "Utilisateur" };
+                "Reserve avant", "Reserve apres", "Utilisateur", "Annulation", "Motif de l'annulation" };
         return reportExcelExportService.createExcelReport("Historique des mouvements de reserve", entetes, lignes,
                 (row, o) -> {
                     int col = 0;
@@ -972,8 +993,18 @@ public class ReserveServiceImpl implements ReserveService {
                     row.createCell(col++).setCellValue(o.optInt("int_STOCK_RAYON_APRES", 0));
                     row.createCell(col++).setCellValue(o.optInt("int_STOCK_RESERVE_AVANT", 0));
                     row.createCell(col++).setCellValue(o.optInt("int_STOCK_RESERVE_APRES", 0));
-                    row.createCell(col).setCellValue(o.optString("str_USER", ""));
+                    row.createCell(col++).setCellValue(o.optString("str_USER", ""));
+                    row.createCell(col++).setCellValue(libelleAnnulation(o));
+                    row.createCell(col).setCellValue(o.optString("str_MOTIF_ANNULATION", ""));
                 });
+    }
+
+    /** Dit, en clair, si la ligne defait un mouvement anterieur ou si elle a elle-meme ete defaite. */
+    private static String libelleAnnulation(JSONObject o) {
+        if (o.optBoolean("bl_EST_ANNULATION", false)) {
+            return "ANNULATION";
+        }
+        return o.optBoolean("bl_ANNULE", false) ? "Annule" : "";
     }
 
     @Override

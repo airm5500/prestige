@@ -218,6 +218,11 @@ Ext.define('testextjs.controller.AjustementCtr', {
                     // Zone ciblee : n'est prise en compte qu'a la creation de l'ajustement,
                     // elle vaut ensuite pour toutes ses lignes.
                     var cboZone = Ext.getCmp('str_ZONE_AJUSTEMENT');
+                    // Une fois l'ajustement cree, sa zone est figee : la laisser modifiable
+                    // laisserait croire que les lignes suivantes pourraient viser l'autre zone.
+                    if (cboZone) {
+                        cboZone.setDisabled(!!ajustementId);
+                    }
                     var params = {
                         "refParent": ajustementId,
                         "value": qte,

@@ -125,13 +125,16 @@ public interface ReserveService {
      *            heure de debut dans la journee (0 a 23), ou null
      * @param heureFin
      *            heure de fin dans la journee (0 a 23), ou null
+     * @param annulation
+     *            {@code ANNULATION} pour les seuls mouvements qui en defont un autre, {@code ANNULE} pour ceux qui ont
+     *            ete defaits, {@code NORMAL} pour les mouvements sans annulation, {@code null} pour tout voir
      */
     JSONObject historique(TUser user, String search, String type, String dtStart, String dtEnd, Integer heureDebut,
-            Integer heureFin, String userId, int start, int limit);
+            Integer heureFin, String userId, String annulation, int start, int limit);
 
     /** Export Excel de l'historique, respectant exactement les filtres actifs. */
     byte[] exportHistoriqueExcel(TUser user, String search, String type, String dtStart, String dtEnd,
-            Integer heureDebut, Integer heureFin, String userId) throws java.io.IOException;
+            Integer heureDebut, Integer heureFin, String userId, String annulation) throws java.io.IOException;
 
     /** Utilisateurs ayant effectue au moins un mouvement, pour alimenter le filtre correspondant. */
     JSONArray utilisateursMouvements(TUser user);

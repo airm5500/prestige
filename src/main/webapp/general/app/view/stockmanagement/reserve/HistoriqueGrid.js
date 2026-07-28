@@ -118,6 +118,20 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
                 listeners: rechercher},
             {xtype: 'datefield', itemId: 'hFin', emptyText: 'Au', format: 'd/m/Y', width: 100,
                 listeners: rechercher},
+            {
+                xtype: 'combo', itemId: 'hAnnulation', emptyText: 'Annulations : toutes', width: 175,
+                editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'valeur',
+                store: new Ext.data.Store({
+                    fields: ['valeur', 'libelle'],
+                    data: [
+                        {valeur: '', libelle: 'Annulations : toutes'},
+                        {valeur: 'ANNULATION', libelle: 'Les annulations'},
+                        {valeur: 'ANNULE', libelle: 'Les mouvements annules'},
+                        {valeur: 'NORMAL', libelle: 'Sans annulation'}
+                    ]
+                }),
+                listeners: rechercher
+            },
             comboHeure('hHeureDebut', 'De (h)'),
             comboHeure('hHeureFin', 'A (h)'),
             '-',
@@ -160,6 +174,28 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
                         m.style = 'color:' + (me.couleurMouvement[rec.get('str_TYPE')] || '#555555')
                                 + ';font-weight:bold;';
                         return avecInfobulle(v, m, rec);
+                    }
+                },
+                {
+                    // Rien ne distinguait, dans la liste, un mouvement qui en defait un autre. Les
+                    // deux lignes se lisaient cote a cote sans qu'on sache laquelle etait la
+                    // correction : cette colonne le dit.
+                    header: 'Annulation', dataIndex: 'bl_EST_ANNULATION', width: 105, align: 'center',
+                    renderer: function (v, m, rec) {
+                        if (rec.get('bl_EST_ANNULATION')) {
+                            m.style = 'color:#a8231c;font-weight:bold;';
+                            var motif = rec.get('str_MOTIF_ANNULATION');
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(
+                                    'Ce mouvement en annule un autre'
+                                    + (motif ? ' - motif : ' + motif : '')) + '"';
+                            return 'ANNULATION';
+                        }
+                        if (rec.get('bl_ANNULE')) {
+                            m.style = 'color:#b06000;font-weight:bold;';
+                            m.tdAttr = 'data-qtip="Ce mouvement a ete annule par un mouvement inverse posterieur."';
+                            return 'Annule';
+                        }
+                        return '';
                     }
                 },
                 {
@@ -212,7 +248,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
             dtStart: dateVal('hDebut'),
             dtEnd: dateVal('hFin'),
             heureDebut: val('hHeureDebut'),
-            heureFin: val('hHeureFin')
+            heureFin: val('hHeureFin'),
+            annulation: val('hAnnulation')
         };
     },
 
@@ -223,7 +260,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
 
     onReinitialiser: function () {
         var me = this;
-        Ext.each(['hSearch', 'hType', 'hUser', 'hDebut', 'hFin', 'hHeureDebut', 'hHeureFin'], function (itemId) {
+        Ext.each(['hSearch', 'hType', 'hUser', 'hDebut', 'hFin', 'hHeureDebut', 'hHeureFin', 'hAnnulation'], function (itemId) {
             var c = me.down('#' + itemId);
             if (c) {
                 c.setValue(null);

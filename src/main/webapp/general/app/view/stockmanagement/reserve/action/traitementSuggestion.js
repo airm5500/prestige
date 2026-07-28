@@ -574,9 +574,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     Ext.MessageBox.alert('Message', 'Aucun mouvement a annuler.');
                     return;
                 }
-                Ext.MessageBox.prompt('Annuler les mouvements',
-                        'Motif de l\'annulation (' + traitees + ' ligne(s)) :',
-                        function (btn, texte) {
+                Ext.MessageBox.show({
+                    title: 'Annuler les mouvements',
+                    msg: 'Motif de l\'annulation (' + traitees + ' ligne(s)) :',
+                    buttons: Ext.MessageBox.OKCANCEL,
+                    prompt: true,
+                    width: 460,
+                    fn: function (btn, texte) {
                             if (btn !== 'ok') {
                                 return;
                             }
@@ -600,7 +604,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                                     Ext.MessageBox.alert('Erreur', 'L\'annulation a echoue.');
                                 }
                             });
-                        });
+                    }
+                });
             }
         });
 
