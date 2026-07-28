@@ -63,6 +63,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 // On retient la ligne en cours d'edition : plus fiable que d'interroger la position
                 // courante du modele de selection au moment ou la touche Entree est relachee.
                 beforeedit: function (editor, e) {
+                    // Une ligne dont le mouvement est deja passe n'est plus modifiable : en
+                    // changer la quantite retenue ferait mentir le compte rendu, puisque le stock
+                    // a bouge de l'ancienne valeur. Le serveur refuse deja, l'ecran ne doit pas
+                    // laisser croire que c'est possible.
+                    var etat = e.record && e.record.get('str_ETAT');
+                    if (etat === 'TRAITEE' || etat === 'SUPPRIMEE' || me.suggestionCloturee) {
+                        return false;
+                    }
                     me.ligneEnCours = e.rowIdx;
                 }
             }
@@ -497,7 +505,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     // de rester actif et de laisser croire qu'il reste quelque chose a faire.
                     var cloturee = res.entete && (res.entete.str_STATUT === 'TRAITEE'
                             || res.entete.str_STATUT === 'SUPPRIMEE');
+                    me.suggestionCloturee = cloturee;
                     me.btnTraiter.setDisabled(cloturee);
+                    // Une fois la suggestion traitee, le document utile n'est plus la suggestion a
+                    // emmener dans les rayons mais le compte rendu de ce qui a ete fait.
+                    var traitee = res.entete && res.entete.str_STATUT === 'TRAITEE';
+                    me.imprimerCompteRendu = traitee;
+                    me.btnImprimer.setText(traitee ? 'Imprimer le compte rendu'
+                            : 'Imprimer la suggestion');
+                    me.btnCompteRendu.setVisible(traitee);
                     if (res.entete && res.entete.str_STATUT === 'TRAITEE') {
                         me.btnTraiter.setText('Deja traitee');
                         me.btnTraiter.removeCls('btn-suggestions-violet');
@@ -650,6 +666,40 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             }
         });
 
+        // Le libelle suit l'etat de la suggestion : tant qu'elle est a traiter on imprime la
+        // suggestion, une fois traitee on imprime le compte rendu.
+        me.btnImprimer = Ext.create('Ext.button.Button', {
+            text: 'Imprimer la suggestion',
+            handler: function () {
+                window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
+                        + (me.imprimerCompteRendu ? 'compte_rendu' : 'suggestion')
+                        + '&id=' + encodeURIComponent(id), '_blank');
+            }
+        });
+
+        // Revoir le compte rendu sans avoir a retraiter : il est relu depuis le serveur.
+        me.btnCompteRendu = Ext.create('Ext.button.Button', {
+            text: 'Voir le compte rendu',
+            hidden: true,
+            handler: function () {
+                Ext.Ajax.request({
+                    method: 'GET',
+                    url: baseUrl + encodeURIComponent(id) + '/compte-rendu',
+                    success: function (response) {
+                        var res = Ext.JSON.decode(response.responseText, true) || {};
+                        if (res.success === false) {
+                            Ext.MessageBox.alert('Message', res.message || 'Compte rendu indisponible.');
+                            return;
+                        }
+                        afficherCompteRendu(res);
+                    },
+                    failure: function () {
+                        Ext.MessageBox.alert('Erreur', 'Le compte rendu n\'a pas pu etre relu.');
+                    }
+                });
+            }
+        });
+
         var win = new Ext.window.Window({
             autoShow: true,
             title: 'Traitement de la suggestion',
@@ -666,13 +716,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 me.btnTraiter,
                 btnReessayer,
                 me.btnAnnuler,
-                {
-                    text: 'Imprimer la suggestion',
-                    handler: function () {
-                        window.open('../webservices/stockmanagement/reserve/ws_generate_pdf_suggestion.jsp?mode='
-                                + 'suggestion&id=' + encodeURIComponent(id), '_blank');
-                    }
-                },
+                me.btnCompteRendu,
+                me.btnImprimer,
                 {
                     text: 'Fermer',
                     handler: function () {

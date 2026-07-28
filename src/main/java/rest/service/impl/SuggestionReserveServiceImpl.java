@@ -191,9 +191,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         d.setIntDISPONIBLE(p.optInt("int_DISPONIBLE", 0));
         // L'explication doit dire la verite : afficher une soustraction qui donne zero alors
         // que la ligne porte une quantite serait incomprehensible.
+        // Quand l'utilisateur impose une quantite alors que la regle ne proposait rien, on le dit
+        // simplement, et on rappelle ensuite l'etat des stocks a la creation.
         d.setStrFORMULE(saisieManuelle
-                ? "Quantite saisie manuellement (" + qteRetenueDemandee + "). La regle automatique ne "
-                        + "proposait rien : " + p.optString("str_FORMULE", "")
+                ? "Quantite de " + qteRetenueDemandee + " decidee par l'utilisateur : la regle "
+                        + "automatique ne proposait rien. " + p.optString("str_FORMULE", "")
                 : p.optString("str_FORMULE", ""));
         // La ligne n'est "modifiee" que si l'utilisateur s'ecarte reellement de ce qui a ete propose.
         d.setStrETAT(qteRetenueDemandee > 0 && qteRetenueDemandee != propositionInitiale

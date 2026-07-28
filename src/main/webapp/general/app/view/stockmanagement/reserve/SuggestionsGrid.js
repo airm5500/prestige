@@ -154,7 +154,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
 
         // Boutons a icone, sur le meme modele que la suppression.
         var colOuvrir = {
-            xtype: 'actioncolumn', header: 'Ouvrir', width: 55, align: 'center',
+            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/page_white_edit.png',
@@ -166,7 +166,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         };
 
         var colInventaire = {
-            xtype: 'actioncolumn', header: 'Inventaire', width: 65, align: 'center',
+            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/inventaire.png',
@@ -179,7 +179,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
 
         // Impression : le compte rendu si la suggestion a ete traitee, la suggestion sinon.
         var colImprimer = {
-            xtype: 'actioncolumn', header: 'PDF', width: 45, align: 'center',
+            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/printer.png',
@@ -191,7 +191,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         };
 
         var colAnnuler = {
-            xtype: 'actioncolumn', header: 'Annuler', width: 60, align: 'center',
+            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/control_rewind.png',
@@ -212,7 +212,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
         // Une suggestion deja controlee affiche la coche verte, sans action possible : le nom du
         // premier controleur ne doit pas pouvoir etre remplace.
         var colControler = {
-            xtype: 'actioncolumn', header: 'Controle', width: 65, align: 'center',
+            xtype: 'actioncolumn', header: '', width: 30, align: 'center',
             sortable: false, menuDisabled: true,
             items: [{
                     getClass: function (v, m, rec) {

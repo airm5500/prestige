@@ -19,6 +19,40 @@
     TParameters OTParameters;
     bllBase ObllBase = new bllBase();
     TUser OTUser = null;
+
+    /**
+     * Mise en forme des numeros de telephone de l'en-tete.
+     *
+     * La fonction commune de la bibliotheque convertit le numero en nombre : le zero de tete
+     * disparait, et son rattrapage ne se declenche pas une fois le numero mis en forme. Un
+     * 0594178254 ressortait donc en 5-94-17-82-54. On travaille ici sur le texte, sans jamais le
+     * convertir, et on accepte plusieurs numeros separes par ; / ou virgule, comme sur la fiche
+     * officine.
+     */
+    String telephones(String brut) {
+        if (brut == null || brut.trim().isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (String numero : brut.split("[;/,]")) {
+            String chiffres = numero.replaceAll("[^0-9]", "");
+            if (chiffres.isEmpty()) {
+                continue;
+            }
+            StringBuilder mis = new StringBuilder();
+            for (int i = 0; i < chiffres.length(); i++) {
+                if (i > 0 && (chiffres.length() - i) % 2 == 0) {
+                    mis.append('-');
+                }
+                mis.append(chiffres.charAt(i));
+            }
+            if (out.length() > 0) {
+                out.append(" / ");
+            }
+            out.append(mis);
+        }
+        return out.length() == 0 ? "" : "(+225) " + out;
+    }
 %>
 
 <%
@@ -111,7 +145,7 @@
         parameters.put("P_H_INSTITUTION", oTOfficine.getStrNOMABREGE());
         parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
         if (oTOfficine.getStrPHONE() != null) {
-            P_INSTITUTION_ADRESSE += " Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE());
+            P_INSTITUTION_ADRESSE += " Tel: " + telephones(oTOfficine.getStrPHONE());
         }
         if (oTOfficine.getStrADRESSSEPOSTALE() != null) {
             P_INSTITUTION_ADRESSE += " - " + oTOfficine.getStrADRESSSEPOSTALE();
@@ -124,7 +158,7 @@
             P_INSTITUTION_ADRESSE += "Localite: " + oEm.getStrLOCALITE();
         }
         if (oEm.getStrPHONE() != null) {
-            P_INSTITUTION_ADRESSE += " - Tel: " + conversion.PhoneNumberFormat("+225", oEm.getStrPHONE());
+            P_INSTITUTION_ADRESSE += " - Tel: " + telephones(oEm.getStrPHONE());
         }
     }
     parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);

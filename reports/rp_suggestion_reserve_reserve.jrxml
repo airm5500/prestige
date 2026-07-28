@@ -107,7 +107,7 @@ ORDER BY f.str_NAME ASC]]>
 			<textField isBlankWhenNull="true">
 				<reportElement x="0" y="145" width="822" height="13" uuid="368941c3-dce9-4aa4-9bbb-589283aa5ffc"/>
 				<textElement><font size="9"/></textElement>
-				<textFieldExpression><![CDATA["Creee par : " + ($P{P_CREATEUR} != null ? $P{P_CREATEUR} : "-") + "     Cloturee par : " + ($P{P_CLOTURANT} != null ? $P{P_CLOTURANT} : "-")]]></textFieldExpression>
+				<textFieldExpression><![CDATA["Creee par : " + ($P{P_CREATEUR} != null ? $P{P_CREATEUR} : "-")]]></textFieldExpression>
 			</textField>
 			<staticText>
 				<reportElement mode="Opaque" x="0" y="158" width="70" height="18" backcolor="#CCCCCC" uuid="5e951cde-6844-40db-a43f-e6ea44ff72e9"/>

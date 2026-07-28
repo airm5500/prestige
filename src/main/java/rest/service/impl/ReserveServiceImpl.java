@@ -598,8 +598,11 @@ public class ReserveServiceImpl implements ReserveService {
             json.put("int_CIBLE", seuilReserve);
             json.put("int_DISPONIBLE", stockRayon);
             json.put("int_PROPOSITION", proposition);
-            json.put("str_FORMULE", "stock rayon (" + stockRayon + ") - seuil reserve (" + seuilReserve + ") = "
-                    + proposition);
+            // Phrase lisible plutot qu'une formule : l'utilisateur doit comprendre le calcul sans
+            // avoir a le dechiffrer. Les valeurs sont celles CONSTATEES A LA CREATION.
+            json.put("str_FORMULE", "A la creation : rayon " + stockRayon + ", seuil reserve " + seuilReserve
+                    + ". Le rayon depasse le seuil de " + proposition + " : on range " + proposition
+                    + " en reserve.");
         } else {
             // Rayon sous le seuil mini : on regarnit depuis la reserve, sans jamais depasser le disponible.
             // Meme formule que lignesSuggestions() et que l'onglet REASSORT.
@@ -610,8 +613,10 @@ public class ReserveServiceImpl implements ReserveService {
             json.put("int_CIBLE", seuilReserve);
             json.put("int_DISPONIBLE", stockReserve);
             json.put("int_PROPOSITION", proposition);
-            json.put("str_FORMULE", "min( stock reserve (" + stockReserve + ") ; seuil reserve (" + seuilReserve
-                    + ") - stock rayon (" + stockRayon + ") = " + manque + " ) = " + proposition);
+            json.put("str_FORMULE", "A la creation : rayon " + stockRayon + ", seuil reserve " + seuilReserve
+                    + ", reserve " + stockReserve + ". Il manque " + manque
+                    + " en rayon et la reserve en contient " + stockReserve + " : on envoie le plus petit des deux, "
+                    + proposition + ".");
         }
         return json;
     }

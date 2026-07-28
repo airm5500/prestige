@@ -115,7 +115,7 @@ ORDER BY FIELD(d.str_ETAT,'ECHEC','TRAITEE','SUPPRIMEE') , f.str_NAME ASC]]>
 			<textField isBlankWhenNull="true">
 				<reportElement x="0" y="145" width="822" height="13" uuid="2ab85c66-0fd0-4ef7-bdb7-9a1f9ad55270"/>
 				<textElement><font size="9"/></textElement>
-				<textFieldExpression><![CDATA["Creee par : " + ($P{P_CREATEUR} != null ? $P{P_CREATEUR} : "-") + "     Cloturee par : " + ($P{P_CLOTURANT} != null ? $P{P_CLOTURANT} : "-")]]></textFieldExpression>
+				<textFieldExpression><![CDATA["Creee par : " + ($P{P_CREATEUR} != null ? $P{P_CREATEUR} : "-")]]></textFieldExpression>
 			</textField>
 			<staticText>
 				<reportElement mode="Opaque" x="0" y="171" width="70" height="18" backcolor="#CCCCCC" uuid="1af0ffbf-d290-4b90-b54c-5d54ce43091d"/>
