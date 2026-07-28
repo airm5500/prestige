@@ -73,6 +73,17 @@ public interface SuggestionReserveService {
     /** Compteur seul, pour le badge : une requete de comptage, sans construire la liste. */
     long compterSuggestionsEnAttente(TUser user);
 
+    /**
+     * Produits distincts contenus dans les suggestions correspondant aux filtres, ou dans une selection precise.
+     *
+     * <p>
+     * Sert a creer un inventaire sur ce que l'ecran affiche reellement. Si {@code ids} est renseigne, seules ces
+     * suggestions sont prises en compte et les filtres sont ignores.
+     */
+    JSONObject produitsDesSuggestions(TUser user, List<String> ids, String statut, String categorie, String origine,
+            Integer motifId, String search, String dtStart, String dtEnd, String userId, String controle, int start,
+            int limit);
+
     /** En-tete et lignes d'une suggestion, avec l'explication de chaque proposition et le stock actuel. */
     JSONObject detail(TUser user, String suggestionId);
 

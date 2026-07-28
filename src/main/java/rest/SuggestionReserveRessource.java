@@ -104,6 +104,38 @@ public class SuggestionReserveRessource {
                 .build();
     }
 
+    /**
+     * Produits des suggestions filtrees, ou d'une selection precise, pour creer un inventaire sur ce que l'ecran
+     * affiche reellement.
+     *
+     * @param ids
+     *            references de suggestions separees par des virgules ; si renseigne, les filtres sont ignores
+     */
+    @GET
+    @Path("produits")
+    public Response produits(@QueryParam("ids") String ids, @QueryParam("statut") String statut,
+            @QueryParam("categorie") String categorie, @QueryParam("origine") String origine,
+            @QueryParam("motifId") Integer motifId, @QueryParam("search_value") String search,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("userId") String userId, @QueryParam("controle") String controle,
+            @QueryParam("start") int start, @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        List<String> listeIds = new ArrayList<>();
+        if (ids != null && !ids.trim().isEmpty()) {
+            for (String id : ids.split(",")) {
+                if (!id.trim().isEmpty()) {
+                    listeIds.add(id.trim());
+                }
+            }
+        }
+        JSONObject json = suggestionReserveService.produitsDesSuggestions(user, listeIds, statut, categorie, origine,
+                motifId, search, dtStart, dtEnd, userId, controle, start, limit);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     /** En-tete et lignes d'une suggestion, avec l'explication de chaque proposition. */
     @GET
     @Path("{id}")

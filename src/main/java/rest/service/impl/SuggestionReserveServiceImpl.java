@@ -335,6 +335,58 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
     }
 
+    @Override
+    public JSONObject produitsDesSuggestions(TUser user, List<String> ids, String statut, String categorie,
+            String origine, Integer motifId, String search, String dtStart, String dtEnd, String userId,
+            String controle, int start, int limit) {
+        try {
+            List<String> suggestionIds;
+            if (ids != null && !ids.isEmpty()) {
+                // Selection explicite : les filtres de l'ecran ne s'appliquent plus.
+                suggestionIds = ids;
+            } else {
+                // limit a 0 : on reprend TOUTES les suggestions du resultat de recherche, et non la
+                // seule page affichee.
+                JSONObject liste = lister(user, statut, categorie, origine, motifId, search, dtStart, dtEnd, userId,
+                        controle, null, 0, 0);
+                JSONArray arr = liste.optJSONArray("results");
+                suggestionIds = new ArrayList<>();
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        String id = arr.getJSONObject(i).optString("lg_SUGGESTION_RESERVE_ID", null);
+                        if (id != null && !id.isEmpty()) {
+                            suggestionIds.add(id);
+                        }
+                    }
+                }
+            }
+            if (suggestionIds.isEmpty()) {
+                return new JSONObject().put("total", 0).put("results", new JSONArray());
+            }
+
+            // Produits distincts de ces suggestions, lignes retirees exclues : elles ne font plus
+            // partie de la suggestion, il n'y a pas lieu de les inventorier.
+            @SuppressWarnings("unchecked")
+            List<String> familleIds = em
+                    .createQuery("SELECT DISTINCT d.lgFAMILLEID.lgFAMILLEID FROM TSuggestionReserveDetail d"
+                            + " WHERE d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID IN :ids"
+                            + " AND d.strETAT <> :retiree ORDER BY d.lgFAMILLEID.lgFAMILLEID")
+                    .setParameter("ids", suggestionIds)
+                    .setParameter("retiree", TSuggestionReserveDetail.ETAT_SUPPRIMEE).getResultList();
+
+            long total = familleIds.size();
+            List<String> page = familleIds;
+            if (limit > 0) {
+                int from = Math.min(Math.max(0, start), familleIds.size());
+                page = familleIds.subList(from, Math.min(familleIds.size(), from + limit));
+            }
+            return new JSONObject().put("total", total).put("results", reserveService.articlesJson(page, user));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitsDesSuggestions", e);
+            return new JSONObject().put("total", 0).put("results", new JSONArray());
+        }
+    }
+
     /** Compte les lignes non retirees de chaque suggestion de la page, en une seule requete. */
     private java.util.Map<String, Integer> compterLignes(List<TSuggestionReserve> page) {
         java.util.Map<String, Integer> out = new java.util.HashMap<>();

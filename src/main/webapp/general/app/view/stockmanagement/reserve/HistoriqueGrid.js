@@ -294,8 +294,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
     // Creer un inventaire depuis n'importe quel onglet : la fenetre de selection porte sa
     // propre recherche par CIP ou par nom, elle ne depend donc pas des filtres de l'historique.
     onCreateInventaire: function () {
+        // L'inventaire porte sur les produits REELLEMENT affiches, filtres compris, et non sur
+        // toute la reserve : c'est le resultat de recherche qui definit le perimetre.
         Ext.create('testextjs.view.stockmanagement.reserve.action.inventaireSelection', {
-            typetransaction: 'ALL'
+            source: '../api/v1/reserve/historique/produits',
+            sourceparams: this.filtresActifs(),
+            soustitre: 'produits de l\'historique affiche'
         });
     },
 

@@ -160,7 +160,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/page_white_edit.png',
-                    tooltip: 'Ouvrir la suggestion pour la consulter ou la traiter',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Ouvrir la suggestion</b><br>Pour la consulter ou la traiter.</div>',
                     handler: function (g, rowIndex) {
                         me.ouvrir(g.getStore().getAt(rowIndex));
                     }
@@ -172,7 +172,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/inventaire.png',
-                    tooltip: 'Creer un inventaire reserve sur les produits de cette suggestion',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Inventaire de cette suggestion</b><br>Cree un inventaire reserve portant sur ses produits.</div>',
                     handler: function (g, rowIndex) {
                         me.onCreerInventaire(g.getStore().getAt(rowIndex));
                     }
@@ -185,7 +185,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/printer.png',
-                    tooltip: 'Imprimer (compte rendu si la suggestion est traitee)',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Imprimer</b><br>La suggestion tant qu\'elle est a traiter, le compte rendu une fois traitee.</div>',
                     handler: function (g, rowIndex) {
                         me.onImprimerLigne(g.getStore().getAt(rowIndex));
                     }
@@ -197,7 +197,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             sortable: false, menuDisabled: true,
             items: [{
                     icon: 'resources/images/icons/fam/control_rewind.png',
-                    tooltip: 'Annuler les mouvements par mouvement inverse',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Annuler les mouvements</b><br>Un mouvement inverse est cree : rien n\'est efface de l\'historique.</div>',
                     getClass: function (v, m, rec) {
                         // Rien a annuler tant que rien n'a ete deplace, et action reservee
                         // aux detenteurs du privilege.
@@ -242,7 +242,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             items: [
                 {
                     icon: 'resources/images/icons/fam/delete.png',
-                    tooltip: 'Supprimer la suggestion',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Supprimer la suggestion</b><br>Impossible des qu\'une ligne a ete traitee.</div>',
                     getClass: function (v, m, rec) {
                         // Une suggestion cloturee ne peut plus etre supprimee : l'icone disparait.
                         var s = rec.get('str_STATUT');
@@ -257,6 +257,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
 
         Ext.apply(me, {
             store: store,
+            // Case a cocher a gauche de la reference : cocher des suggestions puis cliquer
+            // "Creer un inventaire" cible directement leurs produits.
+            selModel: Ext.create('Ext.selection.CheckboxModel', {checkOnly: true, mode: 'MULTI'}),
             columns: [
                 // Reference et date/heure elargies : elles doivent se lire en entier, sans troncature.
                 {header: 'Reference', dataIndex: 'str_REF', width: 175},
@@ -336,25 +339,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
     /** Applique les filtres actifs puis recharge depuis la premiere page. */
     onRechercher: function () {
         var me = this;
-        var val = function (itemId) {
-            var c = me.down('#' + itemId);
-            return c && c.getValue() ? c.getValue() : '';
-        };
-        var dateVal = function (itemId) {
-            var c = me.down('#' + itemId);
-            return (c && c.getValue()) ? Ext.Date.format(c.getValue(), 'Y-m-d') : '';
-        };
-        me.store.getProxy().extraParams = {
-            search_value: val('fSearch'),
-            statut: val('fStatut'),
-            categorie: val('fCategorie'),
-            origine: val('fOrigine'),
-            motifId: val('fMotif'),
-            dtStart: dateVal('fDebut'),
-            dtEnd: dateVal('fFin'),
-            controle: val('fControle'),
-            tri: val('fTri')
-        };
+        var params = me.filtresActifs();
+        var tri = me.down('#fTri');
+        params.tri = (tri && tri.getValue()) ? tri.getValue() : '';
+        me.store.getProxy().extraParams = params;
         me.store.loadPage(1);
     },
 
@@ -510,9 +498,50 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
     // recherche par CIP ou par nom. A distinguer de l'icone par ligne, qui inventorie les
     // produits d'une suggestion precise.
     onCreateInventaireLibre: function () {
+        var me = this;
+        // Suggestions cochees : on part directement sur leurs produits, sans passer par la vue
+        // de selection. Sinon la vue s'ouvre sur les produits des suggestions AFFICHEES.
+        var cochees = me.getSelectionModel().getSelection() || [];
+        if (cochees.length > 0) {
+            var ids = [];
+            Ext.each(cochees, function (rec) {
+                ids.push(rec.get('lg_SUGGESTION_RESERVE_ID'));
+            });
+            Ext.create('testextjs.view.stockmanagement.reserve.action.inventaireSelection', {
+                source: '../api/v1/suggestion-reserve/produits',
+                sourceparams: {ids: ids.join(',')},
+                soustitre: cochees.length + ' suggestion(s) cochee(s)'
+            });
+            return;
+        }
         Ext.create('testextjs.view.stockmanagement.reserve.action.inventaireSelection', {
-            typetransaction: 'ALL'
+            source: '../api/v1/suggestion-reserve/produits',
+            sourceparams: me.filtresActifs(),
+            soustitre: 'produits des suggestions affichees'
         });
+    },
+
+    /** Filtres actifs de l'onglet, partages par la recherche et par la creation d'inventaire. */
+    filtresActifs: function () {
+        var me = this;
+        var val = function (itemId) {
+            var c = me.down('#' + itemId);
+            return c && c.getValue() ? c.getValue() : '';
+        };
+        var dateVal = function (itemId) {
+            var c = me.down('#' + itemId);
+            return (c && c.getValue()) ? Ext.Date.format(c.getValue(), 'Y-m-d') : '';
+        };
+        return {
+            search_value: val('fSearch'),
+            statut: val('fStatut'),
+            categorie: val('fCategorie'),
+            origine: val('fOrigine'),
+            motifId: val('fMotif'),
+            dtStart: dateVal('fDebut'),
+            dtEnd: dateVal('fFin'),
+            controle: val('fControle')
+        };
     },
 
     onCreerInventaire: function (rec) {

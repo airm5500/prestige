@@ -136,6 +136,26 @@ public interface ReserveService {
     byte[] exportHistoriqueExcel(TUser user, String search, String type, String dtStart, String dtEnd,
             Integer heureDebut, Integer heureFin, String userId, String annulation) throws java.io.IOException;
 
+    /**
+     * Produits distincts apparaissant dans l'historique filtre.
+     *
+     * <p>
+     * Sert a creer un inventaire sur ce que l'ecran affiche reellement, et non sur toute la reserve : c'est le
+     * resultat de recherche qui definit le perimetre.
+     */
+    JSONObject produitsHistorique(TUser user, String search, String type, String dtStart, String dtEnd,
+            Integer heureDebut, Integer heureFin, String userId, String annulation, int start, int limit);
+
+    /**
+     * Construit la fiche JSON d'une liste de produits (code, designation, stocks rayon et reserve, prix), en deux
+     * requetes pour tout le lot.
+     *
+     * <p>
+     * Expose pour que les autres ecrans puissent proposer une selection de produits sans reconstruire eux-memes la
+     * lecture des stocks.
+     */
+    JSONArray articlesJson(java.util.List<String> familleIds, TUser user);
+
     /** Utilisateurs ayant effectue au moins un mouvement, pour alimenter le filtre correspondant. */
     JSONArray utilisateursMouvements(TUser user);
 

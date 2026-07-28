@@ -15,13 +15,24 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
         // Onglet d'origine : ALL, REAPPRO ou REASSORT_RAYON. La liste proposee suit.
         typetransaction: 'ALL',
         // Recherche initiale, typiquement celle en cours dans l'onglet appelant.
-        recherche: ''
+        recherche: '',
+        // Source des produits. Par defaut la liste des articles en reserve ; les onglets
+        // HISTORIQUE et SUGGESTIONS fournissent la leur pour que l'inventaire porte sur ce
+        // qui est REELLEMENT affiche, filtres compris, et non sur toute la reserve.
+        source: '',
+        // Parametres propres a cette source (filtres de l'onglet appelant).
+        sourceparams: null,
+        // Titre repris dans la fenetre, pour rappeler d'ou vient la liste.
+        soustitre: ''
     },
 
     initComponent: function () {
         var me = this;
         var typeParam = me.getTypetransaction() || 'ALL';
         var search = me.getRecherche() || '';
+        var urlSource = me.getSource() || '../api/v1/reserve/articles';
+        var paramsSource = me.getSourceparams();
+        var sourceDediee = !!me.getSource();
 
         // Map des ids coches, conservee a travers les pages ET les recherches successives.
         var selectedIds = {};
@@ -32,8 +43,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/reserve/articles',
-                extraParams: {str_TYPE_TRANSACTION: typeParam, search_value: search},
+                url: urlSource,
+                extraParams: sourceDediee
+                        ? Ext.apply({}, paramsSource || {})
+                        : {str_TYPE_TRANSACTION: typeParam, search_value: search},
                 reader: {type: 'json', root: 'results', totalProperty: 'total'}
             }
         });
@@ -151,9 +164,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                     handler: function () {
                         var prog = Ext.MessageBox.wait('Chargement...', 'Selection de tous les articles');
                         Ext.Ajax.request({
-                            url: '../api/v1/reserve/articles',
+                            url: urlSource,
                             method: 'GET',
-                            params: {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
+                            params: sourceDediee
+                                    ? Ext.apply({start: 0, limit: 0}, paramsSource || {})
+                                    : {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
                             timeout: 600000,
                             success: function (response) {
                                 prog.hide();
@@ -211,7 +226,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
         });
 
         var win = Ext.create('Ext.window.Window', {
-            title: 'Creer un inventaire reserve',
+            title: 'Creer un inventaire reserve'
+                    + (me.getSoustitre() ? ' - ' + me.getSoustitre() : ''),
             modal: true,
             width: 880,
             height: 620,

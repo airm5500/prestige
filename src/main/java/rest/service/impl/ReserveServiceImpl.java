@@ -1023,6 +1023,67 @@ public class ReserveServiceImpl implements ReserveService {
     }
 
     @Override
+    public JSONObject produitsHistorique(TUser user, String search, String type, String dtStart, String dtEnd,
+            Integer heureDebut, Integer heureFin, String userId, String annulation, int start, int limit) {
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        String where = clauseHistorique(search, type, dtStart, dtEnd, heureDebut, heureFin, userId, annulation);
+        try {
+            // DISTINCT : un produit deplace dix fois ne doit apparaitre qu'une seule fois dans la
+            // liste a inventorier.
+            Query countQ = em.createNativeQuery("SELECT COUNT(DISTINCT m.lg_FAMILLE_ID)" + HISTORIQUE_FROM + where);
+            countQ.setParameter(1, empl);
+            if (notBlank(search)) {
+                countQ.setParameter(2, "%" + search.trim() + "%");
+            }
+            long total = ((Number) countQ.getSingleResult()).longValue();
+
+            Query q = em.createNativeQuery("SELECT DISTINCT m.lg_FAMILLE_ID" + HISTORIQUE_FROM + where
+                    + " ORDER BY m.lg_FAMILLE_ID");
+            q.setParameter(1, empl);
+            if (notBlank(search)) {
+                q.setParameter(2, "%" + search.trim() + "%");
+            }
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start));
+                q.setMaxResults(limit);
+            }
+            @SuppressWarnings("unchecked")
+            List<String> ids = q.getResultList();
+            return new JSONObject().put("total", total).put("results", articlesJson(ids, empl));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitsHistorique", e);
+            return new JSONObject().put("total", 0).put("results", new JSONArray());
+        }
+    }
+
+    @Override
+    public JSONArray articlesJson(List<String> familleIds, TUser user) {
+        if (user == null) {
+            return new JSONArray();
+        }
+        return articlesJson(familleIds, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+    }
+
+    /** Construit la liste JSON d'articles a partir d'identifiants, en deux requetes pour tout le lot. */
+    private JSONArray articlesJson(List<String> ids, String empl) {
+        JSONArray results = new JSONArray();
+        if (ids == null || ids.isEmpty()) {
+            return results;
+        }
+        java.util.Map<String, TFamille> produits = chargerFamilles(ids);
+        java.util.Map<String, int[]> stocks = chargerStocks(ids, empl);
+        for (String familleId : ids) {
+            TFamille f = produits.get(familleId);
+            if (f == null) {
+                continue;
+            }
+            int[] st = stocks.get(familleId);
+            results.put(buildArticleJson(f, st == null ? 0 : st[0], st == null ? 0 : st[1], false));
+        }
+        return results;
+    }
+
+    @Override
     public JSONArray utilisateursMouvements(TUser user) {
         JSONArray out = new JSONArray();
         try {

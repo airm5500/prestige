@@ -137,6 +137,25 @@ public class ReserveRessource {
                 .header("Content-Disposition", "attachment; filename=\"historique_reserve.xls\"").build();
     }
 
+    /**
+     * Produits distincts de l'historique filtre, pour creer un inventaire sur ce que l'ecran affiche reellement.
+     */
+    @GET
+    @Path("historique/produits")
+    public Response historiqueProduits(@QueryParam("search_value") String search, @QueryParam("type") String type,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("heureDebut") Integer heureDebut, @QueryParam("heureFin") Integer heureFin,
+            @QueryParam("userId") String userId, @QueryParam("annulation") String annulation,
+            @QueryParam("start") int start, @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = reserveService.produitsHistorique(user, search, type, dtStart, dtEnd, heureDebut, heureFin,
+                userId, annulation, start, limit);
+        return Response.ok().entity(json.toString()).build();
+    }
+
     /** Utilisateurs ayant effectue au moins un mouvement, pour le filtre correspondant. */
     @GET
     @Path("historique/utilisateurs")
