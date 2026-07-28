@@ -610,9 +610,30 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 LOG.log(Level.SEVERE, "traitement ligne " + detailId, e);
             }
         }
+        // Les lignes viennent d'etre modifiees et validees dans des transactions SEPAREES. Le
+        // contexte de persistance courant garde encore les versions chargees avant traitement :
+        // relire sans le vider renverrait ces valeurs perimees, et une ligne pourtant deplacee
+        // serait comptee comme ignoree, le statut restant a tort En cours.
+        rafraichirContexte();
 
         finaliserStatut(suggestionId, user);
         return compteRendu(user, suggestionId);
+    }
+
+    /**
+     * Vide le contexte de persistance apres des ecritures faites dans des transactions separees, pour que les lectures
+     * suivantes viennent de la base et non du cache.
+     *
+     * <p>
+     * Les modifications en attente sont d'abord ecrites : sans cela, vider le contexte les perdrait.
+     */
+    private void rafraichirContexte() {
+        try {
+            em.flush();
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "rafraichirContexte: flush impossible", e);
+        }
+        em.clear();
     }
 
     private static boolean estTraitable(TSuggestionReserveDetail d) {
@@ -733,11 +754,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 nonTraites.put(l);
             } else if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)) {
                 supprimes++;
-                nonTraites.put(l);
+                nonTraites.put(l.put("str_RAISON", raisonNonTraitee(d)));
             } else {
                 ignores++;
                 demandes++;
-                nonTraites.put(l);
+                nonTraites.put(l.put("str_RAISON", raisonNonTraitee(d)));
             }
         }
 
@@ -746,6 +767,27 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 .put("total_supprime", supprimes).put("total_ignore", ignores)
                 .put("articles_traites", traites).put("articles_non_traites", nonTraites)
                 .put("relancable", echoues > 0);
+    }
+
+    /**
+     * Explique, en langage courant, pourquoi une ligne n'a pas ete traitee. Sans cela le compte rendu se contentait de
+     * lister l'article, sans jamais dire ce qui s'etait passe.
+     */
+    private static String raisonNonTraitee(TSuggestionReserveDetail d) {
+        String etat = d.getStrETAT();
+        if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)) {
+            String motif = texte(d.getStrMOTIFLIGNE());
+            return motif.isEmpty() ? "Ligne retiree de la suggestion avant le traitement."
+                    : "Ligne retiree de la suggestion : " + motif;
+        }
+        if (TSuggestionReserveDetail.ETAT_ECHEC.equals(etat)) {
+            String motif = texte(d.getStrMOTIFLIGNE());
+            return motif.isEmpty() ? "Le mouvement a echoue." : motif;
+        }
+        if (quantiteARetenir(d) <= 0) {
+            return "Quantite retenue a zero : il n'y a rien a deplacer pour cet article.";
+        }
+        return "Ligne restee a traiter : le traitement ne l'a pas prise en compte.";
     }
 
     @Override
@@ -960,6 +1002,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 refusees.put(r);
             }
         }
+
+        // Meme precaution qu'au traitement : les annulations ont ete validees dans des
+        // transactions separees, il faut relire depuis la base et non depuis le cache.
+        rafraichirContexte();
 
         recalculerStatutApresAnnulation(suggestionId, user);
         LOG.log(Level.INFO, "annulation suggestion={0} annulees={1} refusees={2} user={3}",

@@ -339,11 +339,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 for (var i = 0; i < arr.length; i++) {
                     var a = arr[i];
                     var code = a.str_CODE_ECHEC ? ' <b style="color:#c0392b;">[' + Ext.String.htmlEncode(a.str_CODE_ECHEC) + ']</b> ' : '';
+                    // Une ligne non traitee doit TOUJOURS dire pourquoi : sans cela on lisait le
+                    // nom de l'article sans savoir ce qui s'etait passe.
+                    var raison = a.str_RAISON
+                            ? '<div style="color:#b06000;padding-left:12px;">' + Ext.String.htmlEncode(a.str_RAISON) + '</div>'
+                            : '';
                     h += '<div style="padding:3px 6px;border-bottom:1px solid #eee;">'
                             + Ext.String.htmlEncode(a.int_CIP || '') + ' - ' + Ext.String.htmlEncode(a.str_NAME || '')
                             + ' &nbsp;<span style="color:#666;">(retenue ' + (a.int_QTE_RETENUE || 0)
                             + ', deplacee ' + (a.int_QTE_DEPLACEE || 0) + ')</span>'
                             + code + Ext.String.htmlEncode(a.str_MOTIF_LIGNE || '')
+                            + raison
                             + '</div>';
                 }
                 return h;
@@ -431,7 +437,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             var pousser = function (arr) {
                 Ext.each(arr || [], function (a) {
                     out.push([esc(a.int_CIP), esc(a.str_NAME), esc(a.int_QTE_RETENUE), esc(a.int_QTE_DEPLACEE),
-                        esc(a.str_ETAT), esc(a.str_CODE_ECHEC), esc(a.str_MOTIF_LIGNE)].join(sep));
+                        esc(a.str_ETAT), esc(a.str_CODE_ECHEC),
+                        esc(a.str_MOTIF_LIGNE || a.str_RAISON)].join(sep));
                 });
             };
             pousser(res.articles_traites);
