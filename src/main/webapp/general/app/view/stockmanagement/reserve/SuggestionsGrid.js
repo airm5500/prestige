@@ -162,11 +162,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {valeur: 'date', libelle: 'Tri : date'},
                 {valeur: 'statut', libelle: 'Tri : statut'},
                 {valeur: 'utilisateur', libelle: 'Tri : utilisateur'}
-            ], 130),
-            '-',
+            ], 130)
+        ];
+
+        // Seconde ligne : les actions. La barre unique etait pleine, les boutons finissaient
+        // hors du champ visible des que la fenetre retrecissait.
+        var actions = [
             {text: 'Rechercher', scope: me, handler: me.onRechercher},
             {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser},
-            '->',
+            '-',
             {text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaireLibre}
         ];
 
@@ -336,6 +340,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             ],
             dockedItems: [
                 {xtype: 'toolbar', dock: 'top', items: filtres},
+                {xtype: 'toolbar', dock: 'top', items: actions},
                 {xtype: 'pagingtoolbar', store: store, dock: 'bottom', displayInfo: true}
             ],
             viewConfig: {
