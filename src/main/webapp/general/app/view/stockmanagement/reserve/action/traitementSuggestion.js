@@ -698,6 +698,16 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             }
         });
 
+        // Relit la suggestion depuis le serveur : utile quand le stock a bouge entre-temps, ou
+        // quand un autre poste vient de liberer le verrou.
+        me.btnActualiser = Ext.create('Ext.button.Button', {
+            text: 'Actualiser',
+            tooltip: 'Relire la suggestion et les stocks depuis le serveur',
+            handler: function () {
+                charger();
+            }
+        });
+
         // Revoir le compte rendu sans avoir a retraiter : il est relu depuis le serveur.
         me.btnCompteRendu = Ext.create('Ext.button.Button', {
             text: 'Voir le compte rendu',
@@ -738,6 +748,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 btnReessayer,
                 me.btnAnnuler,
                 me.btnCompteRendu,
+                me.btnActualiser,
                 me.btnImprimer,
                 {
                     text: 'Fermer',

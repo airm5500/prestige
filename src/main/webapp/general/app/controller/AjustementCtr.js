@@ -246,6 +246,24 @@ Ext.define('testextjs.controller.AjustementCtr', {
                 if (record) {
                     var commentaire = me.getCommentaire().getValue();
                     var qte = parseInt(field.getValue());
+                    // Zone RESERVE : on refuse DES L'AJOUT une quantite qui rendrait le stock
+                    // reserve negatif. Sans ce controle, la ligne descendait dans le tableau, la
+                    // cloture partait, et la ligne etait refusee en silence cote serveur : on ne
+                    // voyait aucune trace de ce qui n'avait pas ete applique.
+                    var cboZoneCtrl = Ext.getCmp('str_ZONE_AJUSTEMENT');
+                    if (cboZoneCtrl && cboZoneCtrl.getValue() === 'RESERVE') {
+                        var stockZone = parseInt(me.getVnostockField().getValue(), 10);
+                        if (!isNaN(stockZone) && !isNaN(qte) && (stockZone + qte) < 0) {
+                            Ext.MessageBox.alert('Stock reserve insuffisant',
+                                    'Le stock reserve de ce produit est de <b>' + stockZone
+                                    + '</b> : il ne permet pas de retirer <b>' + Math.abs(qte)
+                                    + '</b> unite(s).<br>Corrigez la quantite avant d\'ajouter le produit.',
+                                    function () {
+                                        field.focus(true, 50);
+                                    });
+                            return;
+                        }
+                    }
                     // Zone ciblee : n'est prise en compte qu'a la creation de l'ajustement,
                     // elle vaut ensuite pour toutes ses lignes.
                     var cboZone = Ext.getCmp('str_ZONE_AJUSTEMENT');
@@ -464,6 +482,11 @@ Ext.define('testextjs.controller.AjustementCtr', {
                     var result = Ext.JSON.decode(response.responseText, true);
                     progress.hide();
                     if (result.success) {
+                        // Des lignes ont pu etre refusees faute de stock : on le dit AVANT de
+                        // proposer l'impression, sinon la cloture passerait pour un succes complet.
+                        if (result.avecRefus) {
+                            Ext.MessageBox.alert('Cloture partielle', result.msg);
+                        }
                         Ext.MessageBox.show({
                             title: 'Impression',
                             msg: 'Voulez-vous imprimer ?',

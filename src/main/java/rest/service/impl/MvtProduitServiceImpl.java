@@ -643,7 +643,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
      * de reserve.
      */
     private void clorerLigneSurReserve(TAjustementDetail it, TFamille famille, TAjustement ajustement, TUser tUser,
-            JSONArray items) {
+            JSONArray items, List<String> refus) {
         String motif = it.getTypeAjustement() != null ? it.getTypeAjustement().getLibelle()
                 : ajustement.getStrCOMMENTAIRE();
         JSONObject r = reserveService.ajusterReserve(tUser, famille.getLgFAMILLEID(), it.getIntNUMBER(), motif);
@@ -654,6 +654,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             getEmg().merge(it);
             LOG.log(Level.WARNING, "Ajustement reserve refuse pour {0} : {1}",
                     new Object[] { famille.getIntCIP(), r.optString("message") });
+            // Le refus doit REMONTER A L'ECRAN : sans cela la cloture annoncait un succes alors
+            // qu'une ligne n'avait pas ete appliquee, et rien ne le signalait.
+            refus.add(texteCourt(famille) + " : " + r.optString("message", "stock reserve insuffisant"));
             return;
         }
         int avant = r.optInt("int_AVANT", 0);
@@ -753,12 +756,14 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             TEmplacement emplacement = tUser.getLgEMPLACEMENTID();
             List<TAjustementDetail> ajustementDetails = findAjustementDetailsByParenId(ajustement.getLgAJUSTEMENTID());
             JSONArray items = new JSONArray();
+            // Lignes refusees faute de stock : elles restent non validees et sont annoncees a l'ecran.
+            List<String> refus = new ArrayList<>();
             // Zone ciblee : RESERVE ajuste le stock reserve, RAYON conserve le comportement historique.
             boolean surReserve = dal.TAjustement.ZONE_RESERVE.equalsIgnoreCase(ajustement.getStrZONE());
             ajustementDetails.forEach(it -> {
                 TFamille famille = it.getLgFAMILLEID();
                 if (surReserve) {
-                    clorerLigneSurReserve(it, famille, ajustement, tUser, items);
+                    clorerLigneSurReserve(it, famille, ajustement, tUser, items, refus);
                     return;
                 }
                 TFamilleStock familleStock = findStockByProduitId(famille.getLgFAMILLEID(),
@@ -802,6 +807,18 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             ajustement.setStrCOMMENTAIRE(params.getDescription());
             ajustement.setStrSTATUT(STATUT_ENABLE);
             emg.merge(ajustement);
+            if (!refus.isEmpty()) {
+                // Les autres lignes ont bien ete appliquees : on ne les annule pas, mais on nomme
+                // precisement celles qui ne l'ont pas ete.
+                StringBuilder msg = new StringBuilder("Cloture effectuee, mais ");
+                msg.append(refus.size()).append(" ligne(s) N'ONT PAS ete appliquees :");
+                for (String d : refus) {
+                    msg.append("<br>- ").append(d);
+                }
+                json.put("success", true).put("avecRefus", true).put("nbRefus", refus.size())
+                        .put("msg", msg.toString());
+                return json;
+            }
             json.put("success", true).put("msg", "L'opération effectuée avec success");
             return json;
 
@@ -810,6 +827,11 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             json.put("success", false).put("msg", "L'opération a échoué");
             return json;
         }
+    }
+
+    /** Identifie un produit dans un message d'erreur, de facon lisible par l'utilisateur. */
+    private static String texteCourt(TFamille famille) {
+        return famille.getIntCIP() + " " + famille.getStrNAME();
     }
 
     private List<TAjustementDetail> findAjustementDetailsByParenId(String idParent) {

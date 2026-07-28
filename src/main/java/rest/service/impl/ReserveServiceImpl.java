@@ -1231,11 +1231,16 @@ public class ReserveServiceImpl implements ReserveService {
         JSONArray results = new JSONArray();
         for (TMouvementReserve m : list) {
             String name = "";
+            String cip = "";
             try {
                 name = m.getLgFAMILLEID() != null ? m.getLgFAMILLEID().getStrNAME() : "";
+                cip = m.getLgFAMILLEID() != null && m.getLgFAMILLEID().getIntCIP() != null
+                        ? m.getLgFAMILLEID().getIntCIP()
+                        : "";
             } catch (Exception e) {
             }
             results.put(new JSONObject().put("lg_MOUVEMENT_ID", m.getLgMOUVEMENTID()).put("str_NAME", name)
+                    .put("int_CIP", cip)
                     .put("str_TYPE", m.getStrTYPE()).put("int_QTE", nz(m.getIntQTE()))
                     .put("int_STOCK_RAYON_AVANT", nz(m.getIntSTOCKRAYONAVANT()))
                     .put("int_STOCK_RESERVE_AVANT", nz(m.getIntSTOCKRESERVEAVANT()))

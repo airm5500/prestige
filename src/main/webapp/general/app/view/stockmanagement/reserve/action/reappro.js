@@ -131,7 +131,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             if (records && records.length) {
                 var r = records[0];
                 var dispo = (mode === 'assort') ? r.get('int_STOCK_RAYON') : r.get('int_STOCK_RESERVE');
-                infoLabel.setValue(stockLabel + ' disponible : <b>' + dispo + '</b>');
+                infoLabel.setValue('<span style="color:#256b2a;font-weight:bold;">' + stockLabel
+                        + ' disponible : ' + dispo + '</span>');
                 // Curseur vers quantite avec contenu preselectionne
                 qteField.focus(true, 100);
             }
@@ -150,8 +151,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             }
             var dispo = (mode === 'assort') ? rec.get('int_STOCK_RAYON') : rec.get('int_STOCK_RESERVE');
             if (qte > dispo) {
-                Ext.MessageBox.alert('Message', 'La quantite (' + qte + ') depasse le ' +
-                        stockLabel.toLowerCase() + ' disponible (' + dispo + ').');
+                Ext.MessageBox.alert('Message', 'La quantite (' + qte + ') depasse le '
+                        + stockLabel.toLowerCase() + ' disponible (' + dispo + ').',
+                        function () {
+                            qteField.focus(true, 50);
+                        });
                 return;
             }
             var id = rec.get('lg_FAMILLE_ID');

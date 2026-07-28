@@ -27,6 +27,16 @@ public class AjustementDetailDTO implements Serializable {
     private Integer intNUMBERAFTERSTOCK, montantTotal, montantVente;
     private Date dateOperation;
     private String operateur, motifAjustement, commentaire;
+    /** Zone ajustee, reprise de l'en-tete : RAYON ou RESERVE. */
+    private String zone;
+
+    public String getZone() {
+        return zone;
+    }
+
+    public void setZone(String zone) {
+        this.zone = zone;
+    }
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private final SimpleDateFormat heureFormat = new SimpleDateFormat("HH:mm");
 
@@ -197,6 +207,7 @@ public class AjustementDetailDTO implements Serializable {
         this.commentaire = a.getStrCOMMENTAIRE();
         this.lgAJUSTEMENTID = a.getLgAJUSTEMENTID();
         this.operateur = tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
+        this.zone = a.getStrZONE();
         this.dateOperation = ajustementDetail.getDtUPDATED();
         MotifAjustement ma = ajustementDetail.getTypeAjustement();
         if (ma != null) {

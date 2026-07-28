@@ -116,31 +116,31 @@ ORDER BY f.str_NAME ASC]]>
 				<text><![CDATA[CIP]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="70" y="158" width="220" height="18" backcolor="#CCCCCC" uuid="214686be-5c8b-43fb-8b58-e9798e1335df"/>
+				<reportElement mode="Opaque" x="70" y="158" width="180" height="18" backcolor="#CCCCCC" uuid="214686be-5c8b-43fb-8b58-e9798e1335df"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[DESIGNATION]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="290" y="158" width="250" height="18" backcolor="#CCCCCC" uuid="825590cb-ac9a-4b76-bac1-723e7a78b77b"/>
+				<reportElement mode="Opaque" x="250" y="158" width="345" height="18" backcolor="#CCCCCC" uuid="825590cb-ac9a-4b76-bac1-723e7a78b77b"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[REGLE APPLIQUEE]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="540" y="158" width="80" height="18" backcolor="#CCCCCC" uuid="3e536977-47a9-4777-90f6-c78478aa3ac9"/>
+				<reportElement mode="Opaque" x="595" y="158" width="55" height="18" backcolor="#CCCCCC" uuid="3e536977-47a9-4777-90f6-c78478aa3ac9"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[STOCK RAYON]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="620" y="158" width="60" height="18" backcolor="#CCCCCC" uuid="ca99f4f7-a9e8-4bb7-a2dc-624e19d3e725"/>
+				<reportElement mode="Opaque" x="650" y="158" width="45" height="18" backcolor="#CCCCCC" uuid="ca99f4f7-a9e8-4bb7-a2dc-624e19d3e725"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[CIBLE]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="680" y="158" width="60" height="18" backcolor="#CCCCCC" uuid="2c4b49a4-83c3-4314-b441-1e305a73f4cb"/>
+				<reportElement mode="Opaque" x="695" y="158" width="45" height="18" backcolor="#CCCCCC" uuid="2c4b49a4-83c3-4314-b441-1e305a73f4cb"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<text><![CDATA[DISPO]]></text>
@@ -160,7 +160,7 @@ ORDER BY f.str_NAME ASC]]>
 		</band>
 	</pageHeader>
 	<detail>
-		<band height="16">
+		<band height="16" splitType="Stretch">
 			<textField isBlankWhenNull="true">
 				<reportElement x="0" y="0" width="70" height="16" uuid="266ebc12-f133-42c7-9c56-23d13bdb842e"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
@@ -168,31 +168,31 @@ ORDER BY f.str_NAME ASC]]>
 				<textFieldExpression><![CDATA[$F{int_CIP}]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement x="70" y="0" width="220" height="16" uuid="34cd1501-4bc0-4f09-91ab-06478a673088"/>
+				<reportElement x="70" y="0" width="180" height="16" uuid="34cd1501-4bc0-4f09-91ab-06478a673088"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
 				<textFieldExpression><![CDATA[$F{str_NAME}]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
-				<reportElement x="290" y="0" width="250" height="16" uuid="df16a87c-5a2c-465f-9c25-835ac6af0635"/>
+			<textField isStretchWithOverflow="true">
+				<reportElement x="250" y="0" width="345" height="16" uuid="df16a87c-5a2c-465f-9c25-835ac6af0635"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Left" verticalAlignment="Middle"><font size="8"/></textElement>
 				<textFieldExpression><![CDATA[$F{str_FORMULE}]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement x="540" y="0" width="80" height="16" uuid="96af9614-4bb6-4b0c-b4c8-6bf05840cb47"/>
+				<reportElement x="595" y="0" width="55" height="16" uuid="96af9614-4bb6-4b0c-b4c8-6bf05840cb47"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
 				<textFieldExpression><![CDATA[($F{int_STOCK_RAYON} != null ? $F{int_STOCK_RAYON} : 0)]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement x="620" y="0" width="60" height="16" uuid="20ead107-2dd0-4280-bfd8-518f45c740cb"/>
+				<reportElement x="650" y="0" width="45" height="16" uuid="20ead107-2dd0-4280-bfd8-518f45c740cb"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
 				<textFieldExpression><![CDATA[($F{int_CIBLE} != null ? $F{int_CIBLE} : 0)]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement x="680" y="0" width="60" height="16" uuid="6b978065-7d89-486c-bb0c-57fd06fab32f"/>
+				<reportElement x="695" y="0" width="45" height="16" uuid="6b978065-7d89-486c-bb0c-57fd06fab32f"/>
 				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8"/></textElement>
 				<textFieldExpression><![CDATA[($F{int_DISPONIBLE} != null ? $F{int_DISPONIBLE} : 0)]]></textFieldExpression>
@@ -241,7 +241,7 @@ ORDER BY f.str_NAME ASC]]>
 		</band>
 	</pageFooter>
 	<summary>
-		<band height="24">
+		<band height="116">
 			<staticText>
 				<reportElement mode="Opaque" x="0" y="2" width="740" height="18" backcolor="#CCCCCC" uuid="143ebbf2-8d8a-413d-a3d5-dccbdaf67b8d"/>
 				<box rightPadding="5"/>
@@ -258,6 +258,44 @@ ORDER BY f.str_NAME ASC]]>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA[($V{v_total_retenu} != null ? $V{v_total_retenu} : 0)]]></textFieldExpression>
 			</textField>
+					<staticText>
+				<reportElement x="0" y="32" width="822" height="14" uuid="aaaa1111-0000-4000-8000-000000000001"/>
+				<textElement><font size="8" isBold="true"/></textElement>
+				<text><![CDATA[VISAS]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="48" width="270" height="16" uuid="aaaa1111-0000-4000-8000-000000000002"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement verticalAlignment="Middle"><font size="8"/><paragraph leftIndent="3"/></textElement>
+				<text><![CDATA[Editeur]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="276" y="48" width="270" height="16" uuid="aaaa1111-0000-4000-8000-000000000003"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement verticalAlignment="Middle"><font size="8"/><paragraph leftIndent="3"/></textElement>
+				<text><![CDATA[Magasinier (entree reserve)]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="552" y="48" width="270" height="16" uuid="aaaa1111-0000-4000-8000-000000000004"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<textElement verticalAlignment="Middle"><font size="8"/><paragraph leftIndent="3"/></textElement>
+				<text><![CDATA[Responsable]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="64" width="270" height="46" uuid="aaaa1111-0000-4000-8000-000000000005"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="276" y="64" width="270" height="46" uuid="aaaa1111-0000-4000-8000-000000000006"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="552" y="64" width="270" height="46" uuid="aaaa1111-0000-4000-8000-000000000007"/>
+				<box><pen lineWidth="0.5"/><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
 		</band>
 	</summary>
 </jasperReport>

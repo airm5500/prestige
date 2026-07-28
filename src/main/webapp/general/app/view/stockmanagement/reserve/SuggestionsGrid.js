@@ -68,6 +68,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             };
         };
 
+        // Utilisateurs ayant fait au moins un mouvement, comme sur l'onglet HISTORIQUE : on peut
+        // ainsi retrouver les suggestions liees a une personne.
+        var storeUsers = new Ext.data.Store({
+            fields: ['lg_USER_ID', 'nom'],
+            proxy: {type: 'ajax', url: '../api/v1/reserve/historique/utilisateurs', reader: {type: 'json'}}
+        });
+        storeUsers.load();
+
         // Motifs charges depuis le referentiel : ajouter un motif en base suffit a le voir ici.
         var storeMotifs = new Ext.data.Store({
             fields: ['id', 'libelle'],
@@ -119,6 +127,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 {valeur: 'AUTOMATIQUE', libelle: 'Automatique'},
                 {valeur: 'SYSTEME', libelle: 'Systeme'}
             ], 130),
+            {
+                xtype: 'combo', itemId: 'fUser', emptyText: 'Tous les utilisateurs', width: 175,
+                editable: false, queryMode: 'local', displayField: 'nom', valueField: 'lg_USER_ID',
+                store: storeUsers,
+                listeners: {select: function () {
+                        me.onRechercher();
+                    }}
+            },
             {
                 xtype: 'combo', itemId: 'fMotif', emptyText: 'Tous les motifs', width: 165,
                 editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'id',
@@ -348,7 +364,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
 
     onReinitialiser: function () {
         var me = this;
-        Ext.each(['fSearch', 'fStatut', 'fCategorie', 'fOrigine', 'fMotif', 'fDebut', 'fFin', 'fControle', 'fTri'],
+        Ext.each(['fSearch', 'fStatut', 'fCategorie', 'fOrigine', 'fMotif', 'fUser', 'fDebut', 'fFin', 'fControle', 'fTri'],
                 function (itemId) {
                     var c = me.down('#' + itemId);
                     if (c) {
@@ -538,6 +554,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             categorie: val('fCategorie'),
             origine: val('fOrigine'),
             motifId: val('fMotif'),
+            userId: val('fUser'),
             dtStart: dateVal('fDebut'),
             dtEnd: dateVal('fFin'),
             controle: val('fControle')

@@ -18,7 +18,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
 
         var store = new Ext.data.Store({
             fields: [
-                'lg_MOUVEMENT_ID', 'str_NAME', 'str_TYPE',
+                'lg_MOUVEMENT_ID', 'int_CIP', 'str_NAME', 'str_TYPE',
                 {name: 'int_QTE', type: 'int'},
                 {name: 'int_STOCK_RAYON_AVANT', type: 'int'},
                 {name: 'int_STOCK_RESERVE_AVANT', type: 'int'},
@@ -140,6 +140,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             ],
             columns: [
                 {header: 'Date', dataIndex: 'dt_CREATED', flex: 1.3},
+                {header: 'CIP', dataIndex: 'int_CIP', flex: 0.8},
                 {header: 'Designation', dataIndex: 'str_NAME', flex: 1.6},
                 {
                     header: 'Type', dataIndex: 'str_TYPE', flex: 1,
