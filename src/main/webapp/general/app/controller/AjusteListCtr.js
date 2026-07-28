@@ -98,7 +98,9 @@ Ext.define('testextjs.controller.AjusteListCtr', {
                 click: this.doSearchDetails
             },
             'ajustementgestion gridpanel': {
-                viewready: this.doInitStore
+                viewready: this.doInitStore,
+                inventaireAjustement: this.onInventaireAjustement,
+                suggestionAjustement: this.onSuggestionAjustement
             },
             'itemAjustement gridpanel': {
                 viewready: this.doInitDetailsStore
@@ -124,10 +126,7 @@ Ext.define('testextjs.controller.AjusteListCtr', {
             'ajustementgestion #zoneFiltre': {
                 select: this.doSearch
             },
-            'ajustementgestion gridpanel': {
-                inventaireAjustement: this.onInventaireAjustement,
-                suggestionAjustement: this.onSuggestionAjustement
-            }, 'itemAjustement [xtype=toolbar] #btnGoBack': {
+            'itemAjustement [xtype=toolbar] #btnGoBack': {
                 click: this.goBack
             },
             'itemAjustement [xtype=toolbar] #btnCloture': {
@@ -459,7 +458,9 @@ Ext.define('testextjs.controller.AjusteListCtr', {
                 "query": me.getQueryField().getValue(),
                 "dtStart": me.getDtStart().getSubmitValue(),
                 "dtEnd": me.getDtEnd().getSubmitValue(),
-                "typeFiltre": me.getTypeAjustement().getValue()
+                "typeFiltre": me.getTypeAjustement().getValue(),
+                "zone": me.getZoneFiltre() && me.getZoneFiltre().getValue()
+                        ? me.getZoneFiltre().getValue() : ''
             }
         });
     },
