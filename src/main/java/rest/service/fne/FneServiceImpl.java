@@ -449,6 +449,9 @@ public class FneServiceImpl implements FneService {
             throw new FneExeception(
                     "JSON incomplet : l'objet facture FNE avec son id et ses lignes (items) est obligatoire");
         }
+        // L'endpoint public de la page QR renvoie aussi un bloc "company" contenant des donnees sensibles de
+        // l'entreprise (dont la cle API) : on ne le stocke jamais en base.
+        invoice.remove("company");
         // normalisation vers la forme de la reponse de certification {"reference":..., "invoice": {...}}
         String reference = StringUtils.defaultIfEmpty(json.optString("reference", null),
                 invoice.optString("reference", null));
@@ -478,8 +481,12 @@ public class FneServiceImpl implements FneService {
         }
 
         String base = StringUtils.removeEnd(StringUtils.removeEnd(StringUtils.trimToEmpty(sp.fneUrl), "/"), "/sign");
-        // tentatives best-effort : la consultation d'une facture par token n'est pas documentee par la DGI
-        List<String> urls = Arrays.asList(base + "/" + tokenUuid, facture.getFneUrl());
+        // L'endpoint public de la page QR ($ws/invoices/qr/{token}) retourne la facture complete avec l'id FNE et les
+        // ids des lignes (constate sur l'environnement de test DGI) : c'est la voie principale. Les deux autres URLs
+        // restent en secours.
+        String wsRoot = StringUtils.removeEnd(base, "/external/invoices");
+        List<String> urls = Arrays.asList(wsRoot + "/invoices/qr/" + tokenUuid, base + "/" + tokenUuid,
+                facture.getFneUrl());
         Client client = getHttpClient();
         for (String url : urls) {
             try {
