@@ -15,6 +15,27 @@
 -- existante n'est modifiee.
 -- =====================================================================
 
+-- La table etait censee exister depuis la V5.7.1, mais les bases baselinees
+-- apres cette version ne l'ont jamais creee (baselineOnMigrate ignore les
+-- migrations anterieures au baseline). On la cree donc ici si necessaire,
+-- avec la meme definition que la V5.7.1 + les nouvelles colonnes.
+CREATE TABLE IF NOT EXISTS `fne_invoice` (
+    `id` VARCHAR(70) NOT NULL,
+    `mvt_date` DATETIME NOT NULL,
+    `type` VARCHAR(20) NOT NULL DEFAULT 'SALE',
+    `reference` VARCHAR(70) NULL DEFAULT NULL,
+    `response` LONGTEXT NULL DEFAULT NULL COLLATE 'utf8mb4_bin',
+    `facture_id` VARCHAR(40) NOT NULL COLLATE 'utf8mb3_general_ci',
+    PRIMARY KEY (`id`) USING BTREE,
+    INDEX `FKh88avxjkq113wyni5q86wdkpq` (`facture_id`) USING BTREE,
+    CONSTRAINT `FKh88avxjkq113wyni5q86wdkpq` FOREIGN KEY (`facture_id`) REFERENCES `t_facture` (`lg_FACTURE_ID`) ON UPDATE RESTRICT ON DELETE RESTRICT,
+    CONSTRAINT `response` CHECK (json_valid(`response`))
+)
+COLLATE='utf8mb3_general_ci'
+ENGINE=InnoDB
+;
+
+-- Bases ou la table existait deja (V5.7.1 appliquee) : ajout des colonnes.
 ALTER TABLE `fne_invoice`
     ADD COLUMN IF NOT EXISTS `type` VARCHAR(20) NOT NULL DEFAULT 'SALE' AFTER `mvt_date`,
     ADD COLUMN IF NOT EXISTS `reference` VARCHAR(70) NULL DEFAULT NULL AFTER `type`;
