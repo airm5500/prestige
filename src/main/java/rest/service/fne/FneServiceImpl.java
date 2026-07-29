@@ -298,6 +298,13 @@ public class FneServiceImpl implements FneService {
         }
         FneInvoiceEntity sale = findLastRecordByType(idFacture, FneInvoiceEntity.TYPE_SALE);
         if (Objects.isNull(sale)) {
+            // Facture certifiee avant la gestion des avoirs : recuperation automatique des identifiants FNE a partir
+            // du token de fne_url, de facon transparente pour l'utilisateur. En cas d'echec, l'exception porte le
+            // message orientant vers le rattachement manuel.
+            recupererDepuisToken(idFacture);
+            sale = findLastRecordByType(idFacture, FneInvoiceEntity.TYPE_SALE);
+        }
+        if (Objects.isNull(sale)) {
             throw new FneExeception("Identifiants FNE introuvables pour cette facture (certification anterieure a la "
                     + "gestion des avoirs). Utilisez la recuperation automatique ou le rattachement manuel, puis relancez l'avoir.");
         }
