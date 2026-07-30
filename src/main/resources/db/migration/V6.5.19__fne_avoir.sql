@@ -44,8 +44,12 @@ ALTER TABLE `t_facture`
     ADD COLUMN IF NOT EXISTS `fne_avoir_reference` VARCHAR(70) NULL DEFAULT NULL AFTER `fne_url`,
     ADD COLUMN IF NOT EXISTS `fne_avoir_url` VARCHAR(500) NULL DEFAULT NULL AFTER `fne_avoir_reference`;
 
-INSERT IGNORE INTO t_privilege (`lg_PRIVELEGE_ID`, `str_NAME`, `str_TYPE`, `str_DESCRIPTION`, `lg_PRIVELEGE_ID_DEP`, `dt_CREATED`, `lg_CREATED_BY`, `dt_UPDATED`, `lg_UPDATED_BY`, `str_STATUT`)
-    VALUES ('20260722', 'AUTORISATION_AVOIR_FNE', 'CUSTOMER', 'Autorisation d''avoir FNE', NULL, NOW(), NULL, NULL, NULL, 'enable');
+-- Idempotent par NOM (et pas seulement par id) : les bases ayant deja recu ce privilege via
+-- l'ancienne numerotation V6.5.5 (id 20260722, repris depuis par une migration de dev) le conservent tel quel.
+INSERT INTO t_privilege (`lg_PRIVELEGE_ID`, `str_NAME`, `str_TYPE`, `str_DESCRIPTION`, `lg_PRIVELEGE_ID_DEP`, `dt_CREATED`, `lg_CREATED_BY`, `dt_UPDATED`, `lg_UPDATED_BY`, `str_STATUT`)
+SELECT '20260730', 'AUTORISATION_AVOIR_FNE', 'CUSTOMER', 'Autorisation d''avoir FNE', NULL, NOW(), NULL, NULL, NULL, 'enable'
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM t_privilege p WHERE p.str_NAME = 'AUTORISATION_AVOIR_FNE');
 
 -- Attribution : role systeme '00'
 INSERT INTO t_role_privelege (`lg_ROLE_PRIVILEGE`, `lg_ROLE_ID`, `lg_PRIVILEGE_ID`, `dt_CREATED`, `dt_UPDATED`)
