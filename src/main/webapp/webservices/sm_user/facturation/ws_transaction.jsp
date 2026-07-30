@@ -202,6 +202,10 @@
                 ObllBase.setMessage(commonparameter.PROCESS_SUCCESS);
             } else {
                 ObllBase.setMessage(commonparameter.PROCESS_FAILED);
+                // remonte le motif reel du refus (ex : facture certifiee FNE) au lieu d'un message generique
+                if (OfactureManagement.getDetailmessage() != null) {
+                    ObllBase.setDetailmessage(OfactureManagement.getDetailmessage().replace("\"", "'"));
+                }
             }
 
         } else {

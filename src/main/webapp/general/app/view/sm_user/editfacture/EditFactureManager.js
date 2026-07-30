@@ -367,7 +367,13 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             }, {
                 header: 'Code Facture',
                 dataIndex: 'str_CODE_FACTURE',
-                flex: 0.5
+                flex: 0.5,
+                renderer: function (value, meta, rec) {
+                    if (rec.get('str_STATUT') === 'avoir') {
+                        return value + ' <span style="color:#c0392b;font-weight:bold;">(Annul&eacute;e - avoir)</span>';
+                    }
+                    return value;
+                }
 
             }, {
                 header: 'Organisme',
@@ -436,7 +442,9 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 menuDisabled: true,
                 items: [{
                         getClass: function (v, meta, rec) {
-
+                            if (rec.get('fneUrl')) {
+                                return 'x-hide-display';
+                            }
                             if (rec.get('str_STATUT') !== "paid") {
 
                                 if (!rec.get('isALLOWED')) {
@@ -449,6 +457,9 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                             }
                         },
                         getTip: function (v, meta, rec) {
+                            if (rec.get('fneUrl')) {
+                                return '';
+                            }
                             if (rec.get('str_STATUT') !== "paid") {
                                 if (!rec.get('isALLOWED')) {
                                     return '';
@@ -476,6 +487,12 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 sortable: false,
                 menuDisabled: true,
                 items: [{
+                        getClass: function (v, meta, rec) {
+                            if (rec.get('str_STATUT') === 'avoir') {
+                                return 'x-hide-display';
+                            }
+                            return 'x-display-hide';
+                        },
                         icon: 'resources/images/icons/certication.png',
                         tooltip: 'Certification',
                         scope: this,
@@ -512,7 +529,8 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                 menuDisabled: true,
                 items: [{
                         getClass: function (v, meta, rec) {
-                            if (rec.get('fneUrl') && !rec.get('fneAvoirReference') && rec.get('AUTORISATION_AVOIR_FNE')) {
+                            if (rec.get('fneUrl') && !rec.get('fneAvoirReference') && rec.get('AUTORISATION_AVOIR_FNE')
+                                    && rec.get('str_STATUT') !== 'paid' && rec.get('str_STATUT') !== 'avoir') {
                                 return 'x-display-hide';
                             } else {
                                 return 'x-hide-display';
@@ -666,7 +684,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         }
         Ext.MessageBox.confirm('Avoir FNE',
                 'Émettre un avoir total à la FNE pour la facture ' + rec.get('str_CODE_FACTURE')
-                + ' ?<br/>Toutes les lignes certifiées seront retournées. Cette opération consomme un sticker et est irréversible.',
+                + ' ?<br/>Toutes les lignes certifiées seront retournées, la facture sera annulée sur Prestige et les ventes redeviendront facturables.<br/>Cette opération consomme un sticker et est irréversible.',
                 function (btn) {
                     if (btn === 'yes') {
                         me.doAvoirFne(rec.get('lg_FACTURE_ID'), grid);
@@ -685,6 +703,11 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                     const json = Ext.decode(response.responseText);
                     if (json.reference) {
                         message = 'Avoir FNE émis. Référence : ' + json.reference;
+                    }
+                    if (json.annulation) {
+                        message += '<br/>La facture a été annulée : les ventes sont à nouveau facturables.';
+                    } else if (json.warning) {
+                        message += '<br/><b>' + json.warning + '</b>';
                     }
                 } catch (e) {
                 }
@@ -872,6 +895,16 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
     onRemoveClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
+        if (rec.get('fneUrl')) {
+            Ext.MessageBox.show({
+                title: 'Facture certifiée FNE',
+                width: 360,
+                msg: 'Cette facture est certifiée à la FNE : elle ne peut pas être supprimée.<br/>La régularisation passe par un avoir FNE (icône avoir).',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.WARNING
+            });
+            return;
+        }
         if (rec.get('str_STATUT') !== "paid" && rec.get('isALLOWED')) {
 
             Ext.MessageBox.confirm('Message',
@@ -897,7 +930,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                                         Ext.MessageBox.show({
                                             title: 'Avertissement',
                                             width: 320,
-                                            msg: 'Cette facture a subit un r&eacute;glement',
+                                            msg: (object.errors && object.errors !== 'null') ? object.errors : 'Cette facture a subit un r&eacute;glement',
                                             buttons: Ext.MessageBox.OK,
                                             icon: Ext.MessageBox.WARNING
                                         });

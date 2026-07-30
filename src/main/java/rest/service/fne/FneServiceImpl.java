@@ -2,8 +2,12 @@ package rest.service.fne;
 
 import com.google.common.util.concurrent.AtomicDouble;
 import dal.FneInvoiceEntity;
+import dal.TCompteClientTiersPayant;
 import dal.TFacture;
+import dal.TFactureDetail;
+import dal.TGroupeFactures;
 import dal.TOfficine;
+import dal.TPreenregistrementCompteClientTiersPayent;
 import dal.TTiersPayant;
 import dal.TTypeTiersPayant;
 import java.math.BigDecimal;
@@ -296,6 +300,16 @@ public class FneServiceImpl implements FneService {
             throw new FneExeception("Un avoir FNE a deja ete emis pour cette facture (reference "
                     + facture.getFneAvoirReference() + ")");
         }
+        // Meme regle que la suppression de facture : pas d'avoir sur une facture ayant fait l'objet d'un reglement
+        // (le cas facture reglee + avoir/trop-percu est un chantier ulterieur).
+        Long nbReglements = em
+                .createQuery("SELECT COUNT(o) FROM TDossierReglement o WHERE o.lgFACTUREID.lgFACTUREID = ?1",
+                        Long.class)
+                .setParameter(1, idFacture).getSingleResult();
+        if (nbReglements > 0) {
+            throw new FneExeception(
+                    "Avoir impossible : cette facture a deja fait l'objet d'un reglement. Annulez d'abord le reglement");
+        }
         FneInvoiceEntity sale = findLastRecordByType(idFacture, FneInvoiceEntity.TYPE_SALE);
         if (Objects.isNull(sale)) {
             // Facture certifiee avant la gestion des avoirs : recuperation automatique des identifiants FNE a partir
@@ -401,8 +415,74 @@ public class FneServiceImpl implements FneService {
             LOG.log(Level.SEVERE, "doRefund: enregistrement fne_invoice de l'avoir", e);
         }
 
-        return new JSONObject().put("success", true).put("reference", fneResponse.getReference()).put("url",
-                StringUtils.defaultString(fneResponse.getToken()));
+        JSONObject result = new JSONObject().put("success", true).put("reference", fneResponse.getReference())
+                .put("url", StringUtils.defaultString(fneResponse.getToken()));
+        // L'avoir est certifie : annulation locale de la facture (liberation des ventes, statut 'avoir').
+        // Un echec local ne doit pas masquer le succes FNE : on le signale sans annuler l'operation.
+        try {
+            annulerFactureLocalement(facture);
+            result.put("annulation", true);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "doRefund: annulation locale apres avoir certifie", e);
+            result.put("annulation", false).put("warning",
+                    "Avoir certifie a la FNE, mais l'annulation locale de la facture est incomplete. Contactez le support");
+        }
+        return result;
+    }
+
+    /**
+     * Annulation locale d'une facture apres certification de son avoir total : memes effets que la suppression de
+     * facture (dossiers liberes et refacturables, consommation du compte client reajustee, lignes et lien de groupe
+     * supprimes), mais la facture elle-meme est conservee avec le statut 'avoir' et un restant a 0 pour l'historique et
+     * le releve du tiers payant. Les balances de creances l'ignorent (elles filtrent sur restant &gt; 0).
+     */
+    private void annulerFactureLocalement(TFacture facture) {
+        List<TFactureDetail> details = em
+                .createQuery("SELECT o FROM TFactureDetail o WHERE o.lgFACTUREID.lgFACTUREID = ?1",
+                        TFactureDetail.class)
+                .setParameter(1, facture.getLgFACTUREID()).getResultList();
+        for (TFactureDetail detail : details) {
+            libererDossier(detail.getStrREF());
+            em.remove(detail);
+        }
+        em.createQuery("SELECT o FROM TGroupeFactures o WHERE o.lgFACTURESID.lgFACTUREID = ?1", TGroupeFactures.class)
+                .setParameter(1, facture.getLgFACTUREID()).getResultList().forEach(em::remove);
+
+        facture.setStrSTATUT(Constant.STATUT_FACTURE_AVOIR);
+        facture.setDblMONTANTRESTANT(0d);
+        facture.setDtUPDATED(new Date());
+        em.merge(facture);
+    }
+
+    /**
+     * Reproduit la liberation faite par la suppression de facture (updateTPreenregistrementCompteClientTiersPayent +
+     * resetComptClient de factureManagement) : le dossier redevient facturable et la consommation du compte client est
+     * reajustee.
+     */
+    private void libererDossier(String strRef) {
+        TPreenregistrementCompteClientTiersPayent dossier = em.find(TPreenregistrementCompteClientTiersPayent.class,
+                strRef);
+        if (Objects.isNull(dossier)) {
+            return;
+        }
+        dossier.setStrSTATUTFACTURE(Constant.STATUT_UNPAID);
+        dossier.setDtUPDATED(new Date());
+        TCompteClientTiersPayant compte = dossier.getLgCOMPTECLIENTTIERSPAYANTID();
+        if (Objects.nonNull(compte)) {
+            int reste = Objects.isNull(dossier.getIntPRICERESTE()) ? 0 : dossier.getIntPRICERESTE();
+            int conso = (Objects.isNull(compte.getDbCONSOMMATIONMENSUELLE()) ? 0 : compte.getDbCONSOMMATIONMENSUELLE())
+                    - reste;
+            compte.setDbCONSOMMATIONMENSUELLE(conso);
+            int plafond = Objects.isNull(compte.getDbPLAFONDENCOURS()) ? 0 : compte.getDbPLAFONDENCOURS();
+            if (conso <= plafond) {
+                compte.setBCANBEUSE(true);
+                if (conso < 0) {
+                    compte.setDbCONSOMMATIONMENSUELLE(0);
+                }
+            }
+            em.merge(compte);
+        }
+        em.merge(dossier);
     }
 
     private String resolveAvoirRecordId(FneResponse fneResponse) {

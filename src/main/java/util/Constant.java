@@ -36,6 +36,9 @@ public final class Constant {
     public static final String VENTE_ASSURANCE = "VO";
     public static final String USER_LIST_PRIVILEGE = "USER_LIST_PRIVILEGE";
     public static final String AUTORISATION_AVOIR_FNE = "AUTORISATION_AVOIR_FNE";
+    // Facture annulee suite a un avoir FNE certifie : conservee en base pour l'historique,
+    // exclue des creances (montant restant a 0, lignes liberees pour refacturation).
+    public static final String STATUT_FACTURE_AVOIR = "avoir";
     public static final String SHOW_VENTE = "str_SHOW_VENTE";
     public static final String P_SHOW_ALL_ACTIVITY = "P_SHOW_ALL_ACTIVITY";
     public static final String STATUT_DELETE = "delete";

@@ -1007,6 +1007,14 @@ public class factureManagement extends bll.bllBase {
         boolean isDeleted = true;
         TFacture OFacture;
         try {
+            // Une facture certifiee FNE ne se supprime jamais : sa regularisation passe par un avoir FNE
+            // (controle serveur, meme si l'appel contourne l'interface).
+            TFacture certifiee = this.getOdataManager().getEm().find(TFacture.class, lg_FACTURE_ID);
+            if (certifiee != null && certifiee.getFneUrl() != null && !certifiee.getFneUrl().trim().isEmpty()) {
+                buildErrorTraceMessage(
+                        "Suppression impossible : cette facture est certifiee FNE. Utilisez l'avoir FNE pour la regulariser");
+                return false;
+            }
             if (factureCanBeDeleted(lg_FACTURE_ID)) {
 
                 if (!this.getOdataManager().getEm().getTransaction().isActive()) {
