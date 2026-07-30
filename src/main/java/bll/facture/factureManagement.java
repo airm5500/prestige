@@ -1119,8 +1119,11 @@ public class factureManagement extends bll.bllBase {
         boolean isWasCharged = false;
         List list = null;
         try {
+            // Les factures annulees par avoir FNE (statut 'avoir') conservent leurs lignes pour l'historique,
+            // mais ne comptent plus comme facturation active : la vente redevient annulable, comme apres une
+            // suppression de facture.
             list = this.getOdataManager().getEm().createQuery(
-                    "SELECT o  FROM TPreenregistrementCompteClientTiersPayent o ,TFactureDetail f WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 AND  o.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=f.strREF ")
+                    "SELECT o  FROM TPreenregistrementCompteClientTiersPayent o ,TFactureDetail f WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 AND  o.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=f.strREF AND (f.lgFACTUREID.strSTATUT IS NULL OR f.lgFACTUREID.strSTATUT <> 'avoir') ")
                     .setParameter(1, str_REF).getResultList();
             if (list.size() > 0) {
                 isWasCharged = true;
@@ -2065,6 +2068,11 @@ public class factureManagement extends bll.bllBase {
                     .setParameter(1, facture).getSingleResult();
 
         } catch (Exception e) {
+        }
+        // SUM retourne null quand la facture n'a aucune ligne (ex: facture annulee par avoir FNE avant la
+        // conservation des details) : Double.valueOf("null") provoquait une NumberFormatException a la reedition.
+        if (amount == null) {
+            return 0d;
         }
         return Double.valueOf(amount + "");
     }

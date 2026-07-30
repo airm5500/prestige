@@ -6725,8 +6725,10 @@ public class Preenregistrement extends bll.bllBase {
         String CODEFACTURE = "";
 
         try {
+            // Les factures annulees par avoir FNE (statut 'avoir') gardent leurs lignes pour l'historique mais ne
+            // bloquent plus l'annulation de la vente, comme apres une suppression de facture.
             List<TFactureDetail> list = this.getOdataManager().getEm().createQuery(
-                    "SELECT o  FROM TFactureDetail o,TPreenregistrementCompteClientTiersPayent p WHERE p.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 AND p.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=o.strREF")
+                    "SELECT o  FROM TFactureDetail o,TPreenregistrementCompteClientTiersPayent p WHERE p.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1 AND p.lgPREENREGISTREMENTCOMPTECLIENTPAYENTID=o.strREF AND (o.lgFACTUREID.strSTATUT IS NULL OR o.lgFACTUREID.strSTATUT <> 'avoir')")
                     .setParameter(1, str_REF).setMaxResults(1).getResultList();
             if (!list.isEmpty()) {
                 CODEFACTURE = list.get(0).getLgFACTUREID().getStrCODEFACTURE();

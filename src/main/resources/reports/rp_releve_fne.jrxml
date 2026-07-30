@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Releve de facturation FNE d'un tiers payant : factures certifiees en positif,
+    avoirs certifies en negatif (en rouge), totaux et solde net.
+    A DEPLOYER dans le repertoire des modeles de rapports du serveur
+    (repertoire configure dans la ressource jdom, aux cotes de rp_facturerecap.jrxml).
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_releve_fne" pageWidth="595" pageHeight="842" columnWidth="555"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20">
+
+    <style name="ligneReleve" fontName="SansSerif" fontSize="9">
+        <conditionalStyle>
+            <conditionExpression><![CDATA["AVOIR".equals($F{type_piece})]]></conditionExpression>
+            <style forecolor="#C0392B" isBold="true"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_TIERS_PAYANT_NAME" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_LG_TIERS_PAYANT_ID" class="java.lang.String"/>
+    <parameter name="P_DT_START" class="java.util.Date"/>
+    <parameter name="P_DT_END" class="java.util.Date"/>
+
+    <queryString><![CDATA[
+SELECT piece.date_piece, piece.code_facture, piece.type_piece, piece.reference_fne, piece.montant
+FROM (
+    SELECT f.dt_DATE_FACTURE AS date_piece,
+           f.str_CODE_FACTURE AS code_facture,
+           'FACTURE' AS type_piece,
+           COALESCE((SELECT fi.reference FROM fne_invoice fi
+                      WHERE fi.facture_id = f.lg_FACTURE_ID AND fi.type = 'SALE'
+                      ORDER BY fi.mvt_date DESC LIMIT 1), '') AS reference_fne,
+           ROUND(COALESCE(f.dbl_MONTANT_CMDE, 0)) AS montant,
+           f.dt_CREATED AS ordre1, 1 AS ordre2
+      FROM t_facture f
+     WHERE f.str_CUSTOMER = $P{P_LG_TIERS_PAYANT_ID}
+       AND f.fne_url IS NOT NULL
+       AND f.dt_CREATED >= $P{P_DT_START} AND f.dt_CREATED <= $P{P_DT_END}
+       AND (f.template <> 1 OR f.template IS NULL)
+    UNION ALL
+    SELECT COALESCE((SELECT fa.mvt_date FROM fne_invoice fa
+                      WHERE fa.facture_id = f.lg_FACTURE_ID AND fa.type = 'AVOIR'
+                      ORDER BY fa.mvt_date DESC LIMIT 1), f.dt_UPDATED) AS date_piece,
+           f.str_CODE_FACTURE AS code_facture,
+           'AVOIR' AS type_piece,
+           COALESCE(f.fne_avoir_reference, '') AS reference_fne,
+           -ROUND(COALESCE(f.dbl_MONTANT_CMDE, 0)) AS montant,
+           f.dt_CREATED AS ordre1, 2 AS ordre2
+      FROM t_facture f
+     WHERE f.str_CUSTOMER = $P{P_LG_TIERS_PAYANT_ID}
+       AND f.fne_url IS NOT NULL
+       AND f.fne_avoir_reference IS NOT NULL
+       AND f.dt_CREATED >= $P{P_DT_START} AND f.dt_CREATED <= $P{P_DT_END}
+       AND (f.template <> 1 OR f.template IS NULL)
+) piece
+ORDER BY piece.ordre1, piece.code_facture, piece.ordre2
+]]></queryString>
+
+    <field name="date_piece" class="java.sql.Timestamp"/>
+    <field name="code_facture" class="java.lang.String"/>
+    <field name="type_piece" class="java.lang.String"/>
+    <field name="reference_fne" class="java.lang.String"/>
+    <field name="montant" class="java.math.BigDecimal"/>
+
+    <variable name="V_TOTAL_FACTURES" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA["FACTURE".equals($F{type_piece}) ? $F{montant} : java.math.BigDecimal.ZERO]]></variableExpression>
+        <initialValueExpression><![CDATA[java.math.BigDecimal.ZERO]]></initialValueExpression>
+    </variable>
+    <variable name="V_TOTAL_AVOIRS" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA["AVOIR".equals($F{type_piece}) ? $F{montant} : java.math.BigDecimal.ZERO]]></variableExpression>
+        <initialValueExpression><![CDATA[java.math.BigDecimal.ZERO]]></initialValueExpression>
+    </variable>
+    <variable name="V_NET" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{montant}]]></variableExpression>
+        <initialValueExpression><![CDATA[java.math.BigDecimal.ZERO]]></initialValueExpression>
+    </variable>
+
+    <title>
+        <band height="70">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="555" height="18"/>
+                <textElement textAlignment="Center">
+                    <font fontName="SansSerif" size="13" isBold="true"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="22" width="555" height="16"/>
+                <textElement textAlignment="Center">
+                    <font fontName="SansSerif" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[RELEVE DE FACTURATION FNE]]></text>
+            </staticText>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="40" width="555" height="14"/>
+                <textElement textAlignment="Center">
+                    <font fontName="SansSerif" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{P_TIERS_PAYANT_NAME}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="54" width="555" height="14"/>
+                <textElement textAlignment="Center">
+                    <font fontName="SansSerif" size="9"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Periode : " + $P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="18" backcolor="#EEEEEE"/>
+            </rectangle>
+            <staticText>
+                <reportElement x="2" y="2" width="70" height="14"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Date]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="72" y="2" width="80" height="14"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Facture]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="152" y="2" width="100" height="14"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Type]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="252" y="2" width="193" height="14"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Reference FNE]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="445" y="2" width="108" height="14"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Montant]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="15">
+            <textField isBlankWhenNull="true" pattern="dd/MM/yyyy">
+                <reportElement style="ligneReleve" x="2" y="0" width="70" height="14"/>
+                <textFieldExpression><![CDATA[$F{date_piece}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligneReleve" x="72" y="0" width="80" height="14"/>
+                <textFieldExpression><![CDATA[$F{code_facture}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligneReleve" x="152" y="0" width="100" height="14"/>
+                <textFieldExpression><![CDATA["AVOIR".equals($F{type_piece}) ? "Avoir (annulation)" : "Facture"]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement style="ligneReleve" x="252" y="0" width="193" height="14"/>
+                <textFieldExpression><![CDATA[$F{reference_fne}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true" pattern="#,##0">
+                <reportElement style="ligneReleve" x="445" y="0" width="108" height="14"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$F{montant}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <summary>
+        <band height="66">
+            <line>
+                <reportElement x="0" y="2" width="555" height="1"/>
+            </line>
+            <staticText>
+                <reportElement x="252" y="8" width="193" height="14"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Total factures certifiees]]></text>
+            </staticText>
+            <textField pattern="#,##0">
+                <reportElement x="445" y="8" width="108" height="14"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$V{V_TOTAL_FACTURES}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="252" y="24" width="193" height="14" forecolor="#C0392B"/>
+                <textElement><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <text><![CDATA[Total avoirs certifies]]></text>
+            </staticText>
+            <textField pattern="#,##0">
+                <reportElement x="445" y="24" width="108" height="14" forecolor="#C0392B"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$V{V_TOTAL_AVOIRS}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="252" y="42" width="193" height="16"/>
+                <textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+                <text><![CDATA[SOLDE NET]]></text>
+            </staticText>
+            <textField pattern="#,##0">
+                <reportElement x="445" y="42" width="108" height="16"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="10" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$V{V_NET}]]></textFieldExpression>
+            </textField>
+        </band>
+    </summary>
+</jasperReport>

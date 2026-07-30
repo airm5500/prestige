@@ -124,6 +124,10 @@
     String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
     String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
     String P_H_CLT_INFOS = "PERIODE DU " + date.formatterShort.format(OFacture.getDtDEBUTFACTURE()) + " AU " + date.formatterShort.format(OFacture.getDtFINFACTURE());
+    // Reedition d'une facture annulee par avoir FNE : mention explicite sur l'edition, sans toucher au modele .jrxml
+    if ("avoir".equals(OFacture.getStrSTATUT())) {
+        P_H_CLT_INFOS += " *** FACTURE ANNULEE PAR AVOIR FNE" + (OFacture.getFneAvoirReference() != null ? " (" + OFacture.getFneAvoirReference() + ")" : "") + " ***";
+    }
     String P_H_LOGO = jdom.scr_report_file_logo;
 
     // Map parameters = new HashMap();
@@ -138,23 +142,23 @@
     parameters.put("P_LG_FACTURE_ID", lg_FACTURE_ID);
 
     parameters.put("P_LG_TIERS_PAYANT_ID", OTiersPayant.getLgTIERSPAYANTID());
-    parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
+    parameters.put("P_CODE_FACTURE", "FACTURE Nï¿½ " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
     parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
     parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
     String P_FOOTER_RC = "";
 
     if (oTOfficine.getStrREGISTRECOMMERCE() != null) {
-        P_FOOTER_RC += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
+        P_FOOTER_RC += "RC Nï¿½ " + oTOfficine.getStrREGISTRECOMMERCE();
     }
 
     if (oTOfficine.getStrCOMPTECONTRIBUABLE() != null) {
-        P_FOOTER_RC += " - CC N° " + oTOfficine.getStrCOMPTECONTRIBUABLE();
+        P_FOOTER_RC += " - CC Nï¿½ " + oTOfficine.getStrCOMPTECONTRIBUABLE();
     }
     if (oTOfficine.getStrREGISTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Régime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
+        P_FOOTER_RC += " - Rï¿½gime d'Imposition " + oTOfficine.getStrREGISTREIMPOSITION();
     }
     if (oTOfficine.getStrCENTREIMPOSITION() != null) {
-        P_FOOTER_RC += " - Centre des Impôts: " + oTOfficine.getStrCENTREIMPOSITION();
+        P_FOOTER_RC += " - Centre des Impï¿½ts: " + oTOfficine.getStrCENTREIMPOSITION();
     }
 
     if (oTOfficine.getStrPHONE() != null) {
@@ -175,7 +179,7 @@
     }
     if (oTOfficine.getStrNUMCOMPTABLE() != null) {
 
-        P_INSTITUTION_ADRESSE += " - CPT N°: " + oTOfficine.getStrNUMCOMPTABLE();
+        P_INSTITUTION_ADRESSE += " - CPT Nï¿½: " + oTOfficine.getStrNUMCOMPTABLE();
     }
     parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(montantRecap).toUpperCase() + " (" + conversion.AmountFormat(montantRecap.intValue()) + " FCFA)");
     parameters.put("P_INSTITUTION_ADRESSE", P_INSTITUTION_ADRESSE);
@@ -314,7 +318,7 @@
                 parameters.put("DATE_MVT", idCMP.get("dateMvt"));
                 parameters.put("DATEFACT", dateFact);
                 parameters.put("NBONS", idCMP.get("NBONS"));
-                parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
+                parameters.put("P_CODE_FACTURE", "FACTURE Nï¿½ " + OFacture.getStrCODEFACTURE() + "/" + ((idx + 1) < 10 ? "0" : "") + (idx + 1) + "/" + date.getAnnee(OFacture.getDtDATEFACTURE()));
                 parameters.put("P_CLIENT_NAME", idCMP.get("strFIRSTNAME"));
                 parameters.put("P_NUMEROS", idCMP.get("strNUMEROSECURITESOCIAL"));
                 OreportManager.setPath_report_src(Ojdom.scr_report_file + "rp_facture_Client" + ".jrxml");
@@ -386,8 +390,8 @@
             OreportManager.BuildReport(parameters, Ojconnexion);
             inputPdfList.add(new FileInputStream(Ojdom.scr_report_pdf + "rp_facture_" + report_generate_file));
 
-            //generer selon le code 14 qui sera la facture ou des bons peuvent avoir ete reglé montant restant
-            //autre que 14 la generation sera normal montant total sans tenir compte des reglés
+            //generer selon le code 14 qui sera la facture ou des bons peuvent avoir ete reglï¿½ montant restant
+            //autre que 14 la generation sera normal montant total sans tenir compte des reglï¿½s
             if (codeFACT == 14) {
                 //parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(Double.parseDouble(P_ATT_AMOUNT + "")).toUpperCase() + " (" + conversion.AmountFormat(Integer.valueOf(P_ATT_AMOUNT + "")) + " FCFA)");
                 parameters.put("P_TOTAL_IN_LETTERS", conversion.GetNumberTowords(facManagement.getAmount(OFacture.getLgFACTUREID())).toUpperCase() + " (" + conversion.AmountFormat(facManagement.getAmount(OFacture.getLgFACTUREID()).intValue()) + " FCFA)");

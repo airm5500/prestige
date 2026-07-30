@@ -432,9 +432,10 @@ public class FneServiceImpl implements FneService {
 
     /**
      * Annulation locale d'une facture apres certification de son avoir total : memes effets que la suppression de
-     * facture (dossiers liberes et refacturables, consommation du compte client reajustee, lignes et lien de groupe
-     * supprimes), mais la facture elle-meme est conservee avec le statut 'avoir' et un restant a 0 pour l'historique et
-     * le releve du tiers payant. Les balances de creances l'ignorent (elles filtrent sur restant &gt; 0).
+     * facture (dossiers liberes et refacturables, consommation du compte client reajustee, lien de groupe supprime),
+     * mais la facture ET SES LIGNES sont conservees (statut 'avoir', restant a 0) pour la consultation des details, la
+     * reedition et le releve du tiers payant. Les balances de creances l'ignorent (elles filtrent sur restant &gt; 0)
+     * et les controles 'vente deja facturee' ignorent le statut 'avoir'.
      */
     private void annulerFactureLocalement(TFacture facture) {
         List<TFactureDetail> details = em
@@ -443,7 +444,6 @@ public class FneServiceImpl implements FneService {
                 .setParameter(1, facture.getLgFACTUREID()).getResultList();
         for (TFactureDetail detail : details) {
             libererDossier(detail.getStrREF());
-            em.remove(detail);
         }
         em.createQuery("SELECT o FROM TGroupeFactures o WHERE o.lgFACTURESID.lgFACTUREID = ?1", TGroupeFactures.class)
                 .setParameter(1, facture.getLgFACTUREID()).getResultList().forEach(em::remove);
