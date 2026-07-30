@@ -302,6 +302,15 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
                         iconCls: 'export_excel_icon',
                         handler: this.exportToExcel
+                    },
+                    {
+                        xtype: 'tbseparator'
+                    },
+                    {
+                        text: 'Relev&eacute; FNE',
+                        tooltip: 'Relev&eacute; des factures certifi&eacute;es et avoirs FNE du tiers payant',
+                        scope: this,
+                        handler: this.onReleveFne
                     }
                 ]
             },
@@ -675,6 +684,87 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             Ext.MessageBox.alert('Info', 'Avoir FNE : ' + rec.get('fneAvoirReference'));
         }
 
+    },
+    onReleveFne: function () {
+        const me = this;
+        const tiersPayantId = Ext.getCmp('lg_TIERS_PAYANT_ID').getValue();
+        if (!tiersPayantId) {
+            Ext.MessageBox.alert('Relevé FNE', 'Sélectionnez d\'abord un tiers payant dans la barre de recherche.');
+            return;
+        }
+        // fenêtre ouverte de façon synchrone (clic utilisateur) pour ne pas être bloquée par le navigateur
+        const winImpression = window.open('', '_blank');
+        Ext.Ajax.request({
+            url: '../api/v1/fne/releve',
+            method: 'GET',
+            params: {
+                tiersPayantId: tiersPayantId,
+                dtStart: Ext.getCmp('datedebut').getSubmitValue() || '',
+                dtEnd: Ext.getCmp('datefin').getSubmitValue() || ''
+            },
+            success: function (response) {
+                const data = Ext.decode(response.responseText);
+                if (winImpression) {
+                    winImpression.document.write(me.buildReleveFneHtml(data));
+                    winImpression.document.close();
+                }
+            },
+            failure: function (response) {
+                if (winImpression) {
+                    winImpression.close();
+                }
+                let message = response.responseText;
+                try {
+                    const json = Ext.decode(response.responseText);
+                    if (json.message) {
+                        message = json.message;
+                    }
+                } catch (e) {
+                }
+                Ext.MessageBox.alert('Relevé FNE', message);
+            }
+        });
+    },
+    buildReleveFneHtml: function (data) {
+        const fmt = function (montant) {
+            return Number(montant || 0).toLocaleString('fr-FR');
+        };
+        let lignes = '';
+        (data.rows || []).forEach(function (r) {
+            const avoir = r.type === 'AVOIR';
+            lignes += '<tr' + (avoir ? ' class="avoir"' : '') + '>'
+                    + '<td>' + (r.date || '') + '</td>'
+                    + '<td>' + (r.code || '') + '</td>'
+                    + '<td>' + (avoir ? 'Avoir (annulation)' : 'Facture') + '</td>'
+                    + '<td>' + (r.reference || '') + '</td>'
+                    + '<td class="num">' + fmt(r.montant) + '</td>'
+                    + '</tr>';
+        });
+        if (!lignes) {
+            lignes = '<tr><td colspan="5" style="text-align:center;">Aucune facture certifi&eacute;e FNE sur la p&eacute;riode</td></tr>';
+        }
+        return '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Relev&eacute; FNE</title>'
+                + '<style>'
+                + 'body{font-family:Arial,sans-serif;font-size:12px;margin:24px;}'
+                + 'h2{margin:0 0 2px 0;font-size:16px;} h3{margin:0 0 12px 0;font-size:13px;font-weight:normal;}'
+                + 'table{width:100%;border-collapse:collapse;margin-top:10px;}'
+                + 'th,td{border:1px solid #999;padding:4px 6px;} th{background:#eee;}'
+                + 'td.num{text-align:right;} tr.avoir td{color:#c0392b;}'
+                + 'tfoot td{font-weight:bold;}'
+                + '.noprint{margin-top:16px;} @media print{.noprint{display:none;}}'
+                + '</style></head><body>'
+                + '<h2>' + (data.officine || '') + '</h2>'
+                + '<h3>RELEV&Eacute; DE FACTURATION FNE &mdash; ' + (data.tiersPayant || '')
+                + '<br/>P&eacute;riode : ' + (data.periode || '') + '</h3>'
+                + '<table><thead><tr><th>Date</th><th>Facture</th><th>Type</th><th>R&eacute;f&eacute;rence FNE</th><th>Montant</th></tr></thead>'
+                + '<tbody>' + lignes + '</tbody>'
+                + '<tfoot>'
+                + '<tr><td colspan="4">Total factures certifi&eacute;es</td><td class="num">' + fmt(data.totalFactures) + '</td></tr>'
+                + '<tr class="avoir"><td colspan="4">Total avoirs certifi&eacute;s</td><td class="num">-' + fmt(data.totalAvoirs) + '</td></tr>'
+                + '<tr><td colspan="4">Solde net</td><td class="num">' + fmt(data.net) + '</td></tr>'
+                + '</tfoot></table>'
+                + '<div class="noprint"><button onclick="window.print()">Imprimer</button></div>'
+                + '</body></html>';
     },
     onAvoirFneClick: function (grid, rowIndex) {
         const me = this;

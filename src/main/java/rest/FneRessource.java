@@ -106,6 +106,20 @@ public class FneRessource {
         }
     }
 
+    /**
+     * Releve FNE d'un tiers payant (factures certifiees / avoirs / solde net) sur une periode. Consultation seule.
+     */
+    @GET
+    @Path("releve")
+    public Response releveFne(@QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("dtStart") String dtStart,
+            @QueryParam("dtEnd") String dtEnd) {
+        try {
+            return Response.ok(fneService.releveFne(tiersPayantId, dtStart, dtEnd).toString()).build();
+        } catch (FneExeception e) {
+            return badRequest(e);
+        }
+    }
+
     private boolean hasAvoirPrivilege() {
         HttpSession hs = servletRequest.getSession();
         List<TPrivilege> privileges = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);

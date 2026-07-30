@@ -602,6 +602,77 @@ public class FneServiceImpl implements FneService {
                 + "support.fne@dgi.gouv.ci).");
     }
 
+    @Override
+    public JSONObject releveFne(String tiersPayantId, String dtStart, String dtEnd) throws FneExeception {
+        if (StringUtils.isEmpty(tiersPayantId)) {
+            throw new FneExeception("Selectionnez un tiers payant");
+        }
+        TTiersPayant tiersPayant = em.find(TTiersPayant.class, tiersPayantId);
+        if (Objects.isNull(tiersPayant)) {
+            throw new FneExeception("Tiers payant introuvable : " + tiersPayantId);
+        }
+        Date debut = parseDateOrDefault(dtStart, "2000-01-01", false);
+        Date fin = parseDateOrDefault(dtEnd, null, true);
+
+        List<TFacture> factures = em.createQuery(
+                "SELECT t FROM TFacture t WHERE t.strCUSTOMER = ?1 AND t.fneUrl IS NOT NULL AND (t.dtCREATED >= ?2 AND t.dtCREATED <= ?3) "
+                        + "AND (t.template <> TRUE OR t.template IS NULL) ORDER BY t.dtCREATED",
+                TFacture.class).setParameter(1, tiersPayantId).setParameter(2, debut).setParameter(3, fin)
+                .getResultList();
+
+        JSONArray rows = new JSONArray();
+        long totalFactures = 0;
+        long totalAvoirs = 0;
+        for (TFacture facture : factures) {
+            long montant = Objects.isNull(facture.getDblMONTANTCMDE()) ? 0 : Math.round(facture.getDblMONTANTCMDE());
+            FneInvoiceEntity vente = findLastRecordByType(facture.getLgFACTUREID(), FneInvoiceEntity.TYPE_SALE);
+            Date dateFacture = Objects.nonNull(facture.getDtDATEFACTURE()) ? facture.getDtDATEFACTURE()
+                    : facture.getDtCREATED();
+            rows.put(new JSONObject()
+                    .put("date", Objects.nonNull(dateFacture) ? DateCommonUtils.format(dateFacture) : "")
+                    .put("code", StringUtils.defaultString(facture.getStrCODEFACTURE())).put("type", "FACTURE")
+                    .put("reference", Objects.nonNull(vente) ? StringUtils.defaultString(vente.getReference()) : "")
+                    .put("montant", montant));
+            totalFactures += montant;
+            if (StringUtils.isNotEmpty(facture.getFneAvoirReference())) {
+                FneInvoiceEntity avoir = findLastRecordByType(facture.getLgFACTUREID(), FneInvoiceEntity.TYPE_AVOIR);
+                Date dateAvoir = Objects.nonNull(avoir) ? avoir.getMvtDate() : facture.getDtUPDATED();
+                rows.put(new JSONObject()
+                        .put("date", Objects.nonNull(dateAvoir) ? DateCommonUtils.format(dateAvoir) : "")
+                        .put("code", StringUtils.defaultString(facture.getStrCODEFACTURE())).put("type", "AVOIR")
+                        .put("reference", facture.getFneAvoirReference()).put("montant", -montant));
+                totalAvoirs += montant;
+            }
+        }
+
+        TOfficine officine = getOfficine();
+        return new JSONObject().put("success", true)
+                .put("officine", Objects.nonNull(officine) ? officine.getStrNOMCOMPLET() : "")
+                .put("tiersPayant", StringUtils.defaultString(tiersPayant.getStrFULLNAME()))
+                .put("periode", DateCommonUtils.format(debut) + " au " + DateCommonUtils.format(fin)).put("rows", rows)
+                .put("totalFactures", totalFactures).put("totalAvoirs", totalAvoirs)
+                .put("net", totalFactures - totalAvoirs);
+    }
+
+    /**
+     * Parse une date yyyy-MM-dd des champs de periode ; borne de fin poussee a 23:59:59. Valeur par defaut appliquee si
+     * le parametre est vide (fin par defaut : maintenant).
+     */
+    private Date parseDateOrDefault(String value, String defaut, boolean finDeJournee) {
+        String candidat = StringUtils.defaultIfEmpty(StringUtils.trimToEmpty(value), defaut);
+        if (StringUtils.isEmpty(candidat)) {
+            return new Date();
+        }
+        try {
+            java.time.LocalDate localDate = java.time.LocalDate.parse(candidat);
+            java.time.LocalDateTime localDateTime = finDeJournee ? localDate.atTime(23, 59, 59)
+                    : localDate.atStartOfDay();
+            return Date.from(localDateTime.atZone(java.time.ZoneId.systemDefault()).toInstant());
+        } catch (Exception e) {
+            return new Date();
+        }
+    }
+
     /**
      * Extrait l'UUID final d'une URL de verification FNE (http://.../fr/verification/{uuid}).
      */

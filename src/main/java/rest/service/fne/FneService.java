@@ -39,4 +39,10 @@ public interface FneService {
      * son URL de verification (fne_url).
      */
     JSONObject recupererDepuisToken(String idFacture) throws FneExeception;
+
+    /**
+     * Releve FNE d'un tiers payant sur une periode : factures certifiees en positif, avoirs certifies en negatif,
+     * totaux et solde net. Consultation seule, ne modifie rien.
+     */
+    JSONObject releveFne(String tiersPayantId, String dtStart, String dtEnd) throws FneExeception;
 }
