@@ -268,7 +268,10 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
         codeGrossiste: me.getGrossiste().getValue(),
         stockFiltre: me.getStockFiltre().getValue(),
         stock: me.getStock().getValue(),
-        codeFamile: me.getCodeFamile().getValue()
+        codeFamile: me.getCodeFamile().getValue(),
+        // Les exports et la creation d'inventaire retiennent la MEME selection que la liste :
+        // sans ce parametre ils ignoraient la regle des N mois et ramenaient d'autres produits.
+        nombreMois: me.getNombreMois().getValue() || 0
     };
 },
 

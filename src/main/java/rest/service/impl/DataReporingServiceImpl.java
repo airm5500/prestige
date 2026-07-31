@@ -945,28 +945,29 @@ public class DataReporingServiceImpl implements DataReporingService {
     }
 
     private List<ArticleDTO> findAllArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
-            TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) {
+            TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois) {
 
         // all = true pour ignorer start/limit
         return statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock, stockFiltre,
-                0, 0, true);
+                0, 0, true, nombreMois);
     }
 
     private List<String> getArticlesInvendusIds(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) {
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois) {
 
         return findAllArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
-                stockFiltre).stream().map(ArticleDTO::getId) // ArticleDTO a déjà getId() (tu l’utilises dans
+                stockFiltre, nombreMois).stream().map(ArticleDTO::getId) // ArticleDTO a déjà getId() (tu l’utilises dans
                                                              // dateDerniereVente/stockProduit)
                         .collect(Collectors.toList());
     }
 
     @Override
     public byte[] exportArticlesInvendusCsv(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException {
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois)
+            throws IOException {
 
         List<ArticleDTO> data = findAllArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste,
-                stock, stockFiltre);
+                stock, stockFiltre, nombreMois);
 
         LocalDate d1 = LocalDate.parse(dtStart); // "yyyy-MM-dd"
         LocalDate d2 = LocalDate.parse(dtEnd);
@@ -990,10 +991,11 @@ public class DataReporingServiceImpl implements DataReporingService {
 
     @Override
     public byte[] exportArticlesInvendusExcel(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException {
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois)
+            throws IOException {
 
         List<ArticleDTO> data = findAllArticlesInvendus(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste,
-                stock, stockFiltre);
+                stock, stockFiltre, nombreMois);
 
         LocalDate d1 = LocalDate.parse(dtStart);
         LocalDate d2 = LocalDate.parse(dtEnd);
@@ -1018,10 +1020,11 @@ public class DataReporingServiceImpl implements DataReporingService {
 
     @Override
     public JSONObject createInventaireArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query,
-            TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws JSONException {
+            TUser u, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois)
+            throws JSONException {
 
         List<String> ids = getArticlesInvendusIds(dtStart, dtEnd, codeFamile, query, u, codeRayon, codeGrossiste, stock,
-                stockFiltre);
+                stockFiltre, nombreMois);
 
         if (ids.isEmpty()) {
             return new JSONObject().put("count", 0);

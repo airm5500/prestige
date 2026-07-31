@@ -168,7 +168,8 @@ public class DataReporingRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
             @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
-            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre) throws IOException, JSONException {
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre,
+            @QueryParam(value = "nombreMois") int nombreMois) throws IOException, JSONException {
 
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -177,7 +178,7 @@ public class DataReporingRessource {
         }
 
         byte[] data = dataReporingService.exportArticlesInvendusCsv(dtStart, dtEnd, codeFamile, query, tu, codeRayon,
-                codeGrossiste, stock, stockFiltre);
+                codeGrossiste, stock, stockFiltre, nombreMois);
 
         String filename = "articles-invendus_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".csv";
@@ -193,7 +194,8 @@ public class DataReporingRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
             @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
-            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre) throws IOException, JSONException {
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre,
+            @QueryParam(value = "nombreMois") int nombreMois) throws IOException, JSONException {
 
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -202,7 +204,7 @@ public class DataReporingRessource {
         }
 
         byte[] data = dataReporingService.exportArticlesInvendusExcel(dtStart, dtEnd, codeFamile, query, tu, codeRayon,
-                codeGrossiste, stock, stockFiltre);
+                codeGrossiste, stock, stockFiltre, nombreMois);
 
         String filename = "articles-invendus_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_HH_mm_ss")) + ".xls";
@@ -217,7 +219,8 @@ public class DataReporingRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
             @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
-            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre) throws JSONException {
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre,
+            @QueryParam(value = "nombreMois") int nombreMois) throws JSONException {
 
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -226,7 +229,7 @@ public class DataReporingRessource {
         }
 
         JSONObject jsono = dataReporingService.createInventaireArticlesInvendus(dtStart, dtEnd, codeFamile, query, tu,
-                codeRayon, codeGrossiste, stock, stockFiltre);
+                codeRayon, codeGrossiste, stock, stockFiltre, nombreMois);
 
         return Response.ok().entity(jsono.toString()).build();
     }

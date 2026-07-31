@@ -72,11 +72,14 @@ public interface DataReporingService {
             int nombreMois) throws JSONException;
 
     byte[] exportArticlesInvendusCsv(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException, JSONException;
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois)
+            throws IOException, JSONException;
 
     byte[] exportArticlesInvendusExcel(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException, JSONException;
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois)
+            throws IOException, JSONException;
 
     JSONObject createInventaireArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws JSONException;
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int nombreMois)
+            throws JSONException;
 }
