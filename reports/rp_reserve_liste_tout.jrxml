@@ -64,7 +64,7 @@ ORDER BY f.str_DESCRIPTION ASC]]>
 				<text><![CDATA[]]></text>
 			</staticText>
 			<textField isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="120" y="78" width="335" height="26" backcolor="#CCCCCC" uuid="14ca384f-3fdb-4240-a30c-252493cd65b3"/>
+				<reportElement mode="Opaque" x="61" y="78" width="700" height="26" backcolor="#CCCCCC" uuid="14ca384f-3fdb-4240-a30c-252493cd65b3"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="Times New Roman" size="12" isBold="true" isUnderline="true"/></textElement>
 				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
 			</textField>

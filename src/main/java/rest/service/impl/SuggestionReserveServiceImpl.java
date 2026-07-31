@@ -744,7 +744,13 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         JSONArray ids = new JSONArray();
         for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
             if (seulementEchecs) {
-                if (TSuggestionReserveDetail.ETAT_ECHEC.equals(d.getStrETAT())) {
+                // Une ligne en echec dont on CORRIGE la quantite passe a MODIFIEE : elle n'etait
+                // donc plus reprise, et la reprise ne faisait rien tout en reaffichant l'ancien
+                // echec. Le code d'echec, lui, subsiste tant que la ligne n'a pas abouti : il
+                // identifie donc bien les lignes a rejouer, corrigees comprises.
+                boolean aDejaEchoue = TSuggestionReserveDetail.ETAT_ECHEC.equals(d.getStrETAT())
+                        || notBlank(d.getStrCODEECHEC());
+                if (aDejaEchoue && estTraitable(d)) {
                     ids.put(d.getLgSUGGESTIONRESERVEDETAILID());
                 }
             } else if (estTraitable(d)) {

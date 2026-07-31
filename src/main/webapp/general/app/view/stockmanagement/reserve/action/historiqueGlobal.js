@@ -69,7 +69,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
                     }
                 },
                 change: {
-                    buffer: 400,
+                    buffer: 800,
                     fn: function (f, v) {
                         var terme = (v || '').trim();
                         if (terme.length > 0 && terme.length < 3) {
@@ -209,8 +209,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             ]
         });
 
-        // Chargement initial avec le filtre type passe en config
-        loadWithFilters();
+        // Aucun chargement a l'ouverture : la fenetre s'ouvre vide, le curseur dans la
+        // recherche. Charger tout l'historique d'emblee coutait cher pour des lignes qu'on ne
+        // regardait pas, la recherche etant le premier geste dans la quasi-totalite des cas.
+        grid.getView().emptyText = '<div style="padding:12px;color:#666;">'
+                + 'Saisissez un produit, une periode ou un type, puis cliquez sur Rechercher.</div>';
+        grid.getView().deferEmptyText = false;
 
         // La recherche prend la main des l'ouverture : le delai laisse la fenetre finir son
         // rendu, sans quoi le focus se perdrait a l'affichage.

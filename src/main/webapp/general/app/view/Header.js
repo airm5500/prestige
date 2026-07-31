@@ -691,6 +691,9 @@ PrestigeNotif.register({
     },
     onItemClick: function (item) {
         try {
+            // L'onglet est choisi AVANT l'ouverture : la vue s'affiche directement sur
+            // SUGGESTIONS, sans afficher ni charger l'onglet TOUT au passage.
+            window.PRESTIGE_RESERVE_ONGLET = 'SUGGESTIONS';
             testextjs.app.getController('App').onLoadNewComponent("reservemanager", "Gestion des reserves", "");
             // On vient de cliquer une SUGGESTION : c'est l'onglet SUGGESTIONS qu'on veut voir,
             // pas la liste generale des articles. Le differe laisse la vue finir son rendu.
@@ -700,7 +703,6 @@ PrestigeNotif.register({
                 if (!manager || !onglet) {
                     return;
                 }
-                manager.setActiveTab(onglet);
                 // La suggestion cliquee est ouverte directement, prete a etre traitee.
                 if (item && item.lg_SUGGESTION_RESERVE_ID) {
                     Ext.create('testextjs.view.stockmanagement.reserve.action.traitementSuggestion', {

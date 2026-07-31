@@ -540,7 +540,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     }
                     var echec = false;
                     Ext.each(res.lignes || [], function (l) {
-                        if (l.str_ETAT === 'ECHEC') {
+                        var resolue = (l.str_ETAT === 'TRAITEE' || l.str_ETAT === 'SUPPRIMEE'
+                                || l.str_ETAT === 'ANNULEE');
+                        if (!resolue && (l.str_ETAT === 'ECHEC' || l.str_CODE_ECHEC)) {
                             echec = true;
                         }
                     });

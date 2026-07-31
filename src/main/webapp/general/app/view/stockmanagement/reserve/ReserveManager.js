@@ -134,6 +134,23 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
             }
         };
 
+        // Onglet a ouvrir, pose par l'appelant (la cloche notamment). Sans cela le premier
+        // onglet s'affichait, lancait SA requete, et on basculait ensuite sur SUGGESTIONS : deux
+        // chargements pour un seul besoin.
+        var ongletDemande = {SUGGESTIONS: 'ongletSuggestions', HISTORIQUE: 'ongletHistorique'}[
+                window.PRESTIGE_RESERVE_ONGLET];
+        if (ongletDemande) {
+            // Index deduit de la liste plutot que fige : ajouter ou deplacer un onglet demain ne
+            // doit pas ouvrir le mauvais.
+            for (var i = 0; i < this.items.length; i++) {
+                if (this.items[i].itemId === ongletDemande) {
+                    this.activeTab = i;
+                    break;
+                }
+            }
+        }
+        window.PRESTIGE_RESERVE_ONGLET = null;
+
         this.listeners = {
             tabchange: function (tabPanel, newCard) {
                 chargerOnglet(newCard);

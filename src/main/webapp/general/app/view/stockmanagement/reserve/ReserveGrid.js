@@ -219,7 +219,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
                     // que ce soit, on attend donc la touche Entree. Le champ vide relance la
                     // liste complete, sinon on resterait bloque sur le dernier resultat.
                     change: {
-                        buffer: 400,
+                        buffer: 800,
                         fn: function (f, v) {
                             var terme = (v || '').trim();
                             if (terme.length > 0 && terme.length < 3) {

@@ -125,7 +125,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                         // frappe. Les produits deja coches ne sont pas perdus : la recherche ne
                         // change que ce qui est affiche.
                         change: {
-                            buffer: 400,
+                            buffer: 800,
                             fn: function (f, v) {
                                 var terme = (v || '').trim();
                                 if (terme.length > 0 && terme.length < 3) {
@@ -267,8 +267,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                                 champCom.markInvalid('Commentaire obligatoire');
                                 champCom.focus();
                             }
-                            Ext.MessageBox.alert('Commentaire obligatoire',
-                                    'Indiquez le motif de cet inventaire avant de le creer.');
+                            Ext.MessageBox.show({
+                                title: 'Commentaire obligatoire',
+                                msg: 'Indiquez le motif de cet inventaire avant de le creer.<br>'
+                                        + 'Il est enregistre dans la description et reste la seule '
+                                        + 'trace du pourquoi une fois l\'inventaire cloture.',
+                                buttons: Ext.MessageBox.OK,
+                                width: 460
+                            });
                             return;
                         }
                         // Recapitulatif : controle du nombre de produits avant confirmation.
