@@ -327,7 +327,7 @@ Ext.define('testextjs.view.produits.Ajustement', {
                                             + 'les produits qui viennent d\'etre ajustes.</div>',
                                     menuDisabled: true,
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
-                                        this.fireEvent('inventaireAjustement', record);
+                                        this.fireEvent('inventaireAjustement', view, rowIndex, colIndex, item, e, record, row);
                                     }
                                 }]
                         },
@@ -339,12 +339,11 @@ Ext.define('testextjs.view.produits.Ajustement', {
                             items: [{
                                     icon: 'resources/images/icons/fam/fleche_orange_droite.svg',
                                     tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'>'
-                                            + '<b>Suggestion de reserve</b><br>Cree une suggestion portant sur les '
-                                            + 'produits de cet ajustement. Rien ne bouge tant qu\'elle n\'est pas '
-                                            + 'traitee.</div>',
+                                            + '<b>Suggestion de commande</b><br>Cree une suggestion de commande '
+                                            + 'fournisseur avec les produits de cet ajustement.</div>',
                                     menuDisabled: true,
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
-                                        this.fireEvent('suggestionAjustement', record);
+                                        this.fireEvent('suggestionAjustement', view, rowIndex, colIndex, item, e, record, row);
                                     }
                                 }]
                         },

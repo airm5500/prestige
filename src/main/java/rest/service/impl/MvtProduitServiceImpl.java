@@ -910,6 +910,34 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     }
 
     @Override
+    public JSONObject suggestionCommandeDepuisAjustement(TUser user, String ajustementId) {
+        try {
+            List<commonTasks.dto.ArticleDTO> datas = new ArrayList<>();
+            for (TAjustementDetail d : findAjustementDetailsByParenId(ajustementId)) {
+                TFamille f = d.getLgFAMILLEID();
+                if (f == null || f.getLgGROSSISTEID() == null) {
+                    // Sans grossiste, aucune commande ne peut etre preparee : meme regle que le
+                    // bouton "Suggerer" de la barre d'outils.
+                    continue;
+                }
+                commonTasks.dto.ArticleDTO a = new commonTasks.dto.ArticleDTO();
+                a.setId(f.getLgFAMILLEID());
+                a.setGrossisteId(f.getLgGROSSISTEID().getLgGROSSISTEID());
+                datas.add(a);
+            }
+            if (datas.isEmpty()) {
+                return new JSONObject().put("success", false).put("count", 0).put("msg",
+                        "Aucun produit de cet ajustement n'est rattache a un grossiste : "
+                                + "aucune commande ne peut etre suggeree.");
+            }
+            return suggestionService.makeSuggestionFromArticleInvendus(datas, user);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "suggestionCommandeDepuisAjustement " + ajustementId, e);
+            return new JSONObject().put("success", false).put("msg", "L'operation a echoue.");
+        }
+    }
+
+    @Override
     public JSONObject ajsutements(SalesStatsParams params) throws JSONException {
         JSONObject json = new JSONObject();
 

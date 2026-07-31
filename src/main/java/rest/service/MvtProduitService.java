@@ -89,4 +89,13 @@ public interface MvtProduitService {
      * Sert a enchainer sur un inventaire ou une suggestion portant exactement sur ce qui vient d'etre ajuste.
      */
     java.util.Set<String> produitsDeLAjustement(String ajustementId);
+
+    /**
+     * Cree une suggestion de COMMANDE FOURNISSEUR sur les produits d'un ajustement.
+     *
+     * <p>
+     * Reprend le mecanisme du bouton "Suggerer" de la liste des ajustements. Les produits sans grossiste sont ecartes :
+     * sans fournisseur, il n'y a pas de commande a preparer.
+     */
+    org.json.JSONObject suggestionCommandeDepuisAjustement(dal.TUser user, String ajustementId);
 }
