@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_fiche_inventaire_ecart_agent_manquant" language="groovy" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="575" leftMargin="10" rightMargin="10" topMargin="10" bottomMargin="10" isSummaryWithPageHeaderAndFooter="true" uuid="9269c25d-7f44-4298-9beb-3cd807cd5399">
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_fiche_inventaire_ecart_agent_surplus" language="groovy" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="575" leftMargin="10" rightMargin="10" topMargin="10" bottomMargin="10" isSummaryWithPageHeaderAndFooter="true" uuid="9269c25d-7f44-4298-9beb-3cd807cd5399">
 	<property name="ireport.zoom" value="1.5"/>
-	<property name="ireport.x" value="2"/>
-	<property name="ireport.y" value="291"/>
+	<property name="ireport.x" value="98"/>
+	<property name="ireport.y" value="297"/>
 	<parameter name="P_REFERENCE" class="java.lang.String"/>
 	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
 	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
@@ -28,7 +28,7 @@ WHERE t.bool_INVENTAIRE = true AND fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE
 AND g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID
 AND z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID AND t.lg_INVENTAIRE_ID LIKE $P{P_REFERENCE}
 AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P{P_FAMILLEARTICLE_ID} AND g.`lg_GROSSISTE_ID` LIKE $P{P_GROSSISTE_ID}
-AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DESCRIPTION ASC]]>
+AND t.int_NUMBER - t.int_NUMBER_INIT > 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DESCRIPTION ASC]]>
 	</queryString>
 	<field name="int_CIP" class="java.lang.String">
 		<fieldDescription><![CDATA[]]></fieldDescription>
@@ -79,7 +79,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 		<groupFooter>
 			<band height="20">
 				<staticText>
-					<reportElement mode="Opaque" x="0" y="0" width="235" height="20" backcolor="#CCCCCC" uuid="d10d48ca-ebf5-4624-a470-37044dba0775"/>
+					<reportElement mode="Opaque" x="0" y="0" width="235" height="20" backcolor="#CCCCCC" uuid="6d6b0e94-d26b-45fe-abcf-c758927c460b"/>
 					<box>
 						<leftPen lineWidth="0.5"/>
 						<bottomPen lineWidth="0.5"/>
@@ -90,7 +90,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 					<text><![CDATA[TOTAL ECART ]]></text>
 				</staticText>
 				<staticText>
-					<reportElement mode="Opaque" x="353" y="0" width="222" height="20" backcolor="#CCCCCC" uuid="bde3fa38-08e9-421c-bf93-05d8ff9f9dd8"/>
+					<reportElement mode="Opaque" x="353" y="0" width="222" height="20" backcolor="#CCCCCC" uuid="6e56afcc-1c99-43f9-a368-341197a15713"/>
 					<box>
 						<bottomPen lineWidth="0.5"/>
 						<rightPen lineWidth="0.5"/>
@@ -101,7 +101,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 					<text><![CDATA[]]></text>
 				</staticText>
 				<textField pattern="#,##0">
-					<reportElement mode="Opaque" x="293" y="0" width="60" height="20" backcolor="#CCCCCC" uuid="8aa77c34-2016-4189-a6b2-ba0cb44afae1"/>
+					<reportElement mode="Opaque" x="293" y="0" width="60" height="20" backcolor="#CCCCCC" uuid="64fd3730-e856-414f-a496-5e7b67d23041"/>
 					<box>
 						<bottomPen lineWidth="0.5"/>
 					</box>
@@ -112,7 +112,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 					<textFieldExpression><![CDATA[($V{v_total_paf_ecart} != null ? $V{v_total_paf_ecart} : 0)]]></textFieldExpression>
 				</textField>
 				<textField pattern="#,##0">
-					<reportElement mode="Opaque" x="235" y="0" width="59" height="20" backcolor="#CCCCCC" uuid="ca40b202-d505-493f-841e-c910f31386b4"/>
+					<reportElement mode="Opaque" x="235" y="0" width="59" height="20" backcolor="#CCCCCC" uuid="92860220-8b1d-423b-b77f-182d8cd72bcc"/>
 					<box>
 						<bottomPen lineWidth="0.5"/>
 					</box>
@@ -248,35 +248,35 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 				<textFieldExpression><![CDATA[$F{str_CODE_FAMILLE}]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="480" y="122" width="55" height="14" uuid="842cbd0d-44b2-403f-808b-7acfeaed11a0"/>
+				<reportElement x="479" y="122" width="55" height="14" uuid="52373ecc-f21f-473a-a67a-c895bcb347f7"/>
 				<textElement textAlignment="Right" verticalAlignment="Bottom"/>
 				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}+"/"]]></textFieldExpression>
 			</textField>
 			<textField evaluationTime="Report">
-				<reportElement x="534" y="122" width="40" height="14" uuid="3124c22d-900b-4f49-b442-f765a1c75e87"/>
+				<reportElement x="533" y="122" width="40" height="14" uuid="7e8dbc13-00ab-43ac-a423-0dcfb435e5ef"/>
 				<textElement textAlignment="Left" verticalAlignment="Bottom"/>
 				<textFieldExpression><![CDATA[+$V{PAGE_NUMBER}]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="84" y="11" width="490" height="31" isRemoveLineWhenBlank="true" uuid="a3dd7e76-97d9-49b6-9805-82ef966d958a"/>
+				<reportElement x="83" y="11" width="490" height="31" isRemoveLineWhenBlank="true" uuid="033c2534-068e-48ff-a42d-b57d26a22d41"/>
 				<textElement textAlignment="Center">
 					<font fontName="Century Gothic" size="20" isBold="true" isItalic="true" isPdfEmbedded="false"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="84" y="41" width="490" height="17" isRemoveLineWhenBlank="true" uuid="1b025a79-11d8-4d8b-9319-5bc7ece6e271"/>
+				<reportElement x="83" y="41" width="490" height="17" isRemoveLineWhenBlank="true" uuid="986faf3d-6fd4-4a1f-80d6-887b3ea887ea"/>
 				<textElement textAlignment="Center" verticalAlignment="Top">
 					<font size="8" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
 			</textField>
 			<image onErrorType="Blank">
-				<reportElement x="1" y="10" width="76" height="47" uuid="d4ba66ba-32fb-45fe-a4d0-f12b79b51e56"/>
+				<reportElement x="0" y="10" width="76" height="47" uuid="a3b3da1b-d583-44c9-bf21-f01af9c58850"/>
 				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
 			</image>
 			<staticText>
-				<reportElement mode="Opaque" x="1" y="60" width="573" height="2" backcolor="#CCCCCC" uuid="f0c77364-5aa4-4ddf-8d44-793f1c61d077"/>
+				<reportElement mode="Opaque" x="0" y="60" width="573" height="2" backcolor="#CCCCCC" uuid="75724fac-34b2-40d7-aa82-60477433ee52"/>
 				<box>
 					<pen lineWidth="0.0"/>
 					<topPen lineWidth="0.0"/>
@@ -287,7 +287,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 				<text><![CDATA[]]></text>
 			</staticText>
 			<textField>
-				<reportElement mode="Opaque" x="172" y="72" width="216" height="41" backcolor="#CCCCCC" uuid="e6fcd845-8a03-4f4b-8f97-3dd11a2c29d0"/>
+				<reportElement mode="Opaque" x="171" y="72" width="216" height="41" backcolor="#CCCCCC" uuid="d0c1fd1e-3d0e-4264-ab03-0893cd5316a6"/>
 				<box>
 					<topPen lineWidth="0.5"/>
 					<leftPen lineWidth="0.5"/>
@@ -300,7 +300,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
 			</textField>
 			<textField pattern="EEEEE dd MMMMM yyyy" isBlankWhenNull="false">
-				<reportElement key="textField" x="414" y="66" width="150" height="18" forecolor="#000000" backcolor="#FFFFFF" uuid="b85538e5-829c-4f3c-b5b6-bf71268188ce"/>
+				<reportElement key="textField" x="413" y="66" width="150" height="18" forecolor="#000000" backcolor="#FFFFFF" uuid="f82aa686-ac41-42d0-94b5-f17cd470355a"/>
 				<box>
 					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
 					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
@@ -415,21 +415,21 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 		</band>
 	</detail>
 	<pageFooter>
-		<band height="103">
+		<band height="107">
 			<textField>
-				<reportElement x="368" y="7" width="184" height="20" uuid="d8fd15b0-473d-45ec-9bb5-030ebb65f701"/>
+				<reportElement x="368" y="4" width="184" height="20" uuid="d8fd15b0-473d-45ec-9bb5-030ebb65f701"/>
 				<textElement textAlignment="Right"/>
 				<textFieldExpression><![CDATA[$P{P_PRINTED_BY}]]></textFieldExpression>
 			</textField>
 			<staticText>
-				<reportElement x="368" y="26" width="184" height="19" uuid="b3ff7ffb-be7c-4ec4-9990-bbc771438ef5"/>
+				<reportElement x="368" y="23" width="184" height="19" uuid="b3ff7ffb-be7c-4ec4-9990-bbc771438ef5"/>
 				<textElement textAlignment="Right" verticalAlignment="Bottom">
 					<font size="8"/>
 				</textElement>
 				<text><![CDATA[Powered by DICI]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="1" y="50" width="575" height="2" backcolor="#CCCCCC" uuid="ccb9652d-1099-4f20-9141-bc44b5c44fa6"/>
+				<reportElement mode="Opaque" x="1" y="54" width="575" height="2" backcolor="#CCCCCC" uuid="370364a5-3e72-4551-853c-d13f3e16f47e"/>
 				<box>
 					<pen lineWidth="0.0"/>
 					<topPen lineWidth="0.0"/>
@@ -440,14 +440,14 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 				<text><![CDATA[]]></text>
 			</staticText>
 			<textField>
-				<reportElement x="1" y="56" width="574" height="15" uuid="0a220642-35db-49f6-823c-6e862ba3e1d1"/>
+				<reportElement x="1" y="60" width="574" height="15" uuid="4099e450-c702-485d-a6e3-d844242dff7d"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="false"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="1" y="72" width="574" height="15" uuid="9e5adb8b-eff8-47a9-82c7-059352737f50"/>
+				<reportElement x="1" y="76" width="574" height="15" uuid="81be6655-96db-43f3-b0de-b516abd4c0ef"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="false"/>
 				</textElement>
@@ -458,29 +458,44 @@ AND t.int_NUMBER - t.int_NUMBER_INIT < 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 	<summary>
 		<band height="30">
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="295" y="10" width="60" height="20" backcolor="#CCCCCC" uuid="f9b56460-6685-4521-8efe-08b5cf8691e9"/>
+				<reportElement mode="Opaque" x="294" y="8" width="60" height="20" backcolor="#CCCCCC" uuid="c6ee556c-a252-49e0-8c45-b16da2a87122"/>
+				<box>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="9" isBold="true"/>
-					<paragraph rightIndent="1"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($V{v_total_global_paf_ecart} != null ? $V{v_total_global_paf_ecart} : 0)]]></textFieldExpression>
 			</textField>
-			<staticText>
-				<reportElement mode="Opaque" x="1" y="10" width="235" height="20" backcolor="#CCCCCC" uuid="b9741d46-f70a-443b-8e7b-7d7ec23fc96f"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="9" isBold="true" isUnderline="false"/>
-					<paragraph rightIndent="1"/>
-				</textElement>
-				<text><![CDATA[TOTAL GLOBAL ECART]]></text>
-			</staticText>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="236" y="10" width="60" height="20" backcolor="#CCCCCC" uuid="d9a40229-c775-449c-982f-67508799cc75"/>
+				<reportElement mode="Opaque" x="235" y="8" width="60" height="20" backcolor="#CCCCCC" uuid="b0ee156f-2f24-4281-9881-05c3c23f4023"/>
+				<box>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="9" isBold="true"/>
-					<paragraph rightIndent="1"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($V{v_total_global_prixvente_ecart} != null ? $V{v_total_global_prixvente_ecart}: 0)]]></textFieldExpression>
 			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="8" width="235" height="20" backcolor="#CCCCCC" uuid="1cdc9469-d619-4d87-af45-eecc93d109d1"/>
+				<box>
+					<topPen lineWidth="0.5"/>
+					<leftPen lineWidth="0.5"/>
+					<bottomPen lineWidth="0.5"/>
+					<rightPen lineWidth="0.5"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="9" isBold="true" isUnderline="false"/>
+				</textElement>
+				<text><![CDATA[TOTAL GLOBAL ECART]]></text>
+			</staticText>
 		</band>
 	</summary>
 </jasperReport>

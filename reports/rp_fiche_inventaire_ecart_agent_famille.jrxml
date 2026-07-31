@@ -59,18 +59,6 @@ AND t.int_NUMBER - t.int_NUMBER_INIT <> 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DE
 	</field>
 	<field name="str_LIBELLEE_ZONE" class="java.lang.String"/>
 	<field name="str_LIBELLE_GROSSISTE" class="java.lang.String"/>
-	<variable name="v_total_paf" class="java.lang.Number" resetType="Group" resetGroup="str_LIBELLE_FAMILLEARTICLE" calculation="Sum">
-		<variableExpression><![CDATA[$F{int_PAF} * $F{int_NUMBER}]]></variableExpression>
-	</variable>
-	<variable name="v_total_prixvente" class="java.lang.Number" resetType="Group" resetGroup="str_LIBELLE_FAMILLEARTICLE" calculation="Sum">
-		<variableExpression><![CDATA[$F{int_PRICE_VENTE} * $F{int_NUMBER}]]></variableExpression>
-	</variable>
-	<variable name="v_total_global_prixvente" class="java.lang.Number" calculation="Sum">
-		<variableExpression><![CDATA[$F{int_PRICE_VENTE} * $F{int_NUMBER}]]></variableExpression>
-	</variable>
-	<variable name="v_total_global_paf" class="java.lang.Number" calculation="Sum">
-		<variableExpression><![CDATA[$F{int_PAF} * $F{int_NUMBER}]]></variableExpression>
-	</variable>
 	<variable name="v_total_paf_ecart" class="java.lang.Number" resetType="Group" resetGroup="str_LIBELLE_FAMILLEARTICLE" calculation="Sum">
 		<variableExpression><![CDATA[$F{int_PAF} * $F{int_ECART}]]></variableExpression>
 	</variable>
@@ -89,43 +77,9 @@ AND t.int_NUMBER - t.int_NUMBER_INIT <> 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DE
 			<band/>
 		</groupHeader>
 		<groupFooter>
-			<band height="40">
-				<textField pattern="#,##0">
-					<reportElement mode="Opaque" x="235" y="0" width="59" height="20" backcolor="#CCCCCC" uuid="c61b0358-3103-4d4c-8c03-f95b869e7df2"/>
-					<box rightPadding="1">
-						<topPen lineWidth="0.0"/>
-						<bottomPen lineWidth="0.0"/>
-					</box>
-					<textElement textAlignment="Right" verticalAlignment="Middle">
-						<font size="9" isBold="true" isItalic="true"/>
-						<paragraph rightIndent="1"/>
-					</textElement>
-					<textFieldExpression><![CDATA[($V{v_total_prixvente} != null ? $V{v_total_prixvente} : 0)]]></textFieldExpression>
-				</textField>
+			<band height="20">
 				<staticText>
-					<reportElement mode="Opaque" x="0" y="0" width="235" height="20" backcolor="#CCCCCC" uuid="aa8b67ea-c510-4a4d-9e6f-caf7a4b50c5a"/>
-					<box>
-						<leftPen lineWidth="0.5"/>
-					</box>
-					<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
-						<font size="9" isBold="true" isItalic="true" isUnderline="false"/>
-					</textElement>
-					<text><![CDATA[TOTAL   ]]></text>
-				</staticText>
-				<textField pattern="#,##0">
-					<reportElement mode="Opaque" x="294" y="0" width="59" height="20" backcolor="#CCCCCC" uuid="9744858c-3345-4b37-bd0e-5a5ca094f6da"/>
-					<box rightPadding="1">
-						<topPen lineWidth="0.0"/>
-						<bottomPen lineWidth="0.0"/>
-					</box>
-					<textElement textAlignment="Right" verticalAlignment="Middle">
-						<font size="9" isBold="true" isItalic="true"/>
-						<paragraph rightIndent="1"/>
-					</textElement>
-					<textFieldExpression><![CDATA[($V{v_total_paf} != null ? $V{v_total_paf} : 0)]]></textFieldExpression>
-				</textField>
-				<staticText>
-					<reportElement mode="Opaque" x="0" y="20" width="235" height="20" backcolor="#CCCCCC" uuid="389107ac-5e14-46ff-bdc8-49af57272834"/>
+					<reportElement mode="Opaque" x="0" y="0" width="235" height="20" backcolor="#CCCCCC" uuid="389107ac-5e14-46ff-bdc8-49af57272834"/>
 					<box>
 						<leftPen lineWidth="0.5"/>
 						<bottomPen lineWidth="0.5"/>
@@ -136,7 +90,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT <> 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DE
 					<text><![CDATA[TOTAL ECART ]]></text>
 				</staticText>
 				<staticText>
-					<reportElement mode="Opaque" x="353" y="20" width="222" height="20" backcolor="#CCCCCC" uuid="1fa53c6c-edb1-4843-9f1f-dec1e36865b4"/>
+					<reportElement mode="Opaque" x="353" y="0" width="222" height="20" backcolor="#CCCCCC" uuid="1fa53c6c-edb1-4843-9f1f-dec1e36865b4"/>
 					<box>
 						<bottomPen lineWidth="0.5"/>
 						<rightPen lineWidth="0.5"/>
@@ -146,18 +100,8 @@ AND t.int_NUMBER - t.int_NUMBER_INIT <> 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DE
 					</textElement>
 					<text><![CDATA[]]></text>
 				</staticText>
-				<staticText>
-					<reportElement mode="Opaque" x="353" y="0" width="222" height="20" backcolor="#CCCCCC" uuid="4a31576f-c5f4-4b98-9f3c-d51284f6326b"/>
-					<box>
-						<rightPen lineWidth="0.5"/>
-					</box>
-					<textElement textAlignment="Right" verticalAlignment="Middle" markup="none">
-						<font size="9" isBold="true" isItalic="true"/>
-					</textElement>
-					<text><![CDATA[]]></text>
-				</staticText>
 				<textField pattern="#,##0">
-					<reportElement mode="Opaque" x="293" y="20" width="60" height="20" backcolor="#CCCCCC" uuid="e255ed09-47e9-47ed-91c1-eccea2a5f044"/>
+					<reportElement mode="Opaque" x="293" y="0" width="60" height="20" backcolor="#CCCCCC" uuid="e255ed09-47e9-47ed-91c1-eccea2a5f044"/>
 					<box>
 						<bottomPen lineWidth="0.5"/>
 					</box>
@@ -168,7 +112,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT <> 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DE
 					<textFieldExpression><![CDATA[($V{v_total_paf_ecart} != null ? $V{v_total_paf_ecart} : 0)]]></textFieldExpression>
 				</textField>
 				<textField pattern="#,##0">
-					<reportElement mode="Opaque" x="235" y="20" width="59" height="20" backcolor="#CCCCCC" uuid="eccd2fe4-4b70-41cd-9448-a09473c6c111"/>
+					<reportElement mode="Opaque" x="235" y="0" width="59" height="20" backcolor="#CCCCCC" uuid="eccd2fe4-4b70-41cd-9448-a09473c6c111"/>
 					<box>
 						<bottomPen lineWidth="0.5"/>
 					</box>
@@ -512,44 +456,23 @@ AND t.int_NUMBER - t.int_NUMBER_INIT <> 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DE
 		</band>
 	</pageFooter>
 	<summary>
-		<band height="50">
+		<band height="30">
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="235" y="8" width="60" height="20" backcolor="#CCCCCC" uuid="3b9300e1-c24f-4fb7-9fbb-5cc476adf150"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="9" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[($V{v_total_global_prixvente} != null ? $V{v_total_global_prixvente}: 0)]]></textFieldExpression>
-			</textField>
-			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="235" y="28" width="60" height="20" backcolor="#CCCCCC" uuid="b0ee156f-2f24-4281-9881-05c3c23f4023"/>
+				<reportElement mode="Opaque" x="235" y="8" width="60" height="20" backcolor="#CCCCCC" uuid="b0ee156f-2f24-4281-9881-05c3c23f4023"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="9" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($V{v_total_global_prixvente_ecart} != null ? $V{v_total_global_prixvente_ecart}: 0)]]></textFieldExpression>
 			</textField>
 			<staticText>
-				<reportElement mode="Opaque" x="0" y="28" width="235" height="20" backcolor="#CCCCCC" uuid="1cdc9469-d619-4d87-af45-eecc93d109d1"/>
+				<reportElement mode="Opaque" x="0" y="8" width="235" height="20" backcolor="#CCCCCC" uuid="1cdc9469-d619-4d87-af45-eecc93d109d1"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="9" isBold="true" isUnderline="false"/>
 				</textElement>
 				<text><![CDATA[TOTAL GLOBAL ECART]]></text>
 			</staticText>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="294" y="8" width="60" height="20" backcolor="#CCCCCC" uuid="6681673a-8d22-4e2c-97eb-aaaf9d35d4df"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="9" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[($V{v_total_global_paf} != null ? $V{v_total_global_paf} : 0)]]></textFieldExpression>
-			</textField>
-			<staticText>
-				<reportElement mode="Opaque" x="0" y="8" width="235" height="20" backcolor="#CCCCCC" uuid="e134663b-793c-475a-a387-88bf36381f1a"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="9" isBold="true" isUnderline="false"/>
-				</textElement>
-				<text><![CDATA[TOTAL GLOBAL]]></text>
-			</staticText>
-			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="294" y="28" width="60" height="20" backcolor="#CCCCCC" uuid="c6ee556c-a252-49e0-8c45-b16da2a87122"/>
+				<reportElement mode="Opaque" x="294" y="8" width="60" height="20" backcolor="#CCCCCC" uuid="c6ee556c-a252-49e0-8c45-b16da2a87122"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="9" isBold="true"/>
 				</textElement>
