@@ -1535,33 +1535,25 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
 
     // Construit le nom de l'inventaire a partir des filtres actifs (concatenation) + HHmmss.
-    buildInventaireName: function () {
-        const typeLabels = {
-            RESERVE: 'reserve',
-            DECONDITION: 'deconditionnables',
-            DECONDITIONNE: 'deconditionnes',
-            SANSEMPLACEMENT: 'sansemplacement'
-        };
-        const typeVal = Me_Workflow.fmField('str_TYPE_TRANSACTION').getValue();
-        const rayonCmp = Me_Workflow.fmField('lg_ZONE_GEO_ID');
-        const parts = [];
-        if (typeVal && typeVal !== 'ALL' && typeLabels[typeVal]) {
-            parts.push(typeLabels[typeVal]);
-        }
-        if (rayonCmp.getValue() && rayonCmp.getRawValue()) {
-            parts.push(rayonCmp.getRawValue());
-        }
+    /**
+     * Nom de l'inventaire cree depuis la fiche article.
+     *
+     * Il porte la ZONE choisie et l'horodatage : INVENTAIRE RESERVE 31072026153000. Le nom
+     * etait auparavant construit AVANT le choix du stock, il ne pouvait donc pas le mentionner,
+     * et deux inventaires de zones differentes portaient le meme intitule.
+     */
+    buildInventaireName: function (mode) {
         const now = new Date();
         const pad = function (n) {
             return (n < 10 ? '0' : '') + n;
         };
-        const hhmmss = pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
-        return 'inventaire ' + (parts.length ? parts.join('-') : 'courant') + ' ' + hhmmss;
+        const horodatage = pad(now.getDate()) + pad(now.getMonth() + 1) + now.getFullYear()
+                + pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
+        return 'INVENTAIRE ' + (mode === 'RESERVE' ? 'RESERVE' : 'RAYON') + ' ' + horodatage;
     },
 
     onCreateInventaireClick: function () {
         const me = this;
-        const baseName = me.buildInventaireName();
 
         const dlg = Ext.create('Ext.window.Window', {
             title: 'Creer un inventaire',
@@ -1578,14 +1570,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     text: 'Stock rayon',
                     handler: function () {
                         dlg.close();
-                        me.doCreateInventaire('RAYON', baseName);
+                        me.doCreateInventaire('RAYON', me.buildInventaireName('RAYON'));
                     }
                 },
                 {
                     text: 'Stock reserve',
                     handler: function () {
                         dlg.close();
-                        me.doCreateInventaire('RESERVE', baseName);
+                        me.doCreateInventaire('RESERVE', me.buildInventaireName('RESERVE'));
                     }
                 },
                 {

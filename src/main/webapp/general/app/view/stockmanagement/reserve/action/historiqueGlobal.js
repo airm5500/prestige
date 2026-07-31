@@ -130,8 +130,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
                     handler: function () {
                         rechField.setValue('');
                         rechField.dernierTerme = '';
-                        dtStartField.reset();
-                        dtEndField.reset();
+                        // On revient a la journee en cours, et non a une periode vide qui
+                        // rechargerait tout l'historique.
+                        var ceJour = new Date();
+                        dtStartField.setValue(ceJour);
+                        dtEndField.setValue(ceJour);
                         typeCombo.setValue(me.getTypeFilter() || 'ALL');
                         typeFilter = me.getTypeFilter() || 'ALL';
                         loadWithFilters();
@@ -209,12 +212,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.historiqueGlobal', {
             ]
         });
 
-        // Aucun chargement a l'ouverture : la fenetre s'ouvre vide, le curseur dans la
-        // recherche. Charger tout l'historique d'emblee coutait cher pour des lignes qu'on ne
-        // regardait pas, la recherche etant le premier geste dans la quasi-totalite des cas.
-        grid.getView().emptyText = '<div style="padding:12px;color:#666;">'
-                + 'Saisissez un produit, une periode ou un type, puis cliquez sur Rechercher.</div>';
-        grid.getView().deferEmptyText = false;
+        // A l'ouverture on se limite a la JOURNEE EN COURS, comme l'onglet HISTORIQUE : charger
+        // tout l'historique coutait cher pour des lignes qu'on ne regarde pas. Les dates sont
+        // posees dans les champs pour que la periode retenue soit visible et modifiable.
+        var aujourdhui = new Date();
+        dtStartField.setValue(aujourdhui);
+        dtEndField.setValue(aujourdhui);
+        loadWithFilters();
 
         // La recherche prend la main des l'ouverture : le delai laisse la fenetre finir son
         // rendu, sans quoi le focus se perdrait a l'affichage.

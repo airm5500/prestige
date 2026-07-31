@@ -289,8 +289,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
                 c.setValue(null);
             }
         });
-        me.store.getProxy().extraParams = {};
-        me.store.loadPage(1);
+        // Les dates reviennent a la journee en cours : les vider rechargerait tout l'historique,
+        // ce que l'affichage par defaut cherche justement a eviter.
+        var ceJour = new Date();
+        var d = me.down('#hDebut'), f = me.down('#hFin');
+        if (d) {
+            d.setValue(ceJour);
+        }
+        if (f) {
+            f.setValue(ceJour);
+        }
+        me.onRechercher();
     },
 
     reloadGrid: function () {
