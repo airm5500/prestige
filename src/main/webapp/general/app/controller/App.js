@@ -844,7 +844,10 @@ Ext.define('testextjs.controller.App', {
             });
             return null;
         }
-        var cmp = new ViewClass({data: data});
+        // Les deux vues sont declarees a 97 % de large, ce qui convient quand elles occupent
+        // l'ecran entier mais laisse une bande vide a droite dans une fenetre. La largeur est
+        // forcee ICI, a la construction : les vues restent inchangees pour leurs autres usages.
+        var cmp = new ViewClass({data: data, width: '100%'});
         var win = Ext.create('Ext.window.Window', {
             title: titre || '',
             width: Math.max(900, Math.floor(Ext.getBody().getViewSize().width * 0.9)),
