@@ -805,6 +805,68 @@ Ext.define('testextjs.controller.App', {
         indiceMonth = indiceCurrentMonth - indiceTab;
         return month[(indiceMonth >= 0 ? indiceMonth : 12 + indiceMonth)];
     },
+    /**
+     * Ouvre une vue dans une FENETRE posee par-dessus l'ecran courant, au lieu de la remplacer.
+     *
+     * La vue parente reste visible et chargee : en refermant la fenetre on la retrouve telle
+     * qu'on l'a laissee, sans rechargement complet. La fenetre est deplacable et redimensionnable,
+     * mais non modale : on peut la deplacer pour consulter ce qui se trouve dessous.
+     *
+     * @param ComponentXtype xtype de la vue a ouvrir
+     * @param data           donnees transmises a la vue, comme pour onRedirectTo
+     * @param titre          titre de la fenetre
+     * @param onFermeture    appelee a la fermeture, pour rafraichir l'ecran parent
+     * @return la fenetre creee, ou null si la vue est introuvable
+     */
+    onOpenInWindow: function (ComponentXtype, data, titre, onFermeture) {
+        // La fenetre n'est pas modale : rien n'empeche de recliquer sur le bouton. Une seconde
+        // instance de la meme vue creerait des composants a identifiant fixe en double, ce
+        // qu'ExtJS refuse. On ramene donc la fenetre deja ouverte au premier plan.
+        var dejaOuverte = Ext.ComponentQuery.query(ComponentXtype);
+        if (dejaOuverte && dejaOuverte.length) {
+            var existante = dejaOuverte[0].up('window');
+            if (existante) {
+                existante.toFront();
+                return existante;
+            }
+        }
+        var alias = 'widget.' + ComponentXtype;
+        var className = Ext.ClassManager.getNameByAlias(alias);
+        var ViewClass = Ext.ClassManager.get(className);
+        if (!ViewClass) {
+            Ext.MessageBox.show({
+                title: 'Erreur',
+                width: 420,
+                msg: "Impossible d'ouvrir cette vue ('" + ComponentXtype
+                        + "' introuvable).<br/>Videz le cache du navigateur (Ctrl+F5) puis reessayez.",
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.ERROR
+            });
+            return null;
+        }
+        var cmp = new ViewClass({data: data});
+        var win = Ext.create('Ext.window.Window', {
+            title: titre || '',
+            width: Math.max(900, Math.floor(Ext.getBody().getViewSize().width * 0.9)),
+            height: Math.max(560, Math.floor(Ext.getBody().getViewSize().height * 0.9)),
+            modal: false,
+            maximizable: true,
+            constrainHeader: true,
+            layout: 'fit',
+            autoScroll: true,
+            items: [cmp],
+            listeners: {
+                close: function () {
+                    if (onFermeture) {
+                        onFermeture();
+                    }
+                }
+            }
+        });
+        win.show();
+        return win;
+    },
+
     onRedirectTo: function (ComponentXtype, data) {
 
 

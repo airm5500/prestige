@@ -208,9 +208,18 @@ Ext.define('testextjs.controller.AjusteListCtr', {
         window.open(url);
         //me.goBack();
     },
-    goBack: function () {
-        var xtype = 'ajustementmanager';
-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
+    /** Retour : ferme la fenetre de detail si elle existe, sinon revient a la liste. */
+    goBack: function (btn) {
+        var vue = Ext.ComponentQuery.query('itemAjustement')[0];
+        var win = vue && vue.up ? vue.up('window') : null;
+        if (!win && btn && btn.up) {
+            win = btn.up('window');
+        }
+        if (win) {
+            win.close();
+            return;
+        }
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource('ajustementmanager', "", "", "");
     },
 
     onAddRayonClick: function () {
@@ -229,10 +238,13 @@ Ext.define('testextjs.controller.AjusteListCtr', {
      * produit dans les deux zones se traite naturellement par deux ajustements distincts.
      */
     ouvrirCreation: function (zone) {
+        var me = this;
         window.PRESTIGE_AJUSTEMENT_ZONE = zone;
-        var xtype = "doajustementmanager";
         var data = {'isEdit': false, 'record': {}};
-        testextjs.app.getController('App').onRedirectTo(xtype, data);
+        testextjs.app.getController('App').onOpenInWindow('doajustementmanager', data,
+                'Nouvel ajustement ' + (zone === 'RESERVE' ? 'RESERVE' : 'RAYON'), function () {
+                    me.doSearch();
+                });
     },
 
     /** Inventaire portant sur les produits de l'ajustement de la ligne. */
@@ -311,9 +323,14 @@ Ext.define('testextjs.controller.AjusteListCtr', {
     },
 
     goToItem: function (rec) {
+        var me = this;
         var data = {'record': rec.data, 'isEdit': true};
-        var xtype = "itemAjustement";
-        testextjs.app.getController('App').onRedirectTo(xtype, data);
+        testextjs.app.getController('App').onOpenInWindow('itemAjustement', data,
+                'Detail de l\'ajustement', function () {
+                    // A la fermeture la liste est relue : une suppression de ligne ou une cloture
+                    // faite dans la fenetre doit se voir immediatement.
+                    me.doSearch();
+                });
     },
     printTicket: function (id) {
         var linkUrl = '../webservices/stockmanagement/ajustementmanagement/ws_generate_pdf.jsp?lg_AJUSTEMENT_ID=' + id;

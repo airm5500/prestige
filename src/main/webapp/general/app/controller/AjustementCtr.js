@@ -477,9 +477,24 @@ Ext.define('testextjs.controller.AjustementCtr', {
         }
         me.goBack();
     },
-    goBack: function () {
-        var xtype = 'ajustementmanager';
-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
+    /**
+     * Retour : ferme la fenetre si la vue y est posee, sinon revient a la liste.
+     *
+     * Le repli sur l'ancien comportement protege les autres points d'entree eventuels : si la vue
+     * n'est pas dans une fenetre, on ne doit pas laisser l'utilisateur bloque.
+     */
+    goBack: function (btn) {
+        var vue = Ext.ComponentQuery.query('doajustementmanager')[0];
+        var win = vue && vue.up ? vue.up('window') : null;
+        if (!win && btn && btn.up) {
+            win = btn.up('window');
+        }
+        if (win) {
+            // La liste est rechargee par l'ecouteur de fermeture pose a l'ouverture.
+            win.close();
+            return;
+        }
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource('ajustementmanager', "", "", "");
     },
 
     onPrintPdf: function (id) {
