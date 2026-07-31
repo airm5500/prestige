@@ -130,6 +130,13 @@ Ext.define('testextjs.controller.AjustementCtr', {
 
     produitCmpAfterRender: function (cmp) {
         cmp.focus();
+        // Dans une fenetre, l'affichage de celle-ci reprend le focus juste apres : on le
+        // repose une fois le rendu termine, sans quoi le curseur n'est nulle part.
+        Ext.defer(function () {
+            if (cmp && !cmp.isDestroyed) {
+                cmp.focus(false, 50);
+            }
+        }, 300);
     },
      onMotifSelect: function (cmp, record) {
             var me = this;

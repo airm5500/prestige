@@ -819,9 +819,9 @@ Ext.define('testextjs.controller.App', {
      * @return la fenetre creee, ou null si la vue est introuvable
      */
     onOpenInWindow: function (ComponentXtype, data, titre, onFermeture) {
-        // La fenetre n'est pas modale : rien n'empeche de recliquer sur le bouton. Une seconde
-        // instance de la meme vue creerait des composants a identifiant fixe en double, ce
-        // qu'ExtJS refuse. On ramene donc la fenetre deja ouverte au premier plan.
+        // Garde-fou : une seconde instance de la meme vue creerait des composants a identifiant
+        // fixe en double, ce qu'ExtJS refuse. La fenetre etant modale ce cas ne devrait plus se
+        // produire, mais le controle reste : il protege aussi les appels par programme.
         var dejaOuverte = Ext.ComponentQuery.query(ComponentXtype);
         if (dejaOuverte && dejaOuverte.length) {
             var existante = dejaOuverte[0].up('window');
@@ -848,11 +848,12 @@ Ext.define('testextjs.controller.App', {
         var win = Ext.create('Ext.window.Window', {
             title: titre || '',
             width: Math.max(900, Math.floor(Ext.getBody().getViewSize().width * 0.9)),
-            height: Math.max(560, Math.floor(Ext.getBody().getViewSize().height * 0.9)),
-            modal: false,
+            // Pas de hauteur imposee : la fenetre epouse son contenu. Une hauteur fixe laissait
+            // une grande zone vide sous les boutons quand la vue etait courte.
+            maxHeight: Math.floor(Ext.getBody().getViewSize().height * 0.92),
+            modal: true,
             maximizable: true,
             constrainHeader: true,
-            layout: 'fit',
             autoScroll: true,
             items: [cmp],
             listeners: {

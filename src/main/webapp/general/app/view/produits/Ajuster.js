@@ -35,8 +35,23 @@ Ext.define('testextjs.view.produits.Ajuster', {
 
                         }
                     ],
-            autoLoad: false,
+            autoLoad: true,
             pageSize: 9999,
+            listeners: {
+                load: function (st) {
+                    var cbo = Ext.ComponentQuery.query('doajustementmanager #typeAjustement')[0];
+                    if (!cbo || cbo.getValue()) {
+                        return;
+                    }
+                    var idx = st.findBy(function (r) {
+                        var lib = (r.get('libelle') || '').toLowerCase();
+                        return lib.indexOf('correction') !== -1 && lib.indexOf('stock') !== -1;
+                    });
+                    if (idx >= 0) {
+                        cbo.setValue(st.getAt(idx).get('id'));
+                    }
+                }
+            },
 
             proxy: {
                 type: 'ajax',

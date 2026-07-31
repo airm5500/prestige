@@ -27,6 +27,39 @@
 <%@page import="bll.userManagement.privilege"  %>
 <%@page import="toolkits.parameters.commonparameter"  %>
 
+<%!
+    /**
+     * Mise en forme des numeros de telephone SANS perdre le zero de tete.
+     *
+     * La fonction commune convertit le numero en nombre : 0709133208 ressortait en 7-09-13-32-08.
+     * On travaille ici sur le texte, et on accepte plusieurs numeros separes par ; / ou virgule.
+     */
+    String telephones(String brut) {
+        if (brut == null || brut.trim().isEmpty()) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (String numero : brut.split("[;/,]")) {
+            String chiffres = numero.replaceAll("[^0-9]", "");
+            if (chiffres.isEmpty()) {
+                continue;
+            }
+            StringBuilder mis = new StringBuilder();
+            for (int i = 0; i < chiffres.length(); i++) {
+                if (i > 0 && (chiffres.length() - i) % 2 == 0) {
+                    mis.append('-');
+                }
+                mis.append(chiffres.charAt(i));
+            }
+            if (out.length() > 0) {
+                out.append(" / ");
+            }
+            out.append(mis);
+        }
+        return out.length() == 0 ? "" : "(+225) " + out;
+    }
+%>
+
 <%
     Translate OTranslate = new Translate();
     dataManager OdataManager = new dataManager();
