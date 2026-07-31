@@ -398,7 +398,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     flex: 1
                                 },
                                 {
-                                    text: 'Stock Rayon',
+                                    // La colonne nomme la ZONE reellement inventoriee : un
+                                    // inventaire de reserve porte sur le stock reserve, l'intituler
+                                    // "Stock Rayon" laissait croire qu'on comptait le rayon.
+                                    text: (this.getOdatasource().str_TYPE === 'reserve')
+                                            ? '<span style="color:#c26500;">Stock Reserve</span>'
+                                            : '<span style="color:#0b57d0;">Stock Rayon</span>',
                                     flex: 1,
                                     sortable: true,
                                     dataIndex: 'int_NUMBER_AVAILABLE',

@@ -32,7 +32,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
 
         var store_type = new Ext.data.Store({
             fields: ['str_TYPE_TRANSACTION', 'str_STATUT_TRANSACTION'],
-            data: [{str_TYPE_TRANSACTION: 'Famille', str_STATUT_TRANSACTION: 'Famille'}, {str_TYPE_TRANSACTION: 'Emplacement', str_STATUT_TRANSACTION: 'Emplacement'}, {str_TYPE_TRANSACTION: 'Grossiste', str_STATUT_TRANSACTION: 'Grossiste'}]
+            data: [{str_TYPE_TRANSACTION: 'Famille', str_STATUT_TRANSACTION: 'Famille'}, {str_TYPE_TRANSACTION: 'Emplacement', str_STATUT_TRANSACTION: 'Emplacement'}, {str_TYPE_TRANSACTION: 'Grossiste', str_STATUT_TRANSACTION: 'Grossiste'}, {str_TYPE_TRANSACTION: 'Reserve', str_STATUT_TRANSACTION: 'Reserve'}]
         });
         const stockFilterStore = new Ext.data.Store({
             fields: ['id', 'libelle'],
@@ -137,6 +137,17 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                                     Ext.getCmp('str_BEGIN').reset();
                                     Ext.getCmp('str_END').reset();
 
+                                    if (value == "Reserve") {
+                                        // Aucun critere a choisir : ce sont TOUS les produits
+                                        // marques geres en reserve qui sont inventories.
+                                        OGridFamille.hide();
+                                        OGridemplacement.hide();
+                                        OGridGrossiste.hide();
+                                        OGridFamille.setValue("");
+                                        OGridemplacement.setValue("");
+                                        OGridGrossiste.setValue("");
+                                        return;
+                                    }
                                     if (value == "Famille") {
                                         OGridFamille.show();
                                         OGridemplacement.hide();
@@ -373,7 +384,40 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
         if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() === null) {
             Ext.MessageBox.alert('Message d\'erreur', 'Veuillez s&eacute;lectionner un type inventaire');
             return;
-        } else {
+        }
+
+        // Zone RESERVE : aucun critere a controler, et surtout un CHEMIN DIFFERENT. La creation
+        // habituelle passe par des procedures stockees qui ne connaissent que le stock rayon ;
+        // l'inventaire de reserve emprunte le service dedie, deja en place, qui pose str_TYPE a
+        // 'reserve' et fera donc porter la cloture sur le stock reserve.
+        if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() === 'Reserve') {
+            var progres = Ext.MessageBox.wait('Veuillez patienter...', 'Creation de l\'inventaire reserve');
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/reserve/create-inventaire',
+                params: {search_value: '', str_TYPE_TRANSACTION: 'ALL'},
+                timeout: 1800000,
+                success: function (response) {
+                    progres.hide();
+                    var res = Ext.JSON.decode(response.responseText, true) || {};
+                    if (!res.count) {
+                        Ext.MessageBox.alert('Message', res.message || 'Aucun produit a inventorier.');
+                        return;
+                    }
+                    Ext.MessageBox.alert('Infos', 'Inventaire reserve cree.<br>Produits en compte : <b>'
+                            + res.count + '</b>');
+                    Oview.getStore().reload();
+                    button.up('window').close();
+                },
+                failure: function () {
+                    progres.hide();
+                    Ext.MessageBox.alert('Erreur', "La creation de l'inventaire reserve a echoue.");
+                }
+            });
+            return;
+        }
+
+        {
             if ((Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == null && Ext.getCmp('lg_ZONE_GEO_ID').getValue() == "" && Ext.getCmp('lg_GROSSISTE_ID').getValue() == "") ||
                     (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == "" && Ext.getCmp('lg_ZONE_GEO_ID').getValue() == null && Ext.getCmp('lg_GROSSISTE_ID').getValue() == "") ||
                     (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == "" && Ext.getCmp('lg_ZONE_GEO_ID').getValue() == "" && Ext.getCmp('lg_GROSSISTE_ID').getValue() == null) ||

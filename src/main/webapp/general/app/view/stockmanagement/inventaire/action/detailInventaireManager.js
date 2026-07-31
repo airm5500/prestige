@@ -487,7 +487,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.detailInventaireMan
 //                                        regex: /[0-9.]/
 //                                    }
                                 }, {
-                                    text: 'Stock rayon',
+                                    text: (this.getOdatasource && this.getOdatasource()
+                                            && this.getOdatasource().str_TYPE === 'reserve')
+                                            ? '<span style="color:#c26500;">Stock Reserve</span>'
+                                            : '<span style="color:#0b57d0;">Stock rayon</span>',
                                     flex: 1,
                                     sortable: true,
                                     dataIndex: 'int_NUMBER_AVAILABLE',

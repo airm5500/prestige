@@ -88,6 +88,19 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     dataIndex: 'dt_CREATED',
                     flex: 1
                 }, {
+                    // Commentaire saisi a la creation : il porte le motif de l'inventaire et
+                    // reste la seule trace du pourquoi une fois celui-ci cloture.
+                    header: 'Commentaire',
+                    dataIndex: 'str_DESCRIPTION',
+                    flex: 1.5,
+                    renderer: function (v) {
+                        if (!v) {
+                            return '';
+                        }
+                        var t = Ext.String.htmlEncode(v);
+                        return '<span data-qtip="' + t + '">' + t + '</span>';
+                    }
+                }, {
                     header: 'Statut',
                     dataIndex: 'str_STATUT',
                     flex: 1
@@ -170,7 +183,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             icon: 'resources/images/icons/fam/delete.png',
                             tooltip: 'Supprimer un inventaire',
                             scope: this,
-                            handler: this.onRemoveClick
+                            handler: this.onRemoveClick,
+                            getClass: function (value, metadata, record) {
+                                // Un inventaire cloture a deja modifie du stock : le supprimer
+                                // effacerait la trace de ce qui a ete compte et applique.
+                                return record.get('etat') === 'is_Closed' ? 'x-hide-display' : 'x-display-hide';
+                            }
                         }]
                 },
                 {
