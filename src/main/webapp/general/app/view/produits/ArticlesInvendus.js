@@ -299,7 +299,7 @@ Ext.define('testextjs.view.produits.ArticlesInvendus', {
                             flex: 0.7,
                             minValue: 0,
                             allowDecimals: false,
-                            emptyText: 'Invendus depuis (mois)'
+                            emptyText: 'Non vendus apres entree (mois)'
 
                         }, {
                             text: 'suggestion',

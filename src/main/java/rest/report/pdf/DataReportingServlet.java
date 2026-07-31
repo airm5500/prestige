@@ -106,7 +106,15 @@ public class DataReportingServlet extends HttpServlet {
 
             }
             MargeEnum stockFiltre = MargeEnum.valueOf(request.getParameter("stockFiltre"));
-            file = dataReporting.statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, oTUser, codeRayon,
+            // Le nombre de mois vient de l'ecran : sans lui le document imprime ne porterait pas
+            // la meme selection que la liste affichee.
+            int nombreMoisInvendus = 0;
+            try {
+                nombreMoisInvendus = Integer.parseInt(request.getParameter("nombreMois"));
+            } catch (Exception ignore) {
+                nombreMoisInvendus = 0;
+            }
+            file = dataReporting.statsArticlesInvendus(nombreMoisInvendus, dtStart, dtEnd, codeFamile, query, oTUser, codeRayon,
                     codeGrossiste, stock, stockFiltre);
             break;
         case ARTICLES_SUR_STOCK:

@@ -177,10 +177,13 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
             stockFiltre = 'ALL';
         }
         var query = me.getQuery().getValue();
+        // Le nombre de mois accompagne l'impression : sans lui le document ne porterait pas la
+        // meme selection que la liste affichee.
+        var nombreMois = me.getNombreMois().getValue() || 0;
         var linkUrl = '../DataReportingServlet?mode=ARTICLES_NON_VENDUES&dtStart=' + dtStart + '&dtEnd=' + dtEnd
                 + '&codeGrossiste=' + codeGrossiste + '&codeRayon=' + codeRayon + '&query=' + query
                 + '&codeFamile=' + codeFamile + '&query=' + query + '&stock=' + stock + '&stockFiltre=' + stockFiltre
-                ;
+                + '&nombreMois=' + nombreMois;
         window.open(linkUrl);
     },
 
@@ -226,14 +229,9 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
     doSearch: function () {
         var me = this;
         var nombreMois = me.getNombreMois().getValue() || 0;
-        // Si un nombre de mois est saisi, il pilote la periode : on veut les produits
-        // non vendus dont la derniere entree remonte a N mois (ou plus) jusqu'a aujourd'hui.
-        if (nombreMois > 0) {
-            var auj = new Date();
-            var debut = Ext.Date.add(auj, Ext.Date.MONTH, -nombreMois);
-            me.getDtStart().setValue(debut);
-            me.getDtEnd().setValue(auj);
-        }
+        // La periode Du/Au reste la periode PRINCIPALE : elle determine la liste des invendus.
+        // Le nombre de mois ne la remplace plus par "aujourd'hui moins N mois" - il affine
+        // ensuite cette liste, produit par produit, a partir de la derniere entree de chacun.
         var codeRayon = me.getRayons().getValue();
         var codeGrossiste = me.getGrossiste().getValue();
         var query = me.getQuery().getValue(),

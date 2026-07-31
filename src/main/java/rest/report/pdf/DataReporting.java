@@ -156,7 +156,7 @@ public class DataReporting {
         return "/data/reports/pdf/statist_par_gamme_" + report_generate_file;
     }
 
-    public String statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser tu,
+    public String statsArticlesInvendus(int nombreMois, String dtStart, String dtEnd, String codeFamile, String query, TUser tu,
             String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException {
         LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
         try {
@@ -176,7 +176,7 @@ public class DataReporting {
                 .thenComparing(ArticleDTO::getLibelle);
 
         List<ArticleDTO> data = dataReporingService.statsArticlesInvendus(dtStart, dtEnd, codeFamile, query, tu,
-                codeRayon, codeGrossiste, stock, stockFiltre, 0, 0, true);
+                codeRayon, codeGrossiste, stock, stockFiltre, 0, 0, true, nombreMois);
         data.sort(comparator);
         // Total global de valorisation (stock x prix d'achat) affiche dans l'entete du
         // document ; egalement transmis au modele via P_TOTAL_VALORISATION pour un

@@ -684,7 +684,7 @@ public class DataReporingServiceImpl implements DataReporingService {
             List<Predicate> predicates = statsArticlesInvendusPredicats(cb, root, fa, query, codeFamile, codeRayon,
                     codeGrossiste, empId, stockFiltre, stock);
             predicates.add(cb.not(cb.in(root.get(TFamille_.lgFAMILLEID)).value(sub)));
-            addMoisDerniereEntreePredicate(cq, cb, root, empId, nombreMois, predicates);
+            addMoisDerniereEntreePredicate(cb, root, empId, nombreMois, dtEnd, predicates);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<ArticleDTO> q = getEntityManager().createQuery(cq);
             if (!all) {
@@ -829,21 +829,84 @@ public class DataReporingServiceImpl implements DataReporingService {
         }
     }
 
-    // Filtre "invendus depuis N mois depuis leur derniere entree" : on exclut les produits
-    // ayant recu une entree en stock durant les N derniers mois.
-    private void addMoisDerniereEntreePredicate(AbstractQuery<?> cq, CriteriaBuilder cb, Root<TFamille> root,
-            String empId, int nombreMois, List<Predicate> predicates) {
-        if (nombreMois > 0) {
-            Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.MONTH, -nombreMois);
-            Date seuil = cal.getTime();
-            Subquery<String> subEntree = cq.subquery(String.class);
-            Root<TWarehouse> wr = subEntree.from(TWarehouse.class);
-            subEntree.select(wr.<TFamille> get("lgFAMILLEID").<String> get("lgFAMILLEID"));
-            subEntree.where(cb.equal(wr.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), empId),
-                    cb.greaterThan(wr.<Date> get("dtCREATED"), seuil));
-            predicates.add(cb.not(cb.in(root.get(TFamille_.lgFAMILLEID)).value(subEntree)));
+    /**
+     * Restreint la liste aux produits restes SANS VENTE pendant N mois a partir de LEUR PROPRE derniere entree.
+     *
+     * <p>
+     * La regle est individuelle : chaque produit a sa fenetre, qui commence a sa derniere entree en stock et dure N
+     * mois. Le produit n'est retenu que si aucune vente cloturee, non annulee et positive n'y figure.
+     *
+     * <p>
+     * Deux exclusions volontaires :
+     * <ul>
+     * <li>un produit SANS AUCUNE entree en stock n'a pas de fenetre calculable : il est ecarte ;</li>
+     * <li>un produit dont les N mois ne sont pas ENTIEREMENT ECOULES a la date de fin ne peut pas etre declare non
+     * vendu pendant N mois - sans cela un produit entre hier serait classe a tort.</li>
+     * </ul>
+     *
+     * <p>
+     * Le resultat est une liste d'identifiants, appliquee a l'identique a la liste paginee ET au comptage : la
+     * pagination reste ainsi coherente avec les lignes affichees.
+     */
+    private List<String> famillesSansVenteApresDerniereEntree(String empId, int nombreMois, String dtEnd) {
+        String sql = "SELECT e.lg_FAMILLE_ID FROM ("
+                + "   SELECT w.lg_FAMILLE_ID AS lg_FAMILLE_ID, MAX(w.dt_CREATED) AS derniere"
+                + "     FROM t_warehouse w"
+                + "     JOIN t_user wu ON wu.lg_USER_ID = w.lg_USER_ID"
+                + "    WHERE wu.lg_EMPLACEMENT_ID = ?1"
+                + "    GROUP BY w.lg_FAMILLE_ID"
+                + ") e"
+                // Les N mois doivent etre entierement ecoules a la date de fin du rapport.
+                + " WHERE DATE_ADD(e.derniere, INTERVAL ?2 MONTH) <= ?3"
+                + "   AND NOT EXISTS ("
+                + "       SELECT 1 FROM t_preenregistrement_detail d"
+                + "         JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                + "         JOIN t_user pu ON pu.lg_USER_ID = p.lg_USER_ID"
+                + "        WHERE d.lg_FAMILLE_ID = e.lg_FAMILLE_ID"
+                + "          AND pu.lg_EMPLACEMENT_ID = ?1"
+                + "          AND p.str_STATUT = '" + DateConverter.STATUT_IS_CLOSED + "'"
+                + "          AND p.b_IS_CANCEL = 0"
+                + "          AND p.int_PRICE > 0"
+                + "          AND p.dt_UPDATED >= e.derniere"
+                + "          AND p.dt_UPDATED < DATE_ADD(e.derniere, INTERVAL ?2 MONTH))";
+        try {
+            Query q = getEntityManager().createNativeQuery(sql);
+            q.setParameter(1, empId);
+            q.setParameter(2, nombreMois);
+            q.setParameter(3, Timestamp.valueOf(LocalDate.parse(dtEnd).plusDays(1).atStartOfDay()));
+            @SuppressWarnings("unchecked")
+            List<Object> rows = q.getResultList();
+            List<String> ids = new ArrayList<>(rows.size());
+            for (Object r : rows) {
+                if (r != null) {
+                    ids.add(String.valueOf(r));
+                }
+            }
+            return ids;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "famillesSansVenteApresDerniereEntree", e);
+            return new ArrayList<>();
         }
+    }
+
+    /**
+     * Ajoute la restriction "non vendu pendant N mois apres l'entree", si un nombre de mois est demande.
+     *
+     * <p>
+     * Aucun produit eligible signifie une liste vide, et non une absence de filtre : la condition posee est alors
+     * toujours fausse.
+     */
+    private void addMoisDerniereEntreePredicate(CriteriaBuilder cb, Root<TFamille> root, String empId, int nombreMois,
+            String dtEnd, List<Predicate> predicates) {
+        if (nombreMois <= 0) {
+            return;
+        }
+        List<String> eligibles = famillesSansVenteApresDerniereEntree(empId, nombreMois, dtEnd);
+        if (eligibles.isEmpty()) {
+            predicates.add(cb.disjunction());
+            return;
+        }
+        predicates.add(root.get(TFamille_.lgFAMILLEID).in(eligibles));
     }
 
     public Long statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
@@ -870,7 +933,7 @@ public class DataReporingServiceImpl implements DataReporingService {
             List<Predicate> predicates = statsArticlesInvendusPredicats(cb, root, fa, query, codeFamile, codeRayon,
                     codeGrossiste, empId, stockFiltre, stock);
             predicates.add(cb.not(cb.in(root.get(TFamille_.lgFAMILLEID)).value(sub)));
-            addMoisDerniereEntreePredicate(cq, cb, root, empId, nombreMois, predicates);
+            addMoisDerniereEntreePredicate(cb, root, empId, nombreMois, dtEnd, predicates);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             return (q.getSingleResult() != null ? (Long) q.getSingleResult() : 0);
