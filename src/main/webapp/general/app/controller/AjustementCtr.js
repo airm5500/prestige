@@ -254,13 +254,20 @@ Ext.define('testextjs.controller.AjustementCtr', {
                     if (cboZoneCtrl && cboZoneCtrl.getValue() === 'RESERVE') {
                         var stockZone = parseInt(me.getVnostockField().getValue(), 10);
                         if (!isNaN(stockZone) && !isNaN(qte) && (stockZone + qte) < 0) {
-                            Ext.MessageBox.alert('Stock reserve insuffisant',
-                                    'Le stock reserve de ce produit est de <b>' + stockZone
-                                    + '</b> : il ne permet pas de retirer <b>' + Math.abs(qte)
-                                    + '</b> unite(s).<br>Corrigez la quantite avant d\'ajouter le produit.',
-                                    function () {
-                                        field.focus(true, 50);
-                                    });
+                            // Largeur explicite : la boite ne s'elargit pas seule et le message
+                            // passait sous le bouton.
+                            Ext.MessageBox.show({
+                                title: 'Stock reserve insuffisant',
+                                msg: 'Le stock reserve de ce produit est de <b>' + stockZone
+                                        + '</b> : il ne permet pas de retirer <b>' + Math.abs(qte)
+                                        + '</b> unite(s).<br>Corrigez la quantite avant d\'ajouter '
+                                        + 'le produit.',
+                                buttons: Ext.MessageBox.OK,
+                                width: 460,
+                                fn: function () {
+                                    field.focus(true, 50);
+                                }
+                            });
                             return;
                         }
                     }
@@ -426,6 +433,26 @@ Ext.define('testextjs.controller.AjustementCtr', {
         var url = '../api/v1/ajustement/item/' + record.get('lgAJUSTEMENTDETAILID');
 
         if (e.field === 'intNUMBER') {
+            // Zone RESERVE : une quantite negative est permise, mais dans la limite du stock
+            // reserve de depart. Au-dela, la cloture refuserait la ligne et le stock ne bougerait
+            // pas : autant le dire ici, tant que la correction est facile.
+            var cboZoneEdit = Ext.getCmp('str_ZONE_AJUSTEMENT');
+            if (cboZoneEdit && cboZoneEdit.getValue() === 'RESERVE') {
+                var depart = parseInt(record.get('intNUMBERCURRENTSTOCK'), 10);
+                var nouvelle = parseInt(record.get('intNUMBER'), 10);
+                if (!isNaN(depart) && !isNaN(nouvelle) && (depart + nouvelle) < 0) {
+                    Ext.MessageBox.show({
+                        title: 'Stock reserve insuffisant',
+                        msg: 'Le stock reserve de ce produit est de <b>' + depart
+                                + '</b> : il ne permet pas de retirer <b>' + Math.abs(nouvelle)
+                                + '</b> unite(s).<br>La quantite precedente est retablie.',
+                        buttons: Ext.MessageBox.OK,
+                        width: 460
+                    });
+                    record.reject();
+                    return;
+                }
+            }
             params = {
                 "ref": record.get('lgAJUSTEMENTDETAILID'),
                 "value": record.get('intNUMBER'),

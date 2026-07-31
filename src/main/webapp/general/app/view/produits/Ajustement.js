@@ -18,7 +18,6 @@ Ext.define('testextjs.view.produits.Ajustement', {
      * desormais porte par le conteneur a onglets AjustementTabPanel */
     xtype: 'ajustementgestion',
     requires: [
-        'Ext.grid.plugin.RowExpander'
     ],
 
     frame: true,
@@ -219,14 +218,6 @@ Ext.define('testextjs.view.produits.Ajustement', {
                 {
                     xtype: 'gridpanel',
 
-                    plugins: [{
-                            ptype: 'rowexpander',
-                            rowBodyTpl: new Ext.XTemplate(
-                                    '<p>{details}</p>'
-
-                                    )
-                        }
-                    ],
                     store: vente,
 
                     viewConfig: {
@@ -354,8 +345,8 @@ Ext.define('testextjs.view.produits.Ajustement', {
                             menuDisabled: true,
 
                             items: [{
-                                    icon: 'resources/images/icons/fam/page_white_edit.png',
-                                    tooltip: 'Voir Details',
+                                    icon: 'resources/images/icons/fam/loupe.png',
+                                    tooltip: 'Voir le detail de cet ajustement',
                                     menuDisabled: true,
 //                                    scope: me,
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {

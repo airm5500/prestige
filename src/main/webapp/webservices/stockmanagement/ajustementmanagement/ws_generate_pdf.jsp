@@ -69,12 +69,18 @@
     TAjustement oTAjustement = OdataManager.getEm().find(dal.TAjustement.class, lg_AJUSTEMENT_ID);
     String scr_report_file = "rp_fiche_ajustement_";
 
+    String zoneAjustement = oTAjustement.getStrZONE() == null ? "RAYON" : oTAjustement.getStrZONE();
     String report_generate_file = key.GetNumberRandom();
+    // Nom parlant : Fiche_ajustement_<zone>_<jjmmaaaa>_<hhmmss>, pour distinguer les documents
+    // sans avoir a les ouvrir.
+    String horodatage = new java.text.SimpleDateFormat("ddMMyyyy_HHmmss").format(new java.util.Date());
 
     new logger().OCategory.info("scr_report_file " + scr_report_file);
     report_generate_file = report_generate_file + ".pdf";
     OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
-    OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "fiche_ajustement_" + report_generate_file);
+    String nomFichier = "Fiche_ajustement_" + ("RESERVE".equalsIgnoreCase(zoneAjustement) ? "reserve" : "rayon")
+            + "_" + horodatage + "_" + report_generate_file;
+    OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + nomFichier);
 
     TOfficine oTOfficine = OdataManager.getEm().find(dal.TOfficine.class, "1");
 
@@ -86,7 +92,6 @@
     // La zone figure dans le TITRE plutot que dans une colonne : le modele .jrxml n'a pas a
     // changer, l'intitule etant un parametre. Un ajustement anterieur a la gestion par zone
     // releve du rayon, comportement historique.
-    String zoneAjustement = oTAjustement.getStrZONE() == null ? "RAYON" : oTAjustement.getStrZONE();
     String P_H_CLT_INFOS = "Fiche d'ajustement de stock - "
             + ("RESERVE".equalsIgnoreCase(zoneAjustement) ? "RESERVE" : "RAYON");
     String P_H_CC_P_H_RC = "", P_H_CI_P_H_RI = "";
@@ -127,11 +132,11 @@
     parameters.put("P_REFERENCE", oTAjustement.getLgAJUSTEMENTID());
     parameters.put("P_H_EMPLACEMENT", lg_EMPLACEMENT_ID);
     parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS.toUpperCase());
-    String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + conversion.PhoneNumberFormat("+225", oTOfficine.getStrPHONE()) : "";
+    String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + telephones(oTOfficine.getStrPHONE()) : "";
             if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
                 String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
                 for (String va : phone) {
-                    finalphonestring += " / " + conversion.PhoneNumberFormat(va);
+                    finalphonestring += " / " + telephones(va);
                 }
             }
             parameters.put("P_H_PHONE", finalphonestring);
@@ -140,7 +145,7 @@
 
     Ojconnexion.CloseConnexion();
 
-    response.sendRedirect("../../../data/reports/pdf/" + "fiche_ajustement_" + report_generate_file);
+    response.sendRedirect("../../../data/reports/pdf/" + nomFichier);
 
 %>
 

@@ -126,7 +126,9 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                     valueField: 'lgFAMILLEID',
                                     displayField: 'strNAME',
                                     typeAhead: false,
-                                    flex: 1.5,
+                                    // Elargi : les designations longues passaient sur deux lignes
+                                    // dans la liste deroulante.
+                                    flex: 3,
 //                                    margin: '0 10 0 0',
                                     queryMode: 'remote',
                                     autoSelect: true,
@@ -323,8 +325,10 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                                     editor: {
                                                         xtype: 'numberfield',
                                                         allowBlank: true,
-                                                        minValue: 1,
-                                                        maskRe: /[0-9.]/,
+                                                        // Un ajustement corrige un ecart : il peut
+                                                        // retirer du stock, donc etre negatif.
+                                                        allowDecimals: false,
+                                                        maskRe: /[0-9-]/,
                                                         selectOnFocus: true,
                                                         hideTrigger: true
                                                     }
