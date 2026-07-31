@@ -165,14 +165,22 @@
     parameters.put("P_REFERENCE", oTAjustement.getLgAJUSTEMENTID());
     parameters.put("P_H_EMPLACEMENT", lg_EMPLACEMENT_ID);
     parameters.put("P_H_CLT_INFOS", P_H_CLT_INFOS.toUpperCase());
-    String finalphonestring = oTOfficine.getStrPHONE() != null ? "Tel: " + telephones(oTOfficine.getStrPHONE()) : "";
-            if (!"".equals(oTOfficine.getStrAUTRESPHONES())) {
-                String[] phone = oTOfficine.getStrAUTRESPHONES().split(";");
-                for (String va : phone) {
-                    finalphonestring += " / " + telephones(va);
-                }
-            }
-            parameters.put("P_H_PHONE", finalphonestring);
+    // Tous les numeros sont assembles PUIS mis en forme en une seule fois : appeler la fonction
+    // par numero repetait l'indicatif (+225) devant chacun et allongeait la ligne au point de la
+    // faire deborder du document.
+    StringBuilder numeros = new StringBuilder();
+    if (oTOfficine.getStrPHONE() != null) {
+        numeros.append(oTOfficine.getStrPHONE());
+    }
+    if (oTOfficine.getStrAUTRESPHONES() != null && !"".equals(oTOfficine.getStrAUTRESPHONES())) {
+        if (numeros.length() > 0) {
+            numeros.append(";");
+        }
+        numeros.append(oTOfficine.getStrAUTRESPHONES());
+    }
+    String misEnForme = telephones(numeros.toString());
+    String finalphonestring = "".equals(misEnForme) ? "" : "Tel: " + misEnForme;
+    parameters.put("P_H_PHONE", finalphonestring);
        
      OreportManager.BuildReport(parameters, Ojconnexion);
 
