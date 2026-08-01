@@ -193,6 +193,48 @@ public class InventaireRessource {
     }
 
     /**
+     * Retient ou ecarte plusieurs lignes d'un coup : remplace ws_transactions.jsp?mode=createInventaireArticle et
+     * createInventaireArticleBis.
+     *
+     * <p>
+     * Les lignes sont designees par {@code ids} (identifiants de lignes d'inventaire) ou par {@code produits}
+     * (identifiants de produits, resolus dans {@code lg_INVENTAIRE_ID}).
+     */
+    @POST
+    @Path("lignes/retenue")
+    public Response retenirLignes(String payload) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        java.util.List<Long> ligneIds = new java.util.ArrayList<>();
+        JSONArray ids = in.optJSONArray("ids");
+        if (ids != null) {
+            for (int i = 0; i < ids.length(); i++) {
+                try {
+                    ligneIds.add(Long.valueOf(ids.optString(i, "").trim()));
+                } catch (NumberFormatException e) {
+                    // identifiant illisible : on l'ignore plutot que de refuser tout le lot
+                }
+            }
+        }
+        java.util.List<String> produitIds = new java.util.ArrayList<>();
+        JSONArray produits = in.optJSONArray("produits");
+        if (produits != null) {
+            for (int i = 0; i < produits.length(); i++) {
+                String p = produits.optString(i, null);
+                if (StringUtils.isNotBlank(p)) {
+                    produitIds.add(p);
+                }
+            }
+        }
+        JSONObject json = inventaireService.retenirLignes(in.optString("lg_INVENTAIRE_ID", ""), ligneIds, produitIds,
+                in.optBoolean("retenue", true));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
      * Suppression d'une ligne d'inventaire : remplace ws_transactions.jsp?mode=deleteInventaireFamille.
      */
     @POST

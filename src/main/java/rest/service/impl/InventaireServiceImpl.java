@@ -591,6 +591,39 @@ public class InventaireServiceImpl implements InventaireService {
     }
 
     @Override
+    public JSONObject retenirLignes(String inventaireId, List<Long> ligneIds, List<String> produitIds,
+            boolean retenue) {
+        JSONObject json = new JSONObject();
+        Set<Long> aTraiter = new LinkedHashSet<>();
+        if (ligneIds != null) {
+            aTraiter.addAll(ligneIds);
+        }
+        // Un produit est designe par son identifiant : on retrouve sa ligne dans cet inventaire.
+        if (produitIds != null && !produitIds.isEmpty() && StringUtils.isNotBlank(inventaireId)) {
+            @SuppressWarnings("unchecked")
+            List<Long> trouvees = em
+                    .createQuery("SELECT t.lgINVENTAIREFAMILLEID FROM TInventaireFamille t"
+                            + " WHERE t.lgINVENTAIREID.lgINVENTAIREID = ?1 AND t.lgFAMILLEID.lgFAMILLEID IN ?2")
+                    .setParameter(1, inventaireId).setParameter(2, produitIds).getResultList();
+            aTraiter.addAll(trouvees);
+        }
+        if (aTraiter.isEmpty()) {
+            return json.put("success", 0).put("errors", "Aucun article a traiter.");
+        }
+        int count = 0;
+        for (Long id : aTraiter) {
+            TInventaireFamille ligne = em.find(TInventaireFamille.class, id);
+            if (ligne != null) {
+                ligne.setBoolINVENTAIRE(retenue);
+                em.merge(ligne);
+                count++;
+            }
+        }
+        return json.put("success", count > 0 ? 1 : 0).put("count", count).put("errors",
+                count + (retenue ? " article(s) ajoute(s) a l'inventaire." : " article(s) retire(s)."));
+    }
+
+    @Override
     public JSONObject supprimerLigne(Long ligneId) {
         JSONObject json = new JSONObject();
         if (ligneId == null) {

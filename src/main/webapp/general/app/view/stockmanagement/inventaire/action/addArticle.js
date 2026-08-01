@@ -486,10 +486,15 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_addarticle_inventaire + 'createInventaireArticle',
-                            params: {
-                                lg_FAMILLE_ID: rec.get('lg_FAMILLE_ID'),
-                                lg_INVENTAIRE_ID: ref
+                            // Ajouter un article a un inventaire unitaire revient a RETENIR sa
+                            // ligne : toutes les lignes existent des la creation, seules les
+                            // lignes retenues font partie de l'inventaire.
+                            url: '../api/v1/inventaire/lignes/retenue',
+                            method: 'POST',
+                            jsonData: {
+                                lg_INVENTAIRE_ID: ref,
+                                produits: [rec.get('lg_FAMILLE_ID')],
+                                retenue: true
                             },
                             success: function (response)
                             {
@@ -584,39 +589,42 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
     onbtnsave: function (button) {
         var fenetre = button.up('window'),
                 formulaire = fenetre.down('form');
-        var internal_url = "";
 
 //                        alert("taille du tab:" + listProductSelected.length);
-        var liste_article = "";
+        var liste_article = [];
         for (var i = 0; i < listProductSelected.length; i++) {
             var rec = OCltgridpanelID.getStore().getAt(listProductSelected[i]); // a recupere l'element i de la store se trouvant dans cette grid
-            liste_article += rec.get('lg_INVENTAIRE_FAMILLE_ID') + ",";
+            liste_article.push(rec.get('lg_INVENTAIRE_FAMILLE_ID'));
         }
-        liste_article = liste_article.slice(0, -1);//liste des articles. 
-        internal_url = url_services_transaction_addarticle_inventaire + 'createInventaireArticleBis&lg_INVENTAIRE_ID=' + ref + '&liste_article=' + liste_article;
 
-        formulaire.submit({
-            url: internal_url,
-            timeout: 1800,
-            waitMsg: "Veuillez patienter. Traitement en cours...",
-            waitTitle: 'Creation d\'un inventaire',
-            width: 400,
-            success: function (formulaire, action) {
-
-                if (action.result.success === "1") {
-                    Ext.MessageBox.alert('Confirmation', action.result.errors);
+        var progres = Ext.MessageBox.wait('Veuillez patienter. Traitement en cours...',
+                'Ajout des articles');
+        Ext.Ajax.request({
+            // Meme principe que l'ajout unitaire, sur toute la selection d'un coup.
+            url: '../api/v1/inventaire/lignes/retenue',
+            method: 'POST',
+            timeout: 1800000,
+            jsonData: {
+                lg_INVENTAIRE_ID: ref,
+                ids: liste_article,
+                retenue: true
+            },
+            success: function (response) {
+                progres.hide();
+                var res = Ext.JSON.decode(response.responseText, true) || {};
+                if (res.success) {
+                    Ext.MessageBox.alert('Confirmation', res.errors);
                     Oview.getStore().reload();
                 } else {
-                    Ext.MessageBox.alert('Erreur', action.result.errors);
-
+                    Ext.MessageBox.alert('Erreur', res.errors || 'Ajout impossible.');
                 }
 
                 var bouton = button.up('window');
                 bouton.close();
             },
-            failure: function (formulaire, action) {
-                Oview.getStore().reload();
-                Ext.MessageBox.alert('Erreur', 'Erreur  ' + action.result.errors);
+            failure: function () {
+                progres.hide();
+                Ext.MessageBox.alert('Erreur', "L'ajout des articles a echoue.");
             }
         });
     },

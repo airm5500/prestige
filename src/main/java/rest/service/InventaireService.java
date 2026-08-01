@@ -106,6 +106,21 @@ public interface InventaireService {
     org.json.JSONObject retenirLigne(Long ligneId, boolean retenue);
 
     /**
+     * Retient ou ecarte PLUSIEURS lignes d'un coup.
+     *
+     * <p>
+     * Les lignes peuvent etre designees soit par leur propre identifiant, soit par un couple inventaire / produit -
+     * l'ecran d'ajout d'articles connait tantot l'un, tantot l'autre.
+     *
+     * @param ligneIds
+     *            identifiants de lignes d'inventaire, peut etre vide
+     * @param produitIds
+     *            identifiants de produits, resolus dans l'inventaire indique
+     */
+    org.json.JSONObject retenirLignes(String inventaireId, java.util.List<Long> ligneIds,
+            java.util.List<String> produitIds, boolean retenue);
+
+    /**
      * Valeurs disponibles pour un filtre de la fiche d'inventaire.
      *
      * <p>
