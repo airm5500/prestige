@@ -79,7 +79,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_zonegeo,
+                // API des emplacements. La variable globale de meme nom est declaree dans
+                // d'autres ecrans : on pose l'adresse ici pour ne toucher qu'a celui-la.
+                url: '../api/v1/zones-geographiques',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -111,7 +113,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_famille_article,
+                // API des familles d'article, meme precaution que pour les emplacements.
+                url: '../api/v1/familles-article',
                 reader: {
                     type: 'json',
                     root: 'results',
