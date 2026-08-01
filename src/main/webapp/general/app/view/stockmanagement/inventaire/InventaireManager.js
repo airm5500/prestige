@@ -552,9 +552,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                         }
                         var rec = aSupprimer[index];
                         Ext.Ajax.request({
-                            url: url_services_transaction_inventaire + 'delete',
+                            url: url_services_rest_inventaire + '/supprimer',
+                            method: 'POST',
                             timeout: 1800000,
-                            params: {lg_INVENTAIRE_ID: rec.get('lg_INVENTAIRE_ID')},
+                            jsonData: {lg_INVENTAIRE_ID: rec.get('lg_INVENTAIRE_ID')},
                             callback: function (opts, ok, response) {
                                 var object = ok ? Ext.JSON.decode(response.responseText, true) : null;
                                 if (ok && object && object.code_statut != "0") {
@@ -754,9 +755,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_inventaire + 'delete',
+                            // Suppression par le service REST, en remplacement du mode delete
+                            // de la JSP. La reponse garde les memes champs.
+                            url: url_services_rest_inventaire + '/supprimer',
+                            method: 'POST',
                             timeout: 1800000,
-                            params: {
+                            jsonData: {
                                 lg_INVENTAIRE_ID: rec.get('lg_INVENTAIRE_ID')
                             },
                             success: function(response)

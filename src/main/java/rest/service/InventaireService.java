@@ -88,6 +88,14 @@ public interface InventaireService {
     org.json.JSONObject updateQuantiteLigne(Long ligneId, Integer quantite);
 
     /**
+     * Retire une ligne d'un inventaire. Remplace le mode {@code deleteInventaireFamille} de ws_transactions.jsp.
+     *
+     * <p>
+     * Le retour porte {@code success} et {@code errors}, les deux champs que l'ecran lit deja.
+     */
+    org.json.JSONObject supprimerLigne(Long ligneId);
+
+    /**
      * Meme traitement que {@link #createReserveInventaire(Set, String, String)}, mais rend compte du detail.
      *
      * <p>

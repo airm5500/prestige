@@ -149,6 +149,65 @@ public class InventaireRessource {
     }
 
     /**
+     * Suppression d'une ligne d'inventaire : remplace ws_transactions.jsp?mode=deleteInventaireFamille.
+     */
+    @POST
+    @Path("ligne/supprimer")
+    public Response supprimerLigne(String payload) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        Long ligneId;
+        try {
+            ligneId = Long.valueOf(in.optString("lg_INVENTAIRE_FAMILLE_ID", "").trim());
+        } catch (NumberFormatException e) {
+            ligneId = null;
+        }
+        return Response.ok().entity(inventaireService.supprimerLigne(ligneId).toString()).build();
+    }
+
+    /**
+     * Suppression d'un inventaire : remplace ws_transactions.jsp?mode=delete.
+     *
+     * <p>
+     * La suppression passe par la procedure stockee {@code proc_delete_inventory}, qui n'est pas modifiee : on emprunte
+     * la methode metier existante. La reponse garde les champs {@code code_statut} et {@code desc_satut} que l'ecran
+     * lit deja, aussi bien pour la suppression d'une ligne que pour celle d'une selection entiere.
+     */
+    @POST
+    @Path("supprimer")
+    public Response supprimerInventaire(String payload) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        String inventaireId = in.optString("lg_INVENTAIRE_ID", "").trim();
+        if (inventaireId.isEmpty()) {
+            return Response.ok().entity(new JSONObject().put("success", 0).put("code_statut", "0")
+                    .put("desc_satut", "Inventaire non identifie.").toString()).build();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            InventaireManager manager = new InventaireManager(odm, user);
+            boolean ok = manager.deleteInventaire(inventaireId);
+            String detail = StringUtils.defaultIfBlank(manager.getDetailmessage(),
+                    ok ? "Inventaire supprime." : "Echec de suppression de l'inventaire.");
+            return Response.ok().entity(new JSONObject().put("success", ok ? 1 : 0).put("code_statut", ok ? "1" : "0")
+                    .put("desc_satut", detail).toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "supprimerInventaire", e);
+            return Response.ok().entity(new JSONObject().put("success", 0).put("code_statut", "0")
+                    .put("desc_satut", "Echec de suppression de l'inventaire.").toString()).build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
      * Creation d'un inventaire : remplace ws_transactions.jsp?mode=createbis.
      *
      * <p>

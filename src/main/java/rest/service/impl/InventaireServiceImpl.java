@@ -453,6 +453,20 @@ public class InventaireServiceImpl implements InventaireService {
     }
 
     @Override
+    public JSONObject supprimerLigne(Long ligneId) {
+        JSONObject json = new JSONObject();
+        if (ligneId == null) {
+            return json.put("success", 0).put("errors", "Ligne d'inventaire non identifiee.");
+        }
+        TInventaireFamille ligne = em.find(TInventaireFamille.class, ligneId);
+        if (ligne == null) {
+            return json.put("success", 0).put("errors", "Cette ligne d'inventaire n'existe plus.");
+        }
+        em.remove(ligne);
+        return json.put("success", 1).put("errors", "Article retire de l'inventaire.");
+    }
+
+    @Override
     public void updateDetailQuantity(UpdateInventaireDetailDTO updateInventaire) {
         TInventaireFamille inventaireFamille = em.find(TInventaireFamille.class, updateInventaire.getId());
         inventaireFamille.setIntNUMBER(updateInventaire.getQuantite());

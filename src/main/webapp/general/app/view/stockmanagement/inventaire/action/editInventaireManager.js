@@ -1332,8 +1332,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_inventaire + 'deleteInventaireFamille',
-                            params: {
+                            // Retrait d'un article de l'inventaire par le service REST, en
+                            // remplacement du mode deleteInventaireFamille de la JSP.
+                            url: '../api/v1/inventaire/ligne/supprimer',
+                            method: 'POST',
+                            jsonData: {
                                 lg_INVENTAIRE_FAMILLE_ID: rec.get('lg_INVENTAIRE_FAMILLE_ID')
                             },
                             success: function (response)
