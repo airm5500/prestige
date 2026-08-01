@@ -96,6 +96,17 @@ public interface InventaireService {
     org.json.JSONObject supprimerLigne(Long ligneId);
 
     /**
+     * Articles d'un inventaire unitaire, PAGINE PAR LA BASE.
+     *
+     * <p>
+     * Remplace ws_data_article_unitaire.jsp, qui ramenait toutes les lignes de l'inventaire avant d'en decouper une
+     * page en memoire. Le contenu de chaque ligne est identique, {@code is_select} portant toujours l'appartenance a
+     * l'inventaire.
+     */
+    org.json.JSONObject articlesUnitaires(String inventaireId, String recherche, String familleArticleId,
+            String zoneGeoId, String grossisteId, int start, int limit);
+
+    /**
      * Retient ou ecarte une ligne d'un inventaire unitaire.
      *
      * <p>

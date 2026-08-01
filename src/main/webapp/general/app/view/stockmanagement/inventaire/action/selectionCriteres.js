@@ -18,7 +18,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
 
     layout: {type: 'hbox', align: 'stretch'},
     border: false,
+    // La hauteur est imposee par le conteneur (anchor), cette valeur ne sert que de repli.
     height: 340,
+    minHeight: 260,
 
     // Definition des trois axes. Les trois listes viennent d'une API REST : emplacements,
     // grossistes et familles d'article, toutes trois avec recherche "contient" et pagination.

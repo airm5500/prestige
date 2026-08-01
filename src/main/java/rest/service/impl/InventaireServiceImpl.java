@@ -624,6 +624,77 @@ public class InventaireServiceImpl implements InventaireService {
     }
 
     @Override
+    public JSONObject articlesUnitaires(String inventaireId, String recherche, String familleArticleId,
+            String zoneGeoId, String grossisteId, int start, int limit) {
+        JSONArray results = new JSONArray();
+        long total = 0;
+        try {
+            // Memes criteres que la page qu'on remplace, mais le decoupage est demande a la base.
+            StringBuilder where = new StringBuilder(
+                    " FROM TInventaireFamille t" + " WHERE t.lgINVENTAIREID.lgINVENTAIREID = :inventaire");
+            boolean parFamille = StringUtils.isNotBlank(familleArticleId) && !"%%".equals(familleArticleId);
+            boolean parZone = StringUtils.isNotBlank(zoneGeoId) && !"%%".equals(zoneGeoId);
+            boolean parGrossiste = StringUtils.isNotBlank(grossisteId) && !"%%".equals(grossisteId);
+            boolean avecRecherche = StringUtils.isNotBlank(recherche);
+            if (parFamille) {
+                where.append(" AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID = :famille");
+            }
+            if (parZone) {
+                where.append(" AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID = :zone");
+            }
+            if (parGrossiste) {
+                where.append(" AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID = :grossiste");
+            }
+            if (avecRecherche) {
+                where.append(" AND (t.lgFAMILLEID.strNAME LIKE :recherche OR t.lgFAMILLEID.intCIP LIKE :recherche"
+                        + " OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strLIBELLE LIKE :recherche)");
+            }
+
+            javax.persistence.Query qc = em.createQuery("SELECT COUNT(t)" + where);
+            javax.persistence.Query q = em.createQuery("SELECT t" + where
+                    + " ORDER BY t.lgFAMILLEID.lgZONEGEOID.strCODE ASC, t.lgFAMILLEID.strDESCRIPTION ASC");
+            for (javax.persistence.Query requete : new javax.persistence.Query[] { qc, q }) {
+                requete.setParameter("inventaire", inventaireId);
+                if (parFamille) {
+                    requete.setParameter("famille", familleArticleId);
+                }
+                if (parZone) {
+                    requete.setParameter("zone", zoneGeoId);
+                }
+                if (parGrossiste) {
+                    requete.setParameter("grossiste", grossisteId);
+                }
+                if (avecRecherche) {
+                    requete.setParameter("recherche", "%" + recherche.trim() + "%");
+                }
+            }
+            total = ((Number) qc.getSingleResult()).longValue();
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+            }
+            @SuppressWarnings("unchecked")
+            List<TInventaireFamille> lignes = q.getResultList();
+            for (TInventaireFamille l : lignes) {
+                TFamille produit = l.getLgFAMILLEID();
+                JSONObject row = new JSONObject();
+                row.put("lg_INVENTAIRE_FAMILLE_ID", l.getLgINVENTAIREFAMILLEID());
+                row.put("lg_FAMILLE_ID", produit.getLgFAMILLEID());
+                row.put("str_NAME", StringUtils.defaultString(produit.getStrNAME()));
+                row.put("str_DESCRIPTION", StringUtils.defaultString(produit.getStrDESCRIPTION()));
+                row.put("int_PRICE", produit.getIntPRICE());
+                row.put("int_CIP", StringUtils.defaultString(produit.getIntCIP()));
+                row.put("int_PAF", produit.getIntPAF());
+                row.put("int_PAT", produit.getIntPAT());
+                row.put("is_select", Boolean.TRUE.equals(l.getBoolINVENTAIRE()));
+                results.put(row);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "articlesUnitaires", e);
+        }
+        return new JSONObject().put("total", total).put("results", results);
+    }
+
+    @Override
     public JSONObject supprimerLigne(Long ligneId) {
         JSONObject json = new JSONObject();
         if (ligneId == null) {

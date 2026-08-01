@@ -171,6 +171,30 @@ public class InventaireRessource {
     }
 
     /**
+     * Articles d'un inventaire unitaire : remplace ws_data_article_unitaire.jsp.
+     *
+     * <p>
+     * L'ancienne page ramenait toutes les lignes de l'inventaire avant d'en decouper une page en memoire, d'ou
+     * l'attente a l'affichage. Le comptage et la page sont desormais demandes a la base.
+     */
+    @GET
+    @Path("articles-unitaires")
+    public Response articlesUnitaires(@DefaultValue("") @QueryParam("lg_INVENTAIRE_ID") String inventaireId,
+            @DefaultValue("") @QueryParam("search_value") String recherche,
+            @DefaultValue("") @QueryParam("lg_FAMILLEARTICLE_ID") String familleArticleId,
+            @DefaultValue("") @QueryParam("lg_ZONE_GEO_ID") String zoneGeoId,
+            @DefaultValue("") @QueryParam("lg_GROSSISTE_ID") String grossisteId,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return Response.ok().entity(inventaireService
+                .articlesUnitaires(inventaireId, recherche, familleArticleId, zoneGeoId, grossisteId, start, limit)
+                .toString()).build();
+    }
+
+    /**
      * Retient ou ecarte une ligne d'un inventaire unitaire : remplace
      * ws_transactions.jsp?mode=updateInventaireUnitaireFamille.
      */
@@ -351,13 +375,18 @@ public class InventaireRessource {
             InventaireManager manager = new InventaireManager(odm, user);
             long lignes = manager.createInventaireMultiCriteres(nom, valeurs, axeDepuisType(type), debut, fin, type,
                     in.optInt("bool_INVENTAIRE", 1), in.optString("stockFilter", "ALL"), stockProduit);
+
+            if (lignes == InventaireManager.ECHEC_TECHNIQUE) {
+                // Panne, et non absence de resultat : les deux ne doivent pas porter le meme message.
+                // L'utilisateur repart avec une reference, que le journal porte a l'identique.
+                return incident("creerInventaire", manager.getDetailmessage(), null);
+            }
             JSONObject json = new JSONObject().put("success", lignes > 0 ? 1 : 0).put("lignes", lignes);
             json.put("nombre", lignes > 0 ? lignes + " article(s) inventorie(s)"
                     : "Aucun article ne correspond a cette selection : aucun inventaire n'a ete cree.");
             return Response.ok().entity(json.toString()).build();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "creerInventaire", e);
-            return refus("La creation de l'inventaire a echoue.");
+            return incident("creerInventaire", "La creation de l'inventaire a echoue.", e);
         } finally {
             odm.closeEntityManager();
         }
@@ -375,6 +404,26 @@ public class InventaireRessource {
             return "GROSSISTE";
         }
         return "";
+    }
+
+    /**
+     * Reponse d'INCIDENT : une panne, et non un simple refus metier.
+     *
+     * <p>
+     * Une reference unique est produite, ecrite dans le journal du serveur avec la trace complete et affichee a
+     * l'utilisateur. Il suffit alors de la communiquer au support pour retrouver l'evenement exact, sans avoir a
+     * deviner l'heure ni l'ecran.
+     */
+    private Response incident(String operation, String detail, Exception e) {
+        String reference = "INC-" + Long.toHexString(System.currentTimeMillis()).toUpperCase();
+        LOG.log(Level.SEVERE, "[{0}] incident sur {1} : {2}", new Object[] { reference, operation, detail });
+        if (e != null) {
+            LOG.log(Level.SEVERE, "[" + reference + "] trace", e);
+        }
+        String message = "L'operation a echoue pour une raison technique. Aucun inventaire n'a ete cree."
+                + "<br/><br/>Merci de signaler cette reference au support : <b>" + reference + "</b>";
+        return Response.ok().entity(new JSONObject().put("success", 0).put("incident", true).put("reference", reference)
+                .put("nombre", message).put("message", message).toString()).build();
     }
 
     private Response refus(String message) {

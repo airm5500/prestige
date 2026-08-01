@@ -1460,20 +1460,33 @@ public class InventaireManager extends bllBase {
             String str_END, String str_TYPE, int bool_INVENTAIRE, String stockFilter, Integer stockProduit) {
         long count = 0;
         Date today = new Date();
+        TInventaire creePartiellement = null;
         try {
+            // L'utilisateur de la session a ete charge par une AUTRE couche de persistance et n'est
+            // plus rattache a la sienne. L'attacher tel quel au nouvel inventaire fait remonter ses
+            // collections paresseuses au moment de la validation, et la creation echoue par
+            // intermittence - selon que ces collections avaient deja ete lues ou non. On repasse
+            // donc par l'utilisateur relu ICI, dans le contexte courant.
+            TUser auteur = this.getOdataManager().getEm().find(TUser.class, this.getOTUser().getLgUSERID());
+            if (auteur == null) {
+                this.buildErrorTraceMessage("Utilisateur introuvable : création de l'inventaire abandonnée");
+                return 0;
+            }
+
             TInventaire oTInventaire = new TInventaire(this.getKey().getComplexId());
             oTInventaire.setStrNAME(str_NAME);
             oTInventaire.setStrDESCRIPTION(str_NAME);
-            oTInventaire.setLgUSERID(this.getOTUser());
+            oTInventaire.setLgUSERID(auteur);
             oTInventaire.setStrTYPE(str_TYPE.toLowerCase());
             oTInventaire.setStrSTATUT(commonparameter.statut_enable);
             oTInventaire.setDtCREATED(today);
             oTInventaire.setDtUPDATED(today);
-            oTInventaire.setLgEMPLACEMENTID(this.getOTUser().getLgEMPLACEMENTID());
+            oTInventaire.setLgEMPLACEMENTID(auteur.getLgEMPLACEMENTID());
             if (!this.persiste(oTInventaire)) {
                 this.buildErrorTraceMessage("Echec de création de l'inventaire");
-                return 0;
+                return ECHEC_TECHNIQUE;
             }
+            creePartiellement = oTInventaire;
 
             List<String> aParcourir = (valeurs == null || valeurs.isEmpty()) ? Arrays.asList("%%") : valeurs;
             for (String valeur : aParcourir) {
@@ -1498,9 +1511,23 @@ public class InventaireManager extends bllBase {
             e.printStackTrace();
             this.buildErrorTraceMessage("Echec de création de l'inventaire");
             new logger().OCategory.info(this.getDetailmessage());
+            // Ne pas laisser derriere soi un inventaire vide : l'ecran annonce un echec, la liste
+            // ne doit pas afficher une ligne creee a moitie.
+            if (creePartiellement != null) {
+                try {
+                    this.delete(creePartiellement);
+                } catch (Exception suppression) {
+                    new logger().OCategory
+                            .info("Inventaire incomplet non supprime : " + creePartiellement.getLgINVENTAIREID());
+                }
+            }
+            return ECHEC_TECHNIQUE;
         }
         return count;
     }
+
+    /** Retour de createInventaireMultiCriteres signalant un echec TECHNIQUE, distinct de "aucune ligne". */
+    public static final long ECHEC_TECHNIQUE = -1L;
 
     public long createInventaire(String str_NAME, String lg_FAMILLE_ID, String str_DESCRIPTION,
             String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String str_BEGIN,

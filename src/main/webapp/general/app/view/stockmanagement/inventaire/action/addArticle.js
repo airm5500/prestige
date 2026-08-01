@@ -1,6 +1,6 @@
 /* global Ext */
 
-var url_services_data_addarticle_inventaire = '../webservices/stockmanagement/inventaire/ws_data_article_unitaire.jsp';
+var url_services_data_addarticle_inventaire = '../api/v1/inventaire/articles-unitaires';
 var url_services_transaction_addarticle_inventaire = '../webservices/stockmanagement/inventaire/ws_transactions.jsp?mode=';
 var url_services_data_zonegeo = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 var url_services_data_famille_article = '../webservices/configmanagement/famillearticle/ws_data.jsp';
@@ -59,7 +59,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
 //            proxy: proxy
             proxy: {
                 type: 'ajax',
-                url: '../webservices/stockmanagement/inventaire/ws_data_article_unitaire.jsp?lg_INVENTAIRE_ID=' + ref,
+                url: '../api/v1/inventaire/articles-unitaires?lg_INVENTAIRE_ID=' + ref,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -244,29 +244,21 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
                             listeners: {
                                 checkChange: this.onCheckChange
                             }
-                        }/*{
-                         xtype: 'checkcolumn',
-                         header: 'Choix',
-                         dataIndex: 'is_select',
-                         //                            name: 'is_select',
-                         //                            id: 'is_select',
-                         flex: 0.5,
-                         stopSelection: false,
-                         listeners: {
-                         checkChange: this.onCheckChange
-                         }
-                         }*//*, {
-                          xtype: 'actioncolumn',
-                          width: 30,
-                          sortable: false,
-                          menuDisabled: true,
-                          items: [{
-                          icon: 'resources/images/icons/fam/add.png',
-                          tooltip: 'Ajouter',
-                          scope: this,
-                          handler: this.onAddClick
-                          }]
-                          }*/],
+                        }, {
+                            // Ajout d'un article a la fois. La colonne etait commentee, en meme
+                            // temps que le traitement serveur correspondant ; les deux sont
+                            // remis en service ensemble.
+                            xtype: 'actioncolumn',
+                            width: 30,
+                            sortable: false,
+                            menuDisabled: true,
+                            items: [{
+                                    icon: 'resources/images/icons/fam/add.png',
+                                    tooltip: 'Ajouter cet article a l\'inventaire',
+                                    scope: this,
+                                    handler: this.onAddClick
+                                }]
+                        }],
                     tbar: [{
                             xtype: 'combobox',
                             name: 'lg_FAMILLEARTICLE_ID',
@@ -456,22 +448,24 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
             plain: true,
             items: form,
             buttons: [{
-                    text: 'Enregistrer',
-                    hidden: true,
-                    handler: function () {
-                        win.close();
-                    }
-                    // handler: this.onbtnsave
+                    // Ajout de tous les articles coches. Le bouton etait masque et son
+                    // gestionnaire commente ; remis en service avec le traitement serveur.
+                    text: 'Ajouter la s&eacute;lection',
+                    scope: this,
+                    handler: this.onbtnsave
                 }, {
                     text: 'Fermer',
                     handler: function () {
                         win.close();
                     }
                 }],
-            listeners: {// controle sur le button fermé en haut de fenetre
-                beforeclose: function () {
-//                    alert('im cancelling the window closure by returning false...');
-                    // return false;
+            listeners: {
+                // A la fermeture, la liste des inventaires est rechargee : le nombre d'articles
+                // retenus a pu changer pendant la session de selection.
+                close: function () {
+                    if (Oview && Oview.getStore) {
+                        Oview.getStore().reload();
+                    }
                 }
             }
         });

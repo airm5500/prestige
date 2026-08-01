@@ -329,7 +329,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             xtype: 'inventaireselectioncriteres',
                             itemId: 'panneauCriteres',
                             hidden: true,
-                            anchor: '100%'
+                            // Occupe toute la hauteur restante de la fenetre : sans cela le
+                            // panneau gardait sa hauteur propre et laissait un vide en dessous.
+                            anchor: '100%, -170'
                         },
                         {
                             xtype: 'fieldcontainer',
@@ -383,7 +385,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
             // Elargie et rallongee : les deux volets de selection ne tenaient pas dans les
             // 500x300 d'origine, il fallait etirer la fenetre a la main pour voir la liste.
             width: 900,
-            height: 640,
+            height: 660,
             minWidth: 700,
             minHeight: 480,
             maximizable: true,
