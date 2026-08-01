@@ -149,6 +149,28 @@ public class InventaireRessource {
     }
 
     /**
+     * Valeurs proposees par les filtres de la fiche d'inventaire : remplace les pages
+     * configmanagement/*_/ws_data_inventaire.jsp et sm_user/utilisateur/ws_data.jsp.
+     *
+     * <p>
+     * Les listes sont cadrees sur l'inventaire ouvert : un inventaire cree sur trois emplacements ne propose que ces
+     * trois emplacements. L'entree "Tous", qui remet le filtre a zero, est toujours presente.
+     */
+    @GET
+    @Path("criteres")
+    public Response criteres(@DefaultValue("") @QueryParam("lg_INVENTAIRE_ID") String inventaireId,
+            @DefaultValue("ZONE") @QueryParam("axe") String axe,
+            @DefaultValue("") @QueryParam("search_value") String recherche,
+            @DefaultValue("") @QueryParam("query") String query) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        String search = StringUtils.isNotEmpty(recherche) ? recherche : query;
+        return Response.ok().entity(inventaireService.criteresInventaire(inventaireId, axe, search).toString()).build();
+    }
+
+    /**
      * Suppression d'une ligne d'inventaire : remplace ws_transactions.jsp?mode=deleteInventaireFamille.
      */
     @POST

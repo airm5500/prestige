@@ -453,6 +453,118 @@ public class InventaireServiceImpl implements InventaireService {
     }
 
     @Override
+    public JSONObject criteresInventaire(String inventaireId, String axe, String recherche) {
+        JSONArray results = new JSONArray();
+        String like = "%" + (StringUtils.isBlank(recherche) ? "" : recherche.trim()) + "%";
+        try {
+            if ("UTILISATEUR".equalsIgnoreCase(axe)) {
+                remplirUtilisateurs(results, inventaireId, like);
+            } else {
+                remplirCriteres(results, inventaireId, axe, like);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "criteresInventaire", e);
+        }
+        // Entree "Tous" en tete : c'est elle qui remet le filtre a zero. Les anciennes pages la
+        // placaient en fin de liste ; en tete elle est immediatement accessible.
+        JSONArray avecTous = new JSONArray();
+        avecTous.put(entreeCritere(axe, "", "Tous", ""));
+        for (int i = 0; i < results.length(); i++) {
+            avecTous.put(results.get(i));
+        }
+        return new JSONObject().put("total", avecTous.length()).put("results", avecTous);
+    }
+
+    private void remplirCriteres(JSONArray results, String inventaireId, String axe, String like) {
+        String chemin, libelle, code;
+        if ("FAMILLE".equalsIgnoreCase(axe)) {
+            chemin = "t.lgFAMILLEID.lgFAMILLEARTICLEID";
+            libelle = "strLIBELLE";
+            code = "strCODEFAMILLE";
+        } else if ("GROSSISTE".equalsIgnoreCase(axe)) {
+            chemin = "t.lgFAMILLEID.lgGROSSISTEID";
+            libelle = "strLIBELLE";
+            code = "strCODE";
+        } else {
+            chemin = "t.lgFAMILLEID.lgZONEGEOID";
+            libelle = "strLIBELLEE";
+            code = "strCODE";
+        }
+        // On ne ramene que les valeurs REELLEMENT presentes dans cet inventaire.
+        String jpql = "SELECT DISTINCT c FROM TInventaireFamille t JOIN " + chemin + " c"
+                + " WHERE t.lgINVENTAIREID.lgINVENTAIREID = ?1" + " AND (c." + libelle + " LIKE ?2 OR c." + code
+                + " LIKE ?2)" + " ORDER BY c." + libelle;
+        @SuppressWarnings("unchecked")
+        List<Object> lignes = em.createQuery(jpql).setParameter(1, inventaireId).setParameter(2, like).getResultList();
+        for (Object o : lignes) {
+            if (o instanceof dal.TFamillearticle) {
+                dal.TFamillearticle f = (dal.TFamillearticle) o;
+                results.put(entreeCritere(axe, f.getLgFAMILLEARTICLEID(), f.getStrLIBELLE(), f.getStrCODEFAMILLE()));
+            } else if (o instanceof dal.TGrossiste) {
+                dal.TGrossiste g = (dal.TGrossiste) o;
+                results.put(entreeCritere(axe, g.getLgGROSSISTEID(), g.getStrLIBELLE(), g.getStrCODE()));
+            } else if (o instanceof dal.TZoneGeographique) {
+                dal.TZoneGeographique z = (dal.TZoneGeographique) o;
+                results.put(entreeCritere(axe, z.getLgZONEGEOID(), z.getStrLIBELLEE(), z.getStrCODE()));
+            }
+        }
+    }
+
+    /**
+     * Utilisateurs ayant saisi sur cet inventaire.
+     *
+     * <p>
+     * La colonne str_UPDATED_ID n'est alimentee que par certains chemins de saisie. Quand elle est vide partout, cadrer
+     * la liste la viderait aussi : on retombe alors sur l'ensemble des utilisateurs, comme avant.
+     */
+    private void remplirUtilisateurs(JSONArray results, String inventaireId, String like) {
+        @SuppressWarnings("unchecked")
+        List<TUser> saisisseurs = em
+                .createQuery("SELECT DISTINCT u FROM TInventaireFamille t, TUser u"
+                        + " WHERE t.lgINVENTAIREID.lgINVENTAIREID = ?1 AND t.strUPDATEDID = u.lgUSERID"
+                        + " AND (u.strFIRSTNAME LIKE ?2 OR u.strLASTNAME LIKE ?2) ORDER BY u.strFIRSTNAME")
+                .setParameter(1, inventaireId).setParameter(2, like).getResultList();
+        if (saisisseurs.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            List<TUser> tous = em
+                    .createQuery("SELECT u FROM TUser u WHERE u.strSTATUT = ?1"
+                            + " AND (u.strFIRSTNAME LIKE ?2 OR u.strLASTNAME LIKE ?2) ORDER BY u.strFIRSTNAME")
+                    .setParameter(1, Constant.STATUT_ENABLE).setParameter(2, like).getResultList();
+            saisisseurs = tous;
+        }
+        for (TUser u : saisisseurs) {
+            JSONObject row = new JSONObject();
+            row.put("lg_USER_ID", u.getLgUSERID());
+            row.put("str_FIRST_NAME", StringUtils.defaultString(u.getStrFIRSTNAME()));
+            row.put("str_LAST_NAME", StringUtils.defaultString(u.getStrLASTNAME()));
+            results.put(row);
+        }
+    }
+
+    /** Une entree de filtre, avec les noms de champs que l'ecran attend deja pour cet axe. */
+    private JSONObject entreeCritere(String axe, String id, String libelle, String code) {
+        JSONObject row = new JSONObject();
+        if ("UTILISATEUR".equalsIgnoreCase(axe)) {
+            row.put("lg_USER_ID", id);
+            row.put("str_FIRST_NAME", libelle);
+            row.put("str_LAST_NAME", "");
+            return row;
+        }
+        if ("FAMILLE".equalsIgnoreCase(axe)) {
+            row.put("lg_FAMILLEARTICLE_ID", id);
+            row.put("str_LIBELLE", libelle);
+        } else if ("GROSSISTE".equalsIgnoreCase(axe)) {
+            row.put("lg_GROSSISTE_ID", id);
+            row.put("str_LIBELLE", libelle);
+        } else {
+            row.put("lg_ZONE_GEO_ID", id);
+            row.put("str_LIBELLEE", libelle);
+        }
+        row.put("str_CODE", StringUtils.defaultString(code));
+        return row;
+    }
+
+    @Override
     public JSONObject supprimerLigne(Long ligneId) {
         JSONObject json = new JSONObject();
         if (ligneId == null) {

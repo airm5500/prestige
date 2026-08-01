@@ -96,6 +96,18 @@ public interface InventaireService {
     org.json.JSONObject supprimerLigne(Long ligneId);
 
     /**
+     * Valeurs disponibles pour un filtre de la fiche d'inventaire.
+     *
+     * <p>
+     * Les listes sont CADREES SUR L'INVENTAIRE : un inventaire cree sur trois emplacements ne propose que ces trois
+     * emplacements, jamais la totalite du referentiel. Idem pour les familles et les grossistes.
+     *
+     * @param axe
+     *            ZONE, FAMILLE, GROSSISTE ou UTILISATEUR
+     */
+    org.json.JSONObject criteresInventaire(String inventaireId, String axe, String recherche);
+
+    /**
      * Meme traitement que {@link #createReserveInventaire(Set, String, String)}, mais rend compte du detail.
      *
      * <p>

@@ -111,7 +111,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_grossiste_inventaire + "?lg_INVENTAIRE_ID=" + ref,
+                url: '../api/v1/inventaire/criteres?axe=GROSSISTE&lg_INVENTAIRE_ID=' + ref,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -127,7 +127,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_zonegeo_inventaire + "?lg_INVENTAIRE_ID=" + ref,
+                url: '../api/v1/inventaire/criteres?axe=ZONE&lg_INVENTAIRE_ID=' + ref,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -144,7 +144,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_utilisateur,
+                url: '../api/v1/inventaire/criteres?axe=UTILISATEUR&lg_INVENTAIRE_ID=' + ref,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -160,7 +160,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_famillearticle_inventaire + "?lg_INVENTAIRE_ID=" + ref,
+                url: '../api/v1/inventaire/criteres?axe=FAMILLE&lg_INVENTAIRE_ID=' + ref,
                 reader: {
                     type: 'json',
                     root: 'results',
