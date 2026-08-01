@@ -28,6 +28,8 @@ import dal.TZoneGeographique_;
 import enumeration.MargeEnum;
 import java.io.IOException;
 import java.sql.Timestamp;
+import java.util.HashMap;
+import java.util.Map;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -697,14 +699,12 @@ public class DataReporingServiceImpl implements DataReporingService {
             if (!all) {
                 q.setFirstResult(start);
                 q.setMaxResults(limit);
-                return q.getResultList().stream().map(x -> x.lastDate(dateDerniereVente(x.getId(), empId))
-                        .stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
-                        .collect(Collectors.toList());
-            } else {
-                return q.getResultList().stream().map(x -> x.lastDate(dateDerniereVente(x.getId(), empId))
-                        .stock(stockProduit(x.getId(), empId)).dateEntree(dateDerniereEntree(x.getId(), empId)))
-                        .collect(Collectors.toList());
             }
+            // Derniere vente, stock et derniere entree etaient lus PRODUIT PAR PRODUIT : trois
+            // requetes par ligne, soit plus de trois mille requetes pour l'edition complete du
+            // PDF. Les trois lectures sont maintenant faites en lot pour l'ensemble des lignes
+            // ramenees, puis distribuees. Les valeurs obtenues sont les memes.
+            return completerLignesInvendus(q.getResultList(), empId);
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "statsArticlesInvendus ---->> ", e);
@@ -826,6 +826,100 @@ public class DataReporingServiceImpl implements DataReporingService {
 
             return null;
         }
+    }
+
+    /** Taille maximale d'une clause IN pour les lectures en lot des invendus. */
+    private static final int LOT_INVENDUS = 500;
+
+    /**
+     * Complete les lignes d'invendus avec la derniere vente, le stock et la derniere entree.
+     *
+     * <p>
+     * Les trois informations sont chargees en lot pour toutes les lignes a la fois, la ou elles etaient lues produit
+     * par produit. Les regles de lecture sont reprises a l'identique des methodes unitaires : derniere vente = vente la
+     * plus recente cloturee sur l'emplacement, stock = fiche de stock active, derniere entree = entree la plus recente
+     * sur l'emplacement.
+     */
+    private List<ArticleDTO> completerLignesInvendus(List<ArticleDTO> lignes, String empId) {
+        if (lignes == null || lignes.isEmpty()) {
+            return lignes == null ? Collections.emptyList() : lignes;
+        }
+        List<String> ids = new ArrayList<>();
+        for (ArticleDTO a : lignes) {
+            if (a.getId() != null && !ids.contains(a.getId())) {
+                ids.add(a.getId());
+            }
+        }
+        Map<String, Date> dernieresVentes = lireEnLot(ids, empId,
+                "SELECT d.lg_FAMILLE_ID, MAX(p.dt_UPDATED) FROM t_preenregistrement_detail d"
+                        + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                        + " JOIN t_user pu ON pu.lg_USER_ID = p.lg_USER_ID"
+                        + " WHERE pu.lg_EMPLACEMENT_ID = ?1 AND p.str_STATUT = '" + DateConverter.STATUT_IS_CLOSED
+                        + "' AND d.lg_FAMILLE_ID IN ({ids}) GROUP BY d.lg_FAMILLE_ID",
+                true);
+        Map<String, Date> dernieresEntrees = lireEnLot(ids, empId,
+                "SELECT w.lg_FAMILLE_ID, MAX(w.dt_CREATED) FROM t_warehouse w"
+                        + " JOIN t_user wu ON wu.lg_USER_ID = w.lg_USER_ID"
+                        + " WHERE wu.lg_EMPLACEMENT_ID = ?1 AND w.lg_FAMILLE_ID IN ({ids})"
+                        + " GROUP BY w.lg_FAMILLE_ID",
+                true);
+        Map<String, Date> stocksBruts = lireEnLot(ids, empId,
+                "SELECT s.lg_FAMILLE_ID, s.int_NUMBER_AVAILABLE FROM t_famille_stock s"
+                        + " WHERE s.str_STATUT = 'enable' AND s.lg_EMPLACEMENT_ID = ?1"
+                        + " AND s.lg_FAMILLE_ID IN ({ids})",
+                false);
+
+        for (ArticleDTO a : lignes) {
+            String id = a.getId();
+            a.lastDate(dernieresVentes.get(id));
+            Object stock = stocksBruts.get(id);
+            a.stock(stock instanceof Number ? ((Number) stock).intValue() : 0);
+            a.dateEntree(dernieresEntrees.get(id));
+        }
+        return lignes;
+    }
+
+    /**
+     * Execute une requete "identifiant, valeur" par paquets d'identifiants et rassemble le resultat.
+     *
+     * @param dates
+     *            true si la seconde colonne est une date ; sinon la valeur brute est conservee
+     */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private Map lireEnLot(List<String> ids, String empId, String modeleSql, boolean dates) {
+        Map resultat = new HashMap();
+        for (int debut = 0; debut < ids.size(); debut += LOT_INVENDUS) {
+            List<String> paquet = ids.subList(debut, Math.min(ids.size(), debut + LOT_INVENDUS));
+            StringBuilder placeholders = new StringBuilder();
+            for (int i = 0; i < paquet.size(); i++) {
+                placeholders.append(i == 0 ? "?" : ",?").append(i + 2);
+            }
+            try {
+                Query q = getEntityManager().createNativeQuery(modeleSql.replace("{ids}", placeholders.toString()));
+                q.setParameter(1, empId);
+                for (int i = 0; i < paquet.size(); i++) {
+                    q.setParameter(i + 2, paquet.get(i));
+                }
+                List<Object[]> rows = q.getResultList();
+                for (Object[] r : rows) {
+                    if (r[0] == null || r[1] == null) {
+                        continue;
+                    }
+                    // Le chemin unitaire retenait la premiere ligne rencontree : on conserve ce choix.
+                    resultat.putIfAbsent(String.valueOf(r[0]), dates ? toDate(r[1]) : r[1]);
+                }
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, "lireEnLot", e);
+            }
+        }
+        return resultat;
+    }
+
+    private Date toDate(Object valeur) {
+        if (valeur instanceof Timestamp) {
+            return new Date(((Timestamp) valeur).getTime());
+        }
+        return valeur instanceof Date ? (Date) valeur : null;
     }
 
     // Date de la derniere entree en stock d'un produit pour l'emplacement de l'utilisateur
