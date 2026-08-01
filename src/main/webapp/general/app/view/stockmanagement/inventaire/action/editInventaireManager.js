@@ -72,7 +72,17 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         ref_vente = "";
         this.title = this.getTitre();
 
+        // my_view_title est compare a des libelles EXACTS plus loin dans l'ecran : il doit garder
+        // le titre d'origine, sans la pastille ajoutee juste apres.
         my_view_title = this.title;
+
+        // Un inventaire de RESERVE se distingue visuellement : contour et en-tete oranges, et une
+        // pastille RESERVE dans le titre. Se tromper de fiche fait compter le mauvais stock. La
+        // fiche de rayon n'est pas touchee : ni classe, ni pastille.
+        if (this.getOdatasource() && this.getOdatasource().str_TYPE === 'reserve') {
+            this.addCls('inventaire-reserve');
+            this.title += ' <span class="inventaire-reserve-etiquette">R&Eacute;SERVE</span>';
+        }
 
         ref_vente = this.getNameintern();
         if (this.getNameintern() === "0") {

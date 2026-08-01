@@ -548,6 +548,11 @@ public class InventaireServiceImpl implements InventaireService {
             row.put("lg_USER_ID", u.getLgUSERID());
             row.put("str_FIRST_NAME", StringUtils.defaultString(u.getStrFIRSTNAME()));
             row.put("str_LAST_NAME", StringUtils.defaultString(u.getStrLASTNAME()));
+            // Libelle affiche par la liste deroulante : c'est ce champ concatene qu'elle lit,
+            // pas les deux precedents. Sans lui, la liste apparait vide alors que les lignes
+            // sont bien renvoyees.
+            row.put("str_FIRST_LAST_NAME", (StringUtils.defaultString(u.getStrFIRSTNAME()) + " "
+                    + StringUtils.defaultString(u.getStrLASTNAME())).trim());
             results.put(row);
         }
     }
@@ -559,6 +564,7 @@ public class InventaireServiceImpl implements InventaireService {
             row.put("lg_USER_ID", id);
             row.put("str_FIRST_NAME", libelle);
             row.put("str_LAST_NAME", "");
+            row.put("str_FIRST_LAST_NAME", libelle);
             return row;
         }
         if ("FAMILLE".equalsIgnoreCase(axe)) {

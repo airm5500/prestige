@@ -98,13 +98,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                 labelWidth: 115,
                 msgTarget: 'side'
             },
+            layout: 'fit',
             items: [{
                     xtype: 'fieldset',
                     title: 'Information sur l\'inventaire',
                     defaultType: 'textfield',
-                    defaults: {
-                        anchor: '100%'
-                    },
+                    // vbox etire les champs en largeur et permet au panneau de selection de
+                    // prendre toute la hauteur restante par son flex.
+                    layout: {type: 'vbox', align: 'stretch'},
                     items: [
                         {
                             fieldLabel: 'Libelle',
@@ -124,7 +125,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
 //                            typeAhead: true,
                             editable: false,
                             queryMode: 'remote',
-                            flex: 1,
                             emptyText: 'Inventaire par...',
                             listeners: {
                                 select: function (cmp) {
@@ -235,7 +235,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             pageSize: itemsPerPage, //ajout la barre de pagination
                             typeAhead: true,
                             queryMode: 'remote',
-                            flex: 1,
                             emptyText: 'Sectionner un emplacement...',
                             listeners: {
                                 select: function (cmp) {
@@ -267,7 +266,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             hidden: true,
                             typeAhead: true,
                             queryMode: 'remote',
-                            flex: 1,
                             emptyText: 'Sectionner un grossiste...',
                             listeners: {
                                 select: function (cmp) {
@@ -298,7 +296,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             displayField: 'libelle',
                             queryMode: 'local',
                             value: 'ALL',
-                            flex: 1,
                             emptyText: 'Filter le stock...',
                             listeners: {
                                 select: function (cmp) {
@@ -315,7 +312,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             }
                         }, {
                             xtype: 'numberfield',
-                            flex: 1,
                             fieldLabel: 'Stock produit',
                             name: 'stockProduit',
                             hidden: true,
@@ -329,9 +325,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             xtype: 'inventaireselectioncriteres',
                             itemId: 'panneauCriteres',
                             hidden: true,
-                            // Occupe toute la hauteur restante de la fenetre : sans cela le
-                            // panneau gardait sa hauteur propre et laissait un vide en dessous.
-                            anchor: '100%, -170'
+                            // flex dans un fieldset en vbox : le panneau prend tout ce qui reste,
+                            // quel que soit le nombre de champs au-dessus. Un decalage fixe ne
+                            // tenait pas des que le champ 'Stock produit' apparaissait.
+                            flex: 1,
+                            width: '100%'
                         },
                         {
                             xtype: 'fieldcontainer',
@@ -527,8 +525,15 @@ function envoyerCreationInventaire(button, valeurs, debut, fin) {
                 progres.hide();
                 var res = Ext.JSON.decode(response.responseText, true) || {};
                 if (!res.success) {
-                    // Refus metier : la fenetre reste ouverte pour corriger la selection.
-                    Ext.MessageBox.alert('Message', res.nombre || 'Creation impossible.');
+                    // Refus metier : la fenetre reste ouverte pour corriger la selection. Quand
+                    // c'est le libelle qui manque, le curseur y retourne pour pouvoir saisir
+                    // directement apres avoir ferme le message.
+                    Ext.MessageBox.alert('Message', res.nombre || 'Creation impossible.', function () {
+                        var libelle = Ext.getCmp('str_NAME');
+                        if (libelle && !(libelle.getValue() || '').trim()) {
+                            libelle.focus(true, 100);
+                        }
+                    });
                     return;
                 }
                 Ext.MessageBox.alert('Infos', res.nombre);

@@ -146,9 +146,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     dataIndex: 'lg_USER_ID',
                     flex: 1
                 }, {
-                    header: 'Date de creation',
+                    header: 'Date de cr&eacute;ation',
                     dataIndex: 'dt_CREATED',
-                    flex: 1
+                    flex: 1.2
                 }, {
                     header: 'Statut',
                     dataIndex: 'str_STATUT',
@@ -306,7 +306,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                              * ecarts' de la fiche ; disponible sur TOUTE ligne,
                              * y compris un inventaire cloture : on peut ainsi
                              * toujours reimprimer les ecarts apres cloture */
-                            icon: 'resources/images/icons/fam/printer.png',
+                            /* icone distincte de celle de la fiche : les deux boutons etaient
+                             * impossibles a distinguer l'un de l'autre */
+                            icon: 'resources/images/icons/fam/iconpdf.png',
                             tooltip: 'R&eacute;&eacute;diter la liste des &eacute;carts (m&ecirc;me apr&egrave;s cl&ocirc;ture)',
                             scope: this,
                             handler: this.onPrintEcartsClick
@@ -470,6 +472,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
 
         this.callParent();
 
+        this.chargerPrivilegeStock();
+
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
@@ -616,9 +620,54 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
      * Utilisable meme apres cloture de l'inventaire. */
     onPrintEcartsClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
-                + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=ecart";
-        window.open(linkUrl);
+        Me.demanderAffichageStock(function (showStock) {
+            var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
+                    + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=ecart"
+                    + "&showStock=" + showStock;
+            window.open(linkUrl);
+        });
+    },
+
+    /* Privilege d'affichage du stock machine a l'impression, lu UNE SEULE FOIS par ouverture
+     * de l'ecran puis conserve : c'est le meme controle que celui de la fiche d'inventaire. */
+    chargerPrivilegeStock: function () {
+        var me = this;
+        Ext.Ajax.request({
+            url: '../api/v1/inventaire/privilege-stock',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true);
+                me.stockAutorise = !!(o && o.authorize === true);
+            },
+            failure: function () {
+                me.stockAutorise = false;
+            }
+        });
+    },
+
+    /**
+     * Demande si le stock doit figurer sur l'edition, puis rend la main.
+     *
+     * La question n'est posee qu'aux utilisateurs AYANT le droit de voir le stock machine.
+     * Pour les autres, l'edition part sans stock, sans question : leur poser le choix
+     * laisserait croire qu'ils peuvent l'obtenir.
+     */
+    demanderAffichageStock: function (suite) {
+        if (!this.stockAutorise) {
+            suite('false');
+            return;
+        }
+        Ext.MessageBox.show({
+            title: 'Impression',
+            msg: 'Afficher le stock sur cette &eacute;dition ?',
+            buttons: Ext.MessageBox.YESNO,
+            buttonText: {yes: 'Oui', no: 'Non'},
+            icon: Ext.MessageBox.QUESTION,
+            fn: function (btn) {
+                if (btn === 'yes' || btn === 'no') {
+                    suite(btn === 'yes' ? 'true' : 'false');
+                }
+            }
+        });
     },
     /* export Excel de tous les produits de l'inventaire (tous les champs :
      * stocks, ecart, prix, valeur d'ecart, comptage) ; meme apres cloture */
@@ -635,12 +684,15 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                 'Confirmation de l\'impression de la liste d\'inventaire',
                 function(btn) {
                     if (btn == 'yes') {
-                        /* meme modele que l'impression depuis la fiche
-                         * (str_NAME_FILE vide) pour eviter deux documents
-                         * divergents */
-                        var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID=' + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE=";
-                          window.open(linkUrl);
-                        return;
+                        Me.demanderAffichageStock(function (showStock) {
+                            /* meme modele que l'impression depuis la fiche
+                             * (str_NAME_FILE vide) pour eviter deux documents
+                             * divergents */
+                            var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
+                                    + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE="
+                                    + "&showStock=" + showStock;
+                            window.open(linkUrl);
+                        });
                     }
                 });
 

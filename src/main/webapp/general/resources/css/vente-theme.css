@@ -525,3 +525,41 @@ body.x-body,
 .facture-row-over .x-grid-cell {
     background-color: #fff3cd !important;
 }
+
+/* ------------------------------------------------------------------------------
+   Fiche d'inventaire de RESERVE.
+
+   Un inventaire de reserve et un inventaire de rayon se ressemblent trait pour
+   trait, et se tromper de fiche fait compter le mauvais stock. Le contour et
+   l'en-tete passent donc a l'orange, la couleur deja utilisee pour la reserve
+   ailleurs dans l'application. La fiche de rayon n'est pas touchee : ces regles
+   ne s'appliquent qu'a l'element portant la classe.
+   ------------------------------------------------------------------------------ */
+.inventaire-reserve.x-panel {
+    border-color: #e07b18 !important;
+}
+.inventaire-reserve > .x-panel-body,
+.inventaire-reserve > .x-panel-body-default-framed {
+    border-color: #e07b18 !important;
+}
+.inventaire-reserve > .x-panel-header,
+.inventaire-reserve > .x-panel-header-default-framed,
+.inventaire-reserve > .x-panel-header-default-framed-top {
+    background-color: #e07b18 !important;
+    background-image: none !important;
+    border-color: #e07b18 !important;
+}
+.inventaire-reserve > .x-panel-header .x-panel-header-title,
+.inventaire-reserve > .x-panel-header .x-panel-header-text-container {
+    color: #ffffff !important;
+}
+/* Pastille rappelant le type, posee dans le titre de la fiche. */
+.inventaire-reserve-etiquette {
+    background: #ffffff;
+    color: #e07b18;
+    border-radius: 3px;
+    padding: 1px 8px;
+    margin-left: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+}

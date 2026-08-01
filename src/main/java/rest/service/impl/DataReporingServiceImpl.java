@@ -1121,8 +1121,11 @@ public class DataReporingServiceImpl implements DataReporingService {
         String title = "Articles invendus du " + d1.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " au "
                 + d2.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
-        String[] headers = { "Code CIP", "Libellé", "Prix vente", "Prix achat", "Stock", "Date dernière vente",
-                "Heure dernière vente" };
+        // Date et heure reunies en une seule colonne, comme sur l'edition PDF : deux colonnes
+        // pour une meme information prenaient de la place sans rien apporter. La derniere entree
+        // en stock, deja calculee et affichee a l'ecran, manquait a l'export.
+        String[] headers = { "Code CIP", "Libellé", "Prix vente", "Prix achat", "Stock", "Dernière entrée",
+                "Dernière vente" };
 
         return reportExcelExportService.createExcelReport(title, headers, data, (row, dto) -> {
             int col = 0;
@@ -1131,9 +1134,17 @@ public class DataReporingServiceImpl implements DataReporingService {
             row.createCell(col++).setCellValue(dto.getPrixVente());
             row.createCell(col++).setCellValue(dto.getPrixAchat());
             row.createCell(col++).setCellValue(dto.getStock());
-            row.createCell(col++).setCellValue(dto.getLastDate() != null ? dto.getLastDate() : "");
-            row.createCell(col++).setCellValue(dto.getLastHour() != null ? dto.getLastHour() : "");
+            row.createCell(col++).setCellValue(dto.getDateEntree() != null ? dto.getDateEntree() : "");
+            row.createCell(col++).setCellValue(dateEtHeure(dto.getLastDate(), dto.getLastHour()));
         });
+    }
+
+    /** "06/11/2025" + "18:18" -> "06/11/2025 18:18". Sans date, la cellule reste vide. */
+    private String dateEtHeure(String date, String heure) {
+        if (StringUtils.isBlank(date)) {
+            return "";
+        }
+        return StringUtils.isBlank(heure) ? date : date + " " + heure;
     }
 
     @Override

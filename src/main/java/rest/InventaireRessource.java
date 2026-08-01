@@ -151,6 +151,36 @@ public class InventaireRessource {
     }
 
     /**
+     * Indique si l'utilisateur a le droit de voir le stock machine sur les editions.
+     *
+     * <p>
+     * C'est le meme privilege que celui qui pilote la case "Afficher stock" de la fiche. La liste des inventaires s'en
+     * sert pour ne proposer le choix qu'a ceux qui y ont droit : les autres impriment sans stock, sans qu'on leur pose
+     * une question dont la reponse serait ignoree.
+     */
+    @GET
+    @Path("privilege-stock")
+    public Response privilegeStock() {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            boolean autorise = new privilege(odm, user)
+                    .isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
+            return Response.ok().entity(new JSONObject().put("authorize", autorise).toString()).build();
+        } catch (Exception e) {
+            // En cas de doute on refuse : mieux vaut ne pas proposer le stock que l'exposer a tort.
+            LOG.log(Level.WARNING, "privilegeStock", e);
+            return Response.ok().entity(new JSONObject().put("authorize", false).toString()).build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
      * Valeurs proposees par les filtres de la fiche d'inventaire : remplace les pages
      * configmanagement/*_/ws_data_inventaire.jsp et sm_user/utilisateur/ws_data.jsp.
      *
@@ -532,7 +562,9 @@ public class InventaireRessource {
         json.put("str_STATUT", libelleStatut);
         json.put("etat", inv.getStrSTATUT());
         json.put("str_TYPE", inv.getStrTYPE());
-        json.put("dt_CREATED", cle.DateToString(inv.getDtCREATED(), cle.formatterShort));
+        // Date ET heure : deux inventaires du meme jour ne se distinguaient pas dans la liste.
+        json.put("dt_CREATED",
+                cle.DateToString(inv.getDtCREATED(), new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm")));
         json.put("dt_UPDATED", cle.DateToString(inv.getDtUPDATED(), cle.formatterShort));
         return json;
     }
