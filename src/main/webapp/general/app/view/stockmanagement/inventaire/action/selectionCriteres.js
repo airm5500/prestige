@@ -18,7 +18,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
 
     layout: {type: 'hbox', align: 'stretch'},
     border: false,
-    height: 300,
+    height: 340,
 
     // Definition des trois axes. Les trois listes viennent d'une API REST : emplacements,
     // grossistes et familles d'article, toutes trois avec recherche "contient" et pagination.
@@ -54,6 +54,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
 
         // Elements retenus, conserves d'une page et d'une recherche a l'autre.
         me.selection = {};
+        me.tousLesElements = [];
 
         // Store alimente a la main : les trois sources n'ont pas les memes noms de champs, ils
         // sont ramenes a id/libelle/code au chargement pour que la grille n'ait pas a s'en
@@ -118,19 +119,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
                                         me.lancerRecherche();
                                     }
                                 },
-                                // Meme comportement que les autres zones de recherche : depart
-                                // automatique a partir de trois caracteres, apres une pause.
+                                // Filtrage en memoire : la reponse est immediate des la
+                                // premiere lettre, sans attendre ni interroger le serveur.
                                 change: {
-                                    buffer: 800,
+                                    buffer: 150,
                                     fn: function (f, v) {
-                                        var terme = (v || '').trim();
-                                        if (terme.length > 0 && terme.length < 3) {
-                                            return;
-                                        }
-                                        if (terme === f.dernierTerme) {
-                                            return;
-                                        }
-                                        f.dernierTerme = terme;
+                                        f.dernierTerme = (v || '').trim();
                                         me.lancerRecherche();
                                     }
                                 }
@@ -164,33 +158,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
                             handler: function () {
                                 me.cocherResultat(false);
                             }
-                        }
-                    ]
-                }, {
-                    // Pagination pilotee a la main : les lignes sont chargees par requete puis
-                    // ramenees a id/libelle/code, le store ne passe donc pas par son proxy et une
-                    // barre de pagination standard afficherait des compteurs faux.
-                    xtype: 'toolbar',
-                    dock: 'bottom',
-                    items: [
-                        {
-                            itemId: 'btnPrecedent',
-                            text: '&laquo; Pr&eacute;c&eacute;dent',
-                            disabled: true,
-                            handler: function () {
-                                me.chargerPage(Math.max(1, (me.pageCourante || 1) - 1));
-                            }
-                        },
-                        {
-                            itemId: 'btnSuivant',
-                            text: 'Suivant &raquo;',
-                            disabled: true,
-                            handler: function () {
-                                me.chargerPage((me.pageCourante || 1) + 1);
-                            }
                         },
                         '->',
-                        {xtype: 'tbtext', itemId: 'infoPage', text: ''}
+                        {xtype: 'tbtext', itemId: 'infoListe', text: ''}
                     ]
                 }],
             viewConfig: {emptyText: 'Aucun r&eacute;sultat.', deferEmptyText: false}
@@ -272,62 +242,87 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
         grille.setTitle(source.titre);
         grille.columns[1].setVisible(!!source.champCode);
 
-        me.chargerPage(1);
+        me.chargerAxe();
         me.rafraichir();
     },
 
     lancerRecherche: function () {
         var champ = this.down('#champRecherche');
         this.termeRecherche = champ ? (champ.getValue() || '').trim() : '';
-        this.chargerPage(1);
+        this.appliquerFiltre();
     },
 
     /**
-     * Charge une page en ramenant les champs de la source a id/libelle/code.
+     * Charge la TOTALITE de l'axe en une seule fois, puis filtre localement.
+     *
+     * <p>
+     * Emplacements, familles et grossistes se comptent en dizaines : les paginer obligeait a
+     * tourner les pages pour cocher, et "tout cocher" ne portait que sur la page affichee. Tout
+     * charger rend la recherche instantanee et donne son vrai sens au bouton "tout cocher".
      *
      * <p>
      * Les entrees techniques "Personnalise" (0) et "Tous" (%%) que produisent les anciennes JSP
-     * sont ecartees : ici, ne rien cocher signifie deja "tout", il n'y a pas de ligne a cocher
-     * pour cela.
+     * sont ecartees : ici, ne rien cocher signifie deja "tout".
      */
-    chargerPage: function (page) {
+    chargerAxe: function () {
         var me = this;
         var source = me.sources[me.axe];
+        me.tousLesElements = [];
+        me.storeDisponibles.removeAll();
+        me.majInfo('Chargement...');
         Ext.Ajax.request({
             url: source.url,
-            params: {
-                search_value: me.termeRecherche || '',
-                query: me.termeRecherche || '',
-                start: (page - 1) * 25,
-                page: page,
-                limit: 25
-            },
+            // GET explicite : Ext bascule en POST des qu'on lui passe des parametres, et le
+            // service ne repond qu'en lecture.
+            method: 'GET',
+            params: {search_value: '', query: '', start: 0, limit: 0},
             success: function (response) {
                 var res = Ext.JSON.decode(response.responseText, true) || {};
-                var lignes = res.results || [];
-                var donnees = [], i, l, id;
+                var lignes = res.results || res.data || [];
+                var i, l, id;
                 for (i = 0; i < lignes.length; i++) {
                     l = lignes[i];
                     id = l[source.champId];
-                    if (!id || id === '0' || id === '%%') {
+                    if (!id || id === '0' || id === '%%' || id === 'ALL') {
                         continue;
                     }
-                    donnees.push({
+                    me.tousLesElements.push({
                         id: id,
                         libelle: l[source.champLibelle] || '',
                         code: source.champCode ? (l[source.champCode] || '') : ''
                     });
                 }
-                me.storeDisponibles.loadData(donnees);
-                me.pageCourante = page;
-                me.totalSource = parseInt(res.total, 10) || donnees.length;
-                me.majNavigation();
-                me.majBoutonToutCocher();
+                me.appliquerFiltre();
             },
             failure: function () {
-                me.storeDisponibles.removeAll();
+                me.majInfo('Chargement impossible.');
             }
         });
+    },
+
+    /** N'affiche que les elements correspondant a la recherche. Tout se fait en memoire. */
+    appliquerFiltre: function () {
+        var me = this;
+        var terme = (me.termeRecherche || '').toLowerCase();
+        var retenus = [], i, e;
+        for (i = 0; i < me.tousLesElements.length; i++) {
+            e = me.tousLesElements[i];
+            if (!terme
+                    || (e.libelle || '').toLowerCase().indexOf(terme) !== -1
+                    || (e.code || '').toLowerCase().indexOf(terme) !== -1) {
+                retenus.push(e);
+            }
+        }
+        me.storeDisponibles.loadData(retenus);
+        me.majInfo(retenus.length + ' sur ' + me.tousLesElements.length);
+        me.majBoutonToutCocher();
+    },
+
+    majInfo: function (texte) {
+        var info = this.down('#infoListe');
+        if (info) {
+            info.setText(texte);
+        }
     },
 
     basculer: function (rec) {
@@ -352,25 +347,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
             }
         });
         me.rafraichir();
-    },
-
-    /** Etat des boutons de navigation et libelle "x - y sur n". */
-    majNavigation: function () {
-        var me = this;
-        var affiches = me.storeDisponibles.getCount();
-        var premier = affiches === 0 ? 0 : ((me.pageCourante - 1) * 25) + 1;
-        var dernier = ((me.pageCourante - 1) * 25) + affiches;
-        var prec = me.down('#btnPrecedent'), suiv = me.down('#btnSuivant'), info = me.down('#infoPage');
-        if (prec) {
-            prec.setDisabled(me.pageCourante <= 1);
-        }
-        if (suiv) {
-            suiv.setDisabled(dernier >= me.totalSource);
-        }
-        if (info) {
-            info.setText(affiches === 0 ? 'Aucun r&eacute;sultat'
-                    : (premier + ' - ' + dernier + ' sur ' + me.totalSource));
-        }
     },
 
     majBoutonToutCocher: function () {

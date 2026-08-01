@@ -380,11 +380,15 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
         var win = new Ext.window.Window({
             autoShow: true,
             title: this.getTitre(),
-            width: 500,
-            height: 300,
-            minWidth: 300,
-            minHeight: 200,
+            // Elargie et rallongee : les deux volets de selection ne tenaient pas dans les
+            // 500x300 d'origine, il fallait etirer la fenetre a la main pour voir la liste.
+            width: 900,
+            height: 640,
+            minWidth: 700,
+            minHeight: 480,
+            maximizable: true,
             layout: 'fit',
+            autoScroll: true,
             plain: true,
             items: form,
             buttons: [{
