@@ -122,6 +122,33 @@ public class InventaireRessource {
     }
 
     /**
+     * Enregistrement de la quantite comptee sur une ligne : remplace ws_transactions.jsp?mode=updateinventairefamille.
+     *
+     * <p>
+     * C'est l'appel le plus frequent de tout l'inventaire - un par produit compte. La reponse garde la forme attendue
+     * par l'ecran de saisie, {@code success} et {@code errors}, pour que la navigation d'une ligne a l'autre ne change
+     * pas.
+     */
+    @POST
+    @Path("ligne/quantite")
+    public Response majQuantiteLigne(String payload) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        Long ligneId = null;
+        try {
+            ligneId = Long.valueOf(in.optString("lg_INVENTAIRE_FAMILLE_ID", "").trim());
+        } catch (NumberFormatException e) {
+            ligneId = null;
+        }
+        Integer quantite = in.has("int_NUMBER") && !in.isNull("int_NUMBER") ? in.optInt("int_NUMBER", -1) : null;
+        JSONObject json = inventaireService.updateQuantiteLigne(ligneId, quantite);
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
      * Creation d'un inventaire : remplace ws_transactions.jsp?mode=createbis.
      *
      * <p>

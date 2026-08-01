@@ -78,6 +78,16 @@ public interface InventaireService {
     org.json.JSONObject updateCommentaire(String inventaireId, String commentaire);
 
     /**
+     * Enregistre la quantite comptee sur une ligne d'inventaire.
+     *
+     * <p>
+     * Remplace le mode {@code updateinventairefamille} de ws_transactions.jsp. Le traitement est le meme : seules la
+     * quantite et la date de mise a jour changent. Le retour porte {@code success} (1 ou 0) et, en cas d'echec,
+     * {@code errors}, pour que l'ecran de saisie reagisse comme avant.
+     */
+    org.json.JSONObject updateQuantiteLigne(Long ligneId, Integer quantite);
+
+    /**
      * Meme traitement que {@link #createReserveInventaire(Set, String, String)}, mais rend compte du detail.
      *
      * <p>

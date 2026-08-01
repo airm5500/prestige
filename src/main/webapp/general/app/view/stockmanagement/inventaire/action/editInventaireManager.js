@@ -454,8 +454,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                         var int_NUMBER_INIT = record.get("int_TAUX_MARQUE");
 
                                                         Ext.Ajax.request({
-                                                            url: url_services_transaction_inventaire + 'updateinventairefamille',
-                                                            params: {
+                                                            // Enregistrement de la saisie par le
+                                                            // service REST, en remplacement du mode
+                                                            // updateinventairefamille de la JSP. La
+                                                            // reponse garde la meme forme.
+                                                            url: '../api/v1/inventaire/ligne/quantite',
+                                                            method: 'POST',
+                                                            jsonData: {
                                                                 lg_INVENTAIRE_FAMILLE_ID: lg_INVENTAIRE_FAMILLE_ID,
                                                                 int_NUMBER: Number(int_NUMBER)
                                                             },
