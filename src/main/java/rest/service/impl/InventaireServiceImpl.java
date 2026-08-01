@@ -576,6 +576,21 @@ public class InventaireServiceImpl implements InventaireService {
     }
 
     @Override
+    public JSONObject retenirLigne(Long ligneId, boolean retenue) {
+        JSONObject json = new JSONObject();
+        if (ligneId == null) {
+            return json.put("success", 0).put("errors", "Ligne d'inventaire non identifiee.");
+        }
+        TInventaireFamille ligne = em.find(TInventaireFamille.class, ligneId);
+        if (ligne == null) {
+            return json.put("success", 0).put("errors", "Cette ligne d'inventaire n'existe plus.");
+        }
+        ligne.setBoolINVENTAIRE(retenue);
+        em.merge(ligne);
+        return json.put("success", 1).put("errors", retenue ? "Article retenu." : "Article ecarte.");
+    }
+
+    @Override
     public JSONObject supprimerLigne(Long ligneId) {
         JSONObject json = new JSONObject();
         if (ligneId == null) {

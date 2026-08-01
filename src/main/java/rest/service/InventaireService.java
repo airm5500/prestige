@@ -96,6 +96,16 @@ public interface InventaireService {
     org.json.JSONObject supprimerLigne(Long ligneId);
 
     /**
+     * Retient ou ecarte une ligne d'un inventaire unitaire.
+     *
+     * <p>
+     * Remplace le mode {@code updateInventaireUnitaireFamille} de ws_transactions.jsp. Sur un inventaire unitaire,
+     * toutes les lignes existent des la creation mais ne sont pas retenues ; cocher une ligne la fait entrer dans
+     * l'inventaire, la decocher l'en sort. Seul {@code bool_INVENTAIRE} change.
+     */
+    org.json.JSONObject retenirLigne(Long ligneId, boolean retenue);
+
+    /**
      * Valeurs disponibles pour un filtre de la fiche d'inventaire.
      *
      * <p>

@@ -171,6 +171,28 @@ public class InventaireRessource {
     }
 
     /**
+     * Retient ou ecarte une ligne d'un inventaire unitaire : remplace
+     * ws_transactions.jsp?mode=updateInventaireUnitaireFamille.
+     */
+    @POST
+    @Path("ligne/retenue")
+    public Response retenirLigne(String payload) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        Long ligneId;
+        try {
+            ligneId = Long.valueOf(in.optString("lg_INVENTAIRE_FAMILLE_ID", "").trim());
+        } catch (NumberFormatException e) {
+            ligneId = null;
+        }
+        return Response.ok().entity(inventaireService.retenirLigne(ligneId, in.optBoolean("retenue", true)).toString())
+                .build();
+    }
+
+    /**
      * Suppression d'une ligne d'inventaire : remplace ws_transactions.jsp?mode=deleteInventaireFamille.
      */
     @POST

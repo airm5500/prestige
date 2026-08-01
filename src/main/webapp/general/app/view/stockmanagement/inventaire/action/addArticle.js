@@ -623,11 +623,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
     onCheckTrueClick: function (record) {
         
         Ext.Ajax.request({
-            url: url_services_transaction_addarticle_inventaire + 'updateInventaireUnitaireFamille',
-            params: {
-                 lg_FAMILLE_ID: record.get('lg_INVENTAIRE_FAMILLE_ID'),
-                lg_INVENTAIRE_ID: ref,
-                iSChecked: true
+            // Retenue de la ligne par le service REST, en remplacement du mode
+            // updateInventaireUnitaireFamille de la JSP. Seul bool_INVENTAIRE change.
+            url: '../api/v1/inventaire/ligne/retenue',
+            method: 'POST',
+            jsonData: {
+                lg_INVENTAIRE_FAMILLE_ID: record.get('lg_INVENTAIRE_FAMILLE_ID'),
+                retenue: true
             },
             success: function (response)
             {
@@ -656,11 +658,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
     onCheckFalseClick: function (record) {
 
         Ext.Ajax.request({
-            url: url_services_transaction_addarticle_inventaire + 'updateInventaireUnitaireFamille',
-            params: {
-                lg_FAMILLE_ID: record.get('lg_INVENTAIRE_FAMILLE_ID'),
-                lg_INVENTAIRE_ID: ref,
-                iSChecked: false
+            // Retenue de la ligne par le service REST, en remplacement du mode
+            // updateInventaireUnitaireFamille de la JSP. Seul bool_INVENTAIRE change.
+            url: '../api/v1/inventaire/ligne/retenue',
+            method: 'POST',
+            jsonData: {
+                lg_INVENTAIRE_FAMILLE_ID: record.get('lg_INVENTAIRE_FAMILLE_ID'),
+                retenue: false
             },
             success: function (response)
             {
