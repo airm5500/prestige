@@ -209,6 +209,10 @@ public class InventaireRessource {
         }
         dataManager odm = new dataManager();
         odm.initEntityManager();
+        // Chronometrage par etape : l'ouverture d'une fiche coute un temps FIXE d'environ une
+        // seconde, identique pour 344 et pour 8086 lignes. Les mesures faites depuis le
+        // navigateur ne disent pas OU il se situe ; ces reperes le montrent dans le journal.
+        long t0 = System.currentTimeMillis();
         try {
             // "%%" est la valeur "pas de filtre" attendue par les requetes du manager.
             String inv = defautJoker(inventaireId);
@@ -222,6 +226,7 @@ public class InventaireRessource {
             privilege oPrivilege = new privilege(odm, user);
             boolean colonneStockVisible = oPrivilege
                     .isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
+            long tPrivilege = System.currentTimeMillis();
 
             int alerte = 0;
             TParameters parametre = new TparameterManager(odm).getParameter("KEY_MAX_VALUE_INVENTAIRE");
@@ -232,6 +237,8 @@ public class InventaireRessource {
                     alerte = 0;
                 }
             }
+
+            long tParametre = System.currentTimeMillis();
 
             long total;
             java.util.List<dal.TInventaireFamille> lignes;
@@ -264,10 +271,18 @@ public class InventaireRessource {
                         utilisateur);
             }
 
+            long tRequetes = System.currentTimeMillis();
+
             JSONArray resultats = new JSONArray();
             for (dal.TInventaireFamille ligne : lignes) {
                 resultats.put(ligneDetailInventaire(ligne, colonneStockVisible));
             }
+            long tFin = System.currentTimeMillis();
+            LOG.log(Level.INFO,
+                    "detailInventaire [{0} lignes/{1} total] privilege={2}ms parametre={3}ms requetes={4}ms"
+                            + " serialisation={5}ms TOTAL={6}ms",
+                    new Object[] { lignes.size(), total, tPrivilege - t0, tParametre - tPrivilege,
+                            tRequetes - tParametre, tFin - tRequetes, tFin - t0 });
             return Response.ok().entity(new JSONObject().put("total", total).put("results", resultats).toString())
                     .build();
         } catch (Exception e) {
