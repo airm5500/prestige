@@ -519,6 +519,82 @@ public class InventaireManager extends bllBase {
     }
 
     /**
+     * Condition commune au comptage et a la page ci-dessous, pour qu'ils ne puissent pas diverger.
+     */
+    private String clauseListeInventaires(String str_STATUT, String zone, String recherche) {
+        StringBuilder jpql = new StringBuilder(" WHERE t.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl");
+        if (str_STATUT == null || str_STATUT.trim().isEmpty()) {
+            jpql.append(" AND t.strSTATUT IN (:enable, :closed)");
+        } else {
+            jpql.append(" AND t.strSTATUT = :statut");
+        }
+        if ("reserve".equalsIgnoreCase(zone)) {
+            jpql.append(" AND LOWER(t.strTYPE) = 'reserve'");
+        } else if ("rayon".equalsIgnoreCase(zone)) {
+            // Tout ce qui n'est pas un inventaire de reserve releve du rayon, type non renseigne compris.
+            jpql.append(" AND (t.strTYPE IS NULL OR LOWER(t.strTYPE) <> 'reserve')");
+        }
+        if (recherche != null && !recherche.trim().isEmpty()) {
+            jpql.append(" AND (LOWER(t.strNAME) LIKE :recherche OR LOWER(t.strDESCRIPTION) LIKE :recherche)");
+        }
+        return jpql.toString();
+    }
+
+    private void poserParametresListe(javax.persistence.Query q, String str_STATUT, String recherche) {
+        q.setParameter("empl", this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        if (str_STATUT == null || str_STATUT.trim().isEmpty()) {
+            q.setParameter("enable", commonparameter.statut_enable);
+            q.setParameter("closed", commonparameter.statut_is_Closed);
+        } else {
+            q.setParameter("statut", str_STATUT);
+        }
+        if (recherche != null && !recherche.trim().isEmpty()) {
+            q.setParameter("recherche", "%" + recherche.trim().toLowerCase() + "%");
+        }
+    }
+
+    /**
+     * Nombre d'inventaires correspondant aux filtres, compte PAR LA BASE.
+     *
+     * <p>
+     * Les methodes listInventaire() historiques ramenent la totalite des inventaires de l'emplacement, la pagination
+     * etant faite ensuite en memoire. Ce couple comptage / page est ajoute A COTE, sans les modifier, pour que l'ecran
+     * ne charge plus que la page qu'il affiche.
+     */
+    public long countInventaires(String str_STATUT, String zone, String recherche) {
+        try {
+            javax.persistence.Query q = this.getOdataManager().getEm().createQuery(
+                    "SELECT COUNT(t) FROM TInventaire t" + clauseListeInventaires(str_STATUT, zone, recherche));
+            poserParametresListe(q, str_STATUT, recherche);
+            Object r = q.getSingleResult();
+            return r == null ? 0L : ((Number) r).longValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0L;
+        }
+    }
+
+    /** Page d'inventaires correspondant aux filtres, du plus recent au plus ancien. */
+    public List<TInventaire> listInventairesPagines(String str_STATUT, String zone, String recherche, int start,
+            int limit) {
+        try {
+            javax.persistence.Query q = this.getOdataManager().getEm().createQuery("SELECT t FROM TInventaire t"
+                    + clauseListeInventaires(str_STATUT, zone, recherche) + " ORDER BY t.dtCREATED DESC");
+            poserParametresListe(q, str_STATUT, recherche);
+            if (start > 0) {
+                q.setFirstResult(start);
+            }
+            if (limit > 0) {
+                q.setMaxResults(limit);
+            }
+            return q.getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
+    /**
      * Liste des inventaires restreinte a une ZONE : 'reserve' pour les inventaires de reserve, 'rayon' pour tous les
      * autres.
      *

@@ -161,7 +161,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.detailInventaireMan
 
 
 
-        url_services_data_inventaire_famille = '../webservices/stockmanagement/inventaire/ws_data_inventaire_famille.jsp?lg_INVENTAIRE_ID=' + ref;
+        url_services_data_inventaire_famille = '../api/v1/inventaire/detail?lg_INVENTAIRE_ID=' + ref;
         var itemsPerPage = 20;
 //        var store = new Ext.data.Store({
 //            model: 'testextjs.model.Famille',

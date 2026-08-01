@@ -1,6 +1,16 @@
 package rest;
 
+import bll.stockManagement.InventaireManager;
+import bll.userManagement.privilege;
+import bll.utils.TparameterManager;
+import dal.TInventaire;
+import dal.TParameters;
 import dal.TUser;
+import dal.dataManager;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.ws.rs.DefaultValue;
+import org.json.JSONArray;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
@@ -27,6 +37,8 @@ import org.apache.commons.lang3.StringUtils;
 @Produces("application/json")
 @Consumes("application/json")
 public class InventaireRessource {
+
+    private static final Logger LOG = Logger.getLogger(InventaireRessource.class.getName());
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -107,6 +119,228 @@ public class InventaireRessource {
         }
         JSONObject json = inventaireService.createInventaireFromEcarts(id, tu);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Liste paginee des inventaires : remplace ws_data.jsp.
+     *
+     * <p>
+     * L'ancienne page chargeait TOUS les inventaires de l'emplacement puis decoupait la page en memoire, en
+     * rafraichissant chaque ligne une par une. Le comptage et la page sont desormais demandes a la base, avec les memes
+     * filtres. Le contenu de chaque ligne est identique a celui que produisait la JSP.
+     */
+    @GET
+    @Path("liste")
+    public Response listeInventaires(@DefaultValue("") @QueryParam("str_TYPE") String statut,
+            @DefaultValue("") @QueryParam("str_ZONE") String zone,
+            @DefaultValue("") @QueryParam("search_value") String recherche,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            InventaireManager manager = new InventaireManager(odm, user);
+            String zoneRetenue = ("ALL".equalsIgnoreCase(zone)) ? "" : zone;
+            long total = manager.countInventaires(statut, zoneRetenue, recherche);
+            JSONArray lignes = new JSONArray();
+            for (TInventaire inv : manager.listInventairesPagines(statut, zoneRetenue, recherche, start, limit)) {
+                lignes.put(ligneInventaire(inv));
+            }
+            return Response.ok().entity(new JSONObject().put("total", total).put("results", lignes).toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "listeInventaires", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Ligne de la liste des inventaires, champ pour champ comme l'ancienne JSP. */
+    private JSONObject ligneInventaire(TInventaire inv) {
+        toolkits.utils.date cle = new toolkits.utils.date();
+        JSONObject json = new JSONObject();
+        json.put("lg_INVENTAIRE_ID", inv.getLgINVENTAIREID());
+        json.put("str_NAME", inv.getStrNAME());
+        json.put("str_DESCRIPTION", inv.getStrDESCRIPTION());
+        try {
+            json.put("lg_USER_ID", inv.getLgUSERID().getStrFIRSTNAME() + " " + inv.getLgUSERID().getStrLASTNAME());
+        } catch (Exception e) {
+            json.put("lg_USER_ID", "");
+        }
+        String libelleStatut = "";
+        if (commonparameter.statut_enable.equalsIgnoreCase(inv.getStrSTATUT())) {
+            libelleStatut = "En cours";
+        } else if (commonparameter.statut_is_Closed.equalsIgnoreCase(inv.getStrSTATUT())) {
+            libelleStatut = "Cloturé";
+        }
+        json.put("str_STATUT", libelleStatut);
+        json.put("etat", inv.getStrSTATUT());
+        json.put("str_TYPE", inv.getStrTYPE());
+        json.put("dt_CREATED", cle.DateToString(inv.getDtCREATED(), cle.formatterShort));
+        json.put("dt_UPDATED", cle.DateToString(inv.getDtUPDATED(), cle.formatterShort));
+        return json;
+    }
+
+    /**
+     * Contenu d'un inventaire ouvert : remplace ws_data_inventaire_famille.jsp.
+     *
+     * <p>
+     * Transposition a l'identique. Les memes methodes de {@link InventaireManager} sont appelees, dans le meme ordre,
+     * avec les memes parametres, et le JSON produit porte exactement les memes cles : l'ecran d'inventaire n'a pas a
+     * etre adapte, seule l'adresse appelee change.
+     */
+    @GET
+    @Path("detail")
+    public Response detailInventaire(@DefaultValue("") @QueryParam("lg_INVENTAIRE_ID") String inventaireId,
+            @DefaultValue("") @QueryParam("search_value") String recherche,
+            @DefaultValue("") @QueryParam("str_TYPE") String type,
+            @DefaultValue("") @QueryParam("lg_FAMILLEARTICLE_ID") String familleArticleId,
+            @DefaultValue("") @QueryParam("lg_ZONE_GEO_ID") String zoneGeoId,
+            @DefaultValue("") @QueryParam("lg_GROSSISTE_ID") String grossisteId,
+            @DefaultValue("") @QueryParam("lg_USER_ID") String userId,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("10") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            // "%%" est la valeur "pas de filtre" attendue par les requetes du manager.
+            String inv = defautJoker(inventaireId);
+            String famille = defautJoker(familleArticleId);
+            String zone = defautJoker(zoneGeoId);
+            String grossiste = defautJoker(grossisteId);
+            String utilisateur = defautJoker(userId);
+            String search = StringUtils.defaultString(recherche);
+
+            InventaireManager manager = new InventaireManager(odm);
+            privilege oPrivilege = new privilege(odm, user);
+            boolean colonneStockVisible = oPrivilege
+                    .isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
+
+            int alerte = 0;
+            TParameters parametre = new TparameterManager(odm).getParameter("KEY_MAX_VALUE_INVENTAIRE");
+            if (parametre != null) {
+                try {
+                    alerte = Integer.parseInt(parametre.getStrVALUE());
+                } catch (NumberFormatException e) {
+                    alerte = 0;
+                }
+            }
+
+            long total;
+            java.util.List<dal.TInventaireFamille> lignes;
+            if ("MANQUANT".equalsIgnoreCase(type)) {
+                total = manager.getInventaireManquantCount(search, inv, famille, zone, grossiste, utilisateur);
+                lignes = manager.listEcartInventaireManquant(search, inv, famille, zone, grossiste, start, limit,
+                        utilisateur);
+            } else if ("SURPLUS".equalsIgnoreCase(type)) {
+                total = manager.getCountInventaireSurplus(search, inv, famille, zone, grossiste, utilisateur);
+                lignes = manager.listEcartInventaireSurplus(search, inv, famille, zone, grossiste, start, limit,
+                        utilisateur);
+            } else if ("MANQUANTSURPLUS".equalsIgnoreCase(type)) {
+                total = manager.getCountEcartInventaireSurplus(search, inv, famille, zone, grossiste, utilisateur);
+                lignes = manager.allEcartInventaireSurplus(search, inv, famille, zone, grossiste, start, limit,
+                        utilisateur);
+            } else if ("ALERTE".equalsIgnoreCase(type)) {
+                total = manager.getCountAlertInventaire(search, inv, famille, zone, grossiste, alerte);
+                lignes = manager.listAlertInventaire(search, inv, famille, zone, grossiste, alerte, start, limit);
+            } else if ("TOUCHE".equalsIgnoreCase(type)) {
+                total = manager.getCountInventaireTouche(search, inv, famille, zone, grossiste, true, utilisateur);
+                lignes = manager.listInventaireTouche(search, inv, famille, zone, grossiste, true, start, limit,
+                        utilisateur);
+            } else if ("NONTOUCHE".equalsIgnoreCase(type)) {
+                total = manager.getCountInventaireTouche(search, inv, famille, zone, grossiste, false, utilisateur);
+                lignes = manager.listInventaireTouche(search, inv, famille, zone, grossiste, false, start, limit,
+                        utilisateur);
+            } else {
+                total = manager.getCountByInventaire(search, inv, famille, zone, grossiste, true, utilisateur);
+                lignes = manager.listTFamilleByInventaire(search, inv, famille, zone, grossiste, true, start, limit,
+                        utilisateur);
+            }
+
+            JSONArray resultats = new JSONArray();
+            for (dal.TInventaireFamille ligne : lignes) {
+                resultats.put(ligneDetailInventaire(ligne, colonneStockVisible));
+            }
+            return Response.ok().entity(new JSONObject().put("total", total).put("results", resultats).toString())
+                    .build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "detailInventaire", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    private String defautJoker(String valeur) {
+        return StringUtils.isBlank(valeur) ? "%%" : valeur;
+    }
+
+    /** Ligne de detail d'inventaire, cle pour cle comme l'ancienne JSP. */
+    private JSONObject ligneDetailInventaire(dal.TInventaireFamille ligne, boolean colonneStockVisible) {
+        JSONObject json = new JSONObject();
+        dal.TFamille produit = ligne.getLgFAMILLEID();
+        json.put("lg_INVENTAIRE_FAMILLE_ID", ligne.getLgINVENTAIREFAMILLEID());
+        json.put("lg_INVENTAIRE_ID", ligne.getLgINVENTAIREID().getLgINVENTAIREID());
+        json.put("lg_FAMILLE_ID", produit.getLgFAMILLEID());
+        json.put("int_CIP", produit.getIntCIP());
+        json.put("str_NAME", produit.getStrNAME());
+        json.put("str_DESCRIPTION", produit.getStrDESCRIPTION());
+
+        // Le regroupement suit le type d'inventaire : rayon par defaut, sinon famille ou grossiste.
+        String code = produit.getLgZONEGEOID().getStrCODE();
+        String groupe = produit.getLgZONEGEOID().getStrLIBELLEE();
+        String typeInventaire = ligne.getLgINVENTAIREID().getStrTYPE();
+        if ("famille".equals(typeInventaire)) {
+            code = produit.getLgFAMILLEARTICLEID().getStrCODEFAMILLE();
+            groupe = produit.getLgFAMILLEARTICLEID().getStrLIBELLE();
+        } else if ("grossiste".equals(typeInventaire)) {
+            code = produit.getLgGROSSISTEID().getStrCODE();
+            groupe = produit.getLgGROSSISTEID().getStrLIBELLE();
+        }
+        json.put("str_CODE", code == null ? "" : code.trim());
+        json.put("groupeby", groupe);
+
+        try {
+            json.put("lg_ZONE_GEO_ID", produit.getLgZONEGEOID().getStrLIBELLEE());
+        } catch (Exception e) {
+        }
+        try {
+            json.put("lg_FAMILLEARTICLE_ID", produit.getLgFAMILLEARTICLEID().getStrLIBELLE());
+        } catch (Exception e) {
+        }
+        try {
+            json.put("lg_GROSSISTE_ID", produit.getLgGROSSISTEID().getStrLIBELLE());
+        } catch (Exception e) {
+        }
+
+        json.put("int_PRICE", produit.getIntPRICE());
+        json.put("int_PRICE_REF", produit.getIntPRICE());
+        json.put("int_PAF", produit.getIntPAF());
+        json.put("int_PAT", produit.getIntPAT());
+        json.put("int_MOY_VENTE", produit.getDblPRIXMOYENPONDERE() * ligne.getIntNUMBERINIT());
+        json.put("int_TAUX_MARQUE", ligne.getIntNUMBERINIT());
+        int ecart = ligne.getIntNUMBER() - ligne.getIntNUMBERINIT();
+        json.put("int_QTE_SORTIE", ecart);
+        json.put("int_QTE_REAPPROVISIONNEMENT", ecart * produit.getIntPRICE());
+        json.put("is_AUTHORIZE_STOCK", colonneStockVisible);
+        json.put("int_NUMBER_AVAILABLE", ligne.getIntNUMBER());
+        return json;
+    }
+
+    private TUser currentUser() {
+        return (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+    }
+
+    private Response deconnecte() {
+        return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
     }
 
     /**

@@ -1,6 +1,6 @@
 /* global Ext */
 
-var url_services_data_inventaire = '../webservices/stockmanagement/inventaire/ws_data.jsp';
+var url_services_data_inventaire = '../api/v1/inventaire/liste';
 var url_services_transaction_inventaire = '../webservices/stockmanagement/inventaire/ws_transactions.jsp?mode=';
 var Me;
 var url_services_pdf_fiche_inventaire = '../webservices/stockmanagement/inventaire/ws_generate_pdf.jsp';
@@ -444,7 +444,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
     filtreStatut: '',
     filtreZone: '',
     rechargerAvecFiltres: function () {
-        var url = '../webservices/stockmanagement/inventaire/ws_data.jsp';
+        var url = url_services_data_inventaire;
         var params = [];
         if (this.filtreStatut) {
             params.push('str_TYPE=' + encodeURIComponent(this.filtreStatut));
