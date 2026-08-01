@@ -87,31 +87,36 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.add', {
         var str_TYPE_TRANSACTION = "UNITAIRE";
 
         if (formulaire.isValid()) {
-            internal_url = url_services_transaction_inventaire + 'create';
-            formulaire.submit({
-                url:"../webservices/stockmanagement/inventaire/ws_transactions.jsp?mode=createbis",
-                timeout: 180000,
+            // Creation par le service REST, en remplacement de ws_transactions.jsp. Un inventaire
+            // unitaire n'a aucun critere : la liste de valeurs est vide, et bool_INVENTAIRE reste
+            // a 0 comme auparavant - c'est ce qui distingue l'inventaire unitaire des autres.
+            var progres = Ext.MessageBox.wait('Veuillez patienter. Traitement en cours...',
+                    'Creation d\'un inventaire');
+            Ext.Ajax.request({
+                url: '../api/v1/inventaire/creation',
                 method: 'POST',
-                params: {
+                timeout: 180000,
+                jsonData: {
                     str_NAME: Ext.getCmp('str_NAME').getValue(),
-                    str_DESCRIPTION: Ext.getCmp('str_DESCRIPTION').getValue(),
                     str_TYPE_TRANSACTION: str_TYPE_TRANSACTION,
+                    valeurs: [],
                     bool_INVENTAIRE: 0
                 },
-                waitMsg: 'Veuillez patienter. Traitement en cours...',
-                success: function(formulaire, action) {
-                   
-                  Ext.MessageBox.alert('Infos',  action.result.nombre);
+                success: function (response) {
+                    progres.hide();
+                    var res = Ext.JSON.decode(response.responseText, true) || {};
+                    if (!res.success) {
+                        // Refus metier : la fenetre reste ouverte pour corriger la saisie.
+                        Ext.MessageBox.alert('Message', res.nombre || 'Creation impossible.');
+                        return;
+                    }
+                    Ext.MessageBox.alert('Infos', res.nombre);
                     Oview.getStore().reload();
-
-                    var bouton = button.up('window');
-                    bouton.close();
+                    button.up('window').close();
                 },
-                failure: function(formulaire, action) {
-                     var bouton = button.up('window');
-                    bouton.close();
-                    Oview.getStore().reload();
-                    Ext.MessageBox.alert('Erreur', 'Erreur  ' + action.result.nombre);
+                failure: function () {
+                    progres.hide();
+                    Ext.MessageBox.alert('Erreur', "La creation de l'inventaire a echoue.");
                 }
             });
 
