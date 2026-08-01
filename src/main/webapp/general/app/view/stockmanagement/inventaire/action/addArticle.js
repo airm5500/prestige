@@ -244,21 +244,29 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
                             listeners: {
                                 checkChange: this.onCheckChange
                             }
-                        }, {
-                            // Ajout d'un article a la fois. La colonne etait commentee, en meme
-                            // temps que le traitement serveur correspondant ; les deux sont
-                            // remis en service ensemble.
-                            xtype: 'actioncolumn',
-                            width: 30,
-                            sortable: false,
-                            menuDisabled: true,
-                            items: [{
-                                    icon: 'resources/images/icons/fam/add.png',
-                                    tooltip: 'Ajouter cet article a l\'inventaire',
-                                    scope: this,
-                                    handler: this.onAddClick
-                                }]
-                        }],
+                        }/*{
+                         xtype: 'checkcolumn',
+                         header: 'Choix',
+                         dataIndex: 'is_select',
+                         //                            name: 'is_select',
+                         //                            id: 'is_select',
+                         flex: 0.5,
+                         stopSelection: false,
+                         listeners: {
+                         checkChange: this.onCheckChange
+                         }
+                         }*//*, {
+                          xtype: 'actioncolumn',
+                          width: 30,
+                          sortable: false,
+                          menuDisabled: true,
+                          items: [{
+                          icon: 'resources/images/icons/fam/add.png',
+                          tooltip: 'Ajouter',
+                          scope: this,
+                          handler: this.onAddClick
+                          }]
+                          }*/],
                     tbar: [{
                             xtype: 'combobox',
                             name: 'lg_FAMILLEARTICLE_ID',
@@ -448,11 +456,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
             plain: true,
             items: form,
             buttons: [{
-                    // Ajout de tous les articles coches. Le bouton etait masque et son
-                    // gestionnaire commente ; remis en service avec le traitement serveur.
-                    text: 'Ajouter la s&eacute;lection',
-                    scope: this,
-                    handler: this.onbtnsave
+                    text: 'Enregistrer',
+                    hidden: true,
+                    handler: function () {
+                        win.close();
+                    }
+                    // handler: this.onbtnsave
                 }, {
                     text: 'Fermer',
                     handler: function () {

@@ -44,6 +44,8 @@ public class InventaireRessource {
     private HttpServletRequest servletRequest;
     @EJB
     private InventaireService inventaireService;
+    @EJB
+    private rest.service.SupportEventService supportEventService;
 
     @GET
     @Path("produit-annules")
@@ -309,9 +311,13 @@ public class InventaireRessource {
             return Response.ok().entity(new JSONObject().put("success", ok ? 1 : 0).put("code_statut", ok ? "1" : "0")
                     .put("desc_satut", detail).toString()).build();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "supprimerInventaire", e);
-            return Response.ok().entity(new JSONObject().put("success", 0).put("code_statut", "0")
-                    .put("desc_satut", "Echec de suppression de l'inventaire.").toString()).build();
+            // Panne : tracee au centre de support, avec la meme forme de reponse que l'ecran attend.
+            incident("supprimerInventaire", "Echec de suppression de l'inventaire.", e);
+            return Response.ok()
+                    .entity(new JSONObject().put("success", 0).put("code_statut", "0")
+                            .put("desc_satut", "L'operation a echoue. L'incident a ete transmis a l'equipe technique.")
+                            .toString())
+                    .build();
         } finally {
             odm.closeEntityManager();
         }
@@ -381,15 +387,32 @@ public class InventaireRessource {
                 // L'utilisateur repart avec une reference, que le journal porte a l'identique.
                 return incident("creerInventaire", manager.getDetailmessage(), null);
             }
-            JSONObject json = new JSONObject().put("success", lignes > 0 ? 1 : 0).put("lignes", lignes);
-            json.put("nombre", lignes > 0 ? lignes + " article(s) inventorie(s)"
-                    : "Aucun article ne correspond a cette selection : aucun inventaire n'a ete cree.");
-            return Response.ok().entity(json.toString()).build();
+            if (lignes == 0) {
+                // Cas metier ordinaire, et non un defaut : la selection ne contient aucun produit.
+                // Le message nomme la cause pour que l'utilisateur sache quoi corriger.
+                return refus("Aucun inventaire n'a ete cree. Cause : " + causeSelectionVide(type) + ".");
+            }
+            return Response.ok().entity(new JSONObject().put("success", 1).put("lignes", lignes)
+                    .put("nombre", lignes + " article(s) inventorie(s)").toString()).build();
         } catch (Exception e) {
             return incident("creerInventaire", "La creation de l'inventaire a echoue.", e);
         } finally {
             odm.closeEntityManager();
         }
+    }
+
+    /** Nomme ce qui est vide, selon l'axe choisi, pour que le message dise quoi corriger. */
+    private String causeSelectionVide(String type) {
+        if ("Emplacement".equalsIgnoreCase(type)) {
+            return "emplacement(s) vide(s), aucun produit n'y est rattache";
+        }
+        if ("Famille".equalsIgnoreCase(type)) {
+            return "famille(s) vide(s), aucun produit n'y est rattache";
+        }
+        if ("Grossiste".equalsIgnoreCase(type)) {
+            return "grossiste(s) sans produit rattache";
+        }
+        return "aucun produit ne correspond aux criteres retenus";
     }
 
     /** Traduit le type d'inventaire choisi a l'ecran en axe de selection. */
@@ -407,23 +430,40 @@ public class InventaireRessource {
     }
 
     /**
-     * Reponse d'INCIDENT : une panne, et non un simple refus metier.
+     * Enregistre un incident TECHNIQUE dans le centre de support, et rend une reponse d'echec.
      *
      * <p>
-     * Une reference unique est produite, ecrite dans le journal du serveur avec la trace complete et affichee a
-     * l'utilisateur. Il suffit alors de la communiquer au support pour retrouver l'evenement exact, sans avoir a
-     * deviner l'heure ni l'ecran.
+     * A n'utiliser que pour une panne : un cas metier normal - selection vide, inventaire cloture, saisie invalide -
+     * n'est pas un incident et se traite par {@link #refus(String)}, sans encombrer les diagnostics.
+     *
+     * <p>
+     * Le message rendu a l'utilisateur reste sobre : il dit que l'operation a echoue, sans reference a communiquer ni
+     * jargon technique. La trace, elle, part au centre de support, ou l'equipe la retrouve avec son module et son
+     * ecran.
      */
-    private Response incident(String operation, String detail, Exception e) {
-        String reference = "INC-" + Long.toHexString(System.currentTimeMillis()).toUpperCase();
-        LOG.log(Level.SEVERE, "[{0}] incident sur {1} : {2}", new Object[] { reference, operation, detail });
-        if (e != null) {
-            LOG.log(Level.SEVERE, "[" + reference + "] trace", e);
+    private Response incident(String operation, String message, Exception e) {
+        try {
+            rest.service.dto.SupportEventDTO evenement = new rest.service.dto.SupportEventDTO();
+            evenement.setType("APPLICATION");
+            evenement.setNiveau("ERREUR");
+            evenement.setModule("INVENTAIRE");
+            evenement.setUrlOuEcran("api/v1/inventaire/" + operation);
+            evenement.setMessageCourt(StringUtils.abbreviate(message, 500));
+            if (e != null) {
+                java.io.StringWriter trace = new java.io.StringWriter();
+                e.printStackTrace(new java.io.PrintWriter(trace));
+                evenement.setStack(trace.toString());
+            }
+            TUser user = currentUser();
+            supportEventService.record(evenement, user != null ? user.getStrLOGIN() : null);
+        } catch (Exception enregistrement) {
+            // Le signalement ne doit jamais empecher de rendre une reponse a l'utilisateur.
+            LOG.log(Level.WARNING, "incident : signalement non enregistre", enregistrement);
         }
-        String message = "L'operation a echoue pour une raison technique. Aucun inventaire n'a ete cree."
-                + "<br/><br/>Merci de signaler cette reference au support : <b>" + reference + "</b>";
-        return Response.ok().entity(new JSONObject().put("success", 0).put("incident", true).put("reference", reference)
-                .put("nombre", message).put("message", message).toString()).build();
+        LOG.log(Level.SEVERE, "incident sur " + operation + " : " + message, e);
+        String pourEcran = "L'operation a echoue. L'incident a ete transmis a l'equipe technique.";
+        return Response.ok().entity(new JSONObject().put("success", 0).put("incident", true).put("nombre", pourEcran)
+                .put("message", pourEcran).put("errors", pourEcran).toString()).build();
     }
 
     private Response refus(String message) {
@@ -462,7 +502,8 @@ public class InventaireRessource {
             }
             return Response.ok().entity(new JSONObject().put("total", total).put("results", lignes).toString()).build();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "listeInventaires", e);
+            // Une liste vide sans explication laisse croire qu'il n'y a rien a afficher : on trace.
+            incident("listeInventaires", "Echec du chargement de la liste des inventaires.", e);
             return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
                     .build();
         } finally {
@@ -597,7 +638,7 @@ public class InventaireRessource {
             return Response.ok().entity(new JSONObject().put("total", total).put("results", resultats).toString())
                     .build();
         } catch (Exception e) {
-            LOG.log(Level.SEVERE, "detailInventaire", e);
+            incident("detailInventaire", "Echec du chargement du contenu de l'inventaire.", e);
             return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
                     .build();
         } finally {
