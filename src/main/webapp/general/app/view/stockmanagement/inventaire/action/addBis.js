@@ -392,7 +392,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
             plain: true,
             items: form,
             buttons: [{
-                    text: 'Enregistrer',
+                    text: 'Cr&eacute;er l\'inventaire',
                     handler: this.onbtnsave
                 }, {
                     text: 'Annuler',
@@ -475,8 +475,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
         // exactement ce que faisait l'entree "Tous" des anciennes listes deroulantes.
         // On repart de la FENETRE COURANTE, jamais de la variable globale Me : celle-ci pointe
         // sur la derniere fenetre construite, qui peut avoir ete fermee entre-temps.
+        //
+        // L'envoi est une fonction LOCALE et non une methode de la classe : ce gestionnaire est
+        // branche sans scope, donc 'this' y designe le bouton, et la fenetre affichee n'est pas
+        // l'instance de la classe. Aucun des deux ne porte les methodes du composant.
         var panneau = fenetre.down('#panneauCriteres');
-        var vue = this;
         var valeurs = panneau ? panneau.getValeurs() : [];
         var debut = Ext.getCmp('str_BEGIN').getRawValue();
         var fin = Ext.getCmp('str_END').getRawValue();
@@ -487,16 +490,17 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                     + '<b>la totalit&eacute;</b>. Continuer ?',
                     function (btn) {
                         if (btn === 'yes') {
-                            vue.envoyerCreation(button, valeurs, debut, fin);
+                            envoyerCreationInventaire(button, valeurs, debut, fin);
                         }
                     });
             return;
         }
-        vue.envoyerCreation(button, valeurs, debut, fin);
-    },
+        envoyerCreationInventaire(button, valeurs, debut, fin);
+    }
+});
 
-    /** Envoi de la creation au service REST qui remplace ws_transactions.jsp?mode=createbis. */
-    envoyerCreation: function (button, valeurs, debut, fin) {
+/** Envoi de la creation au service REST qui remplace ws_transactions.jsp?mode=createbis. */
+function envoyerCreationInventaire(button, valeurs, debut, fin) {
         // La liste du filtre de stock porte l'identifiant 'stockFilterStore' (le nom du champ,
         // lui, est bien 'stockFilter').
         var stockFiltre = Ext.getCmp('stockFilterStore');
@@ -534,5 +538,4 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                 Ext.MessageBox.alert('Erreur', "La creation de l'inventaire a echoue.");
             }
         });
-    }
-});
+}
