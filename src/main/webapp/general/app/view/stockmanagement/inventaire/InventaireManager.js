@@ -373,6 +373,49 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     iconCls: 'addicon',
                     handler: this.onImportCsvClick
                 }, '-', {
+                    /* Recherche par libelle ou par commentaire d'inventaire. Entree cherche tout
+                     * de suite ; a partir de trois caracteres la recherche part seule apres une
+                     * pause de frappe, comme les autres zones de recherche de l'application. */
+                    xtype: 'textfield',
+                    itemId: 'rechercheInventaire',
+                    width: 210,
+                    emptyText: 'Rechercher (libelle ou commentaire)',
+                    listeners: {
+                        specialkey: function (f, e) {
+                            if (e.getKey() === e.ENTER) {
+                                f.dernierTerme = (f.getValue() || '').trim();
+                                Me.filtreRecherche = f.dernierTerme;
+                                Me.rechargerAvecFiltres();
+                            }
+                        },
+                        change: {
+                            buffer: 800,
+                            fn: function (f, v) {
+                                var terme = (v || '').trim();
+                                if (terme.length > 0 && terme.length < 3) {
+                                    return;
+                                }
+                                if (terme === f.dernierTerme) {
+                                    return;
+                                }
+                                f.dernierTerme = terme;
+                                Me.filtreRecherche = terme;
+                                Me.rechargerAvecFiltres();
+                            }
+                        }
+                    }
+                }, {
+                    text: 'Effacer',
+                    handler: function () {
+                        var champ = Me.down('#rechercheInventaire');
+                        if (champ) {
+                            champ.dernierTerme = '';
+                            champ.setValue('');
+                        }
+                        Me.filtreRecherche = '';
+                        Me.rechargerAvecFiltres();
+                    }
+                }, '-', {
                     xtype: 'combobox',
                     name: 'str_TYPE',
                     margins: '0 0 0 10',
@@ -443,6 +486,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
      * pas faire oublier le statut deja selectionne, et inversement. */
     filtreStatut: '',
     filtreZone: '',
+    filtreRecherche: '',
     rechargerAvecFiltres: function () {
         var url = url_services_data_inventaire;
         var params = [];
@@ -451,6 +495,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         }
         if (this.filtreZone && this.filtreZone !== 'ALL') {
             params.push('str_ZONE=' + encodeURIComponent(this.filtreZone));
+        }
+        if (this.filtreRecherche) {
+            params.push('search_value=' + encodeURIComponent(this.filtreRecherche));
         }
         this.getStore().getProxy().url = params.length ? url + '?' + params.join('&') : url;
         this.getStore().loadPage(1);
