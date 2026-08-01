@@ -502,6 +502,7 @@ Ext.application({
         'testextjs.view.stockmanagement.inventaire.InventaireManager',
         'testextjs.view.stockmanagement.inventaire.action.add',
         'testextjs.view.stockmanagement.inventaire.action.addBis',
+        'testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
         'testextjs.model.Inventaire',
         'testextjs.view.stockmanagement.inventaire.action.addArticle',
         'testextjs.view.stockmanagement.inventaire.action.editInventaireManager',

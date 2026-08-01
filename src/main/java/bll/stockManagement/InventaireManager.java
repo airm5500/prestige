@@ -1438,6 +1438,70 @@ public class InventaireManager extends bllBase {
     // fin liste objet article
 
     // function creation inventaire 12042016 kobena
+    /**
+     * Creation d'un inventaire portant sur PLUSIEURS valeurs d'un meme axe.
+     *
+     * <p>
+     * L'ecran ne proposait qu'une valeur : un emplacement, une famille ou un grossiste. On peut desormais en cocher
+     * plusieurs. La procedure stockee qui remplit les lignes n'est PAS modifiee : elle est simplement appelee une fois
+     * par valeur cochee, avec le meme inventaire. Comme un produit appartient a un seul rayon, une seule famille et un
+     * seul grossiste, cocher plusieurs valeurs d'un meme axe ne peut pas creer de doublon.
+     *
+     * <p>
+     * Une liste de valeurs vide signifie "toutes" : on retombe alors sur un unique appel avec le joker, c'est-a-dire
+     * exactement le comportement precedent.
+     *
+     * @param axe
+     *            EMPLACEMENT, FAMILLE ou GROSSISTE : designe sur quel critere portent les valeurs
+     *
+     * @return nombre total de lignes creees ; l'inventaire est supprime s'il n'en reste aucune
+     */
+    public long createInventaireMultiCriteres(String str_NAME, List<String> valeurs, String axe, String str_BEGIN,
+            String str_END, String str_TYPE, int bool_INVENTAIRE, String stockFilter, Integer stockProduit) {
+        long count = 0;
+        Date today = new Date();
+        try {
+            TInventaire oTInventaire = new TInventaire(this.getKey().getComplexId());
+            oTInventaire.setStrNAME(str_NAME);
+            oTInventaire.setStrDESCRIPTION(str_NAME);
+            oTInventaire.setLgUSERID(this.getOTUser());
+            oTInventaire.setStrTYPE(str_TYPE.toLowerCase());
+            oTInventaire.setStrSTATUT(commonparameter.statut_enable);
+            oTInventaire.setDtCREATED(today);
+            oTInventaire.setDtUPDATED(today);
+            oTInventaire.setLgEMPLACEMENTID(this.getOTUser().getLgEMPLACEMENTID());
+            if (!this.persiste(oTInventaire)) {
+                this.buildErrorTraceMessage("Echec de création de l'inventaire");
+                return 0;
+            }
+
+            List<String> aParcourir = (valeurs == null || valeurs.isEmpty()) ? Arrays.asList("%%") : valeurs;
+            for (String valeur : aParcourir) {
+                String zone = "%%", famille = "%%", grossiste = "%%";
+                if ("EMPLACEMENT".equalsIgnoreCase(axe)) {
+                    zone = valeur;
+                } else if ("FAMILLE".equalsIgnoreCase(axe)) {
+                    famille = valeur;
+                } else if ("GROSSISTE".equalsIgnoreCase(axe)) {
+                    grossiste = valeur;
+                }
+                count += this.createInventaireFamille("%%", oTInventaire.getLgINVENTAIREID(), famille, zone, grossiste,
+                        str_BEGIN, str_END, bool_INVENTAIRE, str_TYPE, stockFilter, stockProduit);
+            }
+
+            if (count == 0) {
+                // Meme regle que la creation a critere unique : pas de ligne, pas d'inventaire.
+                this.delete(oTInventaire);
+            }
+            this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.buildErrorTraceMessage("Echec de création de l'inventaire");
+            new logger().OCategory.info(this.getDetailmessage());
+        }
+        return count;
+    }
+
     public long createInventaire(String str_NAME, String lg_FAMILLE_ID, String str_DESCRIPTION,
             String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String str_BEGIN,
             String str_END, String str_TYPE, int bool_INVENTAIRE, String stockFilter, Integer stockProduit) {

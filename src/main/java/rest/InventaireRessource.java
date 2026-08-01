@@ -122,6 +122,96 @@ public class InventaireRessource {
     }
 
     /**
+     * Creation d'un inventaire : remplace ws_transactions.jsp?mode=createbis.
+     *
+     * <p>
+     * Corps attendu : {@code str_NAME}, {@code str_TYPE_TRANSACTION} (Emplacement, Famille ou Grossiste),
+     * {@code valeurs} (tableau des identifiants coches sur cet axe, vide pour "tous"), et les options existantes
+     * {@code str_BEGIN}, {@code str_END}, {@code stockFilter}, {@code stockProduit}, {@code bool_INVENTAIRE}.
+     *
+     * <p>
+     * La reponse reprend la forme de l'ancienne JSP - {@code success}, {@code nombre} - pour que le message affiche a
+     * l'ecran reste le meme.
+     */
+    @POST
+    @Path("creation")
+    public Response creerInventaire(String payload) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        String nom = in.optString("str_NAME", "").trim();
+        String type = in.optString("str_TYPE_TRANSACTION", "").trim();
+        if (nom.isEmpty()) {
+            return refus("Indiquez un libelle pour cet inventaire.");
+        }
+        if (type.isEmpty()) {
+            return refus("Choisissez un type d'inventaire.");
+        }
+
+        java.util.List<String> valeurs = new java.util.ArrayList<>();
+        JSONArray brut = in.optJSONArray("valeurs");
+        if (brut != null) {
+            for (int i = 0; i < brut.length(); i++) {
+                String v = brut.optString(i, null);
+                // "0" (Personnalise) et "%%" (Tous) signifient tous les deux "aucun filtre sur cet axe" :
+                // c'est la traduction que faisait l'ancienne JSP, on la conserve.
+                if (v != null && !v.isEmpty() && !"0".equals(v) && !"%%".equals(v)) {
+                    valeurs.add(v);
+                }
+            }
+        }
+
+        String debut = in.optString("str_BEGIN", "");
+        String fin = in.optString("str_END", "");
+        if (valeurs.isEmpty() && (debut.isEmpty() || fin.isEmpty()) && brut != null && brut.length() > 0) {
+            // Reprise du controle existant : sans valeur precise, l'intervalle devient obligatoire.
+            return refus("Cochez au moins un element, ou saisissez un intervalle.");
+        }
+
+        Integer stockProduit = in.has("stockProduit") && !in.isNull("stockProduit")
+                && !in.optString("stockProduit", "").isEmpty() ? in.optInt("stockProduit") : null;
+
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            InventaireManager manager = new InventaireManager(odm, user);
+            long lignes = manager.createInventaireMultiCriteres(nom, valeurs, axeDepuisType(type), debut, fin, type,
+                    in.optInt("bool_INVENTAIRE", 1), in.optString("stockFilter", "ALL"), stockProduit);
+            JSONObject json = new JSONObject().put("success", lignes > 0 ? 1 : 0).put("lignes", lignes);
+            json.put("nombre", lignes > 0 ? lignes + " article(s) inventorie(s)"
+                    : "Aucun article ne correspond a cette selection : aucun inventaire n'a ete cree.");
+            return Response.ok().entity(json.toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "creerInventaire", e);
+            return refus("La creation de l'inventaire a echoue.");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Traduit le type d'inventaire choisi a l'ecran en axe de selection. */
+    private String axeDepuisType(String type) {
+        if ("Emplacement".equalsIgnoreCase(type)) {
+            return "EMPLACEMENT";
+        }
+        if ("Famille".equalsIgnoreCase(type)) {
+            return "FAMILLE";
+        }
+        if ("Grossiste".equalsIgnoreCase(type)) {
+            return "GROSSISTE";
+        }
+        return "";
+    }
+
+    private Response refus(String message) {
+        return Response.ok()
+                .entity(new JSONObject().put("success", 0).put("nombre", message).put("message", message).toString())
+                .build();
+    }
+
+    /**
      * Liste paginee des inventaires : remplace ws_data.jsp.
      *
      * <p>

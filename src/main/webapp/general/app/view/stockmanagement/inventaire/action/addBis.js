@@ -15,7 +15,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
     id: 'addinventaireID',
     requires: [
         'Ext.form.*',
-        'Ext.window.Window'
+        'Ext.window.Window',
+        'testextjs.view.stockmanagement.inventaire.action.selectionCriteres'
     ],
     config: {
         odatasource: '',
@@ -137,19 +138,31 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                                     Ext.getCmp('str_BEGIN').reset();
                                     Ext.getCmp('str_END').reset();
 
+                                    // Les trois listes deroulantes d'origine restent en place mais
+                                    // ne servent plus a choisir : c'est le panneau a deux volets qui
+                                    // porte la selection, desormais multiple. Elles sont conservees
+                                    // masquees pour ne pas casser les traitements qui les lisent.
+                                    var panneau = Me.down('inventaireselectioncriteres');
+                                    OGridFamille.hide();
+                                    OGridemplacement.hide();
+                                    OGridGrossiste.hide();
+
                                     if (value == "Reserve") {
                                         // Aucun critere a choisir : ce sont TOUS les produits
                                         // marques geres en reserve qui sont inventories.
-                                        OGridFamille.hide();
-                                        OGridemplacement.hide();
-                                        OGridGrossiste.hide();
                                         OGridFamille.setValue("");
                                         OGridemplacement.setValue("");
                                         OGridGrossiste.setValue("");
+                                        if (panneau) {
+                                            panneau.hide();
+                                        }
                                         return;
                                     }
+                                    if (panneau) {
+                                        panneau.show();
+                                        panneau.changerAxe(value);
+                                    }
                                     if (value == "Famille") {
-                                        OGridFamille.show();
                                         OGridemplacement.hide();
                                         OGridGrossiste.hide();
 //                                        OGridemplacement.getStore().reload();
@@ -157,7 +170,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                                         OGridemplacement.setValue("");
                                         OGridGrossiste.setValue("");
                                     } else if (value == "Emplacement") {
-                                        OGridemplacement.show();
                                         OGridFamille.hide();
                                         OGridGrossiste.hide();
 //                                        OGridFamille.getStore().reload();
@@ -165,7 +177,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                                         OGridFamille.setValue("");
                                         OGridGrossiste.setValue("");
                                     } else if (value == "Grossiste") {
-                                        OGridGrossiste.show();
                                         OGridFamille.hide();
                                         OGridemplacement.hide();
 //                                        OGridFamille.getStore().reload();
@@ -309,6 +320,15 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                         },
 
                         {
+                            // Selection multiple des criteres, en deux volets : la liste de l'axe
+                            // choisi a gauche, le panier a droite. Masque tant qu'aucun type n'est
+                            // choisi, et pour un inventaire de reserve qui n'a pas de critere.
+                            xtype: 'inventaireselectioncriteres',
+                            itemId: 'panneauCriteres',
+                            hidden: true,
+                            anchor: '100%'
+                        },
+                        {
                             xtype: 'fieldcontainer',
                             fieldLabel: 'Intervalle',
                             layout: 'hbox',
@@ -438,53 +458,71 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
             return;
         }
 
-        {
-            if ((Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == null && Ext.getCmp('lg_ZONE_GEO_ID').getValue() == "" && Ext.getCmp('lg_GROSSISTE_ID').getValue() == "") ||
-                    (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == "" && Ext.getCmp('lg_ZONE_GEO_ID').getValue() == null && Ext.getCmp('lg_GROSSISTE_ID').getValue() == "") ||
-                    (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == "" && Ext.getCmp('lg_ZONE_GEO_ID').getValue() == "" && Ext.getCmp('lg_GROSSISTE_ID').getValue() == null) ||
-                    (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == "" && Ext.getCmp('lg_ZONE_GEO_ID').getValue() == "" && Ext.getCmp('lg_GROSSISTE_ID').getValue() == "")) {
-                Ext.MessageBox.alert('Message d\'erreur', 'Veuillez s&eacute;lectionner un &eacute;l&eacute;ment');
-                return;
-            }
-
-        }
-
-        if (Ext.getCmp('lg_FAMILLEARTICLE_ID').getValue() == "0" || Ext.getCmp('lg_ZONE_GEO_ID').getValue() == "0" || Ext.getCmp('lg_GROSSISTE_ID').getValue() == "0") {
-            if (Ext.getCmp('str_BEGIN').getValue() == null || Ext.getCmp('str_END').getValue() == null || Ext.getCmp('str_BEGIN').getValue() == "" || Ext.getCmp('str_END').getValue() == "") {
-                Ext.MessageBox.alert('Message d\'erreur', 'Veuillez saisir un intervalle');
-                return;
-            }
-        }
-
-        if (formulaire.isValid()) {
-
-            formulaire.submit({
-                url:"../webservices/stockmanagement/inventaire/ws_transactions.jsp?mode=createbis",
-                timeout: 1800000,
-                params: {
-                    bool_INVENTAIRE: 1
-                },
-                waitMsg: "Veuillez patienter. Traitement en cours...",
-                waitTitle: 'Creation d\'un inventaire',
-                success: function (formulaire, action) {
-
-                    Ext.MessageBox.alert('Infos', action.result.nombre);
-                    Oview.getStore().reload();
-
-                    var bouton = button.up('window');
-                    bouton.close();
-                },
-                failure: function (formulaire, action) {
-                    var bouton = button.up('window');
-                    bouton.close();
-                    Oview.getStore().reload();
-                    Ext.MessageBox.alert('Erreur', 'Erreur  ' + action.result.nombre);
-                }
-            });
-
-        } else {
+        if (!formulaire.isValid()) {
             Ext.MessageBox.alert('Echec', 'Formulaire non valide');
+            return;
         }
 
+        // La selection vient desormais du panneau a deux volets, et elle peut porter sur
+        // PLUSIEURS valeurs du meme axe. Une selection vide signifie "tout l'axe" : c'est
+        // exactement ce que faisait l'entree "Tous" des anciennes listes deroulantes.
+        var panneau = Me.down('#panneauCriteres');
+        var valeurs = panneau ? panneau.getValeurs() : [];
+        var debut = Ext.getCmp('str_BEGIN').getRawValue();
+        var fin = Ext.getCmp('str_END').getRawValue();
+
+        if (valeurs.length === 0 && (!debut || !fin)) {
+            Ext.MessageBox.confirm('Confirmation',
+                    'Aucun &eacute;l&eacute;ment n\'est coch&eacute; : l\'inventaire portera sur '
+                    + '<b>la totalit&eacute;</b>. Continuer ?',
+                    function (btn) {
+                        if (btn === 'yes') {
+                            Me.envoyerCreation(button, valeurs, debut, fin);
+                        }
+                    });
+            return;
+        }
+        Me.envoyerCreation(button, valeurs, debut, fin);
+    },
+
+    /** Envoi de la creation au service REST qui remplace ws_transactions.jsp?mode=createbis. */
+    envoyerCreation: function (button, valeurs, debut, fin) {
+        // La liste du filtre de stock porte l'identifiant 'stockFilterStore' (le nom du champ,
+        // lui, est bien 'stockFilter').
+        var stockFiltre = Ext.getCmp('stockFilterStore');
+        var stockQte = Ext.getCmp('stockProduit');
+        var progres = Ext.MessageBox.wait('Veuillez patienter. Traitement en cours...',
+                'Creation d\'un inventaire');
+        Ext.Ajax.request({
+            url: '../api/v1/inventaire/creation',
+            method: 'POST',
+            timeout: 1800000,
+            jsonData: {
+                str_NAME: Ext.getCmp('str_NAME').getValue(),
+                str_TYPE_TRANSACTION: Ext.getCmp('str_TYPE_TRANSACTION').getValue(),
+                valeurs: valeurs,
+                str_BEGIN: debut || '',
+                str_END: fin || '',
+                stockFilter: stockFiltre ? stockFiltre.getValue() : 'ALL',
+                stockProduit: stockQte ? stockQte.getValue() : null,
+                bool_INVENTAIRE: 1
+            },
+            success: function (response) {
+                progres.hide();
+                var res = Ext.JSON.decode(response.responseText, true) || {};
+                if (!res.success) {
+                    // Refus metier : la fenetre reste ouverte pour corriger la selection.
+                    Ext.MessageBox.alert('Message', res.nombre || 'Creation impossible.');
+                    return;
+                }
+                Ext.MessageBox.alert('Infos', res.nombre);
+                Oview.getStore().reload();
+                button.up('window').close();
+            },
+            failure: function () {
+                progres.hide();
+                Ext.MessageBox.alert('Erreur', "La creation de l'inventaire a echoue.");
+            }
+        });
     }
 });
