@@ -12,7 +12,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -31,6 +33,7 @@ import javax.persistence.criteria.Root;
 import javax.persistence.criteria.Predicate;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.InventaireService;
 import rest.service.SessionHelperService;
@@ -574,14 +577,61 @@ public class InventaireServiceImpl implements InventaireService {
     }
 
     @Override
+    public JSONObject updateCommentaire(String inventaireId, String commentaire) {
+        JSONObject json = new JSONObject();
+        if (StringUtils.isBlank(inventaireId)) {
+            return json.put("success", false).put("message", "Inventaire introuvable.");
+        }
+        String texte = commentaire == null ? "" : commentaire.trim();
+        if (texte.isEmpty()) {
+            return json.put("success", false).put("message", "Le commentaire ne peut pas etre vide.");
+        }
+        TInventaire inventaire = em.find(TInventaire.class, inventaireId);
+        if (inventaire == null) {
+            return json.put("success", false).put("message", "Inventaire introuvable.");
+        }
+        if (!Constant.STATUT_ENABLE.equalsIgnoreCase(inventaire.getStrSTATUT())) {
+            // L'ecran n'ouvre pas l'edition sur une ligne cloturee ; ce controle couvre l'appel direct.
+            return json.put("success", false).put("message",
+                    "Cet inventaire est cloture : son commentaire ne peut plus etre modifie.");
+        }
+        inventaire.setStrDESCRIPTION(texte);
+        inventaire.setDtUPDATED(new Date());
+        em.merge(inventaire);
+        return json.put("success", true).put("str_DESCRIPTION", texte);
+    }
+
+    @Override
     public int createReserveInventaire(Set<String> produitIds, String description) {
         return createReserveInventaire(produitIds, description, description);
     }
 
     @Override
     public int createReserveInventaire(Set<String> produitIds, String name, String description) {
+        return createReserveInventaireDetaille(produitIds, name, description).optInt("count", 0);
+    }
+
+    /**
+     * Creation de l'inventaire reserve, stocks charges EN LOT.
+     *
+     * <p>
+     * La version initiale interrogeait la base produit par produit (une requete de fiche de stock plus une requete de
+     * stock reserve pour chacun) : sur 344 produits cela representait pres d'un millier d'allers-retours, d'ou les
+     * trente secondes constatees. Les deux lectures sont desormais faites une seule fois pour tout le lot, puis
+     * distribuees en memoire. Les lignes ecrites sont rigoureusement les memes.
+     *
+     * <p>
+     * Le comportement en cas de produit non traitable est inchange : il est ecarte, les autres sont inventories. La
+     * seule difference est qu'on rend maintenant compte du motif, au lieu de le laisser dans les logs.
+     */
+    @Override
+    public JSONObject createReserveInventaireDetaille(Set<String> produitIds, String name, String description) {
+        JSONObject compteRendu = new JSONObject();
+        JSONArray ignores = new JSONArray();
+        compteRendu.put("count", 0);
+        compteRendu.put("ignores", ignores);
         if (CollectionUtils.isEmpty(produitIds)) {
-            return 0;
+            return compteRendu;
         }
         TUser tUser = sessionHelperService.getCurrentUser();
         TEmplacement emplacement = tUser.getLgEMPLACEMENTID();
@@ -598,21 +648,108 @@ public class InventaireServiceImpl implements InventaireService {
         oTInventaire.setLgEMPLACEMENTID(emplacement);
         em.persist(oTInventaire);
 
+        Map<String, TFamilleStock> fichesStock = chargerFichesStock(produitIds, emplId);
+        Map<String, Integer> stocksReserve = chargerStocksReserve(produitIds, emplId);
+
         int count = 0;
+        int depuisDernierFlush = 0;
         for (String produitId : produitIds) {
+            TFamilleStock familleStock = fichesStock.get(produitId);
+            if (familleStock == null) {
+                // Sans fiche de stock a cet emplacement, il n'y a rien a inventorier pour ce produit.
+                ignores.put(ligneIgnoree(produitId, null,
+                        "Aucune fiche de stock active pour ce produit dans cet emplacement."));
+                continue;
+            }
             try {
-                TFamilleStock familleStock = findByProduitId(produitId, emplId);
-                int stockReserve = findReserveStock(produitId, emplId);
-                saveInventaireFamilleWithQte(oTInventaire, familleStock, stockReserve);
+                Integer stockReserve = stocksReserve.get(produitId);
+                saveInventaireFamilleWithQte(oTInventaire, familleStock, stockReserve == null ? 0 : stockReserve);
                 count++;
+                if (++depuisDernierFlush >= LOT_ECRITURE) {
+                    em.flush();
+                    depuisDernierFlush = 0;
+                }
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "createReserveInventaire: impossible de traiter produit={0} : {1}",
                         new Object[] { produitId, e.getMessage() });
+                ignores.put(ligneIgnoree(produitId, familleStock, "Echec d'enregistrement : " + e.getMessage()));
             }
         }
-        LOG.log(Level.INFO, "createReserveInventaire: {0}/{1} produits, inventaire={2}",
-                new Object[] { count, produitIds.size(), oTInventaire.getLgINVENTAIREID() });
-        return count;
+        LOG.log(Level.INFO, "createReserveInventaire: {0}/{1} produits, {2} ignore(s), inventaire={3}",
+                new Object[] { count, produitIds.size(), ignores.length(), oTInventaire.getLgINVENTAIREID() });
+        compteRendu.put("count", count);
+        return compteRendu;
+    }
+
+    /** Nombre d'insertions entre deux vidages du contexte de persistance. */
+    private static final int LOT_ECRITURE = 200;
+
+    /** Taille maximale d'une clause IN, pour ne pas fabriquer de requete demesuree. */
+    private static final int LOT_LECTURE = 500;
+
+    /** Decrit un produit ecarte, avec de quoi l'identifier a l'ecran. */
+    private JSONObject ligneIgnoree(String produitId, TFamilleStock familleStock, String motif) {
+        JSONObject o = new JSONObject();
+        o.put("lg_FAMILLE_ID", produitId);
+        TFamille famille = familleStock != null ? familleStock.getLgFAMILLEID() : null;
+        o.put("int_CIP", famille != null && famille.getIntCIP() != null ? famille.getIntCIP() : "");
+        o.put("str_NAME", famille != null && famille.getStrNAME() != null ? famille.getStrNAME() : "");
+        o.put("motif", motif);
+        return o;
+    }
+
+    /** Fiches de stock des produits demandes, en une requete par paquet de {@link #LOT_LECTURE}. */
+    private Map<String, TFamilleStock> chargerFichesStock(Set<String> produitIds, String emplId) {
+        Map<String, TFamilleStock> parProduit = new HashMap<>();
+        for (List<String> paquet : paquets(produitIds)) {
+            TypedQuery<TFamilleStock> q = em.createQuery(
+                    "SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID IN ?1"
+                            + " AND o.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND o.strSTATUT = 'enable'",
+                    TFamilleStock.class);
+            q.setParameter(1, paquet);
+            q.setParameter(2, emplId);
+            for (TFamilleStock fs : q.getResultList()) {
+                // Le chemin unitaire prenait la premiere fiche trouvee : on conserve ce choix.
+                parProduit.putIfAbsent(fs.getLgFAMILLEID().getLgFAMILLEID(), fs);
+            }
+        }
+        return parProduit;
+    }
+
+    /** Stocks reserve (t_type_stock_famille type 2) des produits demandes, en une requete par paquet. */
+    private Map<String, Integer> chargerStocksReserve(Set<String> produitIds, String emplId) {
+        Map<String, Integer> parProduit = new HashMap<>();
+        for (List<String> paquet : paquets(produitIds)) {
+            StringBuilder sql = new StringBuilder("SELECT t.lg_FAMILLE_ID, t.int_NUMBER FROM t_type_stock_famille t"
+                    + " WHERE t.lg_EMPLACEMENT_ID = ?1 AND t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable'"
+                    + " AND t.lg_FAMILLE_ID IN (");
+            for (int i = 0; i < paquet.size(); i++) {
+                sql.append(i == 0 ? "?" : ",?").append(i + 2);
+            }
+            sql.append(")");
+            Query q = em.createNativeQuery(sql.toString());
+            q.setParameter(1, emplId);
+            for (int i = 0; i < paquet.size(); i++) {
+                q.setParameter(i + 2, paquet.get(i));
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> lignes = q.getResultList();
+            for (Object[] l : lignes) {
+                if (l[0] != null) {
+                    parProduit.putIfAbsent(String.valueOf(l[0]), l[1] == null ? 0 : ((Number) l[1]).intValue());
+                }
+            }
+        }
+        return parProduit;
+    }
+
+    private List<List<String>> paquets(Set<String> produitIds) {
+        List<String> tous = new ArrayList<>(produitIds);
+        List<List<String>> decoupe = new ArrayList<>();
+        for (int i = 0; i < tous.size(); i += LOT_LECTURE) {
+            decoupe.add(tous.subList(i, Math.min(tous.size(), i + LOT_LECTURE)));
+        }
+        return decoupe;
     }
 
     /** Retourne le stock reserve (t_type_stock_famille type 2) pour un produit/emplacement. */

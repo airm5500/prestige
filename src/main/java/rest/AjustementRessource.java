@@ -152,9 +152,9 @@ public class AjustementRessource {
      * Cree une SUGGESTION DE COMMANDE fournisseur sur les produits d'un ajustement.
      *
      * <p>
-     * Meme mecanisme que le bouton "Suggerer" de la barre d'outils, mais restreint aux produits de l'ajustement
-     * choisi. Comme lui, il ne retient que les produits rattaches a un grossiste : sans fournisseur, il n'y a pas de
-     * commande a preparer.
+     * Meme mecanisme que le bouton "Suggerer" de la barre d'outils, mais restreint aux produits de l'ajustement choisi.
+     * Comme lui, il ne retient que les produits rattaches a un grossiste : sans fournisseur, il n'y a pas de commande a
+     * preparer.
      */
     @POST
     @Path("{id}/suggestion")

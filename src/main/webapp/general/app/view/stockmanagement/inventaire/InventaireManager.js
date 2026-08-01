@@ -53,6 +53,15 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
             data: [{str_TYPE: 'En cours', str_STATUT_TRANSACTION: 'enable'}, {str_TYPE: 'Cloture', str_STATUT_TRANSACTION: 'is_Closed'}]
         });
 
+        var store_zone = new Ext.data.Store({
+            fields: ['str_ZONE', 'str_LIBELLE'],
+            data: [
+                {str_ZONE: 'ALL', str_LIBELLE: 'Toutes les zones'},
+                {str_ZONE: 'rayon', str_LIBELLE: 'Rayon'},
+                {str_ZONE: 'reserve', str_LIBELLE: 'Reserve'}
+            ]
+        });
+
 
        
 
@@ -64,6 +73,40 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
             store: store,
             id: 'GridInventaireID',
             columns: [{
+                    /* Coche de selection pour la suppression multiple. Une ligne cloturee n'est
+                     * pas cochable : la supprimer effacerait la trace d'un stock deja applique. */
+                    xtype: 'checkcolumn',
+                    dataIndex: 'bl_A_SUPPRIMER',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    renderer: function (value, meta, record) {
+                        if (record.get('etat') === 'is_Closed') {
+                            meta.tdAttr = 'data-qtip="Inventaire cloture : suppression impossible."';
+                            return '';
+                        }
+                        /* rendu standard de la case a cocher ; l'appeler explicitement est
+                         * necessaire puisqu'on remplace le renderer de la colonne */
+                        return Ext.grid.column.CheckColumn.prototype.renderer.call(this, value, meta);
+                    },
+                    listeners: {
+                        beforecheckchange: function (col, rowIndex, checked) {
+                            var rec = Me.getStore().getAt(rowIndex);
+                            /* garde-fou : la case des lignes cloturees n'est pas affichee, mais
+                             * un clic sur la cellule ne doit rien cocher pour autant */
+                            return !(rec && rec.get('etat') === 'is_Closed');
+                        },
+                        checkchange: function (col, rowIndex) {
+                            /* la coche est un etat d'ecran, pas une modification a enregistrer :
+                             * on la valide tout de suite pour ne pas marquer la ligne modifiee */
+                            var rec = Me.getStore().getAt(rowIndex);
+                            if (rec) {
+                                rec.commit();
+                            }
+                            Me.majBoutonSuppressionMultiple();
+                        }
+                    }
+                }, {
                     xtype: 'rownumberer',
                     text: 'Num.Ligne',
                     width: 45,
@@ -77,8 +120,27 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     header: 'Libelle',
                     dataIndex: 'str_NAME',
                     flex: 1
+                }, {
+                    // Commentaire saisi a la creation : il porte le motif de l'inventaire et
+                    // reste la seule trace du pourquoi une fois celui-ci cloture. Place juste
+                    // apres le libelle, et modifiable par double-clic tant que l'inventaire
+                    // est en cours.
+                    header: 'Commentaire',
+                    dataIndex: 'str_DESCRIPTION',
+                    flex: 1.5,
+                    editor: {xtype: 'textfield', selectOnFocus: true},
+                    renderer: function (v, meta, record) {
+                        var enCours = record.get('etat') === 'enable';
+                        if (!v) {
+                            return enCours
+                                    ? '<span style="color:#999;font-style:italic" data-qtip="Double-cliquez pour saisir le commentaire">(double-clic pour saisir)</span>'
+                                    : '';
+                        }
+                        var t = Ext.String.htmlEncode(v);
+                        var bulle = enCours ? t + ' - double-cliquez pour modifier' : t;
+                        return '<span data-qtip="' + bulle + '">' + t + '</span>';
+                    }
                 },
-               
                 {
                     header: 'Utilisateur',
                     dataIndex: 'lg_USER_ID',
@@ -88,22 +150,16 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     dataIndex: 'dt_CREATED',
                     flex: 1
                 }, {
-                    // Commentaire saisi a la creation : il porte le motif de l'inventaire et
-                    // reste la seule trace du pourquoi une fois celui-ci cloture.
-                    header: 'Commentaire',
-                    dataIndex: 'str_DESCRIPTION',
-                    flex: 1.5,
-                    renderer: function (v) {
-                        if (!v) {
-                            return '';
-                        }
-                        var t = Ext.String.htmlEncode(v);
-                        return '<span data-qtip="' + t + '">' + t + '</span>';
-                    }
-                }, {
                     header: 'Statut',
                     dataIndex: 'str_STATUT',
-                    flex: 1
+                    flex: 1,
+                    renderer: function (v, meta, record) {
+                        // Un inventaire cloture se repere d'un coup d'oeil dans la liste.
+                        if (record.get('etat') === 'is_Closed') {
+                            meta.style = 'color:#1f7a1f;font-weight:bold;';
+                        }
+                        return v;
+                    }
                 },
                 {
                     xtype: 'actioncolumn',
@@ -275,6 +331,30 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
             selModel: {
                 selType: 'cellmodel'
             },
+            /* Edition du commentaire au double-clic. Le plugin ne s'ouvre que sur la colonne
+             * Commentaire d'un inventaire EN COURS ; le serveur refuse de toute facon la
+             * modification d'un inventaire cloture. */
+            plugins: [Ext.create('Ext.grid.plugin.CellEditing', {
+                    pluginId: 'commentaireEditor',
+                    clicksToEdit: 2,
+                    listeners: {
+                        beforeedit: function (editor, e) {
+                            if (e.field !== 'str_DESCRIPTION') {
+                                return false;
+                            }
+                            if (e.record.get('etat') !== 'enable') {
+                                Ext.MessageBox.alert('Modification impossible',
+                                        'Cet inventaire est cl&ocirc;tur&eacute; : son commentaire ne peut plus '
+                                        + '&ecirc;tre modifi&eacute;.');
+                                return false;
+                            }
+                            return true;
+                        },
+                        edit: function (editor, e) {
+                            Me.enregistrerCommentaire(e.record, e.value, e.originalValue);
+                        }
+                    }
+                })],
             tbar: [{
                     text: 'Cr&eacute;er inventaire',
                     scope: this,
@@ -305,13 +385,37 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     emptyText: 'Type...',
                     listeners: {
                         select: function(cmp) {
-                            var value = cmp.getValue();
-                            var OGrid = Ext.getCmp('GridInventaireID');
-                            var url_services_data = '../webservices/stockmanagement/inventaire/ws_data.jsp';
-                            OGrid.getStore().getProxy().url = url_services_data + "?str_TYPE=" + value;
-                            OGrid.getStore().reload();
+                            Me.filtreStatut = cmp.getValue();
+                            Me.rechargerAvecFiltres();
                         }
                     }
+                }, '-', {
+                    /* Filtre de zone : les inventaires de reserve d'un cote, ceux du rayon de
+                     * l'autre. La recherche part au choix, comme le filtre de statut. */
+                    xtype: 'combobox',
+                    id: 'str_ZONE_INVENTAIRE',
+                    store: store_zone,
+                    valueField: 'str_ZONE',
+                    displayField: 'str_LIBELLE',
+                    queryMode: 'local',
+                    editable: false,
+                    width: 150,
+                    emptyText: 'Rayon / Reserve...',
+                    listeners: {
+                        select: function (cmp) {
+                            Me.filtreZone = cmp.getValue();
+                            Me.rechargerAvecFiltres();
+                        }
+                    }
+                }, '-', {
+                    /* Suppression de plusieurs inventaires cochés, l'un apres l'autre, en
+                     * reutilisant exactement le meme appel que la suppression unitaire. */
+                    text: 'Supprimer la s&eacute;lection',
+                    itemId: 'btnSupprimerSelection',
+                    icon: 'resources/images/icons/fam/delete.png',
+                    disabled: true,
+                    scope: this,
+                    handler: this.onRemoveSelectionClick
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -333,6 +437,128 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
     loadStore: function() {
         this.getStore().load({
             callback: this.onStoreLoad
+        });
+    },
+    /* Filtres courants de l'ecran. Les deux sont envoyes ensemble : choisir une zone ne doit
+     * pas faire oublier le statut deja selectionne, et inversement. */
+    filtreStatut: '',
+    filtreZone: '',
+    rechargerAvecFiltres: function () {
+        var url = '../webservices/stockmanagement/inventaire/ws_data.jsp';
+        var params = [];
+        if (this.filtreStatut) {
+            params.push('str_TYPE=' + encodeURIComponent(this.filtreStatut));
+        }
+        if (this.filtreZone && this.filtreZone !== 'ALL') {
+            params.push('str_ZONE=' + encodeURIComponent(this.filtreZone));
+        }
+        this.getStore().getProxy().url = params.length ? url + '?' + params.join('&') : url;
+        this.getStore().loadPage(1);
+    },
+    /* Le bouton de suppression multiple ne s'active que s'il y a au moins une ligne cochee. */
+    majBoutonSuppressionMultiple: function () {
+        var btn = this.down('#btnSupprimerSelection');
+        if (btn) {
+            btn.setDisabled(this.getInventairesCoches().length === 0);
+        }
+    },
+    getInventairesCoches: function () {
+        var coches = [];
+        this.getStore().each(function (rec) {
+            if (rec.get('bl_A_SUPPRIMER') === true && rec.get('etat') !== 'is_Closed') {
+                coches.push(rec);
+            }
+        });
+        return coches;
+    },
+    /* Suppression des inventaires coches, un par un et dans l'ordre, avec le MEME appel que la
+     * suppression unitaire. Un echec sur une ligne n'arrete pas les suivantes : le bilan est
+     * presente a la fin. */
+    onRemoveSelectionClick: function () {
+        var me = this;
+        var aSupprimer = me.getInventairesCoches();
+        if (!aSupprimer.length) {
+            Ext.MessageBox.alert('Message', 'Cochez au moins un inventaire &agrave; supprimer.');
+            return;
+        }
+        Ext.MessageBox.confirm('Confirmation',
+                'Supprimer <b>' + aSupprimer.length + '</b> inventaire(s) ? Cette action est d&eacute;finitive.',
+                function (btn) {
+                    if (btn !== 'yes') {
+                        return;
+                    }
+                    var succes = 0, echecs = [];
+                    testextjs.app.getController('App').ShowWaitingProcess();
+                    var suivant = function (index) {
+                        if (index >= aSupprimer.length) {
+                            testextjs.app.getController('App').StopWaitingProcess();
+                            var msg = '<b>' + succes + '</b> inventaire(s) supprim&eacute;(s).';
+                            if (echecs.length) {
+                                msg += '<br/><br/><b style="color:#c0392b">Non supprim&eacute;(s) : '
+                                        + echecs.length + '</b><ul style="margin:4px 0 0 16px">'
+                                        + echecs.join('') + '</ul>';
+                            }
+                            Ext.MessageBox.alert('Suppression', msg);
+                            me.getStore().reload();
+                            me.majBoutonSuppressionMultiple();
+                            return;
+                        }
+                        var rec = aSupprimer[index];
+                        Ext.Ajax.request({
+                            url: url_services_transaction_inventaire + 'delete',
+                            timeout: 1800000,
+                            params: {lg_INVENTAIRE_ID: rec.get('lg_INVENTAIRE_ID')},
+                            callback: function (opts, ok, response) {
+                                var object = ok ? Ext.JSON.decode(response.responseText, true) : null;
+                                if (ok && object && object.code_statut != "0") {
+                                    succes++;
+                                } else {
+                                    echecs.push('<li>' + Ext.String.htmlEncode(rec.get('str_NAME') || '')
+                                            + ' &mdash; ' + Ext.String.htmlEncode(
+                                            (object && object.desc_satut) ? object.desc_satut : 'echec')
+                                            + '</li>');
+                                }
+                                suivant(index + 1);
+                            }
+                        });
+                    };
+                    suivant(0);
+                });
+    },
+    /* Enregistrement du commentaire modifie au double-clic. En cas de refus ou d'erreur, la
+     * valeur precedente est remise a l'ecran : jamais d'affichage different de la base. */
+    enregistrerCommentaire: function (record, valeur, ancienneValeur) {
+        var texte = (valeur || '').trim();
+        if (texte === (ancienneValeur || '').trim()) {
+            return;
+        }
+        var remettre = function () {
+            record.set('str_DESCRIPTION', ancienneValeur);
+            record.commit();
+        };
+        if (!texte) {
+            Ext.MessageBox.alert('Message', 'Le commentaire ne peut pas &ecirc;tre vide.');
+            remettre();
+            return;
+        }
+        Ext.Ajax.request({
+            url: url_services_rest_inventaire + '/commentaire/'
+                    + encodeURIComponent(record.get('lg_INVENTAIRE_ID')),
+            method: 'POST',
+            jsonData: {commentaire: texte},
+            success: function (response) {
+                var res = Ext.JSON.decode(response.responseText, true) || {};
+                if (res.success === false) {
+                    Ext.MessageBox.alert('Modification impossible', res.message || 'Modification refus&eacute;e.');
+                    remettre();
+                    return;
+                }
+                record.commit();
+            },
+            failure: function () {
+                Ext.MessageBox.alert('Erreur', "L'enregistrement du commentaire a &eacute;chou&eacute;.");
+                remettre();
+            }
         });
     },
     /* Reedition de la liste des ecarts depuis la liste des inventaires :

@@ -261,7 +261,6 @@ public class Params implements Serializable {
                 + userId + '}';
     }
 
-
     public String getZone() {
         return zone;
     }

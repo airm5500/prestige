@@ -41,6 +41,14 @@ Ext.define('testextjs.model.Inventaire', {
     {
         name: 'int_TOTAL',
         type: 'int'
+    },
+    /* Coche de selection pour la suppression multiple. Champ d'ecran uniquement :
+     * il n'est ni envoye ni attendu du serveur. */
+    {
+        name: 'bl_A_SUPPRIMER',
+        type: 'boolean',
+        defaultValue: false,
+        persist: false
     }
     ]
 });

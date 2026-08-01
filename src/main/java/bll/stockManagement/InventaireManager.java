@@ -518,6 +518,62 @@ public class InventaireManager extends bllBase {
         return lstTInventaire;
     }
 
+    /**
+     * Liste des inventaires restreinte a une ZONE : 'reserve' pour les inventaires de reserve, 'rayon' pour tous les
+     * autres.
+     *
+     * <p>
+     * Methode distincte des deux listInventaire() existantes, qui restent inchangees : l'ecran ne l'emprunte que
+     * lorsque le filtre de zone est renseigne.
+     *
+     * @param str_STATUT
+     *            statut recherche, vide pour "en cours et clotures"
+     * @param zone
+     *            'reserve' ou 'rayon' ; toute autre valeur ne filtre rien
+     */
+    public List<TInventaire> listInventaireParZone(String lg_INVENTAIRE_ID, String str_STATUT, String zone) {
+
+        List<TInventaire> lstTInventaire = new ArrayList<>();
+        try {
+            String lg_EMPLACEMENT_ID = this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            boolean tousStatuts = (str_STATUT == null || str_STATUT.trim().isEmpty());
+            boolean reserve = "reserve".equalsIgnoreCase(zone);
+            boolean rayon = "rayon".equalsIgnoreCase(zone);
+
+            StringBuilder jpql = new StringBuilder("SELECT t FROM TInventaire t WHERE t.lgINVENTAIREID LIKE ?1"
+                    + " AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2");
+            if (tousStatuts) {
+                jpql.append(" AND (t.strSTATUT LIKE ?3 OR t.strSTATUT LIKE ?4)");
+            } else {
+                jpql.append(" AND t.strSTATUT LIKE ?3");
+            }
+            if (reserve) {
+                jpql.append(" AND LOWER(t.strTYPE) = 'reserve'");
+            } else if (rayon) {
+                // Tout ce qui n'est pas un inventaire de reserve releve du rayon, y compris les
+                // inventaires dont le type n'est pas renseigne.
+                jpql.append(" AND (t.strTYPE IS NULL OR LOWER(t.strTYPE) <> 'reserve')");
+            }
+            jpql.append(" ORDER BY t.dtCREATED DESC");
+
+            javax.persistence.Query q = this.getOdataManager().getEm().createQuery(jpql.toString());
+            q.setParameter(1, lg_INVENTAIRE_ID);
+            q.setParameter(2, lg_EMPLACEMENT_ID);
+            if (tousStatuts) {
+                q.setParameter(3, commonparameter.statut_enable);
+                q.setParameter(4, commonparameter.statut_is_Closed);
+            } else {
+                q.setParameter(3, str_STATUT);
+            }
+            lstTInventaire = q.getResultList();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return lstTInventaire;
+    }
+
     public List<TInventaire> listInventaire(String lg_INVENTAIRE_ID) {
 
         List<TInventaire> lstTInventaire = new ArrayList<>();

@@ -381,6 +381,27 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                 formulaire = fenetre.down('form');
         var internal_url = "";
 
+        // Recapitulatif des produits que le serveur n'a pas pu inventorier. La creation reste
+        // valable pour les autres ; sans ce rappel l'ecart n'apparaissait qu'au comptage.
+        function recapIgnores(ignores) {
+            if (!ignores || !ignores.length) {
+                return '';
+            }
+            var lignes = [], i, p, MAX = 15;
+            for (i = 0; i < ignores.length && i < MAX; i++) {
+                p = ignores[i] || {};
+                lignes.push('<li>' + Ext.String.htmlEncode(p.int_CIP || p.lg_FAMILLE_ID || '?')
+                        + ' ' + Ext.String.htmlEncode(p.str_NAME || '')
+                        + ' <span style="color:#888">&mdash; ' + Ext.String.htmlEncode(p.motif || '')
+                        + '</span></li>');
+            }
+            if (ignores.length > MAX) {
+                lignes.push('<li>&hellip; et ' + (ignores.length - MAX) + ' autre(s)</li>');
+            }
+            return '<br/><br/><b style="color:#c0392b">Produit(s) non inventorie(s) : ' + ignores.length + '</b>'
+                    + '<ul style="margin:4px 0 0 16px;max-height:180px;overflow:auto">' + lignes.join('') + '</ul>';
+        }
+
         if (Ext.getCmp('str_TYPE_TRANSACTION').getValue() === null) {
             Ext.MessageBox.alert('Message d\'erreur', 'Veuillez s&eacute;lectionner un type inventaire');
             return;
@@ -405,7 +426,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                         return;
                     }
                     Ext.MessageBox.alert('Infos', 'Inventaire reserve cree.<br>Produits en compte : <b>'
-                            + res.count + '</b>');
+                            + res.count + '</b>' + recapIgnores(res.ignores));
                     Oview.getStore().reload();
                     button.up('window').close();
                 },

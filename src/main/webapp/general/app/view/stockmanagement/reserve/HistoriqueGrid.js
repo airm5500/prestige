@@ -214,8 +214,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.HistoriqueGrid', {
                         }
                         if (rec.get('bl_ANNULE')) {
                             m.style = 'color:#b06000;font-weight:bold;';
-                            m.tdAttr = 'data-qtip="Ce mouvement a ete annule par un mouvement inverse posterieur."';
-                            return 'Annule';
+                            m.tdAttr = 'data-qtip="Ce mouvement a \u00e9t\u00e9 annul\u00e9 par un mouvement inverse post\u00e9rieur."';
+                            return 'Annul\u00e9';
                         }
                         return '';
                     }

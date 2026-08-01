@@ -110,8 +110,8 @@ public interface SuggestionReserveService {
      * Enregistre la quantite retenue d'une ligne. Aucun stock ne bouge a ce stade.
      *
      * <p>
-     * Une quantite de zero retire la ligne de la suggestion et trace la suppression, conformement au parcours de
-     * saisie au clavier.
+     * Une quantite de zero retire la ligne de la suggestion et trace la suppression, conformement au parcours de saisie
+     * au clavier.
      */
     JSONObject majQuantiteRetenue(TUser user, String detailId, int qte, String motif);
 
@@ -170,8 +170,8 @@ public interface SuggestionReserveService {
     JSONObject compteRendu(TUser user, String suggestionId);
 
     /**
-     * Export Excel du compte rendu : en-tete de la suggestion (reference, statut, motif, dates, createur et
-     * cloturant) puis le detail ligne par ligne, echecs compris.
+     * Export Excel du compte rendu : en-tete de la suggestion (reference, statut, motif, dates, createur et cloturant)
+     * puis le detail ligne par ligne, echecs compris.
      */
     byte[] exportCompteRenduExcel(TUser user, String suggestionId) throws java.io.IOException;
 
@@ -238,8 +238,8 @@ public interface SuggestionReserveService {
      * <p>
      * Le flux de vente est en transaction geree par le conteneur : il n'offre aucun point apres validation. On
      * s'inscrit donc sur la transaction en cours, et l'evaluation se declenche a sa cloture, quand le stock est
-     * definitif. Sans cela, la vente qui fait franchir le seuil ne serait pas vue et le declenchement aurait une
-     * vente de retard.
+     * definitif. Sans cela, la vente qui fait franchir le seuil ne serait pas vue et le declenchement aurait une vente
+     * de retard.
      *
      * <p>
      * Les produits d'une meme vente sont regroupes : une seule evaluation pour l'ensemble du ticket.
@@ -254,8 +254,8 @@ public interface SuggestionReserveService {
      * Evaluation declenchee apres validation d'une vente, soumise au parametre d'activation.
      *
      * <p>
-     * Usage interne, appelee par le mecanisme ci-dessus. Positionner le parametre
-     * {@code SUGGESTION_RESERVE_HOOK_VENTE} a {@code 0} desactive ce declenchement sans redeploiement.
+     * Usage interne, appelee par le mecanisme ci-dessus. Positionner le parametre {@code SUGGESTION_RESERVE_HOOK_VENTE}
+     * a {@code 0} desactive ce declenchement sans redeploiement.
      */
     void evaluerApresVente(TUser user, java.util.Collection<String> familleIds);
 }

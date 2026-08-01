@@ -680,7 +680,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     return;
                 }
                 Ext.MessageBox.confirm('Confirmation',
-                        'Traiter ' + aTraiter + ' ligne(s) ? Le stock sera deplace.',
+                        'Traiter ' + aTraiter + ' ligne(s) ? Le stock sera d\u00e9plac\u00e9.',
                         function (btn) {
                             if (btn === 'yes') {
                                 lancerTraitement(baseUrl + encodeURIComponent(id) + '/traiter', false);

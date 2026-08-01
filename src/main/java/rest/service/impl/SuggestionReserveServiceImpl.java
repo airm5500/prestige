@@ -90,8 +90,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     // ----------------------------------------------------------------- CREATION
 
     @Override
-    public JSONObject creer(TUser user, String categorie, Integer motifId, String commentaire,
-            List<JSONObject> items) {
+    public JSONObject creer(TUser user, String categorie, Integer motifId, String commentaire, List<JSONObject> items) {
         String cat = normaliserCategorie(categorie);
         if (items == null || items.isEmpty()) {
             return echec("Aucun article selectionne.");
@@ -99,8 +98,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         // Motif obligatoire : chaque mouvement de reserve doit pouvoir etre justifie a posteriori.
         // Controle cote serveur, l'ecran ne fait qu'anticiper le refus.
         if (motifId == null) {
-            return echec("Le motif est obligatoire : precisez pourquoi cette suggestion est creee.")
-                    .put("code", "MOTIF_OBLIGATOIRE");
+            return echec("Le motif est obligatoire : precisez pourquoi cette suggestion est creee.").put("code",
+                    "MOTIF_OBLIGATOIRE");
         }
         MotifSuggestionReserve motif = em.find(MotifSuggestionReserve.class, motifId);
         if (motif == null) {
@@ -150,8 +149,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     }
 
     /**
-     * Ajoute une ligne en figeant la proposition du systeme et son explication. Retourne {@code null} si le produit
-     * est deja present dans cette suggestion ou s'il n'y a rien a proposer.
+     * Ajoute une ligne en figeant la proposition du systeme et son explication. Retourne {@code null} si le produit est
+     * deja present dans cette suggestion ou s'il n'y a rien a proposer.
      */
     private TSuggestionReserveDetail ajouterLigne(TUser user, TSuggestionReserve s, String familleId,
             int qteRetenueDemandee) {
@@ -199,8 +198,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 : p.optString("str_FORMULE", ""));
         // La ligne n'est "modifiee" que si l'utilisateur s'ecarte reellement de ce qui a ete propose.
         d.setStrETAT(qteRetenueDemandee > 0 && qteRetenueDemandee != propositionInitiale
-                ? TSuggestionReserveDetail.ETAT_MODIFIEE
-                : TSuggestionReserveDetail.ETAT_PROPOSEE);
+                ? TSuggestionReserveDetail.ETAT_MODIFIEE : TSuggestionReserveDetail.ETAT_PROPOSEE);
         d.setDtCREATED(new Date());
         em.persist(d);
         return d;
@@ -371,8 +369,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                     .createQuery("SELECT DISTINCT d.lgFAMILLEID.lgFAMILLEID FROM TSuggestionReserveDetail d"
                             + " WHERE d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID IN :ids"
                             + " AND d.strETAT <> :retiree ORDER BY d.lgFAMILLEID.lgFAMILLEID")
-                    .setParameter("ids", suggestionIds)
-                    .setParameter("retiree", TSuggestionReserveDetail.ETAT_SUPPRIMEE).getResultList();
+                    .setParameter("ids", suggestionIds).setParameter("retiree", TSuggestionReserveDetail.ETAT_SUPPRIMEE)
+                    .getResultList();
 
             long total = familleIds.size();
             List<String> page = familleIds;
@@ -403,8 +401,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                     .createQuery("SELECT d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID, COUNT(d)"
                             + " FROM TSuggestionReserveDetail d"
                             + " WHERE d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID IN :ids"
-                            + " AND d.strETAT <> :retiree"
-                            + " GROUP BY d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID")
+                            + " AND d.strETAT <> :retiree" + " GROUP BY d.lgSUGGESTIONRESERVEID.lgSUGGESTIONRESERVEID")
                     .setParameter("ids", ids).setParameter("retiree", TSuggestionReserveDetail.ETAT_SUPPRIMEE)
                     .getResultList();
             for (Object[] r : rows) {
@@ -479,8 +476,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     // ---------------------------------------------------------------- VERROU
 
     /**
-     * Au-dela de ce delai sans activite, le verrou est considere comme abandonne. Sans cela, un poste ferme
-     * brutalement condamnerait la suggestion pour tout le monde.
+     * Au-dela de ce delai sans activite, le verrou est considere comme abandonne. Sans cela, un poste ferme brutalement
+     * condamnerait la suggestion pour tout le monde.
      */
     private static final long VERROU_EXPIRATION_MS = 20L * 60L * 1000L;
 
@@ -522,10 +519,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         LOG.log(Level.INFO, "verrou refuse suggestion={0} occupant={1} demandeur={2}",
                 new Object[] { suggestionId, occupant.getLgUSERID(), user.getLgUSERID() });
         return detail.put("modifiable", false).put("verrou_par", nomUtilisateur(occupant))
-                .put("verrou_depuis", dateTexte(s.getDtVERROU()))
-                .put("motif_lecture_seule", nomUtilisateur(occupant) + " a ouvert cette suggestion depuis "
-                        + dateTexte(s.getDtVERROU())
-                        + ". Vous pouvez la consulter, mais pas la modifier tant qu'elle est occupee.");
+                .put("verrou_depuis", dateTexte(s.getDtVERROU())).put("motif_lecture_seule",
+                        nomUtilisateur(occupant) + " a ouvert cette suggestion depuis " + dateTexte(s.getDtVERROU())
+                                + ". Vous pouvez la consulter, mais pas la modifier tant qu'elle est occupee.");
     }
 
     @Override
@@ -559,8 +555,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 || (System.currentTimeMillis() - s.getDtVERROU().getTime()) > VERROU_EXPIRATION_MS;
         if (occupant != null && !perime && !occupant.getLgUSERID().equals(user.getLgUSERID())) {
             return echec(nomUtilisateur(occupant) + " a ouvert cette suggestion depuis " + dateTexte(s.getDtVERROU())
-                    + " : vos modifications ne peuvent pas etre enregistrees tant qu'elle est occupee.")
-                            .put("code", "SUGGESTION_OCCUPEE");
+                    + " : vos modifications ne peuvent pas etre enregistrees tant qu'elle est occupee.").put("code",
+                            "SUGGESTION_OCCUPEE");
         }
         // L'utilisateur travaille dessus : on repousse l'expiration.
         s.setLgUSERVERROUID(user);
@@ -771,8 +767,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         String etat = d.getStrETAT();
         // ANNULEE comprise : rejouer une ligne annulee reproduirait exactement le mouvement que
         // l'on vient de defaire.
-        if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)
-                || TSuggestionReserveDetail.ETAT_TRAITEE.equals(etat)
+        if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat) || TSuggestionReserveDetail.ETAT_TRAITEE.equals(etat)
                 || TSuggestionReserveDetail.ETAT_ANNULEE.equals(etat)) {
             return false;
         }
@@ -897,10 +892,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             }
         }
 
-        return new JSONObject().put("success", true).put("entete", enteteJson(s))
-                .put("total_demande", demandes).put("total_reussi", reussis).put("total_echoue", echoues)
-                .put("total_supprime", supprimes).put("total_ignore", ignores)
-                .put("articles_traites", traites).put("articles_non_traites", nonTraites)
+        return new JSONObject().put("success", true).put("entete", enteteJson(s)).put("total_demande", demandes)
+                .put("total_reussi", reussis).put("total_echoue", echoues).put("total_supprime", supprimes)
+                .put("total_ignore", ignores).put("articles_traites", traites).put("articles_non_traites", nonTraites)
                 .put("relancable", echoues > 0);
     }
 
@@ -912,8 +906,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         String etat = d.getStrETAT();
         if (TSuggestionReserveDetail.ETAT_ANNULEE.equals(etat)) {
             String motif = texte(d.getStrMOTIFLIGNE());
-            return motif.isEmpty() ? "Mouvement annule : le stock a ete remis en place."
-                    : motif;
+            return motif.isEmpty() ? "Mouvement annule : le stock a ete remis en place." : motif;
         }
         if (TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(etat)) {
             String motif = texte(d.getStrMOTIFLIGNE());
@@ -944,24 +937,21 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         String titre = "Compte rendu " + texte(s.getStrREF()) + " - " + libelleSens(s.getStrCATEGORIE()) + " - statut "
                 + texte(s.getStrSTATUT()) + " - motif " + (s.getMotif() != null ? s.getMotif().getLibelle() : "-")
                 + " - creee le " + dateTexte(s.getDtCREATED()) + " par " + nomUtilisateur(s.getLgUSERCREATEURID())
-                + (s.getDtCLOTURE() != null
-                        ? " - cloturee le " + dateTexte(s.getDtCLOTURE()) + " par "
-                                + nomUtilisateur(s.getLgUSERCLOTUREID())
-                        : "")
+                + (s.getDtCLOTURE() != null ? " - cloturee le " + dateTexte(s.getDtCLOTURE()) + " par "
+                        + nomUtilisateur(s.getLgUSERCLOTUREID()) : "")
                 // Le controle fait partie du compte rendu : un classeur archive doit dire si
                 // quelqu'un a constate que le deplacement avait bien ete fait.
-                + (s.getDtCONTROLE() != null
-                        ? " - controlee le " + dateTexte(s.getDtCONTROLE()) + " par "
-                                + nomUtilisateur(s.getLgUSERCONTROLEID())
-                                + (notBlank(s.getStrOBSERVATIONCONTROLE())
-                                        ? " (" + s.getStrOBSERVATIONCONTROLE() + ")" : "")
+                + (s.getDtCONTROLE() != null ? " - controlee le " + dateTexte(s.getDtCONTROLE()) + " par "
+                        + nomUtilisateur(s.getLgUSERCONTROLEID())
+                        + (notBlank(s.getStrOBSERVATIONCONTROLE()) ? " (" + s.getStrOBSERVATIONCONTROLE() + ")" : "")
                         : " - NON CONTROLEE");
-        String[] entetes = { "CIP", "Designation", "Declencheur", "Qte proposee", "Qte retenue", "Qte deplacee",
-                "Etat", "Code echec", "Motif / message" };
+        String[] entetes = { "CIP", "Designation", "Declencheur", "Qte proposee", "Qte retenue", "Qte deplacee", "Etat",
+                "Code echec", "Motif / message" };
         return reportExcelExportService.createExcelReport(titre, entetes, lignes, (row, d) -> {
             int col = 0;
             row.createCell(col++).setCellValue(d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getIntCIP()) : "");
-            row.createCell(col++).setCellValue(d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getStrNAME()) : "");
+            row.createCell(col++)
+                    .setCellValue(d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getStrNAME()) : "");
             row.createCell(col++).setCellValue(texte(d.getStrFORMULE()));
             row.createCell(col++).setCellValue(nz(d.getIntQTEPROPOSEE()));
             row.createCell(col++).setCellValue(d.getIntQTERETENUE() != null ? d.getIntQTERETENUE() : 0);
@@ -1015,8 +1005,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         // Un controle deja pose n'est pas remplace : on perdrait la trace du premier controleur.
         if (s.getDtCONTROLE() != null) {
-            return echec("Cette suggestion a deja ete controlee par " + nomUtilisateur(s.getLgUSERCONTROLEID())
-                    + " le " + dateTexte(s.getDtCONTROLE()) + ".");
+            return echec("Cette suggestion a deja ete controlee par " + nomUtilisateur(s.getLgUSERCONTROLEID()) + " le "
+                    + dateTexte(s.getDtCONTROLE()) + ".");
         }
         s.setLgUSERCONTROLEID(user);
         s.setDtCONTROLE(new java.util.Date());
@@ -1024,11 +1014,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         s.setDtUPDATED(new java.util.Date());
         em.merge(s);
 
-        LOG.log(Level.INFO, "controle suggestion={0} user={1}",
-                new Object[] { suggestionId, user.getLgUSERID() });
+        LOG.log(Level.INFO, "controle suggestion={0} user={1}", new Object[] { suggestionId, user.getLgUSERID() });
         return new JSONObject().put("success", true).put("str_USER_CONTROLE", nomUtilisateur(user))
-                .put("dt_CONTROLE", dateTexte(s.getDtCONTROLE()))
-                .put("message", "Controle enregistre.");
+                .put("dt_CONTROLE", dateTexte(s.getDtCONTROLE())).put("message", "Controle enregistre.");
     }
 
     @Override
@@ -1071,8 +1059,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (d == null) {
             return echec("Ligne introuvable.").put("code", "LIGNE_INTROUVABLE");
         }
-        JSONObject identite = new JSONObject()
-                .put("lg_SUGGESTION_RESERVE_DETAIL_ID", detailId)
+        JSONObject identite = new JSONObject().put("lg_SUGGESTION_RESERVE_DETAIL_ID", detailId)
                 .put("int_CIP", d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getIntCIP()) : "")
                 .put("str_NAME", d.getLgFAMILLEID() != null ? texte(d.getLgFAMILLEID().getStrNAME()) : "");
 
@@ -1144,9 +1131,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         self.finaliserAnnulation(user, suggestionId);
         LOG.log(Level.INFO, "annulation suggestion={0} annulees={1} refusees={2} user={3}",
                 new Object[] { suggestionId, annulees.length(), refusees.length(), user.getLgUSERID() });
-        return new JSONObject().put("success", refusees.length() == 0)
-                .put("total_annule", annulees.length()).put("total_refuse", refusees.length())
-                .put("lignes_annulees", annulees).put("lignes_refusees", refusees)
+        return new JSONObject().put("success", refusees.length() == 0).put("total_annule", annulees.length())
+                .put("total_refuse", refusees.length()).put("lignes_annulees", annulees)
+                .put("lignes_refusees", refusees)
                 .put("lignes_non_annulables", nonAnnulables == null ? new JSONArray() : nonAnnulables)
                 .put("message", annulees.length() + " ligne(s) annulee(s), " + refusees.length() + " refusee(s).");
     }
@@ -1167,16 +1154,15 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(d.getStrETAT())) {
                 ids.put(d.getLgSUGGESTIONRESERVEDETAILID());
             } else if (TSuggestionReserveDetail.ETAT_ANNULEE.equals(d.getStrETAT())) {
-                nonAnnulables.put(ligneJson(user, d).put("motif_refus",
-                        "Ligne deja annulee : son mouvement a deja ete defait."));
+                nonAnnulables.put(
+                        ligneJson(user, d).put("motif_refus", "Ligne deja annulee : son mouvement a deja ete defait."));
             } else if (!TSuggestionReserveDetail.ETAT_SUPPRIMEE.equals(d.getStrETAT())) {
                 // Rien n'a bouge pour cette ligne : il n'y a tout simplement rien a defaire.
-                nonAnnulables.put(ligneJson(user, d).put("motif_refus",
-                        "Ligne non traitee : aucun mouvement a annuler."));
+                nonAnnulables
+                        .put(ligneJson(user, d).put("motif_refus", "Ligne non traitee : aucun mouvement a annuler."));
             }
         }
-        return new JSONObject().put("success", true).put("ids", ids)
-                .put("lignes_non_annulables", nonAnnulables);
+        return new JSONObject().put("success", true).put("ids", ids).put("lignes_non_annulables", nonAnnulables);
     }
 
     /**
@@ -1354,8 +1340,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return;
         }
         if (seuilReserve > 0 && stockRayon > seuilReserve) {
-            JSONObject versReserve = reserveService.proposition(user, familleId,
-                    TSuggestionReserve.CATEGORIE_RESERVE);
+            JSONObject versReserve = reserveService.proposition(user, familleId, TSuggestionReserve.CATEGORIE_RESERVE);
             if (versReserve != null && versReserve.optInt("int_PROPOSITION", 0) > 0) {
                 rattacher(user, TSuggestionReserve.CATEGORIE_RESERVE, familleId);
             }
@@ -1412,10 +1397,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     /** Premier motif actif du sens concerne : avec le referentiel livre, le motif journalier. */
     private MotifSuggestionReserve motifParDefaut(String categorie) {
         try {
-            TypedQuery<MotifSuggestionReserve> q = em.createQuery(
-                    "SELECT m FROM MotifSuggestionReserve m WHERE m.actif = true AND m.categorie = :cat"
-                            + " ORDER BY m.id ASC",
-                    MotifSuggestionReserve.class);
+            TypedQuery<MotifSuggestionReserve> q = em
+                    .createQuery("SELECT m FROM MotifSuggestionReserve m WHERE m.actif = true AND m.categorie = :cat"
+                            + " ORDER BY m.id ASC", MotifSuggestionReserve.class);
             q.setParameter("cat", categorie);
             q.setMaxResults(1);
             List<MotifSuggestionReserve> l = q.getResultList();

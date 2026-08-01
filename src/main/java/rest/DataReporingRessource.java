@@ -168,8 +168,8 @@ public class DataReporingRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
             @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
-            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre,
-            @QueryParam(value = "nombreMois") int nombreMois) throws IOException, JSONException {
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre, @QueryParam(value = "nombreMois") int nombreMois)
+            throws IOException, JSONException {
 
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -194,8 +194,8 @@ public class DataReporingRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
             @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
-            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre,
-            @QueryParam(value = "nombreMois") int nombreMois) throws IOException, JSONException {
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre, @QueryParam(value = "nombreMois") int nombreMois)
+            throws IOException, JSONException {
 
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -219,8 +219,8 @@ public class DataReporingRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "codeFamile") String codeFamile,
             @QueryParam(value = "query") String query, @QueryParam(value = "codeRayon") String codeRayon,
             @QueryParam(value = "codeGrossiste") String codeGrossiste, @QueryParam(value = "stock") int stock,
-            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre,
-            @QueryParam(value = "nombreMois") int nombreMois) throws JSONException {
+            @QueryParam(value = "stockFiltre") MargeEnum stockFiltre, @QueryParam(value = "nombreMois") int nombreMois)
+            throws JSONException {
 
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);

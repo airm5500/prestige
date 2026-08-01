@@ -56,8 +56,8 @@ public class ReserveRessource {
     }
 
     /**
-     * Export Excel de l'onglet courant. Les parametres sont ceux de {@code articles} : l'export respecte donc le
-     * filtre de recherche actif et contient les memes lignes que la grille.
+     * Export Excel de l'onglet courant. Les parametres sont ceux de {@code articles} : l'export respecte donc le filtre
+     * de recherche actif et contient les memes lignes que la grille.
      */
     @GET
     @Path("export/excel")
@@ -84,9 +84,8 @@ public class ReserveRessource {
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return Response.ok()
-                .entity(new JSONObject().put("int_STOCK_RESERVE", reserveService.stockReserve(user, familleId))
-                        .toString())
+        return Response.ok().entity(
+                new JSONObject().put("int_STOCK_RESERVE", reserveService.stockReserve(user, familleId)).toString())
                 .build();
     }
 
@@ -149,8 +148,8 @@ public class ReserveRessource {
         }
         byte[] data = reserveService.exportHistoriqueExcel(user, search, type, dtStart, dtEnd, heureDebut, heureFin,
                 userId, annulation);
-        return Response.ok(data)
-                .header("Content-Disposition", "attachment; filename=\"historique_reserve.xls\"").build();
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"historique_reserve.xls\"")
+                .build();
     }
 
     /**

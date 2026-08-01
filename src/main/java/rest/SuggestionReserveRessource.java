@@ -65,8 +65,8 @@ public class SuggestionReserveRessource {
             @QueryParam("origine") String origine, @QueryParam("motifId") Integer motifId,
             @QueryParam("search_value") String search, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("userId") String userId,
-            @QueryParam("controle") String controle, @QueryParam("tri") String tri,
-            @QueryParam("start") int start, @QueryParam("limit") int limit) {
+            @QueryParam("controle") String controle, @QueryParam("tri") String tri, @QueryParam("start") int start,
+            @QueryParam("limit") int limit) {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -98,9 +98,8 @@ public class SuggestionReserveRessource {
         if (user == null) {
             return deconnecte();
         }
-        return Response.ok()
-                .entity(new JSONObject().put("total", suggestionReserveService.compterSuggestionsEnAttente(user))
-                        .toString())
+        return Response.ok().entity(
+                new JSONObject().put("total", suggestionReserveService.compterSuggestionsEnAttente(user)).toString())
                 .build();
     }
 
@@ -357,7 +356,7 @@ public class SuggestionReserveRessource {
             return deconnecte();
         }
         byte[] data = suggestionReserveService.exportCompteRenduExcel(user, id);
-        return Response.ok(data)
-                .header("Content-Disposition", "attachment; filename=\"compte_rendu_suggestion.xls\"").build();
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"compte_rendu_suggestion.xls\"")
+                .build();
     }
 }

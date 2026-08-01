@@ -81,7 +81,6 @@ public interface MvtProduitService {
     void validerFullBlRetourFournisseur(TRetourFournisseur retourFournisseur, TMotifRetour motifRetour,
             List<TBonLivraisonDetail> bonLivraisonDetails);
 
-
     /**
      * Produits distincts contenus dans un ajustement.
      *

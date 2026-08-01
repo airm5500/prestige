@@ -110,8 +110,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 tabConfig: {
                     cls: 'tab-suggestions',
                     tooltip: tip('Les suggestions enregistrees, a traiter ou deja traitees.<br>'
-                            + 'Chaque suggestion garde la trace de ce qui a ete propose,<br>'
-                            + 'de ce qui a ete retenu et de ce qui a reellement ete deplace.')
+                            + 'Chaque suggestion garde la trace de ce qui a été proposé,<br>'
+                            + 'de ce qui a été retenu et de ce qui a réellement été déplacé.')
                 }
             },
             {

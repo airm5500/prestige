@@ -26,6 +26,29 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
         soustitre: ''
     },
 
+    // Recapitulatif des produits que le serveur n'a pas pu inventorier.
+    //
+    // La creation n'echoue pas pour autant : les autres produits sont bien inventories. Sans ce
+    // rappel, un produit ecarte disparaissait silencieusement et l'ecart n'etait constate qu'au
+    // moment du comptage.
+    messageIgnores: function (ignores) {
+        if (!ignores || !ignores.length) {
+            return '';
+        }
+        var lignes = [], i, p, MAX = 15;
+        for (i = 0; i < ignores.length && i < MAX; i++) {
+            p = ignores[i] || {};
+            lignes.push('<li>' + Ext.String.htmlEncode(p.int_CIP || p.lg_FAMILLE_ID || '?')
+                    + ' ' + Ext.String.htmlEncode(p.str_NAME || '')
+                    + ' <span style="color:#888">&mdash; ' + Ext.String.htmlEncode(p.motif || '') + '</span></li>');
+        }
+        if (ignores.length > MAX) {
+            lignes.push('<li>&hellip; et ' + (ignores.length - MAX) + ' autre(s)</li>');
+        }
+        return '<br/><br/><b style="color:#c0392b">Produit(s) non inventorie(s) : ' + ignores.length + '</b>'
+                + '<ul style="margin:4px 0 0 16px;max-height:180px;overflow:auto">' + lignes.join('') + '</ul>';
+    },
+
     initComponent: function () {
         var me = this;
         var typeParam = me.getTypetransaction() || 'ALL';
@@ -306,13 +329,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                                             win.close();
                                             Ext.MessageBox.alert('Inventaire',
                                                     'Inventaire cree.<br/>Produits en compte : <b>'
-                                                    + (res.count || 0) + '</b>');
+                                                    + (res.count || 0) + '</b>'
+                                                    + me.messageIgnores(res.ignores));
                                         },
                                         failure: function () {
                                             progress.hide();
                                             Ext.MessageBox.alert('Erreur',
                                                     "La creation de l'inventaire a echoue. "
-                                                    + "Aucun inventaire partiel n'a ete cree.");
+                                                    + "Aucun inventaire partiel n'a été créé.");
                                         }
                                     });
                                 });

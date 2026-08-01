@@ -68,6 +68,25 @@ public interface InventaireService {
      */
     int createReserveInventaire(Set<String> produitIds, String name, String description);
 
+    /**
+     * Remplace le commentaire (str_DESCRIPTION) d'un inventaire ENCORE EN COURS.
+     *
+     * <p>
+     * Sur un inventaire cloture la demande est refusee : {@code success=false} et un message explicite. Le stock a deja
+     * ete applique, le motif enregistre ne doit plus changer.
+     */
+    org.json.JSONObject updateCommentaire(String inventaireId, String commentaire);
+
+    /**
+     * Meme traitement que {@link #createReserveInventaire(Set, String, String)}, mais rend compte du detail.
+     *
+     * <p>
+     * Le retour porte {@code count} (produits reellement inventories) et {@code ignores}, un tableau d'objets
+     * {@code {lg_FAMILLE_ID, int_CIP, str_NAME, motif}} decrivant chaque produit ecarte. Un produit ecarte n'interrompt
+     * pas la creation : l'inventaire est cree avec les autres, et l'ecran affiche la liste des exclusions.
+     */
+    org.json.JSONObject createReserveInventaireDetaille(Set<String> produitIds, String name, String description);
+
     JSONObject createInventaireFromCsv(String csvContent, TUser tUser);
 
     /** Ids produits distincts contenus dans les ventes donnees (ex: ventes annulees selectionnees). */

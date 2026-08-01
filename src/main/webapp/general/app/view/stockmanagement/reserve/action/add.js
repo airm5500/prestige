@@ -210,7 +210,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
                 // Propose le maximum disponible en stock reserve
                 qteField.setValue(stockDispo);
                 Ext.MessageBox.alert('Quantite ajustee',
-                    'Le stock reserve disponible est de ' + stockDispo + ' unites. La quantite a ete ajustee a ce maximum.',
+                    'Le stock reserve disponible est de ' + stockDispo + ' unités. La quantité a été ajustée à ce maximum.',
                     focusQte);
                 return;
             } else {

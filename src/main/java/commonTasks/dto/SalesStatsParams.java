@@ -408,7 +408,6 @@ public class SalesStatsParams implements Serializable {
         return sb.toString();
     }
 
-
     public String getZone() {
         return zone;
     }

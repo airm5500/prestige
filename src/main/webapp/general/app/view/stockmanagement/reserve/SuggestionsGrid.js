@@ -262,7 +262,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             items: [
                 {
                     icon: 'resources/images/icons/fam/delete.png',
-                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Supprimer la suggestion</b><br>Impossible des qu\'une ligne a ete traitee.</div>',
+                    tooltip: '<div style=\'white-space:normal;width:230px;line-height:1.5\'><b>Supprimer la suggestion</b><br>Impossible dès qu\'une ligne a été traitée.</div>',
                     getClass: function (v, m, rec) {
                         // Une suggestion cloturee ne peut plus etre supprimee : l'icone disparait.
                         var s = rec.get('str_STATUT');

@@ -574,8 +574,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             ajustement.setStrCOMMENTAIRE(params.getDescription());
             // Zone ciblee : rayon par defaut, la reserve doit etre demandee explicitement.
             ajustement.setStrZONE(dal.TAjustement.ZONE_RESERVE.equalsIgnoreCase(params.getZone())
-                    ? dal.TAjustement.ZONE_RESERVE
-                    : dal.TAjustement.ZONE_RAYON);
+                    ? dal.TAjustement.ZONE_RESERVE : dal.TAjustement.ZONE_RAYON);
             ajustement.setDtCREATED(new Date());
             ajustement.setDtUPDATED(ajustement.getDtCREATED());
             ajustement.setStrSTATUT(STATUT_IS_PROGRESS);
@@ -639,8 +638,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
      * <p>
      * Le stock reserve est ajuste par le service de reserve : verrou, interdiction du stock negatif et trace dans
      * l'historique de reserve y sont deja. Le journal d'ajustement est renseigne comme pour le rayon, avec les valeurs
-     * avant et apres : un ajustement de reserve laisse donc DEUX traces, celle de l'ajustement et celle du mouvement
-     * de reserve.
+     * avant et apres : un ajustement de reserve laisse donc DEUX traces, celle de l'ajustement et celle du mouvement de
+     * reserve.
      */
     private void clorerLigneSurReserve(TAjustementDetail it, TFamille famille, TAjustement ajustement, TUser tUser,
             JSONArray items, List<String> refus) {
@@ -706,8 +705,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             // ajustee. S'en remettre a la valeur transmise par l'ecran donnerait une quantite
             // finale fausse des que la zone n'est pas le rayon.
             Integer depart = ajustementDetail.getIntNUMBERCURRENTSTOCK() != null
-                    ? ajustementDetail.getIntNUMBERCURRENTSTOCK()
-                    : params.getValueTwo();
+                    ? ajustementDetail.getIntNUMBERCURRENTSTOCK() : params.getValueTwo();
             ajustementDetail.setIntNUMBERAFTERSTOCK(params.getValue() + depart);
             ajustementDetail.setDtUPDATED(new Date());
             emg.merge(ajustementDetail);
@@ -815,8 +813,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 for (String d : refus) {
                     msg.append("<br>- ").append(d);
                 }
-                json.put("success", true).put("avecRefus", true).put("nbRefus", refus.size())
-                        .put("msg", msg.toString());
+                json.put("success", true).put("avecRefus", true).put("nbRefus", refus.size()).put("msg",
+                        msg.toString());
                 return json;
             }
             json.put("success", true).put("msg", "L'opération effectuée avec success");
@@ -1082,8 +1080,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         // on filtre sur RAYON.
         if (StringUtils.isNotEmpty(params.getZone())) {
             if (dal.TAjustement.ZONE_RAYON.equalsIgnoreCase(params.getZone())) {
-                predicates.add(cb.or(cb.equal(st.get("strZONE"), dal.TAjustement.ZONE_RAYON),
-                        cb.isNull(st.get("strZONE"))));
+                predicates.add(
+                        cb.or(cb.equal(st.get("strZONE"), dal.TAjustement.ZONE_RAYON), cb.isNull(st.get("strZONE"))));
             } else {
                 predicates.add(cb.equal(st.get("strZONE"), params.getZone()));
             }

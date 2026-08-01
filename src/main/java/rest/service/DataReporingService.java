@@ -60,8 +60,8 @@ public interface DataReporingService {
      * liste affichee.
      */
     List<ArticleDTO> statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit,
-            boolean all, int nombreMois);
+            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit, boolean all,
+            int nombreMois);
 
     JSONObject statsArticlesInvendus(String dtStart, String dtEnd, String codeFamile, String query, TUser u,
             String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre, int start, int limit)

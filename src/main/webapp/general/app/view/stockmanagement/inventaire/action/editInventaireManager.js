@@ -916,6 +916,37 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                         }
                                     }, '-'],
                                 listeners: {
+                                    /* 'Cloturer l'inventaire' est place DANS la barre de
+                                     * pagination, juste apres le bouton d'actualisation : il
+                                     * reste ainsi visible sans occuper une ligne a lui seul.
+                                     * L'insertion se fait apres rendu, car les boutons de
+                                     * pagination n'existent pas avant. */
+                                    afterrender: function (tb) {
+                                        var refresh = tb.child('#refresh');
+                                        var position = refresh ? tb.items.indexOf(refresh) + 1 : tb.items.getCount();
+                                        tb.insert(position, [
+                                            {xtype: 'tbseparator'},
+                                            {
+                                                /* soumise au privilege P_CLOTURER_INVENTAIRE
+                                                 * (masquee sinon), avec confirmation et controle
+                                                 * cote serveur */
+                                                text: 'Cloturer l\'inventaire',
+                                                id: 'btn_loturer',
+                                                cls: 'btn-cloturer',
+                                                hidden: true,
+                                                scope: Me,
+                                                handler: Me.onbtncloturer
+                                            }
+                                        ]);
+                                        /* Le controle du privilege a pu repondre avant ce
+                                         * rendu : on rattrape ici le cas echeant. */
+                                        if (Me.clotureAutorisee) {
+                                            var btn = Ext.getCmp('btn_loturer');
+                                            if (btn) {
+                                                btn.setVisible(true);
+                                            }
+                                        }
+                                    },
 
                                     change: function (item, layout) {
                                         var gridInv = Ext.getCmp('gridpanelInventaireID');
@@ -1074,30 +1105,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             handler: this.onbtnexportCsv
                         }
                     ]
-                },
-                {
-                    /* 2e ligne dediee au bouton 'Cloturer' : action finale isolee
-                     * et alignee a droite, pour qu'elle ne soit jamais tronquee
-                     * quand la premiere ligne de boutons est pleine */
-                    xtype: 'toolbar',
-                    ui: 'footer',
-                    dock: 'bottom',
-                    border: '0',
-                    /* un ressort de chaque cote pour centrer le bouton seul */
-                    items: ['->',
-                        {
-                            /* soumise au privilege P_CLOTURER_INVENTAIRE (masquee
-                             * sinon), avec confirmation et controle cote serveur */
-                            text: 'Cloturer l\'inventaire',
-                            id: 'btn_loturer',
-                            cls: 'btn-cloturer',
-                            scale: 'medium',
-                            hidden: true,
-                            scope: this,
-                            handler: this.onbtncloturer
-                        },
-                        '->'
-                    ]
                 }]
         });
         this.callParent();
@@ -1156,8 +1163,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             url: '../webservices/stockmanagement/inventaire/ws_check_cloture_privilege.jsp',
             success: function (response) {
                 var o = Ext.JSON.decode(response.responseText, true);
+                /* Le bouton vit maintenant dans la barre de pagination et n'est donc cree
+                 * qu'au rendu de celle-ci. La reponse peut arriver avant : on memorise le
+                 * droit, et la barre l'applique elle-meme si le bouton n'existe pas encore. */
+                Me.clotureAutorisee = !!(o && o.authorize === true);
                 var btnCloturer = Ext.getCmp('btn_loturer');
-                if (btnCloturer && o && o.authorize === true) {
+                if (btnCloturer && Me.clotureAutorisee) {
                     btnCloturer.setVisible(true);
                 }
             }

@@ -61,8 +61,8 @@ public class TMouvementReserve implements Serializable {
     private Date dtCREATED = new Date();
 
     /**
-     * Mouvement que celui-ci annule. Renseigne uniquement sur un mouvement d'annulation : les deux restent en base
-     * cote a cote, l'historique n'est jamais retouche.
+     * Mouvement que celui-ci annule. Renseigne uniquement sur un mouvement d'annulation : les deux restent en base cote
+     * a cote, l'historique n'est jamais retouche.
      */
     @Column(name = "lg_MOUVEMENT_SOURCE_ID", length = 40)
     private String lgMOUVEMENTSOURCEID;

@@ -114,8 +114,8 @@ public class DataReportingServlet extends HttpServlet {
             } catch (Exception ignore) {
                 nombreMoisInvendus = 0;
             }
-            file = dataReporting.statsArticlesInvendus(nombreMoisInvendus, dtStart, dtEnd, codeFamile, query, oTUser, codeRayon,
-                    codeGrossiste, stock, stockFiltre);
+            file = dataReporting.statsArticlesInvendus(nombreMoisInvendus, dtStart, dtEnd, codeFamile, query, oTUser,
+                    codeRayon, codeGrossiste, stock, stockFiltre);
             break;
         case ARTICLES_SUR_STOCK:
             codeFamile = request.getParameter("codeFamile");

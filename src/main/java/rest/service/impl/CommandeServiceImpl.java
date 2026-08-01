@@ -751,8 +751,9 @@ public class CommandeServiceImpl implements CommandeService {
             // Conflit de verrou : on NE POURSUIT PAS en silence (cela laisserait l'inventaire partiellement applique).
             // IllegalStateException est traitee par le catch de cloturerInvetaire -> rollback complet et message clair.
             LOG.log(Level.SEVERE, "updateStockReserve: conflit de verrou famille=" + familleId, e);
-            throw new IllegalStateException("Article " + familleId
-                    + " en cours de modification par un autre traitement : cloture interrompue.", e);
+            throw new IllegalStateException(
+                    "Article " + familleId + " en cours de modification par un autre traitement : cloture interrompue.",
+                    e);
         } catch (Exception e) {
             // Absence de ligne de stock reserve : comportement historique conserve (on trace et on continue).
             LOG.log(Level.WARNING, "updateStockReserve: pas de stock reserve pour famille={0} empl={1} : {2}",

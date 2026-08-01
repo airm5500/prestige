@@ -66,8 +66,8 @@ public interface ReserveService {
     JSONObject reassort(TUser user, String familleId, int qte);
 
     /**
-     * Applique en lot une serie de reassorts (reserve -&gt; rayon). Chaque ligne est traitee dans sa PROPRE transaction :
-     * une ligne en echec n'annule pas les lignes deja passees. Le detail ligne par ligne est retourne dans
+     * Applique en lot une serie de reassorts (reserve -&gt; rayon). Chaque ligne est traitee dans sa PROPRE transaction
+     * : une ligne en echec n'annule pas les lignes deja passees. Le detail ligne par ligne est retourne dans
      * {@code details}, avec un {@code code} d'echec exploitable.
      */
     JSONObject reassortBatch(TUser user, List<JSONObject> items);
@@ -82,9 +82,9 @@ public interface ReserveService {
      * Ajuste le stock RESERVE d'un produit, sans toucher au stock rayon.
      *
      * <p>
-     * Destine a l'ajustement de stock lorsque la zone ciblee est la reserve. La ligne est verrouillee, le stock ne
-     * peut pas devenir negatif, et le mouvement est trace dans l'historique de reserve au meme titre qu'un
-     * reappro : un ajustement de reserve reste donc visible et auditable.
+     * Destine a l'ajustement de stock lorsque la zone ciblee est la reserve. La ligne est verrouillee, le stock ne peut
+     * pas devenir negatif, et le mouvement est trace dans l'historique de reserve au meme titre qu'un reappro : un
+     * ajustement de reserve reste donc visible et auditable.
      *
      * <p>
      * REJOINT la transaction de l'appelant : l'ajustement et sa trace sont valides ou annules ensemble.
@@ -140,8 +140,8 @@ public interface ReserveService {
      * Produits distincts apparaissant dans l'historique filtre.
      *
      * <p>
-     * Sert a creer un inventaire sur ce que l'ecran affiche reellement, et non sur toute la reserve : c'est le
-     * resultat de recherche qui definit le perimetre.
+     * Sert a creer un inventaire sur ce que l'ecran affiche reellement, et non sur toute la reserve : c'est le resultat
+     * de recherche qui definit le perimetre.
      */
     JSONObject produitsHistorique(TUser user, String search, String type, String dtStart, String dtEnd,
             Integer heureDebut, Integer heureFin, String userId, String annulation, int start, int limit);
@@ -207,8 +207,8 @@ public interface ReserveService {
     int stockReserve(TUser user, String familleId);
 
     /**
-     * Export Excel de la liste des articles de l'onglet courant. Les donnees sont produites par
-     * {@link #listArticles} : les chiffres exportes sont donc rigoureusement ceux affiches a l'ecran, filtres compris.
+     * Export Excel de la liste des articles de l'onglet courant. Les donnees sont produites par {@link #listArticles} :
+     * les chiffres exportes sont donc rigoureusement ceux affiches a l'ecran, filtres compris.
      *
      * @param type
      *            ALL, REAPPRO ou REASSORT_RAYON (meme valeur que l'onglet affiche)

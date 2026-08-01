@@ -109,6 +109,27 @@ public class InventaireRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Modification du commentaire (motif) d'un inventaire EN COURS.
+     *
+     * <p>
+     * Refusee sur un inventaire cloture : le commentaire est la trace du pourquoi de l'inventaire, il ne doit plus
+     * bouger une fois le stock applique. Le controle est fait cote serveur, l'ecran se contentant de ne pas proposer
+     * l'edition.
+     */
+    @POST
+    @Path("commentaire/{id}")
+    public Response updateCommentaire(@PathParam("id") String id, String payload) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
+        JSONObject json = inventaireService.updateCommentaire(id, in.optString("commentaire", ""));
+        return Response.ok().entity(json.toString()).build();
+    }
+
     // Export Excel des produits d'un inventaire (tous les champs), meme apres cloture
     @GET
     @Path("export-excel/{id}")

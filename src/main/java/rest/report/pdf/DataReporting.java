@@ -156,8 +156,8 @@ public class DataReporting {
         return "/data/reports/pdf/statist_par_gamme_" + report_generate_file;
     }
 
-    public String statsArticlesInvendus(int nombreMois, String dtStart, String dtEnd, String codeFamile, String query, TUser tu,
-            String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException {
+    public String statsArticlesInvendus(int nombreMois, String dtStart, String dtEnd, String codeFamile, String query,
+            TUser tu, String codeRayon, String codeGrossiste, int stock, MargeEnum stockFiltre) throws IOException {
         LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
         try {
             dtSt = LocalDate.parse(dtStart);

@@ -19,9 +19,9 @@ import net.sf.jasperreports.engine.xml.JRXmlLoader;
  * Generation des PDF de la gestion des reserves.
  *
  * <p>
- * La connexion provient du POOL DE L'APPLICATION, et non du fichier de configuration lu par
- * {@code dal.JdbConnexion}. Le rapport interroge ainsi rigoureusement la meme base que l'application : impossible
- * qu'il lise une base differente de celle ou les donnees viennent d'etre ecrites.
+ * La connexion provient du POOL DE L'APPLICATION, et non du fichier de configuration lu par {@code dal.JdbConnexion}.
+ * Le rapport interroge ainsi rigoureusement la meme base que l'application : impossible qu'il lise une base differente
+ * de celle ou les donnees viennent d'etre ecrites.
  *
  * <p>
  * Classe volontairement autonome : les rapports deja en place continuent d'emprunter leur chemin habituel, sans

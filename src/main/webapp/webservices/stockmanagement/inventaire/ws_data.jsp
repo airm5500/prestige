@@ -99,7 +99,11 @@
     TUser OTUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
     InventaireManager OInventaireManager = new InventaireManager(OdataManager, OTUser);
    
-    if (str_TYPE != null && !str_TYPE.equalsIgnoreCase("")) {
+    // Filtre de zone (rayon / reserve), independant du filtre de statut deja en place.
+    String str_ZONE = request.getParameter("str_ZONE");
+    if (str_ZONE != null && !str_ZONE.trim().isEmpty() && !"ALL".equalsIgnoreCase(str_ZONE)) {
+        lstTInventaire = OInventaireManager.listInventaireParZone(lg_INVENTAIRE_ID, str_TYPE, str_ZONE);
+    } else if (str_TYPE != null && !str_TYPE.equalsIgnoreCase("")) {
         lstTInventaire = OInventaireManager.listInventaire(lg_INVENTAIRE_ID, str_TYPE);
     } else {
         lstTInventaire = OInventaireManager.listInventaire(lg_INVENTAIRE_ID);
@@ -159,7 +163,7 @@
         if(lstTInventaire.get(i).getStrSTATUT().equalsIgnoreCase(commonparameter.statut_enable)) {
             str_STATUT = "En cours";
         } else if(lstTInventaire.get(i).getStrSTATUT().equalsIgnoreCase(commonparameter.statut_is_Closed)) {
-            str_STATUT = "Cloturé";
+            str_STATUT = "Cloturï¿½";
         }
       
         json.put("str_STATUT", str_STATUT);

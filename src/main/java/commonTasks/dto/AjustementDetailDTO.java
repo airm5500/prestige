@@ -37,6 +37,7 @@ public class AjustementDetailDTO implements Serializable {
     public void setZone(String zone) {
         this.zone = zone;
     }
+
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
     private final SimpleDateFormat heureFormat = new SimpleDateFormat("HH:mm");
 
