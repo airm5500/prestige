@@ -142,7 +142,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                                     // ne servent plus a choisir : c'est le panneau a deux volets qui
                                     // porte la selection, desormais multiple. Elles sont conservees
                                     // masquees pour ne pas casser les traitements qui les lisent.
-                                    var panneau = Me.down('inventaireselectioncriteres');
+                                    // Depuis la liste deroulante : on remonte a la fenetre par le
+                                    // composant lui-meme, jamais par la variable globale Me qui peut
+                                    // designer une fenetre deja fermee.
+                                    var panneau = cmp.up('window').down('inventaireselectioncriteres');
                                     OGridFamille.hide();
                                     OGridemplacement.hide();
                                     OGridGrossiste.hide();
@@ -466,7 +469,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
         // La selection vient desormais du panneau a deux volets, et elle peut porter sur
         // PLUSIEURS valeurs du meme axe. Une selection vide signifie "tout l'axe" : c'est
         // exactement ce que faisait l'entree "Tous" des anciennes listes deroulantes.
-        var panneau = Me.down('#panneauCriteres');
+        // On repart de la FENETRE COURANTE, jamais de la variable globale Me : celle-ci pointe
+        // sur la derniere fenetre construite, qui peut avoir ete fermee entre-temps.
+        var panneau = fenetre.down('#panneauCriteres');
+        var vue = this;
         var valeurs = panneau ? panneau.getValeurs() : [];
         var debut = Ext.getCmp('str_BEGIN').getRawValue();
         var fin = Ext.getCmp('str_END').getRawValue();
@@ -477,12 +483,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                     + '<b>la totalit&eacute;</b>. Continuer ?',
                     function (btn) {
                         if (btn === 'yes') {
-                            Me.envoyerCreation(button, valeurs, debut, fin);
+                            vue.envoyerCreation(button, valeurs, debut, fin);
                         }
                     });
             return;
         }
-        Me.envoyerCreation(button, valeurs, debut, fin);
+        vue.envoyerCreation(button, valeurs, debut, fin);
     },
 
     /** Envoi de la creation au service REST qui remplace ws_transactions.jsp?mode=createbis. */

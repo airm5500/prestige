@@ -20,8 +20,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
     border: false,
     height: 300,
 
-    // Definition des trois axes. Les emplacements et les grossistes ont leur API REST ;
-    // les familles d'article n'en ont pas encore et gardent leur source historique.
+    // Definition des trois axes. Les trois listes viennent d'une API REST : emplacements,
+    // grossistes et familles d'article, toutes trois avec recherche "contient" et pagination.
     sources: {
         Emplacement: {
             url: '../api/v1/zones-geographiques',
@@ -40,10 +40,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
             recherche: 'Rechercher un grossiste...'
         },
         Famille: {
-            url: '../webservices/configmanagement/famillearticle/ws_data_other.jsp',
+            url: '../api/v1/familles-article',
             champId: 'lg_FAMILLEARTICLE_ID',
             champLibelle: 'str_LIBELLE',
-            champCode: null,
+            champCode: 'str_CODE_FAMILLE',
             titre: 'Familles d\'article',
             recherche: 'Rechercher une famille...'
         }
@@ -55,22 +55,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
         // Elements retenus, conserves d'une page et d'une recherche a l'autre.
         me.selection = {};
 
+        // Store alimente a la main : les trois sources n'ont pas les memes noms de champs, ils
+        // sont ramenes a id/libelle/code au chargement pour que la grille n'ait pas a s'en
+        // preoccuper. Pas de proxy, donc, et une navigation geree explicitement.
         me.storeDisponibles = new Ext.data.Store({
             fields: ['id', 'libelle', 'code'],
-            pageSize: 25,
             autoLoad: false,
-            proxy: {
-                type: 'ajax',
-                url: me.sources.Emplacement.url,
-                reader: {type: 'json', root: 'results', totalProperty: 'total'}
-            }
+            data: []
         });
-        // Les trois sources n'ont pas les memes noms de champs : on les ramene a id/libelle/code
-        // au chargement, pour que la grille n'ait pas a s'en preoccuper.
-        me.storeDisponibles.on('beforeload', function () {
-            me.storeDisponibles.getProxy().setExtraParam('search_value', me.termeRecherche || '');
-        });
-
         me.storePanier = new Ext.data.Store({fields: ['id', 'libelle', 'code']});
 
         me.callParent();
@@ -175,10 +167,31 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
                         }
                     ]
                 }, {
-                    xtype: 'pagingtoolbar',
+                    // Pagination pilotee a la main : les lignes sont chargees par requete puis
+                    // ramenees a id/libelle/code, le store ne passe donc pas par son proxy et une
+                    // barre de pagination standard afficherait des compteurs faux.
+                    xtype: 'toolbar',
                     dock: 'bottom',
-                    store: me.storeDisponibles,
-                    displayInfo: true
+                    items: [
+                        {
+                            itemId: 'btnPrecedent',
+                            text: '&laquo; Pr&eacute;c&eacute;dent',
+                            disabled: true,
+                            handler: function () {
+                                me.chargerPage(Math.max(1, (me.pageCourante || 1) - 1));
+                            }
+                        },
+                        {
+                            itemId: 'btnSuivant',
+                            text: 'Suivant &raquo;',
+                            disabled: true,
+                            handler: function () {
+                                me.chargerPage((me.pageCourante || 1) + 1);
+                            }
+                        },
+                        '->',
+                        {xtype: 'tbtext', itemId: 'infoPage', text: ''}
+                    ]
                 }],
             viewConfig: {emptyText: 'Aucun r&eacute;sultat.', deferEmptyText: false}
         };
@@ -259,9 +272,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
         grille.setTitle(source.titre);
         grille.columns[1].setVisible(!!source.champCode);
 
-        me.storeDisponibles.getProxy().url = source.url;
-        me.storeDisponibles.getProxy().extraParams = {};
-        me.storeDisponibles.getProxy().reader.transformData = null;
         me.chargerPage(1);
         me.rafraichir();
     },
@@ -283,7 +293,6 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
     chargerPage: function (page) {
         var me = this;
         var source = me.sources[me.axe];
-        me.storeDisponibles.getProxy().setExtraParam('search_value', me.termeRecherche || '');
         Ext.Ajax.request({
             url: source.url,
             params: {
@@ -312,6 +321,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
                 me.storeDisponibles.loadData(donnees);
                 me.pageCourante = page;
                 me.totalSource = parseInt(res.total, 10) || donnees.length;
+                me.majNavigation();
                 me.majBoutonToutCocher();
             },
             failure: function () {
@@ -342,6 +352,25 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
             }
         });
         me.rafraichir();
+    },
+
+    /** Etat des boutons de navigation et libelle "x - y sur n". */
+    majNavigation: function () {
+        var me = this;
+        var affiches = me.storeDisponibles.getCount();
+        var premier = affiches === 0 ? 0 : ((me.pageCourante - 1) * 25) + 1;
+        var dernier = ((me.pageCourante - 1) * 25) + affiches;
+        var prec = me.down('#btnPrecedent'), suiv = me.down('#btnSuivant'), info = me.down('#infoPage');
+        if (prec) {
+            prec.setDisabled(me.pageCourante <= 1);
+        }
+        if (suiv) {
+            suiv.setDisabled(dernier >= me.totalSource);
+        }
+        if (info) {
+            info.setText(affiches === 0 ? 'Aucun r&eacute;sultat'
+                    : (premier + ' - ' + dernier + ' sur ' + me.totalSource));
+        }
     },
 
     majBoutonToutCocher: function () {
