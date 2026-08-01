@@ -448,6 +448,17 @@ public class InventaireServiceImpl implements InventaireService {
         }
         ligne.setIntNUMBER(quantite);
         ligne.setDtUPDATED(new Date());
+        // Auteur de la saisie. La colonne restait vide sur ce chemin, ce qui privait le filtre
+        // par utilisateur de la fiche de toute matiere : filtrer sur quelqu'un ne rendait rien.
+        try {
+            TUser auteur = sessionHelperService.getCurrentUser();
+            if (auteur != null) {
+                ligne.setStrUPDATEDID(auteur.getLgUSERID());
+            }
+        } catch (Exception e) {
+            // L'auteur n'est qu'une trace : son absence ne doit pas empecher d'enregistrer le comptage.
+            LOG.log(Level.WARNING, "updateQuantiteLigne : auteur non identifie", e);
+        }
         em.merge(ligne);
         return json.put("success", 1).put("int_NUMBER", quantite);
     }
