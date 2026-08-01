@@ -1050,7 +1050,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                     autoShow: false,
                                     title: 'Importation de lignes inventaire',
                                     width: 500,
-                                    height: 150,
+                                    height: 215,
                                     layout: 'fit',
                                     plain: true,
                                     items: {
@@ -1075,9 +1075,30 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                                                         allowBlank: false,
                                                         buttonText: 'Choisir un fichier ',
                                                         width: 400
+                                                    },
+                                                    {
+                                                        /* Choix du mode d'application des quantites du fichier.
+                                                         * L'addition reste le comportement par defaut, identique a
+                                                         * celui de l'import avant cette option. */
+                                                        xtype: 'radiogroup',
+                                                        itemId: 'grp_mode_import',
+                                                        fieldLabel: 'Quantit&eacute;s',
+                                                        columns: 1,
+                                                        vertical: true,
+                                                        items: [
+                                                            {
+                                                                boxLabel: 'Additionner aux quantit&eacute;s saisies',
+                                                                name: 'mode_import',
+                                                                inputValue: 'ADDITION',
+                                                                checked: true
+                                                            },
+                                                            {
+                                                                boxLabel: '&Eacute;craser les quantit&eacute;s saisies',
+                                                                name: 'mode_import',
+                                                                inputValue: 'ECRASEMENT'
+                                                            }
+                                                        ]
                                                     }
-
-
                                                 ]
                                             }]
                                     }
@@ -1397,8 +1418,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         if (!formulaire.isValid()) {
             return;
         }
+        /* Mode choisi dans la fenetre : transmis dans l'URL comme l'identifiant d'inventaire.
+         * En l'absence de choix lisible, on retombe sur l'addition, mode historique. */
+        var groupeMode = formulaire.down('#grp_mode_import'),
+                valeurMode = groupeMode ? groupeMode.getValue() : null,
+                modeImport = (valeurMode && valeurMode.mode_import === 'ECRASEMENT') ? 'ECRASEMENT' : 'ADDITION';
         formulaire.submit({
-            url: '../ImportInventaire?lg_INVENTAIRE_ID=' + ref,
+            url: '../ImportInventaire?lg_INVENTAIRE_ID=' + ref + '&mode_import=' + modeImport,
             waitMsg: 'Veuillez patienter le temps du telechargemetnt du fichier...',
             timeout: 2400000,
             success: function (formulaire, action) {

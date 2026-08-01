@@ -37,6 +37,16 @@ public class ImportationInventaireImpl implements ImportationInventaire {
 
     @Override
     public JSONObject bulkUpdate(Part part, String idInventaire) throws Exception {
+        return bulkUpdate(part, idInventaire, false);
+    }
+
+    @Override
+    public JSONObject bulkUpdateWithExcel(Part part, String idInventaire) throws Exception {
+        return bulkUpdateWithExcel(part, idInventaire, false);
+    }
+
+    @Override
+    public JSONObject bulkUpdate(Part part, String idInventaire, boolean ecraser) throws Exception {
         int count = 0;
         int i = 0;
         JSONObject json = new JSONObject();
@@ -53,7 +63,9 @@ public class ImportationInventaireImpl implements ImportationInventaire {
 
                 int importedQty = Integer.valueOf(cSVRecord.get(1));
                 Integer existingQty = inventaireFamille.getIntNUMBER();
-                int newQty = (existingQty != null ? existingQty : 0) + importedQty; // ✅ addition
+                // mode Ecraser : la quantite du fichier remplace la saisie ; mode Additionner (defaut) : elle s'y
+                // ajoute, comportement historique de l'import.
+                int newQty = ecraser ? importedQty : (existingQty != null ? existingQty : 0) + importedQty;
 
                 inventaireFamille.setIntNUMBER(newQty);
                 inventaireFamille.setDtUPDATED(new Date());
@@ -80,7 +92,7 @@ public class ImportationInventaireImpl implements ImportationInventaire {
     }
 
     @Override
-    public JSONObject bulkUpdateWithExcel(Part part, String idInventaire) throws Exception {
+    public JSONObject bulkUpdateWithExcel(Part part, String idInventaire, boolean ecraser) throws Exception {
         int count = 0;
         int i = 0;
         JSONObject json = new JSONObject();
@@ -114,7 +126,8 @@ public class ImportationInventaireImpl implements ImportationInventaire {
 
                         int importedQty = Double.valueOf(qty.getNumericCellValue()).intValue();
                         Integer existingQty = inventaireFamille.getIntNUMBER();
-                        int newQty = (existingQty != null ? existingQty : 0) + importedQty; // ✅ addition
+                        // meme regle que pour le CSV : remplacement en mode Ecraser, cumul sinon.
+                        int newQty = ecraser ? importedQty : (existingQty != null ? existingQty : 0) + importedQty;
 
                         inventaireFamille.setIntNUMBER(newQty);
                         inventaireFamille.setDtUPDATED(new Date());

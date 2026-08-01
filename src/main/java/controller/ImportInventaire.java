@@ -32,6 +32,9 @@ public class ImportInventaire extends HttpServlet {
         response.setContentType("application/json;charset=UTF-8");
 
         String lgINVENTAIREID = request.getParameter("lg_INVENTAIRE_ID");
+        // Mode d'application des quantites importees. Tout ce qui n'est pas explicitement ECRASEMENT (parametre
+        // absent, vide ou inconnu) conserve l'addition, comportement historique de l'import.
+        boolean ecraser = "ECRASEMENT".equalsIgnoreCase(request.getParameter("mode_import"));
         Part part = request.getPart("str_FILE");
         String fileName = part.getSubmittedFileName();
         String extension = fileName.substring(fileName.indexOf(".") + 1, fileName.length());
@@ -39,12 +42,12 @@ public class ImportInventaire extends HttpServlet {
 
         try (PrintWriter out = response.getWriter()) {
             if (extension.equals("csv")) {
-                jsonO = bulkUpdate(part, lgINVENTAIREID);
+                jsonO = bulkUpdate(part, lgINVENTAIREID, ecraser);
                 jsonO.put("statut", 1);
                 jsonO.put("success", "<span style='color:blue;font-weight:800;'>" + jsonO.getInt("count") + "/"
                         + jsonO.getInt("ligne") + "</span> produits mis à jour");
             } else {
-                jsonO = bulkUpdateWithExcel(part, lgINVENTAIREID);
+                jsonO = bulkUpdateWithExcel(part, lgINVENTAIREID, ecraser);
                 jsonO.put("statut", 1);
 
                 jsonO.put("success", "<span style='color:blue;font-weight:800;'>" + jsonO.getInt("count") + "/"
@@ -107,14 +110,14 @@ public class ImportInventaire extends HttpServlet {
         return "Short description";
     }// </editor-fold>
 
-    private JSONObject bulkUpdate(Part part, String id) throws Exception {
+    private JSONObject bulkUpdate(Part part, String id, boolean ecraser) throws Exception {
 
-        return importationInventaire.bulkUpdate(part, id);
+        return importationInventaire.bulkUpdate(part, id, ecraser);
     }
 
-    private JSONObject bulkUpdateWithExcel(Part part, String id) throws Exception {
+    private JSONObject bulkUpdateWithExcel(Part part, String id, boolean ecraser) throws Exception {
 
-        return importationInventaire.bulkUpdateWithExcel(part, id);
+        return importationInventaire.bulkUpdateWithExcel(part, id, ecraser);
     }
 
 }

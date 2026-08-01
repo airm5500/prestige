@@ -154,9 +154,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     dataIndex: 'str_STATUT',
                     flex: 1,
                     renderer: function (v, meta, record) {
-                        // Un inventaire cloture se repere d'un coup d'oeil dans la liste.
+                        // Un inventaire cloture se repere d'un coup d'oeil dans la liste ; ceux encore
+                        // ouverts ressortent en orange.
                         if (record.get('etat') === 'is_Closed') {
                             meta.style = 'color:#1f7a1f;font-weight:bold;';
+                        } else {
+                            meta.style = 'color:#e07b18;';
                         }
                         return v;
                     }
