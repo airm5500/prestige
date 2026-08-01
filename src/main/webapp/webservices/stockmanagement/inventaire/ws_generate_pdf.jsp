@@ -144,7 +144,19 @@
     }
 
     new logger().OCategory.info("scr_report_file " + scr_report_file);
-    report_generate_file = report_generate_file + ".pdf";
+
+    // Nom du fichier produit : libelle de l'inventaire et horodatage, pour qu'un document
+    // retrouve sur le poste se rattache sans ambiguite a son inventaire et a son tirage.
+    // Le libelle est nettoye de tout ce qui n'a pas sa place dans un nom de fichier.
+    String libelleFichier = oTInventaire.getStrNAME() == null ? "" : oTInventaire.getStrNAME();
+    libelleFichier = java.text.Normalizer.normalize(libelleFichier, java.text.Normalizer.Form.NFD)
+            .replaceAll("\\p{M}", "").replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "");
+    if (libelleFichier.length() > 60) {
+        libelleFichier = libelleFichier.substring(0, 60);
+    }
+    String horodatage = new java.text.SimpleDateFormat("ddMMyyyy_HHmmss").format(new java.util.Date());
+    String segment = str_NAME_FILE.equalsIgnoreCase("ecart") ? "ecart" : "liste_comptage";
+    report_generate_file = libelleFichier + "_" + segment + "_" + horodatage + ".pdf";
     OreportManager.setPath_report_src(Ojdom.scr_report_file + scr_report_file + ".jrxml");
     OreportManager.setPath_report_pdf(Ojdom.scr_report_pdf + "fiche_inventaire_" + report_generate_file);
 

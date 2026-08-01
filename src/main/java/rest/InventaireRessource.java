@@ -769,8 +769,32 @@ public class InventaireRessource {
     @Produces("application/vnd.ms-excel")
     public Response exportExcel(@PathParam("id") String id) throws Exception {
         byte[] data = inventaireService.exportInventaireExcel(id);
-        return Response.ok(data)
-                .header("Content-Disposition", "attachment; filename=\"produits_inventaire_" + id + ".xls\"").build();
+        // Nom du fichier : libelle de l'inventaire et horodatage, plutot que son identifiant
+        // technique, illisible et sans indication du moment de l'export.
+        String nom = "produits_inventaires_" + libellePourFichier(id) + "_"
+                + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy_HHmmss"))
+                + ".xls";
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + nom + "\"").build();
+    }
+
+    /** Libelle d'un inventaire ramene a un nom de fichier : sans accent, sans espace ni ponctuation. */
+    private String libellePourFichier(String inventaireId) {
+        String libelle = "";
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            TInventaire inv = odm.getEm().find(TInventaire.class, inventaireId);
+            if (inv != null && inv.getStrNAME() != null) {
+                libelle = inv.getStrNAME();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "libellePourFichier", e);
+        } finally {
+            odm.closeEntityManager();
+        }
+        libelle = java.text.Normalizer.normalize(libelle, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "");
+        return libelle.length() > 60 ? libelle.substring(0, 60) : libelle;
     }
 
     @POST

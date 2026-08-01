@@ -680,21 +680,16 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
 
         var rec = grid.getStore().getAt(rowIndex);
 
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de l\'impression de la liste d\'inventaire',
-                function(btn) {
-                    if (btn == 'yes') {
-                        Me.demanderAffichageStock(function (showStock) {
-                            /* meme modele que l'impression depuis la fiche
-                             * (str_NAME_FILE vide) pour eviter deux documents
-                             * divergents */
-                            var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
-                                    + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE="
-                                    + "&showStock=" + showStock;
-                            window.open(linkUrl);
-                        });
-                    }
-                });
+        /* Plus de confirmation prealable : cliquer sur le bouton d'impression EST la
+         * confirmation. On enchaine directement sur la seule question utile, celle du stock. */
+        Me.demanderAffichageStock(function (showStock) {
+            /* meme modele que l'impression depuis la fiche (str_NAME_FILE vide) pour
+             * eviter deux documents divergents */
+            var linkUrl = url_services_pdf_fiche_inventaire + '?lg_INVENTAIRE_ID='
+                    + rec.get('lg_INVENTAIRE_ID') + "&str_NAME_FILE="
+                    + "&showStock=" + showStock;
+            window.open(linkUrl);
+        });
 
     },
     onPdfClick: function(lg_INVENTAIRE_ID) {
@@ -742,10 +737,18 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
      * courant (pas repris de l'ancien inventaire) */
     onCreateFromEcartsClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                'Créer un nouvel inventaire à partir des écarts de "' + rec.get('str_NAME')
-                + '" ?<br/>Le stock initial des lignes sera repris du stock courant.',
-                function(btn) {
+        // MessageBox.confirm ne s'elargit pas tout seul : le texte sur deux lignes etait coupe.
+        // On passe par show() pour imposer une largeur.
+        Ext.MessageBox.show({
+            title: 'Message',
+            msg: 'Cr&eacute;er un nouvel inventaire &agrave; partir des &eacute;carts de <b>'
+                    + Ext.String.htmlEncode(rec.get('str_NAME') || '') + '</b> ?'
+                    + '<br/><br/>Le stock initial des lignes sera repris du stock courant.',
+            width: 460,
+            buttons: Ext.MessageBox.YESNO,
+            buttonText: {yes: 'Oui', no: 'Non'},
+            icon: Ext.MessageBox.QUESTION,
+            fn: function (btn) {
                     if (btn !== 'yes') {
                         return;
                     }
@@ -766,7 +769,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                             Ext.Msg.alert('Erreur', 'Erreur du serveur ' + response.status);
                         }
                     });
-                });
+            }
+        });
     },
     // DEBUT DE LA NOUVELLE FONCTION
     onAnalyseClick: function(grid, rowIndex) {
