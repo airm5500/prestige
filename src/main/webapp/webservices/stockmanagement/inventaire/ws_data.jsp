@@ -163,7 +163,7 @@
         if(lstTInventaire.get(i).getStrSTATUT().equalsIgnoreCase(commonparameter.statut_enable)) {
             str_STATUT = "En cours";
         } else if(lstTInventaire.get(i).getStrSTATUT().equalsIgnoreCase(commonparameter.statut_is_Closed)) {
-            str_STATUT = "Clotur�";
+            str_STATUT = "Clotur\u00e9";
         }
       
         json.put("str_STATUT", str_STATUT);

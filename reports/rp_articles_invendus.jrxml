@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Jaspersoft Studio version 6.12.2.final using JasperReports Library version 6.12.2-75c5e90a222ab406e416cbf590a5397028a52de3  -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_articles_invendus" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="565" leftMargin="15" rightMargin="15" topMargin="20" bottomMargin="20" isSummaryWithPageHeaderAndFooter="true" isFloatColumnFooter="true" uuid="f265d67a-36a3-4b93-b5e3-281424fccc43">
+	<property name="ireport.zoom" value="2.0"/>
+	<property name="ireport.x" value="493"/>
+	<property name="ireport.y" value="125"/>
+	<property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+	<parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+	<parameter name="P_H_LOGO" class="java.lang.String"/>
+	<parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+	<parameter name="P_PRINTED_BY" class="java.lang.String"/>
+	<parameter name="P_FOOTER_RC" class="java.lang.String"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="code" class="java.lang.String"/>
+	<field name="libelle" class="java.lang.String"/>
+	<field name="filterId" class="java.lang.String"/>
+	<field name="filterLibelle" class="java.lang.String"/>
+	<field name="lastDate" class="java.lang.String"/>
+	<field name="lastHour" class="java.lang.String"/>
+	<field name="id" class="java.lang.String"/>
+	<field name="stock" class="java.lang.Integer"/>
+	<field name="prixAchat" class="java.lang.Integer"/>
+	<field name="prixVente" class="java.lang.Integer"/>
+	<field name="dateEntree" class="java.lang.String"/>
+	<variable name="valeurAchat" class="java.lang.Integer" resetType="Group" resetGroup="filtreId" calculation="Sum">
+		<variableExpression><![CDATA[$F{prixAchat}*$F{stock}]]></variableExpression>
+	</variable>
+	<variable name="valeurVente" class="java.lang.Integer" resetType="Group" resetGroup="filtreId" calculation="Sum">
+		<variableExpression><![CDATA[$F{prixVente}*$F{stock}]]></variableExpression>
+	</variable>
+		<variable name="nbProduitsFamille" class="java.lang.Integer" resetType="Group" resetGroup="filtreId" calculation="Count">
+		<variableExpression><![CDATA[$F{id}]]></variableExpression>
+	</variable>
+	<variable name="nbProduitsTotal" class="java.lang.Integer" calculation="Count">
+		<variableExpression><![CDATA[$F{id}]]></variableExpression>
+	</variable>
+	<variable name="valeurAchatTotal" class="java.lang.Long" calculation="Sum">
+		<variableExpression><![CDATA[(long) $F{prixAchat} * $F{stock}]]></variableExpression>
+	</variable>
+	<variable name="valeurVenteTotal" class="java.lang.Long" calculation="Sum">
+		<variableExpression><![CDATA[(long) $F{prixVente} * $F{stock}]]></variableExpression>
+	</variable>
+	<group name="filtreId" isReprintHeaderOnEachPage="true" keepTogether="true">
+		<groupExpression><![CDATA[$F{filterId}]]></groupExpression>
+		<groupHeader>
+			<band height="15">
+				<textField isBlankWhenNull="true">
+					<reportElement mode="Transparent" x="0" y="0" width="60" height="15" backcolor="#FFFFFF" uuid="472aeca3-b295-4c90-87af-7d2e182f1223"/>
+					<box>
+						<topPen lineWidth="0.5"/>
+						<leftPen lineWidth="0.5"/>
+						<bottomPen lineWidth="0.5"/>
+					</box>
+					<textElement verticalAlignment="Middle">
+						<font size="7" isItalic="true"/>
+						<paragraph leftIndent="1"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$F{filterId}]]></textFieldExpression>
+				</textField>
+				<staticText>
+					<reportElement mode="Transparent" x="60" y="0" width="504" height="15" backcolor="#CCCCCC" uuid="dae8b9d3-2edc-40fd-98fa-084e3134f27c"/>
+					<box>
+						<topPen lineWidth="0.5" lineStyle="Solid"/>
+						<leftPen lineWidth="0.0" lineStyle="Solid"/>
+						<bottomPen lineWidth="0.5" lineStyle="Solid"/>
+						<rightPen lineWidth="0.5" lineStyle="Solid"/>
+					</box>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font size="8"/>
+					</textElement>
+					<text><![CDATA[]]></text>
+				</staticText>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="15">
+			<staticText><reportElement x="0" y="0" width="58" height="15"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isItalic="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[TOTAL FAMILLE]]></text></staticText>
+			<textField isBlankWhenNull="true"><reportElement x="58" y="0" width="167" height="15"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7" isItalic="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{filterId}+"  "+$F{filterLibelle}]]></textFieldExpression></textField>
+			<textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="225" y="0" width="58" height="15"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isItalic="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$V{valeurVente}]]></textFieldExpression></textField>
+			<textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="283" y="0" width="58" height="15"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isItalic="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$V{valeurAchat}]]></textFieldExpression></textField>
+			<textField isBlankWhenNull="true"><reportElement x="341" y="0" width="223" height="15"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isItalic="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA["Produits : " + ($V{nbProduitsFamille} == null ? 0 : $V{nbProduitsFamille})]]></textFieldExpression></textField>
+			</band>
+		</groupFooter>
+	</group>
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+	<pageHeader>
+		<band height="105">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField>
+				<reportElement x="89" y="32" width="471" height="17" isRemoveLineWhenBlank="true" uuid="6458657f-9126-4357-b99b-2f88444d6561">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="89" y="2" width="471" height="31" isRemoveLineWhenBlank="true" uuid="b7b3cefd-7d87-46df-aca8-747f8b76e5a7"/>
+				<textElement textAlignment="Center">
+					<font fontName="Century Gothic" size="20" isBold="true" isItalic="true" isPdfEmbedded="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement mode="Opaque" x="70" y="73" width="410" height="29" backcolor="#E0DEDE" uuid="f1037852-c61c-441b-84ea-904a9c43c34f"/>
+				<box>
+					<pen lineColor="#777777"/>
+					<topPen lineWidth="1.0" lineStyle="Solid" lineColor="#777777"/>
+					<leftPen lineWidth="1.0" lineStyle="Solid" lineColor="#777777"/>
+					<bottomPen lineWidth="1.0" lineStyle="Solid" lineColor="#777777"/>
+					<rightPen lineWidth="1.0" lineStyle="Solid" lineColor="#777777"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="10" isBold="false" isUnderline="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+			</textField>
+			<textField pattern="EEEEE dd MMMMM yyyy" isBlankWhenNull="false">
+				<reportElement key="textField" x="430" y="49" width="130" height="15" forecolor="#000000" backcolor="#FFFFFF" uuid="1f048d77-111d-4d0b-bc8d-c386cd89e198"/>
+				<box>
+					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
+				</box>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[new Date()]]></textFieldExpression>
+			</textField>
+			<image onErrorType="Blank">
+				<reportElement x="7" y="1" width="79" height="47" uuid="602f1a50-c0b8-4d54-b950-4aa91a83efd9"/>
+				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+			</image>
+			<staticText>
+				<reportElement mode="Opaque" x="1" y="67" width="565" height="2" backcolor="#CCCCCC" uuid="2d352aee-5441-4cf5-8189-678d1dcfc79e">
+					<property name="com.jaspersoft.studio.unit.height" value="pixel"/>
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<box>
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+		</band>
+	</pageHeader>
+	<columnHeader>
+		<band height="20">
+			<staticText><reportElement x="0" y="0" width="58" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[Code CIP]]></text></staticText>
+			<staticText><reportElement x="58" y="0" width="167" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[Libell&#233; du produit]]></text></staticText>
+			<staticText><reportElement x="225" y="0" width="58" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[Prix vente]]></text></staticText>
+			<staticText><reportElement x="283" y="0" width="58" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[Prix achat]]></text></staticText>
+			<staticText><reportElement x="341" y="0" width="37" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[Qt&#233; Stock]]></text></staticText>
+			<staticText><reportElement x="378" y="0" width="93" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[Derni&#232;re entr&#233;e]]></text></staticText>
+			<staticText><reportElement x="471" y="0" width="93" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[Derni&#232;re vente]]></text></staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="15">
+			<textField isBlankWhenNull="true"><reportElement x="0" y="0" width="58" height="15"/><box><leftPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{code}]]></textFieldExpression></textField>
+			<textField isBlankWhenNull="true"><reportElement x="58" y="0" width="167" height="15"/><box><leftPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Left" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression></textField>
+			<textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="225" y="0" width="58" height="15"/><box><leftPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{prixVente}]]></textFieldExpression></textField>
+			<textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="283" y="0" width="58" height="15"/><box><leftPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{prixAchat}]]></textFieldExpression></textField>
+			<textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="341" y="0" width="37" height="15"/><box><leftPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression></textField>
+			<textField isBlankWhenNull="true"><reportElement x="378" y="0" width="93" height="15"/><box><leftPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{dateEntree}]]></textFieldExpression></textField>
+			<textField isBlankWhenNull="true"><reportElement x="471" y="0" width="93" height="15"/><box><leftPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Center" verticalAlignment="Middle"><font size="7"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$F{lastDate} == null ? "" : ($F{lastDate} + ($F{lastHour} == null ? "" : " " + $F{lastHour}))]]></textFieldExpression></textField>
+		</band>
+	</detail>
+	<columnFooter>
+		<band height="1" splitType="Immediate">
+			<staticText>
+				<reportElement x="0" y="0" width="565" height="1" uuid="a1daa830-f702-4735-9e20-a6829ade0cb3">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+				</reportElement>
+				<box>
+					<topPen lineWidth="0.5"/>
+				</box>
+				<textElement>
+					<font size="7" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[Static text]]></text>
+			</staticText>
+		</band>
+	</columnFooter>
+	<pageFooter>
+		<band height="120">
+			<property name="com.jaspersoft.studio.unit.height" value="px"/>
+			<textField>
+				<reportElement x="1" y="93" width="559" height="15" uuid="f384c8ce-ecf6-4be8-b66e-57e2ce99d246">
+					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="1" y="77" width="559" height="15" uuid="148763bf-5cfc-4dc3-a177-09b1aae5ecd3"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="7" isBold="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="71" width="565" height="2" backcolor="#CCCCCC" uuid="6c98d0d9-f3fe-47f5-a5c4-898178cefadd">
+					<property name="com.jaspersoft.studio.unit.width" value="px"/>
+					<property name="com.jaspersoft.studio.unit.y" value="px"/>
+				</reportElement>
+				<box>
+					<pen lineWidth="0.0"/>
+					<topPen lineWidth="0.0"/>
+					<leftPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+					<rightPen lineWidth="0.0"/>
+				</box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField evaluationTime="Report">
+				<reportElement x="301" y="10" width="40" height="15" uuid="01e8df1c-1685-45fc-81b5-100b2a2a46f7"/>
+				<textElement verticalAlignment="Bottom">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA["" + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="220" y="10" width="80" height="15" uuid="5d3cb0e6-2b22-4cec-ab20-030f3ea21339"/>
+				<textElement textAlignment="Right" verticalAlignment="Bottom">
+					<font size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$V{PAGE_NUMBER}+"/"]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="337" y="44" width="223" height="15" uuid="3a158448-dff2-478d-9150-44fb121b611e"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle" rotation="None">
+					<font fontName="Monospaced" size="8" isBold="true" isItalic="true" isUnderline="true" isStrikeThrough="false"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_PRINTED_BY}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="22">
+			<staticText><reportElement x="0" y="0" width="225" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Left" verticalAlignment="Middle"><font size="8" isBold="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><text><![CDATA[TOTAL GLOBAL]]></text></staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="225" y="0" width="58" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$V{valeurVenteTotal}]]></textFieldExpression></textField>
+			<textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="283" y="0" width="58" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA[$V{valeurAchatTotal}]]></textFieldExpression></textField>
+			<textField isBlankWhenNull="true"><reportElement x="341" y="0" width="223" height="20"/><box><topPen lineWidth="0.5"/><leftPen lineWidth="0.5"/><bottomPen lineWidth="0.5"/><rightPen lineWidth="0.5"/></box><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/><paragraph leftIndent="1" rightIndent="1"/></textElement><textFieldExpression><![CDATA["Produits distincts : " + ($V{nbProduitsTotal} == null ? 0 : $V{nbProduitsTotal})]]></textFieldExpression></textField>
+		</band>
+	</summary>
+</jasperReport>
