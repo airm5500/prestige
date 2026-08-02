@@ -324,12 +324,12 @@ public final class LabelSheetPdf {
         float maxTextWidth = width - 2f * padX;
         float centerX = width / 2f;
 
-        showCentered(cb, bold, 5.5f, fit(bold, data.officine, 5.5f, maxTextWidth), centerX, height - 7f);
+        showCentered(cb, bold, 5.5f, fit(bold, data.officine, 5.5f, maxTextWidth), centerX, height - 8.5f);
 
         String line2 = joinNonBlank(data.grossiste, data.date);
-        showCentered(cb, regular, 5f, fit(regular, line2, 5f, maxTextWidth), centerX, height - 13f);
+        showCentered(cb, regular, 6f, fit(regular, line2, 6f, maxTextWidth), centerX, height - 15.5f);
 
-        showCentered(cb, bold, 5.5f, fit(bold, data.designation, 5.5f, maxTextWidth), centerX, height - 19.5f);
+        showCentered(cb, bold, 5.5f, fit(bold, data.designation, 5.5f, maxTextWidth), centerX, height - 22.5f);
 
         if (StringUtils.isNotBlank(data.cip)) {
             Barcode128 barcode = new Barcode128();
@@ -344,8 +344,8 @@ public final class LabelSheetPdf {
             cb.addTemplate(template, scale, 0, 0, 1, centerX - targetWidth / 2f, 12f);
         }
 
-        showText(cb, regular, 5f, fit(regular, data.cip, 5f, maxTextWidth / 2f), padX, 4f, PdfContentByte.ALIGN_LEFT);
-        showText(cb, bold, 6.5f, fit(bold, data.prix, 6.5f, maxTextWidth / 2f), width - padX, 4f,
+        showText(cb, regular, 6f, fit(regular, data.cip, 6f, maxTextWidth / 2f), padX, 4f, PdfContentByte.ALIGN_LEFT);
+        showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, maxTextWidth / 2f), width - padX, 4f,
                 PdfContentByte.ALIGN_RIGHT);
     }
 
