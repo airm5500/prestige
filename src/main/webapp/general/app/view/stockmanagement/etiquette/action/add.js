@@ -1,4 +1,4 @@
-var url_services_pdf_fiche_etiquette = '../webservices/commandemanagement/bonlivraison/ws_generate_etiquette_pdf.jsp';
+var url_services_pdf_fiche_etiquette = '../Etiquete';
 var Oview;
 var Omode;
 var Me;
@@ -55,6 +55,24 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.add', {
                             value: 1,
                             allowBlank: false,
                             regex: /[0-9.]/
+                        },
+                        {
+                            fieldLabel: 'Mod&egrave;le d\'&eacute;tiquette',
+                            name: 'modele_ETIQUETTE',
+                            id: 'modele_ETIQUETTE',
+                            xtype: 'combobox',
+                            margin: '0 15 0 10',
+                            store: [
+                                ['', 'Défaut (configuration)'],
+                                ['CARRE_38X21_2', 'Carré 38 x 21,2 mm (sans espace)'],
+                                ['ARRONDI_38X21', 'Arrondi 38 x 21 mm'],
+                                ['CARRE_38_1X21_2', 'Carré 38,1 x 21,2 mm (avec espaces)'],
+                                ['PERSONNALISE', 'Personnalisé (configuration)']
+                            ],
+                            queryMode: 'local',
+                            editable: false,
+                            forceSelection: true,
+                            value: ''
                         }
                     ]
                 }
@@ -66,9 +84,9 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.add', {
             autoShow: true,
             title: this.getTitre(),
             width: 500,
-            height: 200,
+            height: 240,
             minWidth: 300,
-            minHeight: 200,
+            minHeight: 240,
             layout: 'fit',
             plain: true,
             items: form,
@@ -103,8 +121,8 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.add', {
             return;
         }
         
-       // '../Etiquete?lg_BON_LIVRAISON_ID=' + ref + "&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
-        var url = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + ref + "&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
+        var modele = Ext.getCmp('modele_ETIQUETTE') ? (Ext.getCmp('modele_ETIQUETTE').getValue() || '') : '';
+        var url = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + ref + "&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modele);
         window.open(url);
         this.up('window').close();
     }

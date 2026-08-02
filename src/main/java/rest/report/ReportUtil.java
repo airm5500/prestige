@@ -68,6 +68,11 @@ public class ReportUtil {
         return em.find(TOfficine.class, "1");
     }
 
+    public String findParameterValue(String key) {
+        dal.TParameters parameter = em.find(dal.TParameters.class, key);
+        return parameter != null ? parameter.getStrVALUE() : null;
+    }
+
     public JasperReport getReport(String reportName, String reportPath) throws JRException, Exception {
 
         try (InputStream resource = new FileInputStream(reportPath + reportName + ".jasper")) {

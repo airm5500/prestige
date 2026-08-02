@@ -1,19 +1,15 @@
 package rest.report.pdf;
 
-import bll.entity.EntityData;
+import dal.TBonLivraison;
 import dal.TBonLivraisonDetail;
 import dal.TFamille;
+import dal.TGrossiste;
 import dal.TOfficine;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import dal.TOrder;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
@@ -23,17 +19,18 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
-import report.reportManager;
 import rest.report.ReportUtil;
 import rest.service.OrderService;
-import toolkits.filesmanagers.FilesType.PdfFiles;
 import toolkits.utils.conversion;
 import toolkits.utils.date;
-import toolkits.utils.jdom;
-import util.DateConverter;
-import util.IdGenerator;
 
 /**
+ * Edition des etiquettes d'un bon de livraison sur planche A4 de 65 etiquettes. Le PDF est genere
+ * en memoire (vectoriel, cotes en millimetres) et streame directement au navigateur.
+ *
+ * Parametres : lg_BON_LIVRAISON_ID (identifiant du bon), int_NUMBER (premiere position sur la
+ * feuille, 1..65), modele_ETIQUETTE (CARRE_38X21_2, ARRONDI_38X21, CARRE_38_1X21_2, PERSONNALISE ;
+ * a defaut la valeur du parametre de configuration KEY_ETIQUETTE_MODELE est utilisee).
  *
  * @author koben
  */
@@ -50,78 +47,80 @@ public class Etiquete extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, Exception {
 
-        jdom.InitRessource();
+        String refBon = request.getParameter("lg_BON_LIVRAISON_ID");
+        if (StringUtils.isBlank(refBon)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "lg_BON_LIVRAISON_ID manquant");
+            return;
+        }
+
+        String modele = request.getParameter("modele_ETIQUETTE");
+        if (StringUtils.isBlank(modele)) {
+            modele = reportUtil.findParameterValue(LabelSheetPdf.KEY_MODELE);
+        }
+        LabelSheetPdf.SheetFormat format = LabelSheetPdf.formatFor(modele, reportUtil::findParameterValue);
+
+        int startPosition = 1;
+        if (StringUtils.isNotBlank(request.getParameter("int_NUMBER"))) {
+            try {
+                startPosition = Integer.parseInt(request.getParameter("int_NUMBER").trim());
+            } catch (NumberFormatException e) {
+                startPosition = 1;
+            }
+        }
+
+        List<LabelSheetPdf.LabelData> labels = buildLabels(refBon);
 
         response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "inline; filename=\"etiquettes.pdf\"");
+        LabelSheetPdf.write(response.getOutputStream(), labels, startPosition, format);
+    }
 
-        String refBon = request.getParameter("lg_BON_LIVRAISON_ID");
-        int k = 1;
-        int j = 0;
-
-        if (StringUtils.isNotBlank(request.getParameter("int_NUMBER"))) {
-            k = Integer.parseInt(request.getParameter("int_NUMBER"));
-        }
-        reportManager oreportManager = new reportManager();
-        String scrReportFile = "rp_etiquette";
-        String str_final_file = "";
-        Map<String, Object> parameters = new HashMap<>();
-
-        String str_file = "", report_generate_file = IdGenerator.getNumberRandom();
-        List<InputStream> inputPdfList = new ArrayList<>();
-        List<EntityData> lstEntityData = generateDataForEtiquette(refBon);
-
-        for (int i = 0; i < lstEntityData.size(); i++) {
-            parameters.put("P_H_INSTITUTION_" + k, lstEntityData.get(i).getStr_value1());
-            parameters.put("P_INSTITUTION_ADRESSE_" + k, lstEntityData.get(i).getStr_value2());
-            parameters.put("P_BARE_CODE_" + k, lstEntityData.get(i).getStr_value3());
-            parameters.put("P_RICE_" + k, lstEntityData.get(i).getStr_value4());
-            parameters.put("P_OTHER_" + k, lstEntityData.get(i).getStr_value5());
-            parameters.put("P_CIP_" + k, lstEntityData.get(i).getStr_value6());
-            if (k == 65) {
-                report_generate_file = report_generate_file + ".pdf";
-                oreportManager.setPath_report_src(jdom.scr_report_file + scrReportFile + ".jrxml");
-                oreportManager.setPath_report_pdf(jdom.scr_report_pdf + "etiquette_" + report_generate_file);
-                oreportManager.BuildReportEmptyDs(parameters);
-                str_final_file = jdom.scr_report_pdf + "etiquette_" + report_generate_file;
-
-                inputPdfList.add(new FileInputStream(str_final_file));
-                parameters = new HashMap<>();
-                k = 1;
-                j = 0;
-            } else {
-                k++;
-                j++;
+    private List<LabelSheetPdf.LabelData> buildLabels(String idBon) {
+        List<LabelSheetPdf.LabelData> labels = new ArrayList<>();
+        String dateToday = date.DateToString(new Date(), date.formatterShortBis);
+        try {
+            TOfficine officine = reportUtil.findOfficine();
+            String nomOfficine = officine != null ? officine.getStrNOMABREGE() : "";
+            List<TBonLivraisonDetail> items = orderService.getBonItems(idBon);
+            String grossiste = findGrossiste(items);
+            for (TBonLivraisonDetail bonItem : items) {
+                TFamille famille = bonItem.getLgFAMILLEID();
+                if (famille == null) {
+                    continue;
+                }
+                int quantite = bonItem.getIntQTERECUE() != null ? bonItem.getIntQTERECUE() : 0;
+                String prix = conversion.AmountFormat(famille.getIntPRICE(), ' ') + " CFA";
+                for (int i = 0; i < quantite; i++) {
+                    labels.add(new LabelSheetPdf.LabelData(nomOfficine, grossiste,
+                            famille.getStrDESCRIPTION(), famille.getIntCIP(), prix, dateToday));
+                }
             }
-
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
         }
+        return labels;
+    }
 
-        if (lstEntityData.size() < 65) {
-            report_generate_file = report_generate_file + ".pdf";
-            oreportManager.setPath_report_src(jdom.scr_report_file + scrReportFile + ".jrxml");
-            oreportManager.setPath_report_pdf(jdom.scr_report_pdf + "etiquette_" + report_generate_file);
-            oreportManager.BuildReportEmptyDs(parameters);
-            str_final_file = jdom.scr_report_pdf + "etiquette_" + report_generate_file;
-
-            inputPdfList.add(new FileInputStream(str_final_file));
-        } else {
-            if (j > 0) {
-                report_generate_file = report_generate_file + ".pdf";
-                oreportManager.setPath_report_src(jdom.scr_report_file + scrReportFile + ".jrxml");
-                oreportManager.setPath_report_pdf(jdom.scr_report_pdf + "etiquette_" + report_generate_file);
-                oreportManager.BuildReportEmptyDs(parameters);
-                str_final_file = jdom.scr_report_pdf + "etiquette_" + report_generate_file;
-
-                inputPdfList.add(new FileInputStream(str_final_file));
+    private String findGrossiste(List<TBonLivraisonDetail> items) {
+        try {
+            for (TBonLivraisonDetail item : items) {
+                TBonLivraison bonLivraison = item.getLgBONLIVRAISONID();
+                if (bonLivraison == null) {
+                    continue;
+                }
+                TOrder order = bonLivraison.getLgORDERID();
+                if (order == null) {
+                    continue;
+                }
+                TGrossiste grossiste = order.getLgGROSSISTEID();
+                if (grossiste != null && StringUtils.isNotBlank(grossiste.getStrLIBELLE())) {
+                    return grossiste.getStrLIBELLE();
+                }
             }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, null, e);
         }
-
-        str_file = "etiquette_" + IdGenerator.getNumberRandom() + ".pdf";
-        String outputStreamFile = jdom.scr_report_pdf + str_file;
-        OutputStream outputStream = new FileOutputStream(outputStreamFile);
-        PdfFiles.mergePdfFiles(inputPdfList, outputStream);
-        // response.sendRedirect(str_file_name);
-        response.sendRedirect("../../../data/reports/pdf/" + str_file);
-
+        return "";
     }
 
     @Override
@@ -151,64 +150,6 @@ public class Etiquete extends HttpServlet {
      */
     @Override
     public String getServletInfo() {
-        return "Short description";
+        return "Edition des etiquettes A4 (65 etiquettes) d'un bon de livraison";
     }// </editor-fold>
-
-    private List<EntityData> generateDataForEtiquette(String idBon) {
-        List<EntityData> lstEntityData = new ArrayList<>();
-
-        List<String> data = new ArrayList<>();
-        String fileBarecode;
-        EntityData oEntityData;
-        String dateToday = date.DateToString(new Date(), date.formatterShortBis);
-        TOfficine oTOfficine = reportUtil.findOfficine();
-        try {
-
-            List<TBonLivraisonDetail> items = orderService.getBonItems(idBon);
-            for (TBonLivraisonDetail bonItem : items) {
-                TFamille famille = bonItem.getLgFAMILLEID();
-
-                if (data.isEmpty()) {
-                    for (int i = 0; i < bonItem.getIntQTERECUE(); i++) {
-                        oEntityData = new EntityData();
-                        data.add(famille.getLgFAMILLEID());
-                        fileBarecode = DateConverter.buildbarcodeOther(famille.getIntCIP(),
-                                jdom.barecode_file + IdGenerator.getNumberRandom() + ".gif");
-                        oEntityData.setStr_value1(oTOfficine.getStrNOMABREGE());
-                        oEntityData.setStr_value2(famille.getStrDESCRIPTION());
-                        oEntityData.setStr_value3(fileBarecode);
-                        oEntityData.setStr_value4(conversion.AmountFormat(famille.getIntPRICE(), ' ') + " CFA");
-                        oEntityData.setStr_value5(dateToday);
-                        oEntityData.setStr_value6(famille.getIntCIP());
-                        lstEntityData.add(oEntityData);
-                    }
-
-                } else {
-                    if (!data.get(0).equalsIgnoreCase(famille.getLgFAMILLEID())) {
-                        DateConverter.buildbarcodeOther(famille.getIntCIP(),
-                                jdom.barecode_file + IdGenerator.getNumberRandom() + ".gif");
-                        data.clear();
-                        data.add(famille.getLgFAMILLEID());
-                    }
-
-                    for (int i = 0; i < bonItem.getIntQTERECUE(); i++) {
-                        oEntityData = new EntityData();
-                        fileBarecode = DateConverter.buildbarcodeOther(famille.getIntCIP(),
-                                jdom.barecode_file + IdGenerator.getNumberRandom() + ".gif");
-                        oEntityData.setStr_value1(oTOfficine.getStrNOMABREGE());
-                        oEntityData.setStr_value2(famille.getStrDESCRIPTION());
-                        oEntityData.setStr_value3(fileBarecode);
-                        oEntityData.setStr_value4(conversion.AmountFormat(famille.getIntPRICE(), ' ') + " CFA");
-                        oEntityData.setStr_value5(dateToday);
-                        oEntityData.setStr_value6(famille.getIntCIP());
-                        lstEntityData.add(oEntityData);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-        }
-
-        return lstEntityData;
-    }
 }

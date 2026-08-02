@@ -2,7 +2,7 @@
 
 var url_services_transaction_order = '../webservices/commandemanagement/order/ws_transaction.jsp?mode=';
 var url_services_pdf_bonlivraison = '../webservices/commandemanagement/bonlivraison/ws_generate_pdf.jsp';
-var url_services_pdf_fiche_etiquette = '../webservices/commandemanagement/bonlivraison/ws_generate_etiquette_pdf.jsp';
+var url_services_pdf_fiche_etiquette = '../Etiquete';
 var Me_Workflow;
 var Omode;
 var lg_BON_LIVRAISON_ID_2, str_REF_LIVRAISON;
@@ -145,6 +145,24 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                     name: 'int_NUMBER_ETIQUETTE',
                                     id: 'int_NUMBER_ETIQUETTE',
                                     minValue: 1, maxValue: 65, value: 1
+                                },
+                                {html: '<span class="ig-label">Modèle d\'étiquette:</span>'},
+                                {
+                                    xtype: 'combobox',
+                                    anchor: '100%',
+                                    name: 'modele_ETIQUETTE_BL',
+                                    id: 'modele_ETIQUETTE_BL',
+                                    store: [
+                                        ['', 'Défaut (configuration)'],
+                                        ['CARRE_38X21_2', 'Carré 38 x 21,2 mm (sans espace)'],
+                                        ['ARRONDI_38X21', 'Arrondi 38 x 21 mm'],
+                                        ['CARRE_38_1X21_2', 'Carré 38,1 x 21,2 mm (avec espaces)'],
+                                        ['PERSONNALISE', 'Personnalisé (configuration)']
+                                    ],
+                                    queryMode: 'local',
+                                    editable: false,
+                                    forceSelection: true,
+                                    value: ''
                                 }
                             ]
                         }
@@ -647,7 +665,8 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                             cls: 'custom-messagebox',
                                             fn: function (btn) {
                                                 if (btn === 'yes') {
-                                                    const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue();
+                                                    var modeleEtiquette = Ext.getCmp('modele_ETIQUETTE_BL') ? (Ext.getCmp('modele_ETIQUETTE_BL').getValue() || '') : '';
+                                                    const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modeleEtiquette);
                                                     onPdfBLClick(linkUrl);
                                                     testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
                                                 } else {
