@@ -91,6 +91,13 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.add', {
             plain: true,
             items: form,
             buttons: [{
+                    text: 'Page de test',
+                    tooltip: 'Imprime les contours des etiquettes pour verifier le calage',
+                    handler: function() {
+                        var modele = Ext.getCmp('modele_ETIQUETTE') ? (Ext.getCmp('modele_ETIQUETTE').getValue() || '') : '';
+                        window.open('../Etiquete?test=1&modele_ETIQUETTE=' + encodeURIComponent(modele));
+                    }
+                }, {
                     text: 'Imprimer',
                     handler: this.onbtnsave
                 }, {

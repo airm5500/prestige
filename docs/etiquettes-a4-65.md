@@ -31,6 +31,19 @@ centrée sur la page A4 (210 × 297 mm).
 Le nombre d'étiquettes par page est le produit colonnes × lignes. Le séparateur décimal peut être
 le point ou la virgule.
 
+### Paramètres de calage (tous modèles)
+
+| Clé | Valeur livrée | Rôle |
+| --- | --- | --- |
+| `KEY_ETIQUETTE_MARGE_GAUCHE_MM` | *(vide)* | Marge gauche réelle du papier en mm (vide = grille centrée) |
+| `KEY_ETIQUETTE_MARGE_HAUT_MM` | *(vide)* | Marge haute réelle du papier en mm (vide = grille centrée) |
+| `KEY_ETIQUETTE_DECALAGE_X_MM` | `0` | Décalage horizontal en mm (+ = droite, − = gauche) |
+| `KEY_ETIQUETTE_DECALAGE_Y_MM` | `0` | Décalage vertical en mm (+ = bas, − = haut) |
+| `KEY_ETIQUETTE_ECHELLE_POURCENT` | `100` | Échelle de la grille (50–150) pour compenser un pilote qui réduit la page |
+
+Ces corrections s'appliquent à tous les modèles et prennent effet immédiatement, sans
+redéploiement.
+
 ## Utilisation
 
 Le modèle de feuille peut être choisi :
@@ -82,19 +95,44 @@ pilote de l'imprimante peut néanmoins remplacer ce réglage : l'échelle à 100
 contrôlée dans la boîte de dialogue d'impression. Sous Firefox, utiliser la boîte d'impression et
 vérifier que l'option « Ajuster à la page » est décochée (échelle 100 %).
 
-## Contrôle avant utilisation en production
+## Calibrage avec la page de test
 
-Effectuer une première impression sur une feuille A4 ordinaire :
+Le servlet fournit une page de test qui imprime les **contours et numéros** de toutes les
+positions, ainsi qu'une règle de contrôle graduée tous les 10 mm :
 
-1. superposer la feuille imprimée et une feuille d'étiquettes devant une source lumineuse ;
-2. contrôler la première et la dernière ligne ainsi que les colonnes gauche et droite ;
-3. mesurer un bloc de cinq colonnes : il doit occuper **190 mm** (modèles sans espace) ;
-4. mesurer les treize lignes : elles doivent occuper **275,6 mm** pour le modèle 38 × 21,2 mm, ou
-   **273 mm** pour le modèle 38 × 21 mm.
+```text
+GET ../Etiquete?test=1&modele_ETIQUETTE=<modèle>
+```
+
+Elle est aussi accessible par le bouton « Page de test » de la fenêtre d'édition des étiquettes.
+
+Procédure :
+
+1. imprimer la page de test sur une feuille A4 ordinaire, à **100 % / taille réelle** ;
+2. mesurer la règle au réglet : elle doit faire exactement **190 mm** (modèles sans espace).
+   - Si elle est plus courte (ex. 182 mm), le pilote réduit la page : soit corriger le réglage
+     d'impression, soit compenser avec `KEY_ETIQUETTE_ECHELLE_POURCENT` (ex. 190 ÷ 182 ≈ `104`).
+     Une dérive progressive entre la première et la dernière ligne a la même cause ;
+3. superposer la feuille imprimée et une planche d'étiquettes devant une source lumineuse ;
+4. si toute la grille est décalée uniformément, renseigner `KEY_ETIQUETTE_DECALAGE_X_MM` et
+   `KEY_ETIQUETTE_DECALAGE_Y_MM` avec l'écart mesuré en mm (+ = droite/bas, − = gauche/haut) ;
+5. si les marges du papier ne sont pas symétriques, renseigner directement
+   `KEY_ETIQUETTE_MARGE_GAUCHE_MM` et `KEY_ETIQUETTE_MARGE_HAUT_MM` ;
+6. réimprimer la page de test jusqu'à superposition parfaite, puis valider avec de vraies
+   étiquettes.
 
 Un décalage uniforme de toute la page indique généralement un problème de prise papier ou de marges
-physiques de l'imprimante. Une dérive progressive entre la première et la dernière étiquette
-indique généralement une mise à l'échelle différente de 100 % ou la sélection du mauvais modèle.
+physiques de l'imprimante (corrigeable par les décalages X/Y). Une dérive progressive entre la
+première et la dernière étiquette indique une mise à l'échelle différente de 100 % (corrigeable par
+l'échelle en %, ou en réglant la boîte d'impression).
+
+### Note sur l'ancien gabarit JasperReports
+
+L'ancien `rp_etiquette.jrxml` utilisait une page de 595 × 863 pt (plus haute qu'un A4 réel) avec
+une grille surdimensionnée d'environ 4 %, prévue pour être imprimée avec Adobe Reader en mode
+« Réduire au format » : le rétrécissement ramenait la grille sur le papier, avec un résultat
+dépendant du lecteur PDF et des marges de chaque imprimante — d'où les décalages aléatoires. Le
+nouveau PDF est aux cotes exactes et s'imprime toujours à 100 %.
 
 ## Fichiers concernés
 

@@ -47,17 +47,25 @@ public class Etiquete extends HttpServlet {
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, Exception {
 
-        String refBon = request.getParameter("lg_BON_LIVRAISON_ID");
-        if (StringUtils.isBlank(refBon)) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "lg_BON_LIVRAISON_ID manquant");
-            return;
-        }
-
         String modele = request.getParameter("modele_ETIQUETTE");
         if (StringUtils.isBlank(modele)) {
             modele = reportUtil.findParameterValue(LabelSheetPdf.KEY_MODELE);
         }
         LabelSheetPdf.SheetFormat format = LabelSheetPdf.formatFor(modele, reportUtil::findParameterValue);
+
+        // page de test de calibrage : contours des etiquettes, sans donnees
+        if ("1".equals(request.getParameter("test")) || "true".equalsIgnoreCase(request.getParameter("test"))) {
+            response.setContentType("application/pdf");
+            response.setHeader("Content-Disposition", "inline; filename=\"etiquettes_test.pdf\"");
+            LabelSheetPdf.writeTestPage(response.getOutputStream(), format);
+            return;
+        }
+
+        String refBon = request.getParameter("lg_BON_LIVRAISON_ID");
+        if (StringUtils.isBlank(refBon)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "lg_BON_LIVRAISON_ID manquant");
+            return;
+        }
 
         int startPosition = 1;
         if (StringUtils.isNotBlank(request.getParameter("int_NUMBER"))) {
