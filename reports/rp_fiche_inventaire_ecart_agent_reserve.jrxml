@@ -359,7 +359,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT <> 0 ORDER BY z.str_LIBELLEE, f.str_DESCRIP
 				</textElement>
 				<textFieldExpression><![CDATA[]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField pattern="+#,##0;-#,##0" isBlankWhenNull="true">
 				<reportElement x="434" y="0" width="141" height="20" uuid="b5c6d7e8-f9a0-4b1c-2d3e-f4a5b6c7d8e9"/>
 				<box>
 					<pen lineWidth="1.0"/>

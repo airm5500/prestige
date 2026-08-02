@@ -454,7 +454,7 @@ AND t.int_NUMBER - t.int_NUMBER_INIT > 0 ORDER BY fa.str_CODE_FAMILLE, f.str_DES
 				</textElement>
 				<textFieldExpression><![CDATA[($F{int_NUMBER} != null ? $F{int_NUMBER} : 0)]]></textFieldExpression>
 			</textField>
-			<textField isBlankWhenNull="true">
+			<textField pattern="+#,##0;-#,##0" isBlankWhenNull="true">
 				<reportElement x="510" y="0" width="65" height="20" uuid="781dab56-524f-4655-9a4a-b2dc0d53d34e"/>
 				<box>
 					<topPen lineWidth="0.5"/>
