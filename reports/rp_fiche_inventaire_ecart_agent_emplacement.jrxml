@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_fiche_inventaire_ecart_agent_emplacement" language="groovy" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="575" leftMargin="10" rightMargin="10" topMargin="10" bottomMargin="10" uuid="9269c25d-7f44-4298-9beb-3cd807cd5399">
-	<property name="ireport.zoom" value="1.0"/>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_fiche_inventaire_ecart_emplacement_final" language="groovy" pageWidth="595" pageHeight="842" whenNoDataType="AllSectionsNoDetail" columnWidth="575" leftMargin="10" rightMargin="10" topMargin="10" bottomMargin="10" uuid="9269c25d-7f44-4298-9beb-3cd807cd5399">
+	<property name="ireport.zoom" value="1.5"/>
 	<property name="ireport.x" value="0"/>
-	<property name="ireport.y" value="0"/>
+	<property name="ireport.y" value="65"/>
 	<parameter name="P_REFERENCE" class="java.lang.String"/>
 	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
 	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
@@ -89,14 +89,58 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 		</groupHeader>
 		<groupFooter>
 			<band height="40">
+				<textField pattern="#,##0">
+					<reportElement mode="Opaque" x="235" y="0" width="60" height="20" backcolor="#CCCCCC" uuid="f3eab93e-16ce-43ae-967a-f86cdfbadef7"/>
+					<box rightPadding="1">
+						<topPen lineWidth="0.0"/>
+						<bottomPen lineWidth="0.0"/>
+					</box>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+						<paragraph leftIndent="2" rightIndent="2"/>
+					</textElement>
+					<textFieldExpression><![CDATA[($V{v_total_prixvente} != null ? $V{v_total_prixvente} : 0)]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0">
+					<reportElement mode="Opaque" x="294" y="0" width="60" height="20" backcolor="#CCCCCC" uuid="16f96c71-83dc-4ddc-990c-fe047ee297cd"/>
+					<box rightPadding="1">
+						<topPen lineWidth="0.0"/>
+						<bottomPen lineWidth="0.0"/>
+					</box>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+						<paragraph leftIndent="2" rightIndent="2"/>
+					</textElement>
+					<textFieldExpression><![CDATA[($V{v_total_paf} != null ? $V{v_total_paf} : 0)]]></textFieldExpression>
+				</textField>
 				<staticText>
-					<reportElement mode="Opaque" x="0" y="20" width="294" height="20" backcolor="#CCCCCC" uuid="8080d62d-54bc-4588-b89f-48b67bdf6ca6"/>
+					<reportElement mode="Opaque" x="0" y="0" width="236" height="20" backcolor="#CCCCCC" uuid="dbc5611b-3578-418b-988e-33cb0cc0bae5"/>
+					<box rightPadding="5"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="9" isBold="true" isUnderline="false"/>
+					</textElement>
+					<text><![CDATA[TOTAL]]></text>
+				</staticText>
+				<staticText>
+					<reportElement mode="Opaque" x="0" y="20" width="236" height="20" backcolor="#CCCCCC" uuid="8080d62d-54bc-4588-b89f-48b67bdf6ca6"/>
 					<box rightPadding="5"/>
 					<textElement textAlignment="Right" verticalAlignment="Middle">
 						<font size="9" isBold="true" isUnderline="false"/>
 					</textElement>
 					<text><![CDATA[TOTAL ECART]]></text>
 				</staticText>
+				<textField pattern="#,##0">
+					<reportElement mode="Opaque" x="235" y="20" width="60" height="20" backcolor="#CCCCCC" uuid="ea3bd86a-25b8-44f7-a462-114d2376f72c"/>
+					<box rightPadding="1">
+						<topPen lineWidth="0.0"/>
+						<bottomPen lineWidth="0.0"/>
+					</box>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font size="9" isBold="true"/>
+						<paragraph leftIndent="2" rightIndent="2"/>
+					</textElement>
+					<textFieldExpression><![CDATA[($V{v_total_prixvente_ecart} != null ? $V{v_total_prixvente_ecart} : 0)]]></textFieldExpression>
+				</textField>
 				<textField pattern="#,##0">
 					<reportElement mode="Opaque" x="294" y="20" width="60" height="20" backcolor="#CCCCCC" uuid="e59cd3cb-c540-43a4-87b8-138c6cc9293f"/>
 					<box rightPadding="1">
@@ -130,7 +174,7 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 				<text><![CDATA[CIP]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="54" y="139" width="240" height="20" backcolor="#CCCCCC" uuid="de9e5f16-000c-4af1-8c28-ec8c3c92ce8d"/>
+				<reportElement mode="Opaque" x="54" y="139" width="182" height="20" backcolor="#CCCCCC" uuid="de9e5f16-000c-4af1-8c28-ec8c3c92ce8d"/>
 				<box>
 					<topPen lineWidth="1.0"/>
 					<leftPen lineWidth="1.0"/>
@@ -140,6 +184,18 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 					<font size="9" isBold="true" isUnderline="false"/>
 				</textElement>
 				<text><![CDATA[DESIGNATION]]></text>
+			</staticText>
+			<staticText>
+				<reportElement mode="Opaque" x="235" y="139" width="60" height="20" backcolor="#CCCCCC" uuid="0a85fecb-c325-4f5d-9006-dfcc94573a8b"/>
+				<box>
+					<topPen lineWidth="1.0"/>
+					<leftPen lineWidth="1.0"/>
+					<bottomPen lineWidth="1.0"/>
+				</box>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="9" isBold="true" isUnderline="false"/>
+				</textElement>
+				<text><![CDATA[PRIX VENTE]]></text>
 			</staticText>
 			<staticText>
 				<reportElement mode="Opaque" x="294" y="139" width="60" height="20" backcolor="#CCCCCC" uuid="d085c683-00cc-4e0b-8caa-5a70b7875446"/>
@@ -176,7 +232,7 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="9" isBold="true" isUnderline="false"/>
 				</textElement>
-				<text><![CDATA[CONROLE]]></text>
+				<text><![CDATA[ECART]]></text>
 			</staticText>
 			<staticText>
 				<reportElement mode="Opaque" x="353" y="139" width="85" height="20" backcolor="#CCCCCC" uuid="a2e97428-607d-4f9f-8be8-4996eaf456ff"/>
@@ -296,8 +352,21 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 				</textElement>
 				<textFieldExpression><![CDATA[($F{int_PAF} != null ? $F{int_PAF} : 0)]]></textFieldExpression>
 			</textField>
+			<textField pattern="#,##0">
+				<reportElement x="235" y="0" width="60" height="20" uuid="cfc60b12-db91-44cc-b7d6-dad5bb5601f1"/>
+				<box leftPadding="1">
+					<topPen lineWidth="1.0"/>
+					<leftPen lineWidth="1.0"/>
+					<bottomPen lineWidth="1.0"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="9"/>
+					<paragraph leftIndent="2" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($F{int_PRICE_VENTE} != null ? $F{int_PRICE_VENTE} : 0)]]></textFieldExpression>
+			</textField>
 			<textField>
-				<reportElement x="54" y="0" width="240" height="20" uuid="8c2c6f1f-a3ce-4138-9a83-d3926f1ea26c"/>
+				<reportElement x="54" y="0" width="182" height="20" uuid="8c2c6f1f-a3ce-4138-9a83-d3926f1ea26c"/>
 				<box>
 					<topPen lineWidth="1.0"/>
 					<leftPen lineWidth="1.0"/>
@@ -331,10 +400,10 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 					<font size="9"/>
 					<paragraph leftIndent="2" rightIndent="2"/>
 				</textElement>
-				<textFieldExpression><![CDATA[]]></textFieldExpression>
+				<textFieldExpression><![CDATA[($F{int_NUMBER_INIT} != null ? $F{int_NUMBER_INIT} : 0)]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement mode="Opaque" x="438" y="0" width="73" height="20" backcolor="#CCCCCC" uuid="f3af3781-b131-4eca-8a5b-e93f0ba543fb"/>
+				<reportElement x="438" y="0" width="73" height="20" uuid="f3af3781-b131-4eca-8a5b-e93f0ba543fb"/>
 				<box>
 					<topPen lineWidth="1.0"/>
 					<leftPen lineWidth="1.0"/>
@@ -344,7 +413,7 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 					<font size="9"/>
 					<paragraph leftIndent="2" rightIndent="2"/>
 				</textElement>
-				<textFieldExpression><![CDATA[]]></textFieldExpression>
+				<textFieldExpression><![CDATA[($F{int_NUMBER} != null ? $F{int_NUMBER} : 0)]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
 				<reportElement x="510" y="0" width="65" height="20" uuid="781dab56-524f-4655-9a4a-b2dc0d53d34e"/>
@@ -359,6 +428,7 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 					<font size="9"/>
 					<paragraph leftIndent="2" rightIndent="2"/>
 				</textElement>
+				<textFieldExpression><![CDATA[($F{int_ECART} != null ? $F{int_ECART} : 0)]]></textFieldExpression>
 			</textField>
 		</band>
 	</detail>
@@ -420,6 +490,50 @@ AND z.`lg_ZONE_GEO_ID` LIKE $P{P_ZONE_ID}  AND fa.`lg_FAMILLEARTICLE_ID` LIKE $P
 	</pageFooter>
 	<lastPageFooter>
 		<band height="98">
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="235" y="0" width="60" height="20" uuid="3b9300e1-c24f-4fb7-9fbb-5cc476adf150"/>
+				<box rightPadding="1">
+					<topPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="10" isBold="true" pdfFontName="Times-Bold" isPdfEmbedded="true"/>
+					<paragraph leftIndent="2" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($V{v_total_global_prixvente} != null ? $V{v_total_global_prixvente}: 0)]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="0" width="235" height="20" backcolor="#FFFFFF" uuid="e134663b-793c-475a-a387-88bf36381f1a"/>
+				<box rightPadding="5"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="10" isBold="true" isUnderline="false" pdfFontName="Times-Bold" isPdfEmbedded="true"/>
+				</textElement>
+				<text><![CDATA[TOTAL GLOBAL]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="294" y="0" width="60" height="20" uuid="6681673a-8d22-4e2c-97eb-aaaf9d35d4df"/>
+				<box rightPadding="1">
+					<topPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="10" isBold="true" pdfFontName="Times-Bold" isPdfEmbedded="true"/>
+					<paragraph leftIndent="2" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($V{v_total_global_paf} != null ? $V{v_total_global_paf} : 0)]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="235" y="20" width="60" height="20" uuid="9695ee4e-53e4-447c-985a-e60868ca1ef9"/>
+				<box rightPadding="1">
+					<topPen lineWidth="0.0"/>
+					<bottomPen lineWidth="0.0"/>
+				</box>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="10" isBold="true" pdfFontName="Times-Bold" isPdfEmbedded="true"/>
+					<paragraph leftIndent="2" rightIndent="2"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($V{v_total_global_prixvente_ecart} != null ? $V{v_total_global_prixvente_ecart}: 0)]]></textFieldExpression>
+			</textField>
 			<textField pattern="#,##0" isBlankWhenNull="true">
 				<reportElement x="294" y="20" width="60" height="20" uuid="a1b13500-fe26-4f4f-a432-a9ad15faecf1"/>
 				<box rightPadding="1">
