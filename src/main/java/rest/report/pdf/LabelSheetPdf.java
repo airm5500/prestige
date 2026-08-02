@@ -344,8 +344,13 @@ public final class LabelSheetPdf {
             cb.addTemplate(template, scale, 0, 0, 1, centerX - targetWidth / 2f, 13f);
         }
 
-        showText(cb, regular, 6f, fit(regular, data.cip, 6f, maxTextWidth / 2f), padX, 5.5f, PdfContentByte.ALIGN_LEFT);
-        showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, maxTextWidth / 2f), width - padX, 5.5f,
+        // ligne du bas : CIP et prix ecartes des bordures laterales, separateur central
+        float bottomInset = mm(3.5f);
+        float bottomMaxWidth = (width - 2f * bottomInset) / 2f - 4f;
+        showText(cb, regular, 7f, fit(regular, data.cip, 7f, bottomMaxWidth), bottomInset, 5.5f,
+                PdfContentByte.ALIGN_LEFT);
+        showCentered(cb, regular, 6f, "--", centerX, 5.5f);
+        showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, bottomMaxWidth), width - bottomInset, 5.5f,
                 PdfContentByte.ALIGN_RIGHT);
     }
 
