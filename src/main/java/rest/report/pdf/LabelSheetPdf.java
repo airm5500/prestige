@@ -335,17 +335,17 @@ public final class LabelSheetPdf {
             Barcode128 barcode = new Barcode128();
             barcode.setCode(data.cip.trim());
             barcode.setFont(null);
-            barcode.setBarHeight(13f);
+            barcode.setBarHeight(18f);
             barcode.setX(0.9f);
             PdfTemplate template = barcode.createTemplateWithBarcode(cb, null, null);
             float barcodeWidth = template.getWidth();
             float targetWidth = Math.min(barcodeWidth, maxTextWidth);
             float scale = targetWidth / barcodeWidth;
-            cb.addTemplate(template, scale, 0, 0, 1, centerX - targetWidth / 2f, 12f);
+            cb.addTemplate(template, scale, 0, 0, 1, centerX - targetWidth / 2f, 13f);
         }
 
-        showText(cb, regular, 6f, fit(regular, data.cip, 6f, maxTextWidth / 2f), padX, 4f, PdfContentByte.ALIGN_LEFT);
-        showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, maxTextWidth / 2f), width - padX, 4f,
+        showText(cb, regular, 6f, fit(regular, data.cip, 6f, maxTextWidth / 2f), padX, 5.5f, PdfContentByte.ALIGN_LEFT);
+        showText(cb, bold, 7.5f, fit(bold, data.prix, 7.5f, maxTextWidth / 2f), width - padX, 5.5f,
                 PdfContentByte.ALIGN_RIGHT);
     }
 
