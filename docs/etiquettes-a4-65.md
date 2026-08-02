@@ -44,6 +44,17 @@ le point ou la virgule.
 Ces corrections s'appliquent à tous les modèles et prennent effet immédiatement, sans
 redéploiement.
 
+### Bascule de sécurité et mode d'ouverture
+
+| Clé | Valeur livrée | Rôle |
+| --- | --- | --- |
+| `KEY_ETIQUETTE_MOTEUR` | `NOUVEAU` | `NOUVEAU` = PDF vectoriel ; `ANCIEN` = JasperReports historique (repli immédiat sans redéploiement) |
+| `KEY_ETIQUETTE_TELECHARGEMENT` | `0` | `1` = le PDF est téléchargé et s'ouvre dans l'application PDF du poste au lieu du visionneur du navigateur |
+
+En mode `ANCIEN`, le servlet redirige vers
+`webservices/commandemanagement/bonlivraison/ws_generate_etiquette_pdf_legacy.jsp` (le code
+d'origine conservé tel quel). La page de test reste toujours servie par le nouveau moteur.
+
 ## Utilisation
 
 Le modèle de feuille peut être choisi :
@@ -78,6 +89,29 @@ Le PDF est généré directement en mémoire avec des dimensions exprimées en m
 au navigateur (aucun fichier temporaire). Les codes-barres sont **vectoriels** (Code 128). Chaque
 étiquette contient le nom de l'officine, **le grossiste** (récupéré depuis le bon de livraison :
 bon → commande → grossiste), la désignation, le code-barres, le prix, la date et le CIP.
+
+## Réglages par lecteur PDF / navigateur
+
+Le PDF demande l'impression à 100 % (`PrintScaling = None`), mais chaque logiciel garde ses propres
+réglages. À faire **une fois par poste** :
+
+| Logiciel | Réglage d'échelle | Où | Remarque |
+| --- | --- | --- | --- |
+| Adobe Reader | **Taille réelle** | Boîte d'impression | Cocher aussi « Choisir la source de papier selon le format de la page PDF ». Réglages mémorisés. Référence recommandée |
+| Foxit Reader | **Taille réelle** (Aucune mise à l'échelle) | Boîte d'impression | Équivalent d'Adobe, réglages mémorisés |
+| Chrome | Plus de paramètres → Échelle : **Par défaut** (ou Personnalisé = 100) | Boîte d'impression | Ne jamais laisser « Ajuster à la zone imprimable » |
+| Edge | Plus de paramètres → Échelle : **100 %** | Boîte d'impression | Idem Chrome |
+| Firefox | Ne pas cocher « Ajuster à la largeur de la page », échelle **100 %** | Boîte d'impression | Le visionneur pdf.js ignore `PrintScaling` |
+
+Les navigateurs n'offrent pas l'option « source de papier selon le format PDF » : elle appartient à
+l'application PDF et au pilote. Pour ne rien dépendre du navigateur, mettre
+`KEY_ETIQUETTE_TELECHARGEMENT` à `1` : le PDF est alors téléchargé et s'ouvre dans l'application
+PDF par défaut du poste (Adobe/Foxit), qui imprime toujours avec les mêmes réglages. C'est la
+configuration la plus reproductible quand plusieurs navigateurs cohabitent.
+
+Les décalages X/Y et l'échelle de la configuration sont propres à l'**imprimante** (mesurés avec la
+page de test) ; les réglages ci-dessus sont propres au **logiciel** de chaque poste. Les deux se
+cumulent.
 
 ## Réglages d'impression obligatoires
 

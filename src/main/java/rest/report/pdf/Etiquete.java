@@ -7,6 +7,7 @@ import dal.TGrossiste;
 import dal.TOfficine;
 import dal.TOrder;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -38,6 +39,10 @@ import toolkits.utils.date;
 public class Etiquete extends HttpServlet {
 
     private static final Logger LOG = Logger.getLogger(Etiquete.class.getName());
+    /** NOUVEAU (defaut) = PDF vectoriel ; ANCIEN = generation JasperReports historique. */
+    private static final String KEY_MOTEUR = "KEY_ETIQUETTE_MOTEUR";
+    /** 1 = telechargement force du PDF (ouverture dans l'application PDF par defaut du poste). */
+    private static final String KEY_TELECHARGEMENT = "KEY_ETIQUETTE_TELECHARGEMENT";
 
     @EJB
     private OrderService orderService;
@@ -53,10 +58,10 @@ public class Etiquete extends HttpServlet {
         }
         LabelSheetPdf.SheetFormat format = LabelSheetPdf.formatFor(modele, reportUtil::findParameterValue);
 
-        // page de test de calibrage : contours des etiquettes, sans donnees
+        // page de test de calibrage : contours des etiquettes, sans donnees (toujours nouveau moteur)
         if ("1".equals(request.getParameter("test")) || "true".equalsIgnoreCase(request.getParameter("test"))) {
             response.setContentType("application/pdf");
-            response.setHeader("Content-Disposition", "inline; filename=\"etiquettes_test.pdf\"");
+            response.setHeader("Content-Disposition", contentDisposition() + "; filename=\"etiquettes_test.pdf\"");
             LabelSheetPdf.writeTestPage(response.getOutputStream(), format);
             return;
         }
@@ -76,11 +81,29 @@ public class Etiquete extends HttpServlet {
             }
         }
 
+        // bascule de securite : moteur ANCIEN = generation JasperReports historique
+        String moteur = reportUtil.findParameterValue(KEY_MOTEUR);
+        if ("ANCIEN".equalsIgnoreCase(StringUtils.trimToEmpty(moteur))) {
+            response.sendRedirect(request.getContextPath()
+                    + "/webservices/commandemanagement/bonlivraison/ws_generate_etiquette_pdf_legacy.jsp?lg_BON_LIVRAISON_ID="
+                    + URLEncoder.encode(refBon, "UTF-8") + "&int_NUMBER=" + startPosition);
+            return;
+        }
+
         List<LabelSheetPdf.LabelData> labels = buildLabels(refBon);
 
         response.setContentType("application/pdf");
-        response.setHeader("Content-Disposition", "inline; filename=\"etiquettes.pdf\"");
+        response.setHeader("Content-Disposition", contentDisposition() + "; filename=\"etiquettes.pdf\"");
         LabelSheetPdf.write(response.getOutputStream(), labels, startPosition, format);
+    }
+
+    /**
+     * En telechargement force (KEY_ETIQUETTE_TELECHARGEMENT = 1), le navigateur enregistre le PDF au lieu de l'afficher
+     * dans son visionneur : l'utilisateur l'ouvre avec son application PDF par defaut (Adobe, Foxit...), dont les
+     * reglages d'impression sont fiables et memorises.
+     */
+    private String contentDisposition() {
+        return "1".equals(reportUtil.findParameterValue(KEY_TELECHARGEMENT)) ? "attachment" : "inline";
     }
 
     private List<LabelSheetPdf.LabelData> buildLabels(String idBon) {
