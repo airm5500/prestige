@@ -14,11 +14,11 @@ import java.util.function.UnaryOperator;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * Genere la planche d'etiquettes A4 (65 etiquettes, 5 colonnes x 13 lignes) directement en PDF
- * vectoriel : les cotes sont exprimees en millimetres et converties en points PDF, la grille est
- * centree sur la page et aucune image bitmap n'est utilisee. Le document demande aux lecteurs PDF
- * de ne pas appliquer de mise a l'echelle a l'impression (PrintScaling = None), ce qui supprime
- * les decalages constates entre Firefox, Adobe Reader et les pilotes d'impression.
+ * Genere la planche d'etiquettes A4 (65 etiquettes, 5 colonnes x 13 lignes) directement en PDF vectoriel : les cotes
+ * sont exprimees en millimetres et converties en points PDF, la grille est centree sur la page et aucune image bitmap
+ * n'est utilisee. Le document demande aux lecteurs PDF de ne pas appliquer de mise a l'echelle a l'impression
+ * (PrintScaling = None), ce qui supprime les decalages constates entre Firefox, Adobe Reader et les pilotes
+ * d'impression.
  */
 public final class LabelSheetPdf {
 
@@ -52,8 +52,7 @@ public final class LabelSheetPdf {
         private final String prix;
         private final String date;
 
-        public LabelData(String officine, String grossiste, String designation, String cip, String prix,
-                String date) {
+        public LabelData(String officine, String grossiste, String designation, String cip, String prix, String date) {
             this.officine = officine;
             this.grossiste = grossiste;
             this.designation = designation;
@@ -89,11 +88,13 @@ public final class LabelSheetPdf {
     }
 
     /**
-     * Resout la geometrie de la planche a partir du modele demande. Le modele PERSONNALISE lit les
-     * dimensions dans la configuration (t_parameters) via le lecteur fourni.
+     * Resout la geometrie de la planche a partir du modele demande. Le modele PERSONNALISE lit les dimensions dans la
+     * configuration (t_parameters) via le lecteur fourni.
      *
-     * @param modele valeur de modele_ETIQUETTE, peut etre null ou vide
-     * @param paramReader acces aux valeurs de t_parameters (peut etre null)
+     * @param modele
+     *            valeur de modele_ETIQUETTE, peut etre null ou vide
+     * @param paramReader
+     *            acces aux valeurs de t_parameters (peut etre null)
      */
     public static SheetFormat formatFor(String modele, UnaryOperator<String> paramReader) {
         String normalized = StringUtils.trimToEmpty(modele).toUpperCase();
@@ -104,10 +105,9 @@ public final class LabelSheetPdf {
             // planche predecoupee 38,1 x 21,2 avec espace horizontal entre les colonnes
             return new SheetFormat(5, 13, 38.1f, 21.2f, 2.54f, 0f);
         case MODELE_PERSONNALISE:
-            return new SheetFormat(readInt(paramReader, KEY_NB_COLONNES, 5),
-                    readInt(paramReader, KEY_NB_LIGNES, 13), readFloat(paramReader, KEY_LARGEUR_MM, 38f),
-                    readFloat(paramReader, KEY_HAUTEUR_MM, 21.2f), readFloat(paramReader, KEY_ESPACE_H_MM, 0f),
-                    readFloat(paramReader, KEY_ESPACE_V_MM, 0f));
+            return new SheetFormat(readInt(paramReader, KEY_NB_COLONNES, 5), readInt(paramReader, KEY_NB_LIGNES, 13),
+                    readFloat(paramReader, KEY_LARGEUR_MM, 38f), readFloat(paramReader, KEY_HAUTEUR_MM, 21.2f),
+                    readFloat(paramReader, KEY_ESPACE_H_MM, 0f), readFloat(paramReader, KEY_ESPACE_V_MM, 0f));
         case MODELE_CARRE_38X21_2:
         default:
             return new SheetFormat(5, 13, 38f, 21.2f, 0f, 0f);
@@ -126,8 +126,7 @@ public final class LabelSheetPdf {
     private static float readFloat(UnaryOperator<String> reader, String key, float defaultValue) {
         try {
             String value = reader != null ? reader.apply(key) : null;
-            return StringUtils.isNotBlank(value) ? Float.parseFloat(value.trim().replace(',', '.'))
-                    : defaultValue;
+            return StringUtils.isNotBlank(value) ? Float.parseFloat(value.trim().replace(',', '.')) : defaultValue;
         } catch (NumberFormatException e) {
             return defaultValue;
         }
@@ -136,10 +135,14 @@ public final class LabelSheetPdf {
     /**
      * Ecrit le PDF de la planche d'etiquettes dans le flux fourni.
      *
-     * @param out flux de sortie (non ferme par cette methode en cas d'echec d'ouverture)
-     * @param labels etiquettes a imprimer, dans l'ordre
-     * @param startPosition premiere position utilisee sur la premiere feuille (1..nb par page)
-     * @param format geometrie de la planche
+     * @param out
+     *            flux de sortie (non ferme par cette methode en cas d'echec d'ouverture)
+     * @param labels
+     *            etiquettes a imprimer, dans l'ordre
+     * @param startPosition
+     *            premiere position utilisee sur la premiere feuille (1..nb par page)
+     * @param format
+     *            geometrie de la planche
      */
     public static void write(OutputStream out, List<LabelData> labels, int startPosition, SheetFormat format)
             throws Exception {
@@ -181,8 +184,8 @@ public final class LabelSheetPdf {
         document.close();
     }
 
-    private static void drawLabel(PdfContentByte cb, LabelData data, float x, float y, float width,
-            float height, BaseFont regular, BaseFont bold) {
+    private static void drawLabel(PdfContentByte cb, LabelData data, float x, float y, float width, float height,
+            BaseFont regular, BaseFont bold) {
         float padX = mm(1.6f);
         float maxTextWidth = width - 2f * padX;
         float centerX = x + width / 2f;
@@ -192,8 +195,7 @@ public final class LabelSheetPdf {
         String line2 = joinNonBlank(data.grossiste, data.date);
         showCentered(cb, regular, 5f, fit(regular, line2, 5f, maxTextWidth), centerX, y + height - 13f);
 
-        showCentered(cb, bold, 5.5f, fit(bold, data.designation, 5.5f, maxTextWidth), centerX,
-                y + height - 19.5f);
+        showCentered(cb, bold, 5.5f, fit(bold, data.designation, 5.5f, maxTextWidth), centerX, y + height - 19.5f);
 
         if (StringUtils.isNotBlank(data.cip)) {
             Barcode128 barcode = new Barcode128();
@@ -214,8 +216,7 @@ public final class LabelSheetPdf {
                 PdfContentByte.ALIGN_RIGHT);
     }
 
-    private static void showCentered(PdfContentByte cb, BaseFont font, float size, String text, float x,
-            float y) {
+    private static void showCentered(PdfContentByte cb, BaseFont font, float size, String text, float x, float y) {
         showText(cb, font, size, text, x, y, PdfContentByte.ALIGN_CENTER);
     }
 

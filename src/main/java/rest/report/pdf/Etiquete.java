@@ -25,12 +25,12 @@ import toolkits.utils.conversion;
 import toolkits.utils.date;
 
 /**
- * Edition des etiquettes d'un bon de livraison sur planche A4 de 65 etiquettes. Le PDF est genere
- * en memoire (vectoriel, cotes en millimetres) et streame directement au navigateur.
+ * Edition des etiquettes d'un bon de livraison sur planche A4 de 65 etiquettes. Le PDF est genere en memoire
+ * (vectoriel, cotes en millimetres) et streame directement au navigateur.
  *
- * Parametres : lg_BON_LIVRAISON_ID (identifiant du bon), int_NUMBER (premiere position sur la
- * feuille, 1..65), modele_ETIQUETTE (CARRE_38X21_2, ARRONDI_38X21, CARRE_38_1X21_2, PERSONNALISE ;
- * a defaut la valeur du parametre de configuration KEY_ETIQUETTE_MODELE est utilisee).
+ * Parametres : lg_BON_LIVRAISON_ID (identifiant du bon), int_NUMBER (premiere position sur la feuille, 1..65),
+ * modele_ETIQUETTE (CARRE_38X21_2, ARRONDI_38X21, CARRE_38_1X21_2, PERSONNALISE ; a defaut la valeur du parametre de
+ * configuration KEY_ETIQUETTE_MODELE est utilisee).
  *
  * @author koben
  */
@@ -91,8 +91,8 @@ public class Etiquete extends HttpServlet {
                 int quantite = bonItem.getIntQTERECUE() != null ? bonItem.getIntQTERECUE() : 0;
                 String prix = conversion.AmountFormat(famille.getIntPRICE(), ' ') + " CFA";
                 for (int i = 0; i < quantite; i++) {
-                    labels.add(new LabelSheetPdf.LabelData(nomOfficine, grossiste,
-                            famille.getStrDESCRIPTION(), famille.getIntCIP(), prix, dateToday));
+                    labels.add(new LabelSheetPdf.LabelData(nomOfficine, grossiste, famille.getStrDESCRIPTION(),
+                            famille.getIntCIP(), prix, dateToday));
                 }
             }
         } catch (Exception e) {
