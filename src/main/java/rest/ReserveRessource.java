@@ -344,6 +344,12 @@ public class ReserveRessource {
     public Response mouvements(@PathParam("id") String familleId, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("start") int start, @QueryParam("limit") int limit)
             throws JSONException {
+        // Seul endpoint du fichier qui ne controlait pas la session : l'historique d'un article
+        // n'a pas a etre lisible sans etre connecte.
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
         JSONObject json = reserveService.mouvements(familleId, dtStart, dtEnd, start, limit > 0 ? limit : 200);
         return Response.ok().entity(json.toString()).build();
     }

@@ -915,6 +915,71 @@ public class ReserveServiceImpl implements ReserveService {
             + "JOIN t_famille f ON f.lg_FAMILLE_ID = m.lg_FAMILLE_ID "
             + "LEFT JOIN t_user u ON u.lg_USER_ID = m.lg_USER_ID ";
 
+    /** Colonnes communes a l'historique et au detail du suivi complet : les deux ecrans lisent la meme chose. */
+    private static final String HISTORIQUE_SELECT = "SELECT m.dt_CREATED, CAST(f.int_CIP AS CHAR), f.str_NAME, m.str_TYPE, "
+            + "m.int_QTE, m.int_STOCK_RAYON_AVANT, m.int_STOCK_RAYON_APRES, "
+            + "m.int_STOCK_RESERVE_AVANT, m.int_STOCK_RESERVE_APRES, "
+            + "TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))), "
+            + "m.lg_MOUVEMENT_ID, m.lg_MOUVEMENT_SOURCE_ID, m.str_MOTIF_ANNULATION, "
+            + "EXISTS (SELECT 1 FROM t_mouvement_reserve a"
+            + "        WHERE a.lg_MOUVEMENT_SOURCE_ID = m.lg_MOUVEMENT_ID)";
+
+    /** Transforme les lignes de HISTORIQUE_SELECT en JSON, libelles metier et drapeaux d'annulation compris. */
+    private static JSONArray lignesHistoriqueJson(List<Object[]> rows) {
+        JSONArray results = new JSONArray();
+        java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
+        for (Object[] r : rows) {
+            String typeTechnique = r[3] == null ? "" : String.valueOf(r[3]);
+            results.put(new JSONObject().put("dt_CREATED", r[0] == null ? "" : fmt.format((java.util.Date) r[0]))
+                    .put("int_CIP", r[1] == null ? "" : String.valueOf(r[1]))
+                    .put("str_NAME", r[2] == null ? "" : String.valueOf(r[2])).put("str_TYPE", typeTechnique)
+                    .put("str_MOUVEMENT", libelleMouvement(typeTechnique)).put("int_QTE", nombre(r[4]))
+                    .put("int_STOCK_RAYON_AVANT", nombre(r[5])).put("int_STOCK_RAYON_APRES", nombre(r[6]))
+                    .put("int_STOCK_RESERVE_AVANT", nombre(r[7])).put("int_STOCK_RESERVE_APRES", nombre(r[8]))
+                    .put("str_USER", r[9] == null ? "" : String.valueOf(r[9]))
+                    .put("lg_MOUVEMENT_ID", r[10] == null ? "" : String.valueOf(r[10]))
+                    // Deux informations distinctes : cette ligne DEFAIT un mouvement anterieur,
+                    // ou cette ligne A ETE defaite par une ligne posterieure.
+                    .put("lg_MOUVEMENT_SOURCE_ID", r[11] == null ? "" : String.valueOf(r[11]))
+                    .put("str_MOTIF_ANNULATION", r[12] == null ? "" : String.valueOf(r[12]))
+                    .put("bl_EST_ANNULATION", r[11] != null).put("bl_ANNULE", nombre(r[13]) == 1));
+        }
+        return results;
+    }
+
+    @Override
+    public JSONObject mouvementsSuivi(TUser user, String familleId, String dtStart, String dtEnd, int start,
+            int limit) {
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        try {
+            StringBuilder where = new StringBuilder(" WHERE m.lg_EMPLACEMENT_ID = ?1 AND m.lg_FAMILLE_ID = ?2 ");
+            if (notBlank(dtStart)) {
+                where.append(" AND DATE(m.dt_CREATED) >= '").append(nettoyerDate(dtStart)).append("' ");
+            }
+            if (notBlank(dtEnd)) {
+                where.append(" AND DATE(m.dt_CREATED) <= '").append(nettoyerDate(dtEnd)).append("' ");
+            }
+            Query countQ = em.createNativeQuery("SELECT COUNT(*)" + HISTORIQUE_FROM + where);
+            countQ.setParameter(1, empl);
+            countQ.setParameter(2, familleId);
+            long total = ((Number) countQ.getSingleResult()).longValue();
+
+            Query q = em.createNativeQuery(HISTORIQUE_SELECT + HISTORIQUE_FROM + where + " ORDER BY m.dt_CREATED DESC");
+            q.setParameter(1, empl);
+            q.setParameter(2, familleId);
+            if (limit > 0) {
+                q.setFirstResult(Math.max(0, start));
+                q.setMaxResults(limit);
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = q.getResultList();
+            return new JSONObject().put("total", total).put("results", lignesHistoriqueJson(rows));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "mouvementsSuivi", e);
+            return new JSONObject().put("total", 0).put("results", new JSONArray());
+        }
+    }
+
     @Override
     public JSONObject historique(TUser user, String search, String type, String dtStart, String dtEnd,
             Integer heureDebut, Integer heureFin, String userId, String annulation, int start, int limit) {
@@ -928,14 +993,7 @@ public class ReserveServiceImpl implements ReserveService {
             }
             long total = ((Number) countQ.getSingleResult()).longValue();
 
-            Query q = em.createNativeQuery("SELECT m.dt_CREATED, CAST(f.int_CIP AS CHAR), f.str_NAME, m.str_TYPE, "
-                    + "m.int_QTE, m.int_STOCK_RAYON_AVANT, m.int_STOCK_RAYON_APRES, "
-                    + "m.int_STOCK_RESERVE_AVANT, m.int_STOCK_RESERVE_APRES, "
-                    + "TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))), "
-                    + "m.lg_MOUVEMENT_ID, m.lg_MOUVEMENT_SOURCE_ID, m.str_MOTIF_ANNULATION, "
-                    + "EXISTS (SELECT 1 FROM t_mouvement_reserve a"
-                    + "        WHERE a.lg_MOUVEMENT_SOURCE_ID = m.lg_MOUVEMENT_ID)" + HISTORIQUE_FROM + where
-                    + " ORDER BY m.dt_CREATED DESC");
+            Query q = em.createNativeQuery(HISTORIQUE_SELECT + HISTORIQUE_FROM + where + " ORDER BY m.dt_CREATED DESC");
             q.setParameter(1, empl);
             if (notBlank(search)) {
                 q.setParameter(2, "%" + search.trim() + "%");
@@ -946,26 +1004,7 @@ public class ReserveServiceImpl implements ReserveService {
             }
             @SuppressWarnings("unchecked")
             List<Object[]> rows = q.getResultList();
-
-            JSONArray results = new JSONArray();
-            java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
-            for (Object[] r : rows) {
-                String typeTechnique = r[3] == null ? "" : String.valueOf(r[3]);
-                results.put(new JSONObject().put("dt_CREATED", r[0] == null ? "" : fmt.format((java.util.Date) r[0]))
-                        .put("int_CIP", r[1] == null ? "" : String.valueOf(r[1]))
-                        .put("str_NAME", r[2] == null ? "" : String.valueOf(r[2])).put("str_TYPE", typeTechnique)
-                        .put("str_MOUVEMENT", libelleMouvement(typeTechnique)).put("int_QTE", nombre(r[4]))
-                        .put("int_STOCK_RAYON_AVANT", nombre(r[5])).put("int_STOCK_RAYON_APRES", nombre(r[6]))
-                        .put("int_STOCK_RESERVE_AVANT", nombre(r[7])).put("int_STOCK_RESERVE_APRES", nombre(r[8]))
-                        .put("str_USER", r[9] == null ? "" : String.valueOf(r[9]))
-                        .put("lg_MOUVEMENT_ID", r[10] == null ? "" : String.valueOf(r[10]))
-                        // Deux informations distinctes : cette ligne DEFAIT un mouvement anterieur,
-                        // ou cette ligne A ETE defaite par une ligne posterieure.
-                        .put("lg_MOUVEMENT_SOURCE_ID", r[11] == null ? "" : String.valueOf(r[11]))
-                        .put("str_MOTIF_ANNULATION", r[12] == null ? "" : String.valueOf(r[12]))
-                        .put("bl_EST_ANNULATION", r[11] != null).put("bl_ANNULE", nombre(r[13]) == 1));
-            }
-            return new JSONObject().put("total", total).put("results", results);
+            return new JSONObject().put("total", total).put("results", lignesHistoriqueJson(rows));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "historique", e);
             return new JSONObject().put("total", 0).put("results", new JSONArray());

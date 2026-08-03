@@ -793,6 +793,7 @@ Ext.application({
         'TvaCtr',
         'ReportCtr',
         'MvtArticleCtr',
+        'MvtArticleCompletCtr',
         'DiffereCtr',
         'FaireReglementCtr',
         'RecapCtr',

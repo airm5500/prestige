@@ -223,6 +223,16 @@ public interface ReserveService {
     JSONObject mouvements(String familleId, String dtStart, String dtEnd, int start, int limit);
 
     /**
+     * Mouvements de reserve d'un article pour la fenetre de detail du suivi mouvement article complet.
+     *
+     * <p>
+     * Contrairement a {@link #mouvements}, cette lecture filtre OBLIGATOIREMENT par l'emplacement de l'utilisateur
+     * (aucune donnee d'un autre magasin), retourne un total reel (COUNT) pour la pagination, et expose les memes
+     * colonnes que l'historique : libelle metier, stocks avant/apres, utilisateur et drapeaux d'annulation.
+     */
+    JSONObject mouvementsSuivi(TUser user, String familleId, String dtStart, String dtEnd, int start, int limit);
+
+    /**
      * Historique global des mouvements, filtre optionnel par type et periode, classe par date decroissante.
      */
     /**
