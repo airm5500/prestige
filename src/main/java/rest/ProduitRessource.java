@@ -183,8 +183,8 @@ public class ProduitRessource {
     }
 
     /**
-     * Suivi mouvement article COMPLET : suivi general + mouvements internes rayon/reserve + stocks
-     * rayon/reserve/total. Ecran separe, l'endpoint "monitoring" du suivi 2 reste inchange.
+     * Suivi mouvement article COMPLET : suivi general + mouvements internes rayon/reserve + stocks rayon/reserve/total.
+     * Ecran separe, l'endpoint "monitoring" du suivi 2 reste inchange.
      */
     @GET
     @Path("monitoring-complet")
@@ -238,8 +238,8 @@ public class ProduitRessource {
         params.setDtStart(LocalDate.parse(dtStart));
         params.setMagasinId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
         byte[] data = produitService.exportSuiviMvtArticleComplet(params);
-        return Response.ok(data)
-                .header("Content-Disposition", "attachment; filename=\"suivi_mvt_article_complet.xls\"").build();
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"suivi_mvt_article_complet.xls\"")
+                .build();
     }
 
     /**

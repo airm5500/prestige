@@ -1,13 +1,13 @@
 package commonTasks.dto;
 
 /**
- * Ligne du "Suivi mouvement article complet" : aux quantites du suivi general (heritees de MvtProduitDTO)
- * s'ajoutent les mouvements internes rayon/reserve et les stocks rayon, reserve et total. Le DTO historique
- * reste inchange afin de ne pas modifier le contrat du "Suivi mouvement article 2".
+ * Ligne du "Suivi mouvement article complet" : aux quantites du suivi general (heritees de MvtProduitDTO) s'ajoutent
+ * les mouvements internes rayon/reserve et les stocks rayon, reserve et total. Le DTO historique reste inchange afin de
+ * ne pas modifier le contrat du "Suivi mouvement article 2".
  *
  * <p>
- * Un transfert rayon&lt;-&gt;reserve ne change pas le stock physique total : il n'est donc jamais compte dans
- * les entrees ni les sorties classiques. Seul l'ajustement de reserve (delta signe) modifie le stock total.
+ * Un transfert rayon&lt;-&gt;reserve ne change pas le stock physique total : il n'est donc jamais compte dans les
+ * entrees ni les sorties classiques. Seul l'ajustement de reserve (delta signe) modifie le stock total.
  */
 public class MvtProduitCompletDTO extends MvtProduitDTO {
 

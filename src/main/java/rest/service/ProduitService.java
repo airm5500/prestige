@@ -51,9 +51,9 @@ public interface ProduitService {
     JSONObject suivitMvtArcticleViewDatas(MvtArticleParams params) throws JSONException;
 
     /**
-     * Suivi mouvement article COMPLET : quantites du suivi general completees par les mouvements internes
-     * rayon/reserve et les stocks rayon, reserve et total. La liste couvre l'union des produits ayant bouge dans
-     * HMvtProduit OU dans t_mouvement_reserve sur la periode. Le suivi 2 reste inchange.
+     * Suivi mouvement article COMPLET : quantites du suivi general completees par les mouvements internes rayon/reserve
+     * et les stocks rayon, reserve et total. La liste couvre l'union des produits ayant bouge dans HMvtProduit OU dans
+     * t_mouvement_reserve sur la periode. Le suivi 2 reste inchange.
      */
     JSONObject suivitMvtArticleCompletViewDatas(MvtArticleParams params) throws JSONException;
 

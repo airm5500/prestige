@@ -1084,11 +1084,9 @@ public class ProduitServiceImpl implements ProduitService {
             for (int i = 0; i < familleIds.size(); i++) {
                 in.append(i == 0 ? "?" : ",?").append(i + 2);
             }
-            Query q = getEntityManager()
-                    .createNativeQuery("SELECT tsf.lg_FAMILLE_ID, COALESCE(MAX(tsf.int_NUMBER), 0) "
-                            + "FROM t_type_stock_famille tsf WHERE tsf.lg_EMPLACEMENT_ID = ?1 "
-                            + "AND tsf.lg_TYPE_STOCK_ID = '" + TYPE_STOCK_RESERVE + "' AND tsf.lg_FAMILLE_ID IN (" + in
-                            + ") GROUP BY tsf.lg_FAMILLE_ID");
+            Query q = getEntityManager().createNativeQuery("SELECT tsf.lg_FAMILLE_ID, COALESCE(MAX(tsf.int_NUMBER), 0) "
+                    + "FROM t_type_stock_famille tsf WHERE tsf.lg_EMPLACEMENT_ID = ?1 " + "AND tsf.lg_TYPE_STOCK_ID = '"
+                    + TYPE_STOCK_RESERVE + "' AND tsf.lg_FAMILLE_ID IN (" + in + ") GROUP BY tsf.lg_FAMILLE_ID");
             q.setParameter(1, empl);
             for (int i = 0; i < familleIds.size(); i++) {
                 q.setParameter(i + 2, familleIds.get(i));
