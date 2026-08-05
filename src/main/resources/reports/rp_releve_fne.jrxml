@@ -42,9 +42,8 @@ FROM (
        AND f.dt_CREATED >= $P{P_DT_START} AND f.dt_CREATED <= $P{P_DT_END}
        AND (f.template <> 1 OR f.template IS NULL)
     UNION ALL
-    SELECT COALESCE((SELECT fa.mvt_date FROM fne_invoice fa
-                      WHERE fa.facture_id = f.lg_FACTURE_ID AND fa.type = 'AVOIR'
-                      ORDER BY fa.mvt_date DESC LIMIT 1), f.dt_UPDATED) AS date_piece,
+    SELECT COALESCE((SELECT MAX(fa.mvt_date) FROM fne_invoice fa
+                      WHERE fa.facture_id = f.lg_FACTURE_ID AND fa.type = 'AVOIR'), f.dt_UPDATED) AS date_piece,
            f.str_CODE_FACTURE AS code_facture,
            'AVOIR' AS type_piece,
            COALESCE(f.fne_avoir_reference, '') AS reference_fne,
@@ -54,7 +53,12 @@ FROM (
      WHERE f.str_CUSTOMER = $P{P_LG_TIERS_PAYANT_ID}
        AND f.fne_url IS NOT NULL
        AND f.fne_avoir_reference IS NOT NULL
-       AND f.dt_CREATED >= $P{P_DT_START} AND f.dt_CREATED <= $P{P_DT_END}
+       AND COALESCE((SELECT MAX(fa2.mvt_date) FROM fne_invoice fa2
+                      WHERE fa2.facture_id = f.lg_FACTURE_ID AND fa2.type = 'AVOIR'),
+                    f.dt_UPDATED) >= $P{P_DT_START}
+       AND COALESCE((SELECT MAX(fa3.mvt_date) FROM fne_invoice fa3
+                      WHERE fa3.facture_id = f.lg_FACTURE_ID AND fa3.type = 'AVOIR'),
+                    f.dt_UPDATED) <= $P{P_DT_END}
        AND (f.template <> 1 OR f.template IS NULL)
 ) piece
 ORDER BY piece.ordre1, piece.code_facture, piece.ordre2
