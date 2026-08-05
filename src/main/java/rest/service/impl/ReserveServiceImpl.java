@@ -850,8 +850,11 @@ public class ReserveServiceImpl implements ReserveService {
 
     // ------------------------------------------------------ HISTORIQUE COMPLET
 
-    /** Libelles metier des types techniques : l'utilisateur ne voit jamais ASSORT ni REASSORT. */
-    private static String libelleMouvement(String type) {
+    /**
+     * Libelles metier des types techniques : l'utilisateur ne voit jamais ASSORT ni REASSORT. Visibilite paquet pour
+     * les tests unitaires.
+     */
+    static String libelleMouvement(String type) {
         if (TMouvementReserve.TYPE_ASSORT.equals(type)) {
             return "REAPPRO RESERVE";
         }
@@ -924,8 +927,11 @@ public class ReserveServiceImpl implements ReserveService {
             + "EXISTS (SELECT 1 FROM t_mouvement_reserve a"
             + "        WHERE a.lg_MOUVEMENT_SOURCE_ID = m.lg_MOUVEMENT_ID)";
 
-    /** Transforme les lignes de HISTORIQUE_SELECT en JSON, libelles metier et drapeaux d'annulation compris. */
-    private static JSONArray lignesHistoriqueJson(List<Object[]> rows) {
+    /**
+     * Transforme les lignes de HISTORIQUE_SELECT en JSON, libelles metier et drapeaux d'annulation compris. Visibilite
+     * paquet pour les tests unitaires.
+     */
+    static JSONArray lignesHistoriqueJson(List<Object[]> rows) {
         JSONArray results = new JSONArray();
         java.text.SimpleDateFormat fmt = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm");
         for (Object[] r : rows) {

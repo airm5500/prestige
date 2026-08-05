@@ -900,11 +900,19 @@ public class ProduitServiceImpl implements ProduitService {
      * liste, ce que ne garantit pas le suivi 2. Retour : [lg_FAMILLE_ID, str_NAME] tries par designation.
      */
     private List<Object[]> famillesSuiviComplet(MvtArticleParams params) {
+        return unionFamilles(famillesMvtGeneral(params), famillesMvtReserve(params));
+    }
+
+    /**
+     * Union sans doublon des deux listes de familles [id, nom], triee par designation sans tenir compte de la casse. En
+     * cas de doublon, la ligne du suivi general fait foi. Statique et sans etat : couverte par les tests unitaires.
+     */
+    static List<Object[]> unionFamilles(List<Object[]> general, List<Object[]> reserve) {
         Map<String, Object[]> union = new HashMap<>();
-        for (Object[] r : famillesMvtGeneral(params)) {
+        for (Object[] r : general) {
             union.putIfAbsent((String) r[0], r);
         }
-        for (Object[] r : famillesMvtReserve(params)) {
+        for (Object[] r : reserve) {
             union.putIfAbsent((String) r[0], r);
         }
         List<Object[]> out = new ArrayList<>(union.values());
@@ -1053,22 +1061,33 @@ public class ProduitServiceImpl implements ProduitService {
             q.setParameter("ids", familleIds);
             q.setParameter("d1", java.sql.Timestamp.valueOf(params.getDtStart().atStartOfDay()));
             q.setParameter("d2", java.sql.Timestamp.valueOf(params.getDtEnd().plusDays(1).atStartOfDay()));
-            for (Object[] r : q.getResultList()) {
-                String id = (String) r[0];
-                String type = (String) r[1];
-                int somme = r[2] == null ? 0 : ((Number) r[2]).intValue();
-                int delta = r[3] == null ? 0 : ((Number) r[3]).intValue();
-                int[] agg = out.computeIfAbsent(id, k -> new int[3]);
-                if (TMouvementReserve.TYPE_ASSORT.equals(type)) {
-                    agg[0] += somme;
-                } else if (TMouvementReserve.TYPE_REASSORT.equals(type)) {
-                    agg[1] += somme;
-                } else if (TMouvementReserve.TYPE_AJUSTEMENT.equals(type)) {
-                    agg[2] += delta;
-                }
-            }
+            out.putAll(cumulerAgregatsReserve(q.getResultList()));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
+        }
+        return out;
+    }
+
+    /**
+     * Cumule les lignes groupees [familleId, type, somme(qte), delta reserve signe] en agregats par famille :
+     * {versReserve, versRayon, ajustReserve}. Un type inconnu (ex. DESTOCKAGE historique) est ignore plutot que compte
+     * a tort dans une colonne. Statique et sans etat : couverte par les tests unitaires.
+     */
+    static Map<String, int[]> cumulerAgregatsReserve(List<Object[]> rows) {
+        Map<String, int[]> out = new HashMap<>();
+        for (Object[] r : rows) {
+            String id = (String) r[0];
+            String type = (String) r[1];
+            int somme = r[2] == null ? 0 : ((Number) r[2]).intValue();
+            int delta = r[3] == null ? 0 : ((Number) r[3]).intValue();
+            int[] agg = out.computeIfAbsent(id, k -> new int[3]);
+            if (TMouvementReserve.TYPE_ASSORT.equals(type)) {
+                agg[0] += somme;
+            } else if (TMouvementReserve.TYPE_REASSORT.equals(type)) {
+                agg[1] += somme;
+            } else if (TMouvementReserve.TYPE_AJUSTEMENT.equals(type)) {
+                agg[2] += delta;
+            }
         }
         return out;
     }
