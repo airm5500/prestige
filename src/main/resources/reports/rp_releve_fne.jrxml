@@ -39,7 +39,7 @@ FROM (
       FROM t_facture f
      WHERE f.str_CUSTOMER = $P{P_LG_TIERS_PAYANT_ID}
        AND f.fne_url IS NOT NULL
-       AND f.dt_CREATED >= $P{P_DT_START} AND f.dt_CREATED <= $P{P_DT_END}
+       AND DATE(f.dt_CREATED) >= DATE($P{P_DT_START}) AND DATE(f.dt_CREATED) <= DATE($P{P_DT_END})
        AND (f.template <> 1 OR f.template IS NULL)
     UNION ALL
     SELECT COALESCE((SELECT MAX(fa.mvt_date) FROM fne_invoice fa
@@ -53,12 +53,12 @@ FROM (
      WHERE f.str_CUSTOMER = $P{P_LG_TIERS_PAYANT_ID}
        AND f.fne_url IS NOT NULL
        AND f.fne_avoir_reference IS NOT NULL
-       AND COALESCE((SELECT MAX(fa2.mvt_date) FROM fne_invoice fa2
+       AND DATE(COALESCE((SELECT MAX(fa2.mvt_date) FROM fne_invoice fa2
                       WHERE fa2.facture_id = f.lg_FACTURE_ID AND fa2.type = 'AVOIR'),
-                    f.dt_UPDATED) >= $P{P_DT_START}
-       AND COALESCE((SELECT MAX(fa3.mvt_date) FROM fne_invoice fa3
+                    f.dt_UPDATED)) >= DATE($P{P_DT_START})
+       AND DATE(COALESCE((SELECT MAX(fa3.mvt_date) FROM fne_invoice fa3
                       WHERE fa3.facture_id = f.lg_FACTURE_ID AND fa3.type = 'AVOIR'),
-                    f.dt_UPDATED) <= $P{P_DT_END}
+                    f.dt_UPDATED)) <= DATE($P{P_DT_END})
        AND (f.template <> 1 OR f.template IS NULL)
 ) piece
 ORDER BY piece.ordre1, piece.code_facture, piece.ordre2
@@ -85,6 +85,13 @@ ORDER BY piece.ordre1, piece.code_facture, piece.ordre2
 
     <title>
         <band height="70">
+            <textField>
+                <reportElement x="380" y="0" width="175" height="12"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Edite le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
             <textField isBlankWhenNull="true">
                 <reportElement x="0" y="0" width="555" height="18"/>
                 <textElement textAlignment="Center">
