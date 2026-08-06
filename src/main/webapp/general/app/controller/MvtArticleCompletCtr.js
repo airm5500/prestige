@@ -535,7 +535,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                             xtype: 'gridpanel',
                             store: storeProduits,
                             viewConfig: {
-                                forceFit: true,
+                                forceFit: false,
                                 columnLines: true,
                                 enableColumnHide: false
 
@@ -548,7 +548,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     menuDisabled: true,
                                     dataIndex: 'dateOp',
                                     minWidth: 82,
-                                    flex: 0.9
+                                    flex: 1
                                 },
                                 {
                                     text: 'D\u00e9but de journ\u00e9e',
@@ -558,7 +558,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Stock rayon',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'stockInit',
-                                                    flex: 0.8,
+                                                    width: 84,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     // vert = rayon, orange = reserve : reperage immediat
@@ -571,7 +571,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Stock RES',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'stockReserveInit',
-                                                    flex: 0.8,
+                                                    width: 72,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -589,7 +589,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Vente',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyVente',
-                                                    flex: 0.5,
+                                                    width: 52,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     // vert : ces flux touchent le stock RAYON
@@ -602,7 +602,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Ret.four',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyRetour',
-                                                    flex: 0.6,
+                                                    width: 66,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -614,7 +614,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'P\u00e9rim\u00e9',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyPerime',
-                                                    flex: 0.55,
+                                                    width: 56,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -626,7 +626,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Ajust\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjustSortie',
-                                                    flex: 0.6,
+                                                    width: 62,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -638,7 +638,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'D\u00e9con',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyDecondSortant',
-                                                    flex: 0.5,
+                                                    width: 52,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -656,7 +656,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Entr\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyEntree',
-                                                    flex: 0.55,
+                                                    width: 56,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -668,7 +668,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Ajust\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjust',
-                                                    flex: 0.6,
+                                                    width: 62,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -680,7 +680,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'D\u00e9con',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyDeconEntrant',
-                                                    flex: 0.5,
+                                                    width: 52,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -692,7 +692,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Annul\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAnnulation',
-                                                    flex: 0.6,
+                                                    width: 62,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -704,7 +704,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Ret.D\u00e9p\u00f4t',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyRetourDepot',
-                                                    flex: 0.7,
+                                                    width: 72,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -723,7 +723,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Vers r\u00e9serve',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyVersReserve',
-                                                    flex: 0.85,
+                                                    width: 90,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -737,7 +737,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Vers rayon',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyVersRayon',
-                                                    flex: 0.75,
+                                                    width: 78,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -750,7 +750,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Ajust.r\u00e9s.',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjustReserve',
-                                                    flex: 0.65,
+                                                    width: 76,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m) {
@@ -769,7 +769,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     text: 'Inv',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'qtyInv',
-                                    flex: 0.35,
+                                    width: 40,
                                     align: 'right',
                                     format: '0,000.'
                                 },
@@ -777,7 +777,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     text: 'Ecart.Inv',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'ecartInventaire',
-                                    flex: 0.6,
+                                    width: 70,
                                     align: 'right',
                                     format: '0,000.'
                                 },
@@ -789,7 +789,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Stock rayon',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'stockFinal',
-                                                    flex: 0.8,
+                                                    width: 84,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m, r) {
@@ -826,7 +826,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     text: 'Stock RES',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'stockReserveFinal',
-                                                    flex: 0.8,
+                                                    width: 72,
                                                     align: 'right',
                                                     format: '0,000.',
                                                     renderer: function (v, m, r) {
