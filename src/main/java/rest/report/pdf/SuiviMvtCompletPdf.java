@@ -36,6 +36,11 @@ public final class SuiviMvtCompletPdf {
     private static final Font TOTAL = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f);
     private static final Font PIED = FontFactory.getFont(FontFactory.HELVETICA, 7f);
     private static final BaseColor GRIS_ENTETE = new BaseColor(0xE8, 0xE8, 0xE8);
+    // Meme code couleur que la fenetre de detail a l'ecran : vert = stock rayon, orange = stock reserve.
+    private static final Font STOCK_RAYON = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f,
+            new BaseColor(0x1B, 0x7D, 0x32));
+    private static final Font STOCK_RESERVE = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f,
+            new BaseColor(0xE6, 0x73, 0x00));
 
     private SuiviMvtCompletPdf() {
     }
@@ -144,13 +149,16 @@ public final class SuiviMvtCompletPdf {
 
             for (MvtProduitCompletDTO j : jours) {
                 texte(table, j.getDateOp(), CELLULE);
-                for (int v : new int[] { j.getStockInit(), j.getStockReserveInit(), j.getQtyVente(), j.getQtyRetour(),
-                        j.getQtyPerime(), j.getQtyAjustSortie(), j.getQtyDecondSortant(), j.getQtyEntree(),
-                        j.getQtyAjust(), j.getQtyDeconEntrant(), j.getQtyAnnulation(), j.getQtyRetourDepot(),
-                        j.getQtyVersReserve(), j.getQtyVersRayon(), j.getQtyAjustReserve(), j.getQtyInv(),
-                        j.getEcartInventaire(), j.getStockFinal(), j.getStockReserveFinal() }) {
+                nombre(table, j.getStockInit(), STOCK_RAYON);
+                nombre(table, j.getStockReserveInit(), STOCK_RESERVE);
+                for (int v : new int[] { j.getQtyVente(), j.getQtyRetour(), j.getQtyPerime(), j.getQtyAjustSortie(),
+                        j.getQtyDecondSortant(), j.getQtyEntree(), j.getQtyAjust(), j.getQtyDeconEntrant(),
+                        j.getQtyAnnulation(), j.getQtyRetourDepot(), j.getQtyVersReserve(), j.getQtyVersRayon(),
+                        j.getQtyAjustReserve(), j.getQtyInv(), j.getEcartInventaire() }) {
                     nombre(table, v, CELLULE);
                 }
+                nombre(table, j.getStockFinal(), STOCK_RAYON);
+                nombre(table, j.getStockReserveFinal(), STOCK_RESERVE);
             }
 
             // Ligne TOTAL : uniquement les flux (les stocks debut/fin ne s'additionnent pas entre jours)

@@ -559,7 +559,12 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     dataIndex: 'stockInit',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    // vert = rayon, orange = reserve : reperage immediat
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;font-weight:600;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
                                                     text: 'Stock réserve',
@@ -567,7 +572,11 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     dataIndex: 'stockReserveInit',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#E67300;font-weight:600;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 }
                                             ]
                                 },
@@ -720,7 +729,11 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     dataIndex: 'stockFinal',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;font-weight:600;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
                                                     text: 'Stock réserve',
@@ -728,7 +741,11 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     dataIndex: 'stockReserveFinal',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#E67300;font-weight:600;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 }
                                             ]
                                 }
