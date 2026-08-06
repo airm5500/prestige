@@ -24,6 +24,34 @@ public class MvtProduitCompletDTO extends MvtProduitDTO {
     /** Stock rayon (currentStock herite) + stock reserve. */
     private int currentStockTotal = 0;
 
+    public MvtProduitCompletDTO() {
+    }
+
+    /** Copie d'une ligne du suivi general (jour ou totaux), a completer ensuite avec les mouvements internes. */
+    public MvtProduitCompletDTO(MvtProduitDTO source) {
+        setProduitId(source.getProduitId());
+        setCip(source.getCip());
+        setProduitName(source.getProduitName());
+        if (source.getDateOperation() != null) {
+            setDateOperation(source.getDateOperation());
+        }
+        setStockInit(source.getStockInit());
+        setStockFinal(source.getStockFinal());
+        setCurrentStock(source.getCurrentStock());
+        setQtyVente(source.getQtyVente());
+        setQtyAnnulation(source.getQtyAnnulation());
+        setQtyRetour(source.getQtyRetour());
+        setQtyRetourDepot(source.getQtyRetourDepot());
+        setQtyInv(source.getQtyInv());
+        setQtyPerime(source.getQtyPerime());
+        setQtyAjust(source.getQtyAjust());
+        setQtyAjustSortie(source.getQtyAjustSortie());
+        setQtyDeconEntrant(source.getQtyDeconEntrant());
+        setQtyDecondSortant(source.getQtyDecondSortant());
+        setQtyEntree(source.getQtyEntree());
+        setEcartInventaire(source.getEcartInventaire());
+    }
+
     public int getQtyVersReserve() {
         return qtyVersReserve;
     }

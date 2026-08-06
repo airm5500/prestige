@@ -69,6 +69,14 @@ public interface ProduitService {
      */
     byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params);
 
+    /**
+     * Detail jour par jour du suivi complet : agregats du suivi general (suivitEclate) completes des mouvements
+     * internes de reserve par jour. Un jour ou seule la reserve a bouge apparait aussi, avec les stocks rayon debut/fin
+     * lus dans la trace de reserve.
+     */
+    JSONObject suivitEclateCompletViewDatas(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException;
+
     JSONObject findAllFamilleArticle(String query) throws JSONException;
 
     JSONObject findAllFabricants(String query) throws JSONException;

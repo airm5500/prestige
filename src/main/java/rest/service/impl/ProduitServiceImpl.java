@@ -985,6 +985,91 @@ public class ProduitServiceImpl implements ProduitService {
         table.addCell(c);
     }
 
+    @Override
+    public JSONObject suivitEclateCompletViewDatas(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl)
+            throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            MvtProduitDTO base = suivitEclate(dtStart, dtEnd, produitId, empl);
+            Map<LocalDate, MvtProduitCompletDTO> parJour = new HashMap<>();
+            for (MvtProduitDTO jour : base.getProduits()) {
+                parJour.put(jour.getDateOperation(), new MvtProduitCompletDTO(jour));
+            }
+            int totalVersReserve = 0, totalVersRayon = 0, totalAjustReserve = 0;
+            for (Object[] r : agregatsReserveParJour(produitId, empl, dtStart, dtEnd)) {
+                LocalDate date = ((java.sql.Date) r[0]).toLocalDate();
+                int versReserve = entier(r[1]);
+                int versRayon = entier(r[2]);
+                int ajustReserve = entier(r[3]);
+                MvtProduitCompletDTO jour = parJour.get(date);
+                if (jour == null) {
+                    // Jour sans aucun mouvement general : la ligne existe quand meme, avec les stocks
+                    // rayon debut/fin lus dans la trace de reserve (avant du premier / apres du dernier).
+                    jour = new MvtProduitCompletDTO();
+                    jour.setDateOperation(date);
+                    jour.setStockInit(entier(r[4]));
+                    jour.setStockFinal(entier(r[5]));
+                    parJour.put(date, jour);
+                }
+                jour.setQtyVersReserve(versReserve);
+                jour.setQtyVersRayon(versRayon);
+                jour.setQtyAjustReserve(ajustReserve);
+                totalVersReserve += versReserve;
+                totalVersRayon += versRayon;
+                totalAjustReserve += ajustReserve;
+            }
+            List<MvtProduitCompletDTO> data = new ArrayList<>(parJour.values());
+            data.sort(mvtrByDate);
+
+            MvtProduitCompletDTO meta = new MvtProduitCompletDTO(base);
+            meta.setQtyVersReserve(totalVersReserve);
+            meta.setQtyVersRayon(totalVersRayon);
+            meta.setQtyAjustReserve(totalAjustReserve);
+
+            json.put("total", data.size());
+            json.put("data", new JSONArray(data));
+            json.put("metaData", new JSONObject(meta));
+            return json;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            json.put("total", 0);
+            json.put("data", new JSONArray());
+            return json;
+        }
+    }
+
+    private static int entier(Object o) {
+        return o == null ? 0 : ((Number) o).intValue();
+    }
+
+    /**
+     * Agregats des mouvements de reserve d'un article, par JOUR : [jour, somme ASSORT, somme REASSORT, delta signe des
+     * AJUSTEMENT, stock rayon avant du premier mouvement, stock rayon apres du dernier]. Le filtre de periode porte sur
+     * la colonne nue dt_CREATED (bornes ouvertes au lendemain) pour rester sur l'index ; DATE() ne sert qu'au
+     * regroupement.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Object[]> agregatsReserveParJour(String produitId, String empl, LocalDate dtStart, LocalDate dtEnd) {
+        try {
+            Query q = getEntityManager().createNativeQuery("SELECT DATE(m.dt_CREATED) AS jour, "
+                    + "SUM(CASE WHEN m.str_TYPE = 'ASSORT' THEN m.int_QTE ELSE 0 END), "
+                    + "SUM(CASE WHEN m.str_TYPE = 'REASSORT' THEN m.int_QTE ELSE 0 END), "
+                    + "SUM(CASE WHEN m.str_TYPE = 'AJUSTEMENT' THEN m.int_STOCK_RESERVE_APRES - m.int_STOCK_RESERVE_AVANT ELSE 0 END), "
+                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RAYON_AVANT ORDER BY m.dt_CREATED ASC), ',', 1) AS SIGNED), "
+                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RAYON_APRES ORDER BY m.dt_CREATED DESC), ',', 1) AS SIGNED) "
+                    + "FROM t_mouvement_reserve m WHERE m.lg_FAMILLE_ID = ?1 AND m.lg_EMPLACEMENT_ID = ?2 "
+                    + "AND m.dt_CREATED >= ?3 AND m.dt_CREATED < ?4 GROUP BY DATE(m.dt_CREATED)");
+            q.setParameter(1, produitId);
+            q.setParameter(2, empl);
+            q.setParameter(3, java.sql.Timestamp.valueOf(dtStart.atStartOfDay()));
+            q.setParameter(4, java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay()));
+            return q.getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return Collections.emptyList();
+        }
+    }
+
     /**
      * Union des familles ayant bouge sur la periode, toutes sources confondues : mouvements generaux (HMvtProduit) ET
      * mouvements de reserve. Un produit n'ayant connu que des transferts rayon/reserve apparait donc bien dans la

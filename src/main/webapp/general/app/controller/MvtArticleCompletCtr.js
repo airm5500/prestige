@@ -251,13 +251,22 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                         {
                             name: 'ecartInventaire',
                             type: 'number'
+                        }, {
+                            name: 'qtyVersReserve',
+                            type: 'number'
+                        }, {
+                            name: 'qtyVersRayon',
+                            type: 'number'
+                        }, {
+                            name: 'qtyAjustReserve',
+                            type: 'number'
                         }
                     ],
             pageSize: null,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/produit/monitoringproduct',
+                url: '../api/v1/produit/monitoringproduct-complet',
                 reader: {
                     type: 'json',
                     root: 'data',
@@ -278,6 +287,9 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
             form.query('#qtyRetourDepot')[0].setValue(rec.qtyRetourDepot);
             form.query('#qtyInv')[0].setValue(rec.qtyInv);
             form.query('#qtyPerime')[0].setValue(rec.qtyPerime);
+            form.query('#qtyVersReserve')[0].setValue(rec.qtyVersReserve);
+            form.query('#qtyVersRayon')[0].setValue(rec.qtyVersRayon);
+            form.query('#qtyAjustReserve')[0].setValue(rec.qtyAjustReserve);
 
         }, this);
         storeProduits.load({
@@ -469,6 +481,42 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     },
                                     fieldStyle: "color:blue;font-weight:600;",
                                     itemId: 'qtyAnnulation', value: 0
+                                },
+                                {
+                                    xtype: 'displayfield',
+                                    flex: 1,
+                                    fieldLabel: 'Vers réserve',
+                                    labelWidth: 80,
+                                    renderer: function (v) {
+                                        return Ext.util.Format.number(v, '0,000.');
+                                    },
+                                    fieldStyle: "color:#7030A0;font-weight:600;",
+                                    itemId: 'qtyVersReserve',
+                                    value: 0
+                                },
+                                {
+                                    xtype: 'displayfield',
+                                    flex: 1,
+                                    fieldLabel: 'Vers rayon',
+                                    labelWidth: 70,
+                                    renderer: function (v) {
+                                        return Ext.util.Format.number(v, '0,000.');
+                                    },
+                                    fieldStyle: "color:#7030A0;font-weight:600;",
+                                    itemId: 'qtyVersRayon',
+                                    value: 0
+                                },
+                                {
+                                    xtype: 'displayfield',
+                                    flex: 1,
+                                    fieldLabel: 'Ajust.réserve',
+                                    labelWidth: 80,
+                                    renderer: function (v) {
+                                        return Ext.util.Format.number(v, '0,000.');
+                                    },
+                                    fieldStyle: "color:#7030A0;font-weight:600;",
+                                    itemId: 'qtyAjustReserve',
+                                    value: 0
                                 }
 
                             ]
@@ -591,6 +639,36 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     format: '0,000.'
                                                 }
                                             ]
+                                },
+                                {
+                                    text: 'Interne réserve',
+                                    columns:
+                                            [
+                                                {
+                                                    text: 'Vers réserve',
+                                                    xtype: 'numbercolumn',
+                                                    dataIndex: 'qtyVersReserve',
+                                                    flex: 0.7,
+                                                    align: 'right',
+                                                    format: '0,000.'
+                                                },
+                                                {
+                                                    text: 'Vers rayon',
+                                                    xtype: 'numbercolumn',
+                                                    dataIndex: 'qtyVersRayon',
+                                                    flex: 0.7,
+                                                    align: 'right',
+                                                    format: '0,000.'
+                                                },
+                                                {
+                                                    text: 'Ajust.rés.',
+                                                    xtype: 'numbercolumn',
+                                                    dataIndex: 'qtyAjustReserve',
+                                                    flex: 0.7,
+                                                    align: 'right',
+                                                    format: '0,000.'
+                                                }
+                                            ]
                                 }
                                 ,
                                 {
@@ -610,7 +688,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     format: '0,000.'
                                 },
                                 {
-                                    text: 'Stock',
+                                    text: 'Stock rayon',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'stockFinal',
                                     flex: 0.7,

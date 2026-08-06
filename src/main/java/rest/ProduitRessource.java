@@ -242,6 +242,22 @@ public class ProduitRessource {
                 .build();
     }
 
+    /** Detail jour par jour du suivi complet : mouvements generaux + mouvements internes reserve. */
+    @GET
+    @Path("monitoringproduct-complet")
+    public Response detailMvtComplet(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "produitId") String produitId) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject jsono = produitService.suivitEclateCompletViewDatas(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
+                produitId, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        return Response.ok().entity(jsono.toString()).build();
+    }
+
     /** Impression PDF du suivi complet, A4 paysage, ouverte dans le navigateur. */
     @GET
     @Path("monitoring-complet/pdf")

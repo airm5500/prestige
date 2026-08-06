@@ -29,6 +29,29 @@ public class MvtProduitCompletDTOTest {
         assertEquals(-4, dto.getQtyAjustReserve());
     }
 
+    /** Le detail jour par jour du suivi complet copie chaque ligne du suivi general avant d'y greffer la reserve. */
+    @Test
+    public void constructeurDeCopieReprendLaLigneGenerale() {
+        MvtProduitDTO source = new MvtProduitDTO();
+        source.setDateOperation(java.time.LocalDate.of(2026, 8, 5));
+        source.setStockInit(40);
+        source.setStockFinal(25);
+        source.setQtyVente(12);
+        source.setQtyEntree(3);
+        source.setEcartInventaire(-1);
+
+        MvtProduitCompletDTO copie = new MvtProduitCompletDTO(source);
+
+        assertEquals("05/08/2026", copie.getDateOp());
+        assertEquals(java.time.LocalDate.of(2026, 8, 5), copie.getDateOperation());
+        assertEquals(40, copie.getStockInit());
+        assertEquals(25, copie.getStockFinal());
+        assertEquals(12, copie.getQtyVente());
+        assertEquals(3, copie.getQtyEntree());
+        assertEquals(-1, copie.getEcartInventaire());
+        assertEquals(0, copie.getQtyVersReserve());
+    }
+
     /**
      * La reponse JSON de /produit/monitoring-complet est construite par reflexion sur les getters (org.json) : les cles
      * attendues par MonitoringArticleComplet.js doivent toutes etre presentes, heritees comme nouvelles.
