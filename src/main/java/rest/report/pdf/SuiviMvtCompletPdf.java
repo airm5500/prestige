@@ -68,13 +68,13 @@ public final class SuiviMvtCompletPdf {
     }
 
     /** Liste generale : une ligne par article, memes colonnes que la grille de l'ecran. */
-    public static byte[] liste(List<MvtProduitCompletDTO> lignes, String periode, String imprimePar) {
+    public static byte[] liste(String officine, List<MvtProduitCompletDTO> lignes, String periode, String imprimePar) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4.rotate(), 18, 18, 20, 30);
             PdfWriter writer = PdfWriter.getInstance(doc, out);
             writer.setPageEvent(new Pied(imprimePar));
             doc.open();
-            titre(doc, "SUIVI MOUVEMENT ARTICLE COMPLET", "PERIODE " + periode);
+            titre(doc, officine, "SUIVI MOUVEMENT ARTICLE COMPLET", "PERIODE " + periode);
 
             float[] largeurs = { 5.5f, 16f, 4f, 4f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.7f, 4.5f, 4.7f,
                     4f, 4f, 4.5f, 4.7f, 4.3f };
@@ -121,14 +121,14 @@ public final class SuiviMvtCompletPdf {
      * Fiche des mouvements d'UN article, jour par jour : stocks rayon et reserve en debut et fin de journee, flux
      * classiques, mouvements internes de reserve, et ligne TOTAL.
      */
-    public static byte[] ficheArticle(String article, String periode, String imprimePar,
+    public static byte[] ficheArticle(String officine, String article, String periode, String imprimePar,
             List<MvtProduitCompletDTO> jours, MvtProduitCompletDTO totaux) {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4.rotate(), 18, 18, 20, 30);
             PdfWriter writer = PdfWriter.getInstance(doc, out);
             writer.setPageEvent(new Pied(imprimePar));
             doc.open();
-            titre(doc, "FICHE DES MOUVEMENTS DE L'ARTICLE " + article, "PERIODE " + periode);
+            titre(doc, officine, "FICHE DES MOUVEMENTS DE L'ARTICLE " + article, "PERIODE " + periode);
 
             float[] largeurs = { 7f, 5f, 5f, 4.5f, 4.7f, 4.7f, 4.7f, 4.5f, 5f, 4.7f, 4.5f, 4.7f, 5f, 5f, 5f, 4.7f, 4.5f,
                     4.7f, 5f, 5f };
@@ -160,9 +160,10 @@ public final class SuiviMvtCompletPdf {
                         j.getQtyAnnulation(), j.getQtyRetourDepot() }) {
                     nombre(table, v, FLUX_RAYON);
                 }
-                // vers reserve : + (la quantite entre en reserve) ; vers rayon : - (elle en sort)
-                nombreSigne(table, j.getQtyVersReserve(), "+", STOCK_RESERVE);
-                nombreSigne(table, j.getQtyVersRayon(), "-", STOCK_RAYON);
+                // couleur = zone d'ou l'on PREND : vers reserve pris au rayon (vert), vers rayon
+                // pris en reserve (orange). Les signes restent vus de la reserve : + entre, - sort.
+                nombreSigne(table, j.getQtyVersReserve(), "+", STOCK_RAYON);
+                nombreSigne(table, j.getQtyVersRayon(), "-", STOCK_RESERVE);
                 nombreSigne(table, j.getQtyAjustReserve(), "+", STOCK_RESERVE);
                 nombre(table, j.getQtyInv(), CELLULE);
                 nombre(table, j.getEcartInventaire(), CELLULE);
@@ -196,7 +197,12 @@ public final class SuiviMvtCompletPdf {
         }
     }
 
-    private static void titre(Document doc, String ligne1, String ligne2) throws Exception {
+    private static void titre(Document doc, String officine, String ligne1, String ligne2) throws Exception {
+        if (officine != null && !officine.trim().isEmpty()) {
+            Paragraph nom = new Paragraph(officine, SOUS_TITRE);
+            nom.setAlignment(Element.ALIGN_LEFT);
+            doc.add(nom);
+        }
         Paragraph p = new Paragraph(ligne1, TITRE);
         p.setAlignment(Element.ALIGN_CENTER);
         doc.add(p);
@@ -230,9 +236,19 @@ public final class SuiviMvtCompletPdf {
         table.addCell(c);
     }
 
-    /** Valeur positive precedee du signe demande ("+" ou "-") ; une valeur negative garde son signe naturel. */
+    /**
+     * Valeur precedee de son signe, avec une espace entre les deux ("+ 4", "- 4") ; une valeur negative garde son signe
+     * naturel, zero s'affiche nu.
+     */
     private static void nombreSigne(PdfPTable table, int valeur, String signePositif, Font police) {
-        String texte = valeur > 0 ? signePositif + valeur : String.valueOf(valeur);
+        String texte;
+        if (valeur > 0) {
+            texte = signePositif + " " + valeur;
+        } else if (valeur < 0) {
+            texte = "- " + Math.abs(valeur);
+        } else {
+            texte = "0";
+        }
         PdfPCell c = new PdfPCell(new Phrase(texte, police));
         c.setHorizontalAlignment(Element.ALIGN_RIGHT);
         c.setPadding(2f);

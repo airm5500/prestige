@@ -898,8 +898,8 @@ public class ProduitServiceImpl implements ProduitService {
     public byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params, TUser user) {
         params.setAll(true);
         List<MvtProduitCompletDTO> lignes = suivitMvtArticleComplet(params);
-        return rest.report.pdf.SuiviMvtCompletPdf.liste(lignes, periodeLibelle(params.getDtStart(), params.getDtEnd()),
-                nomOperateur(user));
+        return rest.report.pdf.SuiviMvtCompletPdf.liste(nomOfficine(), lignes,
+                periodeLibelle(params.getDtStart(), params.getDtEnd()), nomOperateur(user));
     }
 
     @Override
@@ -913,8 +913,18 @@ public class ProduitServiceImpl implements ProduitService {
         TFamille famille = findById(params.getProduitId());
         String article = famille == null ? ""
                 : (famille.getIntCIP() == null ? "" : famille.getIntCIP()) + " " + famille.getStrNAME();
-        return rest.report.pdf.SuiviMvtCompletPdf.ficheArticle(article,
+        return rest.report.pdf.SuiviMvtCompletPdf.ficheArticle(nomOfficine(), article,
                 periodeLibelle(params.getDtStart(), params.getDtEnd()), nomOperateur(user), jours, meta);
+    }
+
+    /** Nom abrege de l'officine (meme source que les editions Jasper : TOfficine id "1"). */
+    private String nomOfficine() {
+        try {
+            dal.TOfficine officine = getEntityManager().find(dal.TOfficine.class, "1");
+            return officine == null ? "" : officine.getStrNOMABREGE();
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private static String periodeLibelle(LocalDate dtStart, LocalDate dtEnd) {
