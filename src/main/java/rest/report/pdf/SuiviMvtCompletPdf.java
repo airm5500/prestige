@@ -36,6 +36,9 @@ public final class SuiviMvtCompletPdf {
     private static final Font TOTAL = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f);
     private static final Font PIED = FontFactory.getFont(FontFactory.HELVETICA, 7f);
     private static final BaseColor GRIS_ENTETE = new BaseColor(0xE8, 0xE8, 0xE8);
+    // Fonds des bandeaux de groupe de la fiche : vert = flux du rayon, orange = interne reserve.
+    private static final BaseColor FOND_RAYON = new BaseColor(0xC6, 0xE5, 0xC6);
+    private static final BaseColor FOND_RESERVE = new BaseColor(0xFF, 0xD9, 0xA8);
     // Meme code couleur que la fenetre de detail a l'ecran : vert = stock rayon, orange = stock reserve.
     private static final Font STOCK_RAYON = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f,
             new BaseColor(0x1B, 0x7D, 0x32));
@@ -138,9 +141,9 @@ public final class SuiviMvtCompletPdf {
 
             entete(table, "Date", 1, 2);
             entete(table, "Début de journée", 2, 1);
-            entete(table, "Sortie", 5, 1);
-            entete(table, "Entrée", 5, 1);
-            entete(table, "Interne réserve", 3, 1);
+            entete(table, "Sortie", 5, 1, FOND_RAYON);
+            entete(table, "Entrée", 5, 1, FOND_RAYON);
+            entete(table, "Interne réserve", 3, 1, FOND_RESERVE);
             entete(table, "Inv", 1, 2);
             entete(table, "Ecart.Inv", 1, 2);
             entete(table, "Fin de journée", 2, 1);
@@ -213,10 +216,14 @@ public final class SuiviMvtCompletPdf {
     }
 
     private static void entete(PdfPTable table, String texte, int colspan, int rowspan) {
+        entete(table, texte, colspan, rowspan, GRIS_ENTETE);
+    }
+
+    private static void entete(PdfPTable table, String texte, int colspan, int rowspan, BaseColor fond) {
         PdfPCell c = new PdfPCell(new Phrase(texte, ENTETE));
         c.setColspan(colspan);
         c.setRowspan(rowspan);
-        c.setBackgroundColor(GRIS_ENTETE);
+        c.setBackgroundColor(fond);
         c.setHorizontalAlignment(Element.ALIGN_CENTER);
         c.setVerticalAlignment(Element.ALIGN_MIDDLE);
         c.setPadding(2.5f);

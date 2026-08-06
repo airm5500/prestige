@@ -188,6 +188,15 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
 
     buildDetail: function (rec) {
         var me = this;
+        // Fond des bandeaux d'en-tete de groupe : vert = flux du rayon, orange = interne reserve.
+        // Injecte une seule fois ; !important pour passer devant le degrade du theme.
+        if (!me.cssEntetesInjecte) {
+            Ext.util.CSS.createStyleSheet(
+                    '.entete-groupe-rayon { background: #C6E5C6 !important; background-image: none !important; }'
+                    + '.entete-groupe-reserve { background: #FFD9A8 !important; background-image: none !important; }',
+                    'entetes-suivi-complet');
+            me.cssEntetesInjecte = true;
+        }
         var storeProduits = new Ext.data.Store({
             fields:
                     [
@@ -583,6 +592,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                 },
                                 {
                                     text: 'Sortie',
+                                    cls: 'entete-groupe-rayon',
                                     columns:
                                             [
                                                 {
@@ -650,6 +660,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                 },
                                 {
                                     text: 'Entr\u00e9e',
+                                    cls: 'entete-groupe-rayon',
                                     columns:
                                             [
                                                 {
@@ -716,6 +727,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                 },
                                 {
                                     text: 'Interne r\u00e9serve',
+                                    cls: 'entete-groupe-reserve',
                                     columns:
                                             [
                                                 {
