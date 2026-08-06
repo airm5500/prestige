@@ -41,6 +41,9 @@ public final class SuiviMvtCompletPdf {
             new BaseColor(0x1B, 0x7D, 0x32));
     private static final Font STOCK_RESERVE = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 6.5f,
             new BaseColor(0xE6, 0x73, 0x00));
+    /** Flux classiques (sorties/entrees) : ils touchent le stock RAYON, donc en vert non gras. */
+    private static final Font FLUX_RAYON = FontFactory.getFont(FontFactory.HELVETICA, 6.5f,
+            new BaseColor(0x1B, 0x7D, 0x32));
 
     private SuiviMvtCompletPdf() {
     }
@@ -135,13 +138,13 @@ public final class SuiviMvtCompletPdf {
 
             entete(table, "Date", 1, 2);
             entete(table, "Début de journée", 2, 1);
-            entete(table, "Quantité sortie", 5, 1);
-            entete(table, "Quantité entrée", 5, 1);
+            entete(table, "Sortie", 5, 1);
+            entete(table, "Entrée", 5, 1);
             entete(table, "Interne réserve", 3, 1);
-            entete(table, "Qté.Inv", 1, 2);
+            entete(table, "Inv", 1, 2);
             entete(table, "Ecart.Inv", 1, 2);
             entete(table, "Fin de journée", 2, 1);
-            for (String h : new String[] { "Rayon", "Réserve", "Vente", "Ret.Four", "Périmée", "Ajustée", "Décon",
+            for (String h : new String[] { "Rayon", "Réserve", "Vente", "Ret.Four", "Périmé", "Ajustée", "Décon",
                     "Entrée", "Ajustée", "Décon", "Annulée", "Ret.Dépôt", "Vers rés.", "Vers rayon", "Ajust.rés.",
                     "Rayon", "Réserve" }) {
                 entete(table, h, 1, 1);
@@ -151,12 +154,18 @@ public final class SuiviMvtCompletPdf {
                 texte(table, j.getDateOp(), CELLULE);
                 nombre(table, j.getStockInit(), STOCK_RAYON);
                 nombre(table, j.getStockReserveInit(), STOCK_RESERVE);
+                // flux classiques : en vert, ils font varier le stock rayon
                 for (int v : new int[] { j.getQtyVente(), j.getQtyRetour(), j.getQtyPerime(), j.getQtyAjustSortie(),
                         j.getQtyDecondSortant(), j.getQtyEntree(), j.getQtyAjust(), j.getQtyDeconEntrant(),
-                        j.getQtyAnnulation(), j.getQtyRetourDepot(), j.getQtyVersReserve(), j.getQtyVersRayon(),
-                        j.getQtyAjustReserve(), j.getQtyInv(), j.getEcartInventaire() }) {
-                    nombre(table, v, CELLULE);
+                        j.getQtyAnnulation(), j.getQtyRetourDepot() }) {
+                    nombre(table, v, FLUX_RAYON);
                 }
+                // vers reserve : + (la quantite entre en reserve) ; vers rayon : - (elle en sort)
+                nombreSigne(table, j.getQtyVersReserve(), "+", STOCK_RESERVE);
+                nombreSigne(table, j.getQtyVersRayon(), "-", STOCK_RAYON);
+                nombreSigne(table, j.getQtyAjustReserve(), "+", STOCK_RESERVE);
+                nombre(table, j.getQtyInv(), CELLULE);
+                nombre(table, j.getEcartInventaire(), CELLULE);
                 nombre(table, j.getStockFinal(), STOCK_RAYON);
                 nombre(table, j.getStockReserveFinal(), STOCK_RESERVE);
             }
@@ -216,6 +225,15 @@ public final class SuiviMvtCompletPdf {
 
     private static void nombre(PdfPTable table, int valeur, Font police) {
         PdfPCell c = new PdfPCell(new Phrase(String.valueOf(valeur), police));
+        c.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        c.setPadding(2f);
+        table.addCell(c);
+    }
+
+    /** Valeur positive precedee du signe demande ("+" ou "-") ; une valeur negative garde son signe naturel. */
+    private static void nombreSigne(PdfPTable table, int valeur, String signePositif, Font police) {
+        String texte = valeur > 0 ? signePositif + valeur : String.valueOf(valeur);
+        PdfPCell c = new PdfPCell(new Phrase(texte, police));
         c.setHorizontalAlignment(Element.ALIGN_RIGHT);
         c.setPadding(2f);
         table.addCell(c);

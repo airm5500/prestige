@@ -962,13 +962,12 @@ public class ProduitServiceImpl implements ProduitService {
         for (MvtProduitDTO jour : base.getProduits()) {
             parJour.put(jour.getDateOperation(), new MvtProduitCompletDTO(jour));
         }
-        // [versReserve, versRayon, ajustSigne, rayonAvantPremier, rayonApresDernier,
-        // reserveAvantPremier, reserveApresDernier] par jour ayant au moins un mouvement de reserve
-        Map<LocalDate, int[]> reserveParJour = new HashMap<>();
+        // [jour, versReserve, versRayon, ajustSigne, rayonAvantPremier, rayonApresDernier,
+        // reserveAvantPremier, reserveApresDernier, premierHorodatage, dernierHorodatage]
+        Map<LocalDate, Object[]> reserveParJour = new HashMap<>();
         for (Object[] r : agregatsReserveParJour(produitId, empl, dtStart, dtEnd)) {
             LocalDate date = ((java.sql.Date) r[0]).toLocalDate();
-            reserveParJour.put(date, new int[] { entier(r[1]), entier(r[2]), entier(r[3]), entier(r[4]), entier(r[5]),
-                    entier(r[6]), entier(r[7]) });
+            reserveParJour.put(date, r);
             if (!parJour.containsKey(date)) {
                 // Jour sans aucun mouvement general : la ligne existe quand meme, avec les stocks
                 // rayon debut/fin lus dans la trace de reserve (avant du premier / apres du dernier).
@@ -982,23 +981,41 @@ public class ProduitServiceImpl implements ProduitService {
         List<MvtProduitCompletDTO> data = new ArrayList<>(parJour.values());
         data.sort(mvtrByDate);
 
+        // Pour un jour mixte, la photo du stock rayon debut/fin doit venir de l'historique dont le
+        // mouvement est chronologiquement le premier/le dernier : un reassort fait apres la derniere
+        // vente du jour modifie le stock rayon SANS ecrire dans HMvtProduit, la photo du suivi
+        // general serait donc perimee.
+        Map<LocalDate, java.time.LocalDateTime[]> bornesGeneral = bornesGeneralParJour(produitId, empl, dtStart, dtEnd);
+
         // Stock reserve debut/fin de chaque jour. La trace de reserve est l'UNIQUE voie de
         // modification de ce stock : entre deux mouvements il est constant, on peut donc le
         // reporter d'un jour a l'autre a partir du dernier mouvement anterieur a la periode.
         int reserveCourante = stockReserveAvantDate(produitId, empl, dtStart);
         int totalVersReserve = 0, totalVersRayon = 0, totalAjustReserve = 0;
         for (MvtProduitCompletDTO jour : data) {
-            int[] r = reserveParJour.get(jour.getDateOperation());
+            Object[] r = reserveParJour.get(jour.getDateOperation());
             if (r != null) {
-                jour.setQtyVersReserve(r[0]);
-                jour.setQtyVersRayon(r[1]);
-                jour.setQtyAjustReserve(r[2]);
-                jour.setStockReserveInit(r[5]);
-                jour.setStockReserveFinal(r[6]);
-                reserveCourante = r[6];
-                totalVersReserve += r[0];
-                totalVersRayon += r[1];
-                totalAjustReserve += r[2];
+                jour.setQtyVersReserve(entier(r[1]));
+                jour.setQtyVersRayon(entier(r[2]));
+                jour.setQtyAjustReserve(entier(r[3]));
+                jour.setStockReserveInit(entier(r[6]));
+                jour.setStockReserveFinal(entier(r[7]));
+                reserveCourante = entier(r[7]);
+                totalVersReserve += entier(r[1]);
+                totalVersRayon += entier(r[2]);
+                totalAjustReserve += entier(r[3]);
+
+                java.time.LocalDateTime[] general = bornesGeneral.get(jour.getDateOperation());
+                if (general != null && r[8] != null && r[9] != null) {
+                    java.time.LocalDateTime reservePremier = ((java.sql.Timestamp) r[8]).toLocalDateTime();
+                    java.time.LocalDateTime reserveDernier = ((java.sql.Timestamp) r[9]).toLocalDateTime();
+                    if (reservePremier.isBefore(general[0])) {
+                        jour.setStockInit(entier(r[4]));
+                    }
+                    if (reserveDernier.isAfter(general[1])) {
+                        jour.setStockFinal(entier(r[5]));
+                    }
+                }
             } else {
                 jour.setStockReserveInit(reserveCourante);
                 jour.setStockReserveFinal(reserveCourante);
@@ -1015,6 +1032,33 @@ public class ProduitServiceImpl implements ProduitService {
 
     private static int entier(Object o) {
         return o == null ? 0 : ((Number) o).intValue();
+    }
+
+    /**
+     * Premier et dernier horodatage des mouvements GENERAUX (HMvtProduit) de chaque jour de la periode. Sert a
+     * departager, pour un jour mixte, quel historique detient la photo du stock rayon en debut et en fin de journee :
+     * un reassort fait apres la derniere vente du jour doit se voir dans la colonne "Fin de journee".
+     */
+    private Map<LocalDate, java.time.LocalDateTime[]> bornesGeneralParJour(String produitId, String empl,
+            LocalDate dtStart, LocalDate dtEnd) {
+        Map<LocalDate, java.time.LocalDateTime[]> out = new HashMap<>();
+        try {
+            TypedQuery<Object[]> q = getEntityManager()
+                    .createQuery("SELECT o.mvtDate, MIN(o.createdAt), MAX(o.createdAt) FROM HMvtProduit o "
+                            + "WHERE o.famille.lgFAMILLEID = :fid AND o.emplacement.lgEMPLACEMENTID = :empl "
+                            + "AND o.mvtDate BETWEEN :d1 AND :d2 GROUP BY o.mvtDate", Object[].class);
+            q.setParameter("fid", produitId);
+            q.setParameter("empl", empl);
+            q.setParameter("d1", dtStart);
+            q.setParameter("d2", dtEnd);
+            for (Object[] r : q.getResultList()) {
+                out.put((LocalDate) r[0], new java.time.LocalDateTime[] { (java.time.LocalDateTime) r[1],
+                        (java.time.LocalDateTime) r[2] });
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return out;
     }
 
     /**
@@ -1055,7 +1099,8 @@ public class ProduitServiceImpl implements ProduitService {
                     + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RAYON_AVANT ORDER BY m.dt_CREATED ASC), ',', 1) AS SIGNED), "
                     + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RAYON_APRES ORDER BY m.dt_CREATED DESC), ',', 1) AS SIGNED), "
                     + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RESERVE_AVANT ORDER BY m.dt_CREATED ASC), ',', 1) AS SIGNED), "
-                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RESERVE_APRES ORDER BY m.dt_CREATED DESC), ',', 1) AS SIGNED) "
+                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RESERVE_APRES ORDER BY m.dt_CREATED DESC), ',', 1) AS SIGNED), "
+                    + "MIN(m.dt_CREATED), MAX(m.dt_CREATED) "
                     + "FROM t_mouvement_reserve m WHERE m.lg_FAMILLE_ID = ?1 AND m.lg_EMPLACEMENT_ID = ?2 "
                     + "AND m.dt_CREATED >= ?3 AND m.dt_CREATED < ?4 GROUP BY DATE(m.dt_CREATED)");
             q.setParameter(1, produitId);

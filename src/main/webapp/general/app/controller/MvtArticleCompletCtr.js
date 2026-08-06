@@ -550,7 +550,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     flex: 1
                                 },
                                 {
-                                    text: 'Début de journée',
+                                    text: 'D\u00e9but de journ\u00e9e',
                                     columns:
                                             [
                                                 {
@@ -567,7 +567,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     }
                                                 },
                                                 {
-                                                    text: 'Stock réserve',
+                                                    text: 'Stock RES',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'stockReserveInit',
                                                     flex: 0.7,
@@ -590,7 +590,12 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     dataIndex: 'qtyVente',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    // vert : ces flux touchent le stock RAYON
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
                                                     text: 'Ret.four',
@@ -598,113 +603,169 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     dataIndex: 'qtyRetour',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Qté.périmé',
+                                                    text: 'P\u00e9rim\u00e9',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyPerime',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Qté.Ajustée',
+                                                    text: 'Ajust\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjustSortie',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Qté.Décon',
+                                                    text: 'D\u00e9con',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyDecondSortant',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 }
                                             ]
                                 },
                                 {
-                                    text: 'Entrée',
+                                    text: 'Entr\u00e9e',
                                     columns:
                                             [
                                                 {
-                                                    text: 'Qté.Entrée',
+                                                    text: 'Entr\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyEntree',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Qté.Ajustée',
+                                                    text: 'Ajust\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjust',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Qté.Décon',
+                                                    text: 'D\u00e9con',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyDeconEntrant',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Qté.Annulée',
+                                                    text: 'Annul\u00e9e',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAnnulation',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Qté.Ret.Depôt',
+                                                    text: 'Ret.D\u00e9p\u00f4t',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyRetourDepot',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;';
+                                                        return Ext.util.Format.number(v, '0,000.');
+                                                    }
                                                 }
                                             ]
                                 },
                                 {
-                                    text: 'Interne réserve',
+                                    text: 'Interne r\u00e9serve',
                                     columns:
                                             [
                                                 {
-                                                    text: 'Vers réserve',
+                                                    // orange + signe "+" : la quantite ENTRE en reserve
+                                                    text: 'Vers r\u00e9serve',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyVersReserve',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#E67300;font-weight:600;';
+                                                        var n = Ext.util.Format.number(v, '0,000.');
+                                                        return v > 0 ? '+' + n : n;
+                                                    }
                                                 },
                                                 {
+                                                    // vert + signe "-" : la quantite SORT de la reserve vers le rayon
                                                     text: 'Vers rayon',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyVersRayon',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#1B7D32;font-weight:600;';
+                                                        var n = Ext.util.Format.number(v, '0,000.');
+                                                        return v > 0 ? '-' + n : n;
+                                                    }
                                                 },
                                                 {
-                                                    text: 'Ajust.rés.',
+                                                    text: 'Ajust.r\u00e9s.',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'qtyAjustReserve',
                                                     flex: 0.7,
                                                     align: 'right',
-                                                    format: '0,000.'
+                                                    format: '0,000.',
+                                                    renderer: function (v, m) {
+                                                        m.style = 'color:#E67300;font-weight:600;';
+                                                        var n = Ext.util.Format.number(Math.abs(v), '0,000.');
+                                                        if (v > 0) {
+                                                            return '+' + n;
+                                                        }
+                                                        return v < 0 ? '-' + n : n;
+                                                    }
                                                 }
                                             ]
                                 }
                                 ,
                                 {
-                                    text: 'Qté.Inv',
+                                    text: 'Inv',
                                     xtype: 'numbercolumn',
                                     dataIndex: 'qtyInv',
                                     flex: 0.7,
@@ -720,7 +781,7 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     format: '0,000.'
                                 },
                                 {
-                                    text: 'Fin de journée',
+                                    text: 'Fin de journ\u00e9e',
                                     columns:
                                             [
                                                 {
@@ -730,20 +791,65 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                                     flex: 0.7,
                                                     align: 'right',
                                                     format: '0,000.',
-                                                    renderer: function (v, m) {
+                                                    renderer: function (v, m, r) {
                                                         m.style = 'color:#1B7D32;font-weight:600;';
+                                                        // au survol : le calcul complet, sorties en moins, entrees en plus
+                                                        var termes = ['d\u00e9but (' + r.get('stockInit') + ')'];
+                                                        var total = r.get('stockInit');
+                                                        Ext.each([['vente', 'qtyVente'], ['ret.four', 'qtyRetour'],
+                                                            ['p\u00e9rim\u00e9', 'qtyPerime'], ['ajust\u00e9e', 'qtyAjustSortie'],
+                                                            ['d\u00e9con', 'qtyDecondSortant'], ['vers r\u00e9serve', 'qtyVersReserve']], function (t) {
+                                                            var q = r.get(t[1]) || 0;
+                                                            if (q !== 0) {
+                                                                termes.push('- ' + t[0] + ' (' + q + ')');
+                                                                total -= q;
+                                                            }
+                                                        });
+                                                        Ext.each([['entr\u00e9e', 'qtyEntree'], ['ajust\u00e9e', 'qtyAjust'],
+                                                            ['d\u00e9con', 'qtyDeconEntrant'], ['annul\u00e9e', 'qtyAnnulation'],
+                                                            ['ret.d\u00e9p\u00f4t', 'qtyRetourDepot'], ['vers rayon', 'qtyVersRayon'],
+                                                            ['\u00e9cart inv.', 'ecartInventaire']], function (t) {
+                                                            var q = r.get(t[1]) || 0;
+                                                            if (q !== 0) {
+                                                                termes.push('+ ' + t[0] + ' (' + q + ')');
+                                                                total += q;
+                                                            }
+                                                        });
+                                                        var tip = "<span style='color:#0033CC;font-weight:600;white-space:normal'>Stock rayon fin = "
+                                                                + termes.join(' ') + ' = ' + total + '</span>';
+                                                        m.tdAttr = 'data-qtip="' + tip + '"';
                                                         return Ext.util.Format.number(v, '0,000.');
                                                     }
                                                 },
                                                 {
-                                                    text: 'Stock réserve',
+                                                    text: 'Stock RES',
                                                     xtype: 'numbercolumn',
                                                     dataIndex: 'stockReserveFinal',
                                                     flex: 0.7,
                                                     align: 'right',
                                                     format: '0,000.',
-                                                    renderer: function (v, m) {
+                                                    renderer: function (v, m, r) {
                                                         m.style = 'color:#E67300;font-weight:600;';
+                                                        var termes = ['d\u00e9but (' + r.get('stockReserveInit') + ')'];
+                                                        var total = r.get('stockReserveInit');
+                                                        var q = r.get('qtyVersReserve') || 0;
+                                                        if (q !== 0) {
+                                                            termes.push('+ vers r\u00e9serve (' + q + ')');
+                                                            total += q;
+                                                        }
+                                                        q = r.get('qtyVersRayon') || 0;
+                                                        if (q !== 0) {
+                                                            termes.push('- vers rayon (' + q + ')');
+                                                            total -= q;
+                                                        }
+                                                        q = r.get('qtyAjustReserve') || 0;
+                                                        if (q !== 0) {
+                                                            termes.push((q > 0 ? '+ ' : '- ') + 'ajust.r\u00e9serve (' + Math.abs(q) + ')');
+                                                            total += q;
+                                                        }
+                                                        var tip = "<span style='color:#0033CC;font-weight:600;white-space:normal'>Stock r\u00e9serve fin = "
+                                                                + termes.join(' ') + ' = ' + total + '</span>';
+                                                        m.tdAttr = 'data-qtip="' + tip + '"';
                                                         return Ext.util.Format.number(v, '0,000.');
                                                     }
                                                 }
