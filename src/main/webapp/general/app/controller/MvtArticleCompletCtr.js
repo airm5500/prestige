@@ -260,6 +260,12 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                         }, {
                             name: 'qtyAjustReserve',
                             type: 'number'
+                        }, {
+                            name: 'stockReserveInit',
+                            type: 'number'
+                        }, {
+                            name: 'stockReserveFinal',
+                            type: 'number'
                         }
                     ],
             pageSize: null,
@@ -540,13 +546,28 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     menuDisabled: true,
                                     dataIndex: 'dateOp',
                                     flex: 1
-                                }, {
-                                    text: 'Qté.Init',
-                                    xtype: 'numbercolumn',
-                                    dataIndex: 'stockInit',
-                                    flex: 0.7,
-                                    align: 'right',
-                                    format: '0,000.'
+                                },
+                                {
+                                    text: 'Début de journée',
+                                    columns:
+                                            [
+                                                {
+                                                    text: 'Stock rayon',
+                                                    xtype: 'numbercolumn',
+                                                    dataIndex: 'stockInit',
+                                                    flex: 0.7,
+                                                    align: 'right',
+                                                    format: '0,000.'
+                                                },
+                                                {
+                                                    text: 'Stock réserve',
+                                                    xtype: 'numbercolumn',
+                                                    dataIndex: 'stockReserveInit',
+                                                    flex: 0.7,
+                                                    align: 'right',
+                                                    format: '0,000.'
+                                                }
+                                            ]
                                 },
                                 {
                                     text: 'Sortie',
@@ -688,12 +709,26 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     format: '0,000.'
                                 },
                                 {
-                                    text: 'Stock rayon',
-                                    xtype: 'numbercolumn',
-                                    dataIndex: 'stockFinal',
-                                    flex: 0.7,
-                                    align: 'right',
-                                    format: '0,000.'
+                                    text: 'Fin de journée',
+                                    columns:
+                                            [
+                                                {
+                                                    text: 'Stock rayon',
+                                                    xtype: 'numbercolumn',
+                                                    dataIndex: 'stockFinal',
+                                                    flex: 0.7,
+                                                    align: 'right',
+                                                    format: '0,000.'
+                                                },
+                                                {
+                                                    text: 'Stock réserve',
+                                                    xtype: 'numbercolumn',
+                                                    dataIndex: 'stockReserveFinal',
+                                                    flex: 0.7,
+                                                    align: 'right',
+                                                    format: '0,000.'
+                                                }
+                                            ]
                                 }
 
                             ],

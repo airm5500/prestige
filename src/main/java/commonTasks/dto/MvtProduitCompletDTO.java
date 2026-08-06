@@ -23,6 +23,10 @@ public class MvtProduitCompletDTO extends MvtProduitDTO {
     private int currentStockReserve = 0;
     /** Stock rayon (currentStock herite) + stock reserve. */
     private int currentStockTotal = 0;
+    /** Detail jour par jour : stock RESERVE en debut de journee (reporte des jours precedents si aucun mouvement). */
+    private int stockReserveInit = 0;
+    /** Detail jour par jour : stock RESERVE en fin de journee. */
+    private int stockReserveFinal = 0;
 
     public MvtProduitCompletDTO() {
     }
@@ -90,5 +94,21 @@ public class MvtProduitCompletDTO extends MvtProduitDTO {
 
     public void setCurrentStockTotal(int currentStockTotal) {
         this.currentStockTotal = currentStockTotal;
+    }
+
+    public int getStockReserveInit() {
+        return stockReserveInit;
+    }
+
+    public void setStockReserveInit(int stockReserveInit) {
+        this.stockReserveInit = stockReserveInit;
+    }
+
+    public int getStockReserveFinal() {
+        return stockReserveFinal;
+    }
+
+    public void setStockReserveFinal(int stockReserveFinal) {
+        this.stockReserveFinal = stockReserveFinal;
     }
 }

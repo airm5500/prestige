@@ -995,31 +995,48 @@ public class ProduitServiceImpl implements ProduitService {
             for (MvtProduitDTO jour : base.getProduits()) {
                 parJour.put(jour.getDateOperation(), new MvtProduitCompletDTO(jour));
             }
-            int totalVersReserve = 0, totalVersRayon = 0, totalAjustReserve = 0;
+            // [versReserve, versRayon, ajustSigne, rayonAvantPremier, rayonApresDernier,
+            // reserveAvantPremier, reserveApresDernier] par jour ayant au moins un mouvement de reserve
+            Map<LocalDate, int[]> reserveParJour = new HashMap<>();
             for (Object[] r : agregatsReserveParJour(produitId, empl, dtStart, dtEnd)) {
                 LocalDate date = ((java.sql.Date) r[0]).toLocalDate();
-                int versReserve = entier(r[1]);
-                int versRayon = entier(r[2]);
-                int ajustReserve = entier(r[3]);
-                MvtProduitCompletDTO jour = parJour.get(date);
-                if (jour == null) {
+                reserveParJour.put(date, new int[] { entier(r[1]), entier(r[2]), entier(r[3]), entier(r[4]),
+                        entier(r[5]), entier(r[6]), entier(r[7]) });
+                if (!parJour.containsKey(date)) {
                     // Jour sans aucun mouvement general : la ligne existe quand meme, avec les stocks
                     // rayon debut/fin lus dans la trace de reserve (avant du premier / apres du dernier).
-                    jour = new MvtProduitCompletDTO();
+                    MvtProduitCompletDTO jour = new MvtProduitCompletDTO();
                     jour.setDateOperation(date);
                     jour.setStockInit(entier(r[4]));
                     jour.setStockFinal(entier(r[5]));
                     parJour.put(date, jour);
                 }
-                jour.setQtyVersReserve(versReserve);
-                jour.setQtyVersRayon(versRayon);
-                jour.setQtyAjustReserve(ajustReserve);
-                totalVersReserve += versReserve;
-                totalVersRayon += versRayon;
-                totalAjustReserve += ajustReserve;
             }
             List<MvtProduitCompletDTO> data = new ArrayList<>(parJour.values());
             data.sort(mvtrByDate);
+
+            // Stock reserve debut/fin de chaque jour. La trace de reserve est l'UNIQUE voie de
+            // modification de ce stock : entre deux mouvements il est constant, on peut donc le
+            // reporter d'un jour a l'autre a partir du dernier mouvement anterieur a la periode.
+            int reserveCourante = stockReserveAvantDate(produitId, empl, dtStart);
+            int totalVersReserve = 0, totalVersRayon = 0, totalAjustReserve = 0;
+            for (MvtProduitCompletDTO jour : data) {
+                int[] r = reserveParJour.get(jour.getDateOperation());
+                if (r != null) {
+                    jour.setQtyVersReserve(r[0]);
+                    jour.setQtyVersRayon(r[1]);
+                    jour.setQtyAjustReserve(r[2]);
+                    jour.setStockReserveInit(r[5]);
+                    jour.setStockReserveFinal(r[6]);
+                    reserveCourante = r[6];
+                    totalVersReserve += r[0];
+                    totalVersRayon += r[1];
+                    totalAjustReserve += r[2];
+                } else {
+                    jour.setStockReserveInit(reserveCourante);
+                    jour.setStockReserveFinal(reserveCourante);
+                }
+            }
 
             MvtProduitCompletDTO meta = new MvtProduitCompletDTO(base);
             meta.setQtyVersReserve(totalVersReserve);
@@ -1043,6 +1060,28 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     /**
+     * Stock reserve juste avant une date : "apres" du dernier mouvement de reserve anterieur. Zero si le produit n'a
+     * jamais eu de mouvement de reserve avant cette date (la trace etant la seule voie de modification du stock
+     * reserve, l'absence de trace signifie une reserve vide).
+     */
+    private int stockReserveAvantDate(String produitId, String empl, LocalDate date) {
+        try {
+            Query q = getEntityManager().createNativeQuery("SELECT m.int_STOCK_RESERVE_APRES "
+                    + "FROM t_mouvement_reserve m WHERE m.lg_FAMILLE_ID = ?1 AND m.lg_EMPLACEMENT_ID = ?2 "
+                    + "AND m.dt_CREATED < ?3 ORDER BY m.dt_CREATED DESC LIMIT 1");
+            q.setParameter(1, produitId);
+            q.setParameter(2, empl);
+            q.setParameter(3, java.sql.Timestamp.valueOf(date.atStartOfDay()));
+            @SuppressWarnings("unchecked")
+            List<Object> res = q.getResultList();
+            return res.isEmpty() ? 0 : entier(res.get(0));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return 0;
+        }
+    }
+
+    /**
      * Agregats des mouvements de reserve d'un article, par JOUR : [jour, somme ASSORT, somme REASSORT, delta signe des
      * AJUSTEMENT, stock rayon avant du premier mouvement, stock rayon apres du dernier]. Le filtre de periode porte sur
      * la colonne nue dt_CREATED (bornes ouvertes au lendemain) pour rester sur l'index ; DATE() ne sert qu'au
@@ -1056,7 +1095,9 @@ public class ProduitServiceImpl implements ProduitService {
                     + "SUM(CASE WHEN m.str_TYPE = 'REASSORT' THEN m.int_QTE ELSE 0 END), "
                     + "SUM(CASE WHEN m.str_TYPE = 'AJUSTEMENT' THEN m.int_STOCK_RESERVE_APRES - m.int_STOCK_RESERVE_AVANT ELSE 0 END), "
                     + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RAYON_AVANT ORDER BY m.dt_CREATED ASC), ',', 1) AS SIGNED), "
-                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RAYON_APRES ORDER BY m.dt_CREATED DESC), ',', 1) AS SIGNED) "
+                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RAYON_APRES ORDER BY m.dt_CREATED DESC), ',', 1) AS SIGNED), "
+                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RESERVE_AVANT ORDER BY m.dt_CREATED ASC), ',', 1) AS SIGNED), "
+                    + "CAST(SUBSTRING_INDEX(GROUP_CONCAT(m.int_STOCK_RESERVE_APRES ORDER BY m.dt_CREATED DESC), ',', 1) AS SIGNED) "
                     + "FROM t_mouvement_reserve m WHERE m.lg_FAMILLE_ID = ?1 AND m.lg_EMPLACEMENT_ID = ?2 "
                     + "AND m.dt_CREATED >= ?3 AND m.dt_CREATED < ?4 GROUP BY DATE(m.dt_CREATED)");
             q.setParameter(1, produitId);

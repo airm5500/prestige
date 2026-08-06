@@ -52,6 +52,19 @@ public class MvtProduitCompletDTOTest {
         assertEquals(0, copie.getQtyVersReserve());
     }
 
+    /** Le detail jour par jour expose aussi les stocks reserve debut et fin de journee. */
+    @Test
+    public void stocksReserveDebutEtFinDeJournee() {
+        MvtProduitCompletDTO dto = new MvtProduitCompletDTO();
+        dto.setStockReserveInit(12);
+        dto.setStockReserveFinal(7);
+
+        JSONObject json = new JSONObject(dto);
+
+        assertEquals(12, json.getInt("stockReserveInit"));
+        assertEquals(7, json.getInt("stockReserveFinal"));
+    }
+
     /**
      * La reponse JSON de /produit/monitoring-complet est construite par reflexion sur les getters (org.json) : les cles
      * attendues par MonitoringArticleComplet.js doivent toutes etre presentes, heritees comme nouvelles.
