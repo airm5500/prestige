@@ -30,9 +30,6 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
         }, {
             ref: 'categorieId',
             selector: 'monitoringarticlecomplet #categorieId'
-        }, {
-            ref: 'fabricantId',
-            selector: 'monitoringarticlecomplet #fabricantId'
         }, {ref: 'dtStart',
             selector: 'monitoringarticlecomplet #dtStart'
         },
@@ -56,9 +53,6 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                 beforechange: this.doBeforechange
             },
 
-            'monitoringarticlecomplet #fabricantId': {
-                select: this.doSearch
-            },
             'monitoringarticlecomplet #query': {
                 specialkey: this.doSearch
             },
@@ -79,6 +73,9 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                 click: this.handleActionColumn
             },
             'monitoringarticlecomplet #imprimer': {
+                click: this.onExcelClick
+            },
+            'monitoringarticlecomplet #imprimerPdf': {
                 click: this.onPdfClick
             }
 
@@ -96,7 +93,6 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
         const myProxy = me.getMvtGrid().getStore().getProxy();
         myProxy.params = {
             categorieId: null,
-            fabricantId: null,
             dtStart: null,
             dtEnd: null,
             rayonId: null,
@@ -109,14 +105,12 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('rayonId', me.getRayonId().getValue());
         myProxy.setExtraParam('search', me.getQuery().getValue());
-        myProxy.setExtraParam('fabricantId', me.getFabricantId().getValue());
     },
     doBeforechangeItem: function (page, currentPage) {
         const me = this;
         const myProxy = me.getMvtGrid().getStore().getProxy();
         myProxy.params = {
             categorieId: null,
-            fabricantId: null,
             dtStart: null,
             dtEnd: null,
             rayonId: null,
@@ -129,18 +123,15 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
         myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
         myProxy.setExtraParam('rayonId', me.getRayonId().getValue());
         myProxy.setExtraParam('search', me.getQuery().getValue());
-        myProxy.setExtraParam('fabricantId', me.getFabricantId().getValue());
     },
-    onPdfClick: function () {
-        // Export Excel : contrairement au PDF Jasper du suivi 2 (template hors depot), le classeur
-        // est genere cote serveur et contient aussi les mouvements internes et les trois stocks.
+    // URL des filtres courants pour les sorties serveur (PDF et Excel)
+    buildExportUrl: function (suffixe) {
         const me = this;
         let categorieId = me.getCategorieId().getValue();
         const dtStart = me.getDtStart().getSubmitValue();
         const dtEnd = me.getDtEnd().getSubmitValue();
         let rayonId = me.getRayonId().getValue();
         let search = me.getQuery().getValue();
-        let fabricantId = me.getFabricantId().getValue();
 
         if (categorieId === null) {
             categorieId = '';
@@ -151,20 +142,26 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
         if (search === null) {
             search = '';
         }
-        if (fabricantId === null) {
-            fabricantId = '';
-        }
-        const linkUrl = '../api/v1/produit/monitoring-complet/excel?dtStart=' + dtStart + '&dtEnd=' + dtEnd
-                + '&rayonId=' + rayonId + '&categorieId=' + categorieId + '&search=' + encodeURIComponent(search)
-                + '&fabricantId=' + fabricantId
-                ;
-        window.open(linkUrl);
+        return '../api/v1/produit/monitoring-complet/' + suffixe + '?dtStart=' + dtStart + '&dtEnd=' + dtEnd
+                + '&rayonId=' + rayonId + '&categorieId=' + categorieId + '&search=' + encodeURIComponent(search);
     },
-    handleActionColumn: function (view, rowIndex, colIndex, item, e, r, row) {
+    onPdfClick: function () {
+        // Impression PDF A4 paysage, generee cote serveur (iText) : aucun template Jasper a deployer.
+        window.open(this.buildExportUrl('pdf'));
+    },
+    onExcelClick: function () {
+        // Export Excel : toutes les lignes filtrees, mouvements internes et les trois stocks compris.
+        window.open(this.buildExportUrl('excel'));
+    },
+    handleActionColumn: function (view, cell, rowIndex, colIndex, e, record) {
         const me = this;
-        const store = me.getMvtGrid().getStore();
-        // rowIndex, et non colIndex : le suivi 2 lisait la mauvaise ligne des que la grille etait scrollee.
-        const rec = store.getAt(rowIndex);
+        // Signature reelle de l'evenement click d'une actioncolumn : (view, cellEl, recordIndex,
+        // cellIndex, event, record). Le suivi 2 lisait le 3e argument sous le nom "colIndex" ;
+        // ici on prend le record fourni par l'evenement, avec repli sur l'index de ligne.
+        const rec = (record && record.get) ? record : me.getMvtGrid().getStore().getAt(rowIndex);
+        if (!rec) {
+            return;
+        }
         me.produitId = rec.get('produitId');
         me.buildDetail(rec);
 
@@ -181,7 +178,6 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
         me.getMvtGrid().getStore().load({
             params: {
                 categorieId: me.getCategorieId().getValue(),
-                fabricantId: me.getFabricantId().getValue(),
                 dtStart: me.getDtStart().getSubmitValue(),
                 dtEnd: me.getDtEnd().getSubmitValue(),
                 rayonId: me.getRayonId().getValue(),

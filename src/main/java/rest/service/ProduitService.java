@@ -63,6 +63,12 @@ public interface ProduitService {
     /** Export Excel du suivi complet : porte sur toutes les lignes filtrees, pas sur la page affichee. */
     byte[] exportSuiviMvtArticleComplet(MvtArticleParams params) throws java.io.IOException;
 
+    /**
+     * Impression PDF du suivi complet en A4 paysage (iText, sans template Jasper a deployer). Memes lignes que l'ecran,
+     * toutes pages confondues.
+     */
+    byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params);
+
     JSONObject findAllFamilleArticle(String query) throws JSONException;
 
     JSONObject findAllFabricants(String query) throws JSONException;

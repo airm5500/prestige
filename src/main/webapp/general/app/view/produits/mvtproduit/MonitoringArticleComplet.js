@@ -71,30 +71,6 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticleComplet', {
             autoLoad: false
 
         });
-        var fabricants = new Ext.data.Store({
-            fields: [
-                {
-                    name: 'id',
-                    type: 'string'
-                },
-                {
-                    name: 'libelle',
-                    type: 'string'
-                }
-            ],
-            pageSize: null,
-            proxy: {
-                type: 'ajax',
-                url: '../api/v1/produit/fabricants',
-                reader: {
-                    type: 'json',
-                    root: 'data',
-                    totalProperty: 'total'
-                }
-            },
-            autoLoad: false
-
-        });
         var storeProduits = new Ext.data.Store({
             fields:
                     [
@@ -213,19 +189,6 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticleComplet', {
                             flex: 1,
                             emptyText: "Sectionner zone geographique..."
 
-                        }, "-", {
-                            xtype: "combobox",
-                            itemId: 'fabricantId',
-                            store: fabricants,
-                            margin: '0 10 0 0',
-                            valueField: "id",
-                            displayField: "libelle",
-                            typeAhead: true,
-                            pageSize: null,
-                            queryMode: "remote",
-                            flex: 1,
-                            emptyText: "Sectionner fabriquant..."
-
                         },
 
                         {
@@ -262,6 +225,14 @@ Ext.define('testextjs.view.produits.mvtproduit.MonitoringArticleComplet', {
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
+                        }, {
+                            xtype: 'tbseparator'
+                        }, {
+                            text: 'imprimer',
+                            itemId: 'imprimerPdf',
+                            iconCls: 'printable',
+                            tooltip: 'Imprimer en PDF (A4 paysage, toutes les lignes filtrees)',
+                            scope: this
                         }, {
                             xtype: 'tbseparator'
                         }, {

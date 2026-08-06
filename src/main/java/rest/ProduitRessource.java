@@ -242,6 +242,34 @@ public class ProduitRessource {
                 .build();
     }
 
+    /** Impression PDF du suivi complet, A4 paysage, ouverte dans le navigateur. */
+    @GET
+    @Path("monitoring-complet/pdf")
+    @Produces("application/pdf")
+    public Response suivitMvtArticlesCompletPdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "search") String search,
+            @QueryParam(value = "categorieId") String categorieId,
+            @QueryParam(value = "fabricantId") String fabricantId, @QueryParam(value = "rayonId") String rayonId)
+            throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        MvtArticleParams params = new MvtArticleParams();
+        params.setAll(true);
+        params.setCategorieId(categorieId);
+        params.setFabricantId(fabricantId);
+        params.setSearch(search);
+        params.setRayonId(rayonId);
+        params.setDtEnd(LocalDate.parse(dtEnd));
+        params.setDtStart(LocalDate.parse(dtStart));
+        params.setMagasinId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        byte[] data = produitService.exportSuiviMvtArticleCompletPdf(params);
+        return Response.ok(data).header("Content-Disposition", "inline; filename=\"suivi_mvt_article_complet.pdf\"")
+                .build();
+    }
+
     /**
      * Detail des mouvements internes rayon/reserve d'un article, pour la fenetre de detail du suivi complet.
      * L'emplacement applique est TOUJOURS celui de l'utilisateur connecte, jamais un parametre du navigateur.

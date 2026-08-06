@@ -894,6 +894,97 @@ public class ProduitServiceImpl implements ProduitService {
                 });
     }
 
+    @Override
+    public byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params) {
+        params.setAll(true);
+        List<MvtProduitCompletDTO> lignes = suivitMvtArticleComplet(params);
+        String periode = "du " + params.getDtStart().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                + " au " + params.getDtEnd().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        try (java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            com.itextpdf.text.Document doc = new com.itextpdf.text.Document(com.itextpdf.text.PageSize.A4.rotate(), 18,
+                    18, 18, 18);
+            com.itextpdf.text.pdf.PdfWriter.getInstance(doc, out);
+            doc.open();
+
+            com.itextpdf.text.Font titre = com.itextpdf.text.FontFactory
+                    .getFont(com.itextpdf.text.FontFactory.HELVETICA_BOLD, 11);
+            com.itextpdf.text.Font entete = com.itextpdf.text.FontFactory
+                    .getFont(com.itextpdf.text.FontFactory.HELVETICA_BOLD, 6.5f, com.itextpdf.text.BaseColor.WHITE);
+            com.itextpdf.text.Font cellule = com.itextpdf.text.FontFactory
+                    .getFont(com.itextpdf.text.FontFactory.HELVETICA, 6.5f);
+            com.itextpdf.text.BaseColor bleu = new com.itextpdf.text.BaseColor(0x1F, 0x38, 0x64);
+
+            com.itextpdf.text.Paragraph p = new com.itextpdf.text.Paragraph(
+                    "SUIVI MOUVEMENT ARTICLE COMPLET — " + periode, titre);
+            p.setSpacingAfter(6f);
+            doc.add(p);
+
+            float[] largeurs = { 5.5f, 16f, 4f, 4f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.7f, 4.5f, 4.7f,
+                    4f, 4f, 4.5f, 4.7f, 4.3f };
+            com.itextpdf.text.pdf.PdfPTable table = new com.itextpdf.text.pdf.PdfPTable(largeurs);
+            table.setWidthPercentage(100f);
+            table.setHeaderRows(2);
+
+            // Ligne 1 : groupes (rowspan pour les colonnes simples)
+            ajouterEntetePdf(table, entete, bleu, "Cip", 1, 2);
+            ajouterEntetePdf(table, entete, bleu, "Désignation", 1, 2);
+            ajouterEntetePdf(table, entete, bleu, "Mouvements Sortie", 5, 1);
+            ajouterEntetePdf(table, entete, bleu, "Mouvements Entrée", 5, 1);
+            ajouterEntetePdf(table, entete, bleu, "Mouvements internes réserve", 3, 1);
+            ajouterEntetePdf(table, entete, bleu, "Qté.Inv", 1, 2);
+            ajouterEntetePdf(table, entete, bleu, "écart.Inv", 1, 2);
+            ajouterEntetePdf(table, entete, bleu, "Stock rayon", 1, 2);
+            ajouterEntetePdf(table, entete, bleu, "Stock réserve", 1, 2);
+            ajouterEntetePdf(table, entete, bleu, "Stock total", 1, 2);
+            // Ligne 2 : sous-colonnes des trois groupes
+            for (String h : new String[] { "Vente", "Ret.four", "Périmée", "Ajustée", "Décon", "Entrée", "Ajustée",
+                    "Décon", "Annulée", "Ret.dépôt", "Vers réserve", "Vers rayon", "Ajust.rés." }) {
+                ajouterEntetePdf(table, entete, bleu, h, 1, 1);
+            }
+
+            for (MvtProduitCompletDTO o : lignes) {
+                ajouterCellulePdf(table, cellule, o.getCip(), false);
+                ajouterCellulePdf(table, cellule, o.getProduitName(), false);
+                int[] valeurs = { o.getQtyVente(), o.getQtyRetour(), o.getQtyPerime(), o.getQtyAjustSortie(),
+                        o.getQtyDecondSortant(), o.getQtyEntree(), o.getQtyAjust(), o.getQtyDeconEntrant(),
+                        o.getQtyAnnulation(), o.getQtyRetourDepot(), o.getQtyVersReserve(), o.getQtyVersRayon(),
+                        o.getQtyAjustReserve(), o.getQtyInv(), o.getEcartInventaire(), o.getCurrentStock(),
+                        o.getCurrentStockReserve(), o.getCurrentStockTotal() };
+                for (int v : valeurs) {
+                    ajouterCellulePdf(table, cellule, String.valueOf(v), true);
+                }
+            }
+            doc.add(table);
+            doc.close();
+            return out.toByteArray();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return new byte[0];
+        }
+    }
+
+    private static void ajouterEntetePdf(com.itextpdf.text.pdf.PdfPTable table, com.itextpdf.text.Font police,
+            com.itextpdf.text.BaseColor fond, String texte, int colspan, int rowspan) {
+        com.itextpdf.text.pdf.PdfPCell c = new com.itextpdf.text.pdf.PdfPCell(
+                new com.itextpdf.text.Phrase(texte, police));
+        c.setColspan(colspan);
+        c.setRowspan(rowspan);
+        c.setBackgroundColor(fond);
+        c.setHorizontalAlignment(com.itextpdf.text.Element.ALIGN_CENTER);
+        c.setVerticalAlignment(com.itextpdf.text.Element.ALIGN_MIDDLE);
+        c.setPadding(2.5f);
+        table.addCell(c);
+    }
+
+    private static void ajouterCellulePdf(com.itextpdf.text.pdf.PdfPTable table, com.itextpdf.text.Font police,
+            String texte, boolean droite) {
+        com.itextpdf.text.pdf.PdfPCell c = new com.itextpdf.text.pdf.PdfPCell(
+                new com.itextpdf.text.Phrase(texte == null ? "" : texte, police));
+        c.setHorizontalAlignment(droite ? com.itextpdf.text.Element.ALIGN_RIGHT : com.itextpdf.text.Element.ALIGN_LEFT);
+        c.setPadding(2f);
+        table.addCell(c);
+    }
+
     /**
      * Union des familles ayant bouge sur la periode, toutes sources confondues : mouvements generaux (HMvtProduit) ET
      * mouvements de reserve. Un produit n'ayant connu que des transferts rayon/reserve apparait donc bien dans la
@@ -931,9 +1022,9 @@ public class ProduitServiceImpl implements ProduitService {
             cq.multiselect(fa.get(TFamille_.lgFAMILLEID), fa.get(TFamille_.strNAME)).distinct(true);
             predicates.add(cb.and(cb.equal(root.get(HMvtProduit_.emplacement).get(TEmplacement_.lgEMPLACEMENTID),
                     params.getMagasinId())));
-            Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(HMvtProduit_.mvtDate)),
-                    java.sql.Date.valueOf(params.getDtStart()), java.sql.Date.valueOf(params.getDtEnd()));
-            predicates.add(cb.and(btw));
+            // mvtdate est deja une colonne DATE : comparer la colonne NUE, sans fonction DATE(), pour que
+            // MySQL puisse utiliser l'index HMvtProduit7 (avec DATE(), la table etait balayee entierement).
+            predicates.add(cb.and(cb.between(root.get(HMvtProduit_.mvtDate), params.getDtStart(), params.getDtEnd())));
             if (params.getCategorieId() != null && !"".equals(params.getCategorieId())) {
                 predicates.add(
                         cb.and(cb.equal(fa.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID),
