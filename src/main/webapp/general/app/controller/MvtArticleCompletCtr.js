@@ -334,10 +334,12 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                                     tooltip: 'imprimer',
                                     scope: this,
                                     handler: function () {
+                                        // Fiche iText avec les colonnes reserve, au lieu de la fiche
+                                        // Jasper SUIVIMVT qui les ignore.
                                         const dtStart = me.getDtStart().getSubmitValue();
                                         const dtEnd = me.getDtEnd().getSubmitValue();
                                         const produitId = rec.get('produitId');
-                                        const linkUrl = '../BalancePdfServlet?mode=SUIVIMVT&dtStart=' + dtStart + '&dtEnd=' + dtEnd + "&produitId=" + produitId;
+                                        const linkUrl = '../api/v1/produit/monitoringproduct-complet/pdf?dtStart=' + dtStart + '&dtEnd=' + dtEnd + "&produitId=" + produitId;
                                         window.open(linkUrl);
                                     }
                                 }

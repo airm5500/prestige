@@ -281,8 +281,30 @@ public class ProduitRessource {
         params.setDtEnd(LocalDate.parse(dtEnd));
         params.setDtStart(LocalDate.parse(dtStart));
         params.setMagasinId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-        byte[] data = produitService.exportSuiviMvtArticleCompletPdf(params);
+        byte[] data = produitService.exportSuiviMvtArticleCompletPdf(params, tu);
         return Response.ok(data).header("Content-Disposition", "inline; filename=\"suivi_mvt_article_complet.pdf\"")
+                .build();
+    }
+
+    /** Fiche PDF A4 paysage des mouvements d'un article, reserve comprise (detail jour par jour). */
+    @GET
+    @Path("monitoringproduct-complet/pdf")
+    @Produces("application/pdf")
+    public Response ficheMvtArticleCompletPdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "produitId") String produitId)
+            throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        MvtArticleParams params = new MvtArticleParams();
+        params.setProduitId(produitId);
+        params.setDtEnd(LocalDate.parse(dtEnd));
+        params.setDtStart(LocalDate.parse(dtStart));
+        params.setMagasinId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        byte[] data = produitService.exportFicheArticleCompletPdf(params, tu);
+        return Response.ok(data).header("Content-Disposition", "inline; filename=\"fiche_mvt_article_complet.pdf\"")
                 .build();
     }
 

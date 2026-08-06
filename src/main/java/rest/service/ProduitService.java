@@ -65,9 +65,16 @@ public interface ProduitService {
 
     /**
      * Impression PDF du suivi complet en A4 paysage (iText, sans template Jasper a deployer). Memes lignes que l'ecran,
-     * toutes pages confondues.
+     * toutes pages confondues ; l'utilisateur figure dans le pied de page.
      */
-    byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params);
+    byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params, TUser user);
+
+    /**
+     * Fiche PDF des mouvements d'UN article, jour par jour, en A4 paysage : stocks rayon et reserve debut/fin de
+     * journee, flux classiques, mouvements internes de reserve et ligne TOTAL. Remplace pour l'ecran complet la fiche
+     * Jasper SUIVIMVT qui ignore la reserve. {@code params} porte produitId, periode et magasinId.
+     */
+    byte[] exportFicheArticleCompletPdf(MvtArticleParams params, TUser user);
 
     /**
      * Detail jour par jour du suivi complet : agregats du suivi general (suivitEclate) completes des mouvements

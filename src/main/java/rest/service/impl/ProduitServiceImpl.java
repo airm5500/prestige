@@ -895,94 +895,42 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     @Override
-    public byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params) {
+    public byte[] exportSuiviMvtArticleCompletPdf(MvtArticleParams params, TUser user) {
         params.setAll(true);
         List<MvtProduitCompletDTO> lignes = suivitMvtArticleComplet(params);
-        String periode = "du " + params.getDtStart().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                + " au " + params.getDtEnd().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        try (java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
-            com.itextpdf.text.Document doc = new com.itextpdf.text.Document(com.itextpdf.text.PageSize.A4.rotate(), 18,
-                    18, 18, 18);
-            com.itextpdf.text.pdf.PdfWriter.getInstance(doc, out);
-            doc.open();
+        return rest.report.pdf.SuiviMvtCompletPdf.liste(lignes, periodeLibelle(params.getDtStart(), params.getDtEnd()),
+                nomOperateur(user));
+    }
 
-            com.itextpdf.text.Font titre = com.itextpdf.text.FontFactory
-                    .getFont(com.itextpdf.text.FontFactory.HELVETICA_BOLD, 11);
-            com.itextpdf.text.Font entete = com.itextpdf.text.FontFactory
-                    .getFont(com.itextpdf.text.FontFactory.HELVETICA_BOLD, 6.5f, com.itextpdf.text.BaseColor.WHITE);
-            com.itextpdf.text.Font cellule = com.itextpdf.text.FontFactory
-                    .getFont(com.itextpdf.text.FontFactory.HELVETICA, 6.5f);
-            com.itextpdf.text.BaseColor bleu = new com.itextpdf.text.BaseColor(0x1F, 0x38, 0x64);
-
-            com.itextpdf.text.Paragraph p = new com.itextpdf.text.Paragraph(
-                    "SUIVI MOUVEMENT ARTICLE COMPLET — " + periode, titre);
-            p.setSpacingAfter(6f);
-            doc.add(p);
-
-            float[] largeurs = { 5.5f, 16f, 4f, 4f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.5f, 4.7f, 4.5f, 4.7f,
-                    4f, 4f, 4.5f, 4.7f, 4.3f };
-            com.itextpdf.text.pdf.PdfPTable table = new com.itextpdf.text.pdf.PdfPTable(largeurs);
-            table.setWidthPercentage(100f);
-            table.setHeaderRows(2);
-
-            // Ligne 1 : groupes (rowspan pour les colonnes simples)
-            ajouterEntetePdf(table, entete, bleu, "Cip", 1, 2);
-            ajouterEntetePdf(table, entete, bleu, "Désignation", 1, 2);
-            ajouterEntetePdf(table, entete, bleu, "Mouvements Sortie", 5, 1);
-            ajouterEntetePdf(table, entete, bleu, "Mouvements Entrée", 5, 1);
-            ajouterEntetePdf(table, entete, bleu, "Mouvements internes réserve", 3, 1);
-            ajouterEntetePdf(table, entete, bleu, "Qté.Inv", 1, 2);
-            ajouterEntetePdf(table, entete, bleu, "écart.Inv", 1, 2);
-            ajouterEntetePdf(table, entete, bleu, "Stock rayon", 1, 2);
-            ajouterEntetePdf(table, entete, bleu, "Stock réserve", 1, 2);
-            ajouterEntetePdf(table, entete, bleu, "Stock total", 1, 2);
-            // Ligne 2 : sous-colonnes des trois groupes
-            for (String h : new String[] { "Vente", "Ret.four", "Périmée", "Ajustée", "Décon", "Entrée", "Ajustée",
-                    "Décon", "Annulée", "Ret.dépôt", "Vers réserve", "Vers rayon", "Ajust.rés." }) {
-                ajouterEntetePdf(table, entete, bleu, h, 1, 1);
-            }
-
-            for (MvtProduitCompletDTO o : lignes) {
-                ajouterCellulePdf(table, cellule, o.getCip(), false);
-                ajouterCellulePdf(table, cellule, o.getProduitName(), false);
-                int[] valeurs = { o.getQtyVente(), o.getQtyRetour(), o.getQtyPerime(), o.getQtyAjustSortie(),
-                        o.getQtyDecondSortant(), o.getQtyEntree(), o.getQtyAjust(), o.getQtyDeconEntrant(),
-                        o.getQtyAnnulation(), o.getQtyRetourDepot(), o.getQtyVersReserve(), o.getQtyVersRayon(),
-                        o.getQtyAjustReserve(), o.getQtyInv(), o.getEcartInventaire(), o.getCurrentStock(),
-                        o.getCurrentStockReserve(), o.getCurrentStockTotal() };
-                for (int v : valeurs) {
-                    ajouterCellulePdf(table, cellule, String.valueOf(v), true);
-                }
-            }
-            doc.add(table);
-            doc.close();
-            return out.toByteArray();
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return new byte[0];
+    @Override
+    public byte[] exportFicheArticleCompletPdf(MvtArticleParams params, TUser user) {
+        MvtProduitCompletDTO meta = eclateComplet(params.getDtStart(), params.getDtEnd(), params.getProduitId(),
+                params.getMagasinId());
+        List<MvtProduitCompletDTO> jours = new ArrayList<>();
+        for (MvtProduitDTO j : meta.getProduits()) {
+            jours.add((MvtProduitCompletDTO) j);
         }
+        TFamille famille = findById(params.getProduitId());
+        String article = famille == null ? ""
+                : (famille.getIntCIP() == null ? "" : famille.getIntCIP()) + " " + famille.getStrNAME();
+        return rest.report.pdf.SuiviMvtCompletPdf.ficheArticle(article,
+                periodeLibelle(params.getDtStart(), params.getDtEnd()), nomOperateur(user), jours, meta);
     }
 
-    private static void ajouterEntetePdf(com.itextpdf.text.pdf.PdfPTable table, com.itextpdf.text.Font police,
-            com.itextpdf.text.BaseColor fond, String texte, int colspan, int rowspan) {
-        com.itextpdf.text.pdf.PdfPCell c = new com.itextpdf.text.pdf.PdfPCell(
-                new com.itextpdf.text.Phrase(texte, police));
-        c.setColspan(colspan);
-        c.setRowspan(rowspan);
-        c.setBackgroundColor(fond);
-        c.setHorizontalAlignment(com.itextpdf.text.Element.ALIGN_CENTER);
-        c.setVerticalAlignment(com.itextpdf.text.Element.ALIGN_MIDDLE);
-        c.setPadding(2.5f);
-        table.addCell(c);
+    private static String periodeLibelle(LocalDate dtStart, LocalDate dtEnd) {
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        if (dtStart.isEqual(dtEnd)) {
+            return "DU " + dtStart.format(fmt);
+        }
+        return "DU " + dtStart.format(fmt) + " AU " + dtEnd.format(fmt);
     }
 
-    private static void ajouterCellulePdf(com.itextpdf.text.pdf.PdfPTable table, com.itextpdf.text.Font police,
-            String texte, boolean droite) {
-        com.itextpdf.text.pdf.PdfPCell c = new com.itextpdf.text.pdf.PdfPCell(
-                new com.itextpdf.text.Phrase(texte == null ? "" : texte, police));
-        c.setHorizontalAlignment(droite ? com.itextpdf.text.Element.ALIGN_RIGHT : com.itextpdf.text.Element.ALIGN_LEFT);
-        c.setPadding(2f);
-        table.addCell(c);
+    private static String nomOperateur(TUser user) {
+        if (user == null) {
+            return "";
+        }
+        return (user.getStrFIRSTNAME() == null ? "" : user.getStrFIRSTNAME()) + " "
+                + (user.getStrLASTNAME() == null ? "" : user.getStrLASTNAME());
     }
 
     @Override
@@ -990,61 +938,9 @@ public class ProduitServiceImpl implements ProduitService {
             throws JSONException {
         JSONObject json = new JSONObject();
         try {
-            MvtProduitDTO base = suivitEclate(dtStart, dtEnd, produitId, empl);
-            Map<LocalDate, MvtProduitCompletDTO> parJour = new HashMap<>();
-            for (MvtProduitDTO jour : base.getProduits()) {
-                parJour.put(jour.getDateOperation(), new MvtProduitCompletDTO(jour));
-            }
-            // [versReserve, versRayon, ajustSigne, rayonAvantPremier, rayonApresDernier,
-            // reserveAvantPremier, reserveApresDernier] par jour ayant au moins un mouvement de reserve
-            Map<LocalDate, int[]> reserveParJour = new HashMap<>();
-            for (Object[] r : agregatsReserveParJour(produitId, empl, dtStart, dtEnd)) {
-                LocalDate date = ((java.sql.Date) r[0]).toLocalDate();
-                reserveParJour.put(date, new int[] { entier(r[1]), entier(r[2]), entier(r[3]), entier(r[4]),
-                        entier(r[5]), entier(r[6]), entier(r[7]) });
-                if (!parJour.containsKey(date)) {
-                    // Jour sans aucun mouvement general : la ligne existe quand meme, avec les stocks
-                    // rayon debut/fin lus dans la trace de reserve (avant du premier / apres du dernier).
-                    MvtProduitCompletDTO jour = new MvtProduitCompletDTO();
-                    jour.setDateOperation(date);
-                    jour.setStockInit(entier(r[4]));
-                    jour.setStockFinal(entier(r[5]));
-                    parJour.put(date, jour);
-                }
-            }
-            List<MvtProduitCompletDTO> data = new ArrayList<>(parJour.values());
-            data.sort(mvtrByDate);
-
-            // Stock reserve debut/fin de chaque jour. La trace de reserve est l'UNIQUE voie de
-            // modification de ce stock : entre deux mouvements il est constant, on peut donc le
-            // reporter d'un jour a l'autre a partir du dernier mouvement anterieur a la periode.
-            int reserveCourante = stockReserveAvantDate(produitId, empl, dtStart);
-            int totalVersReserve = 0, totalVersRayon = 0, totalAjustReserve = 0;
-            for (MvtProduitCompletDTO jour : data) {
-                int[] r = reserveParJour.get(jour.getDateOperation());
-                if (r != null) {
-                    jour.setQtyVersReserve(r[0]);
-                    jour.setQtyVersRayon(r[1]);
-                    jour.setQtyAjustReserve(r[2]);
-                    jour.setStockReserveInit(r[5]);
-                    jour.setStockReserveFinal(r[6]);
-                    reserveCourante = r[6];
-                    totalVersReserve += r[0];
-                    totalVersRayon += r[1];
-                    totalAjustReserve += r[2];
-                } else {
-                    jour.setStockReserveInit(reserveCourante);
-                    jour.setStockReserveFinal(reserveCourante);
-                }
-            }
-
-            MvtProduitCompletDTO meta = new MvtProduitCompletDTO(base);
-            meta.setQtyVersReserve(totalVersReserve);
-            meta.setQtyVersRayon(totalVersRayon);
-            meta.setQtyAjustReserve(totalAjustReserve);
-
-            json.put("total", data.size());
-            json.put("data", new JSONArray(data));
+            MvtProduitCompletDTO meta = eclateComplet(dtStart, dtEnd, produitId, empl);
+            json.put("total", meta.getProduits().size());
+            json.put("data", new JSONArray(meta.getProduits()));
             json.put("metaData", new JSONObject(meta));
             return json;
         } catch (Exception e) {
@@ -1053,6 +949,68 @@ public class ProduitServiceImpl implements ProduitService {
             json.put("data", new JSONArray());
             return json;
         }
+    }
+
+    /**
+     * Detail jour par jour du suivi complet : les lignes-jour (instances MvtProduitCompletDTO) sont dans
+     * {@code getProduits()} du DTO retourne, qui porte lui-meme les totaux de la periode. Partage entre la reponse JSON
+     * de l'ecran et la fiche PDF : les deux editions montrent exactement les memes chiffres.
+     */
+    private MvtProduitCompletDTO eclateComplet(LocalDate dtStart, LocalDate dtEnd, String produitId, String empl) {
+        MvtProduitDTO base = suivitEclate(dtStart, dtEnd, produitId, empl);
+        Map<LocalDate, MvtProduitCompletDTO> parJour = new HashMap<>();
+        for (MvtProduitDTO jour : base.getProduits()) {
+            parJour.put(jour.getDateOperation(), new MvtProduitCompletDTO(jour));
+        }
+        // [versReserve, versRayon, ajustSigne, rayonAvantPremier, rayonApresDernier,
+        // reserveAvantPremier, reserveApresDernier] par jour ayant au moins un mouvement de reserve
+        Map<LocalDate, int[]> reserveParJour = new HashMap<>();
+        for (Object[] r : agregatsReserveParJour(produitId, empl, dtStart, dtEnd)) {
+            LocalDate date = ((java.sql.Date) r[0]).toLocalDate();
+            reserveParJour.put(date, new int[] { entier(r[1]), entier(r[2]), entier(r[3]), entier(r[4]), entier(r[5]),
+                    entier(r[6]), entier(r[7]) });
+            if (!parJour.containsKey(date)) {
+                // Jour sans aucun mouvement general : la ligne existe quand meme, avec les stocks
+                // rayon debut/fin lus dans la trace de reserve (avant du premier / apres du dernier).
+                MvtProduitCompletDTO jour = new MvtProduitCompletDTO();
+                jour.setDateOperation(date);
+                jour.setStockInit(entier(r[4]));
+                jour.setStockFinal(entier(r[5]));
+                parJour.put(date, jour);
+            }
+        }
+        List<MvtProduitCompletDTO> data = new ArrayList<>(parJour.values());
+        data.sort(mvtrByDate);
+
+        // Stock reserve debut/fin de chaque jour. La trace de reserve est l'UNIQUE voie de
+        // modification de ce stock : entre deux mouvements il est constant, on peut donc le
+        // reporter d'un jour a l'autre a partir du dernier mouvement anterieur a la periode.
+        int reserveCourante = stockReserveAvantDate(produitId, empl, dtStart);
+        int totalVersReserve = 0, totalVersRayon = 0, totalAjustReserve = 0;
+        for (MvtProduitCompletDTO jour : data) {
+            int[] r = reserveParJour.get(jour.getDateOperation());
+            if (r != null) {
+                jour.setQtyVersReserve(r[0]);
+                jour.setQtyVersRayon(r[1]);
+                jour.setQtyAjustReserve(r[2]);
+                jour.setStockReserveInit(r[5]);
+                jour.setStockReserveFinal(r[6]);
+                reserveCourante = r[6];
+                totalVersReserve += r[0];
+                totalVersRayon += r[1];
+                totalAjustReserve += r[2];
+            } else {
+                jour.setStockReserveInit(reserveCourante);
+                jour.setStockReserveFinal(reserveCourante);
+            }
+        }
+
+        MvtProduitCompletDTO meta = new MvtProduitCompletDTO(base);
+        meta.setQtyVersReserve(totalVersReserve);
+        meta.setQtyVersRayon(totalVersRayon);
+        meta.setQtyAjustReserve(totalAjustReserve);
+        meta.setProduits(new ArrayList<>(data));
+        return meta;
     }
 
     private static int entier(Object o) {
