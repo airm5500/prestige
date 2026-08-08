@@ -15,3 +15,7 @@ nb-configuration.xml
 *.properties
 src/main/resources/build.properties
 *.md
+
+# Exceptions : documentation Claude et sources des libs internes
+!CLAUDE.md
+!libs/**
