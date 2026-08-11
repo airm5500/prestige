@@ -46,6 +46,16 @@ public class BatchUpdateRessource {
             return Response.ok().entity(ResultFactory.getFailResult("Vous êtes déconnecté. Veuillez vous reconnecter"))
                     .build();
         }
+        // Meme controle que le bouton 'Recalculer seuils' de l'ecran : privilege obligatoire cote serveur
+        @SuppressWarnings("unchecked")
+        java.util.List<dal.TPrivilege> privileges = (java.util.List<dal.TPrivilege>) hs
+                .getAttribute(util.Constant.USER_LIST_PRIVILEGE);
+        if (privileges == null
+                || !util.DateConverter.hasAuthorityByName(privileges, util.Constant.P_BTN_RECALCULER_SEUILS)) {
+            return Response.ok().entity(
+                    "{\"success\":false,\"message\":\"Vous n'avez pas le privilège requis pour cette opération\"}")
+                    .build();
+        }
         // Recalcul immediat selon le MODE ACTIF (sans attendre la fin du mois) :
         // mode "semois" -> SEMOIS (normal / ABC / par-produit selon les parametres) ; sinon mode defaut.
         // Execution SYNCHRONE : on rend la main une fois le recalcul termine (l'IHM en informe l'utilisateur).

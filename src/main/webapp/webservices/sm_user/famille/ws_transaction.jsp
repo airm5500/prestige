@@ -260,7 +260,21 @@
     }
     if (request.getParameter("mode") != null) {
 
-        if (request.getParameter("mode").equals("create")) {
+        // Meme controle que le bouton 'CrÃ©er un Article' de l'ecran : privilege obligatoire cote serveur
+        boolean bCanCreateArticle = false;
+        List<TPrivilege> lstPrivCreation = (List<TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
+        if (lstPrivCreation != null) {
+            for (TPrivilege oPrivCreation : lstPrivCreation) {
+                if ("P_BTN_CREER_ARTICLE".equalsIgnoreCase(oPrivCreation.getStrNAME())) {
+                    bCanCreateArticle = true;
+                    break;
+                }
+            }
+        }
+        if (request.getParameter("mode").equals("create") && !bCanCreateArticle) {
+            ObllBase.setMessage(commonparameter.PROCESS_FAILED);
+            ObllBase.setDetailmessage("Vous n'avez pas le privilÃ¨ge requis pour crÃ©er un article");
+        } else if (request.getParameter("mode").equals("create")) {
 
             if (bool_DECONDITIONNE == 1) {
                 if (!OfamilleManagement.isDeconditionExist(int_CIP)) {
@@ -302,7 +316,7 @@
                 ObllBase.setMessage("1");
                 ObllBase.setDetailmessage(OfamilleManagement.getDetailmessage());
             } else {
-                ObllBase.setDetailmessage("Impossible de supprimer un article qui a déjà été utilisé dans le système");
+                ObllBase.setDetailmessage("Impossible de supprimer un article qui a dï¿½jï¿½ ï¿½tï¿½ utilisï¿½ dans le systï¿½me");
             }
 
             // ObllBase.setMessage(OfamilleManagement.getMessage());

@@ -185,6 +185,11 @@ public final class Constant {
     public static final String DEFAUL_CODE_TVA = "1";
     public static final String STATUT_DISABLE = "disable";
     public static final String P_BTN_DESACTIVER_TIERS_PAYANT = "P_BTN_DESACTIVER_TIERS_PAYANT";
+    // Privileges des boutons de la fiche article (gestion du stock)
+    public static final String P_BTN_RECALCULER_SEUILS = "P_BTN_RECALCULER_SEUILS";
+    public static final String P_BTN_MAJ_SEUIL = "P_BTN_MAJ_SEUIL";
+    public static final String P_BTN_CREER_ARTICLE = "P_BTN_CREER_ARTICLE";
+    public static final String P_BTN_IMPORT_ARTICLE = "P_BTN_IMPORT_ARTICLE";
     public static final String CAUTION_ID = "10";
     public static final String KEY_OPTION_SUGGESTION = "KEY_OPTION_SUGGESTION";
     public static final String STATUT_PERIME = "perime";

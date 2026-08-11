@@ -385,6 +385,33 @@ public class FicheArticleRessource {
         return Response.accepted().build();
     }
 
+    // ----------------------- Privileges des boutons de la fiche article -----------------------
+    /**
+     * Droits de l'utilisateur connecte sur les boutons de l'ecran fiche article, lus en un seul appel a l'ouverture de
+     * l'ecran (memes privileges que ceux verifies cote serveur sur les operations correspondantes).
+     */
+    @GET
+    @Path("privileges-boutons")
+    public Response privilegesBoutons() {
+        HttpSession hs = servletRequest.getSession();
+        TUser user = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok().entity(new JSONObject().put("success", false).toString()).build();
+        }
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        JSONObject json = new JSONObject().put("success", true);
+        json.put(Constant.P_BTN_CREER_ARTICLE, hasPrivilege(privileges, Constant.P_BTN_CREER_ARTICLE));
+        json.put(Constant.P_BTN_RECALCULER_SEUILS, hasPrivilege(privileges, Constant.P_BTN_RECALCULER_SEUILS));
+        json.put(Constant.P_BTN_MAJ_SEUIL, hasPrivilege(privileges, Constant.P_BTN_MAJ_SEUIL));
+        json.put(Constant.P_BTN_IMPORT_ARTICLE, hasPrivilege(privileges, Constant.P_BTN_IMPORT_ARTICLE));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    private static boolean hasPrivilege(List<dal.TPrivilege> privileges, String name) {
+        return privileges != null && util.DateConverter.hasAuthorityByName(privileges, name);
+    }
+
     // ----------------------- MAJ SEUIL groupee (Q1/Q2 par produit) -----------------------
     @GET
     @Path("maj-seuil/list")
@@ -401,6 +428,16 @@ public class FicheArticleRessource {
     @POST
     @Path("maj-seuil/apply")
     public Response majSeuilApply(String body) {
+        // Meme controle que le bouton 'MAJ SEUIL' de l'ecran : privilege obligatoire cote serveur
+        HttpSession hs = servletRequest.getSession();
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        if (!hasPrivilege(privileges, Constant.P_BTN_MAJ_SEUIL)) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false)
+                            .put("message", "Vous n'avez pas le privilège requis pour cette opération").toString())
+                    .build();
+        }
         JSONObject in = new JSONObject(body);
         String mode = in.optString("mode", "SELECTED");
         String codeFamille = in.optString("codeFamille", "");

@@ -707,12 +707,28 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         },
                         '-',
                         {
-                            text: 'Importer',
-                            tooltip: 'Importer',
-                            id: 'btn_import',
+                            // Regroupe 'Importer' et 'Verifier l'importation' sous un seul menu,
+                            // controle par le privilege P_BTN_IMPORT_ARTICLE
+                            text: 'Importation',
+                            tooltip: 'Importer des articles / Verifier l\'importation',
+                            id: 'btn_import_menu',
                             iconCls: 'importicon',
-                            scope: this,
-                            handler: this.onbtnimport
+                            menu: [
+                                {
+                                    text: 'Importer',
+                                    tooltip: 'Importer',
+                                    iconCls: 'importicon',
+                                    scope: this,
+                                    handler: this.onbtnimport
+                                },
+                                {
+                                    text: 'Verifier l\'importation',
+                                    tooltip: 'Verifier l\'importation',
+                                    iconCls: 'check_icon',
+                                    scope: this,
+                                    handler: this.onbtncheckimport
+                                }
+                            ]
                         },
                         '-',
                         {
@@ -731,15 +747,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             iconCls: 'configuration',
                             scope: this,
                             handler: this.onMajSeuil
-                        },
-                        '-',
-                        {
-                            text: 'Verifier l\'importation',
-                            tooltip: 'Verifier l\'importation',
-                            id: 'btn_checkimport',
-                            iconCls: 'check_icon',
-                            scope: this,
-                            handler: this.onbtncheckimport
                         },
                         '-',
                         {
@@ -1046,9 +1053,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                     Me_Workflow.fmField('rechecher').focus();
                     if (lg_EMPLACEMENT_ID == "1") {
                         Ext.getCmp('btn_add').show();
-                        Ext.getCmp('btn_import').show();
-                        Ext.getCmp('btn_checkimport').show();
+                        Ext.getCmp('btn_import_menu').show();
                     }
+                    Me_Workflow.chargerPrivilegesBoutons();
                 }
             }
         });
@@ -1098,6 +1105,29 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
     onStoreLoad: function () {
 
+    },
+
+    /* Privileges des boutons de l'ecran, lus UNE SEULE FOIS par ouverture :
+     * un bouton dont le privilege n'est pas attribue a l'utilisateur est masque
+     * (le meme controle est applique cote serveur sur les operations). */
+    chargerPrivilegesBoutons: function () {
+        Ext.Ajax.request({
+            url: '../api/v1/fichearticle/privileges-boutons',
+            method: 'GET',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                var masquerSiRefuse = function (idBouton, cle) {
+                    var btn = Ext.getCmp(idBouton);
+                    if (btn && o[cle] === false) {
+                        btn.hide();
+                    }
+                };
+                masquerSiRefuse('btn_add', 'P_BTN_CREER_ARTICLE');
+                masquerSiRefuse('btn_recalc_seuils', 'P_BTN_RECALCULER_SEUILS');
+                masquerSiRefuse('btn_maj_seuil', 'P_BTN_MAJ_SEUIL');
+                masquerSiRefuse('btn_import_menu', 'P_BTN_IMPORT_ARTICLE');
+            }
+        });
     },
 
     onMajSeuil: function () {
