@@ -776,7 +776,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 str_CODE_REMISE = g('str_CODE_REMISE').getValue() || 0,
                 int_PRICE = g('int_PRICE').getValue() || 0;
 
-            var str_DESCRIPTION = g('str_DESCRIPTION').getValue();
+            // Suppression des espaces avant/apres la designation a l'enregistrement
+            var str_DESCRIPTION = (g('str_DESCRIPTION').getValue() || '').trim();
+            g('str_DESCRIPTION').setValue(str_DESCRIPTION);
+            if (!str_DESCRIPTION) {
+                Ext.MessageBox.alert('Message', 'La designation de l\'article est obligatoire');
+                return;
+            }
 
             testextjs.app.getController('App').ShowWaitingProcess();
 
@@ -811,7 +817,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 lg_FAMILLEARTICLE_ID: g('lg_FAMILLEARTICLE_ID').getValue(),
                 lg_ZONE_GEO_ID: g('lg_ZONE_GEO_ID').getValue(),
                 lg_FABRIQUANT_ID: g('lg_FABRIQUANT_ID').getValue(),
-                str_DESCRIPTION: g('str_DESCRIPTION').getValue(),
+                str_DESCRIPTION: str_DESCRIPTION,
                 int_CIP: g('int_CIP').getValue(),
                 int_EAN13: g('int_EAN13').getValue(),
                 lg_CODE_TVA_ID: g('lg_CODE_TVA_ID').getValue(),

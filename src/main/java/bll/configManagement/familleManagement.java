@@ -139,7 +139,13 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
         TparameterManager OTparameterManager = new TparameterManager(this.getOdataManager());
         grossisteManagement OgrossisteManagement = new grossisteManagement(this.getOdataManager());
         try {
-
+            // Suppression des espaces avant/apres le libelle a l'enregistrement
+            str_NAME = (str_NAME == null) ? "" : str_NAME.trim();
+            str_DESCRIPTION = (str_DESCRIPTION == null) ? "" : str_DESCRIPTION.trim();
+            if (str_NAME.isEmpty()) {
+                this.buildErrorTraceMessage("Le libellé de l'article est obligatoire");
+                return null;
+            }
             if (int_CIP.length() < 6) {
                 this.buildErrorTraceMessage("Le code CIP doit avoir au minimum 6 caractères");
                 return null;
@@ -3881,6 +3887,13 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
         TparameterManager OTparameterManager = new TparameterManager(this.getOdataManager());
 
         try {
+            // Suppression des espaces avant/apres le libelle a l'enregistrement
+            str_NAME = (str_NAME == null) ? "" : str_NAME.trim();
+            str_DESCRIPTION = (str_DESCRIPTION == null) ? "" : str_DESCRIPTION.trim();
+            if (str_NAME.isEmpty()) {
+                this.buildErrorTraceMessage("Le libellé de l'article est obligatoire");
+                return false;
+            }
             if (int_CIP.length() < 6) {
                 this.buildErrorTraceMessage("Le code CIP doit avoir au minimum 6 caractères");
                 return false;
@@ -6488,7 +6501,13 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
         grossisteManagement OgrossisteManagement = new grossisteManagement(this.getOdataManager());
         EntityManager em = this.getOdataManager().getEm();
         try {
-
+            // Suppression des espaces avant/apres le libelle a l'enregistrement
+            str_NAME = (str_NAME == null) ? "" : str_NAME.trim();
+            str_DESCRIPTION = (str_DESCRIPTION == null) ? "" : str_DESCRIPTION.trim();
+            if (str_NAME.isEmpty()) {
+                this.buildErrorTraceMessage("Le libellé de l'article est obligatoire");
+                return null;
+            }
             if (int_CIP.length() < 6) {
                 this.buildErrorTraceMessage("Le code CIP doit avoir au minimum 6 caractères");
                 return null;
