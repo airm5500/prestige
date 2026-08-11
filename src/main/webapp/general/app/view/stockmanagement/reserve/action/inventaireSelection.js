@@ -74,7 +74,24 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
             }
         });
 
-        var selModel = Ext.create('Ext.selection.CheckboxModel', {checkOnly: true});
+        // La case a cocher d'EN-TETE ne cochait que la page affichee : elle declenche
+        // desormais la meme selection TOUTES PAGES que le bouton dedie, et tout
+        // decoche au clic suivant.
+        var toutSelectionnerToutesPages;
+        var toutDeselectionner;
+        var selModel = Ext.create('Ext.selection.CheckboxModel', {
+            checkOnly: true,
+            onHeaderClick: function (headerCt, header, e) {
+                if (header.isCheckerHd) {
+                    e.stopEvent();
+                    if (header.el.hasCls(Ext.baseCSSPrefix + 'grid-hd-checker-on')) {
+                        toutDeselectionner();
+                    } else {
+                        toutSelectionnerToutesPages();
+                    }
+                }
+            }
+        });
 
         var prixRenderer = function (v) {
             return (v === null || v === undefined || v === '') ? '' : Ext.util.Format.number(v, '0,000');
@@ -117,6 +134,41 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
         selStore.on('load', function () {
             reapplySelection();
         });
+
+        // Coche tous les articles du resultat de recherche en cours (toutes les pages),
+        // en rechargeant la source complete (limit=0) puis en re-cochant la page affichee.
+        toutSelectionnerToutesPages = function () {
+            var prog = Ext.MessageBox.wait('Chargement...', 'Selection de tous les articles');
+            Ext.Ajax.request({
+                url: urlSource,
+                method: 'GET',
+                params: sourceDediee
+                        ? Ext.apply({start: 0, limit: 0}, paramsSource || {})
+                        : {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
+                timeout: 600000,
+                success: function (response) {
+                    prog.hide();
+                    var res = Ext.JSON.decode(response.responseText, true);
+                    var list = (res && res.results) ? res.results : [];
+                    Ext.each(list, function (a) {
+                        if (a.lg_FAMILLE_ID) {
+                            selectedIds[a.lg_FAMILLE_ID] = true;
+                        }
+                    });
+                    reapplySelection();
+                },
+                failure: function () {
+                    prog.hide();
+                    Ext.MessageBox.alert('Erreur', 'Echec du chargement de la liste complete.');
+                }
+            });
+        };
+
+        toutDeselectionner = function () {
+            selectedIds = {};
+            selModel.deselectAll();
+            updateCounter();
+        };
 
         // Recherche par CIP ou par nom : le serveur rejoue la meme requete que la grille.
         // Les produits deja coches restent coches, la recherche ne fait que changer ce qu'on voit.
@@ -185,38 +237,13 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
                     tooltip: 'Coche tous les articles du resultat de recherche en cours, '
                             + 'et pas seulement ceux de la page affichee.',
                     handler: function () {
-                        var prog = Ext.MessageBox.wait('Chargement...', 'Selection de tous les articles');
-                        Ext.Ajax.request({
-                            url: urlSource,
-                            method: 'GET',
-                            params: sourceDediee
-                                    ? Ext.apply({start: 0, limit: 0}, paramsSource || {})
-                                    : {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
-                            timeout: 600000,
-                            success: function (response) {
-                                prog.hide();
-                                var res = Ext.JSON.decode(response.responseText, true);
-                                var list = (res && res.results) ? res.results : [];
-                                Ext.each(list, function (a) {
-                                    if (a.lg_FAMILLE_ID) {
-                                        selectedIds[a.lg_FAMILLE_ID] = true;
-                                    }
-                                });
-                                reapplySelection();
-                            },
-                            failure: function () {
-                                prog.hide();
-                                Ext.MessageBox.alert('Erreur', 'Echec du chargement de la liste complete.');
-                            }
-                        });
+                        toutSelectionnerToutesPages();
                     }
                 },
                 {
                     text: 'Tout deselectionner',
                     handler: function () {
-                        selectedIds = {};
-                        selModel.deselectAll();
-                        updateCounter();
+                        toutDeselectionner();
                     }
                 },
                 '->',
