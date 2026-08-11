@@ -1582,4 +1582,226 @@ public class ReserveServiceImpl implements ReserveService {
     private static JSONObject fail(String code, String message) {
         return new JSONObject().put("success", false).put("code", code).put("message", message);
     }
+
+    // ---------------------------------------------- IMPORT DU PANIER DE REAPPRO
+
+    @Override
+    public JSONObject importLignesReappro(TUser user, String categorie, String fileName, java.io.InputStream contenu) {
+        boolean versReserve = !"RAYON".equalsIgnoreCase(categorie);
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        String libelleStock = versReserve ? "stock rayon" : "stock réserve";
+        JSONArray rejets = new JSONArray();
+        JSONArray ajustements = new JSONArray();
+        try {
+            List<Object[]> lignesFichier = lireLignesFichier(fileName, contenu);
+            if (lignesFichier.isEmpty()) {
+                return fail("FICHIER_VIDE", "Le fichier ne contient aucune ligne exploitable.");
+            }
+
+            // Resolution en bloc : tous les CIP du fichier en une requete, articles eligibles
+            // (suivis en reserve pour l'emplacement) et articles connus mais non eligibles.
+            java.util.Set<String> cips = new java.util.LinkedHashSet<>();
+            for (Object[] l : lignesFichier) {
+                if (l[1] != null && !((String) l[1]).isEmpty()) {
+                    cips.add((String) l[1]);
+                }
+            }
+            java.util.Map<String, String> familleParCip = resoudreCips(cips, empl, true);
+            java.util.Map<String, String> familleConnueParCip = resoudreCips(cips, empl, false);
+
+            List<String> ids = new ArrayList<>(new java.util.LinkedHashSet<>(familleParCip.values()));
+            java.util.Map<String, TFamille> produits = chargerFamilles(ids);
+            java.util.Map<String, int[]> stocks = chargerStocks(ids, empl);
+
+            // Cumul des quantites par article (un meme CIP peut apparaitre plusieurs fois)
+            java.util.Map<String, Integer> quantites = new java.util.LinkedHashMap<>();
+            java.util.Map<String, List<Integer>> lignesParFamille = new java.util.LinkedHashMap<>();
+
+            for (Object[] l : lignesFichier) {
+                int numLigne = (Integer) l[0];
+                String cip = (String) l[1];
+                String qteBrute = (String) l[2];
+                if (cip == null || cip.isEmpty()) {
+                    rejets.put(new JSONObject().put("ligne", numLigne).put("cip", "").put("quantite", qteBrute)
+                            .put("motif", "Ligne illisible : CIP absent"));
+                    continue;
+                }
+                int qte;
+                try {
+                    qte = (int) Double.parseDouble(qteBrute.replace(",", ".").trim());
+                } catch (Exception e) {
+                    rejets.put(new JSONObject().put("ligne", numLigne).put("cip", cip).put("quantite", qteBrute)
+                            .put("motif", "Quantité invalide"));
+                    continue;
+                }
+                if (qte <= 0) {
+                    rejets.put(new JSONObject().put("ligne", numLigne).put("cip", cip).put("quantite", qteBrute)
+                            .put("motif", "Quantité invalide (doit être supérieure à zéro)"));
+                    continue;
+                }
+                String familleId = familleParCip.get(cip);
+                if (familleId == null) {
+                    boolean connu = familleConnueParCip.containsKey(cip);
+                    rejets.put(new JSONObject().put("ligne", numLigne).put("cip", cip).put("quantite", qteBrute)
+                            .put("motif", connu ? "Article non suivi en réserve" : "CIP inconnu"));
+                    continue;
+                }
+                quantites.merge(familleId, qte, Integer::sum);
+                lignesParFamille.computeIfAbsent(familleId, k -> new ArrayList<>()).add(numLigne);
+            }
+
+            // Plafonnement au stock disponible du sens demande, rejet si epuise
+            JSONArray lignes = new JSONArray();
+            for (java.util.Map.Entry<String, Integer> e : quantites.entrySet()) {
+                String familleId = e.getKey();
+                TFamille f = produits.get(familleId);
+                int[] st = stocks.get(familleId);
+                int dispo = (st == null) ? 0 : (versReserve ? st[0] : st[1]);
+                String cip = (f == null) ? "" : f.getIntCIP();
+                String nom = (f == null) ? "" : f.getStrNAME();
+                String numLignes = lignesParFamille.get(familleId).toString().replaceAll("[\\[\\]]", "");
+                if (f == null) {
+                    continue;
+                }
+                if (dispo <= 0) {
+                    rejets.put(new JSONObject().put("ligne", numLignes).put("cip", cip)
+                            .put("quantite", String.valueOf(e.getValue()))
+                            .put("motif", (versReserve ? "Stock rayon épuisé" : "Stock réserve épuisé") + " — " + nom));
+                    continue;
+                }
+                int qte = e.getValue();
+                if (qte > dispo) {
+                    ajustements.put(new JSONObject().put("ligne", numLignes).put("cip", cip)
+                            .put("quantite", String.valueOf(qte)).put("motif", "Quantité ramenée de " + qte + " à "
+                                    + dispo + " (" + libelleStock + " disponible) — " + nom));
+                    qte = dispo;
+                }
+                lignes.put(new JSONObject().put("lg_FAMILLE_ID", familleId).put("str_NAME", nom).put("int_CIP", cip)
+                        .put("int_QTE", qte).put("available", dispo));
+            }
+
+            LOG.log(Level.INFO, "importLignesReappro categorie={0} fichier={1} lignes={2} rejets={3} user={4}",
+                    new Object[] { categorie, fileName, lignes.length(), rejets.length(), user.getLgUSERID() });
+            return new JSONObject().put("success", true).put("lignes", lignes).put("rejets", rejets)
+                    .put("ajustements", ajustements).put("totalFichier", lignesFichier.size());
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, "importLignesReappro fichier=" + fileName, ex);
+            return fail("IMPORT_ECHEC",
+                    "Lecture du fichier impossible. Formats acceptés : CSV (CIP;QUANTITE), XLS ou XLSX.");
+        }
+    }
+
+    /**
+     * Articles correspondant aux CIP (ou EAN13) fournis. Avec {@code eligiblesSeulement}, seuls les articles suivis en
+     * reserve pour l'emplacement sont retenus : c'est la meme regle d'eligibilite que la recherche de la fenetre de
+     * reappro manuel.
+     */
+    private java.util.Map<String, String> resoudreCips(java.util.Collection<String> cips, String empl,
+            boolean eligiblesSeulement) {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        if (cips.isEmpty()) {
+            return out;
+        }
+        List<String> liste = new ArrayList<>(cips);
+        StringBuilder in = new StringBuilder();
+        for (int i = 0; i < liste.size(); i++) {
+            in.append(i == 0 ? "?" : ",?").append(i + 2);
+        }
+        String sql;
+        if (eligiblesSeulement) {
+            sql = "SELECT f.int_CIP, f.int_EAN13, f.lg_FAMILLE_ID FROM t_type_stock_famille tsf "
+                    + "JOIN t_famille f ON f.lg_FAMILLE_ID = tsf.lg_FAMILLE_ID " + "WHERE tsf.lg_TYPE_STOCK_ID = '"
+                    + TYPE_STOCK_RESERVE + "' AND tsf.lg_EMPLACEMENT_ID = ?1 AND tsf.str_STATUT = 'enable' "
+                    + "AND f.bool_RESERVE = 1 AND (f.int_CIP IN (" + in + ") OR f.int_EAN13 IN (" + in + "))";
+        } else {
+            sql = "SELECT f.int_CIP, f.int_EAN13, f.lg_FAMILLE_ID FROM t_famille f "
+                    + "WHERE '' <> ?1 AND (f.int_CIP IN (" + in + ") OR f.int_EAN13 IN (" + in + "))";
+        }
+        Query q = em.createNativeQuery(sql);
+        q.setParameter(1, empl);
+        for (int i = 0; i < liste.size(); i++) {
+            q.setParameter(i + 2, liste.get(i));
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = q.getResultList();
+        for (Object[] r : rows) {
+            String familleId = String.valueOf(r[2]);
+            if (r[0] != null) {
+                out.putIfAbsent(String.valueOf(r[0]), familleId);
+            }
+            if (r[1] != null) {
+                out.putIfAbsent(String.valueOf(r[1]), familleId);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Lignes exploitables du fichier : tableaux {numero de ligne, CIP, quantite brute}. CSV (separateur ; , ou
+     * tabulation) et Excel (.xls/.xlsx, deux premieres colonnes de la premiere feuille) sont acceptes ; une eventuelle
+     * ligne d'en-tete est ignoree.
+     */
+    private List<Object[]> lireLignesFichier(String fileName, java.io.InputStream contenu) throws java.io.IOException {
+        List<Object[]> out = new ArrayList<>();
+        String nom = fileName == null ? "" : fileName.toLowerCase();
+        if (nom.endsWith(".xls") || nom.endsWith(".xlsx")) {
+            try (org.apache.poi.ss.usermodel.Workbook wb = org.apache.poi.ss.usermodel.WorkbookFactory
+                    .create(contenu)) {
+                org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+                for (org.apache.poi.ss.usermodel.Row row : sheet) {
+                    String cip = celluleTexte(row.getCell(0));
+                    String qte = celluleTexte(row.getCell(1));
+                    if (cip.isEmpty() && qte.isEmpty()) {
+                        continue;
+                    }
+                    out.add(new Object[] { row.getRowNum() + 1, cip, qte });
+                }
+            }
+        } else {
+            try (java.io.BufferedReader lecteur = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(contenu, java.nio.charset.StandardCharsets.UTF_8))) {
+                String ligne;
+                int num = 0;
+                while ((ligne = lecteur.readLine()) != null) {
+                    num++;
+                    if (ligne.trim().isEmpty()) {
+                        continue;
+                    }
+                    String[] cols = ligne.split("[;,\\t]");
+                    String cip = cols.length > 0 ? cols[0].replace("\"", "").trim() : "";
+                    String qte = cols.length > 1 ? cols[1].replace("\"", "").trim() : "";
+                    out.add(new Object[] { num, cip, qte });
+                }
+            }
+        }
+        // Une ligne d'en-tete eventuelle (quantite non numerique en premiere ligne) est ignoree
+        if (!out.isEmpty()) {
+            String qte = (String) out.get(0)[2];
+            try {
+                Double.parseDouble(qte.replace(",", ".").trim());
+            } catch (Exception e) {
+                out.remove(0);
+            }
+        }
+        return out;
+    }
+
+    /** Contenu d'une cellule Excel sous forme de texte, sans le .0 des nombres entiers. */
+    private static String celluleTexte(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) {
+            return "";
+        }
+        try {
+            if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
+                double d = cell.getNumericCellValue();
+                if (d == Math.floor(d)) {
+                    return String.valueOf((long) d);
+                }
+                return String.valueOf(d);
+            }
+            return cell.toString().trim();
+        } catch (Exception e) {
+            return cell.toString().trim();
+        }
+    }
 }

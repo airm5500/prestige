@@ -38,6 +38,7 @@ public class SuggestionReserveRessource {
     @Inject
     private HttpServletRequest servletRequest;
     private @EJB SuggestionReserveService suggestionReserveService;
+    private @EJB rest.service.ReserveService reserveService;
 
     private TUser currentUser() {
         HttpSession hs = servletRequest.getSession();
@@ -144,6 +145,46 @@ public class SuggestionReserveRessource {
             return deconnecte();
         }
         return Response.ok().entity(suggestionReserveService.detail(user, id).toString()).build();
+    }
+
+    /**
+     * Import d'un fichier (CSV, XLS ou XLSX ; colonnes CIP;QUANTITE) pour remplir le panier du reappro manuel. Aucune
+     * ecriture en base : la reponse liste les lignes reconnues (a afficher dans le panier) et les lignes rejetees avec
+     * leur numero de ligne et le motif. La reponse est servie en text/html : l'envoi de fichier ExtJS passe par une
+     * iframe cachee qui n'accepte pas application/json.
+     */
+    @POST
+    @Path("import-lignes")
+    @Consumes(javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA)
+    @Produces(javax.ws.rs.core.MediaType.TEXT_HTML)
+    public Response importLignes(@QueryParam("categorie") String categorie) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        try {
+            org.apache.commons.fileupload.servlet.ServletFileUpload upload = new org.apache.commons.fileupload.servlet.ServletFileUpload(
+                    new org.apache.commons.fileupload.disk.DiskFileItemFactory());
+            List<org.apache.commons.fileupload.FileItem> items = upload.parseRequest(servletRequest);
+            for (org.apache.commons.fileupload.FileItem item : items) {
+                if (!item.isFormField()) {
+                    JSONObject json = reserveService.importLignesReappro(user, categorie, item.getName(),
+                            item.getInputStream());
+                    return Response.ok().entity(json.toString()).build();
+                }
+            }
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("message", "Aucun fichier reçu").toString())
+                    .build();
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(SuggestionReserveRessource.class.getName())
+                    .log(java.util.logging.Level.SEVERE, "importLignes", e);
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", "Lecture du fichier impossible").toString())
+                    .build();
+        }
     }
 
     /**

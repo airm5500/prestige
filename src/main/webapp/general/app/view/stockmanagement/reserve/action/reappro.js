@@ -177,6 +177,149 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             combo.focus();
         };
 
+        // ---- Import d'un fichier (CIP;QUANTITE) pour remplir le panier en un coup ----
+        // Les lignes reconnues alimentent le panier (cumulees avec l'existant) ; les lignes
+        // rejetees sont restituees avec leur numero de ligne, le CIP lu et le motif.
+        var ajouterLignesImportees = function (lignes) {
+            var n = 0;
+            Ext.each(lignes, function (l) {
+                var existing = cartStore.findRecord('lg_FAMILLE_ID', l.lg_FAMILLE_ID);
+                if (existing) {
+                    existing.set('int_QTE', existing.get('int_QTE') + l.int_QTE);
+                } else {
+                    cartStore.add({
+                        lg_FAMILLE_ID: l.lg_FAMILLE_ID,
+                        str_NAME: l.str_NAME,
+                        int_CIP: l.int_CIP,
+                        int_QTE: l.int_QTE,
+                        available: l.available
+                    });
+                }
+                n++;
+            });
+            return n;
+        };
+
+        var montrerRapportImport = function (res, nbAjoutees) {
+            var rejets = res.rejets || [];
+            var ajustements = res.ajustements || [];
+            if (rejets.length === 0 && ajustements.length === 0) {
+                Ext.MessageBox.alert('Importation',
+                        '<b>' + nbAjoutees + '</b> ligne(s) ajoutée(s) au panier.');
+                return;
+            }
+            var lignesRapport = [];
+            Ext.each(rejets, function (r) {
+                lignesRapport.push({ligne: r.ligne, cip: r.cip, quantite: r.quantite,
+                    motif: r.motif, type: 'REJET'});
+            });
+            Ext.each(ajustements, function (r) {
+                lignesRapport.push({ligne: r.ligne, cip: r.cip, quantite: r.quantite,
+                    motif: r.motif, type: 'AJUSTEMENT'});
+            });
+            var rapportStore = new Ext.data.Store({
+                fields: ['ligne', 'cip', 'quantite', 'motif', 'type'],
+                data: lignesRapport
+            });
+            var winRapport = new Ext.window.Window({
+                title: 'Rapport d\'importation',
+                modal: true,
+                width: 700,
+                height: 400,
+                layout: 'vbox',
+                bodyPadding: 8,
+                defaults: {width: '100%'},
+                items: [
+                    {xtype: 'component', margin: '0 0 6 0',
+                        html: '<b>' + nbAjoutees + '</b> ligne(s) ajoutée(s) au panier — '
+                                + '<span style="color:#b00020;font-weight:bold;">' + rejets.length
+                                + ' rejetée(s)</span>'
+                                + (ajustements.length ? ' — <span style="color:#b26a00;font-weight:bold;">'
+                                        + ajustements.length + ' quantité(s) ajustée(s)</span>' : '')},
+                    {
+                        xtype: 'gridpanel',
+                        flex: 1,
+                        store: rapportStore,
+                        columnLines: true,
+                        columns: [
+                            {header: 'Ligne du fichier', dataIndex: 'ligne', width: 100, align: 'center'},
+                            {header: 'CIP lu', dataIndex: 'cip', width: 110},
+                            {header: 'Qté lue', dataIndex: 'quantite', width: 70, align: 'center'},
+                            {header: 'Motif', dataIndex: 'motif', flex: 1,
+                                renderer: function (v, meta, rec) {
+                                    meta.tdStyle = (rec.get('type') === 'REJET')
+                                            ? 'color:#b00020;' : 'color:#b26a00;';
+                                    return v;
+                                }}
+                        ],
+                        viewConfig: {enableTextSelection: true}
+                    }
+                ],
+                buttons: [{text: 'Fermer', handler: function () {
+                            winRapport.close();
+                        }}]
+            });
+            winRapport.show();
+        };
+
+        var onImporterFichier = function () {
+            var winImport = new Ext.window.Window({
+                title: 'Importer une liste (CIP;QUANTITE)',
+                modal: true,
+                width: 480,
+                layout: 'fit',
+                items: {
+                    xtype: 'form',
+                    bodyPadding: 10,
+                    items: [
+                        {xtype: 'component', margin: '0 0 8 0',
+                            html: 'Fichier <b>CSV</b> (séparateur ; , ou tabulation) ou <b>Excel</b> '
+                                    + '(.xls/.xlsx).<br>Deux colonnes : <b>CIP</b> puis <b>QUANTITE</b>. '
+                                    + 'Ligne d\'en-tête tolérée.'},
+                        {
+                            xtype: 'filefield',
+                            name: 'fichier',
+                            fieldLabel: 'Fichier',
+                            labelWidth: 60,
+                            anchor: '100%',
+                            allowBlank: false,
+                            buttonText: 'Choisir...'
+                        }
+                    ]
+                },
+                buttons: [
+                    {
+                        text: 'Importer',
+                        handler: function (btn) {
+                            var form = winImport.down('form');
+                            if (!form.isValid()) {
+                                return;
+                            }
+                            form.getForm().submit({
+                                url: '../api/v1/suggestion-reserve/import-lignes?categorie=' + categorie,
+                                waitMsg: 'Lecture du fichier...',
+                                success: function (f, action) {
+                                    var res = action.result || {};
+                                    winImport.close();
+                                    var n = ajouterLignesImportees(res.lignes || []);
+                                    montrerRapportImport(res, n);
+                                },
+                                failure: function (f, action) {
+                                    var res = (action && action.result) || {};
+                                    Ext.MessageBox.alert('Importation',
+                                            res.message || 'La lecture du fichier a échoué.');
+                                }
+                            });
+                        }
+                    },
+                    {text: 'Annuler', handler: function () {
+                            winImport.close();
+                        }}
+                ]
+            });
+            winImport.show();
+        };
+
         var cartGrid = Ext.create('Ext.grid.Panel', {
             store: cartStore,
             flex: 1,
@@ -225,7 +368,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                         {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, items: [combo]},
                         {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, margin: '5 0 0 0',
                             items: [qteField, {xtype: 'button', text: 'Ajouter au panier', margin: '0 0 0 10',
-                                    handler: addToCart}, {xtype: 'tbspacer', width: 15}, infoLabel]}
+                                    handler: addToCart},
+                                {xtype: 'button', text: 'Importer un fichier', iconCls: 'importicon',
+                                    margin: '0 0 0 10', tooltip: 'Remplir le panier depuis un fichier CIP;QUANTITE',
+                                    handler: onImporterFichier},
+                                {xtype: 'tbspacer', width: 15}, infoLabel]}
                     ]
                 },
                 {xtype: 'component', html: '<b>Panier</b>', margin: '6 0 4 0'},

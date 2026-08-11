@@ -94,6 +94,17 @@ public interface ReserveService {
      */
     JSONObject ajusterReserve(TUser user, String familleId, int delta, String motif);
 
+    /**
+     * Import d'un fichier (CSV, XLS ou XLSX ; colonnes CIP;QUANTITE) pour remplir le panier du reappro manuel. Aucune
+     * ecriture : chaque ligne est resolue par CIP (ou EAN13) parmi les articles suivis en reserve de l'emplacement, la
+     * quantite est plafonnee au stock disponible du sens demande, et chaque ligne rejetee est retournee avec son numero
+     * de ligne, le CIP lu et le motif du rejet.
+     *
+     * @param categorie
+     *            'RESERVE' (le rayon descend en reserve) ou 'RAYON' (la reserve remonte au rayon)
+     */
+    JSONObject importLignesReappro(TUser user, String categorie, String fileName, java.io.InputStream contenu);
+
     /** Nom du privilege requis pour annuler un mouvement de reserve. */
     String PRIVILEGE_ANNULATION = "P_ANNULER_MOUVEMENT_RESERVE";
 
