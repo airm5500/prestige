@@ -642,8 +642,11 @@ public class bllBase {
                 this.getOdataManager().BeginTransaction();
             }
 
+            // dt_CREATED/dt_UPDATED renseignees explicitement : la colonne n'a pas de valeur par
+            // defaut en base et le fichier journal filtre sur dt_CREATED (une ligne sans date
+            // n'y apparait jamais).
             OdaManager.getEm().createNativeQuery(
-                    "INSERT INTO `t_event_log` (`lg_EVENT_LOG_ID`, `str_DESCRIPTION`, `str_CREATED_BY`, `str_STATUT`, `str_TABLE_CONCERN`,`str_MODULE_CONCERN`,`str_TYPE_LOG`,`lg_USER_ID`) VALUES(?,?,?,?,?,?,?,?)")
+                    "INSERT INTO `t_event_log` (`lg_EVENT_LOG_ID`, `dt_CREATED`, `dt_UPDATED`, `str_DESCRIPTION`, `str_CREATED_BY`, `str_STATUT`, `str_TABLE_CONCERN`,`str_MODULE_CONCERN`,`str_TYPE_LOG`,`lg_USER_ID`) VALUES(?,NOW(),NOW(),?,?,?,?,?,?,?)")
                     .setParameter(1, key.gettimeid()).setParameter(2, str_DESCRIPTION).setParameter(3, str_CREATED_BY)
                     .setParameter(4, str_STATUT).setParameter(5, str_TABLE_CONCERN).setParameter(6, str_MODULE_CONCERN)
                     .setParameter(7, str_TYPE_LOG).setParameter(8, lg_USER_ID).executeUpdate();
