@@ -5,7 +5,7 @@ var url_services_data_famaillearticle_famille = '../webservices/configmanagement
 var url_services_data_codegestion_famille = '../webservices/configmanagement/codegestion/ws_data.jsp';
 var url_services_data_famille = '../webservices/sm_user/famille/ws_data.jsp';
 var url_services_transaction_famille = '../webservices/sm_user/famille/ws_transaction.jsp?mode=';
-var url_services_data_detailsortie_famille = '../api/v1/suivi-stock-vente/detail-sortie-famille';
+var url_services_data_detailsortie_famille_other = '../api/v1/suivi-stock-vente/detail-sortie-famille';
 var url_services_data_statVente_famille = '../api/v1/suivi-stock-vente/stat-vente-famille';
 var url_services_data_perime_famille = '../webservices/stockmanagement/perime/ws_data_famille.jsp';
 var url_services_data_typeetiquette = '../webservices/configmanagement/typeetiquette/ws_data.jsp';
@@ -68,7 +68,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_detailsortie_famille + "?lg_FAMILLE_ID=" + ref,
+                url: url_services_data_detailsortie_famille_other + "?lg_FAMILLE_ID=" + ref,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -553,7 +553,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                                             // alert(me.getSubmitValue());
                                             valdatedebutDetail = me.getSubmitValue();
                                             Ext.getCmp('datefinDetail').setMinValue(me.getValue());
-                                            Ext.getCmp('gridpanelDetailID').getStore().getProxy().url = url_services_data_detailsortie_famille + "?lg_FAMILLE_ID=" + ref + "&datedebut=" + valdatedebutDetail;
+                                            Ext.getCmp('gridpanelDetailID').getStore().getProxy().url = url_services_data_detailsortie_famille_other + "?lg_FAMILLE_ID=" + ref + "&datedebut=" + valdatedebutDetail;
 
                                         }
                                     }
@@ -572,7 +572,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                                             valdatefinDetail = me.getSubmitValue();
 
                                             Ext.getCmp('datedebutDetail').setMaxValue(me.getValue());
-                                            Ext.getCmp('gridpanelDetailID').getStore().getProxy().url = url_services_data_detailsortie_famille + "?lg_FAMILLE_ID=" + ref + "&datedebut=" + valdatedebutDetail + "&datefin=" + valdatefinDetail;
+                                            Ext.getCmp('gridpanelDetailID').getStore().getProxy().url = url_services_data_detailsortie_famille_other + "?lg_FAMILLE_ID=" + ref + "&datedebut=" + valdatedebutDetail + "&datefin=" + valdatefinDetail;
 
                                         }
                                     }
@@ -723,7 +723,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                                     listeners: {
                                         select: function (cmp) {
                                             lg_GROSSISTE_ORDER_ID = cmp.getValue();
-                                            Ext.getCmp('gridpanelOrderID').getStore().getProxy().url = url_services_data_detailsortie_famille + "?lg_FAMILLE_ID=" + ref + "&datedebut=" + valdatedebutDetailOrder + "&datefin=" + valdatefinDetailOrder + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ORDER_ID;
+                                            Ext.getCmp('gridpanelOrderID').getStore().getProxy().url = url_services_data_detailsortie_famille_other + "?lg_FAMILLE_ID=" + ref + "&datedebut=" + valdatedebutDetailOrder + "&datefin=" + valdatefinDetailOrder + "&lg_GROSSISTE_ID=" + lg_GROSSISTE_ORDER_ID;
                                             Me.onRechOrderClick();
 
                                         }
@@ -908,7 +908,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                 datefin: valdatefinDetail,
                 search_value: val.getValue()
             }
-        }, url_services_data_detailsortie_famille);
+        }, url_services_data_detailsortie_famille_other);
     },
     onRechOrderClick: function () {
         var val = Ext.getCmp('rechercherOrder');

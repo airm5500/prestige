@@ -90,6 +90,26 @@ public class CheckMigrationServlet extends HttpServlet {
             new logger().OCategory.info("table_name->" + request.getParameter("table_name"));
         }
 
+        // Meme controle que le menu 'Importation' de la fiche article : privilege
+        // obligatoire cote serveur pour la verification de l'import des articles.
+        if (Parameter.TABLE_FAMILLE.equals(table_name) || Parameter.TABLE_MISEAJOUR_STOCKDEPOT.equals(table_name)) {
+            @SuppressWarnings("unchecked")
+            List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) session
+                    .getAttribute(util.Constant.USER_LIST_PRIVILEGE);
+            if (privileges == null
+                    || !util.DateConverter.hasAuthorityByName(privileges, util.Constant.P_BTN_IMPORT_ARTICLE)) {
+                try {
+                    JSONObject refus = new JSONObject();
+                    refus.put("success", false);
+                    refus.put("errors", "Vous n'avez pas le privilège requis pour cette opération");
+                    response.getWriter().print(refus);
+                } catch (Exception e) {
+                    new logger().OCategory.error(e.getMessage());
+                }
+                return;
+            }
+        }
+
         if (request.getParameter("format") != null) {
             format = request.getParameter("format");
             new logger().OCategory.info("format->" + format);

@@ -346,13 +346,15 @@ public class UtilisateurServiceImpl implements UtilisateurService {
             user.setDtUPDATED(new Date());
             em.merge(user);
             // Trace dans le fichier journal : qui a active/desactive quel utilisateur
-            String desc = (actif ? "Activation" : "Désactivation") + " de l'utilisateur " + user.getStrFIRSTNAME() + " "
-                    + user.getStrLASTNAME() + " (" + user.getStrLOGIN() + "), par " + connecte.getStrFIRSTNAME() + " "
-                    + connecte.getStrLASTNAME();
-            logService.updateItem(connecte, user.getLgUSERID(), desc,
-                    actif ? dal.enumeration.TypeLog.ACTIVATION_UTILISATEUR
-                            : dal.enumeration.TypeLog.DESACTIVATION_UTILISATEUR,
-                    user);
+            if (connecte != null) {
+                String desc = (actif ? "Activation" : "Désactivation") + " de l'utilisateur " + user.getStrFIRSTNAME()
+                        + " " + user.getStrLASTNAME() + " (" + user.getStrLOGIN() + "), par "
+                        + connecte.getStrFIRSTNAME() + " " + connecte.getStrLASTNAME();
+                logService.updateItem(connecte, user.getLgUSERID(), desc,
+                        actif ? dal.enumeration.TypeLog.ACTIVATION_UTILISATEUR
+                                : dal.enumeration.TypeLog.DESACTIVATION_UTILISATEUR,
+                        user);
+            }
             return json.put("success", SUCCESS).put("errors", actif ? "Utilisateur réactivé avec succès"
                     : "Utilisateur désactivé avec succès : il ne peut plus se connecter");
         } catch (Exception e) {

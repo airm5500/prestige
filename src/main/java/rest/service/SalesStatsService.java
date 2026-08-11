@@ -147,7 +147,7 @@ public interface SalesStatsService {
 
     JSONObject getPreVentes(SalesStatsParams params);
 
-    JSONObject getOpenAvoirsCount();
+    JSONObject getOpenAvoirsCount(dal.TUser user, boolean showAllActivities);
 
     JSONObject getVenteTerminees(SalesStatsParams params);
 

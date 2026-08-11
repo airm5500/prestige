@@ -2461,11 +2461,22 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     }
 
     @Override
-    public JSONObject getOpenAvoirsCount() {
+    public JSONObject getOpenAvoirsCount(TUser user, boolean showAllActivities) {
         JSONObject json = new JSONObject();
         try {
-            Query q = getEntityManager().createNativeQuery(OPEN_AVOIRS_COUNT_SQL);
+            // Meme filtre par utilisateur que la liste des avoirs ouverts (privilege
+            // 'afficher les ventes de tous les utilisateurs') : badge et panneau
+            // de la cloche restent coherents.
+            String sql = OPEN_AVOIRS_COUNT_SQL;
+            boolean filtreUtilisateur = !showAllActivities && user != null;
+            if (filtreUtilisateur) {
+                sql += " AND p.lg_USER_ID=:connectedUserId";
+            }
+            Query q = getEntityManager().createNativeQuery(sql);
             q.setParameter("status", Constant.STATUT_IS_CLOSED);
+            if (filtreUtilisateur) {
+                q.setParameter("connectedUserId", user.getLgUSERID());
+            }
             int total = ((Number) q.getSingleResult()).intValue();
             json.put("total", total);
             json.put("data", new JSONArray());

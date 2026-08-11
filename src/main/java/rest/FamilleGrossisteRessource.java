@@ -90,8 +90,10 @@ public class FamilleGrossisteRessource {
                     .build();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "listFamilleGrossiste", e);
-            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
-                    .build();
+            // 500 comme la JSP historique : une erreur serveur ne doit pas s'afficher
+            // comme une liste vide normale.
+            return Response.serverError()
+                    .entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString()).build();
         } finally {
             odm.closeEntityManager();
         }

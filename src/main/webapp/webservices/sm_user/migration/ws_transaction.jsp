@@ -56,8 +56,18 @@
     
 
     MigrationManager OMigrationManager = new MigrationManager(OdataManager, user);
-   
-    if (request.getParameter("mode") != null) {
+
+    // Meme controle que le menu 'Importation' de la fiche article : privilege
+    // obligatoire cote serveur pour l'import des articles.
+    List<dal.TPrivilege> lstPrivImport = (List<dal.TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
+    boolean bImportArticleAutorise = lstPrivImport != null
+            && util.DateConverter.hasAuthorityByName(lstPrivImport, util.Constant.P_BTN_IMPORT_ARTICLE);
+
+    if ((Parameter.TABLE_FAMILLE.equals(table_name) || Parameter.TABLE_MISEAJOUR_STOCKDEPOT.equals(table_name))
+            && !bImportArticleAutorise) {
+        ObllBase.setMessage(commonparameter.PROCESS_FAILED);
+        ObllBase.setDetailmessage("Vous n'avez pas le privilège requis pour importer des articles");
+    } else if (request.getParameter("mode") != null) {
         if (request.getParameter("mode").equals("importfile")) {
 
             try {

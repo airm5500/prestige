@@ -117,8 +117,10 @@ public class SuiviStockVenteRessource {
                     .build();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "detailSortieFamille", e);
-            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
-                    .build();
+            // 500 comme la JSP historique : une erreur serveur ne doit pas s'afficher
+            // comme une liste vide normale.
+            return Response.serverError()
+                    .entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString()).build();
         } finally {
             odm.closeEntityManager();
         }
@@ -141,8 +143,10 @@ public class SuiviStockVenteRessource {
                     .entity(new JSONObject().put("total", results.length()).put("results", results).toString()).build();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "statVenteFamille", e);
-            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
-                    .build();
+            // 500 comme la JSP historique : une erreur serveur ne doit pas s'afficher
+            // comme une liste vide normale.
+            return Response.serverError()
+                    .entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString()).build();
         } finally {
             odm.closeEntityManager();
         }

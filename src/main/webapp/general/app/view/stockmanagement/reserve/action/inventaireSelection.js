@@ -142,8 +142,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.inventaireSelection', 
             Ext.Ajax.request({
                 url: urlSource,
                 method: 'GET',
+                // La recherche EN COURS est reprise dans les deux cas : la selection
+                // toutes pages porte sur le meme resultat que la grille affichee.
                 params: sourceDediee
-                        ? Ext.apply({start: 0, limit: 0}, paramsSource || {})
+                        ? Ext.apply(Ext.apply({start: 0, limit: 0}, paramsSource || {}), {search_value: search})
                         : {str_TYPE_TRANSACTION: typeParam, search_value: search, start: 0, limit: 0},
                 timeout: 600000,
                 success: function (response) {

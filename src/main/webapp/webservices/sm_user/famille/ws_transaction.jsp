@@ -261,16 +261,9 @@
     if (request.getParameter("mode") != null) {
 
         // Meme controle que le bouton 'Créer un Article' de l'ecran : privilege obligatoire cote serveur
-        boolean bCanCreateArticle = false;
         List<TPrivilege> lstPrivCreation = (List<TPrivilege>) session.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        if (lstPrivCreation != null) {
-            for (TPrivilege oPrivCreation : lstPrivCreation) {
-                if ("P_BTN_CREER_ARTICLE".equalsIgnoreCase(oPrivCreation.getStrNAME())) {
-                    bCanCreateArticle = true;
-                    break;
-                }
-            }
-        }
+        boolean bCanCreateArticle = lstPrivCreation != null
+                && util.DateConverter.hasAuthorityByName(lstPrivCreation, util.Constant.P_BTN_CREER_ARTICLE);
         if (request.getParameter("mode").equals("create") && !bCanCreateArticle) {
             ObllBase.setMessage(commonparameter.PROCESS_FAILED);
             ObllBase.setDetailmessage("Vous n'avez pas le privilège requis pour créer un article");
