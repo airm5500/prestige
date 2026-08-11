@@ -1,4 +1,4 @@
-var url_services_data_famille_grossiste = '../webservices/configmanagement/famillegrossiste/ws_data.jsp';
+var url_services_data_famille_grossiste = '../api/v1/famille-grossiste';
 var url_services_transaction_famille_grossiste = '../webservices/configmanagement/famillegrossiste/ws_transaction.jsp?mode=';
 
 var OgridpanelGrossisteID;
