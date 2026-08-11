@@ -2564,6 +2564,9 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         if (userId != null) {
             query.setParameter("userId", userId);
         }
+        if (!params.isShowAllActivities() && params.getUserId() != null) {
+            query.setParameter("connectedUserId", params.getUserId().getLgUSERID());
+        }
 
         if (StringUtils.isNotEmpty(params.getDepotId())) {
             query.setParameter("depotId", params.getDepotId());
@@ -2724,6 +2727,12 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
         if (StringUtils.isNotEmpty(params.getUser())) {
             finalSql.append(" AND p.lg_USER_ID=:userId ");
+        }
+        // Privilege 'afficher les ventes de tous les utilisateurs' absent : l'utilisateur
+        // connecte ne voit que SES ventes (comportement historique de l'ecran, perdu lors
+        // de l'optimisation de la requete des ventes terminees).
+        if (!params.isShowAllActivities() && params.getUserId() != null) {
+            finalSql.append(" AND p.lg_USER_ID=:connectedUserId ");
         }
         if (params.isDepotOnly()) {
             finalSql.append(" AND p.lg_NATURE_VENTE_ID = '3' ");
