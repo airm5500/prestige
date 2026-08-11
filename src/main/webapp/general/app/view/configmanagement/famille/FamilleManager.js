@@ -785,17 +785,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 }
                             }
                         },
-                        {
-                            text: 'Effacer stock',
-                            tooltip: 'Effacer le filtre stock',
-                            iconCls: 'cancelicon',
-                            scope: this,
-                            handler: function () {
-                                Me_Workflow.fmField('stock_operator').clearValue();
-                                Me_Workflow.fmField('stock_value').setValue('');
-                                Me_Workflow.onRechClick();
-                            }
-                        },
                         '-',
                         {
                             text: 'Importer des articles',
@@ -976,16 +965,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 }
                             }
                         },
-                        {
-                            text: 'Effacer rayon',
-                            tooltip: 'Effacer le filtre rayon',
-                            iconCls: 'cancelicon',
-                            scope: this,
-                            handler: function () {
-                                Me_Workflow.fmField('lg_ZONE_GEO_ID').clearValue();
-                                Me_Workflow.onRechClick();
-                            }
-                        },
                         '-',
                         {
                             xtype: 'combobox',
@@ -1004,16 +983,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                                 select: function () {
                                     Me_Workflow.onRechClick();
                                 }
-                            }
-                        },
-                        {
-                            text: 'Effacer TVA',
-                            tooltip: 'Effacer le filtre TVA',
-                            iconCls: 'cancelicon',
-                            scope: this,
-                            handler: function () {
-                                Me_Workflow.fmField('lg_CODE_TVA_ID_FILTRE').clearValue();
-                                Me_Workflow.onRechClick();
                             }
                         }
                     ]
