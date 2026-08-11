@@ -41,6 +41,8 @@ public class VenteSuppressionRessource {
     private InventaireService inventaireService;
     @EJB
     private ReportUtil reportUtil;
+    @EJB
+    private rest.service.utils.ReportExcelExportService reportExcelExportService;
     @Inject
     private HttpServletRequest servletRequest;
 
@@ -78,6 +80,40 @@ public class VenteSuppressionRessource {
         int count = inventaireService.create(produitIds, name,
                 StringUtils.isNotEmpty(description) ? description : name);
         return Response.ok().entity(new JSONObject().put("success", true).put("count", count).toString()).build();
+    }
+
+    /**
+     * Export Excel de la liste : memes filtres et memes lignes que la grille (toutes les pages, via fetchAll).
+     */
+    @GET
+    @Path("export/excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportExcel(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "userId") String userId,
+            @QueryParam(value = "query") String query, @QueryParam(value = "type") String type) throws Exception {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        java.util.List<VenteSuppressionDTO> data = venteSuppressionService.fetchAll(dtStart, dtEnd, userId, query,
+                type);
+        String[] entetes = { "Date", "Heure", "Vente", "CIP", "Produit", "Qte", "Utilisateur", "Type" };
+        byte[] bytes = reportExcelExportService.createExcelReport("Suppressions de vente", entetes, data, (row, o) -> {
+            int col = 0;
+            row.createCell(col++).setCellValue(StringUtils.defaultString(o.getDate()));
+            row.createCell(col++).setCellValue(StringUtils.defaultString(o.getHeure()));
+            row.createCell(col++).setCellValue(StringUtils.defaultString(o.getVenteRef()));
+            row.createCell(col++).setCellValue(StringUtils.defaultString(o.getProduitCip()));
+            row.createCell(col++).setCellValue(StringUtils.defaultString(o.getProduitLibelle()));
+            row.createCell(col++).setCellValue(o.getQuantite() == null ? 0 : o.getQuantite());
+            row.createCell(col++).setCellValue(StringUtils.defaultString(o.getUserName()));
+            row.createCell(col)
+                    .setCellValue("VENTE".equals(o.getTypeSuppression()) ? "Vente abandonnee" : "Produit retire");
+        });
+        return Response.ok(bytes).header("Content-Disposition", "attachment; filename=\"suppressions_vente.xls\"")
+                .build();
     }
 
     // Edition PDF (JasperReports) de la liste : rp_suppressions_vente.jrxml

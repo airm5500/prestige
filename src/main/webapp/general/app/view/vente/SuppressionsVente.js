@@ -160,6 +160,10 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
                             scope: me,
                             handler: me.doPrint
                         }, {
+                            text: 'Exporter (Excel)',
+                            scope: me,
+                            handler: me.onExportExcel
+                        }, {
                             text: 'Creer inventaire',
                             iconCls: 'addicon',
                             scope: me,
@@ -282,6 +286,27 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
         me.selectedRows = {};
         me.selModel_.deselectAll();
         me.updateCounter();
+    },
+    // Export Excel genere par le serveur : memes filtres et memes lignes que la
+    // grille, toutes pages confondues.
+    onExportExcel: function () {
+        var me = this, filters = me.getFilters();
+        var url = '../api/v1/vente-suppressions/export/excel'
+                + '?dtStart=' + encodeURIComponent(filters.dtStart)
+                + '&dtEnd=' + encodeURIComponent(filters.dtEnd)
+                + '&userId=' + encodeURIComponent(filters.userId)
+                + '&type=' + encodeURIComponent(filters.type)
+                + '&query=' + encodeURIComponent(filters.query)
+                + '&_dc=' + new Date().getTime();
+        // Iframe cachee : le telechargement demarre sans quitter ni recharger l'ecran courant.
+        var frame = document.getElementById('suppressions-export-frame');
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.id = 'suppressions-export-frame';
+            frame.style.display = 'none';
+            document.body.appendChild(frame);
+        }
+        frame.src = url;
     },
     doPrint: function () {
         var me = this, filters = me.getFilters();
