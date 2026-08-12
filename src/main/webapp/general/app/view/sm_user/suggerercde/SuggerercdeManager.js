@@ -203,7 +203,9 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 xtype: 'combobox', fieldLabel: 'Article', name: 'str_NAME',
                                 id: 'str_NAME', store: store, margins: '0 10 5 10',
                                 enableKeyEvents: true, valueField: 'CIP', displayField: 'str_DESCRIPTION',
-                                pageSize: 999, typeAhead: true, flex: 2,
+                                // typeAhead retire : il pre-completait le champ avec le premier
+                                // resultat et la liste se retrouvait filtree sur ce seul produit
+                                pageSize: 999, flex: 2,
                                 queryMode: 'remote', emptyText: 'Choisir un article par Nom ou Cip...',
                                 listConfig: {
                                     loadingText: 'Recherche...',
