@@ -308,17 +308,20 @@ public class RoleServiceImpl implements RoleService {
         JSONObject json = new JSONObject();
         JSONArray results = new JSONArray();
         try {
-            String like = (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
+            // Recherche 'contient' : taper AZZZ trouve tous les privileges dont le libelle
+            // ou le nom contient AZZZ, pas seulement ceux qui commencent par AZZZ.
+            String like = "%" + (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
             String where = " FROM t_privilege p WHERE p.str_STATUT = 'enable'"
                     + " AND (p.str_DESCRIPTION LIKE ?1 OR p.str_NAME LIKE ?1)" + catalogueWhere(user);
             Query qc = em.createNativeQuery("SELECT COUNT(*)" + where).setParameter(1, like);
-            // is_select calcule par jointure : une seule requete pour toute la page
-            // (au lieu d'une requete d'existence par privilege dans la JSP historique)
+            // is_select calcule par EXISTS et non par jointure : une attribution presente en
+            // plusieurs exemplaires dans t_role_privelege dupliquait la ligne du privilege
+            // autant de fois dans la page.
             Query q = em
                     .createNativeQuery("SELECT p.lg_PRIVELEGE_ID, p.str_DESCRIPTION,"
-                            + " CASE WHEN rp.lg_ROLE_PRIVILEGE IS NULL THEN 'false' ELSE 'true' END AS is_select"
-                            + " FROM t_privilege p LEFT JOIN t_role_privelege rp"
-                            + " ON rp.lg_PRIVILEGE_ID = p.lg_PRIVELEGE_ID AND rp.lg_ROLE_ID = ?2"
+                            + " CASE WHEN EXISTS (SELECT 1 FROM t_role_privelege rp"
+                            + "   WHERE rp.lg_PRIVILEGE_ID = p.lg_PRIVELEGE_ID AND rp.lg_ROLE_ID = ?2)"
+                            + " THEN 'true' ELSE 'false' END AS is_select" + " FROM t_privilege p"
                             + " WHERE p.str_STATUT = 'enable' AND (p.str_DESCRIPTION LIKE ?1 OR p.str_NAME LIKE ?1)"
                             + catalogueWhere(user) + " ORDER BY p.str_DESCRIPTION ASC")
                     .setParameter(1, like).setParameter(2, roleId);
@@ -379,7 +382,9 @@ public class RoleServiceImpl implements RoleService {
             if (role == null) {
                 return json.put("success", FAILED).put("errors", "Profil introuvable");
             }
-            String like = (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
+            // Meme recherche 'contient' que la liste affichee : le lot traite est
+            // exactement celui que l'utilisateur a sous les yeux.
+            String like = "%" + (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
             int count = 0;
             if (checked) {
                 // privileges du catalogue visibles, correspondant a la recherche, PAS encore attribues

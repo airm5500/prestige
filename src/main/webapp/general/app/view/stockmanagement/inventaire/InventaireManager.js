@@ -796,6 +796,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
     // FIN DE LA NOUVELLE FONCTION
     onEditClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
+        // Verrou en plus du masquage du bouton : un inventaire cloture ne s'edite plus,
+        // meme si un affichage perime (cache navigateur) laisse le bouton visible.
+        if (rec && rec.get('etat') !== 'enable') {
+            Ext.MessageBox.alert('Message', 'Cet inventaire est clôturé : la fiche ne peut plus être éditée.');
+            return;
+        }
         var xtype = "editinventaireManager";
         var alias = 'widget.' + xtype;
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Modification de la fiche d'inventaire", rec.get('lg_INVENTAIRE_ID'), rec.data);

@@ -145,7 +145,9 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
                     flex: 1.5,
                     id: 'CltgridpanelID',
                     store: store,
-                    height: 400,
+                    // Hauteur calee sur une page complete (20 lignes) : la page s'affiche
+                    // entierement, sans ascenseur vertical dans la grille.
+                    height: 640,
                     columns: [{
                             text: 'lg_PRIVELEGE_ID',
                             flex: 1,
