@@ -906,9 +906,15 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             id: 'lg_DCI_PRINCIPAL_ID',
                             store: store_dci,
                             valueField: 'lg_DCI_ID',
-                            pageSize: 20,
+                            // Meme pattern que le combo rayon de cet ecran : liste chargee en
+                            // entier (pas de pagination). L'enregistrement selectionne reste
+                            // toujours dans le store, ExtJS affiche donc le libelle et plus
+                            // jamais l'id brut au reclic sur la fleche.
+                            pageSize: 9999,
                             displayField: 'str_NAME',
-                            typeAhead: true,
+                            // typeAhead retire : il pre-completait le champ avec le premier
+                            // resultat ('beta' -> 'BETA ALANINE') et la liste se retrouvait
+                            // filtree sur ce seul produit au lieu de tous les 'beta'.
                             width: 350,
                             minChars: 2,
                             queryMode: 'remote',
