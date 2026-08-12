@@ -1,5 +1,5 @@
 var url_services_data_famille_grossiste = '../api/v1/famille-grossiste';
-var url_services_transaction_famille_grossiste = '../webservices/configmanagement/famillegrossiste/ws_transaction.jsp?mode=';
+
 
 var OgridpanelGrossisteID;
 var Oview;
@@ -314,11 +314,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.addgrossiste', {
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_famille_grossiste + 'delete',
-                            params: {
-                                lg_FAMILLE_GROSSISTE_ID: rec.get('lg_FAMILLE_GROSSISTE_ID'),
-//                                lg_FAMILLE_ID: lg_FAMILLE_ID
-                            },
+                            // Suppression en API REST (meme methode metier que la JSP historique)
+                            url: '../api/v1/famille-grossiste/' + rec.get('lg_FAMILLE_GROSSISTE_ID'),
+                            method: 'DELETE',
                             success: function(response)
                             {
                                 var object = Ext.JSON.decode(response.responseText, false);
@@ -363,10 +361,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.addgrossiste', {
         var rec = grid.getStore().getAt(rowIndex);
         testextjs.app.getController('App').ShowWaitingProcess();
         Ext.Ajax.request({
-            url: url_services_transaction_famille_grossiste + 'checkdispoproduct',
-            params: {
-                lg_FAMILLE_GROSSISTE_ID: rec.get('lg_FAMILLE_GROSSISTE_ID')
-            },
+            // Verification PHARMA ML en API REST (comportement identique au mode JSP historique)
+            url: '../api/v1/famille-grossiste/check-dispo/' + rec.get('lg_FAMILLE_GROSSISTE_ID'),
+            method: 'GET',
             success: function(response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();

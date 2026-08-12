@@ -49,6 +49,106 @@ public class FamilleGrossisteRessource {
                 .build();
     }
 
+    private Response reponseTransaction(String success, String errors) {
+        return Response.ok().entity(
+                new JSONObject().put("success", success).put("errors", StringUtils.defaultString(errors)).toString())
+                .build();
+    }
+
+    /** Ajout d'un grossiste a l'article (MEME methode metier que ws_transaction.jsp mode=create). */
+    @javax.ws.rs.POST
+    @javax.ws.rs.Path("create")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED)
+    public Response create(@javax.ws.rs.FormParam("lg_GROSSISTE_ID") String grossisteId,
+            @javax.ws.rs.FormParam("lg_FAMILLE_ID") String familleId,
+            @javax.ws.rs.FormParam("str_CODE_ARTICLE") String codeArticle,
+            @DefaultValue("0") @javax.ws.rs.FormParam("int_PRICE") int price,
+            @DefaultValue("0") @javax.ws.rs.FormParam("int_PAF") int paf) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            familleGrossisteManagement ofgm = new familleGrossisteManagement(odm);
+            ofgm.create(StringUtils.defaultString(grossisteId), StringUtils.defaultString(familleId),
+                    StringUtils.defaultString(codeArticle), price, paf);
+            return reponseTransaction(ofgm.getMessage(), ofgm.getDetailmessage());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "createFamilleGrossiste", e);
+            return reponseTransaction(commonparameter.PROCESS_FAILED, "Impossible d'ajouter le grossiste");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Modification d'une ligne grossiste/article (MEME methode metier que ws_transaction.jsp mode=update). */
+    @javax.ws.rs.POST
+    @javax.ws.rs.Path("update")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED)
+    public Response update(@javax.ws.rs.FormParam("lg_FAMILLE_GROSSISTE_ID") String familleGrossisteId,
+            @javax.ws.rs.FormParam("lg_GROSSISTE_ID") String grossisteId,
+            @javax.ws.rs.FormParam("lg_FAMILLE_ID") String familleId,
+            @javax.ws.rs.FormParam("str_CODE_ARTICLE") String codeArticle) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            familleGrossisteManagement ofgm = new familleGrossisteManagement(odm);
+            ofgm.updateFamilleGrossiste(StringUtils.defaultString(familleGrossisteId),
+                    StringUtils.defaultString(grossisteId), StringUtils.defaultString(familleId),
+                    StringUtils.defaultString(codeArticle));
+            return reponseTransaction(ofgm.getMessage(), ofgm.getDetailmessage());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "updateFamilleGrossiste", e);
+            return reponseTransaction(commonparameter.PROCESS_FAILED, "Impossible de modifier le grossiste");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Suppression d'une ligne grossiste/article (MEME methode metier que ws_transaction.jsp mode=delete). */
+    @javax.ws.rs.DELETE
+    @javax.ws.rs.Path("{id}")
+    public Response delete(@javax.ws.rs.PathParam("id") String familleGrossisteId) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            familleGrossisteManagement ofgm = new familleGrossisteManagement(odm);
+            ofgm.delete(familleGrossisteId);
+            return reponseTransaction(ofgm.getMessage(), ofgm.getDetailmessage());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "deleteFamilleGrossiste", e);
+            return reponseTransaction(commonparameter.PROCESS_FAILED, "Impossible de supprimer le grossiste");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Verification de disponibilite PHARMA ML. Le mode checkdispoproduct de la JSP historique n'appelait plus rien
+     * (verification desactivee dans le code depuis longtemps) : l'endpoint repond honnetement que la fonction n'est pas
+     * disponible au lieu de renvoyer un message vide.
+     */
+    @GET
+    @javax.ws.rs.Path("check-dispo/{id}")
+    public Response checkDispo(@javax.ws.rs.PathParam("id") String familleGrossisteId) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        return reponseTransaction(commonparameter.PROCESS_FAILED,
+                "La vérification de disponibilité PHARMA ML n'est pas disponible");
+    }
+
     @GET
     public Response list(@QueryParam("lg_FAMILLE_ID") String familleId,
             @QueryParam("lg_GROSSISTE_ID") String grossisteId, @QueryParam("search_value") String searchValue,

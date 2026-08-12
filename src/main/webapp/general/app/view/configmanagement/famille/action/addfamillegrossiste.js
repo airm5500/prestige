@@ -1,6 +1,6 @@
 /* global Ext */
 
-var url_services_transaction_famillegrossiste = '../webservices/configmanagement/famillegrossiste/ws_transaction.jsp?mode=';
+
 var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
 var Oref;
 //var OgridpanelID;
@@ -141,24 +141,25 @@ Ext.define('testextjs.view.configmanagement.famille.action.addfamillegrossiste',
     },
     onbtnsave: function(button) {
         var win = button.up('window'), form = win.down('form');
+        // Creation et modification en API REST (memes methodes metier que la JSP historique)
         var internal_url = "";
+        var params = {
+            str_CODE_ARTICLE: Ext.getCmp('str_CODE_ARTICLE').getValue(),
+            lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTEID').getValue(),
+            lg_FAMILLE_ID: Oref
+        };
         if (Omode === "creategrossiste" || Omode === "creategrossisteorder") {
-            internal_url = url_services_transaction_famillegrossiste + 'create';
+            internal_url = '../api/v1/famille-grossiste/create';
         } else {
-            internal_url = url_services_transaction_famillegrossiste + 'update&lg_FAMILLE_GROSSISTE_ID=' + ref;
+            internal_url = '../api/v1/famille-grossiste/update';
+            params.lg_FAMILLE_GROSSISTE_ID = ref;
         }
-
-        //alert("Grossiste " + Orefgro + " Article " + Oref);
 
         testextjs.app.getController('App').ShowWaitingProcess();
         Ext.Ajax.request({
             url: internal_url,
-            params: {
-                str_CODE_ARTICLE: Ext.getCmp('str_CODE_ARTICLE').getValue(),
-                lg_GROSSISTE_ID: Ext.getCmp('lg_GROSSISTEID').getValue(),
-                lg_FAMILLE_ID: Oref
-
-            },
+            method: 'POST',
+            params: params,
             success: function(response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();
