@@ -467,6 +467,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         } else {
             json.put("lg_ZONE_GEO_ID", "");
         }
+        // Grossiste par defaut : association EAGER, deja hydratee avec la famille
+        json.put("lg_GROSSISTE_ID",
+                t.getLgGROSSISTEID() != null ? StringUtils.defaultString(t.getLgGROSSISTEID().getStrLIBELLE()) : "");
         json.put("codeEanFabriquant", t.getCodeEanFabriquant());
         return json;
     }
@@ -527,6 +530,12 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             } else {
                 json.put("lg_ZONE_GEO_ID", "");
             }
+
+            // Grossiste par defaut de l'article : l'association @ManyToOne est EAGER, le
+            // grossiste est deja hydrate avec la famille (aucune requete en plus). Sans ce
+            // champ, la fenetre 'Gerer Grossiste' affichait un grossiste par defaut vide.
+            json.put("lg_GROSSISTE_ID", t.getLgGROSSISTEID() != null
+                    ? StringUtils.defaultString(t.getLgGROSSISTEID().getStrLIBELLE()) : "");
 
             if (t.getBoolDECONDITIONNE() == 0 && t.getBoolDECONDITIONNEEXIST() == 1) {
                 Object[] deconditionnement = getDecondionneParent(t.getLgFAMILLEID());
