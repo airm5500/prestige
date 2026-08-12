@@ -226,8 +226,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             defaultType: 'textfield',
                             margin: '0 0 5 0',
                             items: [
-                                { xtype: 'combobox', fieldLabel: 'Emplacement', name: 'lg_ZONE_GEO_ID', width: 400, itemId: 'lg_ZONE_GEO_ID', store: store_zonegeo_famille, valueField: 'lg_ZONE_GEO_ID', displayField: 'str_LIBELLEE', pageSize: 20, typeAhead: true, minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un emplacement...' },
-                                { xtype: 'combobox', fieldLabel: 'Famille', name: 'lg_FAMILLEARTICLE_ID', width: 400, itemId: 'lg_FAMILLEARTICLE_ID', store: store_famillearticle_famille, valueField: 'lg_FAMILLEARTICLE_ID', displayField: 'str_LIBELLE', pageSize: 20, typeAhead: true, queryMode: 'remote', allowBlank: false, emptyText: 'Choisir une famille...' },
+                                { xtype: 'combobox', fieldLabel: 'Emplacement', name: 'lg_ZONE_GEO_ID', width: 400, itemId: 'lg_ZONE_GEO_ID', store: store_zonegeo_famille, valueField: 'lg_ZONE_GEO_ID', displayField: 'str_LIBELLEE', pageSize: 20, minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un emplacement...' },
+                                { xtype: 'combobox', fieldLabel: 'Famille', name: 'lg_FAMILLEARTICLE_ID', width: 400, itemId: 'lg_FAMILLEARTICLE_ID', store: store_famillearticle_famille, valueField: 'lg_FAMILLEARTICLE_ID', displayField: 'str_LIBELLE', pageSize: 20, minChars: 2, queryMode: 'remote', allowBlank: false, emptyText: 'Choisir une famille...' },
                                 {
                                     fieldLabel: 'Prix.Vente', xtype: 'textfield', maskRe: /[0-9.]/, width: 350, emptyText: 'PRIX VENTE', name: 'int_PRICE', itemId: 'int_PRICE',
                                     fieldStyle: 'color:blue;font-weight:bold;font-size:1.3em', selectOnFocus: true, allowBlank: false, enableKeyEvents: true,
@@ -269,7 +269,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         margin: '0 0 5 0',
                         items: [
                             { xtype: 'combobox', fieldLabel: 'Code TVA', name: 'lg_CODE_TVA_ID', width: 350, labelWidth: 110, itemId: 'lg_CODE_TVA_ID', store: store_codetva, valueField: 'lg_CODE_TVA_ID', displayField: 'str_NAME', typeAhead: true, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un code TVA...' },
-                            { xtype: 'combobox', fieldLabel: 'Grossiste', name: 'lg_GROSSISTE_ID', width: 350, labelWidth: 100, itemId: 'lg_GROSSISTE_ID', store: store_grossiste_famille, valueField: 'lg_GROSSISTE_ID', pageSize: 20, displayField: 'str_LIBELLE', typeAhead: true, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un grossiste...' },
+                            { xtype: 'combobox', fieldLabel: 'Grossiste', name: 'lg_GROSSISTE_ID', width: 350, labelWidth: 100, itemId: 'lg_GROSSISTE_ID', store: store_grossiste_famille, valueField: 'lg_GROSSISTE_ID', pageSize: 20, displayField: 'str_LIBELLE', minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un grossiste...' },
                             { fieldLabel: 'Code EAN 13', xtype: 'textfield', labelWidth: 110, maskRe: /[0-9.]/, width: 350, emptyText: 'Code EAN 13', name: 'int_EAN13', itemId: 'int_EAN13' }
                         ]
                     }]
@@ -371,9 +371,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                     collapsible: true,
                     layout: 'hbox',
                     items: [
-                        { xtype: 'combobox', margin: '0 0 5 0', fieldLabel: 'Gamme', name: 'gammeId', itemId: 'gammeId', store: gammeStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, flex: 1, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir une gamme..' },
+                        { xtype: 'combobox', margin: '0 0 5 0', fieldLabel: 'Gamme', name: 'gammeId', itemId: 'gammeId', store: gammeStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', minChars: 2, flex: 1, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir une gamme..' },
                         { xtype: 'splitter' },
-                        { xtype: 'combobox', margin: '0 0 5 0', fieldLabel: 'Laboratoire', name: 'laboratoireId', itemId: 'laboratoireId', store: laboratoireStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', typeAhead: true, flex: 1, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir un laboratoire..' }
+                        { xtype: 'combobox', margin: '0 0 5 0', fieldLabel: 'Laboratoire', name: 'laboratoireId', itemId: 'laboratoireId', store: laboratoireStore, forceselection: true, pageSize: 999, valueField: 'id', displayField: 'libelle', minChars: 2, flex: 1, triggerAction: 'all', queryMode: 'remote', enableKeyEvents: true, emptyText: 'Choisir un laboratoire..' }
                     ]
                 },
 
@@ -528,7 +528,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                   listeners: { 'render': function (cmp) { cmp.getEl().on('keypress', function (e) { if (e.getKey() === e.ENTER) { Me.onRechClickDCI(); } }); } } },
                                 '-',
                                 { xtype: 'combobox', name: 'lg_DCI_ID', margins: '0 0 0 10', itemId: 'lg_DCI_ID', store: store_dci, valueField: 'str_NAME', displayField: 'str_NAME',
-                                  typeAhead: true, pageSize: 20, queryMode: 'remote', width: 400, emptyText: 'Selectionner un DCI...',
+                                  pageSize: 20, minChars: 2, queryMode: 'remote', width: 400, emptyText: 'Selectionner un DCI...',
                                   listeners: { select: function () { Me.onRechClickDCI(); }, change: function () { Me.onfiltercheck(); } } },
                                 '-',
                                 { text: 'Associer', tooltip: 'Associer le code DCI a cet article', scope: this, itemId: 'associate', handler: this.onbtndciadd }
