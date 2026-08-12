@@ -1668,7 +1668,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     showPeriodeForm: function (id, str_NAME) {
         var win = Ext.create("Ext.window.Window", {
             title: "Choisir une periode",
-
+            modal: true,
             width: 520,
             layout: {
                 type: 'fit'
