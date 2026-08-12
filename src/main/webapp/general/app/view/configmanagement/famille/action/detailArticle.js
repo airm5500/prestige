@@ -205,17 +205,17 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     xtype: 'fieldset',
                     collapsible: true,
                     layout: 'hbox',
+                    anchor: '100%',
                     title: 'Infos.Generales sur l\'article',
                     items: [
                         {
                             xtype: 'container',
-                            layout: 'vbox',
+                            layout: {
+                                type: 'vbox',
+                                align: 'stretch'
+                            },
                             flex: 1,
                             defaultType: 'textfield',
-                            defaults: {
-                                anchor: '100%'
-
-                            },
                             items: [
                         {
                             xtype: 'container',
@@ -228,7 +228,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     xtype: 'displayfield',
                                     fieldLabel: 'CIP',
 //                                    labelWidth: 110,
-                                    width: 400,
+                                    flex: 1,
                                     name: 'int_CIP',
                                     id: 'int_CIP',
                                     fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
@@ -237,7 +237,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 },
                                 {
                                     fieldLabel: 'Designation',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'DESIGNATION',
                                     name: 'str_DESCRIPTION',
                                     id: 'str_DESCRIPTION'
@@ -246,7 +246,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     fieldLabel: 'Code EAN 13',
                                     xtype: 'textfield',
                                     maskRe: /[0-9.]/,
-                                    width: 400,
+                                    flex: 1,
                                     // maxValue: 13,
                                     emptyText: 'Code EAN 13',
                                     name: 'int_EAN13',
@@ -263,21 +263,21 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             items: [
                                 {
                                     fieldLabel: 'Emplacement',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Emplacement',
                                     name: 'lg_ZONE_GEO_ID',
                                     id: 'lg_ZONE_GEO_ID'
                                 },
                                 {
                                     fieldLabel: 'Famille',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Famille',
                                     name: 'lg_FAMILLEARTICLE_ID',
                                     id: 'lg_FAMILLEARTICLE_ID'
                                 },
                                 {
                                     fieldLabel: 'Code.Acte',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Code.Acte',
                                     name: 'lg_CODE_ACTE_ID',
                                     id: 'lg_CODE_ACTE_ID'
@@ -294,7 +294,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     /*fieldLabel: 'Prix.Vente',
                                      xtype: 'textfield',
                                      maskRe: /[0-9.]/,
-                                     width: 400,
+                                     flex: 1,
                                      // maxValue: 13,
                                      emptyText: 'PRIX VENTE',
                                      name: 'int_PRICE',
@@ -303,7 +303,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     xtype: 'displayfield',
                                     fieldLabel: 'PRIX VENTE',
 //                                    labelWidth: 110,
-                                    width: 400,
+                                    flex: 1,
                                     name: 'int_PRICE',
                                     id: 'int_PRICE',
                                     fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
@@ -313,7 +313,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     /*fieldLabel: 'Prix.Achat.Facture',
                                      xtype: 'textfield',
                                      maskRe: /[0-9.]/,
-                                     width: 400,
+                                     flex: 1,
                                      maxValue: 13,
                                      emptyText: 'PRIX ACHAT FACTURE',
                                      name: 'int_PAF',
@@ -322,7 +322,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     xtype: 'displayfield',
                                     fieldLabel: 'PRIX ACHAT FACTURE',
 //                                    labelWidth: 110,
-                                    width: 400,
+                                    flex: 1,
                                     name: 'int_PAF',
                                     id: 'int_PAF',
                                     fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
@@ -332,7 +332,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     fieldLabel: 'Prix.Reference',
                                     xtype: 'textfield',
                                     maskRe: /[0-9.]/,
-                                    width: 400,
+                                    flex: 1,
                                     //maxValue: 13,
                                     emptyText: 'PRIX TIPS',
                                     name: 'int_PRICE_TIPS',
@@ -347,13 +347,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             margin: '0 0 5 0',
                             items: [{
                                     fieldLabel: 'Code etiquette',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Code etiquette',
                                     name: 'lg_TYPEETIQUETTE_ID',
                                     id: 'lg_TYPEETIQUETTE_ID'
                                 }, {
                                     fieldLabel: 'Code.Remise',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Code.Remise',
                                     name: 'str_CODE_REMISE',
                                     id: 'str_CODE_REMISE'
@@ -361,7 +361,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     fieldLabel: 'Prix.Achat.Tarif',
                                     xtype: 'textfield',
                                     maskRe: /[0-9.]/,
-                                    width: 400,
+                                    flex: 1,
                                     maxValue: 13,
                                     emptyText: 'PRIX ACHAT TARIF',
                                     name: 'int_PAT',
@@ -376,14 +376,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     fieldLabel: 'Taux.Marque',
                                     xtype: 'textfield',
                                     maskRe: /[0-9.]/,
-                                    width: 400,
+                                    flex: 1,
                                     maxValue: 13,
                                     emptyText: 'TAUX MARQUE',
                                     name: 'int_TAUX_MARQUE',
                                     id: 'int_TAUX_MARQUE'
                                 }, {
                                     fieldLabel: 'Code.Taux.Remb',
-                                    width: 400,
+                                    flex: 1,
                                     maxValue: 13,
                                     emptyText: 'TAUX REMBOURSEMENT',
                                     name: 'str_CODE_TAUX_REMBOURSEMENT',
@@ -394,7 +394,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'int_T',
                                     id: 'int_T',
                                     fieldStyle: "color:red;font-weight:bold;font-size:1.5em",
-                                    width: 400
+                                    flex: 1
                                 }]
                         },
                         {
@@ -404,7 +404,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             items: [
                                 {
                                     fieldLabel: 'Code.Tva',
-                                    width: 400,
+                                    flex: 1,
                                     maxValue: 13,
                                     emptyText: 'TVA',
                                     name: 'str_CODE_TVA',
@@ -412,7 +412,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 }, {
                                     fieldLabel: 'Quantite.Detail/Article',
-                                    width: 400,
+                                    flex: 1,
                                     //maxValue: 13,
                                     emptyText: 'Quantite.Detail/Article',
                                     name: 'int_QTEDETAIL',
@@ -426,7 +426,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'classe_abc_detail',
                                     id: 'classe_abc_detail',
                                     fieldStyle: "color:blue;font-weight:bold;font-size:1.5em;font-size: 20px",
-                                    width: 400,
+                                    flex: 1,
                                     value: 'Non classe'
                                 }
                             ]
@@ -439,14 +439,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 {
                                     fieldLabel: 'Code.Gestion',
                                     name: 'lg_CODE_GESTION_ID',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Code.Gestion',
                                     id: 'lg_CODE_GESTION_ID'
                                 },
 
                                 {
                                     fieldLabel: 'Date dernier.BL',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Date dernier.BL',
                                     name: 'dt_DATE_LIVRAISON',
                                     id: 'dt_DATE_LIVRAISON',
@@ -455,6 +455,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 {
                                     xtype: 'container',
                                     layout: 'hbox',
+                                    flex: 1,
                                     defaultType: 'dis',
                                     items: [{
                                             fieldLabel: 'Seuil.Reappro',
@@ -482,14 +483,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             defaultType: 'textfield', margin: '0 0 5 0',
                             items: [{
                                     fieldLabel: 'Date derniere.Vente',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Date derniere.Vente',
                                     name: 'dt_LAST_VENTE',
                                     id: 'dt_LAST_VENTE',
                                     fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 }, {
                                     fieldLabel: 'Date derniere.Entr&eacute;e',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Date derniere.Entree',
                                     name: 'dt_LAST_ENTREE',
                                     id: 'dt_LAST_ENTREE',
@@ -497,7 +498,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 }
                                 , {
                                     fieldLabel: 'Date dernier.Inventaire',
-                                    width: 400,
+                                    flex: 1,
                                     emptyText: 'Date dernier.Inventaire',
                                     name: 'dt_LAST_INVENTAIRE',
                                     id: 'dt_LAST_INVENTAIRE',
@@ -511,16 +512,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             xtype: 'container',
                             id: 'colonne_stocks_detail',
                             layout: 'vbox',
-                            width: 235,
-                            margin: '0 0 0 15',
-                            padding: 8,
+                            width: 200,
+                            margin: '0 0 0 10',
+                            padding: 6,
                             style: 'background:#fdf6ec;border:1px solid #e0d3bd;border-radius:6px;',
                             defaultType: 'displayfield',
                             defaults: {
                                 labelAlign: 'left',
-                                labelWidth: 110,
-                                labelStyle: 'color: brown;font-size: 14px;font-weight:bold',
-                                width: 215,
+                                labelWidth: 100,
+                                labelStyle: 'color: brown;font-size: 13px;font-weight:bold',
+                                width: 185,
                                 value: 0
                             },
                             listeners: {
@@ -536,19 +537,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     fieldLabel: 'Stock rayon',
                                     name: 'int_NUMBER_AVAILABLE',
                                     id: 'int_NUMBER_AVAILABLE',
-                                    fieldStyle: "color:orange;font-weight:bold;font-size: 18px"
+                                    fieldStyle: "color:orange;font-weight:bold;font-size: 16px"
                                 },
                                 {
                                     fieldLabel: 'Stock reserve',
                                     name: 'int_STOCK_RESERVE_DETAIL',
                                     id: 'int_STOCK_RESERVE_DETAIL',
-                                    fieldStyle: "color:green;font-weight:bold;font-size: 18px"
+                                    fieldStyle: "color:green;font-weight:bold;font-size: 16px"
                                 },
                                 {
                                     fieldLabel: 'Stock total',
                                     name: 'int_STOCK_TOTAL_DETAIL',
                                     id: 'int_STOCK_TOTAL_DETAIL',
-                                    fieldStyle: "color:blue;font-weight:bold;font-size: 18px"
+                                    fieldStyle: "color:blue;font-weight:bold;font-size: 16px"
                                 }
                             ]
                         }
