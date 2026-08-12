@@ -347,16 +347,17 @@ public class CommandeRessource {
         return Response.ok(this.orderService.addLot(addLot).toString()).build();
     }
 
+    // Le segment 'famille' rend l'identifiant explicite dans l'URL : c'est l'id de l'article
+    // (lg_FAMILLE_ID) dont on liste les entrees de commande.
     @GET
-    @Path("produit/commande/{id}")
-    public Response getListBonsDetailsByProduits(@PathParam("id") String id, @QueryParam(value = "dtEnd") String dtEnd,
-            @QueryParam(value = "grossisteId") String grossisteId, @QueryParam(value = "dtStart") String dtStart,
-            @QueryParam(value = "start") int start, @QueryParam(value = "search") String search,
-            @QueryParam(value = "limit") int limit) throws JSONException {
+    @Path("produit/commande/famille/{familleId}")
+    public Response getListBonsDetailsByProduits(@PathParam("familleId") String familleId,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "grossisteId") String grossisteId,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "start") int start,
+            @QueryParam(value = "search") String search, @QueryParam(value = "limit") int limit) throws JSONException {
 
-        return Response
-                .ok().entity(orderService
-                        .getListBonsDetailsByProduits(id, search, dtStart, dtEnd, start, limit, grossisteId).toString())
+        return Response.ok().entity(orderService
+                .getListBonsDetailsByProduits(familleId, search, dtStart, dtEnd, start, limit, grossisteId).toString())
                 .build();
     }
 

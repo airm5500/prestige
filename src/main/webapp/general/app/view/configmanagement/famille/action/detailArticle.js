@@ -149,7 +149,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 }],
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/commande/produit/commande/' + ref,
+                url: '../api/v1/commande/produit/commande/famille/' + ref,
 
                 reader: {
                     type: 'json',
