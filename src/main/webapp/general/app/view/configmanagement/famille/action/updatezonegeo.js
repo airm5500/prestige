@@ -1,3 +1,4 @@
+var winZoneGeoOuverte = null;
 var url_services_transaction_famille = '../webservices/sm_user/famille/ws_transaction.jsp?mode=';
 var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 var Oview;
@@ -92,8 +93,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.updatezonegeo', {
 
 
 
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winZoneGeoOuverte && !winZoneGeoOuverte.isDestroyed) {
+            winZoneGeoOuverte.destroy();
+        }
+        var win = winZoneGeoOuverte = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 250,

@@ -259,8 +259,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.addgrossiste', {
 
         }
 
+        // L'id 'cltwinID' est reutilise par de nombreuses fenetres de l'application :
+        // on detruit l'eventuelle fenetre existante avant d'en creer une nouvelle,
+        // sinon le registre d'ids ExtJS est corrompu (zIndexManager undefined).
+        var winPrecedente = Ext.getCmp('cltwinID');
+        if (winPrecedente && !winPrecedente.isDestroyed) {
+            winPrecedente.destroy();
+        }
         var win = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             id: 'cltwinID',
             title: this.getTitre(),
             width: '80%',

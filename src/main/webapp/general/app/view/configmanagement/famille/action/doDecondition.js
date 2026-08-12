@@ -1,3 +1,4 @@
+var winDeconditionOuverte = null;
 /* global Ext */
 
 var url_services_transaction_famille = '../webservices/sm_user/famille/ws_transaction.jsp?mode=';
@@ -161,8 +162,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.doDecondition', {
             Me.findProduit(str_name_decontionne);
         }
 
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winDeconditionOuverte && !winDeconditionOuverte.isDestroyed) {
+            winDeconditionOuverte.destroy();
+        }
+        var win = winDeconditionOuverte = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 300,

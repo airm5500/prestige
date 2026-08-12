@@ -1031,6 +1031,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
 
         var win = new Ext.window.Window({
             autoShow: true, title: this.getTitre(),
+            modal: true,
             width: '90%',
             height: 600,
             minWidth: 300,

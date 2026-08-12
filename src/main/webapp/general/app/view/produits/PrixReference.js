@@ -19,6 +19,12 @@ Ext.define('testextjs.view.produits.PrixReference', {
     },
     initComponent: function () {
         const me = this;
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        Ext.ComponentQuery.query('prixReference').forEach(function (w) {
+            if (w !== me && !w.isDestroyed) {
+                w.destroy();
+            }
+        });
         const produit = me.getProduit().data;
         Ext.applyIf(me, {
             dockedItems: [{

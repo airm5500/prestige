@@ -1,3 +1,4 @@
+var winModifArticleOuverte = null;
 /* global Ext */
 
 // Affiche uniquement la lettre de la classe ABC (ex: "ABC_CLASSE_C" -> "C").
@@ -679,7 +680,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
         }
 
         // WINDOW
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winModifArticleOuverte && !winModifArticleOuverte.isDestroyed) {
+            winModifArticleOuverte.destroy();
+        }
+        var win = winModifArticleOuverte = new Ext.window.Window({
             autoShow: true,
             title: this.getTitre(),
             width: '90%',

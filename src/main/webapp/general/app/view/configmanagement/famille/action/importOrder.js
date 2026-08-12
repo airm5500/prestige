@@ -1,3 +1,4 @@
+var winImportFamilleOuverte = null;
 /* global Ext */
 
 var Oview;
@@ -95,8 +96,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.importOrder', {
             Ext.getCmp('str_TYPE_TRANSACTION_IMPORT').show();
         }
 
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winImportFamilleOuverte && !winImportFamilleOuverte.isDestroyed) {
+            winImportFamilleOuverte.destroy();
+        }
+        var win = winImportFamilleOuverte = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 200,

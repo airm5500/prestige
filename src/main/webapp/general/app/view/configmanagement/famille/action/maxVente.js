@@ -1,3 +1,4 @@
+var winMaxVenteOuverte = null;
 //var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 //var url_services_data_codeacte_famille = '../webservices/configmanagement/codeacte/ws_data.jsp';
 //var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
@@ -126,8 +127,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.maxVente', {
 
 
 
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winMaxVenteOuverte && !winMaxVenteOuverte.isDestroyed) {
+            winMaxVenteOuverte.destroy();
+        }
+        var win = winMaxVenteOuverte = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 400,
             height: 200,

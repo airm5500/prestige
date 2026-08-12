@@ -1,3 +1,4 @@
+var winImportDepotOuverte = null;
 var Oview;
 var Omode;
 var url_services_data_emplacement = '../webservices/configmanagement/emplacement/ws_data.jsp';
@@ -97,8 +98,13 @@ Ext.define('testextjs.view.stockmanagement.dodepot.action.importOrder', {
         }
 
 
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winImportDepotOuverte && !winImportDepotOuverte.isDestroyed) {
+            winImportDepotOuverte.destroy();
+        }
+        var win = winImportDepotOuverte = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 200,

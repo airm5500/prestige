@@ -2123,6 +2123,13 @@ addPeremptiondate: function (grid, rowIndex) {
         return;
     }
 
+    // Une seule fenetre a la fois : le formulaire porte un id fixe
+    // ('peremptionform'), une seconde instance corromprait le registre ExtJS.
+    const winPeremptionPrecedente = Ext.getCmp('peremptionform');
+    if (winPeremptionPrecedente) {
+        const conteneur = winPeremptionPrecedente.up('window');
+        (conteneur || winPeremptionPrecedente).destroy();
+    }
     const win = Ext.create("Ext.window.Window", {
         title: "[ " + rec.get('str_NAME') + " ]",
         modal: true,

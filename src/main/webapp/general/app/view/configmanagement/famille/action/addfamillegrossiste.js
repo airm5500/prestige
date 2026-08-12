@@ -1,3 +1,4 @@
+var winFamilleGrossisteOuverte = null;
 /* global Ext */
 
 
@@ -111,8 +112,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.addfamillegrossiste',
 
         }
 
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winFamilleGrossisteOuverte && !winFamilleGrossisteOuverte.isDestroyed) {
+            winFamilleGrossisteOuverte.destroy();
+        }
+        var win = winFamilleGrossisteOuverte = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 300,

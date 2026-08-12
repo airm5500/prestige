@@ -1,3 +1,4 @@
+var winMajSeuilOuverte = null;
 /* global Ext, testextjs */
 
 // MAJ SEUIL groupee : met a jour Q1_seuil_reappro / Q2_qte_reappro de plusieurs produits.
@@ -186,7 +187,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_seuil', {
             ]
         });
 
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winMajSeuilOuverte && !winMajSeuilOuverte.isDestroyed) {
+            winMajSeuilOuverte.destroy();
+        }
+        var win = winMajSeuilOuverte = new Ext.window.Window({
             autoShow: true, title: this.getTitre() || 'MAJ SEUIL groupée',
             maximizable: true, width: '85%', height: 600, minWidth: 600, minHeight: 300,
             layout: 'fit', plain: true, modal: true, items: form,

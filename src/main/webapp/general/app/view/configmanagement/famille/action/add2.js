@@ -1,3 +1,4 @@
+var winModifArticle2Ouverte = null;
 /* global Ext */
 
 var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
@@ -338,8 +339,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.add2', {
            
         }
         
-        var win = new Ext.window.Window({
+        // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
+        if (winModifArticle2Ouverte && !winModifArticle2Ouverte.isDestroyed) {
+            winModifArticle2Ouverte.destroy();
+        }
+        var win = winModifArticle2Ouverte = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 600,
             height: 410,
