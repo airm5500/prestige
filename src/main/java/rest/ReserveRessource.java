@@ -46,12 +46,15 @@ public class ReserveRessource {
     @GET
     @Path("articles")
     public Response articles(@QueryParam("search_value") String search, @QueryParam("str_TYPE_TRANSACTION") String type,
-            @QueryParam("start") int start, @QueryParam("limit") int limit) throws JSONException {
+            @QueryParam("start") int start, @QueryParam("limit") Integer limit) throws JSONException {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject json = reserveService.listArticles(user, search, type, start, limit > 0 ? limit : 20);
+        // limit absent -> pagination par defaut ; limit=0 explicite -> TOUTES les lignes
+        // (bouton 'Tout selectionner (toutes les pages)' de la creation d'inventaire, qui
+        // recevait 20 lignes au lieu du resultat complet).
+        JSONObject json = reserveService.listArticles(user, search, type, start, limit == null ? 20 : limit);
         return Response.ok().entity(json.toString()).build();
     }
 
