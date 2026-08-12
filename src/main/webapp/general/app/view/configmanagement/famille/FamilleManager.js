@@ -103,7 +103,10 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
         const store_dci = new Ext.data.Store({
             model: 'testextjs.model.Dci',
-            pageSize: itemsPerPage,
+            // C'est le pageSize du STORE qui fixe la limite envoyee au serveur (celui du
+            // combo ne pilote que la barre de pagination) : liste chargee en entier, comme
+            // le combo rayon.
+            pageSize: 9999,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
