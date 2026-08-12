@@ -412,6 +412,152 @@ public class FicheArticleRessource {
         return privileges != null && util.DateConverter.hasAuthorityByName(privileges, name);
     }
 
+    // ----------------------- Enregistrement de la fiche article (create / update) -----------------------
+
+    private static String texte(String v, String defaut) {
+        return (v == null || v.isEmpty()) ? defaut : v;
+    }
+
+    private static int entier(String v, int defaut) {
+        try {
+            return (v == null || v.isEmpty()) ? defaut : Integer.parseInt(v.trim());
+        } catch (Exception e) {
+            return defaut;
+        }
+    }
+
+    private static Integer entierOuNull(String v) {
+        try {
+            return (v == null || v.isEmpty()) ? null : Integer.valueOf(v.trim());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static Boolean booleenOuNull(String v) {
+        return (v == null || v.isEmpty()) ? null : Boolean.parseBoolean(v);
+    }
+
+    /**
+     * Enregistrement de la fiche article : bouton 'Enregistrer' de la fenetre creer/modifier. Remplace les modes create
+     * et update de webservices/sm_user/famille/ws_transaction.jsp : MEMES methodes metier
+     * (familleManagement.createProduct / update), memes valeurs par defaut et meme reponse {success, errors_code, ref,
+     * errors}. La creation exige le privilege P_BTN_CREER_ARTICLE, comme la JSP.
+     */
+    @POST
+    @Path("enregistrer")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED)
+    public Response enregistrerArticle(@QueryParam("mode") String mode,
+            @QueryParam("lg_FAMILLE_ID") String familleIdQuery, @FormParam("lg_FAMILLE_ID") String familleIdForm,
+            @FormParam("str_DESCRIPTION") String strDescription, @FormParam("gammeId") String gammeId,
+            @FormParam("laboratoireId") String laboratoireId, @FormParam("cmu_price") String cmuPrice,
+            @FormParam("lg_GROSSISTE_ID") String grossisteId,
+            @FormParam("lg_FAMILLEARTICLE_ID") String familleArticleId,
+            @FormParam("int_NUMBER_AVAILABLE") String numberAvailable,
+            @FormParam("int_QUANTITY_STOCK") String quantityStock, @FormParam("int_CIP") String intCip,
+            @FormParam("dt_Peremtion") String dtPeremtion, @FormParam("lg_FORME_ARTICLE_ID") String formeArticleId,
+            @FormParam("lg_FABRIQUANT_ID") String fabriquantId, @FormParam("bool_RESERVE") String boolReserve,
+            @FormParam("int_EAN13") String intEan13, @FormParam("int_PRICE") String intPrice,
+            @FormParam("int_STOCK_REAPROVISONEMENT") String stockReappro, @FormParam("int_PAF") String intPaf,
+            @FormParam("int_PAT") String intPat, @FormParam("int_SEUIL_RESERVE") String seuilReserve,
+            @FormParam("int_SEUIL_MINI_RAYON") String seuilMiniRayon,
+            @FormParam("bool_DECONDITIONNE") String boolDeconditionne, @FormParam("int_S") String intS,
+            @FormParam("int_T") String intT, @FormParam("int_PRICE_TIPS") String intPriceTips,
+            @FormParam("int_QTE_REAPPROVISIONNEMENT") String qteReappro,
+            @FormParam("int_TAUX_MARQUE") String tauxMarque, @FormParam("int_PRICE_DETAIL") String priceDetail,
+            @FormParam("int_QTEDETAIL") String qteDetail, @FormParam("lg_CODE_ACTE_ID") String codeActeId,
+            @FormParam("lg_CODE_GESTION_ID") String codeGestionId, @FormParam("lg_CODE_TVA_ID") String codeTvaId,
+            @FormParam("lg_TYPEETIQUETTE_ID") String typeEtiquetteId, @FormParam("lg_REMISE_ID") String remiseId,
+            @FormParam("str_CODE_REMISE") String codeRemise,
+            @FormParam("str_CODE_TAUX_REMBOURSEMENT") String codeTauxRemboursement,
+            @FormParam("lg_ZONE_GEO_ID") String zoneGeoId, @FormParam("bool_CALCUL_SEUIL") String boolCalculSeuil,
+            @FormParam("bool_SUGGERABLE") String boolSuggerable, @FormParam("bool_REMISE") String boolRemise,
+            @FormParam("int_Q1_SEUIL_REAPPRO") String q1SeuilReappro,
+            @FormParam("int_Q2_QTE_REAPPRO") String q2QteReappro) {
+        HttpSession hs = servletRequest.getSession();
+        TUser sessionUser = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (sessionUser == null) {
+            return reponseEnregistrement(commonparameter.PROCESS_FAILED, "", Constant.DECONNECTED_MESSAGE);
+        }
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+
+        // MEMES valeurs par defaut que la JSP historique
+        String familleId = texte(familleIdQuery, texte(familleIdForm, ""));
+        String description = texte(strDescription, "");
+        dal.dataManager odm = new dal.dataManager();
+        odm.initEntityManager();
+        try {
+            TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
+            bll.configManagement.familleManagement ofm = new bll.configManagement.familleManagement(odm, user);
+            ofm.setUsersPrivileges(privileges);
+
+            if ("create".equals(mode)) {
+                // Meme controle que la JSP : privilege obligatoire cote serveur
+                if (!hasPrivilege(privileges, Constant.P_BTN_CREER_ARTICLE)) {
+                    return reponseEnregistrement(commonparameter.PROCESS_FAILED, "",
+                            "Vous n'avez pas le privilège requis pour créer un article");
+                }
+                short deconditionne = (short) entier(boolDeconditionne, 0);
+                dal.TFamille famille = null;
+                if (deconditionne == 1 && ofm.isDeconditionExist(texte(intCip, ""))) {
+                    famille = null;
+                } else {
+                    famille = ofm.createProduct(description, description, entier(intPrice, 0), entier(intPriceTips, 0),
+                            entier(tauxMarque, 0), entier(intPaf, 0), entier(intPat, 0), entier(intS, 0),
+                            texte(intT, ""), texte(intCip, ""), texte(intEan13, ""), texte(grossisteId, ""),
+                            texte(familleArticleId, ""), texte(codeActeId, "0"), texte(codeGestionId, ""),
+                            texte(codeRemise, ""), texte(codeTauxRemboursement, "0"),
+                            texte(zoneGeoId, bll.common.Parameter.DEFAUL_ZONE_GEOGRAPHIQUE), entier(numberAvailable, 0),
+                            entier(qteDetail, 0), texte(formeArticleId, ""), texte(fabriquantId, ""), deconditionne,
+                            texte(typeEtiquetteId, "2"), texte(remiseId, ""), texte(codeTvaId, ""),
+                            Boolean.parseBoolean(texte(boolReserve, "false")), entier(seuilReserve, 0), "",
+                            entier(stockReappro, 0), entier(qteReappro, 0), entier(quantityStock, 0),
+                            texte(dtPeremtion, ""), texte(gammeId, ""), texte(laboratoireId, ""),
+                            entierOuNull(cmuPrice), entierOuNull(seuilMiniRayon), booleenOuNull(boolCalculSeuil),
+                            booleenOuNull(boolSuggerable), booleenOuNull(boolRemise), entierOuNull(q1SeuilReappro),
+                            entierOuNull(q2QteReappro));
+                }
+                String ref = "";
+                try {
+                    ref = famille.getLgFAMILLEID();
+                } catch (Exception e) {
+                }
+                return reponseEnregistrement(ofm.getMessage(), ref, ofm.getDetailmessage());
+            }
+            if ("update".equals(mode)) {
+                ofm.update(familleId, description, "", "", "", description, entier(intPrice, 0),
+                        entier(intPriceTips, 0), entier(tauxMarque, 0), entier(intPaf, 0), entier(intPat, 0),
+                        entier(intS, 0), texte(intT, ""), texte(intCip, ""), texte(intEan13, ""),
+                        texte(grossisteId, ""), texte(familleArticleId, ""), texte(codeActeId, "0"),
+                        texte(codeGestionId, ""), texte(codeRemise, ""), texte(codeTauxRemboursement, "0"),
+                        texte(zoneGeoId, bll.common.Parameter.DEFAUL_ZONE_GEOGRAPHIQUE), entier(qteDetail, 0),
+                        entier(priceDetail, 0), texte(typeEtiquetteId, "2"), texte(remiseId, ""), texte(codeTvaId, ""),
+                        Boolean.parseBoolean(texte(boolReserve, "false")), entier(seuilReserve, 0),
+                        entier(stockReappro, 0), entier(qteReappro, 0), texte(dtPeremtion, ""), texte(gammeId, ""),
+                        texte(laboratoireId, ""), entierOuNull(cmuPrice), entierOuNull(seuilMiniRayon),
+                        booleenOuNull(boolCalculSeuil), booleenOuNull(boolSuggerable), booleenOuNull(boolRemise),
+                        entierOuNull(q1SeuilReappro), entierOuNull(q2QteReappro));
+                return reponseEnregistrement(ofm.getMessage(), familleId, ofm.getDetailmessage());
+            }
+            return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId, "PAS D'ACTION");
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(FicheArticleRessource.class.getName())
+                    .log(java.util.logging.Level.SEVERE, "enregistrerArticle", e);
+            return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId,
+                    "Echec de l'enregistrement de l'article");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    private static Response reponseEnregistrement(String success, String ref, String errors) {
+        return Response.ok()
+                .entity(new JSONObject().put("success", success).put("errors_code", success)
+                        .put("ref", ref == null ? "" : ref).put("errors", errors == null ? "" : errors).toString())
+                .build();
+    }
+
     // ----------------------- MAJ SEUIL groupee (Q1/Q2 par produit) -----------------------
     @GET
     @Path("maj-seuil/list")

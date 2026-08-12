@@ -723,10 +723,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             var qtyVal = qtyField ? qtyField.getValue() : null;
 
             if (Omode === 'create') {
-                internal_url = url_services_transaction_famille + 'create';
+                internal_url = '../api/v1/fichearticle/enregistrer?mode=create';
                 g('int_PAT').setValue(g('int_PAF').getValue());
             } else if (Omode === 'update') {
-                internal_url = url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + ref;
+                internal_url = '../api/v1/fichearticle/enregistrer?mode=update&lg_FAMILLE_ID=' + ref;
             }
 
             // int_NUMBERDETAIL requis uniquement en création de détail
@@ -862,90 +862,10 @@ Ext.Ajax.request({
                 testextjs.app.getController('App').StopWaitingProcess();
                 var object = Ext.JSON.decode(response.responseText, false);
 
-                // --- Post-traitement de fiabilisation des flags ---
-                // 1) Marquer le parent comme "a un détail" (compat snake/camel)
-                if (ref) {
-                    Ext.Ajax.request({
-                        url: url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + ref,
-                        params: { bool_DECONDITIONNE_EXIST: 1, boolDeconditionneExist: 1 },
-                        callback: function(){ /* ignore */ }
-                    });
-                }
-                // 2) Marquer l'enfant (détail) avec un payload complet attendu par le JSP update
-                try {
-                    var childId = (object && (
-                        object.lgFamilleId || object.lg_FAMILLE_ID ||
-                        (object.data && (object.data.lgFamilleId || object.data.lg_FAMILLE_ID || object.data.id)) ||
-                        object.id || object.familleId
-                    ));
-                    if (childId) {
-                        var p = object || {};
-                        var updateParams = {
-                            // flags sous toutes les formes (et valeurs string si besoin côté JSP)
-                            bool_DECONDITIONNE: 1,
-                            boolDeconditionne: 1,
-                            bool_DECONDITIONNE_EXIST: 1,
-                            boolDeconditionneExist: 1,
-                            bool_DECONDITIONNE_str: '1',
-                            bool_DECONDITIONNE_EXIST_str: '1',
-                            // mapping API -> JSP (best-effort, champs souvent requis par l'update)
-                            str_DESCRIPTION: p.strDescription || '',
-                            int_CIP: p.intCip || '',
-                            int_EAN13: p.intEan13 || '',
-                            int_PAT: p.intPat || '',
-                            int_PAF: p.intPaf || '',
-                            int_PRICE_TIPS: p.intPriceTips || 0,
-                            int_PRICE: p.intPrice || 0,
-                            lg_FAMILLEARTICLE_ID: p.lgFamilleArticleId || '',
-                            lg_ZONE_GEO_ID: p.lgZoneGeoId || '',
-                            lg_FABRIQUANT_ID: p.lgFabriquantId || '',
-                            lg_CODE_TVA_ID: p.lgCodeTvaId || '',
-                            lg_CODE_GESTION_ID: p.lgCodeGestionId || '',
-                            lg_GROSSISTE_ID: p.lgGrossisteId || '',
-                            lg_TYPEETIQUETTE_ID: p.lgTypeEtiquetteId || '',
-                            lg_CODE_ACTE_ID: p.lgCodeActeId || '',
-                            str_CODE_TAUX_REMBOURSEMENT: p.strCodeTauxRemboursement || 0,
-                            int_T: p.intT || '',
-                            int_STOCK_REAPROVISONEMENT: p.intStockReaprovisonement || 0,
-                            int_QTE_REAPPROVISIONNEMENT: p.intQteReapprovisionnement || 0,
-                            int_SEUIL_RESERVE: p.intSeuilReserve || 0,
-                            bool_RESERVE: p.boolReserve || false,
-                            laboratoireId: p.laboratoireId || null,
-                            gammeId: p.gammeId || null,
-                            int_NUMBERDETAIL: p.intNumberDetail || p.intQteDetail || null,
-                            cmu_price: p.cmuPrice || 0
-                        };
-                        Ext.Ajax.request({
-                            url: url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + childId,
-                            params: updateParams,
-                            callback: function(){ /* ignore */ }
-                        });
-                    }
-                } catch(e) { /* noop */ }
-
-                // Filet de sécurité (enfant) : si l'API n'a pas valorisé bool_DECONDITIONNE_EXIST sur le DÉTAIL,
-                // on force à 0 (un détail n'a pas lui-même de sous-détails)
-                try {
-                    var childId = (object && (
-                    object.lgFamilleId || object.lg_FAMILLE_ID ||
-                    (object.data && (object.data.lgFamilleId || object.data.lg_FAMILLE_ID || object.data.id)) ||
-                    object.id || object.familleId
-                ));
-                    if (childId) {
-                        Ext.Ajax.request({
-                            url: url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + childId,
-                            params: { bool_DECONDITIONNE_EXIST: 1, boolDeconditionneExist: 1, bool_DECONDITIONNE: 1, boolDeconditionne: 1 }, callback: function(){ /* ignore */ }
-                        });
-                    }
-                } catch(e) { /* noop */ }
-
-                // Filet de sécurité : marquer le parent comme "a un détail" si l'API ne l'a pas fait
-                if (ref) {
-                    Ext.Ajax.request({
-                        url: url_services_transaction_famille + 'update&lg_FAMILLE_ID=' + ref,
-                        params: { bool_DECONDITIONNE_EXIST: 1, boolDeconditionneExist: 1 }, callback: function(){ /* ignore */ }
-                    });
-                }
+                // Les anciens 'filets de securite' re-postaient deux fois mode=update avec des
+                // drapeaux de deconditionnement a chaque enregistrement (trois requetes visibles
+                // pour un clic) : ils dataient du flux create-detail, qui passe desormais par
+                // l'API v1/produit/create-detail et n'emprunte plus ce chemin. Supprimes.
                     if (object.success == '0') {
                         // Differe pour eviter la course hide()/show() du MessageBox singleton
                         // (StopWaitingProcess vient de masquer ce meme singleton).
