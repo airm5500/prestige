@@ -786,12 +786,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.grossisteview', {
 
 
 
-        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-        if (Ext.getCmp('btnValiderId')) {
-            Ext.getCmp('btnValiderId').destroy();
-        }
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: '75%',

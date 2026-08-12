@@ -125,7 +125,6 @@ Ext.define('testextjs.view.configmanagement.grilleremise.action.add', {
 
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 500,

@@ -192,7 +192,6 @@ Ext.define('testextjs.view.sm_user.dovente.action.associateTiersPayantItem', {
 
         // OviewItem_ass = Ext.getCmp('TiersPayantgridpanelID');
         win_ass = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: '40%',

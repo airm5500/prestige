@@ -179,7 +179,6 @@ Ext.define('testextjs.view.sm_user.reglement.action.displayDossier', {
         this.callParent();
         OFamilleDisplaygridpanelID = Ext.getCmp('FamilleDisplaygridpanelID');
         win_add_displayDossier = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             id: 'displayArtwinID',
             title: this.getTitre(),

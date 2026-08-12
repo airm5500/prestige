@@ -112,7 +112,6 @@ Ext.define('testextjs.view.commandemanagement.order.action.editgrossiste', {
 
         }
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 700,

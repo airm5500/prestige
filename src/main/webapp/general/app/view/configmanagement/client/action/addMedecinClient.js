@@ -47,7 +47,6 @@ Ext.define('testextjs.view.configmanagement.client.action.addMedecinClient', {
         this.callParent();
 
         var win =  new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 650,

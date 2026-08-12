@@ -140,7 +140,6 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.edit', {
         //Initialisation des valeur
 
         let win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 500,

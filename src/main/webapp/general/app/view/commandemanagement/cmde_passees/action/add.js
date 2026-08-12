@@ -126,7 +126,6 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
         //Initialisation des valeur
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 500,

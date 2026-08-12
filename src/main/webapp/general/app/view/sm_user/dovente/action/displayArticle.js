@@ -174,7 +174,6 @@ Ext.define('testextjs.view.sm_user.dovente.action.displayArticle', {
         this.callParent();
         OFamilleDisplaygridpanelID = Ext.getCmp('FamilleDisplaygridpanelID');
         win_add_displayArt = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             id: 'displayArtwinID',
             title: this.getTitre(),

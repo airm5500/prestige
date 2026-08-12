@@ -116,12 +116,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
                                 var record = grid.getStore().getAt(rowIndex);
 //                                Me.editForm(rec);
 
-                                // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-                                if (Ext.getCmp('editform')) {
-                                    Ext.getCmp('editform').destroy();
-                                }
                                 var win = Ext.create("Ext.window.Window", {
-                                    modal: true,
                                     title: "Modification du groupe",
 
                                     width: 520,
@@ -513,12 +508,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
     showNeForm: function () {
 
 
-        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-        if (Ext.getCmp('newform')) {
-            Ext.getCmp('newform').destroy();
-        }
         var win = Ext.create("Ext.window.Window", {
-            modal: true,
             title: "Ajout de nouveau groupe",
 
             width: 520,
@@ -714,12 +704,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupe', {
     editForm: function (record) {
 
 
-        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-        if (Ext.getCmp('editform')) {
-            Ext.getCmp('editform').destroy();
-        }
         var win = Ext.create("Ext.window.Window", {
-            modal: true,
             title: "Modification du groupe",
 
             width: 520,

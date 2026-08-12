@@ -51,7 +51,6 @@ Ext.define('testextjs.view.sm_user.table.action.add', {
 
 
       /*  new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: 'Ajouter skin',
             width: 500,

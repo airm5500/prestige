@@ -221,7 +221,6 @@ lg_TYPE_CLIENT_ID="";
 
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 600,

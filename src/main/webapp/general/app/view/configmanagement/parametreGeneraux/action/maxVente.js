@@ -127,7 +127,6 @@ Ext.define('testextjs.view.configmanagement.parametreGeneraux.action.maxVente', 
 
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: 'this.getTitre()',
             width: 200,

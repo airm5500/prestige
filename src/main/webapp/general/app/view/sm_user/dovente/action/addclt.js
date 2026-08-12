@@ -304,7 +304,6 @@ Ext.define('testextjs.view.sm_user.dovente.action.addclt', {
         OCltgridpanelID = Ext.getCmp('CltgridpanelID');
 
         win_add_clt = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             id: 'cltwinID',
             title: this.getTitre(),

@@ -456,7 +456,6 @@ Ext.define('testextjs.view.configmanagement.client.action.addClient', {
         }
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 500,

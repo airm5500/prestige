@@ -179,7 +179,6 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
         });
         this.callParent();
         win_dobilletage = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             id: 'do_billetage_ID',
             title: this.getTitre(),

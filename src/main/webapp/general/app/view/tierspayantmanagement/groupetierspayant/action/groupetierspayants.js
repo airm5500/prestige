@@ -642,7 +642,6 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.action.groupe
         Ext.getCmp('groupedisplayfield').setValue(this.getMode());
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true, title: this.getTitre(),
             maximizable: true,
             width: '90%',

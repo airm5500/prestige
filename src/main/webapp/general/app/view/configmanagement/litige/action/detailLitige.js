@@ -156,7 +156,6 @@ Ext.define('testextjs.view.configmanagement.litige.action.detailLitige', {
 
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 600,

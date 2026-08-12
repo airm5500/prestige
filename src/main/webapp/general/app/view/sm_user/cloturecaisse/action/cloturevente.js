@@ -225,7 +225,6 @@ Ext.define('testextjs.view.sm_user.cloturecaisse.action.cloturevente', {
 
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 850,

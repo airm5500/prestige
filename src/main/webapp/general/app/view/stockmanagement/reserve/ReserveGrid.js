@@ -501,10 +501,6 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
         });
         storeMotifs.load();
 
-        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-        if (Ext.getCmp('RAYON')) {
-            Ext.getCmp('RAYON').destroy();
-        }
         var win = Ext.create('Ext.window.Window', {
             title: titre,
             width: 520, modal: true, bodyPadding: 10, layout: 'anchor',

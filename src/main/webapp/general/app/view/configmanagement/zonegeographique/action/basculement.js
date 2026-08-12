@@ -420,7 +420,6 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.basculement'
 
 
         const win = new Ext.window.Window({
-            modal: true,
             autoShow: true, title: this.getTitre(),
             maximizable: true,
             width: '90%',

@@ -71,7 +71,6 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.editjourvente', {
         loadDataJourJour();
 
         var win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 400,

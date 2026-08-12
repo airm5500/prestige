@@ -41,7 +41,6 @@ Ext.define('testextjs.view.configmanagement.motifretour.action.add', {
 
 
       /*  new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: 'Ajouter skin',
             width: 500,

@@ -81,7 +81,6 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.action.factur
 
 
    win = new Ext.window.Window({
-            modal: true,
             autoShow: true, title: this.getTitre(),
             maximizable: true,
             width: '95%',

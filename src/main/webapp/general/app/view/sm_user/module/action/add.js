@@ -51,7 +51,6 @@ Ext.define('testextjs.view.sm_user.module.action.add', {
 
 
         new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: 'Ajouter module',
             width: 500,

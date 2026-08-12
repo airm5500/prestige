@@ -177,7 +177,6 @@ Ext.define('testextjs.view.sm_user.reglement.action.displayBordereau', {
         this.callParent();
         OFamilleDisplaygridpanelID = Ext.getCmp('FamilleDisplaygridpanelID');
         win_add_displayArt = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             id: 'displayArtwinID',
             title: this.getTitre(),

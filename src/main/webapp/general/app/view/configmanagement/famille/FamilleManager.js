@@ -798,7 +798,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             handler: function () {
 
                                 const win = new Ext.window.Window({
-                                    modal: true,
                                     autoShow: false,
                                     title: 'Importer stock dépôt',
                                     width: 500,
@@ -1667,12 +1666,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
 
     showPeriodeForm: function (id, str_NAME) {
-        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-        if (Ext.getCmp('periodeform')) {
-            Ext.getCmp('periodeform').destroy();
-        }
         var win = Ext.create("Ext.window.Window", {
-            modal: true,
             title: "Choisir une periode",
 
             width: 520,
@@ -1938,10 +1932,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             if (!lotId) {
                 Ext.MessageBox.alert('Alerte Message', 'Identifiant du lot introuvable, modification impossible.');
                 return;
-            }
-            // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-            if (Ext.getCmp('editLotForm')) {
-                Ext.getCmp('editLotForm').destroy();
             }
             const editWin = Ext.create('Ext.window.Window', {
                 title: 'Modifier le lot',

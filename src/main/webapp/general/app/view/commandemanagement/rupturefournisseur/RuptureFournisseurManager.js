@@ -376,12 +376,7 @@ Ext.define('testextjs.view.commandemanagement.rupturefournisseur.RuptureFourniss
             }
             ;
 
-            // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
-            if (Ext.getCmp('repartiteurwindow')) {
-                Ext.getCmp('repartiteurwindow').destroy();
-            }
             var win = Ext.create("Ext.window.Window", {
-                modal: true,
                 title: "Choisir un repartiteur",
                 id: 'repartiteurwindow',
                 width: 500,

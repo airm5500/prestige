@@ -154,7 +154,6 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.add', {
 
 
         const win = new Ext.window.Window({
-            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 500,
