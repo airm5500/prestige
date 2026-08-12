@@ -419,15 +419,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     id: 'int_QTEDETAIL',
                                     fieldStyle: "color:orange;font-weight:bold;font-size:1.5em",
                                     value: 0
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'displayfield', margin: '0 0 5 0',
-                            items: [
-                                {
+                                }, {
                                     xtype: 'displayfield',
                                     fieldLabel: 'Classe ABC',
                                     labelStyle: 'color: brown;font-size: 20px',
@@ -519,15 +511,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             xtype: 'container',
                             id: 'colonne_stocks_detail',
                             layout: 'vbox',
-                            width: 250,
+                            width: 235,
                             margin: '0 0 0 15',
-                            padding: 10,
+                            padding: 8,
                             style: 'background:#fdf6ec;border:1px solid #e0d3bd;border-radius:6px;',
                             defaultType: 'displayfield',
                             defaults: {
-                                labelAlign: 'top',
-                                labelStyle: 'color: brown;font-size: 16px;font-weight:bold',
-                                width: 220,
+                                labelAlign: 'left',
+                                labelWidth: 110,
+                                labelStyle: 'color: brown;font-size: 14px;font-weight:bold',
+                                width: 215,
                                 value: 0
                             },
                             listeners: {
@@ -540,22 +533,22 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             },
                             items: [
                                 {
-                                    fieldLabel: 'Stock',
+                                    fieldLabel: 'Stock rayon',
                                     name: 'int_NUMBER_AVAILABLE',
                                     id: 'int_NUMBER_AVAILABLE',
-                                    fieldStyle: "color:brown;font-weight:bold;font-size: 22px"
+                                    fieldStyle: "color:orange;font-weight:bold;font-size: 18px"
                                 },
                                 {
                                     fieldLabel: 'Stock reserve',
                                     name: 'int_STOCK_RESERVE_DETAIL',
                                     id: 'int_STOCK_RESERVE_DETAIL',
-                                    fieldStyle: "color:brown;font-weight:bold;font-size: 22px"
+                                    fieldStyle: "color:green;font-weight:bold;font-size: 18px"
                                 },
                                 {
                                     fieldLabel: 'Stock total',
                                     name: 'int_STOCK_TOTAL_DETAIL',
                                     id: 'int_STOCK_TOTAL_DETAIL',
-                                    fieldStyle: "color:green;font-weight:bold;font-size: 22px"
+                                    fieldStyle: "color:blue;font-weight:bold;font-size: 18px"
                                 }
                             ]
                         }
