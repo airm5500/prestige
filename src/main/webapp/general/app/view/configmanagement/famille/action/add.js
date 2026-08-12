@@ -983,7 +983,10 @@ Ext.Ajax.request({
                             Ext.MessageBox.alert('Error Message', object.errors);
                             return;
                         } else {
-                            Ext.MessageBox.alert('Suppression ' + '[' + rec.get('str_NAME') + ']', 'Suppression effectuee avec succes');
+                            // La ligne porte le nom du DCI dans dci_str_NAME (str_NAME n'existe
+                            // pas sur ce modele : le titre affichait [undefined])
+                            Ext.MessageBox.alert('Suppression [' + (rec.get('dci_str_NAME') || rec.get('str_CODE') || '') + ']',
+                                    'Suppression effectuee avec succes');
                         }
                         grid.getStore().reload();
                     },
