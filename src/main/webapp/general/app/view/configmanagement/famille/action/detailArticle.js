@@ -70,6 +70,9 @@ var OgridpanelDetailID;
 var OgridpanelOrder;
 var lg_GROSSISTE_ORDER_ID;
 var lgGROSSISTEORDERID = '';
+// Fenetre de detail actuellement ouverte (partagee avec detailArticleOther :
+// une seule fenetre de detail a la fois, les champs utilisent des ids globaux).
+var winDetailArticleOuverte = null;
 
 Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
     extend: 'Ext.window.Window',
@@ -95,6 +98,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         produitId: null
     },
     initComponent: function () {
+        // Une seule fenetre de detail a la fois : un nouveau clic remplace la
+        // precedente au lieu de la dupliquer (et d'en corrompre l'affichage).
+        if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
+            winDetailArticleOuverte.destroy();
+        }
+        winDetailArticleOuverte = null;
         // Nettoyage des IDs globaux partages avec d'autres vues (evite duplicate id)
         var sharedIds = [
             'lg_ZONE_GEO_ID', 'lg_FAMILLEARTICLE_ID', 'lg_CODE_ACTE_ID', 'lg_CODE_GESTION_ID',
@@ -1060,10 +1069,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             Ext.getCmp('int_QTEDETAIL').show();
         }
         if (Omode === "update" || Omode === "decondition" || Omode === "detail") {
-
             ref = this.getProduitId();
-            this.loadArticle(this.getProduitId());
-
         }
         var win = new Ext.window.Window({
             autoShow: true, title: this.getTitre(),
@@ -1087,9 +1093,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                         Ext.getCmp('rechecher').focus();
                     }
 
+                },
+                destroy: function () {
+                    winDetailArticleOuverte = null;
                 }
             }
         });
+        winDetailArticleOuverte = win;
+        if (Omode === "update" || Omode === "decondition" || Omode === "detail") {
+            // Masque de chargement : la fiche s'affiche des l'ouverture et se
+            // remplit a l'arrivee de la reponse, sans etat "vide" trompeur.
+            win.setLoading('Chargement de la fiche...');
+            this.loadArticle(this.getProduitId());
+        }
 
     },
     onSelectionChange: function (model, records) {
@@ -1135,10 +1151,20 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             },
 
             success: function (response, options) {
+                if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
+                    winDetailArticleOuverte.setLoading(false);
+                }
                 const result = Ext.JSON.decode(response.responseText, true);
 
-                const produit = result.results[0];
-                me.updateCmp(produit);
+                const produit = result && result.results ? result.results[0] : null;
+                if (produit) {
+                    me.updateCmp(produit);
+                }
+            },
+            failure: function () {
+                if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
+                    winDetailArticleOuverte.setLoading(false);
+                }
             }
 
         });

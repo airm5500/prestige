@@ -65,6 +65,9 @@ var valdatefinDetailOrder;
 var OgridpanelDetailID;
 var OgridpanelOrder;
 var lg_GROSSISTE_ORDER_ID;
+// Fenetre de detail actuellement ouverte (partagee avec detailArticle :
+// une seule fenetre de detail a la fois, les champs utilisent des ids globaux).
+var winDetailArticleOuverte = winDetailArticleOuverte || null;
 
 Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', {
     extend: 'Ext.window.Window',
@@ -88,6 +91,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
         titre: ''
     },
     initComponent: function () {
+        // Une seule fenetre de detail a la fois : un nouveau clic remplace la
+        // precedente au lieu de la dupliquer (et d'en corrompre l'affichage).
+        if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
+            winDetailArticleOuverte.destroy();
+        }
+        winDetailArticleOuverte = null;
 
         valdatedebutDetail = "";
         valdatefinDetail = "";
@@ -1017,10 +1026,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
         if (Omode == "decondition" || (this.getOdatasource().bool_DECONDITIONNE == 0 && this.getOdatasource().bool_DECONDITIONNE_EXIST == 1)) {
             Ext.getCmp('int_QTEDETAIL').show();
         }
-        if (Omode === "update" || Omode === "decondition" || Omode === "detail") {
-            Me.LoadData();
-
-        }
 
 
 
@@ -1045,9 +1050,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                         Ext.getCmp('rechecher').focus();
                     }
 
+                },
+                destroy: function () {
+                    winDetailArticleOuverte = null;
                 }
             }
         });
+        winDetailArticleOuverte = win;
+        if (Omode === "update" || Omode === "decondition" || Omode === "detail") {
+            // Masque de chargement : la fiche s'affiche des l'ouverture et se
+            // remplit a l'arrivee de la reponse, sans etat "vide" trompeur.
+            win.setLoading('Chargement de la fiche...');
+            Me.LoadData();
+        }
 
     },
     onSelectionChange: function (model, records) {
@@ -1092,8 +1107,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
             },
             success: function (response)
             {
+                if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
+                    winDetailArticleOuverte.setLoading(false);
+                }
                 var object_init = Ext.JSON.decode(response.responseText, false);
-                var OFamille = object_init.results[0];
+                var OFamille = object_init && object_init.results ? object_init.results[0] : null;
+                if (!OFamille) {
+                    return;
+                }
                 // Separateur de millier (espace) pour les montants affiches.
                 var formatMillier = function (v) {
                     if (v === null || v === undefined || v === '') {
@@ -1144,6 +1165,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
             },
             failure: function (response)
             {
+                if (winDetailArticleOuverte && !winDetailArticleOuverte.isDestroyed) {
+                    winDetailArticleOuverte.setLoading(false);
+                }
                 var object = Ext.JSON.decode(response.responseText, false);
                 console.log("Bug " + response.responseText);
                 Ext.MessageBox.alert('Error Message', response.responseText);
