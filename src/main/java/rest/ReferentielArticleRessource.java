@@ -209,7 +209,12 @@ public class ReferentielArticleRessource {
         }
     }
 
-    /** DCI associes a un article (MEME methode metier que dci/ws_data_dci_famille.jsp). */
+    /**
+     * DCI associes a un article (memes champs que dci/ws_data_dci_famille.jsp). La JSP passait par la vue v_famille_dci
+     * : sur certaines bases restaurees, cette vue reste une table temporaire VIDE (artefact de l'outil de sauvegarde)
+     * et la grille n'affichait jamais rien alors que l'association existait. La liste interroge donc directement les
+     * tables, avec une jointure tolerante sur t_dci et un statut NULL accepte.
+     */
     @GET
     @Path("dci-famille")
     public Response dciFamille(@QueryParam("lg_FAMILLE_ID") String familleId, @QueryParam("lg_DCI_ID") String dciId,
@@ -222,16 +227,42 @@ public class ReferentielArticleRessource {
         dataManager odm = new dataManager();
         odm.initEntityManager();
         try {
-            List<EntityData> liste = new dciManagement(odm).ListDciFamille(StringUtils.defaultString(searchValue),
-                    StringUtils.defaultIfEmpty(familleId, "%%"), StringUtils.defaultIfEmpty(dciId, "%%"));
+            String search = "%" + StringUtils.defaultString(searchValue) + "%";
+            StringBuilder sql = new StringBuilder("SELECT fd.lg_FAMILLE_DCI_ID, fd.lg_FAMILLE_ID, fd.lg_DCI_ID,"
+                    + " f.str_DESCRIPTION, f.int_PRICE, COALESCE(d.str_CODE, '') AS str_CODE,"
+                    + " COALESCE(d.str_NAME, '') AS dci_str_NAME" + " FROM t_famille_dci fd"
+                    + " JOIN t_famille f ON f.lg_FAMILLE_ID = fd.lg_FAMILLE_ID"
+                    + " LEFT JOIN t_dci d ON d.lg_DCI_ID = fd.lg_DCI_ID"
+                    + " WHERE (fd.str_STATUT IS NULL OR fd.str_STATUT = 'enable')"
+                    + " AND (f.str_DESCRIPTION LIKE ?2 OR f.int_CIP LIKE ?2 OR f.int_EAN13 LIKE ?2"
+                    + "      OR d.str_NAME LIKE ?2 OR d.str_CODE LIKE ?2)");
+            if (StringUtils.isNotEmpty(familleId)) {
+                sql.append(" AND fd.lg_FAMILLE_ID = ?1");
+            }
+            if (StringUtils.isNotEmpty(dciId)) {
+                sql.append(" AND fd.lg_DCI_ID = ?3");
+            }
+            sql.append(" ORDER BY dci_str_NAME");
+            javax.persistence.Query q = odm.getEm().createNativeQuery(sql.toString());
+            q.setParameter(2, search);
+            if (StringUtils.isNotEmpty(familleId)) {
+                q.setParameter(1, familleId);
+            }
+            if (StringUtils.isNotEmpty(dciId)) {
+                q.setParameter(3, dciId);
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> liste = q.getResultList();
             int[] b = bornes(start, limit, liste.size());
             JSONArray results = new JSONArray();
             for (int i = b[0]; i < b[1]; i++) {
-                EntityData t = liste.get(i);
-                results.put(new JSONObject().put("lg_FAMILLE_DCI_ID", t.getStr_value1())
-                        .put("lg_FAMILLE_ID", t.getStr_value2()).put("lg_DCI_ID", t.getStr_value3())
-                        .put("str_DESCRIPTION", t.getStr_value4()).put("int_PRICE", t.getStr_value5())
-                        .put("str_CODE", t.getStr_value6()).put("dci_str_NAME", t.getStr_value7()));
+                Object[] t = liste.get(i);
+                results.put(new JSONObject().put("lg_FAMILLE_DCI_ID", String.valueOf(t[0]))
+                        .put("lg_FAMILLE_ID", String.valueOf(t[1])).put("lg_DCI_ID", String.valueOf(t[2]))
+                        .put("str_DESCRIPTION", t[3] == null ? "" : String.valueOf(t[3]))
+                        .put("int_PRICE", t[4] == null ? "" : String.valueOf(t[4]))
+                        .put("str_CODE", t[5] == null ? "" : String.valueOf(t[5]))
+                        .put("dci_str_NAME", t[6] == null ? "" : String.valueOf(t[6])));
             }
             return reponseListe(results, liste.size());
         } catch (Exception e) {
