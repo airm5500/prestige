@@ -115,7 +115,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             autoLoad: true,
             sorters: [{
                     property: 'int_YEAR',
-                    direction: 'ASC'
+                    // Annee en cours en premier, puis les precedentes
+                    direction: 'DESC'
                 }],
             remoteSort: false,
             sortOnLoad: true,

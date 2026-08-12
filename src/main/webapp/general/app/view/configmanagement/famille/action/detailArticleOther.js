@@ -98,6 +98,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
             pageSize: itemsPerPage,
 //            autoLoad: false,
             autoLoad: true,
+            // Annee en cours en premier, puis les precedentes
+            sorters: [{
+                    property: 'int_YEAR',
+                    direction: 'DESC'
+                }],
             proxy: {
                 type: 'ajax',
                 url: url_services_data_statVente_famille + "?lg_FAMILLE_ID=" + ref,
