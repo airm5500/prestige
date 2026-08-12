@@ -319,6 +319,11 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             id: 'lg_CODE_GESTION_ID'
                                         },
                                         {
+                                            fieldLabel: 'Code geo article',
+                                            name: 'str_CODE_GEO_ARTICLE',
+                                            id: 'str_CODE_GEO_ARTICLE'
+                                        },
+                                        {
                                             fieldLabel: 'Code Tableau',
                                             name: 'int_T',
                                             id: 'int_T',
@@ -354,13 +359,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             fieldLabel: 'Prix.Achat.Facture',
                                             name: 'int_PAF',
                                             id: 'int_PAF',
-                                            fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:13.5px',
+                                            fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:16px',
                                             value: 0
                                         },
                                         {
                                             fieldLabel: 'Prix.Achat.Tarif',
                                             name: 'int_PAT',
-                                            id: 'int_PAT'
+                                            id: 'int_PAT',
+                                            hidden: true
                                         },
                                         {
                                             fieldLabel: 'Prix.Reference',
@@ -411,6 +417,18 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                             name: 'int_QTE_REAPPROVISIONNEMENT',
                                             id: 'int_QTE_REAPPROVISIONNEMENT',
                                             fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Semois Q1',
+                                            name: 'int_Q1_SEUIL_REAPPRO',
+                                            id: 'int_Q1_SEUIL_REAPPRO',
+                                            fieldStyle: 'color:#6a3fa0;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Semois Q2',
+                                            name: 'int_Q2_QTE_REAPPRO',
+                                            id: 'int_Q2_QTE_REAPPRO',
+                                            fieldStyle: 'color:#6a3fa0;font-weight:bold;font-size:13.5px'
                                         },
                                         {
                                             fieldLabel: 'Date dernier.BL',
@@ -1009,6 +1027,15 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
     },
 
     updateCmp: function (rec) {
+        // Separateur de millier (espace) pour les montants affiches.
+        const formatMillier = function (v) {
+            if (v === null || v === undefined || v === '') {
+                return '';
+            }
+            const parties = String(v).split('.');
+            parties[0] = parties[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+            return parties.join('.');
+        };
         Ext.getCmp('int_NUMBER_AVAILABLE').setValue(rec.int_NUMBER_AVAILABLE);
         // Classe ABC (lettre), stock reserve et stock total (= stock + reserve)
         Ext.getCmp('classe_abc_detail').setValue(abcClasseLetterDetail(rec.lg_CLASSE_ABC_ID));
@@ -1034,10 +1061,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('str_CODE_TAUX_REMBOURSEMENT').setValue(rec.str_CODE_TAUX_REMBOURSEMENT);
         Ext.getCmp('lg_CODE_ACTE_ID').setValue(rec.lg_CODE_ACTE_ID);
         Ext.getCmp('int_TAUX_MARQUE').setValue(rec.int_TAUX_MARQUE);
-        Ext.getCmp('int_PAF').setValue(rec.int_PAF);
+        Ext.getCmp('int_PAF').setValue(formatMillier(rec.int_PAF));
         Ext.getCmp('int_PAT').setValue(rec.int_PAT);
         Ext.getCmp('int_PRICE_TIPS').setValue(rec.int_PRICE_TIPS);
-        Ext.getCmp('int_PRICE').setValue(rec.int_PRICE);
+        Ext.getCmp('int_PRICE').setValue(formatMillier(rec.int_PRICE));
+        Ext.getCmp('str_CODE_GEO_ARTICLE').setValue(rec.str_CODE_GEO_ARTICLE);
+        Ext.getCmp('int_Q1_SEUIL_REAPPRO').setValue(rec.int_Q1_SEUIL_REAPPRO);
+        Ext.getCmp('int_Q2_QTE_REAPPRO').setValue(rec.int_Q2_QTE_REAPPRO);
         Ext.getCmp('lg_FAMILLEARTICLE_ID').setValue(rec.lg_FAMILLEARTICLE_ID);
         Ext.getCmp('lg_ZONE_GEO_ID').setValue(rec.lg_ZONE_GEO_ID);
         Ext.getCmp('str_DESCRIPTION').setValue(rec.str_DESCRIPTION);

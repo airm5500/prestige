@@ -1,3 +1,10 @@
+// Affiche uniquement la lettre de la classe ABC (ex: "ABC_CLASSE_C" -> "C").
+function abcClasseLetterDetailOther(id) {
+    if (!id) { return 'Non classe'; }
+    var parts = String(id).split('_');
+    return parts[parts.length - 1] || 'Non classe';
+}
+
 var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 var url_services_data_codeacte_famille = '../webservices/configmanagement/codeacte/ws_data.jsp';
 var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
@@ -9,7 +16,6 @@ var url_services_data_detailsortie_famille_other = '../api/v1/suivi-stock-vente/
 var url_services_data_statVente_famille = '../api/v1/suivi-stock-vente/stat-vente-famille';
 var url_services_data_perime_famille = '../webservices/stockmanagement/perime/ws_data_famille.jsp';
 var url_services_data_typeetiquette = '../webservices/configmanagement/typeetiquette/ws_data.jsp';
-var ws_get_famille = '../webservices/sm_user/famille/ws_get_famille.jsp';
 
 var Oview;
 var Omode;
@@ -221,284 +227,301 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
                 {
                     xtype: 'fieldset',
                     collapsible: true,
-                    layout: 'vbox',
-                    title: 'Infos.Generales sur l\'article',
-                    defaultType: 'textfield',
-                    defaults: {
-                        anchor: '100%'
+                    anchor: '100%',
+                    layout: {
+                        type: 'vbox',
+                        align: 'stretch'
                     },
-                    items: [{
+                    title: 'Infos.Generales sur l\'article',
+                    items: [
+                        {
+                            // Bandeau d'identification de l'article
                             xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
+                            layout: {
+                                type: 'hbox',
+                                align: 'middle'
+                            },
+                            padding: '6 12',
+                            margin: '0 0 10 0',
+                            style: 'background:#f4f8fb;border:1px solid #dbe4ec;border-radius:6px;',
+                            defaultType: 'displayfield',
                             items: [
                                 {
-                                    /*fieldLabel: 'Cip',
-                                     xtype: 'textfield',
-                                     maskRe: /[0-9.]/,
-                                     width: 400,
-                                     autoCreate: {
-                                     tag: 'input',
-                                     maxlength: '7'
-                                     },
-                                     emptyText: 'CIP',
-                                     name: 'int_CIP',
-                                     id: 'int_CIP'*/
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'CIP',
-//                                    labelWidth: 110,
-                                    width: 400,
+                                    hideLabel: true,
                                     name: 'int_CIP',
                                     id: 'int_CIP',
-                                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
-//                                    margin: '0 12 0 0',
+                                    fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:22px',
+                                    margin: '0 25 0 0',
                                     value: 0
                                 },
                                 {
-                                    fieldLabel: 'Designation',
-                                    width: 400,
-                                    emptyText: 'DESIGNATION',
+                                    hideLabel: true,
                                     name: 'str_DESCRIPTION',
-                                    id: 'str_DESCRIPTION'
+                                    id: 'str_DESCRIPTION',
+                                    fieldStyle: 'color:#2b2b2b;font-weight:bold;font-size:17px',
+                                    flex: 1
                                 },
                                 {
-                                    fieldLabel: 'Code EAN 13',
-                                    xtype: 'textfield',
-                                    maskRe: /[0-9.]/,
-                                    width: 400,
-                                    // maxValue: 13,
-                                    emptyText: 'Code EAN 13',
+                                    fieldLabel: 'EAN 13',
+                                    labelWidth: 55,
+                                    labelStyle: 'color:#7a7a7a;font-size:13px',
                                     name: 'int_EAN13',
-                                    id: 'int_EAN13'
-                                }
-
-
-                            ]
-                        }, {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            items: [
-                                {
-                                    fieldLabel: 'Emplacement',
-                                    width: 400,
-                                    emptyText: 'Emplacement',
-                                    name: 'lg_ZONE_GEO_ID',
-                                    id: 'lg_ZONE_GEO_ID'
+                                    id: 'int_EAN13',
+                                    fieldStyle: 'color:#555555;font-size:14px',
+                                    width: 230,
+                                    margin: '0 20 0 0'
                                 },
                                 {
-                                    fieldLabel: 'Famille',
-                                    width: 400,
-                                    emptyText: 'Famille',
-                                    name: 'lg_FAMILLEARTICLE_ID',
-                                    id: 'lg_FAMILLEARTICLE_ID'
+                                    fieldLabel: 'Classe ABC',
+                                    labelWidth: 80,
+                                    labelStyle: 'color:#7a7a7a;font-size:13px;font-weight:bold',
+                                    name: 'classe_abc_detail',
+                                    id: 'classe_abc_detail',
+                                    fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:17px',
+                                    width: 170,
+                                    value: 'Non classe'
+                                }
+                            ]
+                        },
+                        {
+                            // Blocs thematiques + colonne stocks
+                            xtype: 'container',
+                            layout: {
+                                type: 'hbox',
+                                align: 'stretch'
+                            },
+                            defaults: {
+                                xtype: 'container',
+                                layout: {
+                                    type: 'vbox',
+                                    align: 'stretch'
+                                },
+                                padding: '6 10 8 10',
+                                defaultType: 'displayfield',
+                                defaults: {
+                                    labelAlign: 'left',
+                                    labelWidth: 145,
+                                    labelStyle: 'color:#666666;font-size:12.5px',
+                                    fieldStyle: 'color:#2b2b2b;font-weight:bold;font-size:13.5px'
+                                }
+                            },
+                            items: [
+                                {
+                                    // Bloc Classement (bleu)
+                                    flex: 1,
+                                    margin: '0 10 0 0',
+                                    style: 'background:#eef4fb;border:1px solid #cfe0f1;border-radius:6px;',
+                                    items: [
+                                        {
+                                            xtype: 'component',
+                                            html: '<div style="font-size:11.5px;font-weight:bold;letter-spacing:.5px;color:#1a5f9e;border-bottom:2px solid #cfe0f1;padding-bottom:3px;margin-bottom:5px;">CLASSEMENT</div>'
+                                        },
+                                        {
+                                            fieldLabel: 'Emplacement',
+                                            name: 'lg_ZONE_GEO_ID',
+                                            id: 'lg_ZONE_GEO_ID'
+                                        },
+                                        {
+                                            fieldLabel: 'Famille',
+                                            name: 'lg_FAMILLEARTICLE_ID',
+                                            id: 'lg_FAMILLEARTICLE_ID'
+                                        },
+                                        {
+                                            fieldLabel: 'Code.Acte',
+                                            name: 'lg_CODE_ACTE_ID',
+                                            id: 'lg_CODE_ACTE_ID'
+                                        },
+                                        {
+                                            fieldLabel: 'Code etiquette',
+                                            name: 'lg_TYPEETIQUETTE_ID',
+                                            id: 'lg_TYPEETIQUETTE_ID'
+                                        },
+                                        {
+                                            fieldLabel: 'Code.Gestion',
+                                            name: 'lg_CODE_GESTION_ID',
+                                            id: 'lg_CODE_GESTION_ID'
+                                        },
+                                        {
+                                            fieldLabel: 'Code geo article',
+                                            name: 'str_CODE_GEO_ARTICLE',
+                                            id: 'str_CODE_GEO_ARTICLE'
+                                        },
+                                        {
+                                            fieldLabel: 'Code Tableau',
+                                            name: 'int_T',
+                                            id: 'int_T',
+                                            fieldStyle: 'color:red;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Quantite.Detail/Article',
+                                            name: 'int_QTEDETAIL',
+                                            id: 'int_QTEDETAIL',
+                                            fieldStyle: 'color:orange;font-weight:bold;font-size:13.5px',
+                                            value: 0
+                                        }
+                                    ]
                                 },
                                 {
-                                    fieldLabel: 'Code.Acte',
-                                    width: 400,
-                                    emptyText: 'Code.Acte',
-                                    name: 'lg_CODE_ACTE_ID',
-                                    id: 'lg_CODE_ACTE_ID'
-                                }
-
-                            ]
-                        }, {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            items: [
+                                    // Bloc Prix & taxes (vert)
+                                    flex: 1,
+                                    margin: '0 10 0 0',
+                                    style: 'background:#eef8ee;border:1px solid #cfe8cf;border-radius:6px;',
+                                    items: [
+                                        {
+                                            xtype: 'component',
+                                            html: '<div style="font-size:11.5px;font-weight:bold;letter-spacing:.5px;color:#1c7c1c;border-bottom:2px solid #cfe8cf;padding-bottom:3px;margin-bottom:5px;">PRIX &amp; TAXES</div>'
+                                        },
+                                        {
+                                            fieldLabel: 'Prix.Vente',
+                                            name: 'int_PRICE',
+                                            id: 'int_PRICE',
+                                            fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:16px',
+                                            value: 0
+                                        },
+                                        {
+                                            fieldLabel: 'Prix.Achat.Facture',
+                                            name: 'int_PAF',
+                                            id: 'int_PAF',
+                                            fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:16px',
+                                            value: 0
+                                        },
+                                        {
+                                            fieldLabel: 'Prix.Achat.Tarif',
+                                            name: 'int_PAT',
+                                            id: 'int_PAT',
+                                            hidden: true
+                                        },
+                                        {
+                                            fieldLabel: 'Prix.Reference',
+                                            name: 'int_PRICE_TIPS',
+                                            id: 'int_PRICE_TIPS'
+                                        },
+                                        {
+                                            fieldLabel: 'Taux.Marque',
+                                            name: 'int_TAUX_MARQUE',
+                                            id: 'int_TAUX_MARQUE'
+                                        },
+                                        {
+                                            fieldLabel: 'Code.Remise',
+                                            name: 'str_CODE_REMISE',
+                                            id: 'str_CODE_REMISE'
+                                        },
+                                        {
+                                            fieldLabel: 'Code.Tva',
+                                            name: 'str_CODE_TVA',
+                                            id: 'str_CODE_TVA',
+                                            fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Code.Taux.Remb',
+                                            name: 'str_CODE_TAUX_REMBOURSEMENT',
+                                            id: 'str_CODE_TAUX_REMBOURSEMENT'
+                                        }
+                                    ]
+                                },
                                 {
-                                    /*fieldLabel: 'Prix.Vente',
-                                     xtype: 'textfield',
-                                     maskRe: /[0-9.]/,
-                                     width: 400,
-                                     // maxValue: 13,
-                                     emptyText: 'PRIX VENTE',
-                                     name: 'int_PRICE',
-                                     id: 'int_PRICE'*/
-
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'PRIX VENTE',
-//                                    labelWidth: 110,
-                                    width: 400,
-                                    name: 'int_PRICE',
-                                    id: 'int_PRICE',
-                                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
-//                                    margin: '0 12 0 0',
-                                    value: 0
-                                }, {
-                                    /*fieldLabel: 'Prix.Achat.Facture',
-                                     xtype: 'textfield',
-                                     maskRe: /[0-9.]/,
-                                     width: 400,
-                                     maxValue: 13,
-                                     emptyText: 'PRIX ACHAT FACTURE',
-                                     name: 'int_PAF',
-                                     id: 'int_PAF'*/
-
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'PRIX ACHAT FACTURE',
-//                                    labelWidth: 110,
-                                    width: 400,
-                                    name: 'int_PAF',
-                                    id: 'int_PAF',
-                                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
-//                                    margin: '0 12 0 0',
-                                    value: 0
-                                }, {
-                                    fieldLabel: 'Prix.Reference',
-                                    xtype: 'textfield',
-                                    maskRe: /[0-9.]/,
-                                    width: 400,
-                                    //maxValue: 13,
-                                    emptyText: 'PRIX TIPS',
-                                    name: 'int_PRICE_TIPS',
-                                    id: 'int_PRICE_TIPS'
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            items: [{
-                                    fieldLabel: 'Code etiquette',
-                                    width: 400,
-                                    emptyText: 'Code etiquette',
-                                    name: 'lg_TYPEETIQUETTE_ID',
-                                    id: 'lg_TYPEETIQUETTE_ID'
-                                }, {
-                                    fieldLabel: 'Code.Remise',
-                                    width: 400,
-                                    emptyText: 'Code.Remise',
-                                    name: 'str_CODE_REMISE',
-                                    id: 'str_CODE_REMISE'
-                                }, {
-                                    fieldLabel: 'Prix.Achat.Tarif',
-                                    xtype: 'textfield',
-                                    maskRe: /[0-9.]/,
-                                    width: 400,
-                                    maxValue: 13,
-                                    emptyText: 'PRIX ACHAT TARIF',
-                                    name: 'int_PAT',
-                                    id: 'int_PAT'
-                                }]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield', margin: '0 0 5 0',
-                            items: [{
-                                    fieldLabel: 'Taux.Marque',
-                                    xtype: 'textfield',
-                                    maskRe: /[0-9.]/,
-                                    width: 400,
-                                    maxValue: 13,
-                                    emptyText: 'TAUX MARQUE',
-                                    name: 'int_TAUX_MARQUE',
-                                    id: 'int_TAUX_MARQUE'
-                                }, {
-                                    fieldLabel: 'Code.Taux.Remb',
-                                    width: 400,
-                                    maxValue: 13,
-                                    emptyText: 'TAUX REMBOURSEMENT',
-                                    name: 'str_CODE_TAUX_REMBOURSEMENT',
-                                    id: 'str_CODE_TAUX_REMBOURSEMENT'
-                                }, {
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'Code Tableau',
-                                    name: 'int_T',
-                                    id: 'int_T',
-                                    fieldStyle: "color:red;font-weight:bold;font-size:1.5em",
-                                    width: 400
-                                }]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield', margin: '0 0 5 0',
-                            items: [
+                                    // Bloc Reappro & dates (violet)
+                                    flex: 1,
+                                    margin: '0 10 0 0',
+                                    style: 'background:#f5f0fa;border:1px solid #ddd0ec;border-radius:6px;',
+                                    items: [
+                                        {
+                                            xtype: 'component',
+                                            html: '<div style="font-size:11.5px;font-weight:bold;letter-spacing:.5px;color:#6a3fa0;border-bottom:2px solid #ddd0ec;padding-bottom:3px;margin-bottom:5px;">REAPPRO &amp; DATES</div>'
+                                        },
+                                        {
+                                            fieldLabel: 'Seuil.Reappro',
+                                            name: 'int_STOCK_REAPROVISONEMENT',
+                                            id: 'int_STOCK_REAPROVISONEMENT',
+                                            fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Qte.Reappro',
+                                            name: 'int_QTE_REAPPROVISIONNEMENT',
+                                            id: 'int_QTE_REAPPROVISIONNEMENT',
+                                            fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Semois Q1',
+                                            name: 'int_Q1_SEUIL_REAPPRO',
+                                            id: 'int_Q1_SEUIL_REAPPRO',
+                                            fieldStyle: 'color:#6a3fa0;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Semois Q2',
+                                            name: 'int_Q2_QTE_REAPPRO',
+                                            id: 'int_Q2_QTE_REAPPRO',
+                                            fieldStyle: 'color:#6a3fa0;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Date dernier.BL',
+                                            name: 'dt_DATE_LIVRAISON',
+                                            id: 'dt_DATE_LIVRAISON',
+                                            fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Date derniere.Vente',
+                                            name: 'dt_LAST_VENTE',
+                                            id: 'dt_LAST_VENTE',
+                                            fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Date derniere.Entree',
+                                            name: 'dt_LAST_ENTREE',
+                                            id: 'dt_LAST_ENTREE',
+                                            fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
+                                        },
+                                        {
+                                            fieldLabel: 'Date dernier.Inventaire',
+                                            name: 'dt_LAST_INVENTAIRE',
+                                            id: 'dt_LAST_INVENTAIRE',
+                                            fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'
+                                        }
+                                    ]
+                                },
                                 {
-                                    fieldLabel: 'Code.Tva',
-                                    width: 400,
-                                    maxValue: 13,
-                                    emptyText: 'TVA',
-                                    name: 'str_CODE_TVA',
-                                    id: 'str_CODE_TVA'
-                                }, {
-                                    fieldLabel: 'Quantite.Detail/Article',
-                                    width: 400,
-                                    //maxValue: 13,
-                                    emptyText: 'Quantite.Detail/Article',
-                                    name: 'int_QTEDETAIL',
-                                    id: 'int_QTEDETAIL',
-                                    value: 0
-                                }, {
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'Stock',
-//                                    labelWidth: 110,
-                                    name: 'int_NUMBER_AVAILABLE',
-                                    id: 'int_NUMBER_AVAILABLE',
-                                    fieldStyle: "color:blue;font-weight:bold;font-size:1.5em",
-//                                    margin: '0 12 0 0',
-                                    width: 400,
-                                    value: 0
+                                    // 4e colonne dediee aux stocks
+                                    id: 'colonne_stocks_detail',
+                                    width: 200,
+                                    padding: 6,
+                                    style: 'background:#fdf6ec;border:1px solid #e0d3bd;border-radius:6px;',
+                                    defaults: {
+                                        labelAlign: 'left',
+                                        labelWidth: 100,
+                                        labelStyle: 'color: brown;font-size: 13px;font-weight:bold',
+                                        width: 185,
+                                        value: 0
+                                    },
+                                    listeners: {
+                                        afterrender: function (c) {
+                                            c.getEl().slideIn('r', {
+                                                duration: 600,
+                                                easing: 'easeOut'
+                                            });
+                                        }
+                                    },
+                                    items: [
+                                        {
+                                            fieldLabel: 'Stock rayon',
+                                            name: 'int_NUMBER_AVAILABLE',
+                                            id: 'int_NUMBER_AVAILABLE',
+                                            fieldStyle: 'color:orange;font-weight:bold;font-size: 16px'
+                                        },
+                                        {
+                                            fieldLabel: 'Stock reserve',
+                                            name: 'int_STOCK_RESERVE_DETAIL',
+                                            id: 'int_STOCK_RESERVE_DETAIL',
+                                            fieldStyle: 'color:green;font-weight:bold;font-size: 16px'
+                                        },
+                                        {
+                                            fieldLabel: 'Stock total',
+                                            name: 'int_STOCK_TOTAL_DETAIL',
+                                            id: 'int_STOCK_TOTAL_DETAIL',
+                                            fieldStyle: 'color:blue;font-weight:bold;font-size: 16px'
+                                        }
+                                    ]
                                 }
                             ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield', margin: '0 0 5 0',
-                            items: [
-                                {
-                                    fieldLabel: 'Code.Gestion',
-                                    name: 'lg_CODE_GESTION_ID',
-                                    width: 400,
-                                    emptyText: 'Code.Gestion',
-                                    id: 'lg_CODE_GESTION_ID'
-                                }, {
-                                    fieldLabel: 'Seuil.Reappro',
-                                    width: 400,
-                                    emptyText: 'Seuil.Reappro',
-                                    name: 'int_STOCK_REAPROVISONEMENT',
-                                    id: 'int_STOCK_REAPROVISONEMENT'
-                                }, {
-                                    fieldLabel: 'Qte.Reappro',
-                                    width: 400,
-                                    emptyText: 'Qte.Reappro',
-                                    name: 'int_QTE_REAPPROVISIONNEMENT',
-                                    id: 'int_QTE_REAPPROVISIONNEMENT'
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield', margin: '0 0 5 0',
-                            items: [{
-                                    fieldLabel: 'Date derniere.Vente',
-                                    width: 400,
-                                    emptyText: 'Date derniere.Vente',
-                                    name: 'dt_LAST_VENTE',
-                                    id: 'dt_LAST_VENTE'
-                                }, {
-                                    fieldLabel: 'Date derniere.Entr&eacute;e',
-                                    width: 400,
-                                    emptyText: 'Date derniere.Entree',
-                                    name: 'dt_LAST_ENTREE',
-                                    id: 'dt_LAST_ENTREE'
-                                }, {
-                                    fieldLabel: 'Date dernier.Inventaire',
-                                    width: 400,
-                                    emptyText: 'Date dernier.Inventaire',
-                                    name: 'dt_LAST_INVENTAIRE',
-                                    id: 'dt_LAST_INVENTAIRE'
-                                }]
                         }
                     ]
                 },
@@ -930,33 +953,54 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleOther', 
     LoadData: function () {
 
         Ext.Ajax.request({
-            url: ws_get_famille,
+            url: '../api/v1/produit-search/fiche',
             params: {
-                lg_FAMILLE_ID: ref
+                produitId: ref
             },
             success: function (response)
             {
                 var object_init = Ext.JSON.decode(response.responseText, false);
                 var OFamille = object_init.results[0];
-//                     ref = this.getOdatasource();
+                // Separateur de millier (espace) pour les montants affiches.
+                var formatMillier = function (v) {
+                    if (v === null || v === undefined || v === '') {
+                        return '';
+                    }
+                    var parties = String(v).split('.');
+                    parties[0] = parties[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                    return parties.join('.');
+                };
                 Ext.getCmp('int_NUMBER_AVAILABLE').setValue(OFamille.int_NUMBER_AVAILABLE);
+                Ext.getCmp('classe_abc_detail').setValue(abcClasseLetterDetailOther(OFamille.lg_CLASSE_ABC_ID));
+                var stockDispo = parseInt(OFamille.int_NUMBER_AVAILABLE, 10) || 0;
+                var stockReserve = parseInt(OFamille.int_STOCK_RESERVE, 10) || 0;
+                Ext.getCmp('int_STOCK_RESERVE_DETAIL').setValue(stockReserve);
+                Ext.getCmp('int_STOCK_TOTAL_DETAIL').setValue(stockDispo + stockReserve);
+                var colonneStocks = Ext.getCmp('colonne_stocks_detail');
+                if (colonneStocks && colonneStocks.getEl()) {
+                    colonneStocks.getEl().frame('#b8860b', 1, {duration: 700});
+                }
                 Ext.getCmp('lg_CODE_GESTION_ID').setValue(OFamille.lg_CODE_GESTION_ID);
+                Ext.getCmp('str_CODE_GEO_ARTICLE').setValue(OFamille.str_CODE_GEO_ARTICLE);
                 Ext.getCmp('int_STOCK_REAPROVISONEMENT').setValue(OFamille.int_STOCK_REAPROVISONEMENT);
                 Ext.getCmp('int_QTE_REAPPROVISIONNEMENT').setValue(OFamille.int_QTE_REAPPROVISIONNEMENT);
+                Ext.getCmp('int_Q1_SEUIL_REAPPRO').setValue(OFamille.int_Q1_SEUIL_REAPPRO);
+                Ext.getCmp('int_Q2_QTE_REAPPRO').setValue(OFamille.int_Q2_QTE_REAPPRO);
                 Ext.getCmp('str_CODE_REMISE').setValue(OFamille.str_CODE_REMISE);
                 Ext.getCmp('lg_TYPEETIQUETTE_ID').setValue(OFamille.lg_TYPEETIQUETTE_ID);
                 Ext.getCmp('dt_LAST_INVENTAIRE').setValue(OFamille.dt_LAST_INVENTAIRE);
                 Ext.getCmp('dt_LAST_ENTREE').setValue(OFamille.dt_LAST_ENTREE);
+                Ext.getCmp('dt_DATE_LIVRAISON').setValue(OFamille.dt_DATE_LIVRAISON);
                 Ext.getCmp('dt_LAST_VENTE').setValue(OFamille.dt_LAST_VENTE);
                 Ext.getCmp('str_CODE_TVA').setValue(OFamille.lg_CODE_TVA_ID);
                 Ext.getCmp('int_T').setValue(OFamille.int_T);
                 Ext.getCmp('str_CODE_TAUX_REMBOURSEMENT').setValue(OFamille.str_CODE_TAUX_REMBOURSEMENT);
                 Ext.getCmp('lg_CODE_ACTE_ID').setValue(OFamille.lg_CODE_ACTE_ID);
                 Ext.getCmp('int_TAUX_MARQUE').setValue(OFamille.int_TAUX_MARQUE);
-                Ext.getCmp('int_PAF').setValue(OFamille.int_PAF);
+                Ext.getCmp('int_PAF').setValue(formatMillier(OFamille.int_PAF));
                 Ext.getCmp('int_PAT').setValue(OFamille.int_PAT);
                 Ext.getCmp('int_PRICE_TIPS').setValue(OFamille.int_PRICE_TIPS);
-                Ext.getCmp('int_PRICE').setValue(OFamille.int_PRICE);
+                Ext.getCmp('int_PRICE').setValue(formatMillier(OFamille.int_PRICE));
                 Ext.getCmp('lg_FAMILLEARTICLE_ID').setValue(OFamille.lg_FAMILLEARTICLE_ID);
                 Ext.getCmp('lg_ZONE_GEO_ID').setValue(OFamille.lg_ZONE_GEO_ID);
                 Ext.getCmp('str_DESCRIPTION').setValue(OFamille.str_DESCRIPTION);
