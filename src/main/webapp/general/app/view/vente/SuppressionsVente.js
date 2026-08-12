@@ -26,7 +26,8 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
         me.selectedRows = {};
 
         var today = new Date();
-        var defautDebut = Ext.Date.add(today, Ext.Date.DAY, -30);
+        // Periode par defaut : la journee en cours
+        var defautDebut = today;
 
         me.suppressionStore = new Ext.data.Store({
             fields: ['id', 'typeSuppression', 'venteId', 'venteRef', 'produitId',
@@ -182,8 +183,12 @@ Ext.define('testextjs.view.vente.SuppressionsVente', {
                     columnLines: true,
                     viewConfig: {forceFit: true},
                     columns: [
-                        {header: 'Date', dataIndex: 'date', width: 80},
-                        {header: 'Heure', dataIndex: 'heure', width: 70},
+                        {
+                            header: 'Date', dataIndex: 'date', width: 130,
+                            renderer: function (v, meta, rec) {
+                                return v + ' ' + (rec.get('heure') || '');
+                            }
+                        },
                         {header: 'Vente', dataIndex: 'venteRef', flex: 1},
                         {header: 'CIP', dataIndex: 'produitCip', width: 80},
                         {header: 'Produit', dataIndex: 'produitLibelle', flex: 2},
