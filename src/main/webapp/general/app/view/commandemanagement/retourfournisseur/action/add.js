@@ -309,7 +309,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                             valueField: 'str_DESCRIPTION',
                                             pageSize: 20, //ajout la barre de pagination
                                             displayField: 'str_DESCRIPTION',
-                                            typeAhead: true,
+                                            // typeAhead retire : pre-completait le champ avec le
+                                            // premier resultat et la liste se filtrait sur ce seul produit
                                             width: 450,
                                             queryMode: 'remote',
                                             disabled: true,

@@ -211,7 +211,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     store: storerepartiteur,
                                     valueField: 'lg_GROSSISTE_ID',
                                     displayField: 'str_LIBELLE',
-                                    typeAhead: true,
+                                    // typeAhead retire : pre-completait avec le premier resultat
                                     pageSize: 999,
                                     queryMode: 'remote',
                                     width: 450,

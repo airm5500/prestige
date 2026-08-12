@@ -173,7 +173,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 xtype: 'combobox', fieldLabel: 'Repartiteur', allowBlank: false,
                                 name: 'Code.Rep', margin: '0 15 0 0', id: 'lg_GROSSISTE_ID',
                                 store: storerepartiteur, valueField: 'lg_GROSSISTE_ID', displayField: 'str_LIBELLE',
-                                typeAhead: true, queryMode: 'remote', pageSize: 999, emptyText: 'Choisir un repartiteur...',
+                                // typeAhead retire : pre-completait avec le premier resultat
+                                queryMode: 'remote', pageSize: 999, emptyText: 'Choisir un repartiteur...',
                                 listeners: {
                                     select: function (cmp) {
                                         if (titre === 'Suggestion de commande') {
