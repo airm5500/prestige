@@ -529,7 +529,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                                 '-',
                                 { xtype: 'combobox', name: 'lg_DCI_ID', margins: '0 0 0 10', itemId: 'lg_DCI_ID', store: store_dci, valueField: 'str_NAME', displayField: 'str_NAME',
                                   pageSize: 20, minChars: 2, queryMode: 'remote', width: 400, emptyText: 'Selectionner un DCI...',
-                                  listeners: { select: function () { Me.onRechClickDCI(); }, change: function () { Me.onfiltercheck(); } } },
+                                  listeners: {
+                                      // L'identifiant REEL du DCI est memorise a la selection : le combo
+                                      // porte historiquement le NOM (valueField str_NAME) et la recherche
+                                      // par nom echoue des qu'un nom est en doublon ou inactif en base.
+                                      select: function (cmp, records) {
+                                          cmp._dciId = (records && records.length) ? records[0].get('lg_DCI_ID') : null;
+                                          Me.onRechClickDCI();
+                                      },
+                                      change: function (cmp) {
+                                          cmp._dciId = null;
+                                          Me.onfiltercheck();
+                                      }
+                                  } },
                                 '-',
                                 { text: 'Associer', tooltip: 'Associer le code DCI a cet article', scope: this, itemId: 'associate', handler: this.onbtndciadd }
                             ],
@@ -928,7 +940,10 @@ Ext.Ajax.request({
         if (!form || !g) {
             return;
         }
-        var dci = g('lg_DCI_ID') && g('lg_DCI_ID').getValue();
+        // L'id reel prime sur le nom : la resolution par nom echoue si le nom est
+        // duplique ou inactif en base (le serveur accepte id, code ou nom).
+        var comboDci = g('lg_DCI_ID');
+        var dci = comboDci && (comboDci._dciId || comboDci.getValue());
         if (!dci) {
             Ext.MessageBox.alert('Message', 'Veuillez selectionner un DCI a associer.');
             return;
@@ -1006,7 +1021,9 @@ Ext.Ajax.request({
             return;
         }
         var rechecher_dci = g('rechecher_dci').getValue();
-        var lg_DCI_ID = g('lg_DCI_ID').getValue() || '';
+        // Filtre par l'ID reel du DCI : la valeur du combo est le NOM, qui ne matche
+        // jamais la colonne id (la grille se vidait apres chaque selection).
+        var lg_DCI_ID = g('lg_DCI_ID')._dciId || '';
         var grid = form.down('#gridpanelDciID');
         grid.getStore().getProxy().url = '../api/v1/referentiel-article/dci-famille?search_value='
                 + encodeURIComponent(rechecher_dci) + '&lg_FAMILLE_ID=' + ref + '&lg_DCI_ID=' + encodeURIComponent(lg_DCI_ID);
