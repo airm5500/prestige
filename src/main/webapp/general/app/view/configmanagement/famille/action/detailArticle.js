@@ -204,14 +204,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 {
                     xtype: 'fieldset',
                     collapsible: true,
-                    layout: 'vbox',
+                    layout: 'hbox',
                     title: 'Infos.Generales sur l\'article',
-                    defaultType: 'textfield',
-                    defaults: {
-                        anchor: '100%'
-
-                    },
                     items: [
+                        {
+                            xtype: 'container',
+                            layout: 'vbox',
+                            flex: 1,
+                            defaultType: 'textfield',
+                            defaults: {
+                                anchor: '100%'
+
+                            },
+                            items: [
                         {
                             xtype: 'container',
                             layout: 'hbox',
@@ -414,17 +419,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     id: 'int_QTEDETAIL',
                                     fieldStyle: "color:orange;font-weight:bold;font-size:1.5em",
                                     value: 0
-                                }, {
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'Stock',
-                                    labelStyle: 'color: brown;font-size: 20px',
-//                                    labelWidth: 110,
-                                    name: 'int_NUMBER_AVAILABLE',
-                                    id: 'int_NUMBER_AVAILABLE',
-                                    fieldStyle: "color:brown;font-weight:bold;font-size:1.5em;font-size: 20px",
-//                                    margin: '0 12 0 0',
-                                    width: 400,
-                                    value: 0
                                 }
                             ]
                         },
@@ -442,26 +436,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     fieldStyle: "color:blue;font-weight:bold;font-size:1.5em;font-size: 20px",
                                     width: 400,
                                     value: 'Non classe'
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'Stock reserve',
-                                    labelStyle: 'color: brown;font-size: 20px',
-                                    name: 'int_STOCK_RESERVE_DETAIL',
-                                    id: 'int_STOCK_RESERVE_DETAIL',
-                                    fieldStyle: "color:brown;font-weight:bold;font-size:1.5em;font-size: 20px",
-                                    width: 400,
-                                    value: 0
-                                },
-                                {
-                                    xtype: 'displayfield',
-                                    fieldLabel: 'Stock total',
-                                    labelStyle: 'color: brown;font-size: 20px',
-                                    name: 'int_STOCK_TOTAL_DETAIL',
-                                    id: 'int_STOCK_TOTAL_DETAIL',
-                                    fieldStyle: "color:green;font-weight:bold;font-size:1.5em;font-size: 20px",
-                                    width: 400,
-                                    value: 0
                                 }
                             ]
                         },
@@ -537,6 +511,53 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     id: 'dt_LAST_INVENTAIRE',
                                     fieldStyle: "color:green;font-weight:bold;font-size:1.5em"
                                 }]
+                        }
+                            ]
+                        },
+                        {
+                            // 4e colonne dediee aux stocks
+                            xtype: 'container',
+                            id: 'colonne_stocks_detail',
+                            layout: 'vbox',
+                            width: 250,
+                            margin: '0 0 0 15',
+                            padding: 10,
+                            style: 'background:#fdf6ec;border:1px solid #e0d3bd;border-radius:6px;',
+                            defaultType: 'displayfield',
+                            defaults: {
+                                labelAlign: 'top',
+                                labelStyle: 'color: brown;font-size: 16px;font-weight:bold',
+                                width: 220,
+                                value: 0
+                            },
+                            listeners: {
+                                afterrender: function (c) {
+                                    c.getEl().slideIn('r', {
+                                        duration: 600,
+                                        easing: 'easeOut'
+                                    });
+                                }
+                            },
+                            items: [
+                                {
+                                    fieldLabel: 'Stock',
+                                    name: 'int_NUMBER_AVAILABLE',
+                                    id: 'int_NUMBER_AVAILABLE',
+                                    fieldStyle: "color:brown;font-weight:bold;font-size: 22px"
+                                },
+                                {
+                                    fieldLabel: 'Stock reserve',
+                                    name: 'int_STOCK_RESERVE_DETAIL',
+                                    id: 'int_STOCK_RESERVE_DETAIL',
+                                    fieldStyle: "color:brown;font-weight:bold;font-size: 22px"
+                                },
+                                {
+                                    fieldLabel: 'Stock total',
+                                    name: 'int_STOCK_TOTAL_DETAIL',
+                                    id: 'int_STOCK_TOTAL_DETAIL',
+                                    fieldStyle: "color:green;font-weight:bold;font-size: 22px"
+                                }
+                            ]
                         }
                     ]
                 },
@@ -1072,6 +1093,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         const stockReserve = parseInt(rec.int_STOCK_RESERVE, 10) || 0;
         Ext.getCmp('int_STOCK_RESERVE_DETAIL').setValue(stockReserve);
         Ext.getCmp('int_STOCK_TOTAL_DETAIL').setValue(stockDispo + stockReserve);
+        const colonneStocks = Ext.getCmp('colonne_stocks_detail');
+        if (colonneStocks && colonneStocks.getEl()) {
+            colonneStocks.getEl().frame('#b8860b', 1, {duration: 700});
+        }
         Ext.getCmp('lg_CODE_GESTION_ID').setValue(rec.lg_CODE_GESTION_ID);
         Ext.getCmp('int_STOCK_REAPROVISONEMENT').setValue(rec.int_STOCK_REAPROVISONEMENT);
         Ext.getCmp('int_QTE_REAPPROVISIONNEMENT').setValue(rec.int_QTE_REAPPROVISIONNEMENT);
