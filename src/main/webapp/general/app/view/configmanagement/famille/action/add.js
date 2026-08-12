@@ -110,14 +110,14 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             model: 'testextjs.model.Dci_famille',
             pageSize: itemsPerPage,
             autoLoad: true,
-            proxy: { type: 'ajax', url: url_services_data_dci_famille + '?lg_FAMILLE_ID=' + ref, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/referentiel-article/dci-famille?lg_FAMILLE_ID=' + ref, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         var store_dci = new Ext.data.Store({
             model: 'testextjs.model.Dci',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: { type: 'ajax', url: url_services_data_dci, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/referentiel-article/dcis-initial', reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         var store_etiquette = new Ext.data.Store({
@@ -125,7 +125,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             pageSize: itemsPerPage,
             storeId: 'store_etiquette',
             autoLoad: true,
-            proxy: { type: 'ajax', url: url_services_data_typeetiquette, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/referentiel-article/typeetiquettes', reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         var store_remise = new Ext.data.Store({
@@ -157,7 +157,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             model: 'testextjs.model.FamilleArticle',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: { type: 'ajax', url: url_services_data_famaillearticle_famille, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/common/famille-articles', reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         var store_grossiste_famille = new Ext.data.Store({
@@ -171,7 +171,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             model: 'testextjs.model.ZoneGeographique',
             pageSize: itemsPerPage,
             autoLoad: false,
-            proxy: { type: 'ajax', url: url_services_data_zonegeo_famille, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/referentiel-article/zones-geographiques', reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         var store_codegestion_famille = new Ext.data.Store({
@@ -185,7 +185,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             model: 'testextjs.model.CodeActe',
             pageSize: itemsPerPage,
             autoLoad: true,
-            proxy: { type: 'ajax', url: url_services_data_codeacte_famille, reader: { type: 'json', root: 'results', totalProperty: 'total' } }
+            proxy: { type: 'ajax', url: '../api/v1/referentiel-article/codeactes', reader: { type: 'json', root: 'results', totalProperty: 'total' } }
         });
 
         // FORM
@@ -998,13 +998,43 @@ Ext.Ajax.request({
         }
     },
 
+    // Association d'un DCI a l'article (bouton 'Associer') : API REST.
+    onbtndciadd: function () {
+        var me = this, form = this.down('form'), g = this._g || function (q) { return form.down('#' + q); };
+        var dci = g('lg_DCI_ID') && g('lg_DCI_ID').getValue();
+        if (!dci) {
+            Ext.MessageBox.alert('Message', 'Veuillez selectionner un DCI a associer.');
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/referentiel-article/dci-famille/associer',
+            method: 'POST',
+            params: { lg_DCI_ID: dci, lg_FAMILLE_ID: ref },
+            success: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true) || {};
+                if (object.success === '0' || object.success === 0) {
+                    Ext.MessageBox.alert('Message', object.errors || "Echec de l'association");
+                    return;
+                }
+                g('lg_DCI_ID').clearValue();
+                var grid = form.down('#gridpanelDciID');
+                if (grid) {
+                    grid.getStore().reload();
+                }
+            },
+            failure: function (response) {
+                Ext.MessageBox.alert('Message', "Echec de l'association du DCI");
+            }
+        });
+    },
+
     onRemoveClick: function (grid, rowIndex) {
         Ext.MessageBox.confirm('Message', 'Confirmer la suppresssion', function (btn) {
             if (btn === 'yes') {
                 var rec = grid.getStore().getAt(rowIndex);
                 Ext.Ajax.request({
-                    url: url_services_transaction_dci_famille + 'delete',
-                    params: { lg_FAMILLE_DCI_ID: rec.get('lg_FAMILLE_DCI_ID') },
+                    url: '../api/v1/referentiel-article/dci-famille/' + rec.get('lg_FAMILLE_DCI_ID'),
+                    method: 'DELETE',
                     success: function (response) {
                         var object = Ext.JSON.decode(response.responseText, false);
                         if (object.success === 0) {
@@ -1029,10 +1059,10 @@ Ext.Ajax.request({
         var OGrid = g('lg_DCI_ID');
         if (lg_DCI_ID !== null && lg_DCI_ID !== '' && lg_DCI_ID !== undefined) {
             var len = lg_DCI_ID.length;
-            var url_final = url_services_data_dci + '?search_value=' + lg_DCI_ID;
+            var url_final = '../api/v1/referentiel-article/dcis-initial?search_value=' + encodeURIComponent(lg_DCI_ID);
             if (len >= 3) { OGrid.getStore().getProxy().url = url_final; OGrid.getStore().reload(); }
         } else {
-            OGrid.getStore().getProxy().url = url_services_data_dci;
+            OGrid.getStore().getProxy().url = '../api/v1/referentiel-article/dcis-initial';
             OGrid.getStore().reload();
         }
     },
@@ -1042,9 +1072,10 @@ Ext.Ajax.request({
         var rechecher_dci = g('rechecher_dci').getValue();
         var lg_DCI_ID = g('lg_DCI_ID').getValue() || '';
         var grid = form.down('#gridpanelDciID');
-        grid.getStore().getProxy().url = url_services_data_dci_famille + '?search_value=' + rechecher_dci + '&lg_FAMILLE_ID=' + ref + '&lg_DCI_ID=' + lg_DCI_ID;
+        grid.getStore().getProxy().url = '../api/v1/referentiel-article/dci-famille?search_value='
+                + encodeURIComponent(rechecher_dci) + '&lg_FAMILLE_ID=' + ref + '&lg_DCI_ID=' + encodeURIComponent(lg_DCI_ID);
         grid.getStore().reload();
-        grid.getStore().getProxy().url = url_services_data_dci_famille + '?lg_FAMILLE_ID=' + ref;
+        grid.getStore().getProxy().url = '../api/v1/referentiel-article/dci-famille?lg_FAMILLE_ID=' + ref;
     },
 
     // Recalcul des prix UNIQUEMENT quand setQtyDetailState('required')
