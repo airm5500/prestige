@@ -529,13 +529,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         datas.add("Net à payer: ;     " + DateConverter.amountFormat(venteNet) + "; F CFA;1");
         if (venteReglements.size() > 1) {
             for (VenteReglement vers : venteReglements) {
-                // On imprime le montant tendu par le client (montantVerse) : la
-                // monnaie est portée par la ligne Monnaie en bas du ticket. Repli
-                // sur montant pour les règlements anciens (montantVerse null/0).
-                Integer verse = vers.getMontantVerse();
-                int montantAffiche = (Objects.nonNull(verse) && verse > 0) ? verse : vers.getMontant();
+                // Chaque ligne porte la part réellement affectée à la vente
+                // (montant) : imprimer les espèces tendues (montantVerse) rendait
+                // le récap incohérent en fractionnement espèces + mobile avec
+                // monnaie (Espèces 2 000 / Montant Versé 2 210 pour un net de
+                // 1 210). La monnaie est portée par la ligne Monnaie en bas.
                 datas.add(vers.getTypeReglement().getStrNAME() + ": ;     "
-                        + NumberUtils.formatIntToString(montantAffiche) + "; ;0");
+                        + NumberUtils.formatIntToString(vers.getMontant()) + "; ;0");
             }
 
         } else {
@@ -543,8 +543,23 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
 
         if (p.getIntPRICE() > 0) {
-            datas.add("Montant Versé: ;     " + DateConverter.amountFormat(Math.abs(mvtTransaction.getMontantVerse()))
-                    + "; F CFA;0");
+            // Montant versé = ce que le client a physiquement remis à la caisse.
+            // Fractionnement espèces + mobile avec monnaie : le billet tendu
+            // (montantVerse de la ligne espèces), la part mobile figurant déjà
+            // sur sa propre ligne. Sinon, total reçu historique (montantVerse
+            // de la transaction).
+            int montantVerseAffiche = Math.abs(mvtTransaction.getMontantVerse());
+            if (venteReglements.size() > 1) {
+                for (VenteReglement vers : venteReglements) {
+                    Integer verse = vers.getMontantVerse();
+                    if (Constant.TYPE_REGLEMENT_ESPECE.equals(vers.getTypeReglement().getLgTYPEREGLEMENTID())
+                            && Objects.nonNull(verse) && verse > vers.getMontant()) {
+                        montantVerseAffiche = verse;
+                        break;
+                    }
+                }
+            }
+            datas.add("Montant Versé: ;     " + DateConverter.amountFormat(montantVerseAffiche) + "; F CFA;0");
             datas.add("Monnaie: ;     "
                     + DateConverter.amountFormat((Math.abs(mvtTransaction.getMontantVerse()) - venteNet > 0
                             ? Math.abs(mvtTransaction.getMontantVerse()) - Math.abs(mvtTransaction.getMontantPaye())

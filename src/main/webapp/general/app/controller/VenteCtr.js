@@ -595,9 +595,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                     },
                     'doventemanager #contenu #montantExtra': {
                         change: this.montantExtraChangeListener,
-                        // Entree dans le champ du 2e mode = meme cloture que le
-                        // bouton 'Terminer la vente' (tous les controles s'appliquent)
-                        specialkey: this.onMontantRecuVnoKey
+                        // Entree dans le champ du 2e mode : en especes + mobile elle
+                        // confirme la part mobile et rend la main au montant recu ;
+                        // en mobile + mobile elle garde son sens historique (cloture)
+                        specialkey: this.onMontantExtraKey
                     },
                     'doventemanager #contenu [xtype=gridpanel] [xtype=actioncolumn]': {
                         click: this.removeItemVno
@@ -2699,14 +2700,25 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
     },
     /*
-     * Focus sur la zone d'encaissement : le champ du second mode s'il est
-     * saisissable (flux espèces + mobile), sinon le montant reçu.
+     * Focus sur la zone d'encaissement.
+     * Flux espèces + mobile (comptant), part mobile non confirmée : le focus
+     * arrive dans le champ mobile pré-rempli avec le complément — la caissière
+     * le valide par Entrée (ou le corrige) ; la part est alors verrouillée et
+     * le focus revient dans le montant reçu où la saisie des espèces tendues
+     * ne recalcule plus que la monnaie.
+     * Tous les autres cas (part déjà confirmée, mobile + mobile...) : montant
+     * reçu, comme avant — Entrée y valide la vente.
      */
     focusEncaissement: function () {
         const me = this;
-        // Toujours revenir dans le montant recu (especes) : la part mobile est
-        // le complement calcule automatiquement, c'est le montant especes que
-        // le client peut changer au dernier moment. Entree y valide la vente.
+        const montantExtra = me.getMontantExtra();
+        if (me.getExtraModeReglementId()
+                && me.getVnotypeReglement().getValue() === '1'
+                && !me.extraModeManualAmount
+                && montantExtra && montantExtra.isVisible() && !montantExtra.readOnly) {
+            montantExtra.focus(true, 100);
+            return;
+        }
         me.getMontantRecu().focus(true, 100);
     },
     /*
@@ -6049,7 +6061,8 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantExtra.show();
         me.onBtnCancelModeReglement();
         montantExtra.labelWidth = modeRegelement.libelle.length + 2;
-        montantExtra.setFieldLabel(modeRegelement.libelle.toUpperCase());
+        me._extraModeBaseLabel = modeRegelement.libelle.toUpperCase();
+        montantExtra.setFieldLabel(me._extraModeBaseLabel);
         if (me.isMobileMode(me.getVnotypeReglement().getValue())) {
             // Fractionnement mobile + mobile : on déverrouille la saisie de la part
             // du mode principal, le complément se calcule dans montantExtra
@@ -6078,6 +6091,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         const montantExtra = me.getMontantExtra();
         montantExtra.setFieldLabel('');
+        me._extraModeBaseLabel = null;
         me._extraAutoSetting = true;
         montantExtra.setValue(null);
         me._extraAutoSetting = false;
@@ -6099,13 +6113,20 @@ Ext.define('testextjs.controller.VenteCtr', {
             const data = me.getNetAmountToPay();
             const netTopay = data.montantNet;
             const montantRecu = me.getMontantRecu().getValue();
-            // Montant mobile fixé à la main (flux espèces comptant) : on ne
-            // l'écrase plus, on rafraîchit seulement la monnaie affichée
+            // Montant mobile confirmé (flux espèces comptant) : on ne l'écrase
+            // plus, on rafraîchit seulement la monnaie affichée. Exception : si
+            // le net à payer est repassé SOUS la part mobile (article retiré,
+            // remise...), la répartition n'a plus de sens — on la déverrouille
+            // et on repasse en complément automatique (nouvelle validation).
             if (me.extraModeManualAmount) {
-                const totalSaisie = (parseInt(montantRecu, 10) || 0)
-                        + (parseInt(me.getMontantExtra().getValue(), 10) || 0);
-                me.montantRecuHandler(me, me.getVnotypeReglement().getValue(), totalSaisie, data);
-                return;
+                const extraConfirme = parseInt(me.getMontantExtra().getValue(), 10) || 0;
+                if (!(netTopay > 0 && extraConfirme > parseInt(netTopay, 10))) {
+                    const totalSaisie = (parseInt(montantRecu, 10) || 0) + extraConfirme;
+                    me.montantRecuHandler(me, me.getVnotypeReglement().getValue(), totalSaisie, data);
+                    return;
+                }
+                me.extraModeManualAmount = false;
+                me.updateExtraModeLockIndicator(false);
             }
             const montantExtraValue = netTopay - montantRecu;
             const montantExtra = me.getMontantExtra();
@@ -6150,9 +6171,48 @@ Ext.define('testextjs.controller.VenteCtr', {
             return;
         }
         me.extraModeManualAmount = true;
+        me.updateExtraModeLockIndicator(true);
         // met à jour la monnaie affichée : total saisi (espèces + mobile) vs net
         const totalSaisie = (parseInt(me.getMontantRecu().getValue(), 10) || 0) + saisie;
         me.montantRecuHandler(me, '1', totalSaisie, data);
+    },
+    /*
+     * Entrée dans le champ du 2e mode.
+     * Flux espèces + mobile (comptant) : confirme la part mobile proposée (elle
+     * ne sera plus recalculée quand les espèces tendues dépasseront le net) et
+     * renvoie le focus dans le montant reçu — la caissière y saisit le billet
+     * remis (ex. 2 000 F) et la monnaie se calcule sur les espèces uniquement.
+     * Autres flux (mobile + mobile...) : comportement historique, même clôture
+     * que le bouton « Terminer la vente ».
+     */
+    onMontantExtraKey: function (field, e, options) {
+        const me = this;
+        if (e.getKey() !== e.ENTER) {
+            return;
+        }
+        if (me.getExtraModeReglementId() && me.getVnotypeReglement().getValue() === '1'
+                && !field.readOnly) {
+            const saisie = parseInt(field.getValue(), 10) || 0;
+            if (saisie > 0) {
+                me.extraModeManualAmount = true;
+                me.updateExtraModeLockIndicator(true);
+            }
+            me.getMontantRecu().focus(true, 50);
+            return;
+        }
+        me.onMontantRecuVnoKey(field, e, options);
+    },
+    /*
+     * Cadenas sur le libellé de la part mobile : signale à la caissière que le
+     * montant est confirmé et ne sera plus modifié automatiquement.
+     */
+    updateExtraModeLockIndicator: function (locked) {
+        const me = this;
+        const montantExtra = me.getMontantExtra();
+        if (!montantExtra || !me._extraModeBaseLabel) {
+            return;
+        }
+        montantExtra.setFieldLabel(me._extraModeBaseLabel + (locked ? ' 🔒' : ''));
     },
     onBtnCancelModeReglement: function () {
         const me = this;
