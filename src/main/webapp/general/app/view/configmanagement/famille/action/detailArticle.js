@@ -14,7 +14,7 @@ var url_services_data_famaillearticle_famille = '../webservices/configmanagement
 var url_services_data_codegestion_famille = '../webservices/configmanagement/codegestion/ws_data.jsp';
 var url_services_data_famille = '../webservices/sm_user/famille/ws_data.jsp';
 var url_services_transaction_famille = '../webservices/sm_user/famille/ws_transaction.jsp?mode=';
-var url_services_data_detailsortie_famille = '../webservices/stockmanagement/suivistockvente/ws_data_mouvement_vente.jsp';
+var url_services_data_detailsortie_famille = '../api/v1/suivi-stock-vente/mouvement-vente';
 var url_services_data_statVente_famille = '../api/v1/suivi-stock-vente/stat-vente-famille';
 var url_services_data_perime_famille = '../webservices/stockmanagement/perime/ws_data_famille.jsp';
 var url_services_data_typeetiquette = '../webservices/configmanagement/typeetiquette/ws_data.jsp';
