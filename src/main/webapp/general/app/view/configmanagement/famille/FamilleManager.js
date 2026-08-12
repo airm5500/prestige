@@ -1666,6 +1666,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     },
 
     showPeriodeForm: function (id, str_NAME) {
+        // Une seule fenetre a la fois : le formulaire porte un id fixe
+        // ('periodeform'), une seconde instance corromprait le registre ExtJS.
+        var winPeriodePrecedente = Ext.getCmp('periodeform');
+        if (winPeriodePrecedente) {
+            var conteneurPeriode = winPeriodePrecedente.up('window');
+            (conteneurPeriode || winPeriodePrecedente).destroy();
+        }
         var win = Ext.create("Ext.window.Window", {
             title: "Choisir une periode",
             modal: true,
