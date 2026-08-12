@@ -544,6 +544,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
         // Helper local pour le form
         var g = function (qid) { return form.down('#' + qid); };
         this._g = g;
+        // Reference directe au formulaire : la fenetre reellement affichee est creee a part
+        // (var win), la vue elle-meme n'est jamais rendue et this.down('form') plante
+        // ("items is undefined") dans les handlers.
+        this._form = form;
 
         // Masquer bouton assoc si update + déjà déconditionné (optionnel)
         if (Omode === 'update' && bool_DECONDITIONNE == '1') {
@@ -920,7 +924,10 @@ Ext.Ajax.request({
 
     // Association d'un DCI a l'article (bouton 'Associer') : API REST.
     onbtndciadd: function () {
-        var me = this, form = this.down('form'), g = this._g || function (q) { return form.down('#' + q); };
+        var form = this._form, g = this._g;
+        if (!form || !g) {
+            return;
+        }
         var dci = g('lg_DCI_ID') && g('lg_DCI_ID').getValue();
         if (!dci) {
             Ext.MessageBox.alert('Message', 'Veuillez selectionner un DCI a associer.');
@@ -974,9 +981,15 @@ Ext.Ajax.request({
     },
 
     onfiltercheck: function () {
-        var form = this.down('form'), g = this._g || function(q){ return form.down('#'+q); };
+        var g = this._g;
+        if (!g) {
+            return;
+        }
         var lg_DCI_ID = g('lg_DCI_ID') && g('lg_DCI_ID').getValue();
         var OGrid = g('lg_DCI_ID');
+        if (!OGrid) {
+            return;
+        }
         if (lg_DCI_ID !== null && lg_DCI_ID !== '' && lg_DCI_ID !== undefined) {
             var len = lg_DCI_ID.length;
             var url_final = '../api/v1/referentiel-article/dcis-initial?search_value=' + encodeURIComponent(lg_DCI_ID);
@@ -988,7 +1001,10 @@ Ext.Ajax.request({
     },
 
     onRechClickDCI: function () {
-        var form = this.down('form'), g = this._g || function(q){ return form.down('#'+q); };
+        var form = this._form, g = this._g;
+        if (!form || !g) {
+            return;
+        }
         var rechecher_dci = g('rechecher_dci').getValue();
         var lg_DCI_ID = g('lg_DCI_ID').getValue() || '';
         var grid = form.down('#gridpanelDciID');
