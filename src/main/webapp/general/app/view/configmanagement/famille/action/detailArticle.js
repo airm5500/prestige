@@ -7,6 +7,41 @@ function abcClasseLetterDetail(id) {
     return parts[parts.length - 1] || 'Non classe';
 }
 
+// Rendu "carte de chaleur" des quantites mensuelles vendues : l'intensite du
+// fond depend du maximum observe sur les annees chargees (maxVenteMoisDetail).
+var maxVenteMoisDetail = 0;
+var moisVenteDetail = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
+function renduMoisVenteDetail(v, meta) {
+    var n = parseInt(v, 10) || 0;
+    if (n <= 0) {
+        meta.style = 'color:#c3c9cf;text-align:right;';
+        return n;
+    }
+    var ratio = maxVenteMoisDetail > 0 ? n / maxVenteMoisDetail : 0;
+    var fond = '#f3eefa', texte = '#2b2b2b';
+    if (ratio > 0.75) {
+        fond = '#b391dd';
+        texte = '#fff';
+    } else if (ratio > 0.5) {
+        fond = '#cdb6e8';
+        texte = '#3d2266';
+    } else if (ratio > 0.25) {
+        fond = '#e3d7f3';
+    }
+    meta.style = 'background:' + fond + ';color:' + texte + ';font-weight:bold;text-align:right;';
+    return n;
+}
+
+function totalVenteAnneeDetail(rec) {
+    var t = 0;
+    for (var i = 0; i < moisVenteDetail.length; i++) {
+        t += parseInt(rec.get(moisVenteDetail[i]), 10) || 0;
+    }
+    return t;
+}
+
 var url_services_data_zonegeo_famille = '../webservices/configmanagement/zonegeographique/ws_data.jsp';
 var url_services_data_codeacte_famille = '../webservices/configmanagement/codeacte/ws_data.jsp';
 var url_services_data_grossiste_famille = '../webservices/configmanagement/grossiste/ws_data.jsp';
@@ -504,7 +539,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 },
                 {
                     xtype: 'fieldset',
-                    title: 'Infos.Consommations',
+                    id: 'fieldset_conso_detail',
+                    title: '<span style="color:#0d6a74;font-weight:bold;letter-spacing:.5px;">CONSOMMATIONS (SORTIES)</span>',
+                    style: 'border-top:4px solid #0d6a74;',
                     collapsible: true,
                     defaultType: 'textfield',
                     layout: 'anchor',
@@ -531,13 +568,20 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 }, {
                                     header: 'Quantite',
                                     dataIndex: 'int_NUMBER',
-                                    flex: 1
+                                    align: 'right',
+                                    flex: 1,
+                                    renderer: function (v) {
+                                        return '<span style="display:inline-block;min-width:26px;text-align:center;border-radius:10px;padding:1px 8px;font-weight:bold;background:#e2f2f3;color:#0d6a74;">' + (parseInt(v, 10) || 0) + '</span>';
+                                    }
                                 },
                                 {
                                     header: 'Prix Vente',
                                     dataIndex: 'int_VALUE1',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: function (v) {
+                                        return '<b>' + (v || '') + '</b>';
+                                    }
                                 }, {
                                     header: 'Utilisateur',
                                     dataIndex: 'lg_USER_ID',
@@ -635,7 +679,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 },
                 {
                     xtype: 'fieldset',
-                    title: 'Infos.Commandes recues',
+                    title: '<span style="color:#b25a00;font-weight:bold;letter-spacing:.5px;">COMMANDES RECUES</span>',
+                    style: 'border-top:4px solid #b25a00;',
                     collapsible: true,
                     id: 'infoconsorecu',
                     hidden: true,
@@ -675,20 +720,38 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 }, {
                                     header: 'Repartiteur',
                                     dataIndex: 'lg_GROSSISTE_ID',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: function (v) {
+                                        if (!v) {
+                                            return '';
+                                        }
+                                        return '<span style="display:inline-block;background:#eef4fb;color:#1a5f9e;border-radius:4px;padding:1px 8px;font-weight:bold;">' + v + '</span>';
+                                    }
                                 }, {
                                     header: 'Quantite Commande',
                                     dataIndex: 'int_NUMBER',
+                                    align: 'right',
                                     flex: 1
                                 }, {
                                     header: 'Quantite livree',
                                     dataIndex: 'int_STOCK_REAPROVISONEMENT',
-                                    flex: 1
+                                    align: 'right',
+                                    flex: 1,
+                                    // Pastille orange si la quantite livree differe de la commande, verte sinon.
+                                    renderer: function (v, meta, rec) {
+                                        var livree = parseInt(v, 10) || 0;
+                                        var commandee = parseInt(rec.get('int_NUMBER'), 10) || 0;
+                                        var fond = (livree < commandee) ? 'background:#fdeadb;color:#b25a00;' : 'background:#e6f4e6;color:#1c7c1c;';
+                                        return '<span style="display:inline-block;min-width:26px;text-align:center;border-radius:10px;padding:1px 8px;font-weight:bold;' + fond + '">' + livree + '</span>';
+                                    }
                                 }, {
                                     header: 'Prix d\'achat',
                                     dataIndex: 'int_VALUE2',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: function (v) {
+                                        return '<b>' + (v || '') + '</b>';
+                                    }
                                 }],
                             tbar: [
                                 {
@@ -826,7 +889,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 },
                 {
                     xtype: 'fieldset',
-                    title: 'Infos.Ventes realis&eacute;es',
+                    title: '<span style="color:#6a3fa0;font-weight:bold;letter-spacing:.5px;">VENTES REALISEES</span>',
+                    style: 'border-top:4px solid #6a3fa0;',
                     collapsible: true,
                     id: 'infoventerealise',
                     defaultType: 'textfield',
@@ -846,74 +910,101 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                 {
                                     header: 'Année',
                                     dataIndex: 'int_YEAR',
-                                    flex: 1
+                                    flex: 1.2,
+                                    renderer: function (v, meta) {
+                                        meta.style = 'font-weight:bold;';
+                                        return v;
+                                    }
                                 }, {
-                                    header: 'Janvier',
+                                    header: 'Jan',
                                     dataIndex: 'January',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 }, {
-                                    header: 'Février',
+                                    header: 'F&eacute;v',
                                     dataIndex: 'February',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 }, {
-                                    header: 'Mars',
+                                    header: 'Mar',
                                     dataIndex: 'March',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 }, {
-                                    header: 'Avril',
+                                    header: 'Avr',
                                     dataIndex: 'April',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 }, {
                                     header: 'Mai',
                                     dataIndex: 'May',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 },
                                 {
                                     header: 'Juin',
                                     dataIndex: 'June',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 },
                                 {
-                                    header: 'Juillet',
+                                    header: 'Juil',
                                     dataIndex: 'July',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 },
                                 {
                                     header: 'Ao&ucirc;t',
                                     dataIndex: 'August',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 },
                                 {
-                                    header: 'Septembre',
+                                    header: 'Sep',
                                     dataIndex: 'September',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 },
                                 {
-                                    header: 'Octobre',
+                                    header: 'Oct',
                                     dataIndex: 'October',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 },
                                 {
-                                    header: 'Novembre',
+                                    header: 'Nov',
                                     dataIndex: 'November',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
                                 },
                                 {
-                                    header: 'Décembre',
+                                    header: 'D&eacute;c',
                                     dataIndex: 'December',
                                     align: 'right',
-                                    flex: 1
+                                    flex: 1,
+                                    renderer: renduMoisVenteDetail
+                                },
+                                {
+                                    header: 'Total',
+                                    dataIndex: 'int_YEAR',
+                                    align: 'right',
+                                    sortable: false,
+                                    flex: 1.1,
+                                    renderer: function (v, meta, rec) {
+                                        meta.style = 'background:#f0ebf7;text-align:right;';
+                                        return '<b style="color:#6a3fa0;">' + totalVenteAnneeDetail(rec) + '</b>';
+                                    }
                                 }
                             ],
 
@@ -937,6 +1028,33 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
 
         OgridpanelDetailID = Ext.getCmp('gridpanelDetailID');
         OgridpanelOrder = Ext.getCmp('gridpanelOrder');
+
+        // Compteurs dans les entetes de section + maximum mensuel pour la carte de chaleur.
+        store_vente.on('load', function (st) {
+            var fs = Ext.getCmp('fieldset_conso_detail');
+            if (fs) {
+                fs.setTitle('<span style="color:#0d6a74;font-weight:bold;letter-spacing:.5px;">CONSOMMATIONS (SORTIES)</span>'
+                        + ' <span style="background:#e2f2f3;color:#0d6a74;border-radius:10px;padding:1px 8px;font-size:11px;">' + st.getTotalCount() + ' sorties</span>');
+            }
+        });
+        store_order.on('load', function (st) {
+            var fs = Ext.getCmp('infoconsorecu');
+            if (fs) {
+                fs.setTitle('<span style="color:#b25a00;font-weight:bold;letter-spacing:.5px;">COMMANDES RECUES</span>'
+                        + ' <span style="background:#fdeadb;color:#b25a00;border-radius:10px;padding:1px 8px;font-size:11px;">' + st.getTotalCount() + ' r&eacute;ceptions</span>');
+            }
+        });
+        store_statVente.on('datachanged', function (st) {
+            maxVenteMoisDetail = 0;
+            st.each(function (r) {
+                for (var i = 0; i < moisVenteDetail.length; i++) {
+                    var q = parseInt(r.get(moisVenteDetail[i]), 10) || 0;
+                    if (q > maxVenteMoisDetail) {
+                        maxVenteMoisDetail = q;
+                    }
+                }
+            });
+        });
 
         if (Omode == "decondition" || (this.getOdatasource().bool_DECONDITIONNE == 0 && this.getOdatasource().bool_DECONDITIONNE_EXIST == 1)) {
             Ext.getCmp('int_QTEDETAIL').show();
