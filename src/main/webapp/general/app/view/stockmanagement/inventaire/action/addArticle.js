@@ -449,7 +449,12 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
             Ext.getCmp('dt_created_chosen').setValue(this.getOdatasource().dt_CREATED);
         }
 
+        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
+        if (Ext.getCmp('cltwinID')) {
+            Ext.getCmp('cltwinID').destroy();
+        }
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'cltwinID',
             title: this.getTitre(),

@@ -166,6 +166,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.displayCustomer', {
         });
         this.callParent();
         win_add_displayCust = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'CustdisplayArtwinID',
             title: this.getTitre(),

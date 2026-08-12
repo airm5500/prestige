@@ -81,7 +81,12 @@ Ext.define('testextjs.view.sm_user.outboudmessage.action.add', {
             Ext.getCmp('str_COMMENTAIRE_MOUVEMENT').setValue(this.getOdatasource().str_MESSAGE);
         }
 
+        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
+        if (Ext.getCmp('paydebtID')) {
+            Ext.getCmp('paydebtID').destroy();
+        }
         var win_add_mvt_caisse = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'paydebtID',
             height: 300,

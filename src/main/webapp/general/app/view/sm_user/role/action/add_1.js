@@ -51,6 +51,7 @@ Ext.define('testextjs.view.sm_user.role.action.add', {
 
 
         new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: 'Ajouter Role',
             width: 500,

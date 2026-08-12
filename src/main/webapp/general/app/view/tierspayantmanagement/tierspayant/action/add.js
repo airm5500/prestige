@@ -992,6 +992,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
 
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: '85%',

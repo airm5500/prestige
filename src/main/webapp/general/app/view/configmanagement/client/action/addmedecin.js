@@ -276,6 +276,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addmedecin', {
 
 
          win_add_medecin = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'medecinwinID',
             title: this.getTitre(),

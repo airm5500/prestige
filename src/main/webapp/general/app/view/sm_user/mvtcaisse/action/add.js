@@ -401,6 +401,7 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
         }
 
         win_add_mvt_caisse = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'paydebtID',
             height: 300,

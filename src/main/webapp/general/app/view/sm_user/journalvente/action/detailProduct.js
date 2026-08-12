@@ -206,7 +206,12 @@ Ext.define('testextjs.view.sm_user.journalvente.action.detailProduct', {
 
         this.callParent();
 
+        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
+        if (Ext.getCmp('cltwinID')) {
+            Ext.getCmp('cltwinID').destroy();
+        }
         const win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'cltwinID',
             title: this.getTitre(),

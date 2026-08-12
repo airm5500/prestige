@@ -139,6 +139,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         }
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: false,
             title: this.getTitre(),
             width: 560,

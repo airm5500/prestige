@@ -100,6 +100,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.updateQuantity', {
         });
         this.callParent();
         win_updateQuantity = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'win_updateQuantityID',
             title: this.getTitre(),

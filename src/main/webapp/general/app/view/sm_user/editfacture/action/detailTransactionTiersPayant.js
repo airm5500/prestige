@@ -463,6 +463,10 @@ Ext.define('testextjs.view.sm_user.editfacture.action.detailTransactionTiersPaya
          
          }*/
 
+        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
+        if (Ext.getCmp('cltwinID')) {
+            Ext.getCmp('cltwinID').destroy();
+        }
         var win = new Ext.window.Window({
             autoShow: true,
             id: 'cltwinID',

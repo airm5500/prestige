@@ -86,6 +86,7 @@ Ext.getCmp('str_TYPE').setValue(this.getOdatasource().str_TYPE);
 
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 500,

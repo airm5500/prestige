@@ -175,6 +175,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.infogenerale', {
         });
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: "INFORMATIONS GENERALES ARTICLE",
             width: 600,

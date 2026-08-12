@@ -412,7 +412,12 @@ Ext.define('testextjs.view.configmanagement.litige.action.add', {
 
 
 
+        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
+        if (Ext.getCmp('btn_save')) {
+            Ext.getCmp('btn_save').destroy();
+        }
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 650,

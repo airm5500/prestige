@@ -69,6 +69,7 @@ Ext.define('testextjs.view.stockmanagement.perime.action.addDatePeromption', {
         loadData();
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 400,

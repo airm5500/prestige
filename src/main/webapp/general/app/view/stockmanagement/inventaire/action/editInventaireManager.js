@@ -1047,6 +1047,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
                             scope: this,
                             handler: function () {
                                 var win = new Ext.window.Window({
+                                    modal: true,
                                     autoShow: false,
                                     title: 'Importation de lignes inventaire',
                                     width: 500,

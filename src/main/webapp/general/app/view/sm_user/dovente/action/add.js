@@ -695,7 +695,12 @@ Ext.define('testextjs.view.sm_user.dovente.action.add', {
 
 
 
+        // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
+        if (Ext.getCmp('btn_validate')) {
+            Ext.getCmp('btn_validate').destroy();
+        }
         var win_add = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: '98%',

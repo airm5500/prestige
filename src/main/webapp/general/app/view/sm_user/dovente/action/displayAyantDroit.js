@@ -144,6 +144,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.displayAyantDroit', {
         });
         this.callParent();
         win_add_displayAyantDroit = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'CustdisplayArtwinID',
             title: this.getTitre(),

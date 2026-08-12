@@ -326,6 +326,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticleVendus',
         this.callParent();
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
 
             title: this.getTitre(),

@@ -77,6 +77,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.export', {
 
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 500,

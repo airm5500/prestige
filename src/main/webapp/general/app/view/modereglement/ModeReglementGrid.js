@@ -83,6 +83,7 @@ Ext.define('testextjs.view.modereglement.ModeReglementGrid', {
                                 const grid = this.up('grid');
 
                                 const win = Ext.create('Ext.window.Window', {
+                                    modal: true,
                                     title: 'Ajouter un QR Code',
                                     width: 400,
                                     height: 160,

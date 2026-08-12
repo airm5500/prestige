@@ -149,6 +149,7 @@ Ext.define('testextjs.view.stockmanagement.suivistockvente.action.detailPerime',
 
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true, title: this.getTitre(),
             width: 900,
             height: 450,

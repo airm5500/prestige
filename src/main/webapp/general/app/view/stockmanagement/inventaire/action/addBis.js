@@ -378,6 +378,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
 
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             // Elargie et rallongee : les deux volets de selection ne tenaient pas dans les

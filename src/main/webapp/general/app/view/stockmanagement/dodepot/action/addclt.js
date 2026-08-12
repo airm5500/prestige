@@ -295,6 +295,7 @@ Ext.define('testextjs.view.stockmanagement.dodepot.action.addclt', {
 
 
          win_add_clt = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             id: 'cltwinID',
             title: this.getTitre(),

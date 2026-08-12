@@ -150,6 +150,7 @@ Ext.define('testextjs.view.commandemanagement.etats.action.paybls', {
         });
 
          win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 650,

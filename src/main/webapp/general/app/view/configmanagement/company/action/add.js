@@ -98,6 +98,7 @@ Ext.define('testextjs.view.configmanagement.company.action.add', {
 
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true,
             title: this.getTitre(),
             width: 550,

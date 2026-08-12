@@ -221,6 +221,7 @@ Ext.define('testextjs.view.sm_user.dovente.action.addTiersPayant', {
 
 
         win = new Ext.window.Window({
+            modal: true,
             autoShow: true, title: this.getTitre(),
             width: 1150,
             Height: 500,

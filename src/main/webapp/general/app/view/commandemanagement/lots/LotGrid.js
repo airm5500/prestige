@@ -114,7 +114,12 @@ Ext.define('testextjs.view.commandemanagement.lots.LotGrid', {
                             scope: this,
                             handler: function (grid, rowIndex) {
                                 var record = grid.getStore().getAt(rowIndex);
+                                // Fenetre a id fixe : detruire l'instance precedente avant d'en creer une autre.
+                                if (Ext.getCmp('lotwindow')) {
+                                    Ext.getCmp('lotwindow').destroy();
+                                }
                                 var win = Ext.create("Ext.window.Window", {
+                                    modal: true,
                                     title: "Modification",
                                     id: 'lotwindow',
                                     width: 500,

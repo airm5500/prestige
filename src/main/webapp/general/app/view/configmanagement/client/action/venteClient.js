@@ -519,6 +519,7 @@ Ext.define('testextjs.view.configmanagement.client.action.venteClient', {
 
 
         var win = new Ext.window.Window({
+            modal: true,
             autoShow: true, title: this.getTitre(),
             width: '90%',
             height: 600,
