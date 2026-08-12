@@ -117,18 +117,6 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             }
 
         });
-        // Quand le rechargement du store fait disparaitre l'enregistrement selectionne,
-        // ExtJS remplace le texte du champ par la valeur brute (l'id du DCI) : on
-        // raffiche le libelle memorise a la selection. Le garde-fou sur getRawValue
-        // evite d'ecraser ce que l'utilisateur est en train de taper.
-        store_dci.on('load', function () {
-            const cmp = Ext.getCmp('lg_DCI_PRINCIPAL_ID');
-            if (cmp && cmp._libelleDci && cmp.getValue()
-                    && !cmp.findRecordByValue(cmp.getValue())
-                    && cmp.getRawValue() === String(cmp.getValue())) {
-                cmp.setRawValue(cmp._libelleDci);
-            }
-        });
 
 
         const store_type = new Ext.data.Store({
@@ -926,13 +914,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             queryMode: 'remote',
                             emptyText: 'Selectionner un DCI...',
                             listeners: {
-                                select: function (cmp, records) {
-                                    // Libelle memorise : le store remote est recharge a chaque
-                                    // recherche/pagination et l'enregistrement selectionne n'y est
-                                    // plus ; ExtJS retomberait alors sur la valeur brute (l'id du
-                                    // DCI) dans le champ.
-                                    cmp._libelleDci = (records && records.length)
-                                            ? records[0].get('str_NAME') : '';
+                                select: function () {
                                     Me_Workflow.onRechClick();
                                 }
                             }
