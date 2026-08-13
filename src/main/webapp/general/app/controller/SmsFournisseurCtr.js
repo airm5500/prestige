@@ -14,8 +14,12 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
             selector: 'smsfournisseur'
         },
         {
-            ref: 'smsfournisseurGrid',
-            selector: 'smsfournisseur gridpanel'
+            ref: 'gridActifs',
+            selector: 'smsfournisseur #gridActifs'
+        },
+        {
+            ref: 'gridInactifs',
+            selector: 'smsfournisseur #gridInactifs'
         },
         {
             ref: 'smsfournisseurForm',
@@ -45,14 +49,16 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
     init: function (application) {
         this.control({
             'smsfournisseur gridpanel': {
-                viewready: this.doInitStore,
+                viewready: this.doInitStore
+            },
+            'smsfournisseur #gridActifs': {
                 cellclick: this.onCellClick
             },
             'smsfournisseur gridpanel actioncolumn': {
                 editer: this.editer,
                 tester: this.tester,
                 envigueur: this.definirEnVigueur,
-                remove: this.remove
+                reactiver: this.reactiver
             },
             'smsfournisseur #addBtn': {
                 click: this.add
@@ -68,11 +74,22 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
             }
         });
     },
-    doInitStore: function () {
-        this.reload();
+    doInitStore: function (grid) {
+        // viewready est déclenché par chaque grille (celle des désactivés au premier affichage de l'onglet)
+        if (grid && grid.getStore) {
+            grid.getStore().load();
+        }
     },
+    /** Recharge les deux onglets : une (ré)activation déplace la ligne d'un onglet à l'autre. */
     reload: function () {
-        this.getSmsfournisseurGrid().getStore().load();
+        const actifs = this.getGridActifs();
+        const inactifs = this.getGridInactifs();
+        if (actifs) {
+            actifs.getStore().load();
+        }
+        if (inactifs && inactifs.rendered) {
+            inactifs.getStore().load();
+        }
     },
     add: function () {
         const me = this;
@@ -246,31 +263,13 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
                     }
                 });
     },
-    remove: function (view, rowIndex, colIndex, item, e, record) {
+    reactiver: function (view, rowIndex, colIndex, item, e, record) {
         const me = this;
         Ext.MessageBox.confirm('Confirmation',
-                'Supprimer le fournisseur <b>' + record.get('libelle') + '</b> ?',
+                'Réactiver le fournisseur <b>' + record.get('libelle') + '</b> ?',
                 function (btn) {
                     if (btn === 'yes') {
-                        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-                        Ext.Ajax.request({
-                            method: 'DELETE',
-                            headers: {'Content-Type': 'application/json'},
-                            url: '../api/v1/sms-fournisseurs/' + record.get('id'),
-                            success: function (response) {
-                                progress.hide();
-                                const result = Ext.JSON.decode(response.responseText, true);
-                                if (result && result.success) {
-                                    me.reload();
-                                } else {
-                                    Ext.Msg.alert('Message', (result && result.msg) || "L'opération a échoué");
-                                }
-                            },
-                            failure: function (response) {
-                                progress.hide();
-                                Ext.Msg.alert('Message', 'Erreur serveur (code ' + response.status + ')');
-                            }
-                        });
+                        me.postAction(record, 'toggle', null);
                     }
                 });
     },

@@ -16,8 +16,13 @@ import org.json.JSONObject;
 @Local
 public interface SmsFournisseurService {
 
-    /** Liste des fournisseurs avec leurs paramètres (secrets masqués). */
-    JSONObject findAll();
+    /**
+     * Liste des fournisseurs avec leurs paramètres (secrets masqués).
+     *
+     * @param actif
+     *            filtre sur l'état : {@code true} = actifs, {@code false} = désactivés, {@code null} = tous
+     */
+    JSONObject findAll(Boolean actif);
 
     /**
      * Crée ou met à jour un fournisseur.
@@ -33,9 +38,6 @@ public interface SmsFournisseurService {
 
     /** Définit le fournisseur en vigueur (actif et paramètres obligatoires renseignés uniquement). */
     JSONObject definirEnVigueur(String id);
-
-    /** Supprime un fournisseur jamais utilisé ; sinon invite à le désactiver. */
-    JSONObject delete(String id);
 
     /** Teste l'authentification du fournisseur (consultation du solde, sans consommer de crédit). */
     JSONObject tester(String id);

@@ -40,15 +40,20 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
     private SmsProviderFactory smsProviderFactory;
 
     @Override
-    public JSONObject findAll() {
+    public JSONObject findAll(Boolean actif) {
         try {
             List<SmsFournisseur> fournisseurs = em.createNamedQuery("SmsFournisseur.all", SmsFournisseur.class)
                     .getResultList();
             JSONArray data = new JSONArray();
+            int total = 0;
             for (SmsFournisseur f : fournisseurs) {
+                if (actif != null && f.isActif() != actif) {
+                    continue;
+                }
                 data.put(toJson(f));
+                total++;
             }
-            return new JSONObject().put("success", true).put("total", fournisseurs.size()).put("data", data);
+            return new JSONObject().put("success", true).put("total", total).put("data", data);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Echec chargement des fournisseurs SMS", e);
             return fail("Impossible de charger les fournisseurs SMS.");
@@ -213,39 +218,6 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
         em.merge(fournisseur);
         LOG.log(Level.INFO, "Fournisseur SMS en vigueur : {0}", fournisseur.getCode());
         return success("Les envois de SMS passent par " + fournisseur.getLibelle() + ".");
-    }
-
-    @Override
-    public JSONObject delete(String id) {
-        SmsFournisseur fournisseur = em.find(SmsFournisseur.class, id);
-        if (fournisseur == null) {
-            return fail("Fournisseur introuvable.");
-        }
-        if (fournisseur.isEnVigueur()) {
-            return fail("Ce fournisseur est en vigueur pour les envois : il ne peut pas être supprimé.");
-        }
-        if (isUsed(fournisseur.getCode())) {
-            return fail("Ce fournisseur a déjà envoyé des SMS : désactivez-le au lieu de le supprimer.");
-        }
-        em.remove(fournisseur);
-        return success("Fournisseur supprimé.");
-    }
-
-    /**
-     * Vrai si des envois ont déjà été faits via ce fournisseur. Les lignes historiques (fournisseur_code NULL mais
-     * envoyées) datent d'avant le multi-fournisseur et appartiennent à Orange.
-     */
-    private boolean isUsed(String code) {
-        try {
-            Long count = em.createQuery(
-                    "SELECT COUNT(o) FROM NotificationClient o WHERE o.fournisseurCode = :code"
-                            + " OR (:code = 'ORANGE' AND o.fournisseurCode IS NULL AND o.sentAt IS NOT NULL)",
-                    Long.class).setParameter("code", code).getSingleResult();
-            return count != null && count > 0;
-        } catch (Exception e) {
-            LOG.log(Level.WARNING, "Echec verification d'utilisation du fournisseur " + code, e);
-            return true;
-        }
     }
 
     @Override
