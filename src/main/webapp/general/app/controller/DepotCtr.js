@@ -906,12 +906,25 @@ Ext.define('testextjs.controller.DepotCtr', {
                 params: Ext.JSON.encode(params),
                 success: function (response, options) {
                     progress.hide();
-                    e.record.commit();
 //                 me.getVnoproduitCombo().focus(true, 100);
                     var result = Ext.JSON.decode(response.responseText, true);
-                    me.current = result.data;
-                    me.updatFields(me.getCurrent().strREF, me.getCurrent().intPRICE - me.getCurrent().intPRICEREMISE, me.getCurrent().intPRICE, me.getCurrent().intPRICEREMISE);
-                    me.refresh();
+                    if (result && result.success) {
+                        e.record.commit();
+                        me.current = result.data;
+                        me.updatFields(me.getCurrent().strREF, me.getCurrent().intPRICE - me.getCurrent().intPRICEREMISE, me.getCurrent().intPRICE, me.getCurrent().intPRICEREMISE);
+                        me.refresh();
+                    } else {
+                        e.record.set(e.field, e.originalValue);
+                        e.record.commit();
+                        me.refresh();
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 320,
+                            msg: (result && result.msg) ? result.msg : "L'opération a échoué",
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
+                        });
+                    }
 
                 },
                 failure: function (response, options) {

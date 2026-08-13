@@ -1093,6 +1093,61 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    /**
+     * Un produit détail (bool_DECONDITIONNE == 1) ne doit jamais passer en stock négatif : la quantité demandée est
+     * plafonnée au stock virtuel (stock du détail + stock du parent x coefficient de déconditionnement). Les devis sont
+     * exclus. Pour une copie de modification de vente clôturée, la quantité de la vente d'origine est réintégrée au
+     * disponible car son stock n'est restitué qu'à la clôture de la copie. En cas de données incomplètes, aucun blocage
+     * : comportement identique à l'existant.
+     */
+    private Optional<String> checkStockVirtuelProduitDetail(TFamille famille, TPreenregistrement tp, int qteDemandee,
+            TEmplacement emplacement) {
+        try {
+            if (famille.getBoolDECONDITIONNE() == null || famille.getBoolDECONDITIONNE() != 1) {
+                return Optional.empty();
+            }
+            String parentId = famille.getLgFAMILLEPARENTID();
+            if (parentId == null || parentId.trim().isEmpty() || parentId.equals(famille.getLgFAMILLEID())) {
+                return Optional.empty();
+            }
+            if (STATUT_IS_DEVIS.equals(tp.getStrSTATUT())) {
+                return Optional.empty();
+            }
+            TFamilleStock stockDetail = this.findStock(famille.getLgFAMILLEID(), emplacement);
+            TFamille parent = this.getEm().find(TFamille.class, parentId);
+            if (stockDetail == null || stockDetail.getIntNUMBERAVAILABLE() == null || parent == null
+                    || parent.getIntNUMBERDETAIL() == null || parent.getIntNUMBERDETAIL() <= 0) {
+                return Optional.empty();
+            }
+            int disponibleDetail = Math.max(0, stockDetail.getIntNUMBERAVAILABLE());
+            TFamilleStock stockParent = this.findStock(parent.getLgFAMILLEID(), emplacement);
+            int nbBoitesParent = (stockParent != null && stockParent.getIntNUMBERAVAILABLE() != null)
+                    ? Math.max(0, stockParent.getIntNUMBERAVAILABLE()) : 0;
+            int deconditionnable = nbBoitesParent * parent.getIntNUMBERDETAIL();
+            int stockVirtuel = disponibleDetail + deconditionnable;
+            if (Boolean.TRUE.equals(tp.getCopy()) && tp.getLgPARENTID() != null) {
+                TPreenregistrement venteOrigine = this.getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
+                if (venteOrigine != null) {
+                    for (TPreenregistrementDetail d : getItems(venteOrigine)) {
+                        if (d.getLgFAMILLEID() != null && d.getIntQUANTITY() != null
+                                && famille.getLgFAMILLEID().equals(d.getLgFAMILLEID().getLgFAMILLEID())) {
+                            stockVirtuel += d.getIntQUANTITY();
+                        }
+                    }
+                }
+            }
+            if (qteDemandee > stockVirtuel) {
+                return Optional.of("Stock détail insuffisant pour " + famille.getStrNAME() + " : demandé " + qteDemandee
+                        + ", disponible " + stockVirtuel + " (stock détail " + disponibleDetail + ", déconditionnable "
+                        + deconditionnable + ")");
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "checkStockVirtuelProduitDetail ------>>>", e);
+            return Optional.empty();
+        }
+    }
+
     @Override
     public JSONObject createPreVente(SalesParams salesParams) {
         salesParams.setUserId(this.sessionHelperService.getCurrentUser());
@@ -1306,6 +1361,11 @@ public class SalesServiceImpl implements SalesService {
 
             TFamille famille = detail.getLgFAMILLEID();
             TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
+            Optional<String> stockDetailError = checkStockVirtuelProduitDetail(famille, tp, params.getQte(),
+                    tp.getLgUSERID().getLgEMPLACEMENTID());
+            if (stockDetailError.isPresent()) {
+                return json.put("success", false).put("msg", stockDetailError.get());
+            }
             if (!forcerStock(params.getQte(), famille.getLgFAMILLEID(), tp.getLgUSERID().getLgEMPLACEMENTID())) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
             }

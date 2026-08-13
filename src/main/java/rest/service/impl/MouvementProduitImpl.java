@@ -741,6 +741,11 @@ public class MouvementProduitImpl implements MouvementProduitService {
             saveMvtProduit(parent.getLgDECONDITIONNEMENTID(), DateConverter.DECONDTIONNEMENT_NEGATIF, OTFamilleParent,
                     tu, OTFamilleStockParent.getLgEMPLACEMENTID(), numberToDecondition, stockInit,
                     stockInit - numberToDecondition, 0);
+        } else {
+            LOG.log(Level.WARNING,
+                    "Déconditionnement impossible : stock virtuel insuffisant pour le produit détail [{0} - {1}] : quantité vendue {2}, stock virtuel {3} (stock détail {4}, parent {5} x {6}). Le stock va passer en négatif.",
+                    new Object[] { OTFamilleChild.getIntCIP(), OTFamilleChild.getStrNAME(), qteVendue, stockVirtuel,
+                            stockInitDetail, stockInit, qtyDetail });
         }
         return OTFamilleStockChild;
     }

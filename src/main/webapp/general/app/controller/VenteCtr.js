@@ -3019,9 +3019,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 params: Ext.JSON.encode(params),
                 success: function (response, options) {
                     progress.hide();
-                    e.record.commit();
                     let result = Ext.JSON.decode(response.responseText, true);
-                    if (result.success) {
+                    if (result && result.success) {
+                        e.record.commit();
                         me.current = result.data;
 
                         me.getTotalField().setValue(me.getCurrent().intPRICE);
@@ -3034,6 +3034,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.refresh();
                         me.autoComputeNetAfterChange();
 
+                    } else {
+                        e.record.set(e.field, e.originalValue);
+                        e.record.commit();
+                        me.refresh();
+                        Ext.MessageBox.show({
+                            title: 'Message d\'erreur',
+                            width: 320,
+                            msg: (result && result.msg) ? result.msg : "L'opération a échoué",
+                            buttons: Ext.MessageBox.OK,
+                            icon: Ext.MessageBox.ERROR
+                        });
                     }
                 },
                 failure: function (response, options) {

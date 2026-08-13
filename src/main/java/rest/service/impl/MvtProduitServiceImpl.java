@@ -542,6 +542,11 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
             createNotification(desc, TypeNotification.DECONDITIONNEMENT, tu, donnee, tFamilleParent.getLgFAMILLEID());
 
+        } else {
+            LOG.log(Level.WARNING,
+                    "Déconditionnement impossible : stock virtuel insuffisant pour le produit détail [{0} - {1}] : quantité vendue {2}, stock virtuel {3} (stock détail {4}, parent {5} x {6}). Le stock va passer en négatif.",
+                    new Object[] { tFamilleChild.getIntCIP(), tFamilleChild.getStrNAME(), qteVendue, stockVirtuel,
+                            stockInitDetail, stockInit, qtyDetail });
         }
     }
 
@@ -1710,6 +1715,11 @@ public class MvtProduitServiceImpl implements MvtProduitService {
              * notificationService.save(new Notification().canal(Canal.EMAIL)
              * .typeNotification(TypeNotification.DECONDITIONNEMENT).message(desc).addUser(tu));
              */
+        } else {
+            LOG.log(Level.WARNING,
+                    "Déconditionnement impossible : stock virtuel insuffisant pour le produit détail [{0} - {1}] : quantité vendue {2}, stock virtuel {3} (stock détail {4}, parent {5} x {6}). Le stock va passer en négatif.",
+                    new Object[] { tFamilleChild.getIntCIP(), tFamilleChild.getStrNAME(), qteVendue, stockVirtuel,
+                            stockInitDetail, stockInit, qtyDetail });
         }
     }
 
