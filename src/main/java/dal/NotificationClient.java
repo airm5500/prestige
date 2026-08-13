@@ -69,6 +69,15 @@ public class NotificationClient implements Serializable {
     /** Dernier code HTTP renvoyé par Orange pour ce destinataire. */
     @Column(name = "last_http_status")
     private Integer lastHttpStatus;
+    /** Code du fournisseur ayant pris en charge l'envoi (NULL = historique Orange). */
+    @Column(name = "fournisseur_code", length = 20)
+    private String fournisseurCode;
+    /** Nombre d'interrogations de statut effectuées (mode POLLING). */
+    @Column(name = "poll_count", nullable = false)
+    private int pollCount;
+    /** Date de la dernière interrogation de statut (mode POLLING). */
+    @Column(name = "last_poll_at")
+    private LocalDateTime lastPollAt;
 
     public Statut getStatut() {
         return statut;
@@ -124,6 +133,30 @@ public class NotificationClient implements Serializable {
 
     public void setLastHttpStatus(Integer lastHttpStatus) {
         this.lastHttpStatus = lastHttpStatus;
+    }
+
+    public String getFournisseurCode() {
+        return fournisseurCode;
+    }
+
+    public void setFournisseurCode(String fournisseurCode) {
+        this.fournisseurCode = fournisseurCode;
+    }
+
+    public int getPollCount() {
+        return pollCount;
+    }
+
+    public void setPollCount(int pollCount) {
+        this.pollCount = pollCount;
+    }
+
+    public LocalDateTime getLastPollAt() {
+        return lastPollAt;
+    }
+
+    public void setLastPollAt(LocalDateTime lastPollAt) {
+        this.lastPollAt = lastPollAt;
     }
 
     public TClient getClient() {
