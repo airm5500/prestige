@@ -339,6 +339,9 @@ public class SmsImpl implements SmsService {
             JSONObject json = new JSONObject(rawPayload);
             JSONObject deliveryInfo = extractDeliveryInfo(json);
             if (deliveryInfo == null) {
+                if (isLeTextoReceipt(json)) {
+                    return handleLeTextoReceipt(json);
+                }
                 LOG.log(Level.WARNING, "DR ignore : format non reconnu {0}", rawPayload);
                 return false;
             }
@@ -364,6 +367,97 @@ public class SmsImpl implements SmsService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Echec traitement Delivery Receipt", e);
             return false;
+        }
+    }
+
+    /** Vrai si le payload ressemble à un DLR LeTexto : {id, statuts} (+ customData). */
+    private boolean isLeTextoReceipt(JSONObject json) {
+        return StringUtils.isNotBlank(leTextoRawStatus(json));
+    }
+
+    private String leTextoRawStatus(JSONObject json) {
+        // "statuts" est l'orthographe de la documentation LeTexto ; on tolère les variantes.
+        for (String key : new String[] { "statuts", "status", "statut" }) {
+            String value = json.optString(key, null);
+            if (StringUtils.isNotBlank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Applique un DLR LeTexto : le destinataire est retrouvé par customData (id du NotificationClient passé à l'envoi)
+     * en priorité, sinon par l'identifiant de message stocké dans resource_url.
+     */
+    private boolean handleLeTextoReceipt(JSONObject json) {
+        String rawStatus = leTextoRawStatus(json);
+        String messageId = json.optString("id", null);
+        String customData = json.optString("customData", null);
+        NotificationClient target = null;
+        if (StringUtils.isNotBlank(customData)) {
+            target = em.find(NotificationClient.class, customData.trim());
+        }
+        if (target == null && StringUtils.isNotBlank(messageId)) {
+            target = findClientForDeliveryReceipt(messageId, null);
+        }
+        if (target == null) {
+            LOG.log(Level.WARNING, "DLR LeTexto sans destinataire correspondant (id={0}, customData={1})",
+                    new Object[] { messageId, customData });
+            return false;
+        }
+        String normalized = SmsDeliveryStatus.fromLeTexto(rawStatus);
+        target.setDeliveryStatus(normalized);
+        if (SmsDeliveryStatus.DELIVERY_IMPOSSIBLE.equals(normalized)) {
+            target.setErrorMessage("Livraison impossible (DLR LeTexto)");
+        }
+        em.merge(target);
+        LOG.log(Level.INFO, "DLR LeTexto applique : client={0}, id={1}, status={2}",
+                new Object[] { target.getId(), messageId, normalized });
+        return true;
+    }
+
+    @Override
+    public JSONObject refreshDeliveryStatuses() {
+        try {
+            SmsProvider provider = smsProviderFactory.current();
+            if (provider == null || !provider.supportsMessageStatus()) {
+                return new JSONObject().put("success", true).put("checked", 0).put("updated", 0);
+            }
+            List<NotificationClient> pendings = em.createQuery(
+                    "SELECT o FROM NotificationClient o WHERE o.fournisseurCode = :code AND o.resourceUrl IS NOT NULL"
+                            + " AND o.sentAt >= :minSentAt AND o.pollCount < :maxPolls"
+                            + " AND (o.deliveryStatus IS NULL OR o.deliveryStatus NOT IN (:finalStatuses))"
+                            + " ORDER BY o.sentAt DESC",
+                    NotificationClient.class).setParameter("code", provider.getCode())
+                    .setParameter("minSentAt", LocalDateTime.now().minusDays(3)).setParameter("maxPolls", 10)
+                    .setParameter("finalStatuses",
+                            List.of(SmsDeliveryStatus.DELIVERED_TO_TERMINAL, SmsDeliveryStatus.DELIVERY_IMPOSSIBLE))
+                    .setMaxResults(50).getResultList();
+            int updated = 0;
+            for (NotificationClient toClient : pendings) {
+                util.sms.SmsStatusResult statusResult = provider.messageStatus(toClient.getResourceUrl());
+                toClient.setPollCount(toClient.getPollCount() + 1);
+                toClient.setLastPollAt(LocalDateTime.now());
+                if (statusResult.isFound() && StringUtils.isNotBlank(statusResult.getDeliveryStatus())
+                        && !statusResult.getDeliveryStatus().equals(toClient.getDeliveryStatus())) {
+                    toClient.setDeliveryStatus(statusResult.getDeliveryStatus());
+                    if (SmsDeliveryStatus.DELIVERY_IMPOSSIBLE.equals(statusResult.getDeliveryStatus())) {
+                        toClient.setErrorMessage("Livraison impossible (statut " + statusResult.getRawStatus() + " "
+                                + provider.getCode() + ")");
+                    }
+                    updated++;
+                }
+                em.merge(toClient);
+            }
+            if (!pendings.isEmpty()) {
+                LOG.log(Level.INFO, "Rafraichissement statuts SMS ({0}) : {1} interroges, {2} mis a jour",
+                        new Object[] { provider.getCode(), pendings.size(), updated });
+            }
+            return new JSONObject().put("success", true).put("checked", pendings.size()).put("updated", updated);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Echec du rafraichissement des statuts SMS", e);
+            return new JSONObject().put("success", false).put("msg", "Echec du rafraichissement des statuts.");
         }
     }
 

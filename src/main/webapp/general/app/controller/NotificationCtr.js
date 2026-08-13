@@ -110,6 +110,29 @@ Ext.define('testextjs.controller.NotificationCtr', {
         if (label) {
             label.setText('chargement...');
         }
+        // Rafraîchit à la demande les statuts de livraison en attente (mode POLLING
+        // du fournisseur en vigueur), puis recharge la grille si des statuts ont changé.
+        Ext.Ajax.request({
+            url: '../api/v1/sms/refresh-statuts',
+            method: 'POST',
+            success: function (response) {
+                let res = {};
+                try {
+                    res = Ext.decode(response.responseText);
+                } catch (ex) {
+                    res = {};
+                }
+                if (res.success && res.updated > 0) {
+                    const grid = me.getMenunotificationGrid();
+                    if (grid) {
+                        grid.getStore().reload();
+                    }
+                }
+            },
+            failure: function () {
+                // silencieux : le rafraîchissement de statut est un bonus
+            }
+        });
         Ext.Ajax.request({
             url: '../api/v1/sms/solde',
             method: 'GET',
@@ -119,6 +142,13 @@ Ext.define('testextjs.controller.NotificationCtr', {
                     res = Ext.decode(response.responseText);
                 } catch (ex) {
                     res = {};
+                }
+                // La fenêtre "Accusés de réception (DR)" est propre à Orange :
+                // masquée quand un autre fournisseur est en vigueur.
+                const drBtn = me.getMenunotificationlist()
+                        ? me.getMenunotificationlist().down('#drBtn') : null;
+                if (drBtn && res.provider) {
+                    drBtn.setVisible(res.provider === 'ORANGE');
                 }
                 if (!label) {
                     return;
@@ -132,7 +162,7 @@ Ext.define('testextjs.controller.NotificationCtr', {
                     }
                     label.setText(txt);
                 } else if (res.success && !res.found) {
-                    label.setText('<span style="color:#e69500;">solde indisponible (format Orange inattendu)</span>');
+                    label.setText('<span style="color:#e69500;">solde indisponible (format inattendu)</span>');
                 } else {
                     label.setText('<span style="color:red;">' + (res.msg || res.userMessage || 'indisponible') + '</span>');
                 }

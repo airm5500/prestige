@@ -57,7 +57,19 @@ public class SmsResource {
                 return Response.ok(provider.balance().toString()).build();
             }
         }
-        return Response.ok(smsAdminService.getBalanceSummary().toString()).build();
+        return Response.ok(
+                smsAdminService.getBalanceSummary().put("provider", util.sms.SmsProviderCatalog.CODE_ORANGE).toString())
+                .build();
+    }
+
+    /**
+     * Rafraîchit à la demande les statuts de livraison des SMS en attente (mode POLLING du fournisseur en vigueur).
+     * Déclenché par l'écran Notifications lors de la consultation du solde.
+     */
+    @POST
+    @Path("refresh-statuts")
+    public Response refreshStatuts() {
+        return Response.ok(smsService.refreshDeliveryStatuses().toString()).build();
     }
 
     /** Statistiques d'utilisation SMS. */

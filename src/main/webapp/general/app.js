@@ -840,6 +840,7 @@ Ext.application({
         'ProuduitsVenteAnnulesCtr',
         'NotificationCtr',
         'CategorieNotificationCtr',
+        'SmsFournisseurCtr',
         'RecapRecetteCaisseCtr',
         'StatVenteDepotCtr',
         'CautionCtr',

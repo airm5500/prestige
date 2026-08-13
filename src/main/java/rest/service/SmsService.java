@@ -47,13 +47,23 @@ public interface SmsService {
     String getValidAccessToken();
 
     /**
-     * Traite un Delivery Receipt Orange (callback) et met à jour le statut de livraison du destinataire concerné.
+     * Traite un accusé de réception (callback DLR Orange ou LeTexto, format détecté automatiquement) et met à jour le
+     * statut de livraison du destinataire concerné.
      *
      * @param rawPayload
-     *            corps JSON reçu d'Orange
+     *            corps JSON reçu du fournisseur
      *
      * @return true si un destinataire a été mis à jour
      */
     boolean handleDeliveryReceipt(String rawPayload);
+
+    /**
+     * Rafraîchit à la demande (mode POLLING) les statuts de livraison des SMS envoyés sans statut terminal, en
+     * interrogeant l'API de statut du fournisseur en vigueur. Borné (fenêtre de 3 jours, plafond d'interrogations par
+     * message) pour rester léger.
+     *
+     * @return {@code {success, checked, updated}}
+     */
+    JSONObject refreshDeliveryStatuses();
 
 }
