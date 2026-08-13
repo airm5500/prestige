@@ -36,6 +36,8 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
     private EntityManager em;
     @EJB
     private SmsAdminService smsAdminService;
+    @EJB
+    private SmsProviderFactory smsProviderFactory;
 
     @Override
     public JSONObject findAll() {
@@ -219,7 +221,16 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
             return new JSONObject().put("success", ok).put("data", solde).put("msg",
                     ok ? "Connexion Orange OK." : "Echec du test Orange : vérifiez les paramètres.");
         }
-        return fail("Test non disponible pour ce fournisseur.");
+        util.sms.SmsProvider provider = smsProviderFactory.forFournisseur(fournisseur);
+        if (provider == null) {
+            return fail("Test non disponible pour ce fournisseur.");
+        }
+        JSONObject solde = provider.balance();
+        boolean ok = solde.optBoolean("success", false);
+        String detail = solde.has("totalUnits") ? " Solde : " + solde.opt("totalUnits") + " unité(s)." : "";
+        return new JSONObject().put("success", ok).put("data", solde).put("msg",
+                ok ? "Connexion " + fournisseur.getLibelle() + " OK." + detail
+                        : solde.optString("msg", "Echec du test : vérifiez les paramètres."));
     }
 
     @Override

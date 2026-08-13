@@ -6,6 +6,7 @@ import javax.ejb.Stateless;
 import rest.service.SmsFournisseurService;
 import rest.service.SmsService;
 import util.AppParameters;
+import util.sms.LeTextoSmsProvider;
 import util.sms.OrangeSmsProvider;
 import util.sms.SmsProvider;
 import util.sms.SmsProviderCatalog;
@@ -44,6 +45,8 @@ public class SmsProviderFactory {
         switch (fournisseur.getCode()) {
         case SmsProviderCatalog.CODE_ORANGE:
             return new OrangeSmsProvider(fournisseur, smsService::getValidAccessToken, AppParameters.getInstance());
+        case SmsProviderCatalog.CODE_LETEXTO:
+            return new LeTextoSmsProvider(fournisseur);
         default:
             return null;
         }
