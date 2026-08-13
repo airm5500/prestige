@@ -5596,6 +5596,27 @@ Ext.define('testextjs.controller.VenteCtr', {
     montantRecuFocus: function () {
         const me = this;
 
+        // Confirmation implicite de la part mobile (flux espèces + mobile,
+        // comptant) : entrer dans le montant reçu alors qu'une répartition
+        // espèces (> 0) + part mobile (> 0) est affichée vaut acceptation —
+        // même effet qu'Entrée dans le champ mobile (verrou + cadenas). Le
+        // focus précède toujours la frappe : les espèces tendues (ex. 2 000 F)
+        // ne recalculeront plus la part, seule la monnaie bouge. Si aucune
+        // espèce n'a été déclarée (part proposée = tout le net), on ne
+        // verrouille pas : le complément automatique et le retour en espèces
+        // simple gardent leur comportement historique.
+        if (!me.extraModeManualAmount && me.getExtraModeReglementId()
+                && me.getVnotypeReglement().getValue() === '1') {
+            const montantExtraCmp = me.getMontantExtra();
+            const partMobile = (montantExtraCmp && montantExtraCmp.isVisible() && !montantExtraCmp.readOnly)
+                    ? (parseInt(montantExtraCmp.getValue(), 10) || 0) : 0;
+            const especesDeclarees = parseInt(me.getMontantRecu().getValue(), 10) || 0;
+            if (partMobile > 0 && especesDeclarees > 0) {
+                me.extraModeManualAmount = true;
+                me.updateExtraModeLockIndicator(true);
+            }
+        }
+
         // ✅ Anti-scan robuste : capte scan/paste/saisie rapide même si "change" ne déclenche pas correctement
         const field = me.getMontantRecu ? me.getMontantRecu() : null;
         if (field && !field._antiScanBound) {
