@@ -59,6 +59,39 @@ public class SmsImpl implements SmsService {
     private SmsProviderFactory smsProviderFactory;
     @EJB
     private SmsFournisseurService smsFournisseurService;
+    @EJB
+    private rest.service.SupportEventService supportEventService;
+
+    /**
+     * Remonte une anomalie SMS au Centre de Support (journal des événements, dédupliqué par signature, ticket
+     * automatique selon la configuration). Asynchrone et silencieux : ne perturbe jamais l'envoi.
+     */
+    private void reportSupport(String niveau, String messageCourt, String detail, Exception exception) {
+        try {
+            rest.service.dto.SupportEventDTO dto = new rest.service.dto.SupportEventDTO();
+            dto.setType("SMS");
+            dto.setNiveau(niveau);
+            dto.setModule("SMS");
+            dto.setMessageCourt(StringUtils.abbreviate(messageCourt, 250));
+            dto.setUrlOuEcran("pipeline SMS");
+            dto.setPayloadJson(StringUtils.abbreviate(detail, 4000));
+            if (exception != null) {
+                StringBuilder pile = new StringBuilder();
+                for (StackTraceElement frame : exception.getStackTrace()) {
+                    pile.append(frame).append('\n');
+                }
+                dto.setStack(pile.length() > 20000 ? pile.substring(0, 20000) : pile.toString());
+            }
+            supportEventService.record(dto, "");
+        } catch (RuntimeException ignore) {
+            // centre de support indisponible : la trace serveur reste
+        }
+    }
+
+    /** ERROR pour les échecs techniques (réseau, config, 5xx), WARN pour les rejets fonctionnels (4xx). */
+    private String niveauPourEnvoi(SmsSendResult result) {
+        return (result.getHttpStatus() == 0 || result.getHttpStatus() >= 500) ? "ERROR" : "WARN";
+    }
 
     @Override
     public JSONObject findAccessToken() {
@@ -197,6 +230,8 @@ public class SmsImpl implements SmsService {
     public void sendSMS(Notification notification) {
         SmsProvider provider = smsProviderFactory.current();
         if (provider == null) {
+            reportSupport("ERROR", "Aucun fournisseur SMS en vigueur pris en charge : envois bloques",
+                    "Verifiez l'ecran Fournisseurs SMS (fournisseur en vigueur actif et configure).", null);
             throw new RuntimeException("Aucun fournisseur SMS en vigueur n'est pris en charge");
         }
 
@@ -219,6 +254,20 @@ public class SmsImpl implements SmsService {
                                 result.toLog() });
                 if (result.isAccepted()) {
                     sent++;
+                    if (StringUtils.isBlank(result.getMessageId()) && provider.supportsMessageStatus()) {
+                        reportSupport("WARN",
+                                "Id de message absent de la reponse d'envoi " + provider.getCode()
+                                        + " : suivi de statut impossible",
+                                "Notification " + notification.getId() + ", destinataire " + toClient.getId()
+                                        + ". Verifier le format de reponse dans les logs (LeTexto /messages/send).",
+                                null);
+                    }
+                } else {
+                    reportSupport(niveauPourEnvoi(result),
+                            "Envoi SMS refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
+                            "Notification " + notification.getId() + ", destinataire " + toClient.getId() + ", numero "
+                                    + tc.getStrADRESSE() + ". Erreur : " + result.getErrorMessage(),
+                            null);
                 }
             }
             notification.setNumberAttempt(notification.getNumberAttempt() + 1);
@@ -231,6 +280,8 @@ public class SmsImpl implements SmsService {
 
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, "Echec envoi SMS notification " + notification.getId(), ex);
+            reportSupport("ERROR", "Exception lors de l'envoi SMS : " + ex.getMessage(),
+                    "Notification " + notification.getId() + ", fournisseur " + provider.getCode() + ".", ex);
         }
 
     }
@@ -344,6 +395,8 @@ public class SmsImpl implements SmsService {
                     return handleLeTextoReceipt(json);
                 }
                 LOG.log(Level.WARNING, "DR ignore : format non reconnu {0}", rawPayload);
+                reportSupport("WARN", "Accuse de reception SMS ignore : format non reconnu",
+                        "Payload recu : " + rawPayload, null);
                 return false;
             }
             String address = deliveryInfo.optString("address", null);
@@ -355,6 +408,8 @@ public class SmsImpl implements SmsService {
             if (target == null) {
                 LOG.log(Level.WARNING, "DR sans destinataire correspondant (address={0}, resourceURL={1})",
                         new Object[] { address, resourceUrl });
+                reportSupport("WARN", "Accuse de reception Orange sans destinataire correspondant",
+                        "address=" + address + ", resourceURL=" + resourceUrl, null);
                 return false;
             }
             target.setDeliveryStatus(normalized);
@@ -367,6 +422,8 @@ public class SmsImpl implements SmsService {
             return true;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Echec traitement Delivery Receipt", e);
+            reportSupport("ERROR", "Exception lors du traitement d'un accuse de reception SMS : " + e.getMessage(),
+                    "Payload recu : " + rawPayload, e);
             return false;
         }
     }
@@ -405,12 +462,18 @@ public class SmsImpl implements SmsService {
         if (target == null) {
             LOG.log(Level.WARNING, "DLR LeTexto sans destinataire correspondant (id={0}, customData={1})",
                     new Object[] { messageId, customData });
+            reportSupport("WARN", "Accuse de reception LeTexto sans destinataire correspondant",
+                    "id=" + messageId + ", customData=" + customData, null);
             return false;
         }
         String normalized = SmsDeliveryStatus.fromLeTexto(rawStatus);
         target.setDeliveryStatus(normalized);
         if (SmsDeliveryStatus.DELIVERY_IMPOSSIBLE.equals(normalized)) {
             target.setErrorMessage("Livraison impossible (DLR LeTexto)");
+            reportSupport("WARN", "SMS non delivre (DLR LeTexto, statut " + rawStatus + ")",
+                    "Destinataire " + target.getId() + ", messageId " + messageId
+                            + ". Cause frequente : sender non autorise ou numero invalide.",
+                    null);
         }
         em.merge(target);
         LOG.log(Level.INFO, "DLR LeTexto applique : client={0}, id={1}, status={2}",
@@ -446,6 +509,12 @@ public class SmsImpl implements SmsService {
                     if (SmsDeliveryStatus.DELIVERY_IMPOSSIBLE.equals(statusResult.getDeliveryStatus())) {
                         toClient.setErrorMessage("Livraison impossible (statut " + statusResult.getRawStatus() + " "
                                 + provider.getCode() + ")");
+                        reportSupport("WARN",
+                                "SMS non delivre (" + provider.getCode() + ", statut " + statusResult.getRawStatus()
+                                        + ")",
+                                "Destinataire " + toClient.getId() + ", messageId " + toClient.getResourceUrl()
+                                        + ". Cause frequente : sender non autorise ou numero invalide.",
+                                null);
                     }
                     updated++;
                 }
@@ -458,6 +527,7 @@ public class SmsImpl implements SmsService {
             return new JSONObject().put("success", true).put("checked", pendings.size()).put("updated", updated);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Echec du rafraichissement des statuts SMS", e);
+            reportSupport("ERROR", "Exception lors du rafraichissement des statuts SMS : " + e.getMessage(), null, e);
             return new JSONObject().put("success", false).put("msg", "Echec du rafraichissement des statuts.");
         }
     }
@@ -546,8 +616,14 @@ public class SmsImpl implements SmsService {
             SmsSendResult result = provider.send(sp.mobile, message, null);
             LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
                     new Object[] { sp.mobile, provider.getCode(), result.toLog() });
+            if (!result.isAccepted()) {
+                reportSupport(niveauPourEnvoi(result),
+                        "Envoi SMS admin refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
+                        "Erreur : " + result.getErrorMessage(), null);
+            }
         } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
+            reportSupport("ERROR", "Exception lors de l'envoi SMS admin : " + ex.getMessage(), null, ex);
         }
 
     }
