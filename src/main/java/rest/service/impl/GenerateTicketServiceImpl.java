@@ -543,22 +543,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
 
         if (p.getIntPRICE() > 0) {
-            // Montant versé = ce que le client a physiquement remis à la caisse.
-            // Fractionnement espèces + mobile avec monnaie : le billet tendu
-            // (montantVerse de la ligne espèces), la part mobile figurant déjà
-            // sur sa propre ligne. Sinon, total reçu historique (montantVerse
-            // de la transaction).
-            int montantVerseAffiche = Math.abs(mvtTransaction.getMontantVerse());
-            if (venteReglements.size() > 1) {
-                for (VenteReglement vers : venteReglements) {
-                    Integer verse = vers.getMontantVerse();
-                    if (Constant.TYPE_REGLEMENT_ESPECE.equals(vers.getTypeReglement().getLgTYPEREGLEMENTID())
-                            && Objects.nonNull(verse) && verse > vers.getMontant()) {
-                        montantVerseAffiche = verse;
-                        break;
-                    }
-                }
-            }
+            int montantVerseAffiche = montantVerseAfficheTicket(venteReglements,
+                    Math.abs(mvtTransaction.getMontantVerse()));
             datas.add("Montant Versé: ;     " + DateConverter.amountFormat(montantVerseAffiche) + "; F CFA;0");
             datas.add("Monnaie: ;     "
                     + DateConverter.amountFormat((Math.abs(mvtTransaction.getMontantVerse()) - venteNet > 0
@@ -568,6 +554,26 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
         }
         return datas;
+    }
+
+    /*
+     * « Montant Versé » d'un ticket fractionné contenant une ligne espèces renseignée : les billets réellement tendus
+     * par le client (montantVerse de la ligne espèces), la part mobile figurant déjà sur sa propre ligne. Règle de
+     * lecture unique, avec ou sans monnaie : Monnaie = Montant Versé - ligne Espèces. Repli sur le total historique
+     * (tous modes confondus) pour les règlements anciens sans montantVerse et les fractionnements sans espèces (mobile
+     * + mobile).
+     */
+    private int montantVerseAfficheTicket(List<VenteReglement> venteReglements, int montantVerseTotal) {
+        if (venteReglements.size() > 1) {
+            for (VenteReglement vers : venteReglements) {
+                Integer verse = vers.getMontantVerse();
+                if (Constant.TYPE_REGLEMENT_ESPECE.equals(vers.getTypeReglement().getLgTYPEREGLEMENTID())
+                        && Objects.nonNull(verse) && verse > 0) {
+                    return verse;
+                }
+            }
+        }
+        return montantVerseTotal;
     }
 
     private List<String> generateCommentaire(TPreenregistrement p, MvtTransaction mvtTransaction) {
@@ -896,11 +902,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
             if (oPreenregistrement.getIntPRICE() >= 0) {
 
-                datas.add(
-                        "Montant Versé: ;     "
-                                + DateConverter.amountFormat(
-                                        Maths.arrondiModuloOfNumber(clotureVenteParams.getMontantRecu(), 5))
-                                + "; F CFA;0");
+                datas.add("Montant Versé: ;     "
+                        + DateConverter.amountFormat(Maths.arrondiModuloOfNumber(
+                                montantVerseAfficheTicket(venteReglements, clotureVenteParams.getMontantRecu()), 5))
+                        + "; F CFA;0");
                 final Integer change = clotureVenteParams.getMontantRecu()
                         - (DateConverter.arrondiModuloOfNumber(oPreenregistrement.getIntCUSTPART(), 5)
                                 - oPreenregistrement.getIntPRICEREMISE());
@@ -967,9 +972,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
             if (oPreenregistrement.getIntPRICE() >= 0) {
 
-                datas.add("Montant Versé: ;     "
-                        + DateConverter.amountFormat(
-                                Maths.arrondiModuloOfNumber(Math.abs(clotureVenteParams.getMontantVerse()), 5))
+                datas.add("Montant Versé: ;     " + DateConverter.amountFormat(Maths.arrondiModuloOfNumber(
+                        montantVerseAfficheTicket(venteReglements, Math.abs(clotureVenteParams.getMontantVerse())), 5))
                         + "; F CFA;0");
                 final Integer change = Math.abs(clotureVenteParams.getMontantVerse())
                         - Math.abs(clotureVenteParams.getMontantPaye());
