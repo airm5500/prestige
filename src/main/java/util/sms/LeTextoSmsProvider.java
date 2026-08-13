@@ -93,8 +93,17 @@ public class LeTextoSmsProvider implements SmsProvider {
                     .post(Entity.entity(body.toString(), MediaType.APPLICATION_JSON_TYPE));
             int status = response.getStatus();
             String responseBody = response.hasEntity() ? response.readEntity(String.class) : null;
+            // Trace de la réponse brute : permet d'ajuster l'extraction de l'id de message
+            // (nécessaire au suivi de statut) si le format LeTexto differe.
+            LOG.log(Level.INFO, "LeTexto /messages/send http={0} body={1}",
+                    new Object[] { status, StringUtils.abbreviate(responseBody, 500) });
             if (status >= 200 && status < 300) {
-                return SmsSendResult.accepted(extractMessageId(responseBody), status);
+                String messageId = extractMessageId(responseBody);
+                if (StringUtils.isBlank(messageId)) {
+                    LOG.log(Level.WARNING,
+                            "LeTexto : id de message introuvable dans la reponse d'envoi, suivi de statut impossible");
+                }
+                return SmsSendResult.accepted(messageId, status);
             }
             return SmsSendResult.rejected(status, "HTTP_" + status, extractErrorMessage(responseBody, status));
         } catch (Exception e) {
@@ -208,6 +217,66 @@ public class LeTextoSmsProvider implements SmsProvider {
                     if (data.has(key) && data.optDouble(key, Double.NaN) == data.optDouble(key, Double.NaN)) {
                         return data.optDouble(key);
                     }
+                }
+            }
+        } catch (Exception ignore) {
+            // réponse non JSON
+        }
+        return null;
+    }
+
+    /**
+     * Recherche le sender sur le compte LeTexto ({@code GET /v1/senders}) et retourne {@code {found, status}}. Utilisé
+     * par le bouton "Tester" pour diagnostiquer l'erreur LT400 "Expéditeur non autorisé" (sender absent ou en attente
+     * de validation).
+     */
+    public JSONObject senderInfo(String name) {
+        if (StringUtils.isBlank(apiKey()) || StringUtils.isBlank(name)) {
+            return new JSONObject().put("found", false);
+        }
+        Client client = newClient();
+        try {
+            Response response = client.target(baseUrl() + "/v1/senders").queryParam("query", name.trim()).request()
+                    .header("Authorization", "Bearer ".concat(apiKey())).get();
+            int status = response.getStatus();
+            String responseBody = response.hasEntity() ? response.readEntity(String.class) : null;
+            if (status < 200 || status >= 300) {
+                return new JSONObject().put("found", false).put("msg", extractErrorMessage(responseBody, status));
+            }
+            org.json.JSONArray senders = extractSenders(responseBody);
+            if (senders != null) {
+                for (int i = 0; i < senders.length(); i++) {
+                    JSONObject sender = senders.optJSONObject(i);
+                    if (sender != null && name.trim().equalsIgnoreCase(sender.optString("name", ""))) {
+                        return new JSONObject().put("found", true).put("status",
+                                StringUtils.upperCase(sender.optString("status", "")));
+                    }
+                }
+            }
+            return new JSONObject().put("found", false);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Echec appel LeTexto /senders", e);
+            return new JSONObject().put("found", false).put("msg", e.getMessage());
+        } finally {
+            client.close();
+        }
+    }
+
+    /** Extrait la liste des senders de la réponse, quel que soit son emballage (tableau nu ou data/senders/items). */
+    private org.json.JSONArray extractSenders(String responseBody) {
+        if (StringUtils.isBlank(responseBody)) {
+            return null;
+        }
+        try {
+            String trimmed = responseBody.trim();
+            if (trimmed.startsWith("[")) {
+                return new org.json.JSONArray(trimmed);
+            }
+            JSONObject json = new JSONObject(trimmed);
+            for (String key : new String[] { "data", "senders", "items", "results" }) {
+                org.json.JSONArray array = json.optJSONArray(key);
+                if (array != null) {
+                    return array;
                 }
             }
         } catch (Exception ignore) {

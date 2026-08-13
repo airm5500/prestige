@@ -355,11 +355,14 @@ Ext.define('testextjs.controller.NotificationCtr', {
                     } catch (ex) {
                         res = {};
                     }
-                    if (res.success) {
-                        Ext.Msg.alert('Renvoi SMS', res.msg || 'SMS accepté par Orange (201)');
-                    } else {
-                        Ext.Msg.alert('Renvoi SMS', res.msg || 'Le renvoi a échoué.');
-                    }
+                    // MessageBox dimensionnée : les messages longs étaient tronqués avec Ext.Msg.alert.
+                    Ext.MessageBox.show({
+                        title: 'Renvoi SMS',
+                        width: 420,
+                        msg: res.msg || (res.success ? 'SMS accepté par le fournisseur.' : 'Le renvoi a échoué.'),
+                        buttons: Ext.MessageBox.OK,
+                        icon: res.success ? Ext.MessageBox.INFO : Ext.MessageBox.WARNING
+                    });
                     grid.getStore().reload();
                 },
                 failure: function () {

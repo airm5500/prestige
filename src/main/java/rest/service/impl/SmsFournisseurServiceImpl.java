@@ -83,6 +83,8 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
     @Override
     public JSONObject save(JSONObject payload) {
         try {
+            // Toutes les validations sont faites AVANT de toucher l'entité : un refus ne doit
+            // laisser aucune modification partielle sur un fournisseur existant (entité managée).
             String id = payload.optString("id", null);
             SmsFournisseur fournisseur;
             if (StringUtils.isNotBlank(id)) {
@@ -106,11 +108,21 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
             if (StringUtils.isBlank(libelle)) {
                 return fail("Le libellé est obligatoire.");
             }
+            DlrMode dlrMode;
+            try {
+                dlrMode = DlrMode.valueOf(payload.optString("dlrMode", DlrMode.POLLING.name()));
+            } catch (IllegalArgumentException e) {
+                return fail("Mode DLR invalide.");
+            }
+            JSONObject params = payload.optJSONObject("params");
+            List<String> manquants = requiredParamsMissing(fournisseur, params);
+            if (!manquants.isEmpty()) {
+                return fail("Paramètres obligatoires manquants : " + String.join(", ", manquants) + ".");
+            }
             fournisseur.setLibelle(libelle);
-            String dlrMode = payload.optString("dlrMode", DlrMode.POLLING.name());
-            fournisseur.setDlrMode(DlrMode.valueOf(dlrMode));
+            fournisseur.setDlrMode(dlrMode);
             fournisseur.setDlrCallbackUrl(StringUtils.trimToNull(payload.optString("dlrCallbackUrl")));
-            applyParams(fournisseur, payload.optJSONObject("params"));
+            applyParams(fournisseur, params);
             fournisseur.setUpdatedAt(LocalDateTime.now());
             if (StringUtils.isBlank(id)) {
                 em.persist(fournisseur);
@@ -118,12 +130,39 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
                 em.merge(fournisseur);
             }
             return success("Fournisseur enregistré avec succès.");
-        } catch (IllegalArgumentException e) {
-            return fail("Mode DLR invalide.");
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Echec enregistrement fournisseur SMS", e);
             return fail("L'enregistrement du fournisseur a échoué.");
         }
+    }
+
+    /**
+     * Libellés des paramètres obligatoires qui resteraient vides après application du payload : valeur entrante non
+     * vide, sinon valeur déjà enregistrée (pour un secret, vide signifie "inchangé" ; pour les autres, une valeur
+     * envoyée vide efface).
+     */
+    private List<String> requiredParamsMissing(SmsFournisseur fournisseur, JSONObject params) {
+        List<String> manquants = new java.util.ArrayList<>();
+        for (SmsProviderParamDef def : SmsProviderCatalog.paramDefs(fournisseur.getCode())) {
+            if (!def.isObligatoire()) {
+                continue;
+            }
+            String incoming = params != null && params.has(def.getCle())
+                    ? StringUtils.trimToEmpty(params.optString(def.getCle())) : null;
+            String effective;
+            if (StringUtils.isNotEmpty(incoming)) {
+                effective = incoming;
+            } else if (incoming != null && !def.isSecret()) {
+                // champ non secret envoyé vide : l'utilisateur efface la valeur
+                effective = "";
+            } else {
+                effective = fournisseur.getParamValue(def.getCle());
+            }
+            if (StringUtils.isBlank(effective)) {
+                manquants.add(def.getLibelle());
+            }
+        }
+        return manquants;
     }
 
     /** Applique les paramètres reçus ; une valeur vide sur un paramètre secret signifie "inchangé". */
@@ -228,9 +267,38 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
         JSONObject solde = provider.balance();
         boolean ok = solde.optBoolean("success", false);
         String detail = solde.has("totalUnits") ? " Solde : " + solde.opt("totalUnits") + " unité(s)." : "";
+        String senderDetail = "";
+        if (ok && provider instanceof util.sms.LeTextoSmsProvider) {
+            senderDetail = describeSender((util.sms.LeTextoSmsProvider) provider, fournisseur);
+        }
         return new JSONObject().put("success", ok).put("data", solde).put("msg",
-                ok ? "Connexion " + fournisseur.getLibelle() + " OK." + detail
+                ok ? "Connexion " + fournisseur.getLibelle() + " OK." + detail + senderDetail
                         : solde.optString("msg", "Echec du test : vérifiez les paramètres."));
+    }
+
+    /** Vérifie l'autorisation du sender LeTexto : l'erreur LT400 vient d'un sender absent ou non validé. */
+    private String describeSender(util.sms.LeTextoSmsProvider provider, SmsFournisseur fournisseur) {
+        String senderName = fournisseur.getParamValue(SmsProviderCatalog.LETEXTO_SENDER_NAME);
+        if (StringUtils.isBlank(senderName)) {
+            return "";
+        }
+        JSONObject info = provider.senderInfo(senderName);
+        if (!info.optBoolean("found", false)) {
+            return " Sender \"" + senderName
+                    + "\" : introuvable sur le compte — créez-le et faites-le valider avant d'envoyer.";
+        }
+        String status = info.optString("status", "");
+        switch (status) {
+        case "ACTIVE":
+        case "VALIDATED":
+        case "APPROVED":
+            return " Sender \"" + senderName + "\" : autorisé.";
+        case "PENDING":
+            return " Sender \"" + senderName + "\" : en attente de validation — les envois échoueront (LT400)"
+                    + " tant qu'il n'est pas approuvé.";
+        default:
+            return " Sender \"" + senderName + "\" : statut " + status + ".";
+        }
     }
 
     @Override

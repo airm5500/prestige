@@ -316,7 +316,8 @@ public class SmsImpl implements SmsService {
                 }
             }
         }
-        String userMessage = accepted ? "SMS envoyé avec succès (accepté par le fournisseur)."
+        String userMessage = accepted
+                ? "SMS accepté par le fournisseur. La livraison sera confirmée par les accusés de réception."
                 : SmsUserMessage.friendly(code, orangeMessage);
         return new JSONObject().put("success", accepted).put("statut", statut != null ? statut : JSONObject.NULL)
                 .put("code", code != null ? code : JSONObject.NULL)

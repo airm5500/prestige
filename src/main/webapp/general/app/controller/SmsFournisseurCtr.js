@@ -2,6 +2,11 @@
 
 Ext.define('testextjs.controller.SmsFournisseurCtr', {
     extend: 'Ext.app.Controller',
+    /**
+     * Valeur affichée à la place d'un secret déjà enregistré (le serveur ne renvoie jamais
+     * la vraie valeur). Si le champ est envoyé avec ce masque, le secret reste inchangé.
+     */
+    SECRET_MASK: '********************************',
     views: ['testextjs.view.notification.SmsFournisseur', 'testextjs.view.notification.SmsFournisseurForm'],
     refs: [
         {
@@ -105,14 +110,44 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
             });
             return;
         }
+        const me = this;
         Ext.Array.each(params, function (param) {
-            fieldset.add({
+            const field = {
                 xtype: 'textfield',
                 fieldLabel: param.libelle + (param.obligatoire ? ' *' : ''),
                 name: 'param_' + param.cle,
+                allowBlank: !param.obligatoire,
                 inputType: param.secret ? 'password' : 'text',
-                value: param.secret ? '' : (param.valeur || ''),
-                emptyText: param.secret ? (param.definie ? '•••••• (laisser vide pour conserver)' : 'À renseigner') : ''
+                value: param.secret ? (param.definie ? me.SECRET_MASK : '') : (param.valeur || ''),
+                emptyText: param.secret && !param.definie ? 'À renseigner' : ''
+            };
+            if (!param.secret) {
+                fieldset.add(field);
+                return;
+            }
+            // Secret : champ masqué + bouton de visualisation. Le masque affiché ne révèle
+            // jamais la valeur enregistrée ; le remplacer revient à saisir une nouvelle clé.
+            field.flex = 1;
+            field.labelWidth = 160;
+            fieldset.add({
+                xtype: 'fieldcontainer',
+                layout: 'hbox',
+                items: [
+                    field,
+                    {
+                        xtype: 'button',
+                        text: '👁',
+                        tooltip: 'Afficher / masquer',
+                        enableToggle: true,
+                        margin: '0 0 0 4',
+                        toggleHandler: function (btn, pressed) {
+                            const tf = btn.up('fieldcontainer').down('textfield');
+                            if (tf && tf.inputEl) {
+                                tf.inputEl.dom.type = pressed ? 'text' : 'password';
+                            }
+                        }
+                    }
+                ]
             });
         });
     },
@@ -141,7 +176,8 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
         };
         Ext.Object.each(values, function (key, value) {
             if (key.indexOf('param_') === 0) {
-                payload.params[key.substring('param_'.length)] = value;
+                // Le masque affiché pour un secret déjà enregistré signifie "inchangé".
+                payload.params[key.substring('param_'.length)] = (value === me.SECRET_MASK) ? '' : value;
             }
         });
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
