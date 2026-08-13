@@ -44,6 +44,11 @@ public class Sms implements Runnable {
     }
 
     public void sendSMS() {
+        // Passe par le pipeline SmsService (fournisseur SMS en vigueur configuré en base)
+        // quand le conteneur est accessible ; sinon repli sur l'appel Orange historique.
+        if (StringUtils.isEmpty(getReceiverAddres()) && sendViaSmsService()) {
+            return;
+        }
         try {
             Client client = ClientBuilder.newClient();
             AppParameters sp = AppParameters.getInstance();
@@ -66,6 +71,23 @@ public class Sms implements Runnable {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
+    }
+
+    private boolean sendViaSmsService() {
+        // java:module n'est pas résolvable depuis un thread non géré : on tente aussi java:global.
+        for (String jndiName : new String[] { "java:module/SmsImpl!rest.service.SmsService",
+                "java:global/prestige/SmsImpl!rest.service.SmsService" }) {
+            try {
+                rest.service.SmsService smsService = (rest.service.SmsService) new javax.naming.InitialContext()
+                        .lookup(jndiName);
+                smsService.sendSMS(getMessage());
+                return true;
+            } catch (Exception e) {
+                LOG.log(Level.FINE, "Lookup SmsService impossible via " + jndiName, e);
+            }
+        }
+        LOG.log(Level.WARNING, "SmsService inaccessible, envoi via l'appel Orange historique");
+        return false;
     }
 
     @Override

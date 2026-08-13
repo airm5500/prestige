@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.Asynchronous;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -32,14 +33,16 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.SmsFournisseurService;
 import rest.service.SmsService;
 import util.Constant;
 import util.DateConverter;
 import util.AppParameters;
-import util.OrangeSmsClient;
-import util.OrangeSmsResult;
 import util.SmsDeliveryStatus;
 import util.SmsUserMessage;
+import util.sms.SmsProvider;
+import util.sms.SmsProviderCatalog;
+import util.sms.SmsSendResult;
 
 /**
  *
@@ -52,6 +55,10 @@ public class SmsImpl implements SmsService {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     private final AppParameters sp = AppParameters.getInstance();
+    @EJB
+    private SmsProviderFactory smsProviderFactory;
+    @EJB
+    private SmsFournisseurService smsFournisseurService;
 
     @Override
     public JSONObject findAccessToken() {
@@ -61,7 +68,7 @@ public class SmsImpl implements SmsService {
             MultivaluedMap<String, String> formdata = new MultivaluedHashMap<>();
 
             formdata.add("grant_type", DateConverter.GRANT_TYPE);
-            WebTarget myResource = client.target(sp.pathsmsapitokenendpoint);
+            WebTarget myResource = client.target(tokenEndpoint());
             Response response = myResource.request(MediaType.APPLICATION_JSON)
                     .header("Authorization", StringUtils.isNotEmpty(getBasicHeader()) ? getBasicHeader() : sp.header)
                     .post(Entity.entity(formdata, MediaType.APPLICATION_FORM_URLENCODED), Response.class);
@@ -82,7 +89,41 @@ public class SmsImpl implements SmsService {
         return sp.accesstoken;
     }
 
+    /** URL du token OAuth2 : configuration Orange en base si renseignée, sinon dicisms.properties. */
+    private String tokenEndpoint() {
+        try {
+            dal.SmsFournisseur orange = smsFournisseurService.findByCode(SmsProviderCatalog.CODE_ORANGE);
+            if (orange != null) {
+                String endpoint = orange.getParamValue(SmsProviderCatalog.ORANGE_TOKEN_ENDPOINT);
+                if (StringUtils.isNotBlank(endpoint)) {
+                    return endpoint.trim();
+                }
+            }
+        } catch (Exception ignore) {
+            // repli sur le fichier de propriétés
+        }
+        return sp.pathsmsapitokenendpoint;
+    }
+
+    /**
+     * En-tête Basic d'authentification au token endpoint : construit depuis le client_id/client_secret configurés en
+     * base si présents, sinon en-tête mémorisé sur le token, sinon dicisms.properties.
+     */
     private String getBasicHeader() {
+        try {
+            dal.SmsFournisseur orange = smsFournisseurService.findByCode(SmsProviderCatalog.CODE_ORANGE);
+            if (orange != null) {
+                String clientId = orange.getParamValue(SmsProviderCatalog.ORANGE_CLIENT_ID);
+                String clientSecret = orange.getParamValue(SmsProviderCatalog.ORANGE_CLIENT_SECRET);
+                if (StringUtils.isNotBlank(clientId) && StringUtils.isNotBlank(clientSecret)) {
+                    return "Basic ".concat(
+                            java.util.Base64.getEncoder().encodeToString((clientId.trim() + ":" + clientSecret.trim())
+                                    .getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                }
+            }
+        } catch (Exception ignore) {
+            // repli sur l'en-tête mémorisé
+        }
         try {
             return em.find(SmsToken.class, "sms").getHeader();
 
@@ -110,7 +151,8 @@ public class SmsImpl implements SmsService {
                 JSONObject data = new JSONObject(token);
                 smsToken.setAccessToken(data.getString("access_token"));
                 smsToken.setExpiresIn(data.getInt("expires_in"));
-                smsToken.setHeader("Basic ZkphT2xKZ3dVMmdnY1JXbUlsYlU5czdqWTh0YnNSeTg6U01FNTVndFlkdjJoNlkwUQ==");
+                String basicHeader = getBasicHeader();
+                smsToken.setHeader(StringUtils.isNotEmpty(basicHeader) ? basicHeader : sp.header);
                 smsToken.setCreateDate(LocalDateTime.now());
                 em.persist(smsToken);
             }
@@ -137,7 +179,7 @@ public class SmsImpl implements SmsService {
 
             MultivaluedMap<String, String> formdata = new MultivaluedHashMap<>();
             formdata.add("grant_type", Constant.GRANT_TYPE);
-            WebTarget myResource = client.target(sp.pathsmsapitokenendpoint);
+            WebTarget myResource = client.target(tokenEndpoint());
             Response response = myResource.request(MediaType.APPLICATION_JSON)
                     .header("Authorization", StringUtils.isNotEmpty(getBasicHeader()) ? getBasicHeader() : sp.header)
                     .post(Entity.entity(formdata, MediaType.APPLICATION_FORM_URLENCODED), Response.class);
@@ -153,14 +195,13 @@ public class SmsImpl implements SmsService {
 
     @Override
     public void sendSMS(Notification notification) {
-        SmsToken smsToken = getOrupdateSmsToken();
-        if (smsToken == null) {
-            throw new RuntimeException("Impossible de charger l'acces token");
+        SmsProvider provider = smsProviderFactory.current();
+        if (provider == null) {
+            throw new RuntimeException("Aucun fournisseur SMS en vigueur n'est pris en charge");
         }
 
         try {
             String message = notification.getMessage();
-            String bearer = smsToken.getAccessToken();
             Collection<NotificationClient> toClients = notification.getNotificationClients();
             int sent = 0;
             int total = 0;
@@ -170,12 +211,12 @@ public class SmsImpl implements SmsService {
                     continue;
                 }
                 total++;
-                String address = "tel:+225" + tc.getStrADRESSE();
-                OrangeSmsResult result = OrangeSmsClient.send(sp.pathsmsapisendmessageurl, bearer, sp.senderAddress,
-                        address, message);
-                applyResultToClient(toClient, result);
-                LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, address={2}, {3}",
-                        new Object[] { notification.getId(), toClient.getId(), address, result.toLog() });
+                // customData = id du destinataire : corrélation exacte des accusés de réception.
+                SmsSendResult result = provider.send(tc.getStrADRESSE(), message, toClient.getId());
+                applyResultToClient(toClient, result, provider.getCode());
+                LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, numero={2}, fournisseur={3}, {4}",
+                        new Object[] { notification.getId(), toClient.getId(), tc.getStrADRESSE(), provider.getCode(),
+                                result.toLog() });
                 if (result.isAccepted()) {
                     sent++;
                 }
@@ -184,8 +225,8 @@ public class SmsImpl implements SmsService {
             notification.setModfiedAt(LocalDateTime.now());
             updateNotificationStatut(notification, sent, total);
 
-            LOG.log(Level.INFO, "SMS acceptes par Orange ====== {0}/{1} (notification {2})",
-                    new Object[] { sent, total, notification.getId() });
+            LOG.log(Level.INFO, "SMS acceptes par {0} ====== {1}/{2} (notification {3})",
+                    new Object[] { provider.getCode(), sent, total, notification.getId() });
             em.merge(notification);
 
         } catch (Exception ex) {
@@ -194,14 +235,16 @@ public class SmsImpl implements SmsService {
 
     }
 
-    /** Reporte le résultat Orange sur le destinataire (statut, resourceURL, erreur). */
-    private void applyResultToClient(NotificationClient toClient, OrangeSmsResult result) {
+    /** Reporte le résultat du fournisseur sur le destinataire (statut, id de suivi, erreur). */
+    private void applyResultToClient(NotificationClient toClient, SmsSendResult result, String providerCode) {
         toClient.setLastHttpStatus(result.getHttpStatus());
+        toClient.setFournisseurCode(providerCode);
         if (result.isAccepted()) {
             toClient.setStatut(Statut.SENT);
             toClient.setSentAt(LocalDateTime.now());
-            toClient.setResourceUrl(result.getResourceUrl());
-            toClient.setDeliveryStatus(SmsDeliveryStatus.ACCEPTED_BY_ORANGE);
+            toClient.setResourceUrl(result.getMessageId());
+            toClient.setDeliveryStatus(SmsProviderCatalog.CODE_ORANGE.equals(providerCode)
+                    ? SmsDeliveryStatus.ACCEPTED_BY_ORANGE : SmsDeliveryStatus.ACCEPTED_BY_PROVIDER);
             toClient.setErrorCode(null);
             toClient.setErrorMessage(null);
         } else {
@@ -264,6 +307,7 @@ public class SmsImpl implements SmsService {
         if (!accepted) {
             for (NotificationClient c : notification.getNotificationClients()) {
                 boolean clientOk = SmsDeliveryStatus.ACCEPTED_BY_ORANGE.equals(c.getDeliveryStatus())
+                        || SmsDeliveryStatus.ACCEPTED_BY_PROVIDER.equals(c.getDeliveryStatus())
                         || c.getStatut() == Statut.SENT;
                 if (!clientOk && StringUtils.isNotBlank(c.getErrorMessage())) {
                     code = c.getErrorCode();
@@ -272,7 +316,7 @@ public class SmsImpl implements SmsService {
                 }
             }
         }
-        String userMessage = accepted ? "SMS envoyé avec succès (accepté par Orange)."
+        String userMessage = accepted ? "SMS envoyé avec succès (accepté par le fournisseur)."
                 : SmsUserMessage.friendly(code, orangeMessage);
         return new JSONObject().put("success", accepted).put("statut", statut != null ? statut : JSONObject.NULL)
                 .put("code", code != null ? code : JSONObject.NULL)
@@ -395,25 +439,20 @@ public class SmsImpl implements SmsService {
 
     @Override
     public void sendSMS(String message) {
-        SmsToken smsToken = getOrupdateSmsToken();
-        if (smsToken != null) {
-            try {
-                Client client = ClientBuilder.newClient();
-                JSONObject jSONObject = new JSONObject();
-                JSONObject outboundSMSMessageRequest = new JSONObject();
-                outboundSMSMessageRequest.put("senderAddress", sp.senderAddress);
-                JSONObject outboundSMSTextMessage = new JSONObject();
-                outboundSMSTextMessage.put("message", message);
-                outboundSMSMessageRequest.put("outboundSMSTextMessage", outboundSMSTextMessage);
-                jSONObject.put("outboundSMSMessageRequest", outboundSMSMessageRequest);
-                WebTarget myResource = client.target(sp.pathsmsapisendmessageurl);
-                var bearer = "Bearer ".concat(smsToken.getAccessToken());
-                outboundSMSMessageRequest.put("address", "tel:+225" + sp.mobile);
-                myResource.request().header("Authorization", bearer)
-                        .post(Entity.entity(jSONObject.toString(), MediaType.APPLICATION_JSON_TYPE));
-            } catch (Exception ex) {
-                LOG.log(Level.SEVERE, null, ex);
+        if (StringUtils.isEmpty(sp.mobile)) {
+            return;
+        }
+        try {
+            SmsProvider provider = smsProviderFactory.current();
+            if (provider == null) {
+                LOG.log(Level.WARNING, "Envoi SMS ignore : aucun fournisseur SMS en vigueur pris en charge");
+                return;
             }
+            SmsSendResult result = provider.send(sp.mobile, message, null);
+            LOG.log(Level.INFO, "sendSMS admin >>> numero={0}, fournisseur={1}, {2}",
+                    new Object[] { sp.mobile, provider.getCode(), result.toLog() });
+        } catch (Exception ex) {
+            LOG.log(Level.SEVERE, null, ex);
         }
 
     }

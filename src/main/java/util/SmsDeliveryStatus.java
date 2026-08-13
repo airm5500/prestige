@@ -16,6 +16,8 @@ public final class SmsDeliveryStatus {
 
     /** Accepté par Orange (HTTP 201) - pas encore de confirmation terminal. */
     public static final String ACCEPTED_BY_ORANGE = "ACCEPTED_BY_ORANGE";
+    /** Accepté par un fournisseur autre qu'Orange (LeTexto...) - pas encore de confirmation terminal. */
+    public static final String ACCEPTED_BY_PROVIDER = "ACCEPTED_BY_PROVIDER";
     /** Remis au réseau Orange. */
     public static final String DELIVERED_TO_NETWORK = "DELIVERED_TO_NETWORK";
     /** Livré sur le téléphone du destinataire (succès réel). */
