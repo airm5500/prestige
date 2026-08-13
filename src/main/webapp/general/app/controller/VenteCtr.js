@@ -1965,6 +1965,14 @@ Ext.define('testextjs.controller.VenteCtr', {
                     icon: Ext.MessageBox.ERROR
                 });
                 return false;
+            } else if (typeRegleId === '1' && me.getExtraModeReglementId()
+                    && (parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0) {
+                // Symétrique du contrôle mobile + mobile (les deux parts > 0) :
+                // pas de clôture espèces + mobile avec une part espèces nulle
+                // (contournement : effacer le montant reçu après l'ajout du
+                // second mode, le complément remonte alors à tout le net)
+                me.showMontantRecuRequisMessage();
+                return false;
             } else if (me.isMobileMode(typeRegleId) && me.getExtraModeReglementId()) {
                 // Fractionnement mobile + mobile : la somme des deux parts doit
                 // couvrir exactement le net à payer (pas de monnaie sur du mobile)
@@ -5164,6 +5172,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                 me.handleExtraModePayment(netTopay);
                 return false;
             }
+            if (typeRegleId === '1' && me.getExtraModeReglementId()
+                    && (parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0) {
+                // Même verrou que la clôture VNO : pas de vente espèces + mobile
+                // avec une part espèces nulle (vente 100% mobile déguisée)
+                me.showMontantRecuRequisMessage();
+                return false;
+            }
             let ayantDroit = me.getAyantDroit(), ayantDroitId = null;
             if (ayantDroit) {
                 ayantDroitId = ayantDroit.lgAYANTSDROITSID;
@@ -6040,8 +6055,40 @@ Ext.define('testextjs.controller.VenteCtr', {
         });
     },
 
+    /*
+     * Verrou anti-brèche « espèces = 0 » : le message est bloquant et guide
+     * vers le bon geste. Une vente réglée entièrement en mobile money doit
+     * passer par le mode mobile choisi comme mode principal — pas par le
+     * fractionnement espèces + mobile avec 0 F d'espèces (ligne espèces
+     * poubelle en base et mode principal erroné dans les stats).
+     */
+    showMontantRecuRequisMessage: function () {
+        const me = this;
+        Ext.MessageBox.show({
+            title: 'Message d\'erreur',
+            width: 550,
+            msg: 'Veuillez saisir un montant reçu en espèces supérieur à 0.<br/>'
+                    + 'Si le client règle entièrement en mobile money, choisissez directement ce mode '
+                    + 'dans la liste des modes de règlement.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.ERROR,
+            fn: function (buttonId) {
+                if (buttonId === 'ok') {
+                    me.getMontantRecu().focus(true, 50);
+                }
+            }
+        });
+    },
     handleExtraModePayment: function (netTopay) {
         const me = this;
+        // Le fractionnement suppose des espèces réellement reçues : à 0, on ne
+        // propose pas de second mode (verrou : Entrée sur le 0 par défaut puis
+        // choix d'un mode mobile = vente 100% mobile déguisée en espèces)
+        const especesSaisies = parseInt(me.getMontantRecu().getValue(), 10) || 0;
+        if (especesSaisies <= 0) {
+            me.showMontantRecuRequisMessage();
+            return;
+        }
         Ext.MessageBox.show({
             title: 'Avertissement',
             width: 550,
