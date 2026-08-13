@@ -1966,11 +1966,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                 });
                 return false;
             } else if (typeRegleId === '1' && me.getExtraModeReglementId()
-                    && (parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0) {
+                    && ((parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0
+                            || (montantExtra > 0 && montantExtra >= parseInt(netTopay)))) {
                 // Symétrique du contrôle mobile + mobile (les deux parts > 0) :
-                // pas de clôture espèces + mobile avec une part espèces nulle
-                // (contournement : effacer le montant reçu après l'ajout du
-                // second mode, le complément remonte alors à tout le net)
+                // pas de clôture espèces + mobile avec une part espèces nulle —
+                // montant reçu vide/0, ou part mobile couvrant tout le net
+                // (la part espèces encaissée serait 0 : vente 100% mobile
+                // à passer par le mode mobile principal)
                 me.showMontantRecuRequisMessage();
                 return false;
             } else if (me.isMobileMode(typeRegleId) && me.getExtraModeReglementId()) {
@@ -5173,9 +5175,11 @@ Ext.define('testextjs.controller.VenteCtr', {
                 return false;
             }
             if (typeRegleId === '1' && me.getExtraModeReglementId()
-                    && (parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0) {
+                    && ((parseInt(me.getMontantRecu().getValue(), 10) || 0) <= 0
+                            || (montantExtra > 0 && montantExtra >= parseInt(netTopay)))) {
                 // Même verrou que la clôture VNO : pas de vente espèces + mobile
-                // avec une part espèces nulle (vente 100% mobile déguisée)
+                // avec une part espèces nulle (vente 100% mobile déguisée) —
+                // montant reçu vide/0, ou part mobile couvrant toute la part client
                 me.showMontantRecuRequisMessage();
                 return false;
             }
@@ -6137,11 +6141,13 @@ Ext.define('testextjs.controller.VenteCtr', {
             const montantRecu = me.getMontantRecu();
             montantRecu.setReadOnly(false);
             montantRecu.setValue(0);
-        } else if (me.getVnotypeReglement().getValue() === '1'
-                && me.getSafeComboValue('getTypeVenteCombo', '1') === '1') {
-            // Espèces + mobile (comptant) : le montant mobile devient saisissable
-            // (pré-rempli avec le complément). Permet le cas « espèces tendues
-            // supérieures à la part due » : la monnaie se rend sur les espèces.
+        } else if (me.getVnotypeReglement().getValue() === '1') {
+            // Espèces + mobile : le montant mobile devient saisissable
+            // (pré-rempli avec le complément), quel que soit le type de vente
+            // (comptant, assurance, carnet) — même écran règlement partout.
+            // Permet le cas « espèces tendues supérieures à la part due » :
+            // la monnaie se rend sur les espèces. Toute la mécanique de
+            // confirmation (Entrée, cadenas, verrou implicite) suit ce flag.
             montantExtra.setReadOnly(false);
         }
         me.handleExtraAmountInputValue();
