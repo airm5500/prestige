@@ -369,6 +369,31 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             winImport.show();
         };
 
+        // Libelle du panier avec compteur vivant : produits distincts et total
+        // des unites, rafraichi a chaque ajout, retrait, import ou edition de
+        // quantite (datachanged ne couvre pas l'edition d'une ligne, update si)
+        var cartLabel = Ext.create('Ext.Component', {
+            html: '<b>Panier</b> — vide',
+            margin: '6 0 4 0'
+        });
+        var majCartLabel = function () {
+            var nb = cartStore.getCount();
+            if (nb === 0) {
+                cartLabel.update('<b>Panier</b> — vide');
+                return;
+            }
+            var unites = 0;
+            cartStore.each(function (r) {
+                unites += parseInt(r.get('int_QTE'), 10) || 0;
+            });
+            cartLabel.update('<b>Panier</b> — <b>' + nb + '</b> produit' + (nb > 1 ? 's' : '')
+                    + ', <b>' + unites + '</b> unité' + (unites > 1 ? 's' : ''));
+        };
+        cartStore.on({
+            datachanged: majCartLabel,
+            update: majCartLabel
+        });
+
         var cartGrid = Ext.create('Ext.grid.Panel', {
             store: cartStore,
             flex: 1,
@@ -424,7 +449,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                                 {xtype: 'tbspacer', width: 15}, infoLabel]}
                     ]
                 },
-                {xtype: 'component', html: '<b>Panier</b>', margin: '6 0 4 0'},
+                cartLabel,
                 cartGrid
             ],
             dockedItems: [barreMotif],
