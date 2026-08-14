@@ -585,6 +585,10 @@ public class SalesStatsRessource {
         body.setStatut(Constant.STATUT_IS_CLOSED);
         body.setAll(false);
         body.setStock(stock);
+        // Case « Inclure le stock reserve » des ecrans articles vendus : lue ici pour
+        // couvrir d'un coup liste, recap, exports csv/excel et suggestion. Cochee par
+        // defaut (seul 'false' explicite bascule sur le stock rayon seul).
+        body.setAvecStockReserve(!"false".equals(servletRequest.getParameter("avecStockReserve")));
         body.setRayonId(rayonId);
         body.setTypeTransaction(typeTransaction);
         body.setStockFiltre(stockFiltre);

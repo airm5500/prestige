@@ -298,6 +298,21 @@ public class SalesStatsParams implements Serializable {
         this.all = all;
     }
 
+    /**
+     * Base de comparaison du filtre stock des listes d'articles vendus : true (defaut) = le filtre porte sur le stock
+     * total rayon + reserve ; false = comportement historique, stock rayon seul. Dans ce dernier cas les lignes dont le
+     * total depasse le seuil du filtre sont marquees (couvertes par la reserve).
+     */
+    private boolean avecStockReserve = true;
+
+    public boolean isAvecStockReserve() {
+        return avecStockReserve;
+    }
+
+    public void setAvecStockReserve(boolean avecStockReserve) {
+        this.avecStockReserve = avecStockReserve;
+    }
+
     public void setShowAllActivities(boolean showAllActivities) {
         this.showAllActivities = showAllActivities;
     }

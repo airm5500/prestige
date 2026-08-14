@@ -784,6 +784,28 @@ public class VenteDetailsDTO implements Serializable {
         this.intAVOIR = (int) avoir;
     }
 
+    // Stock reserve de l'article (0 si non suivi) et marqueur « couvert par la
+    // reserve » : la ligne sort au filtre stock rayon mais le total rayon +
+    // reserve depasse le seuil — mise en evidence a l'ecran et sur le PDF.
+    private int stockReserve;
+    private boolean couvertParReserve;
+
+    public int getStockReserve() {
+        return stockReserve;
+    }
+
+    public void setStockReserve(int stockReserve) {
+        this.stockReserve = stockReserve;
+    }
+
+    public boolean isCouvertParReserve() {
+        return couvertParReserve;
+    }
+
+    public void setCouvertParReserve(boolean couvertParReserve) {
+        this.couvertParReserve = couvertParReserve;
+    }
+
     private String lgFAMILLEPARENTID;
 
     public String getLgFAMILLEPARENTID() {

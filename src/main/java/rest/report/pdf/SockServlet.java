@@ -115,6 +115,8 @@ public class SockServlet extends HttpServlet {
             body.setQuery(query);
             body.setStatut(Constant.STATUT_IS_CLOSED);
             body.setAll(true);
+            // Meme base de filtre stock que l'ecran (case « Inclure le stock reserve »)
+            body.setAvecStockReserve(!"false".equals(request.getParameter("avecStockReserve")));
             body.setStock(stock);
             body.setRayonId(rayonId);
             body.setTypeTransaction(typeTransaction);

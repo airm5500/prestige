@@ -67,6 +67,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -1303,6 +1304,52 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return json;
     }
 
+    /** Type de stock « reserve » dans t_type_stock_famille. */
+    private static final String TYPE_STOCK_RESERVE = "2";
+
+    /**
+     * Complete chaque ligne avec son stock reserve (une seule requete pour la page) et pose le marqueur « couvert par
+     * la reserve » : filtre stock actif SANS prise en compte de la reserve, et stock total (rayon + reserve) superieur
+     * au seuil du filtre — la ligne sort au filtre rayon mais la reserve la couvre (mise en evidence a l'ecran et sur
+     * le PDF).
+     */
+    private void enrichirStockReserve(List<VenteDetailsDTO> data, SalesStatsParams params) {
+        if (data == null || data.isEmpty()) {
+            return;
+        }
+        TUser current = this.sessionHelperService.getCurrentUser();
+        if (current == null) {
+            current = params.getUserId();
+        }
+        String empl = current.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        java.util.Set<String> familleIds = data.stream().map(VenteDetailsDTO::getLgFAMILLEID).filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (familleIds.isEmpty()) {
+            return;
+        }
+        java.util.Map<String, Integer> reserveParFamille = new java.util.HashMap<>();
+        try {
+            List<Object[]> rows = getEntityManager()
+                    .createQuery("SELECT t.lgFAMILLEID.lgFAMILLEID, t.intNUMBER FROM TTypeStockFamille t "
+                            + "WHERE t.lgTYPESTOCKID.lgTYPESTOCKID = :type AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl "
+                            + "AND t.lgFAMILLEID.lgFAMILLEID IN :ids", Object[].class)
+                    .setParameter("type", TYPE_STOCK_RESERVE).setParameter("empl", empl).setParameter("ids", familleIds)
+                    .getResultList();
+            for (Object[] row : rows) {
+                reserveParFamille.put((String) row[0], row[1] == null ? 0 : ((Number) row[1]).intValue());
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "enrichirStockReserve", e);
+        }
+        boolean marquer = !params.isAvecStockReserve() && !StringUtils.isEmpty(params.getStockFiltre())
+                && params.getStock() != null;
+        for (VenteDetailsDTO dto : data) {
+            int reserve = reserveParFamille.getOrDefault(dto.getLgFAMILLEID(), 0);
+            dto.setStockReserve(reserve);
+            dto.setCouvertParReserve(marquer && (dto.getCurrentStock() + reserve) > params.getStock());
+        }
+    }
+
     List<Predicate> articlesVendusSpecialisation(CriteriaBuilder cb, Root<TPreenregistrementDetail> root,
             Join<TPreenregistrementDetail, TPreenregistrement> jp, Join<TPreenregistrementDetail, TFamille> jf,
             Join<TFamille, TFamilleStock> st, SalesStatsParams param) {
@@ -1398,28 +1445,40 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             }
         }
         if (!StringUtils.isEmpty(param.getStockFiltre()) && param.getStock() != null) {
+            // Base de comparaison du filtre stock : stock rayon seul (comportement
+            // historique) ou stock total rayon + reserve, selon la case « Inclure le
+            // stock reserve » de l'ecran. La jointure reserve (LEFT + coalesce 0 :
+            // un article sans ligne de reserve garde le comportement rayon seul)
+            // n'est ajoutee que lorsque le filtre en a besoin.
+            javax.persistence.criteria.Expression<Integer> stockCompare = st.get(TFamilleStock_.intNUMBERAVAILABLE);
+            if (param.isAvecStockReserve()) {
+                Join<TFamille, dal.TTypeStockFamille> rs = jf.join("tTypeStockFamilleCollection", JoinType.LEFT);
+                rs.on(cb.equal(rs.get("lgTYPESTOCKID").get("lgTYPESTOCKID"), TYPE_STOCK_RESERVE),
+                        cb.equal(rs.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmplacementId));
+                stockCompare = cb.sum(stockCompare, cb.coalesce(rs.get("intNUMBER").as(Integer.class), 0));
+            }
             switch (param.getStockFiltre()) {
             case Constant.LESS:
-                predicates.add(cb.lessThan(st.get(TFamilleStock_.intNUMBERAVAILABLE), param.getStock()));
+                predicates.add(cb.lessThan(stockCompare, param.getStock()));
 
                 break;
             case Constant.EQUAL:
-                predicates.add(cb.equal(st.get(TFamilleStock_.intNUMBERAVAILABLE), param.getStock()));
+                predicates.add(cb.equal(stockCompare, param.getStock()));
 
                 break;
             case Constant.DIFF:
-                predicates.add(cb.notEqual(st.get(TFamilleStock_.intNUMBERAVAILABLE), param.getStock()));
+                predicates.add(cb.notEqual(stockCompare, param.getStock()));
 
                 break;
             case Constant.MORE:
-                predicates.add(cb.greaterThan(st.get(TFamilleStock_.intNUMBERAVAILABLE), param.getStock()));
+                predicates.add(cb.greaterThan(stockCompare, param.getStock()));
 
                 break;
             case Constant.MOREOREQUAL:
-                predicates.add(cb.greaterThanOrEqualTo(st.get(TFamilleStock_.intNUMBERAVAILABLE), param.getStock()));
+                predicates.add(cb.greaterThanOrEqualTo(stockCompare, param.getStock()));
                 break;
             case Constant.LESSOREQUAL:
-                predicates.add(cb.lessThanOrEqualTo(st.get(TFamilleStock_.intNUMBERAVAILABLE), param.getStock()));
+                predicates.add(cb.lessThanOrEqualTo(stockCompare, param.getStock()));
 
                 break;
             default:
@@ -1490,7 +1549,9 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                 q.setMaxResults(params.getLimit());
 
             }
-            return q.getResultList();
+            List<VenteDetailsDTO> resultats = q.getResultList();
+            enrichirStockReserve(resultats, params);
+            return resultats;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
@@ -1584,7 +1645,9 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                 q.setFirstResult(params.getStart());
                 q.setMaxResults(params.getLimit());
             }
-            return q.getResultList();
+            List<VenteDetailsDTO> resultats = q.getResultList();
+            enrichirStockReserve(resultats, params);
+            return resultats;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();

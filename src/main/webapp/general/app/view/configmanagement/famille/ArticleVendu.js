@@ -51,6 +51,17 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
         var Me = this;
         var lg_EMPLACEMENT_ID = loadEmplacement();
 
+        // Mise en evidence « couvert par la reserve » : ligne verte et grasse,
+        // pastille sur le stock rayon (partagee avec l'ecran recapitulatif)
+        if (!document.getElementById('av-reserve-css')) {
+            var avCss = document.createElement('style');
+            avCss.id = 'av-reserve-css';
+            avCss.textContent = '.av-couvert-reserve .x-grid-cell { color:#1b7a1f !important; font-weight:bold !important; }\n'
+                    + '.av-pastille { display:inline-block; width:9px; height:9px; border-radius:50%; background:#2e9b33;'
+                    + ' margin-right:5px; vertical-align:middle; box-shadow:0 0 0 2px rgba(46,155,51,0.25); }';
+            document.head.appendChild(avCss);
+        }
+
         var itemsPerPage = 20;
 
 
@@ -122,6 +133,14 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                 },
                 {name: 'currentStock',
                     type: 'number'
+
+                },
+                {name: 'stockReserve',
+                    type: 'number'
+
+                },
+                {name: 'couvertParReserve',
+                    type: 'boolean'
 
                 },
                 {name: 'HEURE',
@@ -252,9 +271,20 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                     align: 'right',
                     flex: 0.8
                 }, {
-                    header: 'Stock',
+                    header: 'Stock rayon',
                     dataIndex: 'currentStock',
-                    flex: 0.6,
+                    flex: 0.7,
+                    align: 'right',
+                    renderer: function (v, meta, record) {
+                        var texte = amountformat(v);
+                        return record.get('couvertParReserve')
+                                ? '<span class="av-pastille"></span>' + texte : texte;
+                    }
+
+                }, {
+                    header: 'Stock réserve',
+                    dataIndex: 'stockReserve',
+                    flex: 0.7,
                     renderer: amountformat,
                     align: 'right'
 
@@ -282,6 +312,13 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
             ],
             selModel: {
                 selType: 'cellmodel'
+            },
+            viewConfig: {
+                // Ligne verte + grasse quand la reserve couvre le seuil du filtre
+                // (uniquement quand la case « Inclure le stock reserve » est decochee)
+                getRowClass: function (record) {
+                    return record.get('couvertParReserve') ? 'av-couvert-reserve' : '';
+                }
             },
             dockedItems: [
                 {
@@ -579,6 +616,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                                 myProxy.setExtraParam('prixachatFiltre', Ext.getCmp('prixachatFiltre').getValue());
                                 myProxy.setExtraParam('stockFiltre', Ext.getCmp('stockFiltre').getValue());
                                 myProxy.setExtraParam('stock', (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : 0));
+                                myProxy.setExtraParam('avecStockReserve', (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true'));
                             }
 
                         }
@@ -596,6 +634,30 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                         renderer: amountformatbis,
                         fieldStyle: "color:white;", /* mise en couleur blanche pour cacher sur l'ecran */
                         value: 0
+                    },
+                    {
+                        xtype: 'tbseparator'
+                    },
+                    {
+                        // Base du filtre stock : cochee = total rayon + reserve ;
+                        // decochee = rayon seul (historique) avec mise en evidence
+                        // des lignes couvertes par la reserve (vert + pastille)
+                        xtype: 'checkbox',
+                        id: 'avecStockReserve',
+                        boxLabel: 'Inclure le stock réserve',
+                        checked: true,
+                        margin: '0 0 0 8',
+                        listeners: {
+                            change: function () {
+                                Me.onRechClick();
+                            },
+                            afterrender: function (c) {
+                                c.getEl().set({'data-qtip':
+                                    'Cochée : le filtre stock compare au total rayon + réserve.<br/>'
+                                    + 'Décochée : au stock rayon seul (comportement historique) — les lignes '
+                                    + 'dont le total dépasse le seuil du filtre sont mises en évidence en vert.'});
+                            }
+                        }
                     }
                 ]
             },
@@ -648,7 +710,8 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                 prixachatFiltre: Ext.getCmp('prixachatFiltre').getValue(),
                 stock: (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : 0),
                 stockFiltre: Ext.getCmp('stockFiltre').getValue(),
-                rayonId: Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : ""
+                rayonId: Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "",
+                avecStockReserve: (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true')
 
             }
         });
@@ -661,7 +724,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
         linkUrl += "&nbre=" + (Ext.getCmp('int_NUMBER').getValue() != null ? Ext.getCmp('int_NUMBER').getValue() : 0) + '&prixachatFiltre=' + Ext.getCmp('prixachatFiltre').getValue();
         linkUrl += "&stock=" + (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : 0) + '&stockFiltre=' + (Ext.getCmp('stockFiltre').getValue() != null ? Ext.getCmp('stockFiltre').getValue() : "");
         linkUrl += "&user=" + (Ext.getCmp('lg_USER_ID').getValue() != null ? Ext.getCmp('lg_USER_ID').getValue() : "");
-        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=detail';
+        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=detail' + '&avecStockReserve=' + (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true');
 
 
         window.open(linkUrl);
@@ -675,7 +738,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
         linkUrl += "&nbre=" + (Ext.getCmp('int_NUMBER').getValue() != null ? Ext.getCmp('int_NUMBER').getValue() : 0) + '&prixachatFiltre=' + Ext.getCmp('prixachatFiltre').getValue();
         linkUrl += "&stock=" + (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : 0) + '&stockFiltre=' + (Ext.getCmp('stockFiltre').getValue() != null ? Ext.getCmp('stockFiltre').getValue() : "");
         linkUrl += "&user=" + (Ext.getCmp('lg_USER_ID').getValue() != null ? Ext.getCmp('lg_USER_ID').getValue() : "");
-        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=user';
+        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=user' + '&avecStockReserve=' + (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true');
 
         window.open(linkUrl);
     },
@@ -687,7 +750,7 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
         linkUrl += "&nbre=" + (Ext.getCmp('int_NUMBER').getValue() != null ? Ext.getCmp('int_NUMBER').getValue() : 0) + '&prixachatFiltre=' + Ext.getCmp('prixachatFiltre').getValue();
         linkUrl += "&stock=" + (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : 0) + '&stockFiltre=' + (Ext.getCmp('stockFiltre').getValue() != null ? Ext.getCmp('stockFiltre').getValue() : "");
         linkUrl += "&user=" + (Ext.getCmp('lg_USER_ID').getValue() != null ? Ext.getCmp('lg_USER_ID').getValue() : "");
-        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=rayon';
+        linkUrl += "&rayonId=" + (Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "") + '&type=rayon' + '&avecStockReserve=' + (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true');
 
         window.open(linkUrl);
     },
@@ -706,7 +769,8 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
             stock: (Ext.getCmp('stock').getValue() != null ? Ext.getCmp('stock').getValue() : 0),
             stockFiltre: Ext.getCmp('stockFiltre').getValue(),
             prixachatFiltre: Ext.getCmp('prixachatFiltre').getValue(),
-            rayonId: Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : ""
+            rayonId: Ext.getCmp('rayons').getValue() != null ? Ext.getCmp('rayons').getValue() : "",
+            avecStockReserve: (Ext.getCmp('avecStockReserve') && Ext.getCmp('avecStockReserve').getValue() === false ? 'false' : 'true')
         };
         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
