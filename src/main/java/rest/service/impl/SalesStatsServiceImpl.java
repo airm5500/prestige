@@ -1306,8 +1306,15 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     List<Predicate> articlesVendusSpecialisation(CriteriaBuilder cb, Root<TPreenregistrementDetail> root,
             Join<TPreenregistrementDetail, TPreenregistrement> jp, Join<TPreenregistrementDetail, TFamille> jf,
             Join<TFamille, TFamilleStock> st, SalesStatsParams param) {
-        // DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        String lgEmplacementId = this.sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        // L'utilisateur vient du filtre d'authentification REST (ThreadLocal) quand la
+        // requete passe par l'API. L'impression (SockServlet) ne traverse PAS ce filtre :
+        // sans le repli sur param.getUserId() — que la servlet renseigne — la generation
+        // du PDF partait en NPE et imprimait une liste vide.
+        TUser currentUser = this.sessionHelperService.getCurrentUser();
+        if (currentUser == null) {
+            currentUser = param.getUserId();
+        }
+        String lgEmplacementId = currentUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         List<Predicate> predicates = new ArrayList<>();
         predicates.add(cb.equal(jp.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmplacementId));
         predicates.add(cb.equal(jp.get(TPreenregistrement_.bISCANCEL), Boolean.FALSE));
