@@ -31,11 +31,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
             listeners: {
                 // Le nombre d'articles proposes est affiche en clair : on sait tout de suite
                 // sur combien de produits porte la suggestion qu'on s'apprete a creer.
-                load: function (st, recs) {
-                    var lbl = win && win.down('#lblNbProduits');
-                    if (lbl) {
-                        lbl.setText((recs ? recs.length : 0) + ' article(s) propose(s)');
-                    }
+                load: function () {
+                    majLabel();
                 }
             },
             proxy: {
@@ -45,6 +42,64 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                 reader: {type: 'json', root: 'results', totalProperty: 'total'}
             }
         });
+
+        // Liste COMPLETE de la suggestion, lignes masquees par la recherche comprises
+        var listeComplete = function () {
+            return store.snapshot || store.data;
+        };
+
+        // Retrait d'une ligne pendant une recherche : ExtJS ne retire du snapshot
+        // que les lignes visibles — sans ce nettoyage, la ligne retiree
+        // reapparaitrait en vidant la recherche (et repartirait dans la suggestion)
+        var retirerLigne = function (rec) {
+            store.remove(rec);
+            if (store.snapshot) {
+                store.snapshot.remove(rec);
+            }
+            majLabel();
+        };
+
+        // Compteur : total propose, et nombre affiche quand une recherche filtre
+        var majLabel = function () {
+            var lbl = win && win.down('#lblNbProduits');
+            if (!lbl) {
+                return;
+            }
+            var total = listeComplete().getCount();
+            var visibles = store.getCount();
+            lbl.setText(visibles === total
+                    ? total + ' article(s) propose(s)'
+                    : visibles + ' affiche(s) sur ' + total + ' article(s) propose(s)');
+        };
+
+        // Recherche automatique a la saisie : filtre local (la liste est deja
+        // chargee en entier) sur la designation ou le CIP. Vider le champ retablit tout.
+        var filtrerSuggestion = function (valeur) {
+            var v = String(valeur || '').trim().toLowerCase();
+            store.clearFilter(v !== '');
+            if (v !== '') {
+                store.filterBy(function (r) {
+                    return String(r.get('str_NAME') || '').toLowerCase().indexOf(v) !== -1
+                            || String(r.get('int_CIP') || '').toLowerCase().indexOf(v) !== -1;
+                });
+            }
+            majLabel();
+        };
+        var barreRecherche = {
+            xtype: 'toolbar', dock: 'top',
+            items: [{
+                    xtype: 'textfield', itemId: 'txtRechSuggestion',
+                    emptyText: 'Rechercher (nom ou CIP)...', width: 320,
+                    listeners: {
+                        change: {
+                            fn: function (field, value) {
+                                filtrerSuggestion(value);
+                            },
+                            buffer: 250
+                        }
+                    }
+                }]
+        };
 
         var grid = Ext.create('Ext.grid.Panel', {
             store: store,
@@ -81,7 +136,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                         icon: 'resources/images/icons/fam/delete.png',
                         tooltip: 'Retirer de la suggestion',
                         handler: function (g, rowIndex) {
-                            store.removeAt(rowIndex);
+                            // Par record : la grille peut etre filtree par la recherche
+                            var rec = g.getStore().getAt(rowIndex);
+                            if (rec) {
+                                retirerLigne(rec);
+                            }
                         }
                     }]
                 }
@@ -135,7 +194,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
             maximizable: true,
             constrainHeader: true,
             items: [grid],
-            dockedItems: [barreCreation],
+            dockedItems: [barreRecherche, barreCreation],
             buttons: [
                 {
                     // On ne deplace plus le stock ici : on enregistre une suggestion, qui sera
@@ -143,8 +202,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
                     text: 'Creer la suggestion',
                     cls: 'btn-suggestions-violet',
                     handler: function () {
+                        // Liste COMPLETE (snapshot) : une recherche en cours masque des
+                        // lignes a l'ecran mais la suggestion porte tous les articles
                         var items = [];
-                        store.each(function (r) {
+                        listeComplete().each(function (r) {
                             var qte = parseInt(r.get('int_QTE_SUGGEREE'), 10);
                             if (!isNaN(qte) && qte > 0) {
                                 items.push({lg_FAMILLE_ID: r.get('lg_FAMILLE_ID'), int_QTE: qte});

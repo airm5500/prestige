@@ -464,10 +464,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                             tooltip: 'Retirer',
                             handler: function (grid, rowIndex) {
                                 // Par record et non par index brut : la grille est
-                                // triee et peut etre filtree par la recherche
+                                // triee et peut etre filtree par la recherche. Le
+                                // snapshot est nettoye aussi, sinon la ligne retiree
+                                // reapparaitrait en vidant la recherche
                                 var rec = grid.getStore().getAt(rowIndex);
                                 if (rec) {
                                     cartStore.remove(rec);
+                                    if (cartStore.snapshot) {
+                                        cartStore.snapshot.remove(rec);
+                                    }
                                 }
                             }
                         }]
