@@ -27,12 +27,33 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             }
         });
 
-        // Store du panier (en memoire)
+        // Store du panier (en memoire), classe par designation par defaut
         var cartStore = new Ext.data.Store({
             fields: ['lg_FAMILLE_ID', 'str_NAME', 'int_CIP',
                 {name: 'int_QTE', type: 'int'},
-                {name: 'available', type: 'int'}]
+                {name: 'available', type: 'int'}],
+            sorters: [{property: 'str_NAME', direction: 'ASC'}]
         });
+
+        // Recherche le produit dans TOUT le panier, y compris les lignes masquees
+        // par le filtre de recherche (findRecord ne voit que les lignes visibles :
+        // un produit filtre serait duplique au lieu d'etre cumule)
+        var findInCart = function (familleId) {
+            var coll = cartStore.snapshot || cartStore.data;
+            var idx = coll.findIndexBy(function (r) {
+                return r.get('lg_FAMILLE_ID') === familleId;
+            });
+            return idx === -1 ? null : coll.getAt(idx);
+        };
+
+        // Couleurs de la grille du panier : survol et ligne selectionnee
+        if (!Ext.get('reappro-grid-css')) {
+            Ext.util.CSS.createStyleSheet(
+                    '.reappro-cart .x-grid-row-over .x-grid-cell {background-color:#e3f2fd !important;}'
+                    + '.reappro-cart .x-grid-row-selected .x-grid-cell '
+                    + '{background-color:#bbdefb !important;color:#000 !important;}',
+                    'reappro-grid-css');
+        }
 
         var stockLabel = (mode === 'assort') ? 'Stock rayon' : 'Stock reserve';
         // assort  = le trop-plein du rayon part EN RESERVE
@@ -159,7 +180,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                 return;
             }
             var id = rec.get('lg_FAMILLE_ID');
-            var existing = cartStore.findRecord('lg_FAMILLE_ID', id);
+            var existing = findInCart(id);
             if (existing) {
                 existing.set('int_QTE', existing.get('int_QTE') + qte);
             } else {
@@ -183,7 +204,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
         var ajouterLignesImportees = function (lignes) {
             var n = 0;
             Ext.each(lignes, function (l) {
-                var existing = cartStore.findRecord('lg_FAMILLE_ID', l.lg_FAMILLE_ID);
+                var existing = findInCart(l.lg_FAMILLE_ID);
                 if (existing) {
                     existing.set('int_QTE', existing.get('int_QTE') + l.int_QTE);
                 } else {
@@ -373,17 +394,19 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
         // des unites, rafraichi a chaque ajout, retrait, import ou edition de
         // quantite (datachanged ne couvre pas l'edition d'une ligne, update si)
         var cartLabel = Ext.create('Ext.Component', {
-            html: '<b>Panier</b> — vide',
-            margin: '6 0 4 0'
+            html: '<b>Panier</b> — vide'
         });
         var majCartLabel = function () {
-            var nb = cartStore.getCount();
+            // Toujours les totaux REELS du panier : le filtre de recherche masque
+            // des lignes a l'ecran mais ne retire rien du panier (snapshot)
+            var coll = cartStore.snapshot || cartStore.data;
+            var nb = coll.getCount();
             if (nb === 0) {
                 cartLabel.update('<b>Panier</b> — vide');
                 return;
             }
             var unites = 0;
-            cartStore.each(function (r) {
+            coll.each(function (r) {
                 unites += parseInt(r.get('int_QTE'), 10) || 0;
             });
             cartLabel.update('<b>Panier</b> — <b>' + nb + '</b> produit' + (nb > 1 ? 's' : '')
@@ -394,10 +417,37 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             update: majCartLabel
         });
 
+        // Recherche dans le panier : filtre au fil de la frappe, sur la
+        // designation ou le CIP. Vider le champ retablit tout le panier.
+        var filtrerPanier = function (valeur) {
+            var v = String(valeur || '').trim().toLowerCase();
+            cartStore.clearFilter(v !== '');
+            if (v === '') {
+                return;
+            }
+            cartStore.filterBy(function (r) {
+                return String(r.get('str_NAME') || '').toLowerCase().indexOf(v) !== -1
+                        || String(r.get('int_CIP') || '').toLowerCase().indexOf(v) !== -1;
+            });
+        };
+        var cartSearch = Ext.create('Ext.form.field.Text', {
+            emptyText: 'Rechercher dans le panier (nom ou CIP)...',
+            width: 280,
+            listeners: {
+                change: {
+                    fn: function (field, value) {
+                        filtrerPanier(value);
+                    },
+                    buffer: 250
+                }
+            }
+        });
+
         var cartGrid = Ext.create('Ext.grid.Panel', {
             store: cartStore,
             flex: 1,
             border: true,
+            cls: 'reappro-cart',
             plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
             columns: [
                 {header: 'CIP', dataIndex: 'int_CIP', width: 90},
@@ -413,7 +463,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                             icon: 'resources/images/icons/fam/delete.png',
                             tooltip: 'Retirer',
                             handler: function (grid, rowIndex) {
-                                cartStore.removeAt(rowIndex);
+                                // Par record et non par index brut : la grille est
+                                // triee et peut etre filtree par la recherche
+                                var rec = grid.getStore().getAt(rowIndex);
+                                if (rec) {
+                                    cartStore.remove(rec);
+                                }
                             }
                         }]
                 }
@@ -450,7 +505,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                                 {xtype: 'tbspacer', width: 15}, infoLabel]}
                     ]
                 },
-                cartLabel,
+                {xtype: 'container', layout: {type: 'hbox', align: 'middle'},
+                    margin: '6 0 4 0',
+                    items: [cartLabel, {xtype: 'tbspacer', flex: 1}, cartSearch]},
                 cartGrid
             ],
             dockedItems: [barreMotif],
@@ -461,7 +518,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                     text: 'Creer la suggestion',
                     cls: 'btn-suggestions-violet',
                     handler: function () {
-                        if (cartStore.getCount() === 0) {
+                        // Panier COMPLET (snapshot) : une recherche en cours masque des
+                        // lignes a l'ecran mais la suggestion porte tout le panier
+                        var panierComplet = cartStore.snapshot || cartStore.data;
+                        if (panierComplet.getCount() === 0) {
                             Ext.MessageBox.alert('Message', 'Le panier est vide.');
                             return;
                         }
@@ -477,7 +537,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                         }
                         var txtCom = win.down('#txtCommentaireReappro');
                         var items = [];
-                        cartStore.each(function (r) {
+                        panierComplet.each(function (r) {
                             items.push({lg_FAMILLE_ID: r.get('lg_FAMILLE_ID'), int_QTE: r.get('int_QTE')});
                         });
                         var progress = Ext.MessageBox.wait('Veuillez patienter...', 'Creation en cours');
