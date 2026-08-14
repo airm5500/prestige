@@ -424,10 +424,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
         var win = new Ext.window.Window({
             autoShow: false,
             title: me.getTitre(),
-            width: 640,
-            height: 480,
+            width: 900,
+            height: 620,
             minWidth: 500,
             minHeight: 360,
+            maximizable: true,
             layout: 'vbox',
             modal: true,
             bodyPadding: 8,

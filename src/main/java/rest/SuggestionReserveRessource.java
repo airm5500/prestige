@@ -416,8 +416,13 @@ public class SuggestionReserveRessource {
             return deconnecte();
         }
         byte[] data = suggestionReserveService.exportRapportImportExcel(user, payload);
-        return Response.ok(data)
-                .header("Content-Disposition", "attachment; filename=\"rapport_importation_reappro.xls\"").build();
+        return Response.ok(data).header("Content-Disposition",
+                "attachment; filename=\"rapport_importation_reappro_" + horodatage() + ".xls\"").build();
+    }
+
+    /** Horodatage des fichiers exportes : chaque export garde son propre nom. */
+    private static String horodatage() {
+        return new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
     }
 
     /**
@@ -434,7 +439,7 @@ public class SuggestionReserveRessource {
             return deconnecte();
         }
         byte[] data = suggestionReserveService.exportRapportImportPdf(user, payload);
-        return Response.ok(data).header("Content-Disposition", "inline; filename=\"rapport_importation_reappro.pdf\"")
-                .build();
+        return Response.ok(data).header("Content-Disposition",
+                "inline; filename=\"rapport_importation_reappro_" + horodatage() + ".pdf\"").build();
     }
 }
