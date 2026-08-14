@@ -1623,7 +1623,7 @@ public class ReserveServiceImpl implements ReserveService {
                 String qteBrute = (String) l[2];
                 if (cip == null || cip.isEmpty()) {
                     rejets.put(new JSONObject().put("ligne", numLigne).put("cip", "").put("quantite", qteBrute)
-                            .put("motif", "Ligne illisible : CIP absent"));
+                            .put("designation", "").put("stock", "").put("motif", "Ligne illisible : CIP absent"));
                     continue;
                 }
                 int qte;
@@ -1631,11 +1631,12 @@ public class ReserveServiceImpl implements ReserveService {
                     qte = (int) Double.parseDouble(qteBrute.replace(",", ".").trim());
                 } catch (Exception e) {
                     rejets.put(new JSONObject().put("ligne", numLigne).put("cip", cip).put("quantite", qteBrute)
-                            .put("motif", "Quantité invalide"));
+                            .put("designation", "").put("stock", "").put("motif", "Quantité invalide"));
                     continue;
                 }
                 if (qte <= 0) {
                     rejets.put(new JSONObject().put("ligne", numLigne).put("cip", cip).put("quantite", qteBrute)
+                            .put("designation", "").put("stock", "")
                             .put("motif", "Quantité invalide (doit être supérieure à zéro)"));
                     continue;
                 }
@@ -1643,6 +1644,7 @@ public class ReserveServiceImpl implements ReserveService {
                 if (familleId == null) {
                     boolean connu = familleConnueParCip.containsKey(cip);
                     rejets.put(new JSONObject().put("ligne", numLigne).put("cip", cip).put("quantite", qteBrute)
+                            .put("designation", "").put("stock", "")
                             .put("motif", connu ? "Article non suivi en réserve" : "CIP inconnu"));
                     continue;
                 }
@@ -1665,14 +1667,16 @@ public class ReserveServiceImpl implements ReserveService {
                 }
                 if (dispo <= 0) {
                     rejets.put(new JSONObject().put("ligne", numLignes).put("cip", cip)
-                            .put("quantite", String.valueOf(e.getValue()))
+                            .put("quantite", String.valueOf(e.getValue())).put("designation", nom)
+                            .put("stock", String.valueOf(dispo))
                             .put("motif", (versReserve ? "Stock rayon épuisé" : "Stock réserve épuisé") + " — " + nom));
                     continue;
                 }
                 int qte = e.getValue();
                 if (qte > dispo) {
                     ajustements.put(new JSONObject().put("ligne", numLignes).put("cip", cip)
-                            .put("quantite", String.valueOf(qte)).put("motif", "Quantité ramenée de " + qte + " à "
+                            .put("quantite", String.valueOf(qte)).put("designation", nom)
+                            .put("stock", String.valueOf(dispo)).put("motif", "Quantité ramenée de " + qte + " à "
                                     + dispo + " (" + libelleStock + " disponible) — " + nom));
                     qte = dispo;
                 }

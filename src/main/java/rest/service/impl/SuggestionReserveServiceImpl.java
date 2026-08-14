@@ -968,6 +968,35 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     }
 
     @Override
+    public byte[] exportRapportImportExcel(TUser user, String payload) throws java.io.IOException {
+        JSONObject in = new JSONObject(payload == null || payload.trim().isEmpty() ? "{}" : payload);
+        String categorie = in.optString("categorie", TSuggestionReserve.CATEGORIE_RESERVE);
+        // La colonne stock porte le stock de l'AUTRE cote du mouvement : en reappro
+        // reserve on plafonne sur le rayon, en reappro rayon sur la reserve.
+        String enteteStock = TSuggestionReserve.CATEGORIE_RESERVE.equals(categorie) ? "Stock rayon" : "Stock reserve";
+        String resume = in.optString("resume", "");
+        String titre = "Rapport d'importation - " + libelleSens(categorie) + (resume.isEmpty() ? "" : " - " + resume);
+        JSONArray lignes = in.optJSONArray("lignes");
+        List<String[]> data = new ArrayList<>();
+        if (lignes != null) {
+            for (int i = 0; i < lignes.length(); i++) {
+                JSONObject l = lignes.getJSONObject(i);
+                data.add(
+                        new String[] { l.optString("ligne", ""), l.optString("cip", ""), l.optString("designation", ""),
+                                l.optString("quantite", ""), l.optString("stock", ""), l.optString("motif", "") });
+            }
+        }
+        String[] entetes = { "Ligne du fichier", "CIP", "Designation", "Qte lue", enteteStock, "Motif" };
+        LOG.log(Level.INFO, "exportRapportImportExcel categorie={0} lignes={1} user={2}",
+                new Object[] { categorie, data.size(), user.getLgUSERID() });
+        return reportExcelExportService.createLandscapeExcelReport(titre, entetes, data, (row, d) -> {
+            for (int col = 0; col < d.length; col++) {
+                row.createCell(col).setCellValue(d[col]);
+            }
+        });
+    }
+
+    @Override
     public JSONObject creerDepuisRecherche(TUser user, String type, String search, Integer motifId,
             String commentaire) {
         // Le sens decoule de l'onglet : REAPPRO range le trop-plein en reserve, les autres regarnissent le rayon.

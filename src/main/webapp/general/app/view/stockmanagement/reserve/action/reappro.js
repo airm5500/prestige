@@ -211,12 +211,93 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
             var lignesRapport = [];
             Ext.each(rejets, function (r) {
                 lignesRapport.push({ligne: r.ligne, cip: r.cip, quantite: r.quantite,
+                    designation: r.designation || '', stock: (r.stock === 0 || r.stock) ? String(r.stock) : '',
                     motif: r.motif, type: 'REJET'});
             });
             Ext.each(ajustements, function (r) {
                 lignesRapport.push({ligne: r.ligne, cip: r.cip, quantite: r.quantite,
+                    designation: r.designation || '', stock: (r.stock === 0 || r.stock) ? String(r.stock) : '',
                     motif: r.motif, type: 'AJUSTEMENT'});
             });
+            // Resume en texte brut : repris dans l'export Excel et l'impression
+            var resumeTexte = nbAjoutees + ' ligne(s) ajoutee(s) au panier, ' + rejets.length
+                    + ' rejetee(s), ' + ajustements.length + ' quantite(s) ajustee(s)';
+
+            // Telechargement du .xls par formulaire cache : le rapport n'existe pas
+            // en base, on renvoie au serveur les lignes affichees (payload JSON)
+            var exporterRapportExcel = function () {
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '../api/v1/suggestion-reserve/rapport-import/excel';
+                form.style.display = 'none';
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'payload';
+                input.value = Ext.JSON.encode({
+                    categorie: categorie,
+                    resume: resumeTexte,
+                    lignes: lignesRapport
+                });
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+            };
+
+            // Impression en paysage : page dediee avec les seules lignes non prises
+            // en compte, meme colonnage que l'export Excel
+            var imprimerRapport = function () {
+                var esc = function (v) {
+                    return String(v === null || v === undefined ? '' : v)
+                            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                };
+                var corps = '';
+                Ext.each(lignesRapport, function (l) {
+                    corps += '<tr>'
+                            + '<td style="text-align:center;">' + esc(l.ligne) + '</td>'
+                            + '<td>' + esc(l.cip) + '</td>'
+                            + '<td>' + esc(l.designation) + '</td>'
+                            + '<td style="text-align:center;">' + esc(l.quantite) + '</td>'
+                            + '<td style="text-align:center;">' + esc(l.stock) + '</td>'
+                            + '<td style="color:' + (l.type === 'REJET' ? '#b00020' : '#b26a00') + ';">'
+                            + esc(l.motif) + '</td>'
+                            + '</tr>';
+                });
+                var w = window.open('', '_blank');
+                if (!w) {
+                    Ext.MessageBox.alert('Impression',
+                            'La fenetre d\'impression a ete bloquee par le navigateur.');
+                    return;
+                }
+                w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">'
+                        + '<title>Rapport d\'importation</title>'
+                        + '<style>'
+                        + '@page{size:A4 landscape;margin:12mm;}'
+                        + 'body{font-family:Arial,sans-serif;font-size:11px;margin:0;}'
+                        + 'h1{font-size:15px;margin:0 0 2px 0;}'
+                        + '.resume{color:#444;margin:0 0 8px 0;}'
+                        + 'table{border-collapse:collapse;width:100%;}'
+                        + 'th,td{border:1px solid #999;padding:3px 6px;vertical-align:top;}'
+                        + 'th{background:#eee;text-align:left;}'
+                        + 'thead{display:table-header-group;}'
+                        + '</style></head><body>'
+                        + '<h1>Rapport d\'importation — '
+                        + (categorie === 'RESERVE' ? 'Réappro réserve' : 'Réappro rayon') + '</h1>'
+                        + '<p class="resume">' + esc(resumeTexte) + ' — imprimé le '
+                        + Ext.Date.format(new Date(), 'd/m/Y H:i') + '</p>'
+                        + '<table><thead><tr>'
+                        + '<th style="width:70px;">Ligne du fichier</th>'
+                        + '<th style="width:90px;">CIP</th>'
+                        + '<th>Désignation</th>'
+                        + '<th style="width:55px;">Qté lue</th>'
+                        + '<th style="width:80px;">' + esc(stockLabel) + '</th>'
+                        + '<th>Motif</th>'
+                        + '</tr></thead><tbody>' + corps + '</tbody></table>'
+                        + '<script>window.onload=function(){window.print();};<\/script>'
+                        + '</body></html>');
+                w.document.close();
+                w.focus();
+            };
             var rapportStore = new Ext.data.Store({
                 fields: ['ligne', 'cip', 'quantite', 'motif', 'type'],
                 data: lignesRapport
@@ -255,7 +336,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                         viewConfig: {enableTextSelection: true}
                     }
                 ],
-                buttons: [{text: 'Fermer', handler: function () {
+                buttons: [
+                    {text: 'Imprimer', iconCls: 'printicon', handler: imprimerRapport},
+                    {text: 'Exporter (Excel)', iconCls: 'excelicon', handler: exporterRapportExcel},
+                    {text: 'Fermer', handler: function () {
                             winRapport.close();
                         }}]
             });

@@ -176,6 +176,14 @@ public interface SuggestionReserveService {
     byte[] exportCompteRenduExcel(TUser user, String suggestionId) throws java.io.IOException;
 
     /**
+     * Export Excel (paysage) du rapport d'importation du panier de reappro : les lignes non prises en compte telles
+     * quelles (rejets et quantites ajustees). Le payload est le rapport affiche a l'ecran, envoye par le client :
+     * {@code {categorie, resume, lignes:[{ligne, cip, designation, quantite, stock, motif, type}]}}. La colonne stock
+     * porte le stock de l'autre cote du mouvement : stock rayon en reappro reserve, stock reserve en reappro rayon.
+     */
+    byte[] exportRapportImportExcel(TUser user, String payload) throws java.io.IOException;
+
+    /**
      * Evalue un produit apres un mouvement ayant modifie son stock rayon, et rattache le cas echeant une ligne a la
      * suggestion automatique ouverte.
      *

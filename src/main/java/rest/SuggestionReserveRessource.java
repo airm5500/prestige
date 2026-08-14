@@ -400,4 +400,23 @@ public class SuggestionReserveRessource {
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"compte_rendu_suggestion.xls\"")
                 .build();
     }
+
+    /**
+     * Export Excel (paysage) du rapport d'importation du panier : lignes rejetees et quantites ajustees. Le rapport
+     * n'est pas persiste, le client renvoie donc les donnees affichees dans le champ de formulaire {@code payload}
+     * (soumission par formulaire cache : le navigateur telecharge la piece jointe sans quitter la page).
+     */
+    @POST
+    @Path("rapport-import/excel")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces("application/vnd.ms-excel")
+    public Response rapportImportExcel(@javax.ws.rs.FormParam("payload") String payload) throws Exception {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        byte[] data = suggestionReserveService.exportRapportImportExcel(user, payload);
+        return Response.ok(data)
+                .header("Content-Disposition", "attachment; filename=\"rapport_importation_reappro.xls\"").build();
+    }
 }

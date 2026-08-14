@@ -51,6 +51,34 @@ public class ReportExcelExportService {
      */
     public <T> byte[] createExcelReport(String title, String[] headers, List<T> data, BiConsumer<Row, T> rowMapper)
             throws IOException {
+        return createExcelReport(title, headers, data, rowMapper, false);
+    }
+
+    /**
+     * Variante en orientation paysage (mise en page d'impression : A4 paysage, ajustement sur une page en largeur).
+     *
+     * @param <T>
+     *            Type des données
+     * @param title
+     *            Titre du rapport
+     * @param headers
+     *            En-têtes des colonnes
+     * @param data
+     *            Liste des données
+     * @param rowMapper
+     *            Fonction pour mapper chaque élément de data vers les cellules
+     *
+     * @return ByteArray du fichier Excel
+     *
+     * @throws java.io.IOException
+     */
+    public <T> byte[] createLandscapeExcelReport(String title, String[] headers, List<T> data,
+            BiConsumer<Row, T> rowMapper) throws IOException {
+        return createExcelReport(title, headers, data, rowMapper, true);
+    }
+
+    private <T> byte[] createExcelReport(String title, String[] headers, List<T> data, BiConsumer<Row, T> rowMapper,
+            boolean landscape) throws IOException {
 
         try (Workbook workbook = new HSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(sanitizeSheetName(title));
@@ -93,6 +121,16 @@ public class ReportExcelExportService {
             // Auto-dimensionner les colonnes
             for (int i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);
+            }
+
+            if (landscape) {
+                org.apache.poi.ss.usermodel.PrintSetup ps = sheet.getPrintSetup();
+                ps.setLandscape(true);
+                ps.setPaperSize(org.apache.poi.ss.usermodel.PrintSetup.A4_PAPERSIZE);
+                ps.setFitWidth((short) 1);
+                ps.setFitHeight((short) 0);
+                sheet.setFitToPage(true);
+                sheet.setAutobreaks(true);
             }
 
             workbook.write(out);
