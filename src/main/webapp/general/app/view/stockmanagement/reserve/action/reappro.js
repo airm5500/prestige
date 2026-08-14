@@ -209,26 +209,36 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                 return;
             }
             var lignesRapport = [];
-            Ext.each(rejets, function (r) {
+            // motifCourt : version impression/export (la designation a sa propre
+            // colonne, inutile d'y repeter le nom du produit). L'ecran garde motif.
+            var pousserLigne = function (r, type) {
                 lignesRapport.push({ligne: r.ligne, cip: r.cip, quantite: r.quantite,
-                    designation: r.designation || '', stock: (r.stock === 0 || r.stock) ? String(r.stock) : '',
-                    motif: r.motif, type: 'REJET'});
+                    designation: r.designation || '',
+                    stock: (r.stock === 0 || r.stock) ? String(r.stock) : '',
+                    ecart: (r.ecart === 0 || r.ecart) ? String(r.ecart) : '',
+                    motif: r.motif, motifCourt: r.motifCourt || r.motif, type: type});
+            };
+            Ext.each(rejets, function (r) {
+                pousserLigne(r, 'REJET');
             });
             Ext.each(ajustements, function (r) {
-                lignesRapport.push({ligne: r.ligne, cip: r.cip, quantite: r.quantite,
-                    designation: r.designation || '', stock: (r.stock === 0 || r.stock) ? String(r.stock) : '',
-                    motif: r.motif, type: 'AJUSTEMENT'});
+                pousserLigne(r, 'AJUSTEMENT');
             });
-            // Resume en texte brut : repris dans l'export Excel et l'impression
+            // Resume en texte brut : repris dans l'export Excel et le PDF
             var resumeTexte = nbAjoutees + ' ligne(s) ajoutee(s) au panier, ' + rejets.length
                     + ' rejetee(s), ' + ajustements.length + ' quantite(s) ajustee(s)';
 
-            // Telechargement du .xls par formulaire cache : le rapport n'existe pas
-            // en base, on renvoie au serveur les lignes affichees (payload JSON)
-            var exporterRapportExcel = function () {
+            // Le rapport n'existe pas en base : on renvoie au serveur les lignes
+            // affichees (payload JSON) par formulaire cache. cible '_blank' pour le
+            // PDF (nouvel onglet, impression depuis le visualiseur), telechargement
+            // direct pour le .xls.
+            var envoyerRapport = function (endpoint, cible) {
                 var form = document.createElement('form');
                 form.method = 'POST';
-                form.action = '../api/v1/suggestion-reserve/rapport-import/excel';
+                form.action = '../api/v1/suggestion-reserve/rapport-import/' + endpoint;
+                if (cible) {
+                    form.target = cible;
+                }
                 form.style.display = 'none';
                 var input = document.createElement('input');
                 input.type = 'hidden';
@@ -236,67 +246,22 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.reappro', {
                 input.value = Ext.JSON.encode({
                     categorie: categorie,
                     resume: resumeTexte,
-                    lignes: lignesRapport
+                    lignes: Ext.Array.map(lignesRapport, function (l) {
+                        return {ligne: l.ligne, cip: l.cip, designation: l.designation,
+                            quantite: l.quantite, stock: l.stock, ecart: l.ecart,
+                            motif: l.motifCourt, type: l.type};
+                    })
                 });
                 form.appendChild(input);
                 document.body.appendChild(form);
                 form.submit();
                 document.body.removeChild(form);
             };
-
-            // Impression en paysage : page dediee avec les seules lignes non prises
-            // en compte, meme colonnage que l'export Excel
+            var exporterRapportExcel = function () {
+                envoyerRapport('excel', null);
+            };
             var imprimerRapport = function () {
-                var esc = function (v) {
-                    return String(v === null || v === undefined ? '' : v)
-                            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                };
-                var corps = '';
-                Ext.each(lignesRapport, function (l) {
-                    corps += '<tr>'
-                            + '<td style="text-align:center;">' + esc(l.ligne) + '</td>'
-                            + '<td>' + esc(l.cip) + '</td>'
-                            + '<td>' + esc(l.designation) + '</td>'
-                            + '<td style="text-align:center;">' + esc(l.quantite) + '</td>'
-                            + '<td style="text-align:center;">' + esc(l.stock) + '</td>'
-                            + '<td style="color:' + (l.type === 'REJET' ? '#b00020' : '#b26a00') + ';">'
-                            + esc(l.motif) + '</td>'
-                            + '</tr>';
-                });
-                var w = window.open('', '_blank');
-                if (!w) {
-                    Ext.MessageBox.alert('Impression',
-                            'La fenetre d\'impression a ete bloquee par le navigateur.');
-                    return;
-                }
-                w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8">'
-                        + '<title>Rapport d\'importation</title>'
-                        + '<style>'
-                        + '@page{size:A4 landscape;margin:12mm;}'
-                        + 'body{font-family:Arial,sans-serif;font-size:11px;margin:0;}'
-                        + 'h1{font-size:15px;margin:0 0 2px 0;}'
-                        + '.resume{color:#444;margin:0 0 8px 0;}'
-                        + 'table{border-collapse:collapse;width:100%;}'
-                        + 'th,td{border:1px solid #999;padding:3px 6px;vertical-align:top;}'
-                        + 'th{background:#eee;text-align:left;}'
-                        + 'thead{display:table-header-group;}'
-                        + '</style></head><body>'
-                        + '<h1>Rapport d\'importation — '
-                        + (categorie === 'RESERVE' ? 'Réappro réserve' : 'Réappro rayon') + '</h1>'
-                        + '<p class="resume">' + esc(resumeTexte) + ' — imprimé le '
-                        + Ext.Date.format(new Date(), 'd/m/Y H:i') + '</p>'
-                        + '<table><thead><tr>'
-                        + '<th style="width:70px;">Ligne du fichier</th>'
-                        + '<th style="width:90px;">CIP</th>'
-                        + '<th>Désignation</th>'
-                        + '<th style="width:55px;">Qté lue</th>'
-                        + '<th style="width:80px;">' + esc(stockLabel) + '</th>'
-                        + '<th>Motif</th>'
-                        + '</tr></thead><tbody>' + corps + '</tbody></table>'
-                        + '<script>window.onload=function(){window.print();};<\/script>'
-                        + '</body></html>');
-                w.document.close();
-                w.focus();
+                envoyerRapport('pdf', '_blank');
             };
             var rapportStore = new Ext.data.Store({
                 fields: ['ligne', 'cip', 'quantite', 'motif', 'type'],

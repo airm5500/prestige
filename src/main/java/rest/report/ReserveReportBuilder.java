@@ -59,4 +59,27 @@ public final class ReserveReportBuilder {
         }
         LOG.log(Level.INFO, "PDF reserve genere : {0}", pdfPath);
     }
+
+    /**
+     * Compile le modele lu sur un flux, l'alimente depuis un datasource memoire (donnees non persistees, ex. rapport
+     * d'importation du panier) et rend le PDF en memoire. Aucune connexion base : le rapport n'interroge rien.
+     *
+     * @param modele
+     *            flux du modele .jrxml (fichier du dossier des modeles ou ressource embarquee)
+     * @param parameters
+     *            parametres du modele
+     * @param dataSource
+     *            lignes du rapport
+     *
+     * @return contenu du PDF
+     */
+    public static byte[] buildToBytes(java.io.InputStream modele, Map<String, Object> parameters,
+            net.sf.jasperreports.engine.JRDataSource dataSource) throws Exception {
+        JasperDesign design = JRXmlLoader.load(modele);
+        JasperReport report = JasperCompileManager.compileReport(design);
+        JasperPrint print = JasperFillManager.fillReport(report, parameters, dataSource);
+        byte[] pdf = JasperExportManager.exportReportToPdf(print);
+        LOG.log(Level.INFO, "PDF memoire genere : {0} octets", pdf.length);
+        return pdf;
+    }
 }

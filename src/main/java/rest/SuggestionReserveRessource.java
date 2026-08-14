@@ -419,4 +419,22 @@ public class SuggestionReserveRessource {
         return Response.ok(data)
                 .header("Content-Disposition", "attachment; filename=\"rapport_importation_reappro.xls\"").build();
     }
+
+    /**
+     * PDF (Jasper, A4 paysage) du rapport d'importation, servi inline : soumis par formulaire cache cible sur un nouvel
+     * onglet, le navigateur affiche le PDF et son visualiseur sert a l'impression.
+     */
+    @POST
+    @Path("rapport-import/pdf")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces("application/pdf")
+    public Response rapportImportPdf(@javax.ws.rs.FormParam("payload") String payload) throws Exception {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        byte[] data = suggestionReserveService.exportRapportImportPdf(user, payload);
+        return Response.ok(data).header("Content-Disposition", "inline; filename=\"rapport_importation_reappro.pdf\"")
+                .build();
+    }
 }

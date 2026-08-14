@@ -184,6 +184,13 @@ public interface SuggestionReserveService {
     byte[] exportRapportImportExcel(TUser user, String payload) throws java.io.IOException;
 
     /**
+     * PDF (JasperReports, A4 paysage) du meme rapport d'importation, pour impression. Modele
+     * {@code rp_rapport_import_reappro.jrxml} : la copie du dossier des modeles est prioritaire, le modele embarque
+     * dans le war sert de repli. Les donnees viennent du payload (datasource memoire, aucune requete base).
+     */
+    byte[] exportRapportImportPdf(TUser user, String payload) throws Exception;
+
+    /**
      * Evalue un produit apres un mouvement ayant modifie son stock rayon, et rattache le cas echeant une ligne a la
      * suggestion automatique ouverte.
      *

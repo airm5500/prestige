@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Rapport d'importation du panier de reappro (gestion des reserves).
+
+     Lignes NON prises en compte telles quelles : rejets et quantites ajustees.
+     Alimente par un datasource memoire (JRMapCollectionDataSource) : le rapport
+     n'est pas persiste en base, les lignes sont celles affichees a l'ecran.
+
+     Le modele embarque dans le war sert de repli : une copie deposee dans le
+     dossier des modeles (scr_report_file) est prioritaire et peut etre
+     personnalisee sans redeploiement. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="rp_rapport_import_reappro" language="java"
+              pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+
+    <style name="st_cell" fontName="SansSerif" fontSize="8" vTextAlign="Middle">
+        <box leftPadding="3" rightPadding="3" topPadding="2" bottomPadding="2">
+            <pen lineWidth="0.5" lineColor="#999999"/>
+        </box>
+    </style>
+    <style name="st_header" style="st_cell" isBold="true" mode="Opaque" backcolor="#EEEEEE"/>
+    <!-- Motif : rouge pour un rejet, orange pour une quantite ajustee -->
+    <style name="st_motif" style="st_cell" forecolor="#B26A00">
+        <conditionalStyle>
+            <conditionExpression><![CDATA["REJET".equals($F{type})]]></conditionExpression>
+            <style forecolor="#B00020"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="P_H_LOGO" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_AUTRE_DESC" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_TITRE" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_RESUME" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_STOCK_LABEL" class="java.lang.String" isForPrompting="false"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String" isForPrompting="false"/>
+
+    <field name="ligne" class="java.lang.String"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="designation" class="java.lang.String"/>
+    <field name="quantite" class="java.lang.String"/>
+    <field name="stock" class="java.lang.String"/>
+    <field name="ecart" class="java.lang.String"/>
+    <field name="motif" class="java.lang.String"/>
+    <field name="type" class="java.lang.String"/>
+
+    <title>
+        <band height="78" splitType="Stretch">
+            <image onErrorType="Blank">
+                <reportElement x="0" y="0" width="90" height="48"/>
+                <imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+            </image>
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="0" width="440" height="16"/>
+                <textElement><font fontName="SansSerif" size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="16" width="440" height="12"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_AUTRE_DESC}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="100" y="28" width="440" height="12"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="542" y="0" width="260" height="40"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())
+                    + "\npar " + ($P{P_PRINTED_BY} == null ? "" : $P{P_PRINTED_BY})]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="50" width="802" height="16"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_TITRE}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="66" width="802" height="12"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="9" isItalic="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_RESUME}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <staticText>
+                <reportElement style="st_header" x="0" y="0" width="60" height="18"/>
+                <textElement textAlignment="Center"/><text><![CDATA[Ligne fichier]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="st_header" x="60" y="0" width="80" height="18"/>
+                <textElement textAlignment="Center"/><text><![CDATA[CIP]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="st_header" x="140" y="0" width="250" height="18"/>
+                <text><![CDATA[Désignation]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="st_header" x="390" y="0" width="50" height="18"/>
+                <textElement textAlignment="Center"/><text><![CDATA[Qté lue]]></text>
+            </staticText>
+            <textField>
+                <reportElement style="st_header" x="440" y="0" width="60" height="18"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$P{P_STOCK_LABEL}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement style="st_header" x="500" y="0" width="50" height="18"/>
+                <textElement textAlignment="Center"/><text><![CDATA[Écart]]></text>
+            </staticText>
+            <staticText>
+                <reportElement style="st_header" x="550" y="0" width="252" height="18"/>
+                <text><![CDATA[Motif]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="14" splitType="Stretch">
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="st_cell" stretchType="RelativeToBandHeight" x="0" y="0" width="60" height="14"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{ligne}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="st_cell" stretchType="RelativeToBandHeight" x="60" y="0" width="80" height="14"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="st_cell" stretchType="RelativeToBandHeight" x="140" y="0" width="250" height="14"/>
+                <textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="st_cell" stretchType="RelativeToBandHeight" x="390" y="0" width="50" height="14"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="st_cell" stretchType="RelativeToBandHeight" x="440" y="0" width="60" height="14"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{stock}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="st_cell" stretchType="RelativeToBandHeight" x="500" y="0" width="50" height="14"/>
+                <textElement textAlignment="Center"/>
+                <textFieldExpression><![CDATA[$F{ecart}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement style="st_motif" stretchType="RelativeToBandHeight" x="550" y="0" width="252" height="14"/>
+                <textFieldExpression><![CDATA[$F{motif}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="16">
+            <textField>
+                <reportElement x="602" y="2" width="160" height="12"/>
+                <textElement textAlignment="Right"><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " / "]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="762" y="2" width="40" height="12"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA["" + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+</jasperReport>

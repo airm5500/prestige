@@ -981,12 +981,12 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (lignes != null) {
             for (int i = 0; i < lignes.length(); i++) {
                 JSONObject l = lignes.getJSONObject(i);
-                data.add(
-                        new String[] { l.optString("ligne", ""), l.optString("cip", ""), l.optString("designation", ""),
-                                l.optString("quantite", ""), l.optString("stock", ""), l.optString("motif", "") });
+                data.add(new String[] { l.optString("ligne", ""), l.optString("cip", ""),
+                        l.optString("designation", ""), l.optString("quantite", ""), l.optString("stock", ""),
+                        l.optString("ecart", ""), l.optString("motif", "") });
             }
         }
-        String[] entetes = { "Ligne du fichier", "CIP", "Designation", "Qte lue", enteteStock, "Motif" };
+        String[] entetes = { "Ligne du fichier", "CIP", "Designation", "Qte lue", enteteStock, "Ecart", "Motif" };
         LOG.log(Level.INFO, "exportRapportImportExcel categorie={0} lignes={1} user={2}",
                 new Object[] { categorie, data.size(), user.getLgUSERID() });
         return reportExcelExportService.createLandscapeExcelReport(titre, entetes, data, (row, d) -> {
@@ -994,6 +994,88 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                 row.createCell(col).setCellValue(d[col]);
             }
         });
+    }
+
+    /** Nom du modele Jasper du rapport d'importation. */
+    private static final String MODELE_RAPPORT_IMPORT = "rp_rapport_import_reappro.jrxml";
+
+    @Override
+    public byte[] exportRapportImportPdf(TUser user, String payload) throws Exception {
+        JSONObject in = new JSONObject(payload == null || payload.trim().isEmpty() ? "{}" : payload);
+        String categorie = in.optString("categorie", TSuggestionReserve.CATEGORIE_RESERVE);
+        String enteteStock = TSuggestionReserve.CATEGORIE_RESERVE.equals(categorie) ? "Stock rayon" : "Stock réserve";
+        String resume = in.optString("resume", "");
+        JSONArray lignes = in.optJSONArray("lignes");
+        List<java.util.Map<String, ?>> data = new ArrayList<>();
+        if (lignes != null) {
+            for (int i = 0; i < lignes.length(); i++) {
+                JSONObject l = lignes.getJSONObject(i);
+                java.util.Map<String, Object> row = new java.util.HashMap<>();
+                row.put("ligne", l.optString("ligne", ""));
+                row.put("cip", l.optString("cip", ""));
+                row.put("designation", l.optString("designation", ""));
+                row.put("quantite", l.optString("quantite", ""));
+                row.put("stock", l.optString("stock", ""));
+                row.put("ecart", l.optString("ecart", ""));
+                row.put("motif", l.optString("motif", ""));
+                row.put("type", l.optString("type", ""));
+                data.add(row);
+            }
+        }
+
+        java.util.Map<String, Object> parameters = new java.util.HashMap<>();
+        parameters.put("P_TITRE", "RAPPORT D'IMPORTATION — " + libelleSens(categorie));
+        parameters.put("P_RESUME", resume);
+        parameters.put("P_STOCK_LABEL", enteteStock);
+        parameters.put("P_PRINTED_BY", (texte(user.getStrFIRSTNAME()) + " " + texte(user.getStrLASTNAME())).trim());
+
+        // En-tete etablissement + chemins des modeles : meme mecanique que les JSP d'impression
+        try {
+            toolkits.utils.jdom ojdom = new toolkits.utils.jdom();
+            ojdom.InitRessource();
+            ojdom.LoadRessource();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Ressources jdom indisponibles, modele embarque utilise", e);
+        }
+        parameters.put("P_H_LOGO", toolkits.utils.jdom.scr_report_file_logo);
+        if ("1".equals(user.getLgEMPLACEMENTID().getLgEMPLACEMENTID())) {
+            dal.TOfficine officine = em.find(dal.TOfficine.class, "1");
+            if (officine != null) {
+                parameters.put("P_H_INSTITUTION", texte(officine.getStrNOMABREGE()));
+                parameters.put("P_AUTRE_DESC",
+                        (texte(officine.getStrFIRSTNAME()) + " " + texte(officine.getStrLASTNAME())).trim());
+                parameters.put("P_INSTITUTION_ADRESSE",
+                        (texte(officine.getStrPHONE()).isEmpty() ? "" : "Tel: " + officine.getStrPHONE())
+                                + (texte(officine.getStrADRESSSEPOSTALE()).isEmpty() ? ""
+                                        : " - " + officine.getStrADRESSSEPOSTALE()));
+            }
+        } else {
+            dal.TEmplacement emp = user.getLgEMPLACEMENTID();
+            parameters.put("P_H_INSTITUTION", texte(emp.getStrDESCRIPTION()));
+            parameters.put("P_AUTRE_DESC", (texte(emp.getStrFIRSTNAME()) + " " + texte(emp.getStrLASTNAME())).trim());
+            parameters.put("P_INSTITUTION_ADRESSE",
+                    (texte(emp.getStrLOCALITE()).isEmpty() ? "" : "Localite: " + emp.getStrLOCALITE())
+                            + (texte(emp.getStrPHONE()).isEmpty() ? "" : " - Tel: " + emp.getStrPHONE()));
+        }
+
+        // Modele : la copie du dossier des modeles est prioritaire (personnalisable
+        // sans redeploiement), le modele embarque dans le war sert de repli
+        java.io.InputStream modele;
+        java.io.File surcharge = new java.io.File(toolkits.utils.jdom.scr_report_file + MODELE_RAPPORT_IMPORT);
+        if (surcharge.isFile()) {
+            modele = new java.io.FileInputStream(surcharge);
+        } else {
+            modele = getClass().getResourceAsStream("/reports/" + MODELE_RAPPORT_IMPORT);
+            if (modele == null) {
+                throw new IllegalStateException("Modele introuvable : " + MODELE_RAPPORT_IMPORT);
+            }
+        }
+        LOG.log(Level.INFO, "exportRapportImportPdf categorie={0} lignes={1} surcharge={2} user={3}",
+                new Object[] { categorie, data.size(), surcharge.isFile(), user.getLgUSERID() });
+        try (java.io.InputStream flux = modele) {
+            return rest.report.ReserveReportBuilder.buildToBytes(flux, parameters,
+                    new net.sf.jasperreports.engine.data.JRMapCollectionDataSource(data));
+        }
     }
 
     @Override

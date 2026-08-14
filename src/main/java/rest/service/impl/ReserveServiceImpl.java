@@ -1666,18 +1666,23 @@ public class ReserveServiceImpl implements ReserveService {
                     continue;
                 }
                 if (dispo <= 0) {
+                    // motif : version ecran (nom inclus). motifCourt : version impression/export
+                    // ou la designation a sa propre colonne. ecart = stock disponible - qte lue.
+                    String motifCourtEpuise = versReserve ? "Stock rayon épuisé" : "Stock réserve épuisé";
                     rejets.put(new JSONObject().put("ligne", numLignes).put("cip", cip)
                             .put("quantite", String.valueOf(e.getValue())).put("designation", nom)
-                            .put("stock", String.valueOf(dispo))
-                            .put("motif", (versReserve ? "Stock rayon épuisé" : "Stock réserve épuisé") + " — " + nom));
+                            .put("stock", String.valueOf(dispo)).put("ecart", String.valueOf(dispo - e.getValue()))
+                            .put("motifCourt", motifCourtEpuise).put("motif", motifCourtEpuise + " — " + nom));
                     continue;
                 }
                 int qte = e.getValue();
                 if (qte > dispo) {
+                    String motifCourtAjuste = "Quantité ramenée de " + qte + " à " + dispo + " (" + libelleStock
+                            + " disponible)";
                     ajustements.put(new JSONObject().put("ligne", numLignes).put("cip", cip)
                             .put("quantite", String.valueOf(qte)).put("designation", nom)
-                            .put("stock", String.valueOf(dispo)).put("motif", "Quantité ramenée de " + qte + " à "
-                                    + dispo + " (" + libelleStock + " disponible) — " + nom));
+                            .put("stock", String.valueOf(dispo)).put("ecart", String.valueOf(dispo - qte))
+                            .put("motifCourt", motifCourtAjuste).put("motif", motifCourtAjuste + " — " + nom));
                     qte = dispo;
                 }
                 lignes.put(new JSONObject().put("lg_FAMILLE_ID", familleId).put("str_NAME", nom).put("int_CIP", cip)
