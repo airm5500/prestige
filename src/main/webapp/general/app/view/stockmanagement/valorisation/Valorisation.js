@@ -369,66 +369,6 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                 + '&typeStock=' + typeStock;
         }
 
-        function exportCSV() {
-            var p = buildParamsFromUI();
-            var rec = storeType.findRecord('value', p.mode);
-            var modeLabel = rec ? rec.get('label') : '';
-
-            function line(label, d) {
-                var ecart = d.vente - d.achat;
-                var margePct = d.vente ? ((ecart / d.vente) * 100) : 0;
-                return [label, d.vente, d.achat, ecart, fmt.number(margePct, '0.00')];
-            }
-
-            // En mode Famille/Emplacement/Grossiste, la colonne de l'axe actif liste les
-            // libelles coches dans le panneau ; les autres axes restent vides.
-            var libFamille = '', libEmplacement = '', libGrossiste = '';
-            if (AXES[p.mode]) {
-                var libelles = criteresPanel().getLibelles().join(' | ');
-                if (p.mode === 1) { libFamille = libelles; }
-                else if (p.mode === 2) { libEmplacement = libelles; }
-                else { libGrossiste = libelles; }
-            } else {
-                libFamille = Ext.getCmp('lg_FAMILLEARTICLE_ID').getRawValue();
-                libEmplacement = Ext.getCmp('lg_ZONE_GEO_ID').getRawValue();
-                libGrossiste = Ext.getCmp('lg_GROSSISTE_ID').getRawValue();
-            }
-
-            var rows = [];
-            rows.push(['Date', 'Mode', 'Famille', 'Emplacement', 'Grossiste', 'Intervalle De', 'Intervalle À']);
-            rows.push([
-                nn(p.dtStart), modeLabel,
-                nn(libFamille), nn(libEmplacement), nn(libGrossiste),
-                nn(p.BEGIN), nn(p.END)
-            ]);
-            rows.push([]);
-            rows.push(['Stock', 'Valeur Vente', 'Valeur Achat', 'Écart', 'Marge %']);
-            rows.push(line('Rayon', raw.rayon));
-            rows.push(line('Réserve', raw.reserve));
-            rows.push(line('Total', raw.total));
-
-            var csv = rows.map(function (r) {
-                return r.map(function (c) {
-                    var s = String(nn(c)).replace(/"/g, '""');
-                    return /[",;\n]/.test(s) ? '"' + s + '"' : s;
-                }).join(';');
-            }).join('\n');
-
-            // BOM UTF-8 : sans lui, Excel ouvre le fichier en ANSI et les accents
-            // (é, à, «...) s'affichent en caracteres speciaux.
-            var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-            var url = (window.URL || window.webkitURL).createObjectURL(blob);
-            var a = document.createElement('a');
-            a.href = url;
-            a.download = 'valorisation.csv';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function () {
-                document.body.removeChild(a);
-                (window.URL || window.webkitURL).revokeObjectURL(url);
-            }, 100);
-        }
-
         Ext.apply(me, {
             dockedItems: [{
                 xtype: 'toolbar',
@@ -447,12 +387,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                             Ext.getCmp('btn_excel').setDisabled(true);
                             callValorisation(buildParamsFromUI());
                         }
-                    },
-                    { xtype: 'button', text: 'Export CSV', iconCls: 'excelicon',
-                        handler: function () {
-                            if (!controleSelection()) { return; }
-                            exportCSV();
-                        } }
+                    }
                 ]
             }],
 
