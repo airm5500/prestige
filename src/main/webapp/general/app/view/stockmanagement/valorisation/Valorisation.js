@@ -117,9 +117,16 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
         function controleSelection() {
             var mode = Ext.getCmp('str_TYPE_TRANSACTION').getValue();
             if (AXES[mode] && idsCoches().length === 0) {
-                Ext.Msg.alert('Aucun élément coché',
-                        'Cochez au moins un élément (' + AXES[mode].toLowerCase() + ') à valoriser,<br/>'
-                        + 'ou repassez le filtre sur « Simple » pour tout valoriser.');
+                // Ext.Msg.show avec largeur explicite : la boite par defaut de Ext.Msg.alert
+                // est trop etroite et tronque la seconde ligne du message.
+                Ext.Msg.show({
+                    title: 'Aucun élément coché',
+                    msg: 'Cochez au moins un élément (' + AXES[mode].toLowerCase() + ') à valoriser,<br/>'
+                            + 'ou repassez le filtre sur « Simple » pour tout valoriser.',
+                    buttons: Ext.Msg.OK,
+                    icon: Ext.Msg.INFO,
+                    width: 460
+                });
                 return false;
             }
             return true;
@@ -195,17 +202,25 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                 layout: { type: 'hbox', align: 'stretch' },
                 items: [
                     {
-                        xtype: 'container', flex: 1, layout: 'anchor', defaults: { anchor: '100%' },
+                        // Valeurs agrandies et centrees verticalement : l'onglet occupe toute la
+                        // hauteur disponible (surtout en mode Simple) et le camembert de droite
+                        // est grand — des petites polices a cote paraissaient perdues.
+                        xtype: 'container', flex: 1,
+                        layout: { type: 'vbox', align: 'stretch', pack: 'center' },
                         items: [
                             { xtype: 'displayfield', id: 'kpi_' + key + '_vente', fieldLabel: 'Valeur vente',
-                              value: fmtMoney(0), fieldStyle: 'font-size:1.35em;font-weight:900;color:' + accent + ';' },
+                              labelWidth: 110, labelStyle: 'font-size:1.2em;font-weight:700;padding-top:14px;',
+                              value: fmtMoney(0), fieldStyle: 'font-size:2.6em;font-weight:900;color:' + accent + ';' },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_achat', fieldLabel: 'Valeur achat',
-                              value: fmtMoney(0), fieldStyle: 'font-size:1.35em;font-weight:900;color:' + accent + ';' },
-                            { xtype: 'component', height: 8 },
+                              labelWidth: 110, labelStyle: 'font-size:1.2em;font-weight:700;padding-top:14px;',
+                              value: fmtMoney(0), fieldStyle: 'font-size:2.6em;font-weight:900;color:' + accent + ';' },
+                            { xtype: 'component', height: 16 },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_ecart', fieldLabel: 'Écart', value: '0',
-                              labelWidth: 80, fieldStyle: 'font-weight:700;color:' + accent + ';' },
+                              labelWidth: 110, labelStyle: 'font-size:1.1em;padding-top:6px;',
+                              fieldStyle: 'font-size:1.6em;font-weight:700;color:' + accent + ';' },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_marge', fieldLabel: 'Marge', value: '0%',
-                              labelWidth: 80, fieldStyle: 'font-weight:700;color:' + accent + ';' }
+                              labelWidth: 110, labelStyle: 'font-size:1.1em;padding-top:6px;',
+                              fieldStyle: 'font-size:1.6em;font-weight:700;color:' + accent + ';' }
                         ]
                     },
                     {
