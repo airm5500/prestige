@@ -207,20 +207,24 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                         // est grand — des petites polices a cote paraissaient perdues.
                         xtype: 'container', flex: 1,
                         layout: { type: 'vbox', align: 'stretch', pack: 'center' },
+                        // Libelles agrandis et centres sur la hauteur de leur montant (padding
+                        // calcule sur la difference de hauteur de ligne) : libelle et valeur
+                        // sont sur la meme ligne visuelle, et la meme largeur de libelle sur
+                        // les quatre champs aligne tous les montants sur une meme verticale.
                         items: [
                             { xtype: 'displayfield', id: 'kpi_' + key + '_vente', fieldLabel: 'Valeur vente',
-                              labelWidth: 110, labelStyle: 'font-size:1.2em;font-weight:700;padding-top:14px;',
-                              value: fmtMoney(0), fieldStyle: 'font-size:2.6em;font-weight:900;color:' + accent + ';' },
+                              labelWidth: 135, labelStyle: 'font-size:1.5em;font-weight:700;padding-top:9px;',
+                              value: fmtMoney(0), fieldStyle: 'font-size:2.8em;font-weight:900;color:' + accent + ';' },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_achat', fieldLabel: 'Valeur achat',
-                              labelWidth: 110, labelStyle: 'font-size:1.2em;font-weight:700;padding-top:14px;',
-                              value: fmtMoney(0), fieldStyle: 'font-size:2.6em;font-weight:900;color:' + accent + ';' },
+                              labelWidth: 135, labelStyle: 'font-size:1.5em;font-weight:700;padding-top:9px;',
+                              value: fmtMoney(0), fieldStyle: 'font-size:2.8em;font-weight:900;color:' + accent + ';' },
                             { xtype: 'component', height: 16 },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_ecart', fieldLabel: 'Écart', value: '0',
-                              labelWidth: 110, labelStyle: 'font-size:1.1em;padding-top:6px;',
-                              fieldStyle: 'font-size:1.6em;font-weight:700;color:' + accent + ';' },
+                              labelWidth: 135, labelStyle: 'font-size:1.3em;font-weight:600;padding-top:4px;',
+                              fieldStyle: 'font-size:1.8em;font-weight:700;color:' + accent + ';' },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_marge', fieldLabel: 'Marge', value: '0%',
-                              labelWidth: 110, labelStyle: 'font-size:1.1em;padding-top:6px;',
-                              fieldStyle: 'font-size:1.6em;font-weight:700;color:' + accent + ';' }
+                              labelWidth: 135, labelStyle: 'font-size:1.3em;font-weight:600;padding-top:4px;',
+                              fieldStyle: 'font-size:1.8em;font-weight:700;color:' + accent + ';' }
                         ]
                     },
                     {
