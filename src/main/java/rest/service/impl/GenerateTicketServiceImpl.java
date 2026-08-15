@@ -542,7 +542,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             datas.add("Règlement: ;     " + tTypeReglement.getStrNAME() + "; ;0");
         }
 
-        if (p.getIntPRICE() > 0) {
+        if (p.getIntPRICE() > 0 && !fractionnementSansEspeces(venteReglements)) {
+            // Fractionnement sans especes (mobile + mobile) : « Montant Versé »
+            // (billets tendus) n'existe pas et « Monnaie » vaut toujours 0 (la
+            // somme des parts est forcee au net) — les deux lignes sont omises,
+            // les lignes de reglement et le net disent tout.
             int montantVerseAffiche = montantVerseAfficheTicket(venteReglements,
                     Math.abs(mvtTransaction.getMontantVerse()));
             datas.add("Montant Versé: ;     " + DateConverter.amountFormat(montantVerseAffiche) + "; F CFA;0");
@@ -554,6 +558,19 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
         }
         return datas;
+    }
+
+    /** Reglement en plusieurs parts dont aucune en especes (fractionnement mobile + mobile). */
+    private boolean fractionnementSansEspeces(List<VenteReglement> venteReglements) {
+        if (venteReglements.size() <= 1) {
+            return false;
+        }
+        for (VenteReglement vers : venteReglements) {
+            if (Constant.TYPE_REGLEMENT_ESPECE.equals(vers.getTypeReglement().getLgTYPEREGLEMENTID())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /*
