@@ -749,7 +749,8 @@
       [0, 0.5, 1].forEach(function(f){
         var y = (yBot - f * (yBot - yTop)).toFixed(1);
         grid += '<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke="#eceae5" stroke-width="1"></line>'
-              + '<text x="35" y="' + (parseFloat(y) + 4).toFixed(1) + '" text-anchor="end" font-size="9" fill="#9a9a9a">' + pvCompact(scale * f) + '</text>';
+              /* montants de l'axe en gras et bleu (accent) : lisibles au premier regard */
+              + '<text x="35" y="' + (parseFloat(y) + 4).toFixed(1) + '" text-anchor="end" font-size="9" font-weight="700" fill="' + PV_ACCENT + '">' + pvCompact(scale * f) + '</text>';
       });
       e.innerHTML = '<div class="pv-area"><svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">'
                   + '<defs><linearGradient id="pvNetGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="' + PV_ACCENT + '" stop-opacity="0.28"/><stop offset="100%" stop-color="' + PV_ACCENT + '" stop-opacity="0.02"/></linearGradient></defs>'
