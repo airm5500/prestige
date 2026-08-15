@@ -104,18 +104,36 @@ public class Stock {
         return valeur;
     }
 
-    /** Detail classe par valeur de vente decroissante : les postes qui pesent le plus en premier. */
-    private void trierParValeurDecroissante(List<ValorisationDTO> datas) {
+    /**
+     * Tri du detail imprime, choisi a l'ecran : ordre alphanumerique sur le code ou sur le libelle. Ce tri ne concerne
+     * que les sorties (PDF et Excel) : l'ecran, lui, n'affiche pas le detail.
+     *
+     * @param datas
+     *            lignes de detail a ordonner (modifiees sur place)
+     * @param tri
+     *            "code" pour trier sur le code, toute autre valeur trie sur le libelle
+     */
+    private void trierDetail(List<ValorisationDTO> datas, String tri) {
         if (datas == null) {
             return;
         }
-        datas.sort((a, b) -> Integer.compare(b.getMontantPu() == null ? 0 : b.getMontantPu(),
-                a.getMontantPu() == null ? 0 : a.getMontantPu()));
+        boolean parCode = "code".equalsIgnoreCase(tri);
+        datas.sort((a, b) -> {
+            String ca = parCode ? a.getCode() : a.getLibelle();
+            String cb = parCode ? b.getCode() : b.getLibelle();
+            if (ca == null) {
+                return cb == null ? 0 : 1;
+            }
+            if (cb == null) {
+                return -1;
+            }
+            return ca.compareToIgnoreCase(cb);
+        });
     }
 
     public String valorisation(TUser tu, int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String elements)
-            throws IOException {
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String elements,
+            String tri) throws IOException {
 
         String scr_report_file = mode > 0 ? "rp_valorisation_stock_produit2" : "rp_valorisation_stock_produit";
         Map<String, Object> parameters = reportUtil.officineData(tu);
@@ -138,7 +156,7 @@ public class Stock {
         if (mode > 0) {
             parameters.put("totalPmd", o.getMontantPmd());
             parameters.put("totalTarif", o.getMontantTarif());
-            trierParValeurDecroissante(o.getDatas());
+            trierDetail(o.getDatas(), tri);
 
             reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
                     jdom.scr_report_pdf + "valorisation_" + report_generate_file, o.getDatas());
@@ -154,11 +172,11 @@ public class Stock {
      * Export Excel de la valorisation : memes donnees et meme titre que l'impression PDF.
      */
     public byte[] valorisationExcel(int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String elements)
-            throws IOException {
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String elements,
+            String tri) throws IOException {
         ValorisationDTO valorisation = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID,
                 lgZONEGEOID, end, begin, emplacementId, typeStock);
-        trierParValeurDecroissante(valorisation.getDatas());
+        trierDetail(valorisation.getDatas(), tri);
         return excelExportService.createValorisationExcel(titreValorisation(mode, dtSt, typeStock),
                 elementsValorises(elements), valorisation, mode > 0);
     }

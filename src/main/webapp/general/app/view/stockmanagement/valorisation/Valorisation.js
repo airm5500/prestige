@@ -163,6 +163,22 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             queryMode: 'local', editable: false, value: 0,
             listeners: { select: function (cmp) { toggleCriteria(cmp.getValue()); updateMirrors(); } }
         });
+        // Tri du detail imprime (PDF et Excel) : alphanumerique sur le code ou sur le
+        // libelle. Sans effet sur l'ecran, qui n'affiche que les totaux.
+        var storeTri = Ext.create('Ext.data.Store', {
+            fields: ['value', 'label'],
+            data: [
+                { value: 'libelle', label: 'Libellé (A → Z)' },
+                { value: 'code', label: 'Code (A → Z)' }
+            ]
+        });
+        var cbTri = Ext.create('Ext.form.field.ComboBox', {
+            id: 'str_TRI_IMPRESSION', fieldLabel: 'Trier par',
+            store: storeTri, valueField: 'value', displayField: 'label',
+            queryMode: 'local', editable: false, value: 'libelle',
+            tooltip: 'Ordre des lignes sur les impressions et l’export Excel'
+        });
+
         var cbFamille = Ext.create('Ext.form.field.ComboBox', {
             id: 'lg_FAMILLEARTICLE_ID', fieldLabel: 'Famille article',
             store: storeFamille, hidden: true, valueField: 'lg_FAMILLEARTICLE_ID', displayField: 'str_LIBELLE',
@@ -359,6 +375,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             var libelles = AXES[p.mode] ? criteresPanel().getLibelles().join(', ') : '';
             return '../SockServlet?mode=' + modeServlet
                 + '&elements=' + encodeURIComponent(libelles)
+                + '&tri=' + nn(Ext.getCmp('str_TRI_IMPRESSION').getValue())
                 + '&dtStart=' + nn(p.dtStart)
                 + '&action=' + nn(p.mode)
                 + '&lgGROSSISTEID=' + nn(p.lgGROSSISTEID)
@@ -412,7 +429,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                         {
                             xtype: 'fieldset', title: 'Critères', flex: 1.1, style: 'border-radius:10px;',
                             defaults: { anchor: '100%' },
-                            items: [ cbType, cbFamille, cbZone, cbGrossiste, fcIntervalle ]
+                            items: [ cbType, cbTri, cbFamille, cbZone, cbGrossiste, fcIntervalle ]
                         }
                     ]
                 },

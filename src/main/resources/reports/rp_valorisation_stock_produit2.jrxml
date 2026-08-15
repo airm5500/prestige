@@ -96,20 +96,22 @@
 		<band splitType="Stretch"/>
 	</background>
 	<pageHeader>
-		<band height="176" splitType="Stretch">
+		<band height="126" splitType="Stretch">
 			<image onErrorType="Blank">
 				<reportElement x="7" y="1" width="79" height="47" uuid="b53a8a2b-f449-4e82-a4eb-a422c5955c78"/>
 				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
 			</image>
+			<!-- Nom de l'officine et du titulaire centres sur la LARGEUR DE PAGE (et non sur
+			     l'espace restant a droite du logo, qui les decalait visuellement). -->
 			<textField>
-				<reportElement x="90" y="2" width="493" height="31" isRemoveLineWhenBlank="true" uuid="debeca81-9b50-4cd6-8348-c2d36d9940cf"/>
+				<reportElement x="2" y="2" width="581" height="31" isRemoveLineWhenBlank="true" uuid="debeca81-9b50-4cd6-8348-c2d36d9940cf"/>
 				<textElement textAlignment="Center">
 					<font fontName="Century Gothic" size="20" isBold="true" isItalic="true" isPdfEmbedded="false"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="90" y="32" width="493" height="17" isRemoveLineWhenBlank="true" uuid="2c63e118-bbea-4a0a-b538-f29cdbf9ded9"/>
+				<reportElement x="2" y="33" width="581" height="15" isRemoveLineWhenBlank="true" uuid="2c63e118-bbea-4a0a-b538-f29cdbf9ded9"/>
 				<textElement textAlignment="Center" verticalAlignment="Top">
 					<font size="8" isBold="true"/>
 				</textElement>
@@ -139,78 +141,9 @@
 				</textElement>
 				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
 			</textField>
-			<!-- ===== Cartouches d'indicateurs (reprise de l'ecran) ===== -->
-			<staticText>
-				<reportElement style="Cartouche" x="2" y="108" width="188" height="42" uuid="1a000001-0000-4000-8000-000000000001"/>
-				<text><![CDATA[]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="8" y="111" width="176" height="11" uuid="1a000002-0000-4000-8000-000000000002"/>
-				<textElement>
-					<font size="7"/>
-					<paragraph leftIndent="2"/>
-				</textElement>
-				<text><![CDATA[VALEUR VENTE]]></text>
-			</staticText>
-			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement style="Accent" x="8" y="123" width="176" height="24" uuid="1a000003-0000-4000-8000-000000000003"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="16" isBold="true"/>
-					<paragraph rightIndent="4"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$P{totalpu}]]></textFieldExpression>
-			</textField>
-			<staticText>
-				<reportElement style="Cartouche" x="196" y="108" width="188" height="42" uuid="1a000004-0000-4000-8000-000000000004"/>
-				<text><![CDATA[]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="202" y="111" width="176" height="11" uuid="1a000005-0000-4000-8000-000000000005"/>
-				<textElement>
-					<font size="7"/>
-					<paragraph leftIndent="2"/>
-				</textElement>
-				<text><![CDATA[VALEUR ACHAT]]></text>
-			</staticText>
-			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement style="Accent" x="202" y="123" width="176" height="24" uuid="1a000006-0000-4000-8000-000000000006"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="16" isBold="true"/>
-					<paragraph rightIndent="4"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$P{totalpa}]]></textFieldExpression>
-			</textField>
-			<staticText>
-				<reportElement style="Cartouche" x="390" y="108" width="193" height="42" uuid="1a000007-0000-4000-8000-000000000007"/>
-				<text><![CDATA[]]></text>
-			</staticText>
-			<staticText>
-				<reportElement x="396" y="111" width="120" height="11" uuid="1a000008-0000-4000-8000-000000000008"/>
-				<textElement>
-					<font size="7"/>
-					<paragraph leftIndent="2"/>
-				</textElement>
-				<text><![CDATA[ÉCART]]></text>
-			</staticText>
-			<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
-				<reportElement x="457" y="111" width="120" height="11" uuid="1a000009-0000-4000-8000-000000000009"/>
-				<textElement textAlignment="Right">
-					<font size="7" isBold="true"/>
-					<paragraph rightIndent="4"/>
-				</textElement>
-				<textFieldExpression><![CDATA[Double.valueOf(($P{totalpu} == null || $P{totalpu}.doubleValue() == 0) ? 0d : (($P{totalpu}.doubleValue() - ($P{totalpa} == null ? 0d : $P{totalpa}.doubleValue())) * 100d / $P{totalpu}.doubleValue()))]]></textFieldExpression>
-			</textField>
-			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement style="Accent" x="396" y="123" width="181" height="24" uuid="1a00000a-0000-4000-8000-00000000000a"/>
-				<textElement textAlignment="Right" verticalAlignment="Middle">
-					<font size="16" isBold="true"/>
-					<paragraph rightIndent="4"/>
-				</textElement>
-				<textFieldExpression><![CDATA[Integer.valueOf(($P{totalpu} == null ? 0 : $P{totalpu}.intValue()) - ($P{totalpa} == null ? 0 : $P{totalpa}.intValue()))]]></textFieldExpression>
-			</textField>
 			<!-- Elements effectivement valorises : l'impression se suffit a elle-meme -->
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement x="2" y="154" width="581" height="18" isRemoveLineWhenBlank="true" uuid="1a00000b-0000-4000-8000-00000000000b"/>
+				<reportElement x="2" y="105" width="581" height="18" isRemoveLineWhenBlank="true" uuid="1a00000b-0000-4000-8000-00000000000b"/>
 				<textElement>
 					<font size="7" isItalic="true"/>
 				</textElement>
@@ -221,49 +154,49 @@
 	<columnHeader>
 		<band height="20">
 			<staticText>
-				<reportElement style="EnteteCol" x="2" y="1" width="42" height="18" uuid="1b000001-0000-4000-8000-000000000001"/>
+				<reportElement style="EnteteCol" x="2" y="1" width="70" height="18" uuid="1b000001-0000-4000-8000-000000000001"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="true"/>
 				</textElement>
 				<text><![CDATA[Code]]></text>
 			</staticText>
 			<staticText>
-				<reportElement style="EnteteCol" x="44" y="1" width="190" height="18" uuid="1b000002-0000-4000-8000-000000000002"/>
+				<reportElement style="EnteteCol" x="72" y="1" width="190" height="18" uuid="1b000002-0000-4000-8000-000000000002"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="true"/>
 				</textElement>
 				<text><![CDATA[Libellé]]></text>
 			</staticText>
 			<staticText>
-				<reportElement style="EnteteCol" x="234" y="1" width="98" height="18" uuid="1b000003-0000-4000-8000-000000000003"/>
+				<reportElement style="EnteteCol" x="262" y="1" width="90" height="18" uuid="1b000003-0000-4000-8000-000000000003"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="true"/>
 				</textElement>
 				<text><![CDATA[Prix de Vente]]></text>
 			</staticText>
 			<staticText>
-				<reportElement style="EnteteCol" x="332" y="1" width="48" height="18" uuid="1b000004-0000-4000-8000-000000000004"/>
+				<reportElement style="EnteteCol" x="352" y="1" width="40" height="18" uuid="1b000004-0000-4000-8000-000000000004"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="true"/>
 				</textElement>
 				<text><![CDATA[% vente]]></text>
 			</staticText>
 			<staticText>
-				<reportElement style="EnteteCol" x="380" y="1" width="98" height="18" uuid="1b000005-0000-4000-8000-000000000005"/>
+				<reportElement style="EnteteCol" x="392" y="1" width="90" height="18" uuid="1b000005-0000-4000-8000-000000000005"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="true"/>
 				</textElement>
 				<text><![CDATA[Prix d'Achat Facture]]></text>
 			</staticText>
 			<staticText>
-				<reportElement style="EnteteCol" x="478" y="1" width="48" height="18" uuid="1b000006-0000-4000-8000-000000000006"/>
+				<reportElement style="EnteteCol" x="482" y="1" width="40" height="18" uuid="1b000006-0000-4000-8000-000000000006"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="true"/>
 				</textElement>
 				<text><![CDATA[% achat]]></text>
 			</staticText>
 			<staticText>
-				<reportElement style="EnteteCol" x="526" y="1" width="57" height="18" uuid="1b000007-0000-4000-8000-000000000007"/>
+				<reportElement style="EnteteCol" x="522" y="1" width="61" height="18" uuid="1b000007-0000-4000-8000-000000000007"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7" isBold="true"/>
 				</textElement>
@@ -272,16 +205,18 @@
 		</band>
 	</columnHeader>
 	<detail>
-		<band height="15">
+		<!-- Hauteur 13 pour une police 7 : une seule ligne peut etre rendue, code et libelle
+		     ne repassent jamais a la ligne (le texte trop long est tronque, pas empile). -->
+		<band height="13">
 			<textField isBlankWhenNull="true">
-				<reportElement style="Ligne" x="2" y="0" width="42" height="15" uuid="1c000001-0000-4000-8000-000000000001"/>
+				<reportElement style="Ligne" x="2" y="0" width="70" height="13" uuid="1c000001-0000-4000-8000-000000000001"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="7"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{code}]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement style="Ligne" x="44" y="0" width="190" height="15" uuid="1c000002-0000-4000-8000-000000000002"/>
+				<reportElement style="Ligne" x="72" y="0" width="190" height="13" uuid="1c000002-0000-4000-8000-000000000002"/>
 				<textElement verticalAlignment="Middle">
 					<font size="7"/>
 					<paragraph leftIndent="3"/>
@@ -289,7 +224,7 @@
 				<textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
 			</textField>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement style="Ligne" x="234" y="0" width="98" height="15" uuid="1c000003-0000-4000-8000-000000000003"/>
+				<reportElement style="Ligne" x="262" y="0" width="90" height="13" uuid="1c000003-0000-4000-8000-000000000003"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="7"/>
 					<paragraph rightIndent="4"/>
@@ -297,7 +232,7 @@
 				<textFieldExpression><![CDATA[$F{montantPu}]]></textFieldExpression>
 			</textField>
 			<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
-				<reportElement style="Ligne" x="332" y="0" width="48" height="15" uuid="1c000004-0000-4000-8000-000000000004"/>
+				<reportElement style="Ligne" x="352" y="0" width="40" height="13" uuid="1c000004-0000-4000-8000-000000000004"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="7"/>
 					<paragraph rightIndent="3"/>
@@ -305,7 +240,7 @@
 				<textFieldExpression><![CDATA[Double.valueOf(($P{totalpu} == null || $P{totalpu}.doubleValue() == 0) ? 0d : (($F{montantPu} == null ? 0d : $F{montantPu}.doubleValue()) * 100d / $P{totalpu}.doubleValue()))]]></textFieldExpression>
 			</textField>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement style="Ligne" x="380" y="0" width="98" height="15" uuid="1c000005-0000-4000-8000-000000000005"/>
+				<reportElement style="Ligne" x="392" y="0" width="90" height="13" uuid="1c000005-0000-4000-8000-000000000005"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="7"/>
 					<paragraph rightIndent="4"/>
@@ -313,7 +248,7 @@
 				<textFieldExpression><![CDATA[$F{montantFacture}]]></textFieldExpression>
 			</textField>
 			<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
-				<reportElement style="Ligne" x="478" y="0" width="48" height="15" uuid="1c000006-0000-4000-8000-000000000006"/>
+				<reportElement style="Ligne" x="482" y="0" width="40" height="13" uuid="1c000006-0000-4000-8000-000000000006"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="7"/>
 					<paragraph rightIndent="3"/>
@@ -321,7 +256,7 @@
 				<textFieldExpression><![CDATA[Double.valueOf(($P{totalpa} == null || $P{totalpa}.doubleValue() == 0) ? 0d : (($F{montantFacture} == null ? 0d : $F{montantFacture}.doubleValue()) * 100d / $P{totalpa}.doubleValue()))]]></textFieldExpression>
 			</textField>
 			<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
-				<reportElement style="Ligne" x="526" y="0" width="57" height="15" uuid="1c000007-0000-4000-8000-000000000007"/>
+				<reportElement style="Ligne" x="522" y="0" width="61" height="13" uuid="1c000007-0000-4000-8000-000000000007"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="7"/>
 					<paragraph rightIndent="4"/>
@@ -353,12 +288,20 @@
 				</textElement>
 				<textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
 			</textField>
-			<textField evaluationTime="Report">
-				<reportElement x="463" y="34" width="120" height="11" uuid="9e0a09eb-5314-4494-87dc-be798247f7de"/>
+			<!-- Page courante (sans evaluationTime, sinon toutes les pages affichent le total) -->
+			<textField>
+				<reportElement x="463" y="34" width="80" height="11" uuid="9e0a09eb-5314-4494-87dc-be798247f7de"/>
 				<textElement textAlignment="Right" verticalAlignment="Bottom">
 					<font size="7"/>
 				</textElement>
-				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " / "]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="543" y="34" width="40" height="11" uuid="9e0a09eb-5314-4494-87dc-be798247f7e0"/>
+				<textElement verticalAlignment="Bottom">
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA["" + $V{PAGE_NUMBER}]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
 				<reportElement x="2" y="34" width="300" height="11" uuid="9e0a09eb-5314-4494-87dc-be798247f7df"/>
@@ -370,17 +313,17 @@
 		</band>
 	</pageFooter>
 	<summary>
-		<band height="170" splitType="Stretch">
+		<band height="250" splitType="Stretch">
 			<!-- Ligne TOTAL du detail -->
 			<staticText>
-				<reportElement style="LigneTotal" x="2" y="0" width="232" height="18" uuid="1d000001-0000-4000-8000-000000000001"/>
+				<reportElement style="LigneTotal" x="2" y="0" width="260" height="18" uuid="1d000001-0000-4000-8000-000000000001"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font size="8" isBold="true"/>
 				</textElement>
 				<text><![CDATA[TOTAL]]></text>
 			</staticText>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement style="LigneTotal" x="234" y="0" width="98" height="18" uuid="1d000002-0000-4000-8000-000000000002"/>
+				<reportElement style="LigneTotal" x="262" y="0" width="90" height="18" uuid="1d000002-0000-4000-8000-000000000002"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="8" isBold="true"/>
 					<paragraph rightIndent="4"/>
@@ -388,7 +331,7 @@
 				<textFieldExpression><![CDATA[$P{totalpu}]]></textFieldExpression>
 			</textField>
 			<staticText>
-				<reportElement style="LigneTotal" x="332" y="0" width="48" height="18" uuid="1d000003-0000-4000-8000-000000000003"/>
+				<reportElement style="LigneTotal" x="352" y="0" width="40" height="18" uuid="1d000003-0000-4000-8000-000000000003"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="8" isBold="true"/>
 					<paragraph rightIndent="3"/>
@@ -396,7 +339,7 @@
 				<text><![CDATA[100,0 %]]></text>
 			</staticText>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement style="LigneTotal" x="380" y="0" width="98" height="18" uuid="1d000004-0000-4000-8000-000000000004"/>
+				<reportElement style="LigneTotal" x="392" y="0" width="90" height="18" uuid="1d000004-0000-4000-8000-000000000004"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="8" isBold="true"/>
 					<paragraph rightIndent="4"/>
@@ -404,7 +347,7 @@
 				<textFieldExpression><![CDATA[$P{totalpa}]]></textFieldExpression>
 			</textField>
 			<staticText>
-				<reportElement style="LigneTotal" x="478" y="0" width="48" height="18" uuid="1d000005-0000-4000-8000-000000000005"/>
+				<reportElement style="LigneTotal" x="482" y="0" width="40" height="18" uuid="1d000005-0000-4000-8000-000000000005"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="8" isBold="true"/>
 					<paragraph rightIndent="3"/>
@@ -412,23 +355,92 @@
 				<text><![CDATA[100,0 %]]></text>
 			</staticText>
 			<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
-				<reportElement style="LigneTotal" x="526" y="0" width="57" height="18" uuid="1d000006-0000-4000-8000-000000000006"/>
+				<reportElement style="LigneTotal" x="522" y="0" width="61" height="18" uuid="1d000006-0000-4000-8000-000000000006"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font size="8" isBold="true"/>
 					<paragraph rightIndent="4"/>
 				</textElement>
 				<textFieldExpression><![CDATA[Double.valueOf(($P{totalpu} == null || $P{totalpu}.doubleValue() == 0) ? 0d : (($P{totalpu}.doubleValue() - ($P{totalpa} == null ? 0d : $P{totalpa}.doubleValue())) * 100d / $P{totalpu}.doubleValue()))]]></textFieldExpression>
 			</textField>
-			<!-- Eclatement par TVA -->
+			<!-- ===== Recapitulatif : une seule fois, juste avant l'eclatement par TVA ===== -->
 			<staticText>
-				<reportElement x="2" y="32" width="300" height="14" uuid="1d000007-0000-4000-8000-000000000007"/>
+				<reportElement style="Cartouche" x="2" y="30" width="188" height="42" uuid="1a000001-0000-4000-8000-000000000001"/>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="8" y="33" width="176" height="11" uuid="1a000002-0000-4000-8000-000000000002"/>
+				<textElement>
+					<font size="7"/>
+					<paragraph leftIndent="2"/>
+				</textElement>
+				<text><![CDATA[VALEUR VENTE]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement style="Accent" x="8" y="45" width="176" height="24" uuid="1a000003-0000-4000-8000-000000000003"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="16" isBold="true"/>
+					<paragraph rightIndent="4"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{totalpu}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement style="Cartouche" x="196" y="30" width="188" height="42" uuid="1a000004-0000-4000-8000-000000000004"/>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="202" y="33" width="176" height="11" uuid="1a000005-0000-4000-8000-000000000005"/>
+				<textElement>
+					<font size="7"/>
+					<paragraph leftIndent="2"/>
+				</textElement>
+				<text><![CDATA[VALEUR ACHAT]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement style="Accent" x="202" y="45" width="176" height="24" uuid="1a000006-0000-4000-8000-000000000006"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="16" isBold="true"/>
+					<paragraph rightIndent="4"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{totalpa}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement style="Cartouche" x="390" y="30" width="193" height="42" uuid="1a000007-0000-4000-8000-000000000007"/>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="396" y="33" width="120" height="11" uuid="1a000008-0000-4000-8000-000000000008"/>
+				<textElement>
+					<font size="7"/>
+					<paragraph leftIndent="2"/>
+				</textElement>
+				<text><![CDATA[MARGE]]></text>
+			</staticText>
+			<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
+				<reportElement x="457" y="33" width="120" height="11" uuid="1a000009-0000-4000-8000-000000000009"/>
+				<textElement textAlignment="Right">
+					<font size="7" isBold="true"/>
+					<paragraph rightIndent="4"/>
+				</textElement>
+				<textFieldExpression><![CDATA[Double.valueOf(($P{totalpu} == null || $P{totalpu}.doubleValue() == 0) ? 0d : (($P{totalpu}.doubleValue() - ($P{totalpa} == null ? 0d : $P{totalpa}.doubleValue())) * 100d / $P{totalpu}.doubleValue()))]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement style="Accent" x="396" y="45" width="181" height="24" uuid="1a00000a-0000-4000-8000-00000000000a"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font size="16" isBold="true"/>
+					<paragraph rightIndent="4"/>
+				</textElement>
+				<textFieldExpression><![CDATA[Integer.valueOf(($P{totalpu} == null ? 0 : $P{totalpu}.intValue()) - ($P{totalpa} == null ? 0 : $P{totalpa}.intValue()))]]></textFieldExpression>
+			</textField>
+			<!-- ===== Eclatement par TVA ===== -->
+			<staticText>
+				<reportElement x="2" y="86" width="300" height="14" uuid="1d000007-0000-4000-8000-000000000007"/>
 				<textElement verticalAlignment="Middle">
 					<font size="9" isBold="true"/>
 				</textElement>
 				<text><![CDATA[ÉCLATEMENT PAR TVA]]></text>
 			</staticText>
 			<componentElement>
-				<reportElement x="2" y="48" width="581" height="120" uuid="4e3149dd-1cf5-4fd4-bf18-56f1e7dae82e"/>
+				<reportElement x="2" y="102" width="581" height="140" uuid="4e3149dd-1cf5-4fd4-bf18-56f1e7dae82e"/>
 				<jr:table xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd">
 					<datasetRun subDataset="tvas" uuid="a1d50495-f4fb-4cc4-8538-8f10033e4ee8">
 						<datasetParameter name="tvaFact">
@@ -445,94 +457,156 @@
 						</datasetParameter>
 						<dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource($P{tvas})]]></dataSourceExpression>
 					</datasetRun>
-					<jr:column width="193" uuid="032b220e-1a4e-403c-98fb-c51e74d3aabd">
-						<jr:columnHeader style="Table_CH" height="20" rowSpan="1">
+					<jr:column width="141" uuid="032b220e-1a4e-403c-98fb-c51e74d3aabd">
+						<jr:columnHeader style="Table_CH" height="22" rowSpan="1">
 							<staticText>
-								<reportElement x="0" y="0" width="193" height="20" uuid="82ebda4d-dd4f-469b-bfa7-6810dd41ac54"/>
+								<reportElement x="0" y="0" width="141" height="22" uuid="82ebda4d-dd4f-469b-bfa7-6810dd41ac54"/>
 								<textElement textAlignment="Center" verticalAlignment="Middle">
-									<font size="8" isBold="true"/>
+									<font size="9" isBold="true"/>
 								</textElement>
 								<text><![CDATA[Taux de TVA]]></text>
 							</staticText>
 						</jr:columnHeader>
-						<jr:columnFooter style="Table_CH" height="22" rowSpan="1">
+						<jr:columnFooter style="Table_CH" height="24" rowSpan="1">
 							<staticText>
-								<reportElement x="0" y="0" width="193" height="22" uuid="5dc28f9b-b3e7-44fb-9d6d-4725993c0e63"/>
+								<reportElement x="0" y="0" width="141" height="24" uuid="5dc28f9b-b3e7-44fb-9d6d-4725993c0e63"/>
 								<textElement textAlignment="Center" verticalAlignment="Middle">
-									<font size="9" isBold="true"/>
+									<font size="10" isBold="true"/>
 								</textElement>
 								<text><![CDATA[TOTAL GENERAL]]></text>
 							</staticText>
 						</jr:columnFooter>
-						<jr:detailCell style="Table_TD" height="18" rowSpan="1">
+						<jr:detailCell style="Table_TD" height="22" rowSpan="1">
 							<textField>
-								<reportElement x="0" y="0" width="193" height="18" uuid="2255f9c4-04b8-463e-9ec3-6d9c9d78bc2d"/>
+								<reportElement x="0" y="0" width="141" height="22" uuid="2255f9c4-04b8-463e-9ec3-6d9c9d78bc2d"/>
 								<textElement textAlignment="Center" verticalAlignment="Middle">
-									<font size="8"/>
+									<font size="10" isBold="true"/>
 								</textElement>
 								<textFieldExpression><![CDATA[$F{libelle}]]></textFieldExpression>
 							</textField>
 						</jr:detailCell>
 					</jr:column>
-					<jr:column width="194" uuid="f5605822-5be7-4e69-a734-e5904b01cf7d">
-						<jr:columnHeader style="Table_CH" height="20" rowSpan="1">
+					<jr:column width="155" uuid="f5605822-5be7-4e69-a734-e5904b01cf7d">
+						<jr:columnHeader style="Table_CH" height="22" rowSpan="1">
 							<staticText>
-								<reportElement x="0" y="0" width="194" height="20" uuid="7fdff605-4215-4cac-8897-2c36585909be"/>
+								<reportElement x="0" y="0" width="155" height="22" uuid="7fdff605-4215-4cac-8897-2c36585909be"/>
 								<textElement textAlignment="Center" verticalAlignment="Middle">
-									<font size="8" isBold="true"/>
+									<font size="9" isBold="true"/>
 								</textElement>
 								<text><![CDATA[Prix de Vente]]></text>
 							</staticText>
 						</jr:columnHeader>
-						<jr:columnFooter style="Table_CH" height="22" rowSpan="1">
-							<textField pattern="#,##0">
-								<reportElement x="0" y="0" width="194" height="22" uuid="a2cca33c-ee31-4220-b6a6-f6b7e12242c9"/>
+						<jr:columnFooter style="Table_CH" height="24" rowSpan="1">
+							<textField pattern="#,##0" isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="155" height="24" forecolor="#1457D6" uuid="a2cca33c-ee31-4220-b6a6-f6b7e12242c9"/>
 								<textElement textAlignment="Right" verticalAlignment="Middle">
-									<font size="9" isBold="true"/>
-									<paragraph rightIndent="4"/>
+									<font size="11" isBold="true"/>
+									<paragraph rightIndent="5"/>
 								</textElement>
 								<textFieldExpression><![CDATA[$P{tvaPu}]]></textFieldExpression>
 							</textField>
 						</jr:columnFooter>
-						<jr:detailCell style="Table_TD" height="18" rowSpan="1">
-							<textField pattern="#,##0">
-								<reportElement x="0" y="0" width="194" height="18" uuid="3954bac2-1f51-4a6d-86fc-39018540b248"/>
+						<jr:detailCell style="Table_TD" height="22" rowSpan="1">
+							<textField pattern="#,##0" isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="155" height="22" forecolor="#1457D6" uuid="3954bac2-1f51-4a6d-86fc-39018540b248"/>
 								<textElement textAlignment="Right" verticalAlignment="Middle">
-									<font size="8"/>
-									<paragraph rightIndent="4"/>
+									<font size="10" isBold="true"/>
+									<paragraph rightIndent="5"/>
 								</textElement>
 								<textFieldExpression><![CDATA[$F{montantPu}]]></textFieldExpression>
 							</textField>
 						</jr:detailCell>
 					</jr:column>
-					<jr:column width="194" uuid="67fdc5b7-0e3d-4a98-b319-11d1ec4cfff3">
-						<jr:columnHeader style="Table_CH" height="20" rowSpan="1">
+					<jr:column width="60" uuid="032b220e-1a4e-403c-98fb-c51e74d3ab01">
+						<jr:columnHeader style="Table_CH" height="22" rowSpan="1">
 							<staticText>
-								<reportElement x="0" y="0" width="194" height="20" uuid="fe4d97f7-067a-4df5-b473-22c6e7b8d6a2"/>
+								<reportElement x="0" y="0" width="60" height="22" uuid="82ebda4d-dd4f-469b-bfa7-6810dd41ab01"/>
 								<textElement textAlignment="Center" verticalAlignment="Middle">
-									<font size="8" isBold="true"/>
+									<font size="9" isBold="true"/>
+								</textElement>
+								<text><![CDATA[% vente]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="Table_CH" height="24" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="60" height="24" uuid="5dc28f9b-b3e7-44fb-9d6d-4725993ab01a"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="10" isBold="true"/>
+									<paragraph rightIndent="5"/>
+								</textElement>
+								<text><![CDATA[100,0 %]]></text>
+							</staticText>
+						</jr:columnFooter>
+						<jr:detailCell style="Table_TD" height="22" rowSpan="1">
+							<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="60" height="22" forecolor="#1457D6" uuid="2255f9c4-04b8-463e-9ec3-6d9c9dab01aa"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="10"/>
+									<paragraph rightIndent="5"/>
+								</textElement>
+								<textFieldExpression><![CDATA[Double.valueOf(($P{tvaPu} == null || $P{tvaPu}.doubleValue() == 0) ? 0d : (($F{montantPu} == null ? 0d : $F{montantPu}.doubleValue()) * 100d / $P{tvaPu}.doubleValue()))]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="165" uuid="67fdc5b7-0e3d-4a98-b319-11d1ec4cfff3">
+						<jr:columnHeader style="Table_CH" height="22" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="165" height="22" uuid="fe4d97f7-067a-4df5-b473-22c6e7b8d6a2"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="9" isBold="true"/>
 								</textElement>
 								<text><![CDATA[Prix d'Achat Facture]]></text>
 							</staticText>
 						</jr:columnHeader>
-						<jr:columnFooter style="Table_CH" height="22" rowSpan="1">
-							<textField pattern="#,##0">
-								<reportElement x="0" y="0" width="194" height="22" uuid="3d011635-7fcc-4dff-8955-0642ee47c934"/>
+						<jr:columnFooter style="Table_CH" height="24" rowSpan="1">
+							<textField pattern="#,##0" isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="165" height="24" forecolor="#1457D6" uuid="3d011635-7fcc-4dff-8955-0642ee47c934"/>
 								<textElement textAlignment="Right" verticalAlignment="Middle">
-									<font size="9" isBold="true"/>
-									<paragraph rightIndent="4"/>
+									<font size="11" isBold="true"/>
+									<paragraph rightIndent="5"/>
 								</textElement>
 								<textFieldExpression><![CDATA[$P{tvaFact}]]></textFieldExpression>
 							</textField>
 						</jr:columnFooter>
-						<jr:detailCell style="Table_TD" height="18" rowSpan="1">
-							<textField pattern="#,##0">
-								<reportElement x="0" y="0" width="194" height="18" uuid="d6255aba-bacc-495b-831e-e65f1224db0d"/>
+						<jr:detailCell style="Table_TD" height="22" rowSpan="1">
+							<textField pattern="#,##0" isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="165" height="22" forecolor="#1457D6" uuid="d6255aba-bacc-495b-831e-e65f1224db0d"/>
 								<textElement textAlignment="Right" verticalAlignment="Middle">
-									<font size="8"/>
-									<paragraph rightIndent="4"/>
+									<font size="10" isBold="true"/>
+									<paragraph rightIndent="5"/>
 								</textElement>
 								<textFieldExpression><![CDATA[$F{montantFacture}]]></textFieldExpression>
+							</textField>
+						</jr:detailCell>
+					</jr:column>
+					<jr:column width="60" uuid="67fdc5b7-0e3d-4a98-b319-11d1ec4cab02">
+						<jr:columnHeader style="Table_CH" height="22" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="60" height="22" uuid="fe4d97f7-067a-4df5-b473-22c6e7ab02aa"/>
+								<textElement textAlignment="Center" verticalAlignment="Middle">
+									<font size="9" isBold="true"/>
+								</textElement>
+								<text><![CDATA[% achat]]></text>
+							</staticText>
+						</jr:columnHeader>
+						<jr:columnFooter style="Table_CH" height="24" rowSpan="1">
+							<staticText>
+								<reportElement x="0" y="0" width="60" height="24" uuid="3d011635-7fcc-4dff-8955-0642eeab02aa"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="10" isBold="true"/>
+									<paragraph rightIndent="5"/>
+								</textElement>
+								<text><![CDATA[100,0 %]]></text>
+							</staticText>
+						</jr:columnFooter>
+						<jr:detailCell style="Table_TD" height="22" rowSpan="1">
+							<textField pattern="#,##0.0 '%'" isBlankWhenNull="true">
+								<reportElement x="0" y="0" width="60" height="22" forecolor="#1457D6" uuid="d6255aba-bacc-495b-831e-e61224ab02aa"/>
+								<textElement textAlignment="Right" verticalAlignment="Middle">
+									<font size="10"/>
+									<paragraph rightIndent="5"/>
+								</textElement>
+								<textFieldExpression><![CDATA[Double.valueOf(($P{tvaFact} == null || $P{tvaFact}.doubleValue() == 0) ? 0d : (($F{montantFacture} == null ? 0d : $F{montantFacture}.doubleValue()) * 100d / $P{tvaFact}.doubleValue()))]]></textFieldExpression>
 							</textField>
 						</jr:detailCell>
 					</jr:column>
