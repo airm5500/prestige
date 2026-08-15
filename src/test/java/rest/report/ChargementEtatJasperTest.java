@@ -24,8 +24,10 @@ import org.junit.jupiter.api.io.TempDir;
  *
  * Incident constate a l'impression du releve des factures clients : "Error loading object from InputStream / Caused by:
  * java.io.InvalidClassException: JRBaseReport; incompatible types for field columnCount". Un .jasper est un objet Java
- * SERIALISE : il n'est relisible que par la version de JasperReports qui l'a produit. Le code ne rattrapait que le
- * fichier ABSENT, pas le fichier illisible, alors que le .jrxml a cote suffisait a reproduire l'etat.
+ * SERIALISE : il n'est relisible que par une version compatible de JasperReports. Ce champ precis est un int jusqu'a
+ * JasperReports 6.21 et devient un Integer en 7.0 : le .jasper depose dans le dossier des etats avait donc ete compile
+ * par un outil 7.x, alors que l'application embarque la 6.18.1. Le code ne rattrapait que le fichier ABSENT, pas le
+ * fichier illisible, alors que le .jrxml a cote suffisait a reproduire l'etat.
  *
  * Ces tests reproduisent le fichier illisible et verifient que l'impression aboutit quand meme.
  */

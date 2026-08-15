@@ -76,14 +76,20 @@ public class ReportUtil {
     /**
      * Charge un etat : le .jasper deja compile si on peut le relire, sinon on le recompile depuis le .jrxml.
      *
-     * Un .jasper est un objet Java SERIALISE. Il n'est relisible que par la version de JasperReports qui l'a produit :
-     * des qu'un champ change de type d'une version a l'autre, la relecture echoue avec "Error loading object from
+     * Un .jasper est un objet Java SERIALISE. Il n'est relisible que par une version de JasperReports compatible avec
+     * celle qui l'a produit : des qu'un champ change de type, la relecture echoue avec "Error loading object from
      * InputStream / incompatible types for field ...". Le code ne rattrapait QUE le fichier absent
-     * (FileNotFoundException) : un .jasper present mais compile par une autre version faisait echouer l'impression,
-     * alors que le .jrxml a cote suffisait a la produire. C'est ce qui s'est produit sur le releve des factures clients
-     * apres une montee de version de la bibliotheque.
+     * (FileNotFoundException) : un .jasper present mais illisible faisait echouer l'impression, alors que le .jrxml a
+     * cote suffisait a la produire.
      *
-     * La recompilation reecrit le .jasper : l'incident ne se produit qu'une fois par etat.
+     * Cas rencontre sur le releve des factures clients : le champ columnCount de JRBaseReport est un int jusqu'a
+     * JasperReports 6.21 et devient un Integer en 7.0. Un .jasper compile par un outil 7.x (Jaspersoft Studio recent
+     * enregistre un .jasper a cote du .jrxml des qu'on ouvre ou previsualise l'etat) est donc illisible par
+     * l'application, qui embarque la 6.18.1. Rien n'avait change dans le code : c'est le FICHIER depose dans le dossier
+     * des etats qui avait change.
+     *
+     * La recompilation reecrit le .jasper dans la version de l'application : l'incident ne se produit qu'une fois par
+     * etat, et l'officine n'a rien a faire.
      */
     public JasperReport getReport(String reportName, String reportPath) throws JRException, Exception {
 
@@ -136,8 +142,8 @@ public class ReportUtil {
      *
      * L'ecriture passe par un fichier temporaire renomme a la fin. Sans cela, deux impressions simultanees du meme etat
      * ecrivent dans le meme fichier en meme temps et peuvent laisser un .jasper tronque - donc definitivement
-     * illisible. Le cas est loin d'etre theorique : apres une montee de version de la bibliotheque, TOUS les postes
-     * declenchent la recompilation du meme etat en meme temps.
+     * illisible. Le cas est loin d'etre theorique : quand un .jasper devient illisible, TOUS les postes qui impriment
+     * cet etat declenchent la recompilation en meme temps.
      */
     public JasperReport compileReport(String reportName, String reportPath) throws Exception {
         File jrxmlFile = new File(reportPath + reportName + ".jrxml");
