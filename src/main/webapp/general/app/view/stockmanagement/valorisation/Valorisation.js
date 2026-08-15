@@ -22,9 +22,14 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
         (function injectCss() {
             if (document.getElementById('valo-tab-css')) { return; }
             var css = [
-                '.pl-tab-rayon .x-tab-inner{color:' + ACCENT.rayon + ' !important;font-weight:800;}',
-                '.pl-tab-reserve .x-tab-inner{color:' + ACCENT.reserve + ' !important;font-weight:800;}',
-                '.pl-tab-total .x-tab-inner{color:' + ACCENT.total + ' !important;font-weight:800;}',
+                '.pl-tab-rayon .x-tab-inner{color:' + ACCENT.rayon + ' !important;font-weight:800;font-size:14px;line-height:24px;}',
+                '.pl-tab-reserve .x-tab-inner{color:' + ACCENT.reserve + ' !important;font-weight:800;font-size:14px;line-height:24px;}',
+                '.pl-tab-total .x-tab-inner{color:' + ACCENT.total + ' !important;font-weight:800;font-size:14px;line-height:24px;}',
+                // Centre verticalement le libelle sur la hauteur de son montant (les champs de
+                // formulaire ExtJS sont des tableaux : la cellule du libelle est alignee en haut
+                // par defaut, d'ou le decalage avec les grandes polices).
+                '.valo-kpi .x-field-label-cell{vertical-align:middle !important;}',
+                '.valo-kpi .x-form-item-label{padding-top:0 !important;}',
                 '.x-tab-active.pl-tab-rayon{background:#e7f5ec;border-bottom:3px solid ' + ACCENT.rayon + ';}',
                 '.x-tab-active.pl-tab-reserve{background:#fdf0e1;border-bottom:3px solid ' + ACCENT.reserve + ';}',
                 '.x-tab-active.pl-tab-total{background:#e8f0fe;border-bottom:3px solid ' + ACCENT.total + ';}',
@@ -197,7 +202,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                 xtype: 'panel',
                 title: titleText,
                 stockKey: key,
-                tabConfig: { cls: headCls },
+                tabConfig: { cls: headCls, height: 32 },
                 bodyPadding: 12,
                 layout: { type: 'hbox', align: 'stretch' },
                 items: [
@@ -207,23 +212,24 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                         // est grand — des petites polices a cote paraissaient perdues.
                         xtype: 'container', flex: 1,
                         layout: { type: 'vbox', align: 'stretch', pack: 'center' },
-                        // Libelles agrandis et centres sur la hauteur de leur montant (padding
-                        // calcule sur la difference de hauteur de ligne) : libelle et valeur
-                        // sont sur la meme ligne visuelle, et la meme largeur de libelle sur
-                        // les quatre champs aligne tous les montants sur une meme verticale.
+                        // Libelles agrandis ; le centrage vertical libelle/montant est fait en
+                        // CSS (classe valo-kpi : vertical-align middle sur la cellule du
+                        // libelle), plus fiable qu'un padding calcule a la main. La meme
+                        // largeur de libelle sur les quatre champs aligne tous les montants
+                        // sur une meme verticale.
                         items: [
                             { xtype: 'displayfield', id: 'kpi_' + key + '_vente', fieldLabel: 'Valeur vente',
-                              labelWidth: 135, labelStyle: 'font-size:1.5em;font-weight:700;padding-top:9px;',
+                              cls: 'valo-kpi', labelWidth: 140, labelStyle: 'font-size:1.5em;font-weight:700;',
                               value: fmtMoney(0), fieldStyle: 'font-size:2.8em;font-weight:900;color:' + accent + ';' },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_achat', fieldLabel: 'Valeur achat',
-                              labelWidth: 135, labelStyle: 'font-size:1.5em;font-weight:700;padding-top:9px;',
+                              cls: 'valo-kpi', labelWidth: 140, labelStyle: 'font-size:1.5em;font-weight:700;',
                               value: fmtMoney(0), fieldStyle: 'font-size:2.8em;font-weight:900;color:' + accent + ';' },
                             { xtype: 'component', height: 16 },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_ecart', fieldLabel: 'Écart', value: '0',
-                              labelWidth: 135, labelStyle: 'font-size:1.3em;font-weight:600;padding-top:4px;',
+                              cls: 'valo-kpi', labelWidth: 140, labelStyle: 'font-size:1.3em;font-weight:600;',
                               fieldStyle: 'font-size:1.8em;font-weight:700;color:' + accent + ';' },
                             { xtype: 'displayfield', id: 'kpi_' + key + '_marge', fieldLabel: 'Marge', value: '0%',
-                              labelWidth: 135, labelStyle: 'font-size:1.3em;font-weight:600;padding-top:4px;',
+                              cls: 'valo-kpi', labelWidth: 140, labelStyle: 'font-size:1.3em;font-weight:600;',
                               fieldStyle: 'font-size:1.8em;font-weight:700;color:' + accent + ';' }
                         ]
                     },
