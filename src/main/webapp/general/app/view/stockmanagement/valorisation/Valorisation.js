@@ -322,6 +322,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             Ext.getCmp('str_NAME_USER').setValue(meta.user || '');
             Ext.getCmp('dt_CREATED').setValue(meta.dtCREATED || '');
             Ext.getCmp('btn_print').setDisabled(false);
+            Ext.getCmp('btn_excel').setDisabled(false);
         }
 
         function callValorisation(params) {
@@ -342,6 +343,26 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                     Ext.Msg.alert('Erreur', 'Échec de la valorisation. Réessayez.');
                 }
             });
+        }
+
+        // URL du servlet de valorisation (impression PDF ou export Excel) : memes
+        // parametres dans les deux cas, typeStock selon l'onglet actif (1=rayon,
+        // 2=reserve, 0=total).
+        function urlServlet(modeServlet) {
+            var p = buildParamsFromUI();
+            var typeMap = { rayon: '1', reserve: '2', total: '0' };
+            var at = Ext.getCmp('valo_tabs').getActiveTab();
+            var key = (at && at.stockKey) ? at.stockKey : 'rayon';
+            var typeStock = typeMap[key] || '1';
+            return '../SockServlet?mode=' + modeServlet
+                + '&dtStart=' + nn(p.dtStart)
+                + '&action=' + nn(p.mode)
+                + '&lgGROSSISTEID=' + nn(p.lgGROSSISTEID)
+                + '&lgFAMILLEARTICLEID=' + nn(p.lgFAMILLEARTICLEID)
+                + '&lgZONEGEOID=' + nn(p.lgZONEGEOID)
+                + '&END=' + nn(p.END)
+                + '&BEGIN=' + nn(p.BEGIN)
+                + '&typeStock=' + typeStock;
         }
 
         function exportCSV() {
@@ -389,7 +410,9 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                 }).join(';');
             }).join('\n');
 
-            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            // BOM UTF-8 : sans lui, Excel ouvre le fichier en ANSI et les accents
+            // (é, à, «...) s'affichent en caracteres speciaux.
+            var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
             var url = (window.URL || window.webkitURL).createObjectURL(blob);
             var a = document.createElement('a');
             a.href = url;
@@ -417,6 +440,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                             if (!controleSelection()) { return; }
                             updateMirrors();
                             Ext.getCmp('btn_print').setDisabled(true);
+                            Ext.getCmp('btn_excel').setDisabled(true);
                             callValorisation(buildParamsFromUI());
                         }
                     },
@@ -473,6 +497,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                         if (!controleSelection()) { return; }
                         updateMirrors();
                         Ext.getCmp('btn_print').setDisabled(true);
+                        Ext.getCmp('btn_excel').setDisabled(true);
                         callValorisation(buildParamsFromUI());
                     }
                 },
@@ -480,22 +505,14 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
                     text: 'Imprimer', id: 'btn_print', disabled: true, minWidth: 120,
                     handler: function () {
                         if (!controleSelection()) { return; }
-                        var p = buildParamsFromUI();
-                        // typeStock selon l'onglet actif : 1=rayon, 2=reserve, 0=total
-                        var typeMap = { rayon: '1', reserve: '2', total: '0' };
-                        var at = Ext.getCmp('valo_tabs').getActiveTab();
-                        var key = (at && at.stockKey) ? at.stockKey : 'rayon';
-                        var typeStock = typeMap[key] || '1';
-                        var linkUrl = '../SockServlet?mode=VALORISATION'
-                            + '&dtStart=' + nn(p.dtStart)
-                            + '&action=' + nn(p.mode)
-                            + '&lgGROSSISTEID=' + nn(p.lgGROSSISTEID)
-                            + '&lgFAMILLEARTICLEID=' + nn(p.lgFAMILLEARTICLEID)
-                            + '&lgZONEGEOID=' + nn(p.lgZONEGEOID)
-                            + '&END=' + nn(p.END)
-                            + '&BEGIN=' + nn(p.BEGIN)
-                            + '&typeStock=' + typeStock;
-                        window.open(linkUrl);
+                        window.open(urlServlet('VALORISATION'));
+                    }
+                },
+                {
+                    text: 'Exporter Excel', id: 'btn_excel', disabled: true, minWidth: 120, iconCls: 'excelicon',
+                    handler: function () {
+                        if (!controleSelection()) { return; }
+                        window.open(urlServlet('VALORISATION_EXCEL'));
                     }
                 }
             ]
@@ -509,6 +526,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
 
         // Chargement initial
         Ext.getCmp('btn_print').setDisabled(true);
+        Ext.getCmp('btn_excel').setDisabled(true);
         callValorisation({ dtStart: Ext.getCmp('dt_periode').getSubmitValue(), mode: 0 });
         updateMirrors();
     }

@@ -1,5 +1,6 @@
 package rest.service.utils;
 
+import commonTasks.dto.ValorisationDTO;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormat;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
@@ -156,6 +158,145 @@ public class ReportExcelExportService {
                 cell.setCellValue(rowData[i]);
             }
         });
+    }
+
+    /**
+     * Export Excel de la valorisation du stock : meme contenu que l'impression PDF — detail par element (modes Famille
+     * / Emplacement / Grossiste) puis eclatement par TVA ; en mode Simple, valeurs globales et eclatement par TVA avec
+     * le prix moyen pondere.
+     *
+     * @param title
+     *            Titre (identique a l'entete du PDF)
+     * @param valorisation
+     *            Resultat de la valorisation (detail dans getDatas(), TVA dans getTvas())
+     * @param avecDetail
+     *            true pour les modes Famille / Emplacement / Grossiste, false pour le mode Simple
+     *
+     * @return ByteArray du fichier Excel
+     *
+     * @throws java.io.IOException
+     */
+    public byte[] createValorisationExcel(String title, ValorisationDTO valorisation, boolean avecDetail)
+            throws IOException {
+
+        try (Workbook workbook = new HSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet(sanitizeSheetName("Valorisation"));
+
+            CellStyle titleStyle = createTitleStyle(workbook);
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle dateStyle = createDateStyle(workbook);
+
+            DataFormat format = workbook.createDataFormat();
+            CellStyle montantStyle = workbook.createCellStyle();
+            montantStyle.setDataFormat(format.getFormat("#,##0"));
+            montantStyle.setAlignment(HorizontalAlignment.RIGHT);
+
+            Font boldFont = workbook.createFont();
+            boldFont.setBold(true);
+            CellStyle totalLabelStyle = workbook.createCellStyle();
+            totalLabelStyle.setFont(boldFont);
+            CellStyle totalMontantStyle = workbook.createCellStyle();
+            totalMontantStyle.setDataFormat(format.getFormat("#,##0"));
+            totalMontantStyle.setAlignment(HorizontalAlignment.RIGHT);
+            totalMontantStyle.setFont(boldFont);
+
+            int nbCols = 4;
+            int rowNum = 0;
+
+            Row titleRow = sheet.createRow(rowNum++);
+            Cell titleCell = titleRow.createCell(0);
+            titleCell.setCellValue(title);
+            titleCell.setCellStyle(titleStyle);
+            sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, nbCols - 1));
+
+            Row dateRow = sheet.createRow(rowNum++);
+            Cell dateCell = dateRow.createCell(0);
+            dateCell.setCellValue("Généré le: " + LocalDateTime.now().format(DATETIME_FORMATTER));
+            dateCell.setCellStyle(dateStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, nbCols - 1));
+            rowNum++;
+
+            if (avecDetail) {
+                String[] heads = { "Code", "Libellé", "Prix de Vente", "Prix d'Achat Facture" };
+                Row headerRow = sheet.createRow(rowNum++);
+                for (int i = 0; i < heads.length; i++) {
+                    Cell cell = headerRow.createCell(i);
+                    cell.setCellValue(heads[i]);
+                    cell.setCellStyle(headerStyle);
+                }
+                for (ValorisationDTO ligne : valorisation.getDatas()) {
+                    Row row = sheet.createRow(rowNum++);
+                    row.createCell(0).setCellValue(ligne.getCode() != null ? ligne.getCode() : "");
+                    row.createCell(1).setCellValue(ligne.getLibelle() != null ? ligne.getLibelle() : "");
+                    montantCell(row, 2, ligne.getMontantPu(), montantStyle);
+                    montantCell(row, 3, ligne.getMontantFacture(), montantStyle);
+                }
+                Row totalRow = sheet.createRow(rowNum++);
+                Cell totalLabel = totalRow.createCell(1);
+                totalLabel.setCellValue("TOTAL");
+                totalLabel.setCellStyle(totalLabelStyle);
+                montantCell(totalRow, 2, valorisation.getMontantPu(), totalMontantStyle);
+                montantCell(totalRow, 3, valorisation.getMontantFacture(), totalMontantStyle);
+                rowNum++;
+            } else {
+                Row venteRow = sheet.createRow(rowNum++);
+                Cell venteLabel = venteRow.createCell(0);
+                venteLabel.setCellValue("VALEUR VENTE");
+                venteLabel.setCellStyle(totalLabelStyle);
+                montantCell(venteRow, 1, valorisation.getMontantPu(), totalMontantStyle);
+                Row achatRow = sheet.createRow(rowNum++);
+                Cell achatLabel = achatRow.createCell(0);
+                achatLabel.setCellValue("VALEUR ACHAT");
+                achatLabel.setCellStyle(totalLabelStyle);
+                montantCell(achatRow, 1, valorisation.getMontantFacture(), totalMontantStyle);
+                rowNum++;
+            }
+
+            // Eclatement par TVA (le prix moyen pondere n'apparait qu'en mode Simple, comme sur le PDF)
+            String[] headsTva = avecDetail
+                    ? new String[] { "Eclatement par TVA", "Prix de Vente", "Prix d'Achat Facture" } : new String[] {
+                            "Eclatement par TVA", "Prix de Vente", "Prix d'Achat Facture", "Prix moyen pondéré" };
+            Row headerTvaRow = sheet.createRow(rowNum++);
+            for (int i = 0; i < headsTva.length; i++) {
+                Cell cell = headerTvaRow.createCell(i);
+                cell.setCellValue(headsTva[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            ValorisationDTO tva = valorisation.getTvas();
+            if (tva != null) {
+                for (ValorisationDTO ligne : tva.getDatas()) {
+                    Row row = sheet.createRow(rowNum++);
+                    row.createCell(0).setCellValue(ligne.getLibelle() != null ? ligne.getLibelle() : "");
+                    montantCell(row, 1, ligne.getMontantPu(), montantStyle);
+                    montantCell(row, 2, ligne.getMontantFacture(), montantStyle);
+                    if (!avecDetail) {
+                        montantCell(row, 3, ligne.getMontantPmd(), montantStyle);
+                    }
+                }
+                Row totalTvaRow = sheet.createRow(rowNum++);
+                Cell totalTvaLabel = totalTvaRow.createCell(0);
+                totalTvaLabel.setCellValue("TOTAL GENERAL");
+                totalTvaLabel.setCellStyle(totalLabelStyle);
+                montantCell(totalTvaRow, 1, tva.getMontantPu(), totalMontantStyle);
+                montantCell(totalTvaRow, 2, tva.getMontantFacture(), totalMontantStyle);
+                if (!avecDetail) {
+                    montantCell(totalTvaRow, 3, tva.getMontantPmd(), totalMontantStyle);
+                }
+            }
+
+            for (int i = 0; i < nbCols; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    private void montantCell(Row row, int col, Number valeur, CellStyle style) {
+        Cell cell = row.createCell(col);
+        cell.setCellValue(valeur != null ? valeur.doubleValue() : 0d);
+        cell.setCellStyle(style);
     }
 
     // Styles

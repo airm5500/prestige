@@ -31,8 +31,8 @@ public class SockServlet extends HttpServlet {
     Stock stockService;
 
     private enum Action {
-        VALORISATION, RUPTURE_PHARMAML, UG, VENTE_TIERS_PAYANT_GROUP, VENTE_TIERS_PAYANT, ARTICLE_VENDUS_DETAIL,
-        ARTICLE_VENDUS_RECAP, SUIVI_MVT_PRODUIT
+        VALORISATION, VALORISATION_EXCEL, RUPTURE_PHARMAML, UG, VENTE_TIERS_PAYANT_GROUP, VENTE_TIERS_PAYANT,
+        ARTICLE_VENDUS_DETAIL, ARTICLE_VENDUS_RECAP, SUIVI_MVT_PRODUIT
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
@@ -64,6 +64,22 @@ public class SockServlet extends HttpServlet {
             file = stockService.valorisation(tUser, mode, LocalDate.parse(dtStart), lgGROSSISTEID, lgFAMILLEARTICLEID,
                     lgZONEGEOID, end, begin, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), typeStock);
             break;
+
+        case VALORISATION_EXCEL: {
+            // Memes parametres que l'impression PDF ; le fichier est ecrit directement dans la
+            // reponse (telechargement), pas de redirection vers un fichier genere sur disque.
+            int modeXls = Integer.parseInt(request.getParameter("action"));
+            byte[] xls = stockService.valorisationExcel(modeXls, LocalDate.parse(dtStart),
+                    request.getParameter("lgGROSSISTEID"), request.getParameter("lgFAMILLEARTICLEID"),
+                    request.getParameter("lgZONEGEOID"), end, begin, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
+                    request.getParameter("typeStock"));
+            response.setContentType("application/vnd.ms-excel");
+            response.setHeader("Content-Disposition", "attachment; filename=\"valorisation_" + java.time.LocalDateTime
+                    .now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xls\"");
+            response.setContentLength(xls.length);
+            response.getOutputStream().write(xls);
+            return;
+        }
 
         case RUPTURE_PHARMAML:
             query = request.getParameter("query");

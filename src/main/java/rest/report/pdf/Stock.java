@@ -28,6 +28,7 @@ import rest.service.ClientService;
 import rest.service.OrderService;
 import rest.service.ProduitService;
 import rest.service.SalesStatsService;
+import rest.service.utils.ReportExcelExportService;
 import toolkits.utils.jdom;
 
 /**
@@ -50,30 +51,26 @@ public class Stock {
     private ClientService clientService;
     @EJB
     private SalesStatsService salesStatsService;
+    @EJB
+    private ReportExcelExportService excelExportService;
 
-    public String valorisation(TUser tu, int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock) throws IOException {
-
-        String scr_report_file = "rp_valorisation_stock_produit2";
-        Map<String, Object> parameters = reportUtil.officineData(tu);
-        String P_PERIODE = "PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-        String P_SUBTITLE;
+    /** Titre commun aux exports PDF et Excel de la valorisation. */
+    private String titreValorisation(int mode, LocalDate dtSt, String typeStock) {
+        String subtitle;
         switch (mode) {
         case 1:
-            P_SUBTITLE = "VALORISATION  PAR FAMILLE D'ARTICLE ";
+            subtitle = "VALORISATION  PAR FAMILLE D'ARTICLE ";
             break;
         case 2:
-            P_SUBTITLE = "VALORISATION PAR EMPLACEMENT ";
+            subtitle = "VALORISATION PAR EMPLACEMENT ";
             break;
         case 3:
-            P_SUBTITLE = "VALORISATION PAR GROSSISTE ";
+            subtitle = "VALORISATION PAR GROSSISTE ";
             break;
         default:
-            P_SUBTITLE = "VALORISATION ";
-            scr_report_file = "rp_valorisation_stock_produit";
+            subtitle = "VALORISATION ";
             break;
         }
-
         // Prefixe selon le type de stock imprime (rayon par defaut)
         String stockLabel = "STOCK RAYON - ";
         if ("2".equals(typeStock) || "reserve".equalsIgnoreCase(typeStock)) {
@@ -81,8 +78,15 @@ public class Stock {
         } else if ("0".equals(typeStock) || "total".equalsIgnoreCase(typeStock)) {
             stockLabel = "STOCK TOTAL - ";
         }
+        return stockLabel + subtitle + "PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+    }
 
-        parameters.put("P_H_CLT_INFOS", stockLabel + P_SUBTITLE + P_PERIODE);
+    public String valorisation(TUser tu, int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock) throws IOException {
+
+        String scr_report_file = mode > 0 ? "rp_valorisation_stock_produit2" : "rp_valorisation_stock_produit";
+        Map<String, Object> parameters = reportUtil.officineData(tu);
+        parameters.put("P_H_CLT_INFOS", titreValorisation(mode, dtSt, typeStock));
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         ValorisationDTO o = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID,
                 end, begin, emplacementId, typeStock);
@@ -108,6 +112,17 @@ public class Stock {
         }
 
         return "/data/reports/pdf/valorisation_" + report_generate_file;
+    }
+
+    /**
+     * Export Excel de la valorisation : memes donnees et meme titre que l'impression PDF.
+     */
+    public byte[] valorisationExcel(int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock) throws IOException {
+        ValorisationDTO valorisation = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID,
+                lgZONEGEOID, end, begin, emplacementId, typeStock);
+        return excelExportService.createValorisationExcel(titreValorisation(mode, dtSt, typeStock), valorisation,
+                mode > 0);
     }
 
     public String venteUgDTO(TUser tu, LocalDate dtSt, LocalDate dtEnd, String query) throws IOException {
