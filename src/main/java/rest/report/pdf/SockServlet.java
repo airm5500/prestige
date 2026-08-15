@@ -75,8 +75,8 @@ public class SockServlet extends HttpServlet {
                     request.getParameter("lgZONEGEOID"), end, begin, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
                     request.getParameter("typeStock"), request.getParameter("tri"));
             response.setContentType("application/vnd.ms-excel");
-            response.setHeader("Content-Disposition", "attachment; filename=\"valorisation_" + java.time.LocalDateTime
-                    .now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xls\"");
+            response.setHeader("Content-Disposition", "attachment; filename=\""
+                    + stockService.nomFichierValorisationExcel(tUser, LocalDate.parse(dtStart)) + "\"");
             response.setContentLength(xls.length);
             response.getOutputStream().write(xls);
             return;

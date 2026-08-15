@@ -81,6 +81,45 @@ public class Stock {
         return stockLabel + subtitle + "PERIODE DU " + dtSt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 
+    /**
+     * Nom de fichier des sorties de valorisation : {@code valorisation_<officine>_<date>_<heure>.<extension>}. Le nom
+     * de l'officine est normalise (accents et caracteres speciaux remplaces) pour rester un nom de fichier valide sur
+     * tous les systemes.
+     *
+     * @param officine
+     *            nom de l'officine, tel qu'affiche en tete du rapport (peut etre null)
+     * @param dtSt
+     *            date de la valorisation
+     * @param extension
+     *            extension du fichier, sans le point
+     *
+     * @return le nom de fichier complet
+     */
+    private String nomFichierValorisation(String officine, LocalDate dtSt, String extension) {
+        String nom = "";
+        if (officine != null) {
+            nom = java.text.Normalizer.normalize(officine, java.text.Normalizer.Form.NFD)
+                    .replaceAll("[^\\p{ASCII}]", "").replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "");
+            if (nom.length() > 40) {
+                nom = nom.substring(0, 40).replaceAll("_+$", "");
+            }
+        }
+        StringBuilder fichier = new StringBuilder("valorisation_");
+        if (!nom.isEmpty()) {
+            fichier.append(nom).append("_");
+        }
+        fichier.append(dtSt.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"))).append("_")
+                .append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss"))).append(".")
+                .append(extension);
+        return fichier.toString();
+    }
+
+    /** Nom du fichier Excel de valorisation (meme convention que le PDF), pour l'en-tete de telechargement. */
+    public String nomFichierValorisationExcel(TUser tu, LocalDate dtSt) {
+        Object officine = reportUtil.officineData(tu).get("P_H_INSTITUTION");
+        return nomFichierValorisation(officine == null ? null : officine.toString(), dtSt, "xls");
+    }
+
     /** Type de stock normalise pour la couleur d'accent du rapport (1 rayon, 2 reserve, 0 total). */
     private String typeStockNormalise(String typeStock) {
         if ("2".equals(typeStock) || "reserve".equalsIgnoreCase(typeStock)) {
@@ -127,7 +166,9 @@ public class Stock {
         Map<String, Object> parameters = reportUtil.officineData(tu);
         parameters.put("P_H_CLT_INFOS", titreValorisation(mode, dtSt, typeStock));
         parameters.put("P_TYPE_STOCK", typeStockNormalise(typeStock));
-        String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
+        Object officine = parameters.get("P_H_INSTITUTION");
+        String report_generate_file = nomFichierValorisation(officine == null ? null : officine.toString(), dtSt,
+                "pdf");
         ValorisationDTO o = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID,
                 end, begin, emplacementId, typeStock);
 
@@ -146,13 +187,13 @@ public class Stock {
             trierDetail(o.getDatas(), tri);
 
             reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
-                    jdom.scr_report_pdf + "valorisation_" + report_generate_file, o.getDatas());
+                    jdom.scr_report_pdf + report_generate_file, o.getDatas());
         } else {
             reportUtil.buildReportEmptyDs(parameters, scr_report_file, jdom.scr_report_file,
-                    jdom.scr_report_pdf + "valorisation_" + report_generate_file);
+                    jdom.scr_report_pdf + report_generate_file);
         }
 
-        return "/data/reports/pdf/valorisation_" + report_generate_file;
+        return "/data/reports/pdf/" + report_generate_file;
     }
 
     /**
