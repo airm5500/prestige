@@ -1725,8 +1725,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(" o.lg_GROSSISTE_ID = :idParam ");
-                    parasm.put("idParam", lgGROSSISTEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_GROSSISTE_ID", lgGROSSISTEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -1743,8 +1742,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(" o.lg_ZONE_GEO_ID = :idParam ");
-                    parasm.put("idParam", lgZONEGEOID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_ZONE_GEO_ID", lgZONEGEOID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -1761,8 +1759,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(" o.lg_FAMILLEARTICLE_ID = :idParam ");
-                    parasm.put("idParam", lgFAMILLEARTICLEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE_FAMILLE >= :debut ");
@@ -1849,8 +1846,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(" o.lg_GROSSISTE_ID = :idParam ");
-                    parasm.put("idParam", lgGROSSISTEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_GROSSISTE_ID", lgGROSSISTEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -1868,8 +1864,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(" o.lg_ZONE_GEO_ID = :idParam ");
-                    parasm.put("idParam", lgZONEGEOID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_ZONE_GEO_ID", lgZONEGEOID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -1887,8 +1882,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(" o.lg_FAMILLEARTICLE_ID = :idParam ");
-                    parasm.put("idParam", lgFAMILLEARTICLEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE_FAMILLE >= :debut ");
@@ -1946,8 +1940,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(" o.lg_GROSSISTE_ID = :idParam ");
-                    parasm.put("idParam", lgGROSSISTEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_GROSSISTE_ID", lgGROSSISTEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -1964,8 +1957,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(" o.lg_ZONE_GEO_ID = :idParam ");
-                    parasm.put("idParam", lgZONEGEOID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_ZONE_GEO_ID", lgZONEGEOID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -1982,8 +1974,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(" o.lg_FAMILLEARTICLE_ID = :idParam ");
-                    parasm.put("idParam", lgFAMILLEARTICLEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE_FAMILLE >= :debut ");
@@ -2064,6 +2055,46 @@ public class ProduitServiceImpl implements ProduitService {
         return row.toString();
     }
 
+    /**
+     * Filtre d'identifiant des requetes de valorisation, etendu a la selection multiple : la valeur recue est soit un
+     * id unique (comportement historique, SQL strictement inchange : egalite sur :idParam), soit plusieurs ids separes
+     * par des virgules (cases cochees de l'ecran de valorisation), traduits en IN (...). Les autres appelants, qui
+     * n'envoient jamais de virgule, conservent l'egalite a l'octet pres.
+     */
+    private void ajouterFiltreIds(List<String> predicates, Map<String, Object> parasm, String colonne, String valeur) {
+        String[] ids = valeur.split(",");
+        if (ids.length == 1) {
+            predicates.add(" " + colonne + " = :idParam ");
+            parasm.put("idParam", valeur);
+            return;
+        }
+        StringBuilder in = new StringBuilder(" " + colonne + " IN (");
+        for (int i = 0; i < ids.length; i++) {
+            String nom = "idsel" + i;
+            if (i > 0) {
+                in.append(",");
+            }
+            in.append(":").append(nom);
+            parasm.put(nom, ids[i].trim());
+        }
+        in.append(") ");
+        predicates.add(in.toString());
+    }
+
+    /** Meme extension que {@link #ajouterFiltreIds} pour les requetes Criteria : egalite ou IN selon la valeur. */
+    private Predicate construireFiltreIds(CriteriaBuilder cb, javax.persistence.criteria.Expression<String> chemin,
+            String valeur) {
+        String[] ids = valeur.split(",");
+        if (ids.length == 1) {
+            return cb.equal(chemin, valeur);
+        }
+        List<String> liste = new ArrayList<>();
+        for (String id : ids) {
+            liste.add(id.trim());
+        }
+        return chemin.in(liste);
+    }
+
     private Params getValeurStockFrorCurrenDate(int mode, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
             String lgZONEGEOID, String END, String BEGIN, String emplacementId) {
         try {
@@ -2084,7 +2115,7 @@ public class ProduitServiceImpl implements ProduitService {
                 Join<TFamille, TGrossiste> gr = root.join(TFamille_.lgGROSSISTEID, JoinType.INNER);
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(cb.equal(gr.get(TGrossiste_.lgGROSSISTEID), lgGROSSISTEID));
+                    predicates.add(construireFiltreIds(cb, gr.get(TGrossiste_.lgGROSSISTEID), lgGROSSISTEID));
 
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
@@ -2100,7 +2131,7 @@ public class ProduitServiceImpl implements ProduitService {
                 Join<TFamille, TZoneGeographique> zne = root.join(TFamille_.lgZONEGEOID, JoinType.INNER);
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(cb.equal(zne.get(TZoneGeographique_.lgZONEGEOID), lgZONEGEOID));
+                    predicates.add(construireFiltreIds(cb, zne.get(TZoneGeographique_.lgZONEGEOID), lgZONEGEOID));
 
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
@@ -2116,7 +2147,8 @@ public class ProduitServiceImpl implements ProduitService {
                 Join<TFamille, TFamillearticle> fm = root.join(TFamille_.lgFAMILLEARTICLEID, JoinType.INNER);
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(cb.equal(fm.get(TFamillearticle_.lgFAMILLEARTICLEID), lgFAMILLEARTICLEID));
+                    predicates.add(
+                            construireFiltreIds(cb, fm.get(TFamillearticle_.lgFAMILLEARTICLEID), lgFAMILLEARTICLEID));
 
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
@@ -2234,7 +2266,7 @@ public class ProduitServiceImpl implements ProduitService {
                 Join<TFamille, TGrossiste> gr = subroot.join(TFamille_.lgGROSSISTEID, JoinType.INNER);
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(cb.equal(gr.get(TGrossiste_.lgGROSSISTEID), lgGROSSISTEID));
+                    predicates.add(construireFiltreIds(cb, gr.get(TGrossiste_.lgGROSSISTEID), lgGROSSISTEID));
 
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
@@ -2249,7 +2281,7 @@ public class ProduitServiceImpl implements ProduitService {
                 Join<TFamille, TZoneGeographique> zne = subroot.join(TFamille_.lgZONEGEOID, JoinType.INNER);
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(cb.equal(zne.get(TZoneGeographique_.lgZONEGEOID), lgZONEGEOID));
+                    predicates.add(construireFiltreIds(cb, zne.get(TZoneGeographique_.lgZONEGEOID), lgZONEGEOID));
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(cb.greaterThanOrEqualTo(zne.get(TZoneGeographique_.strCODE), BEGIN));
@@ -2264,7 +2296,8 @@ public class ProduitServiceImpl implements ProduitService {
                 Join<TFamille, TFamillearticle> fm = subroot.join(TFamille_.lgFAMILLEARTICLEID, JoinType.INNER);
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(cb.equal(fm.get(TFamillearticle_.lgFAMILLEARTICLEID), lgFAMILLEARTICLEID));
+                    predicates.add(
+                            construireFiltreIds(cb, fm.get(TFamillearticle_.lgFAMILLEARTICLEID), lgFAMILLEARTICLEID));
 
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
@@ -2319,8 +2352,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" f.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(" f.lg_GROSSISTE_ID = :idParam ");
-                    parasm.put("idParam", lgGROSSISTEID);
+                    ajouterFiltreIds(predicates, parasm, "f.lg_GROSSISTE_ID", lgGROSSISTEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2346,8 +2378,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" f.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(" f.lg_ZONE_GEO_ID = :idParam ");
-                    parasm.put("idParam", lgZONEGEOID);
+                    ajouterFiltreIds(predicates, parasm, "f.lg_ZONE_GEO_ID", lgZONEGEOID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2373,8 +2404,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" f.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(" f.lg_FAMILLEARTICLE_ID = :idParam ");
-                    parasm.put("idParam", lgFAMILLEARTICLEID);
+                    ajouterFiltreIds(predicates, parasm, "f.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE_FAMILLE >= :debut ");
@@ -2487,8 +2517,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" f.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(" f.lg_GROSSISTE_ID = :idParam ");
-                    parasm.put("idParam", lgGROSSISTEID);
+                    ajouterFiltreIds(predicates, parasm, "f.lg_GROSSISTE_ID", lgGROSSISTEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2506,8 +2535,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" f.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(" f.lg_ZONE_GEO_ID = :idParam ");
-                    parasm.put("idParam", lgZONEGEOID);
+                    ajouterFiltreIds(predicates, parasm, "f.lg_ZONE_GEO_ID", lgZONEGEOID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2525,8 +2553,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" f.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(" f.lg_FAMILLEARTICLE_ID = :idParam ");
-                    parasm.put("idParam", lgFAMILLEARTICLEID);
+                    ajouterFiltreIds(predicates, parasm, "f.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE_FAMILLE >= :debut ");
@@ -2618,8 +2645,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_GROSSISTE_ID=g.lg_GROSSISTE_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(" o.lg_GROSSISTE_ID = :idParam ");
-                    parasm.put("idParam", lgGROSSISTEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_GROSSISTE_ID", lgGROSSISTEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2646,8 +2672,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_ZONE_GEO_ID=g.lg_ZONE_GEO_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(" o.lg_ZONE_GEO_ID = :idParam ");
-                    parasm.put("idParam", lgZONEGEOID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_ZONE_GEO_ID", lgZONEGEOID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2675,8 +2700,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add(" o.lg_FAMILLEARTICLE_ID=g.lg_FAMILLEARTICLE_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(" o.lg_FAMILLEARTICLE_ID = :idParam ");
-                    parasm.put("idParam", lgFAMILLEARTICLEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
 
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
@@ -2789,8 +2813,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add("  o.lg_CODE_TVA_ID=v.lg_CODE_TVA_ID ");
                 if (lgGROSSISTEID != null && !"0".equals(lgGROSSISTEID) && !"%%".equals(lgGROSSISTEID)
                         && !"".equals(lgGROSSISTEID)) {
-                    predicates.add(" o.lg_GROSSISTE_ID = :idParam ");
-                    parasm.put("idParam", lgGROSSISTEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_GROSSISTE_ID", lgGROSSISTEID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2811,8 +2834,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add("  o.lg_CODE_TVA_ID=v.lg_CODE_TVA_ID ");
                 if (lgZONEGEOID != null && !"0".equals(lgZONEGEOID) && !"%%".equals(lgZONEGEOID)
                         && !"".equals(lgZONEGEOID)) {
-                    predicates.add(" o.lg_ZONE_GEO_ID = :idParam ");
-                    parasm.put("idParam", lgZONEGEOID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_ZONE_GEO_ID", lgZONEGEOID);
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {
                         predicates.add(" g.str_CODE >= :debut ");
@@ -2833,8 +2855,7 @@ public class ProduitServiceImpl implements ProduitService {
                 predicates.add("  o.lg_CODE_TVA_ID=v.lg_CODE_TVA_ID ");
                 if (lgFAMILLEARTICLEID != null && !"0".equals(lgFAMILLEARTICLEID) && !"%%".equals(lgFAMILLEARTICLEID)
                         && !"".equals(lgFAMILLEARTICLEID)) {
-                    predicates.add(" o.lg_FAMILLEARTICLE_ID = :idParam ");
-                    parasm.put("idParam", lgFAMILLEARTICLEID);
+                    ajouterFiltreIds(predicates, parasm, "o.lg_FAMILLEARTICLE_ID", lgFAMILLEARTICLEID);
 
                 } else {
                     if (BEGIN != null && !"".equals(BEGIN)) {

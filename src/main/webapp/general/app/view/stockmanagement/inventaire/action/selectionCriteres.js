@@ -387,5 +387,14 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.selectionCriteres',
             }
         }
         return ids;
+    },
+
+    /** Libelles des elements coches (panier), pour les exports et recapitulatifs. */
+    getLibelles: function () {
+        var libelles = [];
+        this.storePanier.each(function (r) {
+            libelles.push(r.get('libelle'));
+        });
+        return libelles;
     }
 });
