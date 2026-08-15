@@ -63,7 +63,7 @@ public class SockServlet extends HttpServlet {
             String typeStock = request.getParameter("typeStock");
             file = stockService.valorisation(tUser, mode, LocalDate.parse(dtStart), lgGROSSISTEID, lgFAMILLEARTICLEID,
                     lgZONEGEOID, end, begin, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), typeStock,
-                    request.getParameter("elements"), request.getParameter("tri"));
+                    request.getParameter("tri"));
             break;
 
         case VALORISATION_EXCEL: {
@@ -73,7 +73,7 @@ public class SockServlet extends HttpServlet {
             byte[] xls = stockService.valorisationExcel(modeXls, LocalDate.parse(dtStart),
                     request.getParameter("lgGROSSISTEID"), request.getParameter("lgFAMILLEARTICLEID"),
                     request.getParameter("lgZONEGEOID"), end, begin, tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
-                    request.getParameter("typeStock"), request.getParameter("elements"), request.getParameter("tri"));
+                    request.getParameter("typeStock"), request.getParameter("tri"));
             response.setContentType("application/vnd.ms-excel");
             response.setHeader("Content-Disposition", "attachment; filename=\"valorisation_" + java.time.LocalDateTime
                     .now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".xls\"");

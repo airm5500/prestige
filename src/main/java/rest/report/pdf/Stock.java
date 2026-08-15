@@ -92,18 +92,6 @@ public class Stock {
         return "1";
     }
 
-    /** Libelles des elements coches, tronques pour rester lisibles en tete de rapport. */
-    private String elementsValorises(String elements) {
-        if (elements == null) {
-            return "";
-        }
-        String valeur = elements.trim();
-        if (valeur.length() > 400) {
-            return valeur.substring(0, 400) + "…";
-        }
-        return valeur;
-    }
-
     /**
      * Tri du detail imprime, choisi a l'ecran : ordre alphanumerique sur le code ou sur le libelle. Ce tri ne concerne
      * que les sorties (PDF et Excel) : l'ecran, lui, n'affiche pas le detail.
@@ -132,14 +120,13 @@ public class Stock {
     }
 
     public String valorisation(TUser tu, int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String elements,
-            String tri) throws IOException {
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String tri)
+            throws IOException {
 
         String scr_report_file = mode > 0 ? "rp_valorisation_stock_produit2" : "rp_valorisation_stock_produit";
         Map<String, Object> parameters = reportUtil.officineData(tu);
         parameters.put("P_H_CLT_INFOS", titreValorisation(mode, dtSt, typeStock));
         parameters.put("P_TYPE_STOCK", typeStockNormalise(typeStock));
-        parameters.put("P_ELEMENTS", elementsValorises(elements));
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         ValorisationDTO o = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID,
                 end, begin, emplacementId, typeStock);
@@ -172,13 +159,13 @@ public class Stock {
      * Export Excel de la valorisation : memes donnees et meme titre que l'impression PDF.
      */
     public byte[] valorisationExcel(int mode, LocalDate dtSt, String lgGROSSISTEID, String lgFAMILLEARTICLEID,
-            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String elements,
-            String tri) throws IOException {
+            String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String tri)
+            throws IOException {
         ValorisationDTO valorisation = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID,
                 lgZONEGEOID, end, begin, emplacementId, typeStock);
         trierDetail(valorisation.getDatas(), tri);
-        return excelExportService.createValorisationExcel(titreValorisation(mode, dtSt, typeStock),
-                elementsValorises(elements), valorisation, mode > 0);
+        return excelExportService.createValorisationExcel(titreValorisation(mode, dtSt, typeStock), valorisation,
+                mode > 0);
     }
 
     public String venteUgDTO(TUser tu, LocalDate dtSt, LocalDate dtEnd, String query) throws IOException {

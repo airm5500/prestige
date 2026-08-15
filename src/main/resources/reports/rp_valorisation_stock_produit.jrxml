@@ -79,8 +79,6 @@
 	<parameter name="P_SUBTITLE" class="java.lang.String"/>
 	<parameter name="totalTarif" class="java.lang.Integer"/>
 	<parameter name="totalPmd" class="java.lang.Integer"/>
-	<!-- Libelles des elements coches a l'ecran (vide = axe entier) -->
-	<parameter name="P_ELEMENTS" class="java.lang.String"/>
 	<!-- 1 = stock rayon, 2 = stock reserve, 0 = stock total -->
 	<parameter name="P_TYPE_STOCK" class="java.lang.String"/>
 	<queryString>
@@ -96,7 +94,7 @@
 		<band splitType="Stretch"/>
 	</background>
 	<pageHeader>
-		<band height="126" splitType="Stretch">
+		<band height="106" splitType="Stretch">
 			<image onErrorType="Blank">
 				<reportElement x="7" y="1" width="79" height="47" uuid="b53a8a2b-f449-4e82-a4eb-a422c5955c78"/>
 				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
@@ -140,14 +138,6 @@
 					<font size="11" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
-			</textField>
-			<!-- Elements effectivement valorises : l'impression se suffit a elle-meme -->
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement x="2" y="105" width="581" height="18" isRemoveLineWhenBlank="true" uuid="1a00000b-0000-4000-8000-00000000000b"/>
-				<textElement>
-					<font size="7" isItalic="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[($P{P_ELEMENTS} == null || $P{P_ELEMENTS}.trim().isEmpty()) ? null : ("Éléments valorisés : " + $P{P_ELEMENTS})]]></textFieldExpression>
 			</textField>
 		</band>
 	</pageHeader>

@@ -167,8 +167,6 @@ public class ReportExcelExportService {
      *
      * @param title
      *            Titre (identique a l'entete du PDF)
-     * @param elements
-     *            Libelles des elements coches a l'ecran (vide si aucun filtre par cases)
      * @param valorisation
      *            Resultat de la valorisation (detail dans getDatas(), TVA dans getTvas())
      * @param avecDetail
@@ -178,8 +176,8 @@ public class ReportExcelExportService {
      *
      * @throws java.io.IOException
      */
-    public byte[] createValorisationExcel(String title, String elements, ValorisationDTO valorisation,
-            boolean avecDetail) throws IOException {
+    public byte[] createValorisationExcel(String title, ValorisationDTO valorisation, boolean avecDetail)
+            throws IOException {
 
         try (Workbook workbook = new HSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(sanitizeSheetName("Valorisation"));
@@ -225,13 +223,6 @@ public class ReportExcelExportService {
             dateCell.setCellStyle(dateStyle);
             sheet.addMergedRegion(new CellRangeAddress(1, 1, 0, nbCols - 1));
 
-            if (elements != null && !elements.trim().isEmpty()) {
-                Row elementsRow = sheet.createRow(rowNum++);
-                Cell elementsCell = elementsRow.createCell(0);
-                elementsCell.setCellValue("Éléments valorisés : " + elements);
-                elementsCell.setCellStyle(dateStyle);
-                sheet.addMergedRegion(new CellRangeAddress(rowNum - 1, rowNum - 1, 0, nbCols - 1));
-            }
             rowNum++;
 
             double totalVente = valorisation.getMontantPu() == null ? 0d : valorisation.getMontantPu().doubleValue();

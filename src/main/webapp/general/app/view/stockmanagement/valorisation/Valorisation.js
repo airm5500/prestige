@@ -370,11 +370,7 @@ Ext.define('testextjs.view.stockmanagement.valorisation.Valorisation', {
             var at = Ext.getCmp('valo_tabs').getActiveTab();
             var key = (at && at.stockKey) ? at.stockKey : 'rayon';
             var typeStock = typeMap[key] || '1';
-            // Libelles coches : imprimes en tete du rapport pour que la sortie soit
-            // auto-suffisante (on sait quels elements ont ete valorises).
-            var libelles = AXES[p.mode] ? criteresPanel().getLibelles().join(', ') : '';
             return '../SockServlet?mode=' + modeServlet
-                + '&elements=' + encodeURIComponent(libelles)
                 + '&tri=' + nn(Ext.getCmp('str_TRI_IMPRESSION').getValue())
                 + '&dtStart=' + nn(p.dtStart)
                 + '&action=' + nn(p.mode)
