@@ -61,6 +61,27 @@ class ChargementEtatJasperTest {
                 new byte[] { (byte) 0xAC, (byte) 0xED, 0x00, 0x05, 0x73, 0x72, 0x00, 0x04, 'v', 'i', 'e', 'i' });
     }
 
+    /**
+     * Edite l'etat en disant, en cas d'echec, CE QUI manque plutot que de laisser remonter une pile Java.
+     *
+     * Si l'exception passe au travers, c'est que la version de ReportUtil compilee ne rattrape pas un .jasper illisible
+     * - autrement dit que le poste construit l'ANCIENNE version du fichier, celle qui ne rattrape que le fichier
+     * ABSENT. Le message le dit et donne la commande pour retablir la bonne version.
+     */
+    private static JasperReport editer(Path racine, String nom) {
+        try {
+            return new ReportUtil().getReport(nom, dossier(racine));
+        } catch (Exception e) {
+            throw new AssertionError("Le .jasper illisible n'a pas ete rattrape : votre copie de "
+                    + "src/main/java/rest/report/ReportUtil.java est l'ANCIENNE, celle qui ne rattrape que le fichier "
+                    + "absent (FileNotFoundException). C'est la version qui est encore sur dev ; le correctif est sur "
+                    + "la branche. Retablissez-la avec :\n"
+                    + "    git checkout claude/branche-facturation-58xgrt -- src/main/java/rest/report/ReportUtil.java\n"
+                    + "Sans ce fichier, l'incident du releve des factures (\"Error loading object from InputStream\") "
+                    + "revient en production.\nCause technique : " + e, e);
+        }
+    }
+
     @Test
     @DisplayName("Un .jasper illisible ne fait plus echouer l'impression : l'etat est recompile")
     void jasperIllisibleRecompile(@TempDir Path racine) throws Exception {
@@ -73,7 +94,7 @@ class ChargementEtatJasperTest {
                     "le .jasper de depart doit etre illisible, sinon le test ne prouve rien");
         }
 
-        JasperReport etat = new ReportUtil().getReport("rp_releve_facture", dossier(racine));
+        JasperReport etat = editer(racine, "rp_releve_facture");
 
         assertNotNull(etat, "l'etat doit etre produit malgre le .jasper illisible");
         assertEquals("rp_releve_facture", etat.getName());
@@ -85,7 +106,7 @@ class ChargementEtatJasperTest {
         ecrireJrxml(racine, "rp_releve_facture");
         ecrireJasperIllisible(racine, "rp_releve_facture");
 
-        new ReportUtil().getReport("rp_releve_facture", dossier(racine));
+        editer(racine, "rp_releve_facture");
 
         // deuxieme impression : le fichier repare se relit directement
         try (InputStream flux = new FileInputStream(racine.resolve("rp_releve_facture.jasper").toFile())) {
@@ -98,7 +119,7 @@ class ChargementEtatJasperTest {
     void sansJasper(@TempDir Path racine) throws Exception {
         ecrireJrxml(racine, "rp_releve_facture");
 
-        assertNotNull(new ReportUtil().getReport("rp_releve_facture", dossier(racine)));
+        assertNotNull(editer(racine, "rp_releve_facture"));
         assertTrue(Files.exists(racine.resolve("rp_releve_facture.jasper")));
     }
 
@@ -112,7 +133,7 @@ class ChargementEtatJasperTest {
     @DisplayName("Aucun fichier temporaire ne subsiste apres compilation")
     void pasDeFichierTemporaire(@TempDir Path racine) throws Exception {
         ecrireJrxml(racine, "rp_releve_facture");
-        new ReportUtil().getReport("rp_releve_facture", dossier(racine));
+        editer(racine, "rp_releve_facture");
 
         try (java.util.stream.Stream<Path> fichiers = Files.list(racine)) {
             assertTrue(fichiers.noneMatch(f -> f.getFileName().toString().contains(".tmp")),
