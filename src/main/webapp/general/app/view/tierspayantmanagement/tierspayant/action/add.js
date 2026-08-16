@@ -283,6 +283,15 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     value: null,
                                     listeners: {
                                         render: function (champ) {
+                                            // Les info-bulles ne sont pas initialisees partout dans
+                                            // l'application : sans ce garde-fou, l'ouverture de la
+                                            // fiche echouerait sur les ecrans ou elles ne le sont pas.
+                                            if (!Ext.tip || !Ext.tip.QuickTipManager) {
+                                                return;
+                                            }
+                                            if (!Ext.tip.QuickTipManager.tip) {
+                                                Ext.tip.QuickTipManager.init();
+                                            }
                                             Ext.tip.QuickTipManager.register({
                                                 target: champ.getEl(),
                                                 text: "Nombre de bons imprimés par page sur la facture. "

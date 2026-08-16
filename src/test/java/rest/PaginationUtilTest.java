@@ -1,6 +1,7 @@
 package rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -66,5 +67,28 @@ class PaginationUtilTest {
             couvert += (f - d);
         }
         assertEquals(taille, couvert, "aucune ligne perdue ni comptee deux fois");
+    }
+
+    @Test
+    @DisplayName("La tranche renvoyee est exactement celle que l'ecran demande")
+    void tranche() {
+        java.util.List<String> lignes = java.util.Arrays.asList("a", "b", "c", "d", "e");
+
+        assertEquals(java.util.Arrays.asList("a", "b"), PaginationUtil.tranche(lignes, 0, 2));
+        assertEquals(java.util.Arrays.asList("c", "d"), PaginationUtil.tranche(lignes, 2, 2));
+        assertEquals(java.util.Arrays.asList("e"), PaginationUtil.tranche(lignes, 4, 2),
+                "la derniere page ne renvoie que ce qui reste");
+    }
+
+    @Test
+    @DisplayName("Sans limite demandee, tout est renvoye ; au-dela de la fin, rien")
+    void trancheCasLimites() {
+        java.util.List<String> lignes = java.util.Arrays.asList("a", "b", "c");
+
+        assertEquals(lignes, PaginationUtil.tranche(lignes, 0, 0), "limite absente = tout");
+        assertEquals(java.util.Arrays.asList("b", "c"), PaginationUtil.tranche(lignes, 1, 0));
+        assertTrue(PaginationUtil.tranche(lignes, 10, 5).isEmpty(), "au-dela de la fin : liste vide, pas d'erreur");
+        assertTrue(PaginationUtil.tranche(new java.util.ArrayList<String>(), 0, 10).isEmpty());
+        assertTrue(PaginationUtil.tranche(null, 0, 10).isEmpty());
     }
 }

@@ -227,6 +227,35 @@ public class BalanceAgeeRessource {
         return " du " + dtDebut + " au " + dtFin;
     }
 
+    /**
+     * Lignes de l'ecran « balance agee recapitulative », en REST.
+     *
+     * Remplace la JSP ws_data_balance_agee_recapitulatifdetail.jsp : MEME methode metier
+     * (Preenregistrement.getBalancePreenregistrementDetails), MEMES cles JSON, et la pagination reste faite sur la
+     * liste complete comme le faisait la JSP - le total affiche en bas de grille reste donc le meme.
+     */
+    @GET
+    @Path("detail/liste")
+    public Response detailListe(@QueryParam("search_value") String searchValue,
+            @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId, @QueryParam("datedebut") String dtDebut,
+            @QueryParam("datefin") String dtFin, @javax.ws.rs.DefaultValue("0") @QueryParam("start") int start,
+            @javax.ws.rs.DefaultValue("0") @QueryParam("limit") int limit) {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        List<BalanceAgeeDetailDTO> lignes = buildDetail(tu, searchValue, tiersPayantId, dtDebut, dtFin);
+        org.json.JSONArray resultats = new org.json.JSONArray();
+        for (BalanceAgeeDetailDTO dto : PaginationUtil.tranche(lignes, start, limit)) {
+            resultats.put(new JSONObject().put("lg_TIERS_PAYANT_ID", StringUtils.defaultString(dto.getTiersPayantId()))
+                    .put("str_TIERS_PAYANT", StringUtils.defaultString(dto.getTiersPayant()))
+                    .put("int_NUMBER_PRODUCT", dto.getNbProduits()).put("int_NUMBER_TRANSACTION", dto.getNbDossiers())
+                    .put("int_MONTANT", dto.getMontant()));
+        }
+        return Response.ok().entity(new JSONObject().put("total", lignes.size()).put("results", resultats).toString())
+                .build();
+    }
+
     @GET
     @Path("detail/csv")
     @Produces("text/csv")
@@ -353,6 +382,43 @@ public class BalanceAgeeRessource {
         String[] mois = moisLabels();
         return new String[] { "Tiers payant", "Nombre transactions", "Total (6 mois)", mois[0], mois[1], mois[2],
                 mois[3], mois[4], mois[5], "< 6 mois" };
+    }
+
+    /**
+     * Lignes de l'ecran « balance agee detaillee », en REST.
+     *
+     * Remplace la JSP ws_data_balance_agee_detail.jsp : MEME methode metier
+     * (Preenregistrement.getBalanceDetailsTiersPayant et les montants mois par mois), MEMES cles JSON.
+     *
+     * int_MONTANT vaut 0, comme dans la JSP : la ligne qui l'aurait rempli y est en commentaire depuis toujours, et la
+     * colonne correspondante est masquee a l'ecran. On garde ce zero pour ne rien changer a ce que l'officine voit.
+     */
+    @GET
+    @Path("mensuel/liste")
+    public Response mensuelListe(@QueryParam("search_value") String searchValue,
+            @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId,
+            @QueryParam("lg_COMPTE_CLIENT_ID") String compteClientId,
+            @QueryParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
+            @QueryParam("lg_GROUPE_ID") String groupeId, @javax.ws.rs.DefaultValue("0") @QueryParam("start") int start,
+            @javax.ws.rs.DefaultValue("0") @QueryParam("limit") int limit) {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        List<BalanceAgeeMensuelDTO> lignes = buildMensuel(tu, searchValue, tiersPayantId, compteClientId,
+                typeTiersPayantId, groupeId);
+        org.json.JSONArray resultats = new org.json.JSONArray();
+        for (BalanceAgeeMensuelDTO dto : PaginationUtil.tranche(lignes, start, limit)) {
+            resultats.put(new JSONObject().put("lg_TIERS_PAYANT_ID", StringUtils.defaultString(dto.getTiersPayantId()))
+                    .put("str_TIERS_PAYANT", StringUtils.defaultString(dto.getTiersPayant()))
+                    .put("int_NUMBER_TRANSACTION", dto.getNbTransactions()).put("int_MONTANT", 0)
+                    .put("int_VALUE1", dto.getMois1()).put("int_VALUE2", dto.getMois2())
+                    .put("int_VALUE3", dto.getMois3()).put("int_VALUE4", dto.getMois4())
+                    .put("int_VALUE5", dto.getMois5()).put("int_VALUE6", dto.getMois6())
+                    .put("int_VALUE7", dto.getMoinsSixMois()));
+        }
+        return Response.ok().entity(new JSONObject().put("total", lignes.size()).put("results", resultats).toString())
+                .build();
     }
 
     @GET

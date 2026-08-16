@@ -1,7 +1,14 @@
 /* global Ext */
 
-var url_services_data_balance_agee_detail = '../webservices/tierspayantmanagement/tierspayant/ws_data_balance_agee_detail.jsp';
+// Lignes de la balance agee detaillee, en REST. Memes methodes metier et memes cles JSON que
+// la JSP ws_data_balance_agee_detail.jsp qu'elle remplace.
+var url_services_data_balance_agee_detail = '../api/v1/balance-agee/mensuel/liste';
 var url_services_data_tierspayant_other = '../webservices/tierspayantmanagement/tierspayant/ws_data_other.jsp';
+// Listes deroulantes de CET ecran, en REST : memes methodes metier et memes cles JSON que les
+// JSP qu'elles remplacent. Un nom propre a l'ecran, et non la variable globale ci-dessus :
+// cette globale est redeclaree par plusieurs autres fichiers, la valeur retenue dependrait donc
+// de l'ordre de chargement.
+var url_rest_balance_tierspayant = '../api/v1/tierspayant/combo';
 var url_services_data_client = '../webservices/configmanagement/client/ws_data_compteclttierspayants.jsp';
 var url_services_transaction_facturetierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
 var lg_TIERS_PAYANT_ID = "";
@@ -92,7 +99,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_tierspayant_other,
+                url: url_rest_balance_tierspayant,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -108,7 +115,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp',
+                url: '../api/v1/tierspayant/types',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -128,7 +135,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
             autoLoad: true,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/groupe/ws_data.jsp',
+                url: '../api/v1/groupe-tierspayant/list',
                 reader: {
                     type: 'json',
                     root: 'data',

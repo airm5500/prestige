@@ -30,6 +30,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
         'Ext.JSON.*',
         'testextjs.model.TiersPayant',
         'testextjs.view.tierspayantmanagement.tierspayant.action.add',
+        'testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSelective',
         'Ext.ux.ProgressBarPager',
         'Ext.ux.grid.Printer',
         'testextjs.view.tierspayantmanagement.tierspayant.action.detailstierspayant'
@@ -354,6 +355,19 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
                     iconCls: 'check_icon',
                     scope: this,
                     handler: this.onbtncheckimport
+                }, '-', {
+                    // Reglage d'un meme code d'edition / nombre de bons par page / police sur
+                    // plusieurs tiers payants a la fois. Masque tant que le droit
+                    // "Autorisation de mise a jour selectives tiers payants" n'est pas accorde ;
+                    // le serveur revérifie ce droit a chaque appel.
+                    text: 'Mise &agrave; jour s&eacute;lective',
+                    tooltip: 'Appliquer un m&ecirc;me code d\'&eacute;dition, nombre de bons par page '
+                            + 'ou taille de police &agrave; plusieurs tiers payants',
+                    itemId: 'btnMajSelective',
+                    iconCls: 'bascule',
+                    hidden: true,
+                    scope: this,
+                    handler: this.onMiseAJourSelectiveClick
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
@@ -386,6 +400,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
         });
 
         this.callParent();
+
+        this.chargerDroitMiseAJourSelective();
 
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
@@ -479,6 +495,33 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantManager'
     onbtnexportExcel: function () {
         var extension = "xls";
         window.location = '../MigrationServlet?table_name=TABLE_TIERS_PAYANTS' + "&extension=" + extension;
+    },
+
+    /**
+     * Affiche le bouton de mise a jour selective uniquement si l'utilisateur en a le droit.
+     *
+     * Le bouton est cree masque : en cas d'appel qui echoue (session expiree, reseau), il reste
+     * masque plutot que d'apparaitre a tort et de mener a un refus incomprehensible.
+     */
+    chargerDroitMiseAJourSelective: function () {
+        var grille = this;
+        Ext.Ajax.request({
+            url: '../api/v1/tierspayant/mise-a-jour-selective/privilege',
+            method: 'GET',
+            success: function (reponse) {
+                var objet = Ext.JSON.decode(reponse.responseText, true);
+                var bouton = grille.down('#btnMajSelective');
+                if (bouton && objet && objet.autorise) {
+                    bouton.show();
+                }
+            }
+        });
+    },
+
+    onMiseAJourSelectiveClick: function () {
+        Ext.create('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSelective', {
+            grilleAppelante: this
+        });
     },
 
     onAddClick: function () {
