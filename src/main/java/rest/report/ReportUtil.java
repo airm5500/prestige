@@ -86,26 +86,7 @@ public class ReportUtil {
      * fausse.
      */
     public String lieuEdition() {
-        dal.TParameters parametre = em.find(dal.TParameters.class, util.Constant.KEY_LIEU_EDITION);
-        if (parametre == null) {
-            try {
-                parametre = new dal.TParameters();
-                parametre.setStrKEY(util.Constant.KEY_LIEU_EDITION);
-                parametre.setStrVALUE("");
-                parametre.setStrDESCRIPTION("Ville de l'officine, imprimée en pied de récapitulatif de facture");
-                parametre.setStrTYPE(commonparameter.PARAMETER_CUSTOMER);
-                parametre.setStrSTATUT(commonparameter.statut_enable);
-                parametre.setDtCREATED(new Date());
-                parametre.setDtUPDATED(new Date());
-                em.persist(parametre);
-            } catch (Exception e) {
-                // Sans gravité pour l'édition en cours : la ville restera simplement vide.
-                LOG.log(Level.WARNING, "Le paramètre {0} n''a pas pu être cree : {1}",
-                        new Object[] { util.Constant.KEY_LIEU_EDITION, e.getMessage() });
-                return "";
-            }
-        }
-        return StringUtils.defaultString(parametre.getStrVALUE());
+        return LieuEdition.valeur(em);
     }
 
     /**

@@ -179,6 +179,12 @@
     // police). Un modele qui ne declare pas ces deux parametres les ignore simplement.
     rest.report.MiseEnPageFacture.appliquer(parameters, OTiersPayant.getIntNBBONSPARPAGE(),
             OTiersPayant.getIntTAILLEPOLICE());
+    // Ville imprimee en pied de recapitulatif (« ABIDJAN, le 16/08/2026 »), saisie dans « Gestion des
+    // parametrages ». Cette page construit sa propre liste de parametres : sans cette ligne, la ville
+    // saisie ne sortait pas sur le recapitulatif imprime depuis cet ecran, alors qu'elle sortait bien
+    // sur celui imprime par le service REST.
+    parameters.put(rest.report.LieuEdition.PARAMETRE,
+            rest.report.LieuEdition.valeur(obllBase.getOdataManager().getEm()));
     // Dans cette base, str_FIRST_NAME porte le NOM et str_LAST_NAME les PRENOMS : la fiche
     // client de l'application libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ
     // strLASTNAME. Trier sur str_LAST_NAME revenait donc a trier sur le PRENOM.

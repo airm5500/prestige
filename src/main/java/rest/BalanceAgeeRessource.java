@@ -58,61 +58,114 @@ public class BalanceAgeeRessource {
         return (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
     }
 
-    private Preenregistrement preenregistrement(TUser user) {
+    /**
+     * Execute un travail sur les donnees, puis REND la connexion.
+     *
+     * Le code d'origine ouvrait un EntityManager et ne le fermait jamais : chaque affichage de balance retenait une
+     * connexion du pool jdbc partage par toute l'application, jusqu'a le bloquer entierement.
+     */
+    private <T> T avecPreenregistrement(TUser user, java.util.function.Function<Preenregistrement, T> travail) {
         dataManager odataManager = new dataManager();
         odataManager.initEntityManager();
-        return new Preenregistrement(odataManager, user);
+        try {
+            return travail.apply(new Preenregistrement(odataManager, user));
+        } finally {
+            odataManager.closeEntityManager();
+        }
     }
 
     // ---------------------------------------------------------------- recap
 
     private List<BalanceAgeeRecapDTO> buildRecap(TUser user, String searchValue, String tiersPayantId) {
-        List<BalanceAgeeRecapDTO> rows = new ArrayList<>();
-        try {
-            String search = StringUtils.isEmpty(searchValue) ? "" : searchValue;
-            String tp = StringUtils.isEmpty(tiersPayantId) ? "%%" : tiersPayantId;
-            date key = new date();
-            Preenregistrement oPreenregistrement = preenregistrement(user);
+        String search = StringUtils.isEmpty(searchValue) ? "" : searchValue;
+        String tp = StringUtils.isEmpty(tiersPayantId) ? "%%" : tiersPayantId;
+        return avecPreenregistrement(user, oPreenregistrement -> {
+            List<BalanceAgeeRecapDTO> rows = new ArrayList<>();
+            try {
+                date key = new date();
+                List<TFacture> lsthalfyearinvoices = oPreenregistrement.getPreviousHalfYearBalanceInvoice(search, "%%",
+                        tp);
+                JSONObject obj = oPreenregistrement.getPreviousHalfYearBalance();
+                BalanceAgeeRecapDTO first = new BalanceAgeeRecapDTO();
+                first.setPeriode(
+                        "<= " + date.formatterShort.format(date.getPreviousHalfYearIncludeCurrentMonth(new Date())));
+                first.setNbFactures(lsthalfyearinvoices.size());
+                first.setNbDossiersFactures(
+                        oPreenregistrement.getNombreDossierImpayeParFactures(identifiants(lsthalfyearinvoices)));
+                first.setMontantFacture(montantRestant(lsthalfyearinvoices));
+                first.setNbDossiersNonFactures(obj.getLong("NOMBRE"));
+                first.setMontantNonFacture(obj.getLong("MONTANT"));
+                first.setDtDebut("");
+                first.setDtFin("");
+                rows.add(first);
 
-            long nbdossierhalfyear = 0L, montanthalfyear = 0L;
-            List<TFacture> lsthalfyearinvoices = oPreenregistrement.getPreviousHalfYearBalanceInvoice(search, "%%", tp);
-            for (TFacture oFacture : lsthalfyearinvoices) {
-                nbdossierhalfyear += oPreenregistrement.getNombreDossierImpayeParFacture(oFacture.getLgFACTUREID());
-                montanthalfyear += oFacture.getDblMONTANTRESTANT().longValue();
-            }
-            JSONObject obj = oPreenregistrement.getPreviousHalfYearBalance();
-            BalanceAgeeRecapDTO first = new BalanceAgeeRecapDTO();
-            first.setPeriode(
-                    "<= " + date.formatterShort.format(date.getPreviousHalfYearIncludeCurrentMonth(new Date())));
-            first.setNbFactures(lsthalfyearinvoices.size());
-            first.setNbDossiersFactures(nbdossierhalfyear);
-            first.setMontantFacture(montanthalfyear);
-            first.setNbDossiersNonFactures(obj.getLong("NOMBRE"));
-            first.setMontantNonFacture(obj.getLong("MONTANT"));
-            rows.add(first);
-
-            for (int i = 5; i > -1; i--) {
-                List<TFacture> list = oPreenregistrement.getBalanceInvoice(search, date.getPreviousMonth(i), "%%", tp);
-                JSONObject objMois = oPreenregistrement.getBalanceInvoice(date.getPreviousMonth(i));
-                long nbdossier = 0L, montant = 0L;
-                for (TFacture oFacture : list) {
-                    nbdossier += oPreenregistrement.getNombreDossierImpayeParFacture(oFacture.getLgFACTUREID());
-                    montant += oFacture.getDblMONTANTRESTANT().longValue();
+                for (int i = 5; i > -1; i--) {
+                    List<TFacture> list = oPreenregistrement.getBalanceInvoice(search, date.getPreviousMonth(i), "%%",
+                            tp);
+                    JSONObject objMois = oPreenregistrement.getBalanceInvoice(date.getPreviousMonth(i));
+                    BalanceAgeeRecapDTO dto = new BalanceAgeeRecapDTO();
+                    dto.setPeriode(date.DateToString(key.getFirstDayofSomeMonth(-i), date.formatterShort) + " au "
+                            + date.DateToString(key.getLastDayofSomeMonth(-i), date.formatterShort));
+                    dto.setNbFactures(list.size());
+                    dto.setNbDossiersFactures(oPreenregistrement.getNombreDossierImpayeParFactures(identifiants(list)));
+                    dto.setMontantFacture(montantRestant(list));
+                    dto.setNbDossiersNonFactures(objMois.getLong("NOMBRE"));
+                    dto.setMontantNonFacture(objMois.getLong("MONTANT"));
+                    dto.setDtDebut(date.DateToString(key.getFirstDayofSomeMonth(-i), date.formatterMysqlShort));
+                    dto.setDtFin(date.DateToString(key.getLastDayofSomeMonth(-i), date.formatterMysqlShort));
+                    rows.add(dto);
                 }
-                BalanceAgeeRecapDTO dto = new BalanceAgeeRecapDTO();
-                dto.setPeriode(date.DateToString(key.getFirstDayofSomeMonth(-i), date.formatterShort) + " au "
-                        + date.DateToString(key.getLastDayofSomeMonth(-i), date.formatterShort));
-                dto.setNbFactures(list.size());
-                dto.setNbDossiersFactures(nbdossier);
-                dto.setMontantFacture(montant);
-                dto.setNbDossiersNonFactures(objMois.getLong("NOMBRE"));
-                dto.setMontantNonFacture(objMois.getLong("MONTANT"));
-                rows.add(dto);
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, null, e);
             }
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
+            return rows;
+        });
+    }
+
+    private static List<String> identifiants(List<TFacture> factures) {
+        List<String> ids = new ArrayList<>(factures.size());
+        for (TFacture facture : factures) {
+            ids.add(facture.getLgFACTUREID());
         }
-        return rows;
+        return ids;
+    }
+
+    private static long montantRestant(List<TFacture> factures) {
+        long total = 0L;
+        for (TFacture facture : factures) {
+            total += facture.getDblMONTANTRESTANT().longValue();
+        }
+        return total;
+    }
+
+    /**
+     * Lignes de l'ecran « balance agee » (recapitulatif par periode), en REST.
+     *
+     * Remplace la JSP ws_data_balance_agee.jsp : MEMES methodes metier, MEMES cles JSON. Les sept periodes sont
+     * toujours renvoyees en entier - c'est un recapitulatif, il n'y a rien a paginer.
+     */
+    @GET
+    @Path("recap/liste")
+    public Response recapListe(@QueryParam("search_value") String searchValue,
+            @QueryParam("lg_TIERS_PAYANT_ID") String tiersPayantId) {
+        TUser tu = getUser();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        List<BalanceAgeeRecapDTO> lignes = buildRecap(tu, searchValue, tiersPayantId);
+        org.json.JSONArray resultats = new org.json.JSONArray();
+        for (BalanceAgeeRecapDTO dto : lignes) {
+            resultats.put(new JSONObject().put("str_PERIOD", StringUtils.defaultString(dto.getPeriode()))
+                    .put("int_NUMBER_PRODUCT", dto.getNbFactures())
+                    .put("int_NUMBER_TRANSACTION", dto.getNbDossiersFactures())
+                    .put("int_MONTANT", dto.getMontantFacture())
+                    .put("int_MONTANTNONFACTURE7", dto.getMontantNonFacture())
+                    .put("int_NBDOSSIER7", dto.getNbDossiersNonFactures())
+                    .put("dt_DEBUT", StringUtils.defaultString(dto.getDtDebut()))
+                    .put("dt_FIN", StringUtils.defaultString(dto.getDtFin())));
+        }
+        return Response.ok().entity(new JSONObject().put("total", lignes.size()).put("results", resultats).toString())
+                .build();
     }
 
     private String[] recapHeaders() {
@@ -191,17 +244,20 @@ public class BalanceAgeeRessource {
             String tp = StringUtils.isEmpty(tiersPayantId) ? "%%" : tiersPayantId;
             String debut = StringUtils.isEmpty(dtDebut) ? "" : dtDebut;
             String fin = StringUtils.isEmpty(dtFin) ? "" : dtFin;
-            Preenregistrement oPreenregistrement = preenregistrement(user);
-            List<EntityData> datas = oPreenregistrement.getBalancePreenregistrementDetails(search, tp, debut, fin);
-            for (EntityData data : datas) {
-                BalanceAgeeDetailDTO dto = new BalanceAgeeDetailDTO();
-                dto.setTiersPayantId(data.getStr_value1());
-                dto.setTiersPayant(data.getStr_value2());
-                dto.setNbProduits(oPreenregistrement.getTierspayantProduitsVendus(data.getStr_value1(), debut, fin));
-                dto.setNbDossiers(parseLong(data.getStr_value3()));
-                dto.setMontant(parseLong(data.getStr_value4()));
-                rows.add(dto);
-            }
+            rows.addAll(avecPreenregistrement(user, oPreenregistrement -> {
+                List<BalanceAgeeDetailDTO> lignes = new ArrayList<>();
+                for (EntityData data : oPreenregistrement.getBalancePreenregistrementDetails(search, tp, debut, fin)) {
+                    BalanceAgeeDetailDTO dto = new BalanceAgeeDetailDTO();
+                    dto.setTiersPayantId(data.getStr_value1());
+                    dto.setTiersPayant(data.getStr_value2());
+                    dto.setNbProduits(
+                            oPreenregistrement.getTierspayantProduitsVendus(data.getStr_value1(), debut, fin));
+                    dto.setNbDossiers(parseLong(data.getStr_value3()));
+                    dto.setMontant(parseLong(data.getStr_value4()));
+                    lignes.add(dto);
+                }
+                return lignes;
+            }));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
@@ -330,44 +386,72 @@ public class BalanceAgeeRessource {
         return labels;
     }
 
+    /**
+     * Lignes de la balance agee detaillee, mois par mois.
+     *
+     * <p>
+     * Chaque ligne coute HUIT requetes (le nombre de transactions, les six mois, l'anterieur). Sur un fichier de 450
+     * tiers payants cela fait 3 600 requetes, et l'ecran attendait plus de huit secondes pour n'en afficher que vingt.
+     * La liste des tiers payants est donc decoupee AVANT ces calculs : seules les lignes reellement affichees sont
+     * chiffrees. Les exports, eux, demandent tout (limit = 0) et paient le prix complet, ce qui est normal.
+     * </p>
+     *
+     * @param start
+     *            premiere ligne demandee
+     * @param limit
+     *            nombre de lignes demandees ; 0 ou negatif : toutes
+     * @param total
+     *            recoit le nombre TOTAL de tiers payants trouves, avant decoupage
+     */
+    private List<BalanceAgeeMensuelDTO> buildMensuel(TUser user, String searchValue, String tiersPayantId,
+            String compteClientId, String typeTiersPayantId, String groupeId, int start, int limit,
+            java.util.concurrent.atomic.AtomicLong total) {
+        String search = StringUtils.isEmpty(searchValue) ? "" : searchValue;
+        String tp = StringUtils.isEmpty(tiersPayantId) ? "%%" : tiersPayantId;
+        String compte = StringUtils.isEmpty(compteClientId) ? "%%" : compteClientId;
+        String typeTp = StringUtils.isEmpty(typeTiersPayantId) ? "" : typeTiersPayantId;
+        String groupe = StringUtils.isEmpty(groupeId) ? "" : groupeId;
+        return avecPreenregistrement(user, oPreenregistrement -> {
+            List<BalanceAgeeMensuelDTO> rows = new ArrayList<>();
+            try {
+                List<EntityData> datas = oPreenregistrement.getBalanceDetailsTiersPayant(search, tp, compte, typeTp,
+                        groupe);
+                if (total != null) {
+                    total.set(datas.size());
+                }
+                for (EntityData data : PaginationUtil.tranche(datas, start, limit)) {
+                    String tpId = data.getStr_value1();
+                    BalanceAgeeMensuelDTO dto = new BalanceAgeeMensuelDTO();
+                    dto.setTiersPayantId(tpId);
+                    dto.setTiersPayant(data.getStr_value2());
+                    dto.setNbTransactions(oPreenregistrement.getBalanceCount(search, compte, tpId));
+                    dto.setMois1(safeAmount(
+                            () -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search, new Date(), compte, tpId)));
+                    dto.setMois2(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
+                            date.getPreviousMonth(1), compte, tpId)));
+                    dto.setMois3(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
+                            date.getPreviousMonth(2), compte, tpId)));
+                    dto.setMois4(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
+                            date.getPreviousMonth(3), compte, tpId)));
+                    dto.setMois5(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
+                            date.getPreviousMonth(4), compte, tpId)));
+                    dto.setMois6(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
+                            date.getPreviousMonth(5), compte, tpId)));
+                    dto.setMoinsSixMois(
+                            safeAmount(() -> oPreenregistrement.getBalanceHalfYearAmount(search, compte, tpId)));
+                    rows.add(dto);
+                }
+            } catch (Exception e) {
+                LOG.log(Level.SEVERE, null, e);
+            }
+            return rows;
+        });
+    }
+
+    /** Toutes les lignes, pour les exports. */
     private List<BalanceAgeeMensuelDTO> buildMensuel(TUser user, String searchValue, String tiersPayantId,
             String compteClientId, String typeTiersPayantId, String groupeId) {
-        List<BalanceAgeeMensuelDTO> rows = new ArrayList<>();
-        try {
-            String search = StringUtils.isEmpty(searchValue) ? "" : searchValue;
-            String tp = StringUtils.isEmpty(tiersPayantId) ? "%%" : tiersPayantId;
-            String compte = StringUtils.isEmpty(compteClientId) ? "%%" : compteClientId;
-            String typeTp = StringUtils.isEmpty(typeTiersPayantId) ? "" : typeTiersPayantId;
-            String groupe = StringUtils.isEmpty(groupeId) ? "" : groupeId;
-            Preenregistrement oPreenregistrement = preenregistrement(user);
-            List<EntityData> datas = oPreenregistrement.getBalanceDetailsTiersPayant(search, tp, compte, typeTp,
-                    groupe);
-            for (EntityData data : datas) {
-                String tpId = data.getStr_value1();
-                BalanceAgeeMensuelDTO dto = new BalanceAgeeMensuelDTO();
-                dto.setTiersPayantId(tpId);
-                dto.setTiersPayant(data.getStr_value2());
-                dto.setNbTransactions(oPreenregistrement.getBalanceCount(search, compte, tpId));
-                dto.setMois1(safeAmount(
-                        () -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search, new Date(), compte, tpId)));
-                dto.setMois2(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
-                        date.getPreviousMonth(1), compte, tpId)));
-                dto.setMois3(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
-                        date.getPreviousMonth(2), compte, tpId)));
-                dto.setMois4(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
-                        date.getPreviousMonth(3), compte, tpId)));
-                dto.setMois5(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
-                        date.getPreviousMonth(4), compte, tpId)));
-                dto.setMois6(safeAmount(() -> oPreenregistrement.getBalanceInvoiceDetailsAmount(search,
-                        date.getPreviousMonth(5), compte, tpId)));
-                dto.setMoinsSixMois(
-                        safeAmount(() -> oPreenregistrement.getBalanceHalfYearAmount(search, compte, tpId)));
-                rows.add(dto);
-            }
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-        }
-        return rows;
+        return buildMensuel(user, searchValue, tiersPayantId, compteClientId, typeTiersPayantId, groupeId, 0, 0, null);
     }
 
     private long safeAmount(java.util.concurrent.Callable<Long> supplier) {
@@ -405,10 +489,11 @@ public class BalanceAgeeRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
+        java.util.concurrent.atomic.AtomicLong total = new java.util.concurrent.atomic.AtomicLong();
         List<BalanceAgeeMensuelDTO> lignes = buildMensuel(tu, searchValue, tiersPayantId, compteClientId,
-                typeTiersPayantId, groupeId);
+                typeTiersPayantId, groupeId, start, limit, total);
         org.json.JSONArray resultats = new org.json.JSONArray();
-        for (BalanceAgeeMensuelDTO dto : PaginationUtil.tranche(lignes, start, limit)) {
+        for (BalanceAgeeMensuelDTO dto : lignes) {
             resultats.put(new JSONObject().put("lg_TIERS_PAYANT_ID", StringUtils.defaultString(dto.getTiersPayantId()))
                     .put("str_TIERS_PAYANT", StringUtils.defaultString(dto.getTiersPayant()))
                     .put("int_NUMBER_TRANSACTION", dto.getNbTransactions()).put("int_MONTANT", 0)
@@ -417,7 +502,7 @@ public class BalanceAgeeRessource {
                     .put("int_VALUE5", dto.getMois5()).put("int_VALUE6", dto.getMois6())
                     .put("int_VALUE7", dto.getMoinsSixMois()));
         }
-        return Response.ok().entity(new JSONObject().put("total", lignes.size()).put("results", resultats).toString())
+        return Response.ok().entity(new JSONObject().put("total", total.get()).put("results", resultats).toString())
                 .build();
     }
 

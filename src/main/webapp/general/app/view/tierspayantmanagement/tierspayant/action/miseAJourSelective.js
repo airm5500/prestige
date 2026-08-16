@@ -46,6 +46,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSel
         // recherche, alors que le panier doit survivre aux deux.
         me.panier = {};
         me.derniereRecherche = '';
+        me.derniereGroupe = '';
+        me.minuterieRecherche = null;
 
         me.resultatStore = Ext.create('Ext.data.Store', {
             fields: [
@@ -74,6 +76,27 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSel
                     });
                     store.commitChanges();
                     me.rafraichirCompteur();
+                }
+            }
+        });
+
+        // Groupes de tiers payants, pour filtrer la recherche.
+        me.groupeStore = Ext.create('Ext.data.Store', {
+            fields: ['lg_GROUPE_ID', 'str_LIBELLE'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/groupe-tierspayant/list',
+                extraParams: {start: 0, limit: 500},
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            },
+            listeners: {
+                load: function (store) {
+                    // La ligne « Tous les groupes » leve le filtre ; sans elle on ne pourrait plus
+                    // revenir a la liste complete apres avoir choisi un groupe.
+                    if (store.findExact('str_LIBELLE', '') < 0) {
+                        store.insert(0, [{lg_GROUPE_ID: '', str_LIBELLE: ''}]);
+                    }
                 }
             }
         });
@@ -162,6 +185,12 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSel
                                 emptyText: 'Nom ou code du tiers payant (vide = tout lister), puis Entr&eacute;e...',
                                 enableKeyEvents: true,
                                 listeners: {
+                                    // La recherche part toute seule pendant la frappe. Le delai
+                                    // evite une requete par caractere : on attend que la saisie
+                                    // se pose. La touche Entree la declenche sans attendre.
+                                    change: function () {
+                                        me.rechercherPlusTard();
+                                    },
                                     specialKey: function (champ, e) {
                                         if (e.getKey() === e.ENTER) {
                                             me.rechercher();
@@ -170,16 +199,32 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSel
                                 }
                             },
                             {
-                                text: 'Rechercher',
-                                iconCls: 'searchicon',
-                                handler: function () {
-                                    me.rechercher();
+                                xtype: 'combobox',
+                                itemId: 'majGroupe',
+                                fieldLabel: 'Groupe',
+                                labelWidth: 48,
+                                width: 260,
+                                store: me.groupeStore,
+                                valueField: 'str_LIBELLE',
+                                displayField: 'str_LIBELLE',
+                                queryMode: 'local',
+                                editable: false,
+                                value: '',
+                                emptyText: 'Tous les groupes',
+                                listeners: {
+                                    // Choisir un groupe relance la recherche : on ne demande pas
+                                    // de recliquer sur « Rechercher » apres avoir filtre.
+                                    select: function () {
+                                        me.rechercher();
+                                    }
                                 }
                             },
                             {
                                 text: 'Effacer',
+                                tooltip: 'Vide la recherche et le filtre de groupe',
                                 handler: function () {
                                     me.down('#majRecherche').setValue('');
+                                    me.down('#majGroupe').setValue('');
                                     me.rechercher();
                                 }
                             },
@@ -322,9 +367,28 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSel
         }
     },
 
+    /**
+     * Recherche differee : appelee a chaque caractere tape, elle n'interroge le serveur que
+     * lorsque la frappe s'arrete. Sans ce delai, taper « ASCOMA » lancerait six recherches.
+     */
+    rechercherPlusTard: function () {
+        var me = this;
+        clearTimeout(me.minuterieRecherche);
+        me.minuterieRecherche = setTimeout(function () {
+            if (!me.isDestroyed) {
+                me.rechercher();
+            }
+        }, 350);
+    },
+
     rechercher: function () {
+        clearTimeout(this.minuterieRecherche);
         this.derniereRecherche = this.down('#majRecherche').getValue() || '';
-        this.resultatStore.getProxy().extraParams = {query: this.derniereRecherche};
+        this.derniereGroupe = this.down('#majGroupe').getValue() || '';
+        this.resultatStore.getProxy().extraParams = {
+            query: this.derniereRecherche,
+            groupeId: this.derniereGroupe
+        };
         this.resultatStore.loadPage(1);
     },
 
@@ -334,7 +398,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSel
         Ext.Ajax.request({
             url: url_rest_tierspayant_maj_selective + 'rechercher',
             method: 'GET',
-            params: {query: me.derniereRecherche, tout: true},
+            params: {query: me.derniereRecherche, groupeId: me.derniereGroupe || '', tout: true},
             callback: function () {
                 bouton.enable();
             },
@@ -440,6 +504,11 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.miseAJourSel
     listeners: {
         afterrender: function (fenetre) {
             fenetre.rechercher();
+        },
+        // Une recherche differee qui partirait apres la fermeture interrogerait le serveur pour
+        // un ecran qui n'existe plus.
+        beforedestroy: function (fenetre) {
+            clearTimeout(fenetre.minuterieRecherche);
         }
     }
 });

@@ -367,6 +367,7 @@ public class TiersPayantRessource {
     @GET
     @Path("mise-a-jour-selective/rechercher")
     public Response rechercherPourMiseAJour(@DefaultValue("") @QueryParam("query") String query,
+            @DefaultValue("") @QueryParam("groupeId") String groupeId,
             @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("25") @QueryParam("limit") int limit,
             @DefaultValue("false") @QueryParam("tout") boolean tout) {
         if (!peutMettreAJourEnMasse()) {
@@ -378,12 +379,23 @@ public class TiersPayantRessource {
             String recherche = "%" + StringUtils.defaultString(query).trim() + "%";
             String filtre = "FROM TTiersPayant t WHERE (t.strFULLNAME LIKE ?1 OR t.strNAME LIKE ?1"
                     + " OR t.strCODEORGANISME LIKE ?1) AND t.strSTATUT = ?2";
+            // Filtre par groupe. Le groupe est designe par son libelle, comme partout ailleurs dans
+            // l'application (la fiche du tiers payant enregistre elle aussi le libelle).
+            boolean parGroupe = StringUtils.isNotBlank(groupeId);
+            if (parGroupe) {
+                filtre += " AND t.lgGROUPEID.strLIBELLE = ?3";
+            }
             javax.persistence.EntityManager em = odm.getEm();
-            long total = em.createQuery("SELECT COUNT(t) " + filtre, Long.class).setParameter(1, recherche)
-                    .setParameter(2, commonparameter.statut_enable).getSingleResult();
+            javax.persistence.TypedQuery<Long> requeteTotal = em.createQuery("SELECT COUNT(t) " + filtre, Long.class)
+                    .setParameter(1, recherche).setParameter(2, commonparameter.statut_enable);
             javax.persistence.TypedQuery<dal.TTiersPayant> requete = em
                     .createQuery("SELECT t " + filtre + " ORDER BY t.strFULLNAME", dal.TTiersPayant.class)
                     .setParameter(1, recherche).setParameter(2, commonparameter.statut_enable);
+            if (parGroupe) {
+                requeteTotal.setParameter(3, groupeId.trim());
+                requete.setParameter(3, groupeId.trim());
+            }
+            long total = requeteTotal.getSingleResult();
             if (!tout) {
                 requete.setFirstResult(Math.max(0, start)).setMaxResults(limit > 0 ? limit : 25);
             }

@@ -13,6 +13,25 @@ public class BalanceAgeeRecapDTO implements Serializable {
     private long nbDossiersNonFactures;
     private long montantFacture;
     private long montantNonFacture;
+    /** Bornes de la periode au format de la base, telles que l'ecran les reutilise pour ouvrir le detail. */
+    private String dtDebut;
+    private String dtFin;
+
+    public String getDtDebut() {
+        return dtDebut;
+    }
+
+    public void setDtDebut(String dtDebut) {
+        this.dtDebut = dtDebut;
+    }
+
+    public String getDtFin() {
+        return dtFin;
+    }
+
+    public void setDtFin(String dtFin) {
+        this.dtFin = dtFin;
+    }
 
     public String getPeriode() {
         return periode;
