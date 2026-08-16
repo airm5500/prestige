@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Releve des factures clients en compte.
+     Presentation refondue : memes donnees, memes parametres, meme source (aucun changement
+     cote application). Seule la mise en page change. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_releve_factures" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isSummaryWithPageHeaderAndFooter="true" isFloatColumnFooter="true" whenNoDataType="AllSectionsNoDetail" uuid="f265d67a-36a3-4b93-b5e3-281424fccc43">
+	<property name="ireport.zoom" value="1.5"/>
+	<property name="ireport.x" value="0"/>
+	<property name="ireport.y" value="0"/>
+
+	<!-- ============================ Palette et styles ============================ -->
+	<!-- Bleu nuit de l'application pour les entetes, vert pour ce qui est encaisse,
+	     rouge sombre pour ce qui reste du. Toutes ces couleurs restent lisibles une fois
+	     photocopiees en noir et blanc (contrastes eloignes). -->
+	<style name="EnteteColonne" mode="Opaque" backcolor="#1E3A5F" forecolor="#FFFFFF" fontName="SansSerif" fontSize="7" isBold="true" vAlign="Middle" hAlign="Center">
+		<box topPadding="0" bottomPadding="0" leftPadding="3" rightPadding="3">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<!-- Entete d'une colonne de MONTANTS : cale a droite, avec la meme marge que les
+	     chiffres en dessous, pour que libelle et colonne tombent sur le meme axe. -->
+	<style name="EnteteColonneMontant" style="EnteteColonne" hAlign="Right">
+		<box topPadding="0" bottomPadding="0" leftPadding="3" rightPadding="4">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
+	<style name="Cellule" mode="Transparent" fontName="SansSerif" fontSize="8" vAlign="Middle">
+		<box topPadding="0" bottomPadding="0" leftPadding="4" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<bottomPen lineWidth="0.25" lineColor="#D6DEE8"/>
+		</box>
+		<!-- une ligne sur deux legerement teintee : l'oeil suit la ligne sans avoir besoin
+		     de quadrillage complet -->
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+			<style mode="Opaque" backcolor="#F2F6FA"/>
+		</conditionalStyle>
+	</style>
+	<!-- Style de CELLULE : aucune marge interieure ici, sinon la largeur utile de la cellule
+	     diminue d'autant et les champs qui l'occupent entierement sont refuses a la
+	     compilation. Les marges sont posees sur les champs eux-memes. -->
+	<style name="TotalOrganisme" mode="Opaque" backcolor="#DDE6F0" fontName="SansSerif" fontSize="8" isBold="true" vAlign="Middle">
+		<box>
+			<pen lineWidth="0.0"/>
+			<topPen lineWidth="0.5" lineColor="#1E3A5F"/>
+		</box>
+	</style>
+	<!-- Montants : la couleur ne sert que si elle distingue. Un zero en vert ou en rouge gras
+	     attire l'oeil sur une ligne ou il n'y a justement rien a voir ; il passe donc en gris
+	     discret, et seules les vraies sommes sont mises en avant. -->
+	<style name="MontantRegle" style="Cellule" forecolor="#9AA7B4">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$F{dblMONTANTPAYE} != null && $F{dblMONTANTPAYE} > 0]]></conditionExpression>
+			<style forecolor="#1B6B3A" isBold="true"/>
+		</conditionalStyle>
+	</style>
+	<style name="MontantReste" style="Cellule" forecolor="#9AA7B4">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$F{dblMONTANTRESTANT} != null && $F{dblMONTANTRESTANT} > 0]]></conditionExpression>
+			<style forecolor="#A62B1F" isBold="true"/>
+		</conditionalStyle>
+	</style>
+	<style name="Organisme" mode="Opaque" backcolor="#FFFFFF" fontName="SansSerif" fontSize="9" isBold="true" forecolor="#1E3A5F" vAlign="Middle">
+		<box topPadding="1" bottomPadding="1" leftPadding="6" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<leftPen lineWidth="3.0" lineColor="#48A9A6"/>
+			<bottomPen lineWidth="0.5" lineColor="#1E3A5F"/>
+		</box>
+	</style>
+
+	<subDataset name="factures" uuid="a00b8e18-c989-4864-9ec2-2ce170a96bde">
+		<parameter name="tiersPayantLibelle" class="java.lang.String"/>
+		<parameter name="montantFacture" class="java.math.BigDecimal"/>
+		<parameter name="montantRegle" class="java.math.BigDecimal"/>
+		<parameter name="montantRestant" class="java.math.BigDecimal"/>
+		<queryString>
+			<![CDATA[]]>
+		</queryString>
+		<field name="strCODEFACTURE" class="java.lang.String"/>
+		<field name="dtCREATED" class="java.lang.String"/>
+		<field name="dblMONTANTCMDE" class="java.lang.Integer"/>
+		<field name="dblMONTANTPAYE" class="java.lang.Integer"/>
+		<field name="dblMONTANTRESTANT" class="java.lang.Integer"/>
+		<field name="dtUPDATED" class="java.lang.String"/>
+		<field name="heure" class="java.lang.String"/>
+		<field name="strFULLNAME" class="java.lang.String"/>
+	</subDataset>
+
+	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+	<parameter name="P_AUTRE_DESC" class="java.lang.String"/>
+	<parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+	<parameter name="P_H_LOGO" class="java.lang.String"/>
+	<parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+	<parameter name="P_PRINTED_BY" class="java.lang.String"/>
+	<parameter name="P_CODE_OFFICINE" class="java.lang.String"/>
+	<parameter name="P_REGISTRE_COMMERCE" class="java.lang.String"/>
+	<parameter name="P_FOOTER_RC" class="java.lang.String"/>
+	<parameter name="P_COMPTE_CONTRIBUABLE" class="java.lang.String"/>
+	<parameter name="P_CODE_POSTALE" class="java.lang.String"/>
+	<parameter name="P_SEARCH" class="java.lang.String">
+		<defaultValueExpression><![CDATA[]]></defaultValueExpression>
+	</parameter>
+	<parameter name="P_NOTE_MONTANT" class="java.lang.String"/>
+	<parameter name="P_MONTANT_FACTURE" class="java.math.BigDecimal"/>
+	<parameter name="P_MONTANT_REGLE" class="java.math.BigDecimal"/>
+	<parameter name="P_MONTANT_RESTANT" class="java.math.BigDecimal"/>
+	<queryString>
+		<![CDATA[]]>
+	</queryString>
+	<field name="tiersPayantId" class="java.lang.String"/>
+	<field name="tiersPayantLibelle" class="java.lang.String"/>
+	<field name="typeTiersPayantId" class="java.lang.String"/>
+	<field name="typeTiersPayantLibelle" class="java.lang.String"/>
+	<field name="montantFacture" class="java.math.BigDecimal"/>
+	<field name="montantRegle" class="java.math.BigDecimal"/>
+	<field name="montantRestant" class="java.math.BigDecimal"/>
+	<field name="factures" class="java.util.List"/>
+
+	<!-- Totaux par TYPE DE VENTE. Ils cumulent les montants deja calcules pour chaque
+	     organisme (une ligne de detail = un organisme) et sont remis a zero a chaque
+	     changement de type : le pied de groupe donne donc le total du type qui vient de
+	     se terminer, sans que l'application ait a fournir un chiffre supplementaire. -->
+	<variable name="TOTAL_TYPE_FACTURE" class="java.math.BigDecimal" resetType="Group" resetGroup="grpup_by_type_tiers_payant" calculation="Sum">
+		<variableExpression><![CDATA[$F{montantFacture}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_TYPE_REGLE" class="java.math.BigDecimal" resetType="Group" resetGroup="grpup_by_type_tiers_payant" calculation="Sum">
+		<variableExpression><![CDATA[$F{montantRegle}]]></variableExpression>
+	</variable>
+	<variable name="TOTAL_TYPE_RESTANT" class="java.math.BigDecimal" resetType="Group" resetGroup="grpup_by_type_tiers_payant" calculation="Sum">
+		<variableExpression><![CDATA[$F{montantRestant}]]></variableExpression>
+	</variable>
+	<!-- Nombre d'organismes du type, rappele dans le libelle du total -->
+	<variable name="NB_ORGANISME_TYPE" class="java.lang.Integer" resetType="Group" resetGroup="grpup_by_type_tiers_payant" calculation="Count">
+		<variableExpression><![CDATA[$F{tiersPayantId}]]></variableExpression>
+	</variable>
+
+	<!-- Regroupement par type de tiers payant. Le bandeau n'est imprime QU'UNE FOIS, a
+	     l'ouverture du type : le repeter en haut de chaque page alourdissait le document
+	     sans rien apprendre. Sa couleur (vert-bleu) le distingue au premier coup d'oeil des
+	     entetes de colonnes, en bleu nuit. Chaque type demarre sur une NOUVELLE PAGE
+	     (isStartNewPage) : un type ne se retrouve jamais a cheval sur deux feuilles. -->
+	<group name="grpup_by_type_tiers_payant" isStartNewPage="true">
+		<groupExpression><![CDATA[$F{typeTiersPayantId}]]></groupExpression>
+		<groupHeader>
+			<band height="24">
+				<staticText>
+					<reportElement mode="Opaque" x="0" y="6" width="555" height="17" backcolor="#1E7B74" uuid="4bf64217-e4bb-46dc-9736-a88b6dafa591"/>
+					<box leftPadding="0"/>
+					<text><![CDATA[]]></text>
+				</staticText>
+				<textField>
+					<reportElement x="0" y="6" width="555" height="17" forecolor="#FFFFFF" uuid="4bf64217-e4bb-46dc-9736-a88b6dafa59a"/>
+					<box leftPadding="8"/>
+					<textElement verticalAlignment="Middle">
+						<font fontName="SansSerif" size="10" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$F{typeTiersPayantLibelle}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<!-- Total du type de vente, imprime a la fin du type. Il reprend la teinte du bandeau
+		     d'ouverture (vert-bleu) pour qu'on voie d'un coup d'oeil ou commence et ou finit
+		     un type ; les chiffres tombent exactement sur les colonnes correspondantes
+		     (montant facture 168, montant regle 254, reste a regler 462). -->
+		<groupFooter>
+			<band height="28">
+				<staticText>
+					<reportElement mode="Opaque" x="0" y="3" width="555" height="20" backcolor="#D3E9E7" uuid="c2000001-0000-0000-0000-000000000010"/>
+					<box>
+						<pen lineWidth="0.0"/>
+						<topPen lineWidth="1.0" lineColor="#1E7B74"/>
+						<bottomPen lineWidth="1.0" lineColor="#1E7B74"/>
+					</box>
+					<text><![CDATA[]]></text>
+				</staticText>
+				<textField isBlankWhenNull="true">
+					<reportElement x="0" y="3" width="168" height="20" forecolor="#12564F" uuid="c2000001-0000-0000-0000-000000000011"/>
+					<box leftPadding="8" rightPadding="2"/>
+					<!-- 7,5 pt : la place disponible avant la premiere colonne de montants est de
+					     158 px. Un libelle de type long ("ORGANISMES SOCIAUX ET PARAPUBLICS")
+					     passe alors sur deux lignes DANS la bande au lieu d'etre coupe. -->
+					<textElement textAlignment="Left" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="7.5" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA["TOTAL " + ($F{typeTiersPayantLibelle} != null ? $F{typeTiersPayantLibelle}.toUpperCase() : "")]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0" isBlankWhenNull="true">
+					<reportElement x="168" y="3" width="86" height="20" forecolor="#1E3A5F" uuid="c2000001-0000-0000-0000-000000000012"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8.5" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{TOTAL_TYPE_FACTURE}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0" isBlankWhenNull="true">
+					<reportElement x="254" y="3" width="86" height="20" forecolor="#1B6B3A" uuid="c2000001-0000-0000-0000-000000000013"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8.5" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{TOTAL_TYPE_REGLE}]]></textFieldExpression>
+				</textField>
+				<!-- l'emplacement de la colonne "date de reglement" n'a pas de total :
+				     il sert a rappeler sur combien d'organismes porte la ligne -->
+				<textField isBlankWhenNull="true">
+					<reportElement x="340" y="3" width="122" height="20" forecolor="#4A6B68" uuid="c2000001-0000-0000-0000-000000000014"/>
+					<textElement textAlignment="Center" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="7" isItalic="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{NB_ORGANISME_TYPE} + ($V{NB_ORGANISME_TYPE}.intValue() > 1 ? " organismes" : " organisme")]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0" isBlankWhenNull="true">
+					<reportElement x="462" y="3" width="93" height="20" forecolor="#A62B1F" uuid="c2000001-0000-0000-0000-000000000015"/>
+					<box rightPadding="4"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle">
+						<font fontName="SansSerif" size="8.5" isBold="true"/>
+					</textElement>
+					<textFieldExpression><![CDATA[$V{TOTAL_TYPE_RESTANT}]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
+
+	<background>
+		<band splitType="Stretch"/>
+	</background>
+
+	<!-- ============================ En-tete de page ============================ -->
+	<pageHeader>
+		<band height="96">
+			<image onErrorType="Blank">
+				<reportElement x="0" y="0" width="72" height="43" uuid="707f3dbe-fdbc-41c0-adc0-82d49b31908a"/>
+				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
+			</image>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="0" width="555" height="24" isRemoveLineWhenBlank="true" forecolor="#1E3A5F" uuid="862f4daf-1080-4cb6-adc5-45f4d7b62b6a"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="16" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="24" width="555" height="13" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="d28d108e-e39b-4dff-a5cb-036f8478cf38"/>
+				<textElement textAlignment="Center" verticalAlignment="Top">
+					<font fontName="SansSerif" size="8"/>
+				</textElement>
+				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
+			</textField>
+			<!-- filet bleu nuit : remplace le trait gris, il pose l'identite du document -->
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="47" width="555" height="2" backcolor="#1E3A5F" uuid="5f77a8c6-5bd3-43b1-a749-393997797f83"/>
+				<box><pen lineWidth="0.0"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<!-- Titre du releve et periode, dans un bandeau clair -->
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="55" width="555" height="24" backcolor="#EDF2F8" uuid="bcebb6da-ab21-4033-bcac-53f597cf4ec1"/>
+				<box><pen lineWidth="0.0"/><leftPen lineWidth="3.0" lineColor="#48A9A6"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="8" y="55" width="412" height="24" forecolor="#1E3A5F" uuid="bcebb6da-ab21-4033-bcac-53f597cf4ece"/>
+				<box leftPadding="6"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="8.5" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+			</textField>
+			<textField pattern="dd/MM/yyyy" isBlankWhenNull="false">
+				<reportElement x="424" y="55" width="125" height="24" forecolor="#5A6B7D" uuid="77c1f257-082f-4f63-bdb3-c1272490c248"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="7.5"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Édité le " + new SimpleDateFormat("dd/MM/yyyy à HH:mm").format(new Date())]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageHeader>
+
+	<!-- ============================ Un bloc par organisme ============================ -->
+	<detail>
+		<band height="30" splitType="Stretch">
+			<componentElement>
+				<reportElement x="0" y="2" width="555" height="26" uuid="30c5076b-ac7a-403c-a97a-a8c6f3c356d4"/>
+				<jr:table xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd">
+					<datasetRun subDataset="factures" uuid="c8bd39f9-3b8b-44bf-85cc-7f3837c58fa6">
+						<datasetParameter name="tiersPayantLibelle">
+							<datasetParameterExpression><![CDATA[$F{tiersPayantLibelle}]]></datasetParameterExpression>
+						</datasetParameter>
+						<datasetParameter name="montantFacture">
+							<datasetParameterExpression><![CDATA[$F{montantFacture}]]></datasetParameterExpression>
+						</datasetParameter>
+						<datasetParameter name="montantRegle">
+							<datasetParameterExpression><![CDATA[$F{montantRegle}]]></datasetParameterExpression>
+						</datasetParameter>
+						<datasetParameter name="montantRestant">
+							<datasetParameterExpression><![CDATA[$F{montantRestant}]]></datasetParameterExpression>
+						</datasetParameter>
+						<dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource($F{factures})]]></dataSourceExpression>
+					</datasetRun>
+					<jr:columnGroup width="555" uuid="f0dafb99-288e-4696-bc2d-7fa8040232ce">
+						<!-- Nom de l'organisme, en tete de son propre bloc -->
+						<jr:tableHeader height="18" rowSpan="1">
+							<textField>
+								<reportElement style="Organisme" x="0" y="0" width="555" height="18" uuid="b5ce44c2-a1a4-46e9-9c59-d06fce583064"/>
+								<textFieldExpression><![CDATA[$P{tiersPayantLibelle}]]></textFieldExpression>
+							</textField>
+						</jr:tableHeader>
+
+						<!-- N° facture -->
+						<jr:column width="62" uuid="484ba1a3-e2a5-4c63-9609-8c5531939dd2">
+							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
+								<staticText>
+									<reportElement x="0" y="0" width="62" height="17" uuid="bb0d9023-61b7-4168-94fe-8c11b696c22b"/>
+									<box leftPadding="4"/>
+									<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+									<text><![CDATA[TOTAL]]></text>
+								</staticText>
+							</jr:tableFooter>
+							<jr:columnHeader height="16" rowSpan="1">
+								<staticText>
+									<reportElement style="EnteteColonne" x="0" y="0" width="62" height="16" uuid="c1000001-0000-0000-0000-000000000001"/>
+									<text><![CDATA[N° Facture]]></text>
+								</staticText>
+							</jr:columnHeader>
+							<jr:detailCell height="16">
+								<textField>
+									<reportElement style="Cellule" x="0" y="0" width="62" height="16" uuid="ba3a2183-cbf5-4550-9586-8ea83a63e273"/>
+									<textElement textAlignment="Center"/>
+									<textFieldExpression><![CDATA[$F{strCODEFACTURE}]]></textFieldExpression>
+								</textField>
+							</jr:detailCell>
+						</jr:column>
+
+						<!-- Date d'edition -->
+						<jr:column width="106" uuid="626d0382-aac0-4835-aef2-03dd77248a69">
+							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1"/>
+							<jr:columnHeader height="16" rowSpan="1">
+								<staticText>
+									<reportElement style="EnteteColonne" x="0" y="0" width="106" height="16" uuid="c1000001-0000-0000-0000-000000000002"/>
+									<text><![CDATA[Date facture]]></text>
+								</staticText>
+							</jr:columnHeader>
+							<jr:detailCell height="16">
+								<textField>
+									<reportElement style="Cellule" x="0" y="0" width="106" height="16" uuid="1a7b50e7-c0b3-4933-8652-921feb8dc27f"/>
+									<textElement textAlignment="Center"/>
+									<textFieldExpression><![CDATA[$F{dtCREATED}]]></textFieldExpression>
+								</textField>
+							</jr:detailCell>
+						</jr:column>
+
+						<!-- Montant facture -->
+						<jr:column width="86" uuid="a7251f46-bb6f-4789-b5d1-05a013c63b24">
+							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
+								<textField pattern="#,##0" isBlankWhenNull="true">
+									<reportElement x="0" y="0" width="86" height="17" uuid="45622e77-0495-4ecc-9810-6cc35343065c"/>
+									<box rightPadding="4"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+									<textFieldExpression><![CDATA[$P{montantFacture}]]></textFieldExpression>
+								</textField>
+							</jr:tableFooter>
+							<jr:columnHeader height="16" rowSpan="1">
+								<staticText>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="86" height="16" uuid="c1000001-0000-0000-0000-000000000003"/>
+									<text><![CDATA[Montant facturé]]></text>
+								</staticText>
+							</jr:columnHeader>
+							<jr:detailCell height="16">
+								<textField pattern="#,##0" isBlankWhenNull="true">
+									<reportElement style="Cellule" x="0" y="0" width="86" height="16" uuid="2c3fe4dd-52f6-449c-a54e-3cf7efba61ef"/>
+									<textElement textAlignment="Right"/>
+									<textFieldExpression><![CDATA[$F{dblMONTANTCMDE}]]></textFieldExpression>
+								</textField>
+							</jr:detailCell>
+						</jr:column>
+
+						<!-- Montant regle : en vert, c'est ce qui est encaisse -->
+						<jr:column width="86" uuid="8f4d22b1-9078-4296-b12b-81e440132d19">
+							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
+								<textField pattern="#,##0" isBlankWhenNull="true">
+									<reportElement x="0" y="0" width="86" height="17" forecolor="#1B6B3A" uuid="f3134877-2657-4e03-817b-a8cc3602d142"/>
+									<box rightPadding="4"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+									<textFieldExpression><![CDATA[$P{montantRegle}]]></textFieldExpression>
+								</textField>
+							</jr:tableFooter>
+							<jr:columnHeader height="16" rowSpan="1">
+								<staticText>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="86" height="16" uuid="c1000001-0000-0000-0000-000000000004"/>
+									<text><![CDATA[Montant réglé]]></text>
+								</staticText>
+							</jr:columnHeader>
+							<jr:detailCell height="16">
+								<textField pattern="#,##0" isBlankWhenNull="true">
+									<reportElement style="MontantRegle" x="0" y="0" width="86" height="16" uuid="406574aa-fec1-4969-932f-d7262a2df995"/>
+									<textElement textAlignment="Right"/>
+									<textFieldExpression><![CDATA[$F{dblMONTANTPAYE}]]></textFieldExpression>
+								</textField>
+							</jr:detailCell>
+						</jr:column>
+
+						<!-- Date ET heure du reglement, en une seule colonne : deux colonnes pour un
+						     seul instant prenaient de la largeur aux montants -->
+						<jr:column width="122" uuid="d08e42b0-f880-4cd8-abe2-d4abb587e7f3">
+							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1"/>
+							<jr:columnHeader height="16" rowSpan="1">
+								<staticText>
+									<reportElement style="EnteteColonne" x="0" y="0" width="122" height="16" uuid="c1000001-0000-0000-0000-000000000005"/>
+									<text><![CDATA[Date et heure du règlement]]></text>
+								</staticText>
+							</jr:columnHeader>
+							<jr:detailCell height="16">
+								<textField isBlankWhenNull="true">
+									<reportElement style="Cellule" x="0" y="0" width="122" height="16" uuid="8083e79a-7864-43c3-93da-d04a86f9b605"/>
+									<textElement textAlignment="Center"/>
+									<textFieldExpression><![CDATA[$F{dtUPDATED} == null || $F{dtUPDATED}.trim().isEmpty() ? ""
+	: ($F{dtUPDATED} + ($F{heure} == null || $F{heure}.trim().isEmpty() ? "" : " " + $F{heure}))]]></textFieldExpression>
+								</textField>
+							</jr:detailCell>
+						</jr:column>
+
+						<!-- Reste a regler : en rouge des qu'il y a quelque chose a encaisser -->
+						<jr:column width="93" uuid="03219c89-a8d7-4c1c-97a3-5caf9824b6e0">
+							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
+								<textField pattern="#,##0" isBlankWhenNull="true">
+									<reportElement x="0" y="0" width="93" height="17" forecolor="#A62B1F" uuid="e3dedcee-28fd-4250-9f1b-cc98b599ea8b"/>
+									<box rightPadding="4"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+									<textFieldExpression><![CDATA[$P{montantRestant}]]></textFieldExpression>
+								</textField>
+							</jr:tableFooter>
+							<jr:columnHeader height="16" rowSpan="1">
+								<staticText>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="93" height="16" uuid="c1000001-0000-0000-0000-000000000007"/>
+									<text><![CDATA[Reste à régler]]></text>
+								</staticText>
+							</jr:columnHeader>
+							<jr:detailCell height="16">
+								<textField pattern="#,##0" isBlankWhenNull="true">
+									<reportElement style="MontantReste" x="0" y="0" width="93" height="16" uuid="6a114b52-3d58-431d-b50a-eced9e4fd4c2"/>
+									<textElement textAlignment="Right"/>
+									<textFieldExpression><![CDATA[$F{dblMONTANTRESTANT}]]></textFieldExpression>
+								</textField>
+							</jr:detailCell>
+						</jr:column>
+					</jr:columnGroup>
+				</jr:table>
+			</componentElement>
+		</band>
+	</detail>
+
+	<!-- ============================ Pieds de page ============================ -->
+	<pageFooter>
+		<band height="24">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="f18b9f8e-6b7c-4779-86a9-1edd7d430c5e"/>
+				<box><pen lineWidth="0.0"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="2258a252-3e1e-4b69-840a-d8af0cd05679"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA["Édité par" + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="08eabd29-6355-4226-b8b8-8e51ceb6e738"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="7a3b7e46-5025-424b-9723-dad83950993f"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+
+	<lastPageFooter>
+		<band height="52">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="f18b9f8e-6b7c-4779-86a9-1edd7d430c5d"/>
+				<box><pen lineWidth="0.0"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="42e7ae01-b641-4a68-a273-a7e04274482f"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA["Édité par" + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="2379d8b1-c53e-49b3-bf46-03fe90233a14"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="03fa3c4c-faf8-4a6d-9bbe-478b08447029"/>
+				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="24" width="555" height="11" forecolor="#5A6B7D" uuid="fa8d8708-aa44-4bd9-aac5-c5f25219c501"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="35" width="555" height="11" forecolor="#5A6B7D" uuid="6aa1792c-688f-43d5-a6e5-b16950b4b444"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
+				<textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+			</textField>
+		</band>
+	</lastPageFooter>
+
+	<!-- ============================ Synthese ============================ -->
+	<summary>
+		<band height="100">
+			<staticText>
+				<reportElement mode="Opaque" x="0" y="8" width="555" height="18" backcolor="#1E3A5F" uuid="abb2c4ab-e988-4866-91ac-de917cd66f01"/>
+				<box><pen lineWidth="0.0"/></box>
+				<text><![CDATA[]]></text>
+			</staticText>
+			<staticText>
+				<reportElement x="0" y="8" width="180" height="18" forecolor="#FFFFFF" uuid="abb2c4ab-e988-4866-91ac-de917cd66f0b"/>
+				<box leftPadding="8"/>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<text><![CDATA[TOTAL GÉNÉRAL]]></text>
+			</staticText>
+
+			<!-- trois blocs chiffres, chacun avec son libelle : on lit le total sans avoir a
+			     remonter aux en-tetes de colonnes -->
+			<staticText>
+				<reportElement mode="Opaque" x="180" y="8" width="125" height="18" backcolor="#EDF2F8" uuid="a1000001-0000-0000-0000-000000000001"/>
+				<box leftPadding="6"><pen lineWidth="0.0"/><rightPen lineWidth="0.5" lineColor="#FFFFFF"/></box>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+				<text><![CDATA[Facturé]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="180" y="8" width="119" height="18" forecolor="#1E3A5F" uuid="d45c719b-b5c6-466b-81b5-379d3dccae79"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$P{P_MONTANT_FACTURE}]]></textFieldExpression>
+			</textField>
+
+			<staticText>
+				<reportElement mode="Opaque" x="305" y="8" width="125" height="18" backcolor="#E6F2E9" uuid="a1000001-0000-0000-0000-000000000002"/>
+				<box leftPadding="6"><pen lineWidth="0.0"/><rightPen lineWidth="0.5" lineColor="#FFFFFF"/></box>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+				<text><![CDATA[Réglé]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="305" y="8" width="119" height="18" forecolor="#1B6B3A" uuid="90f9751f-19c7-4727-9ea6-e937c3328220"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$P{P_MONTANT_REGLE}]]></textFieldExpression>
+			</textField>
+
+			<staticText>
+				<reportElement mode="Opaque" x="430" y="8" width="125" height="18" backcolor="#F7E7E5" uuid="a1000001-0000-0000-0000-000000000003"/>
+				<box leftPadding="6"><pen lineWidth="0.0"/></box>
+				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
+				<text><![CDATA[Reste]]></text>
+			</staticText>
+			<textField pattern="#,##0" isBlankWhenNull="true">
+				<reportElement x="430" y="8" width="119" height="18" forecolor="#A62B1F" uuid="9005d857-65f1-46ef-91c8-92cbefc77e98"/>
+				<box rightPadding="6"/>
+				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
+				<textFieldExpression><![CDATA[$P{P_MONTANT_RESTANT}]]></textFieldExpression>
+			</textField>
+
+			<staticText>
+				<reportElement x="0" y="34" width="555" height="16" forecolor="#5A6B7D" uuid="a1000001-0000-0000-0000-000000000009">
+					<printWhenExpression><![CDATA[$V{REPORT_COUNT} == 0]]></printWhenExpression>
+				</reportElement>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font fontName="SansSerif" size="9" isItalic="true"/>
+				</textElement>
+				<text><![CDATA[Aucune facture ne correspond aux critères demandés sur cette période.]]></text>
+			</staticText>
+			<!-- Note de relance : encadree, en italique, elle se distingue des chiffres -->
+			<textField isBlankWhenNull="true">
+				<reportElement x="0" y="52" width="555" height="40" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="7b70b6ba-d249-4941-ab6f-d2b59d89a09e">
+					<printWhenExpression><![CDATA[$V{REPORT_COUNT} > 0]]></printWhenExpression>
+				</reportElement>
+				<box topPadding="5" leftPadding="8" rightPadding="8" bottomPadding="5">
+					<pen lineWidth="0.5" lineColor="#D6DEE8"/>
+				</box>
+				<textElement textAlignment="Justified" verticalAlignment="Top">
+					<font fontName="SansSerif" size="7.5" isItalic="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$P{P_NOTE_MONTANT}]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+</jasperReport>

@@ -591,6 +591,17 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
 
                         }
                     }
+                }, {
+                    xtype: 'tbseparator'
+                }, {
+                    // Releve des factures de groupe : reprend EXACTEMENT les criteres affiches
+                    // (periode, groupe, recherche), pour que le papier montre la meme liste que
+                    // l'ecran. Le bouton "Imprimer" de chaque ligne, lui, edite la facture elle-meme.
+                    text: 'Relevé',
+                    tooltip: 'Imprimer le relev&eacute; des factures de groupe affich&eacute;es',
+                    iconCls: 'printable',
+                    scope: this,
+                    handler: this.onReleveClick
                 }
 
 
@@ -646,6 +657,26 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.groupeInvoice
     },
     loadStore: function () {
         this.getStore().load();
+    },
+
+    /**
+     * Releve des factures de groupe de la periode affichee.
+     *
+     * Les memes criteres que la grille sont transmis au serveur : aucune date n'est inventee ici,
+     * c'est le servlet qui applique la periode par defaut (un an) quand l'ecran n'en donne pas.
+     */
+    onReleveClick: function () {
+        const parametres = {
+            dt_start: Ext.getCmp('dt_start').getSubmitValue() || '',
+            dt_end: Ext.getCmp('dt_end').getSubmitValue() || '',
+            lg_GROUPE_ID: Ext.getCmp('cmb_fact_GROUPECOMPAGNIES').getValue() || '',
+            search_value: Ext.getCmp('groupeSearch').getValue() || ''
+        };
+        // ecran ouvert sur UNE facture de groupe precise : on releve celle-la, pas la periode
+        if (codeFact !== undefined && codeFact !== null && codeFact !== '') {
+            parametres.CODEGROUPE = codeFact;
+        }
+        window.open('../releveFactureGroupeServlet?' + Ext.Object.toQueryString(parametres));
     },
 
     onPrint: function (grid, rowIndex) {
