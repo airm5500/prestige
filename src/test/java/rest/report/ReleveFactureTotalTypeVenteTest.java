@@ -212,6 +212,16 @@ class ReleveFactureTotalTypeVenteTest {
         return JasperFillManager.fillReport(etat, parametres(), new JRBeanCollectionDataSource(organismes));
     }
 
+    /**
+     * Le separateur de milliers depend de la LOCALE de la machine qui edite : le motif #,##0 donne "1,500,000" ici et
+     * "1 500 000" sur un poste en francais. On compare donc les chiffres seuls, sinon le test passe chez l'un et echoue
+     * chez l'autre sans qu'aucun etat n'ait change.
+     */
+    private static boolean contientMontant(List<String> textes, long montant) {
+        String attendu = Long.toString(montant);
+        return textes.stream().map(t -> t.replaceAll("[^0-9]", "")).anyMatch(attendu::equals);
+    }
+
     @Test
     @DisplayName("Chaque type de vente se termine par son total")
     void totalParTypeDeVente() throws Exception {
@@ -219,8 +229,8 @@ class ReleveFactureTotalTypeVenteTest {
 
         // ASSURANCES : 1 000 000 + 500 000 facture, 400 000 + 500 000 regle
         assertTrue(textes.contains("TOTAL ASSURANCES"), "le pied de groupe doit nommer le type de vente");
-        assertTrue(textes.contains("1,500,000"), "le total facture du type doit etre imprime");
-        assertTrue(textes.contains("900,000"), "le total regle du type doit etre imprime");
+        assertTrue(contientMontant(textes, 1500000), "le total facture du type doit etre imprime");
+        assertTrue(contientMontant(textes, 900000), "le total regle du type doit etre imprime");
         assertTrue(textes.contains("2 organismes"), "le total du type rappelle le nombre d'organismes");
 
         // MUTUELLES : un seul organisme

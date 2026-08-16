@@ -110,6 +110,16 @@ class ReleveGroupeFactureEtatTest {
         }
     }
 
+    /**
+     * Le separateur de milliers depend de la LOCALE de la machine qui edite : le motif #,##0 donne "1,500,000" ici et
+     * "1 500 000" sur un poste en francais. On compare donc les chiffres seuls, sinon le test passe chez l'un et echoue
+     * chez l'autre sans qu'aucun etat n'ait change.
+     */
+    private static boolean contientMontant(List<String> textes, long montant) {
+        String attendu = Long.toString(montant);
+        return textes.stream().map(t -> t.replaceAll("[^0-9]", "")).anyMatch(attendu::equals);
+    }
+
     @Test
     @DisplayName("Une ligne par organisme, un sous-total par facture de groupe, un total par groupe")
     void detailParOrganisme() throws Exception {
@@ -140,10 +150,10 @@ class ReleveGroupeFactureEtatTest {
         assertTrue(textes.stream().anyMatch(t -> t.startsWith("FACTURE DE GROUPE N° 26_1042")),
                 "la facture de groupe ouvre son propre bloc de lignes");
         // sous-total de la facture de groupe 26_1042 : 1 820 450 + 3 000 000
-        assertTrue(textes.contains("4,820,450"), "chaque facture de groupe doit avoir son sous-total");
+        assertTrue(contientMontant(textes, 4820450), "chaque facture de groupe doit avoir son sous-total");
         assertTrue(textes.contains("2 organismes"), "le sous-total rappelle le nombre d'organismes");
         // total du groupe : 4 820 450 + 6 135 900
-        assertTrue(textes.contains("10,956,350"), "le total du groupe doit etre imprime");
+        assertTrue(contientMontant(textes, 10956350), "le total du groupe doit etre imprime");
         assertTrue(textes.contains("3 factures"), "le total du groupe rappelle le nombre de factures");
         assertTrue(textes.contains("TOTAL GÉNÉRAL  (4 factures)"), "le total general rappelle le nombre de factures");
     }
