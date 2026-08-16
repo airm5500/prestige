@@ -311,15 +311,31 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             // On la MESURE plutot que de l'estimer : une phrase d'aide de plus, et une valeur
             // ecrite en dur laisserait le bas de la colonne sous le bord de la fenetre.
             var HAUTEUR_REGLAGES = 340;
-            var mesureGauche = hauteurContenu(fenetre.down('#mfdReglages'));
+            var colonneGauche = fenetre.down('#mfdReglages');
+            var mesureGauche = hauteurContenu(colonneGauche);
             var hauteurGauche = mesureGauche > 0 ? mesureGauche
                     : HAUTEUR_REGLAGES + (visibleProduit ? hauteurProduit + 10 : 0);
             // Colonne de droite : le titre du bloc puis la grille des colonnes du bon.
-            var hauteurDroite = hauteurBon;
-            // Encadrement de la fenetre : barre de titre, marges du formulaire, barre de boutons.
-            var HABILLAGE_FENETRE = 90;
-            var souhaitee = HABILLAGE_FENETRE + Math.max(hauteurGauche, hauteurDroite);
-            fenetre.setHeight(Math.min(souhaitee, Ext.Element.getViewportHeight() - 40));
+            var necessaire = Math.max(hauteurGauche, hauteurBon);
+
+            /*
+             * La fenetre grandit exactement de ce qui manque.
+             *
+             * Les deux colonnes sont etirees sur toute la hauteur du formulaire : la hauteur
+             * QU'ELLES ONT est donc, au pixel pres, la place dont on dispose. On compare cette
+             * place a celle qu'il faudrait, et on ajoute la difference a la fenetre. Aucune
+             * valeur ecrite en dur pour la barre de titre, les marges ou la barre de boutons :
+             * elles dependent du theme, et une estimation trop courte laissait la derniere
+             * ligne des colonnes du bon coupee par le bord.
+             */
+            var disponible = colonneGauche ? colonneGauche.getHeight() : 0;
+            if (disponible <= 0) {
+                return;
+            }
+            // Un peu d'air sous la derniere ligne : collee au bord, elle a l'air coupee.
+            var AIR_EN_BAS = 6;
+            var souhaitee = fenetre.getHeight() + (necessaire + AIR_EN_BAS - disponible);
+            fenetre.setHeight(Math.min(souhaitee, Ext.Element.getViewportHeight() - 20));
             fenetre.center();
         };
 
