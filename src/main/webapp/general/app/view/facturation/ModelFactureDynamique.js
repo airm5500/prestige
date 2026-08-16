@@ -15,7 +15,8 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
     ],
     frame: true,
     title: 'Cr&eacute;ateur de mod&egrave;les de facture',
-    scrollable: true,
+    // Ext JS 4.2 : « autoScroll », et non « scrollable » qui n'existe qu'a partir d'Ext JS 5.
+    autoScroll: true,
     width: '90%',
     minHeight: 500,
     cls: 'custompanel',
@@ -232,8 +233,59 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             return HAUTEUR_ENTETES_GRILLE + Math.max(nombreDeLignes, 1) * HAUTEUR_LIGNE_GRILLE;
         };
 
-        // Ajuste les deux grilles a leur contenu, puis la fenetre a ce qu'elle doit montrer,
-        // sans jamais depasser l'ecran.
+        /*
+         * Hauteur dont une grille a REELLEMENT besoin pour montrer toutes ses lignes.
+         *
+         * On mesure le contenu deja affiche plutot que de le calculer : la hauteur d'une ligne
+         * depend du theme et de la police du poste, et une estimation trop courte laisse les
+         * dernieres lignes sous le bord de la grille - c'est ce qui se passait. Tant que rien
+         * n'est peint (la grille des produits quand elle est masquee), on retombe sur l'estimation.
+         */
+        /*
+         * Hauteur du contenu d'une colonne : le bas de son dernier element visible, mesure
+         * depuis son propre haut.
+         *
+         * On ne peut pas prendre la hauteur de la colonne elle-meme : elle est etiree sur toute
+         * la hauteur de la fenetre, et la fenetre ne saurait alors plus jamais se resserrer.
+         */
+        var hauteurContenu = function (conteneur) {
+            var element = conteneur ? conteneur.getEl() : null;
+            if (!element || !element.dom) {
+                return 0;
+            }
+            var haut = element.getRegion().top - element.dom.scrollTop;
+            var bas = haut;
+            conteneur.items.each(function (enfant) {
+                if (enfant.isHidden() || !enfant.getEl()) {
+                    return;
+                }
+                bas = Math.max(bas, enfant.getEl().getRegion().bottom);
+            });
+            // Un peu d'air sous le dernier element.
+            return bas - haut + 8;
+        };
+
+        var hauteurNecessaire = function (grille, nombreDeLignes) {
+            var vue = grille ? grille.getView() : null;
+            var element = vue ? vue.getEl() : null;
+            if (!element || !element.dom || !element.dom.scrollHeight) {
+                return hauteurGrille(nombreDeLignes);
+            }
+            // Ce que la grille occupe en plus de ses lignes : sa barre de titre et l'entete
+            // de ses colonnes.
+            var habillage = grille.getHeight() - element.getHeight();
+            return habillage + element.dom.scrollHeight + 2;
+        };
+
+        /*
+         * Ajuste la fenetre a ce qu'elle doit montrer, sans jamais depasser l'ecran.
+         *
+         * La fenetre est en DEUX colonnes : a gauche les reglages du modele et les colonnes des
+         * PRODUITS, a droite les colonnes du BON. Chaque colonne se lit donc sur sa propre
+         * hauteur, et c'est la plus haute des deux qui commande la hauteur de la fenetre. En une
+         * seule colonne, tout s'empilait et les dernieres lignes des colonnes du bon tombaient
+         * sous le bord de l'ecran : il fallait agrandir la fenetre a la main pour les atteindre.
+         */
         var ajusterHauteurs = function (fenetre) {
             if (!fenetre || fenetre.isDestroyed) {
                 return;
@@ -243,16 +295,30 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             if (!grilleBon) {
                 return;
             }
-            var hauteurBon = hauteurGrille(colonnesStore.getCount());
-            var hauteurProduit = hauteurGrille(produitsStore.getCount());
+            var hauteurBon = hauteurNecessaire(grilleBon, colonnesStore.getCount());
+            var hauteurProduit = hauteurNecessaire(grilleProduit, produitsStore.getCount());
+            // Les deux grilles prennent leur taille en une seule mise en page, sinon la colonne
+            // de gauche serait mesuree avant que la grille des produits ait la sienne.
+            Ext.suspendLayouts();
             grilleBon.setHeight(hauteurBon);
             if (grilleProduit) {
                 grilleProduit.setHeight(hauteurProduit);
             }
+            Ext.resumeLayouts(true);
             var visibleProduit = grilleProduit && !grilleProduit.isHidden();
-            // Le haut du formulaire (nom, description, tri, options, police, bons par page)
-            var HAUTEUR_FORMULAIRE = 300;
-            var souhaitee = HAUTEUR_FORMULAIRE + hauteurBon + (visibleProduit ? hauteurProduit + 10 : 0);
+            // Colonne de gauche : nom, description, tri, presentation, police, bons par page,
+            // detail des ventes, puis les colonnes des produits quand elles sont demandees.
+            // On la MESURE plutot que de l'estimer : une phrase d'aide de plus, et une valeur
+            // ecrite en dur laisserait le bas de la colonne sous le bord de la fenetre.
+            var HAUTEUR_REGLAGES = 340;
+            var mesureGauche = hauteurContenu(fenetre.down('#mfdReglages'));
+            var hauteurGauche = mesureGauche > 0 ? mesureGauche
+                    : HAUTEUR_REGLAGES + (visibleProduit ? hauteurProduit + 10 : 0);
+            // Colonne de droite : le titre du bloc puis la grille des colonnes du bon.
+            var hauteurDroite = hauteurBon;
+            // Encadrement de la fenetre : barre de titre, marges du formulaire, barre de boutons.
+            var HABILLAGE_FENETRE = 90;
+            var souhaitee = HABILLAGE_FENETRE + Math.max(hauteurGauche, hauteurDroite);
             fenetre.setHeight(Math.min(souhaitee, Ext.Element.getViewportHeight() - 40));
             fenetre.center();
         };
@@ -304,7 +370,8 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                 itemId: config.itemId,
                 height: config.height,
                 hidden: config.hidden === true,
-                margin: '10 0 0 0',
+                margin: config.margin || '10 0 0 0',
+                anchor: '100%',
                 store: magasin,
                 plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
                 viewConfig: {
@@ -327,7 +394,7 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                         xtype: 'checkcolumn',
                         header: 'Afficher',
                         dataIndex: 'inclure',
-                        width: 70,
+                        width: 80,
                         listeners: {
                             // La colonne « Position » se recalcule pour TOUTES les lignes des qu'on
                             // en coche une : il faut donc repeindre la grille. Repeindre la ramene
@@ -358,7 +425,7 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                     {
                         header: 'Position',
                         dataIndex: 'ordre',
-                        width: 70,
+                        width: 80,
                         align: 'center',
                         sortable: false,
                         menuDisabled: true,
@@ -397,15 +464,32 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             autoShow: true,
             modal: true,
             title: rec ? 'Modifier le mod&egrave;le [' + rec.get('nom') + ']' : 'Cr&eacute;er un mod&egrave;le de facture',
-            width: 900,
+            /*
+             * Fenetre large et en DEUX colonnes. Les colonnes du bon sont nombreuses : empilees
+             * sous les reglages, leurs dernieres lignes tombaient sous le bord de l'ecran et
+             * l'ascenseur du formulaire ne suffisait pas a les atteindre. Cote a cote, chaque
+             * bloc se lit en entier sans rien faire defiler.
+             */
+            width: Math.max(1000, Math.min(1320, Ext.Element.getViewportWidth() - 40)),
             height: 660,
             maximizable: true,
             layout: 'fit',
             items: [{
                     xtype: 'form',
                     bodyPadding: 10,
-                    scrollable: true,
-                    items: [
+                    layout: {type: 'hbox', align: 'stretch'},
+                    items: [{
+                        // Colonne de gauche : ce qui decrit le modele, puis le detail des ventes.
+                        xtype: 'container',
+                        itemId: 'mfdReglages',
+                        flex: 1,
+                        layout: 'anchor',
+                        // Ext JS 4.2 : c'est « autoScroll » qui pose un ascenseur, pas
+                        // « scrollable » (Ext JS 5). Avec « scrollable », le contenu qui
+                        // depassait etait simplement coupe, sans aucun moyen de l'atteindre.
+                        autoScroll: true,
+                        defaults: {labelWidth: 105},
+                        items: [
                         {
                             xtype: 'textfield',
                             fieldLabel: 'Nom du mod&egrave;le',
@@ -440,27 +524,27 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                             queryMode: 'local',
                             value: rec ? rec.get('modeTri') : 'TIERS_PAYANT'
                         },
+                        // Les deux interrupteurs de presentation, l'un sous l'autre : cote a cote
+                        // dans une colonne deux fois moins large, le second perdait son libelle.
                         {
-                            xtype: 'fieldcontainer',
+                            xtype: 'checkbox',
+                            itemId: 'mfdEntete',
                             fieldLabel: 'Pr&eacute;sentation',
-                            layout: 'hbox',
+                            boxLabel: 'Afficher l\'en-t&ecirc;te (officine, tiers payant, n&deg; de facture)',
                             anchor: '100%',
-                            items: [
-                                {
-                                    xtype: 'checkbox',
-                                    itemId: 'mfdEntete',
-                                    boxLabel: 'Afficher l\'en-t&ecirc;te (officine, tiers payant, n&deg; de facture)',
-                                    margin: '0 20 0 0',
-                                    // modele existant : on reprend son reglage ; nouveau modele : en-tete affiche
-                                    checked: rec ? rec.get('afficherEntete') !== false : true
-                                },
-                                {
-                                    xtype: 'checkbox',
-                                    itemId: 'mfdPiedPage',
-                                    boxLabel: 'Afficher le pied de page (num&eacute;ro de page)',
-                                    checked: rec ? rec.get('afficherPiedPage') !== false : true
-                                }
-                            ]
+                            // modele existant : on reprend son reglage ; nouveau modele : en-tete affiche
+                            checked: rec ? rec.get('afficherEntete') !== false : true
+                        },
+                        {
+                            xtype: 'checkbox',
+                            itemId: 'mfdPiedPage',
+                            // Libelle vide mais place reservee : l'interrupteur reste aligne
+                            // sous le precedent au lieu de revenir contre le bord gauche.
+                            fieldLabel: '',
+                            hideEmptyLabel: false,
+                            boxLabel: 'Afficher le pied de page (num&eacute;ro de page)',
+                            anchor: '100%',
+                            checked: rec ? rec.get('afficherPiedPage') !== false : true
                         },
                         {
                             xtype: 'numberfield',
@@ -473,8 +557,12 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                             maxValue: 12,
                             step: 1,
                             allowDecimals: false,
-                            width: 260,
-                            afterBodyEl: '<div style="color:#888;font-size:11px;padding:2px 0 0 105px">'
+                            width: 260
+                        },
+                        {
+                            xtype: 'component',
+                            margin: '0 0 6 105',
+                            html: '<div style="color:#888;font-size:11px">'
                                     + 'Descendez la taille si les noms passent &agrave; la ligne ; '
                                     + 'montez-la si la facture a peu de colonnes. Les lignes de produit '
                                     + 'restent d\'un point plus petites.</div>'
@@ -492,8 +580,12 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                             maxValue: 500,
                             step: 5,
                             allowDecimals: false,
-                            width: 260,
-                            afterBodyEl: '<div style="color:#888;font-size:11px;padding:2px 0 0 105px">'
+                            width: 260
+                        },
+                        {
+                            xtype: 'component',
+                            margin: '0 0 6 105',
+                            html: '<div style="color:#888;font-size:11px">'
                                     + 'Laissez vide pour garder la pr&eacute;sentation actuelle. '
                                     + 'La fiche d\'un tiers payant peut encore remplacer ce nombre '
                                     + 'pour ses propres factures.</div>'
@@ -515,21 +607,34 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                             }
                         },
                         selecteurColonnes({
-                            titre: 'Colonnes du BON : cochez, renommez, et faites GLISSER les lignes pour changer '
-                                    + 'l\'ordre des colonnes',
-                            itemId: 'mfdColonnes',
-                            store: colonnesStore,
-                            // recalculee des que les colonnes disponibles sont arrivees
-                            height: 380
-                        }),
-                        selecteurColonnes({
                             titre: 'Colonnes des PRODUITS affich&eacute;s sous chaque bon',
                             itemId: 'mfdColonnesProduit',
                             store: produitsStore,
+                            // recalculee des que les colonnes disponibles sont arrivees
                             height: 200,
                             hidden: !(rec && rec.get('detaillerProduits'))
                         })
-                    ]
+                        ]
+                    }, {
+                        // Gouttiere entre les deux colonnes.
+                        xtype: 'container', width: 14
+                    }, {
+                        // Colonne de droite : les colonnes du bon, en entier et sans ascenseur.
+                        xtype: 'container',
+                        flex: 1,
+                        layout: 'anchor',
+                        autoScroll: true,
+                        items: [
+                        selecteurColonnes({
+                            titre: 'Colonnes du BON : cochez, renommez, GLISSEZ pour changer l\'ordre',
+                            itemId: 'mfdColonnes',
+                            store: colonnesStore,
+                            // recalculee des que les colonnes disponibles sont arrivees
+                            height: 380,
+                            margin: '0 0 0 0'
+                        })
+                        ]
+                    }]
                 }],
             buttons: [
                 {
