@@ -100,6 +100,11 @@
 	<!-- Les factures d'UN groupe, une par organisme, regroupees par facture de groupe -->
 	<subDataset name="facturesGroupe" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e12">
 		<parameter name="pGroupeLibelle" class="java.lang.String"/>
+		<!-- "facture" (defaut) : un bloc par facture de groupe.
+		     "tierspayant"      : un bloc par organisme sur toute la periode. -->
+		<parameter name="pRegroupement" class="java.lang.String">
+			<defaultValueExpression><![CDATA["facture"]]></defaultValueExpression>
+		</parameter>
 		<parameter name="pTotalFacture" class="java.math.BigDecimal"/>
 		<parameter name="pTotalRegle" class="java.math.BigDecimal"/>
 		<parameter name="pTotalRestant" class="java.math.BigDecimal"/>
@@ -132,8 +137,11 @@
 		<variable name="TOTAL_NB_FACTURES" class="java.lang.Integer" calculation="Count">
 			<variableExpression><![CDATA[$F{codeFacture}]]></variableExpression>
 		</variable>
+		<!-- Un seul regroupement, dont le critere depend du mode demande : le numero de la
+		     facture de groupe, ou l'organisme. Les lignes arrivent deja triees dans le bon
+		     ordre (cf. ReleveGroupeFactureServiceImpl). -->
 		<group name="factureDeGroupe">
-			<groupExpression><![CDATA[$F{codeFactureGroupe}]]></groupExpression>
+			<groupExpression><![CDATA[$P{pRegroupement} != null && $P{pRegroupement}.equals("tierspayant") ? $F{tiersPayant} : $F{codeFactureGroupe}]]></groupExpression>
 		</group>
 	</subDataset>
 
@@ -145,6 +153,11 @@
 	<parameter name="P_PRINTED_BY" class="java.lang.String"/>
 	<parameter name="P_FOOTER_RC" class="java.lang.String"/>
 	<parameter name="P_NOTE_MONTANT" class="java.lang.String"/>
+	<!-- Mode de regroupement demande a l'ecran : "facture" (par facture de groupe) ou
+	     "tierspayant" (par organisme sur la periode). -->
+	<parameter name="P_REGROUPEMENT" class="java.lang.String">
+		<defaultValueExpression><![CDATA["facture"]]></defaultValueExpression>
+	</parameter>
 	<parameter name="P_NB_FACTURES" class="java.lang.Integer">
 		<defaultValueExpression><![CDATA[0]]></defaultValueExpression>
 	</parameter>
@@ -226,6 +239,9 @@
 						<datasetParameter name="pGroupeLibelle">
 							<datasetParameterExpression><![CDATA[$F{groupeLibelle}]]></datasetParameterExpression>
 						</datasetParameter>
+						<datasetParameter name="pRegroupement">
+							<datasetParameterExpression><![CDATA[$P{P_REGROUPEMENT}]]></datasetParameterExpression>
+						</datasetParameter>
 						<datasetParameter name="pTotalFacture">
 							<datasetParameterExpression><![CDATA[$F{montantFacture}]]></datasetParameterExpression>
 						</datasetParameter>
@@ -252,8 +268,10 @@
 									<reportElement x="0" y="0" width="802" height="15" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e70"/>
 									<box leftPadding="6"/>
 									<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
-									<textFieldExpression><![CDATA["FACTURE DE GROUPE N° " + $F{codeFactureGroupe}
-	+ ($F{dateEdition} == null || $F{dateEdition}.trim().isEmpty() ? "" : "   —   éditée le " + $F{dateEdition})]]></textFieldExpression>
+									<textFieldExpression><![CDATA[$P{pRegroupement} != null && $P{pRegroupement}.equals("tierspayant")
+	? ($F{tiersPayant} == null ? "" : $F{tiersPayant}.toUpperCase())
+	: ("FACTURE DE GROUPE N° " + $F{codeFactureGroupe}
+		+ ($F{dateEdition} == null || $F{dateEdition}.trim().isEmpty() ? "" : "   —   éditée le " + $F{dateEdition}))]]></textFieldExpression>
 								</textField>
 							</jr:cell>
 						</jr:groupHeader>
@@ -296,8 +314,16 @@
 						<!-- A QUI est la facture : l'organisme -->
 						<jr:column width="332" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e28">
 							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1">
+								<!-- Le nom du groupe est rappele sur la ligne de total : sur une edition de
+								     plusieurs pages, on ne remonte plus chercher de quel groupe il s'agit.
+								     Il prolonge le mot TOTAL de la colonne precedente, meme fond. -->
 								<textField isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="332" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e72"/>
+									<reportElement x="0" y="0" width="200" height="17" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e77"/>
+									<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+									<textFieldExpression><![CDATA[$P{pGroupeLibelle} == null ? "" : $P{pGroupeLibelle}.toUpperCase()]]></textFieldExpression>
+								</textField>
+								<textField isBlankWhenNull="true">
+									<reportElement x="200" y="0" width="132" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e72"/>
 									<box rightPadding="8"/>
 									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7.5"/></textElement>
 									<textFieldExpression><![CDATA[$V{TOTAL_NB_FACTURES} + ($V{TOTAL_NB_FACTURES}.intValue() > 1 ? " factures" : " facture")]]></textFieldExpression>
@@ -309,21 +335,27 @@
 										<reportElement x="0" y="0" width="332" height="15" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e73"/>
 										<box rightPadding="8"/>
 										<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7.5" isItalic="true"/></textElement>
-										<textFieldExpression><![CDATA[$V{NB_ORGANISMES} + ($V{NB_ORGANISMES}.intValue() > 1 ? " organismes" : " organisme")]]></textFieldExpression>
+										<textFieldExpression><![CDATA[$V{NB_ORGANISMES}
+	+ ($P{pRegroupement} != null && $P{pRegroupement}.equals("tierspayant")
+		? ($V{NB_ORGANISMES}.intValue() > 1 ? " factures" : " facture")
+		: ($V{NB_ORGANISMES}.intValue() > 1 ? " organismes" : " organisme"))]]></textFieldExpression>
 									</textField>
 								</jr:cell>
 							</jr:groupFooter>
 							<jr:columnHeader height="16" rowSpan="1">
-								<staticText>
+								<textField>
 									<reportElement style="EnteteColonneGauche" x="0" y="0" width="332" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e29"/>
-									<text><![CDATA[Tiers payant]]></text>
-								</staticText>
+									<textFieldExpression><![CDATA[$P{pRegroupement} != null && $P{pRegroupement}.equals("tierspayant") ? "Facture de groupe" : "Tiers payant"]]></textFieldExpression>
+								</textField>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField isBlankWhenNull="true">
 									<reportElement style="CelluleOrganisme" x="0" y="0" width="332" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e30"/>
 									<textElement textAlignment="Left"/>
-									<textFieldExpression><![CDATA[$F{tiersPayant}]]></textFieldExpression>
+									<textFieldExpression><![CDATA[$P{pRegroupement} != null && $P{pRegroupement}.equals("tierspayant")
+	? ("N° " + $F{codeFactureGroupe}
+		+ ($F{dateEdition} == null || $F{dateEdition}.trim().isEmpty() ? "" : "  du " + $F{dateEdition}))
+	: $F{tiersPayant}]]></textFieldExpression>
 								</textField>
 							</jr:detailCell>
 						</jr:column>

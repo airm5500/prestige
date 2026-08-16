@@ -155,6 +155,9 @@ class ReleveGroupeFactureEtatTest {
         // total du groupe : 4 820 450 + 6 135 900
         assertTrue(contientMontant(textes, 10956350), "le total du groupe doit etre imprime");
         assertTrue(textes.contains("3 factures"), "le total du groupe rappelle le nombre de factures");
+        // le nom du groupe est rappele sur la ligne de total : sur plusieurs pages, on ne
+        // remonte plus chercher de quel groupe il s'agit
+        assertTrue(textes.contains("GROUPE SUNU ASSURANCES"), "le total rappelle le nom du groupe");
         assertTrue(textes.contains("TOTAL GÉNÉRAL  (4 factures)"), "le total general rappelle le nombre de factures");
     }
 
@@ -170,6 +173,37 @@ class ReleveGroupeFactureEtatTest {
 
         assertTrue(textes.contains("Soldée"), "une facture entierement reglee est soldee");
         assertTrue(textes.contains("En cours"), "une facture partiellement reglee reste en cours");
+    }
+
+    @Test
+    @DisplayName("Mode « par tiers payant » : un bloc par organisme, ses factures de la periode rassemblees")
+    void regroupementParTiersPayant() throws Exception {
+        // ASCOMA a deux factures, issues de DEUX factures de groupe differentes : en mode
+        // « par tiers payant » elles doivent se retrouver dans le meme bloc, avec un seul
+        // sous-total. Les lignes arrivent triees comme le fera la requete.
+        List<ReleveGroupeDTO> groupes = List.of(groupe(1, "GROUPE SUNU ASSURANCES",
+                ligne("26_1042", "05/07/2026", "26_2101", "ASCOMA CÔTE D'IVOIRE", 1820450, 1820450),
+                ligne("26_1088", "19/07/2026", "26_2210", "ASCOMA CÔTE D'IVOIRE", 3000000, 0),
+                ligne("26_1042", "05/07/2026", "26_2102", "SUNU ASSURANCES VIE", 900000, 900000)));
+
+        Map<String, Object> parametres = parametres();
+        parametres.put("P_REGROUPEMENT", "tierspayant");
+        parametres.put("P_NB_FACTURES", 3);
+
+        List<String> textes = textes(
+                JasperFillManager.fillReport(etat, parametres, new JRBeanCollectionDataSource(groupes)));
+
+        assertTrue(textes.contains("ASCOMA CÔTE D'IVOIRE"), "l'organisme ouvre son propre bloc");
+        assertTrue(textes.contains("SUNU ASSURANCES VIE"));
+        // sous-total ASCOMA sur la periode : 1 820 450 + 3 000 000
+        assertTrue(contientMontant(textes, 4820450),
+                "les factures d'un meme organisme doivent etre cumulees sur la periode");
+        assertTrue(textes.contains("2 factures"), "le sous-total compte des factures, pas des organismes");
+        // la deuxieme colonne montre la facture de groupe puisque l'organisme titre le bloc
+        assertTrue(textes.stream().anyMatch(t -> t.startsWith("N° 26_1042")),
+                "chaque ligne rappelle de quelle facture de groupe elle vient");
+        assertTrue(textes.contains("Facture de groupe"), "l'entete de colonne suit le mode demande");
+        assertFalse(textes.contains("Tiers payant"), "l'organisme titre deja le bloc, la colonne change de role");
     }
 
     @Test

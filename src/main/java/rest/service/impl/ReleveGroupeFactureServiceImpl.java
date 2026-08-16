@@ -12,6 +12,8 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import org.apache.commons.lang3.StringUtils;
+import static rest.service.ReleveGroupeFactureService.PAR_TIERS_PAYANT;
+
 import rest.service.ReleveGroupeFactureService;
 import rest.service.dto.ReleveGroupeDTO;
 import rest.service.dto.ReleveGroupeFactureDTO;
@@ -57,7 +59,7 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
     @Override
     @SuppressWarnings("unchecked")
     public ReleveGroupeFactureDTO releve(String dtStart, String dtEnd, Integer idGroupe, String search,
-            String codeFacture) {
+            String codeFacture, String regroupement) {
         StringBuilder sql = new StringBuilder(REQUETE).append(" WHERE 1=1 ");
         List<Object> valeurs = new ArrayList<>();
         boolean parCodeFacture = StringUtils.isNotEmpty(codeFacture);
@@ -85,8 +87,13 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
             valeurs.add(search + "%");
             valeurs.add(search + "%");
         }
-        sql.append(" ORDER BY gt.`str_LIBELLE` ASC, DATE(g.`dt_CREATED`) ASC, g.`str_CODE_FACTURE` ASC,"
-                + " COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, '') ASC");
+        // L'etat regroupe les lignes CONSECUTIVES egales : le tri commande donc le decoupage
+        // en blocs, et doit suivre le mode demande.
+        sql.append(PAR_TIERS_PAYANT.equals(regroupement)
+                ? " ORDER BY gt.`str_LIBELLE` ASC, COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, '') ASC,"
+                        + " DATE(g.`dt_CREATED`) ASC, g.`str_CODE_FACTURE` ASC"
+                : " ORDER BY gt.`str_LIBELLE` ASC, DATE(g.`dt_CREATED`) ASC, g.`str_CODE_FACTURE` ASC,"
+                        + " COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, '') ASC");
 
         Query q = em.createNativeQuery(sql.toString());
         for (int i = 0; i < valeurs.size(); i++) {
