@@ -165,6 +165,21 @@ class FusionPdfTest {
     }
 
     @Test
+    @DisplayName("Un etat qui n'a rien produit est NOMME, au lieu d'un « fichier introuvable »")
+    void ditQuelEtatManque(@TempDir Path racine) throws Exception {
+        Path recap = pdf(racine, "recap.pdf", 1);
+        String absent = racine.resolve("rp_facture_7544.pdf").toString();
+
+        Exception echec = assertThrows(Exception.class, () -> FusionPdf
+                .assembler(Arrays.asList(recap.toString(), absent), racine.resolve("final.pdf").toString()));
+
+        assertTrue(echec.getMessage().contains("rp_facture_7544.pdf"),
+                "le message doit nommer l'etat qui n'a rien produit, sinon le support cherche a l'aveugle");
+        assertTrue(echec.getMessage().contains("journal"), "il doit dire ou trouver la cause exacte");
+        assertTrue(Files.exists(recap), "rien n'est efface tant que l'assemblage n'a pas abouti");
+    }
+
+    @Test
     @DisplayName("Si l'assemblage echoue, les morceaux sont conserves")
     void echecConserveLesMorceaux(@TempDir Path racine) throws Exception {
         Path bon = pdf(racine, "facture.pdf", 1);

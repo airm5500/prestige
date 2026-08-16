@@ -52,6 +52,7 @@ public final class FusionPdf {
         if (morceaux == null || morceaux.isEmpty()) {
             throw new IllegalArgumentException("aucun document à assembler pour " + destination);
         }
+        verifierPresents(morceaux);
         List<InputStream> flux = new ArrayList<>(morceaux.size());
         try (OutputStream sortie = new FileOutputStream(destination)) {
             for (String morceau : morceaux) {
@@ -64,6 +65,28 @@ public final class FusionPdf {
             }
         }
         effacer(morceaux, destination);
+    }
+
+    /**
+     * Vérifie que chaque morceau a bien été produit, et dit clairement lequel manque.
+     *
+     * Un état qui échoue à se construire ne laisse pas de fichier, mais l'erreur d'origine est journalisée puis avalée
+     * plus haut : l'édition continuait et l'utilisateur recevait un « fichier introuvable » avec un nom de fichier
+     * temporaire, qui ne désigne rien de compréhensible. Le message nomme donc l'état fautif et renvoie à la cause
+     * réelle, qui figure juste au-dessus dans le journal.
+     */
+    private static void verifierPresents(List<String> morceaux) throws IOException {
+        List<String> manquants = new ArrayList<>();
+        for (String morceau : morceaux) {
+            if (!new File(morceau).isFile()) {
+                manquants.add(new File(morceau).getName());
+            }
+        }
+        if (!manquants.isEmpty()) {
+            throw new IOException("La facture n'a pas pu être éditée : l'état " + String.join(", ", manquants)
+                    + " n'a pas produit de document. La cause exacte figure juste au-dessus dans le journal"
+                    + " (souvent : une colonne réclamée par le modèle et absente de la base).");
+        }
     }
 
     /** Efface les morceaux, en épargnant le fichier final s'il figure parmi eux. */
