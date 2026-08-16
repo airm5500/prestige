@@ -844,7 +844,9 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             rechercheStore.commitChanges();
         };
 
+        var minuterieRecherche = null;
         var lancerRecherche = function (fenetre) {
+            clearTimeout(minuterieRecherche);
             var champ = fenetre.down('#mfdRecherche');
             var combo = fenetre.down('#mfdGroupe');
             derniereRecherche = champ ? (champ.getValue() || '') : '';
@@ -852,6 +854,20 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             rechercheStore.getProxy().extraParams.query = derniereRecherche;
             rechercheStore.getProxy().extraParams.groupeId = derniereGroupe;
             rechercheStore.loadPage(1);
+        };
+
+        /*
+         * Recherche differee : appelee a chaque caractere tape, elle n'interroge le serveur que
+         * lorsque la frappe s'arrete. Sans ce delai, taper « ASCOMA » lancerait six recherches.
+         * La touche Entree et le bouton Rechercher partent, eux, sans attendre.
+         */
+        var rechercherPlusTard = function (fenetre) {
+            clearTimeout(minuterieRecherche);
+            minuterieRecherche = setTimeout(function () {
+                if (!fenetre.isDestroyed) {
+                    lancerRecherche(fenetre);
+                }
+            }, 350);
         };
 
         // "Tout cocher" : coche le resultat COMPLET de la recherche en cours, toutes pages
@@ -947,6 +963,12 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
         var win = Ext.create('Ext.window.Window', {
             autoShow: true,
             modal: true,
+            // Une recherche en attente ne doit pas partir apres la fermeture de la fenetre.
+            listeners: {
+                destroy: function () {
+                    clearTimeout(minuterieRecherche);
+                }
+            },
             title: 'Affecter le mod&egrave;le [' + rec.get('nom') + '] &agrave; des tiers payants',
             width: Math.max(1040, Math.min(Ext.Element.getViewportWidth() - 60, 1400)),
             height: Math.max(620, Math.min(Ext.Element.getViewportHeight() - 60, 800)),
@@ -977,12 +999,16 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                                             minWidth: 220,
                                             height: 28,
                                             fieldStyle: 'font-size:13px;',
-                                            emptyText: 'Nom du tiers payant (vide = tout lister), puis Entrée...',
+                                            emptyText: 'Nom du tiers payant (vide = tout lister)...',
                                             enableKeyEvents: true,
                                             listeners: {
-                                                specialKey: function (field, e) {
+                                                // La recherche part toute seule pendant la frappe.
+                                                change: function (champ) {
+                                                    rechercherPlusTard(champ.up('window'));
+                                                },
+                                                specialKey: function (champ, e) {
                                                     if (e.getKey() === e.ENTER) {
-                                                        lancerRecherche(field.up('window'));
+                                                        lancerRecherche(champ.up('window'));
                                                     }
                                                 }
                                             }

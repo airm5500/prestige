@@ -39,17 +39,33 @@ public final class JrxmlFactureBuilder {
         final String pattern;
         final String alignement;
         final int largeur;
+        /**
+         * Largeur en dessous de laquelle la colonne coupe son contenu sur deux lignes.
+         *
+         * <p>
+         * Mesuree a la police de l'etat sur la plus longue valeur courante de la colonne (un numero de bon, un
+         * matricule, un nom complet), majoree des marges interieures de la cellule. C'est ce qui empeche un numero de
+         * bon ou un nom de passer a la ligne.
+         * </p>
+         */
+        final int largeurMini;
         /** Champ SQL a declarer dans le .jrxml (null pour les colonnes calculees). */
         final String champSql;
         final boolean numerique;
 
         Champ(String expression, String classe, String pattern, String alignement, int largeur, String champSql,
                 boolean numerique) {
+            this(expression, classe, pattern, alignement, largeur, largeur, champSql, numerique);
+        }
+
+        Champ(String expression, String classe, String pattern, String alignement, int largeur, int largeurMini,
+                String champSql, boolean numerique) {
             this.expression = expression;
             this.classe = classe;
             this.pattern = pattern;
             this.alignement = alignement;
             this.largeur = largeur;
+            this.largeurMini = largeurMini;
             this.champSql = champSql;
             this.numerique = numerique;
         }
@@ -58,28 +74,29 @@ public final class JrxmlFactureBuilder {
     private static final Map<String, Champ> CHAMPS = new LinkedHashMap<>();
 
     static {
-        CHAMPS.put("NUMERO", new Champ("$V{REPORT_COUNT}", "java.lang.Integer", null, "Center", 30, null, false));
+        CHAMPS.put("NUMERO", new Champ("$V{REPORT_COUNT}", "java.lang.Integer", null, "Center", 30, 21, null, false));
         CHAMPS.put("DATE_BON",
-                new Champ("$F{dt_CREATED}", "java.sql.Timestamp", "dd/MM/yyyy", "Center", 55, "dt_CREATED", false));
-        CHAMPS.put("REF_BON", new Champ("$F{strREFBON}", "java.lang.String", null, "Center", 55, "strREFBON", false));
-        CHAMPS.put("NOM_CLIENT", new Champ("$F{str_FIRST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 75,
+                new Champ("$F{dt_CREATED}", "java.sql.Timestamp", "dd/MM/yyyy", "Center", 55, 47, "dt_CREATED", false));
+        CHAMPS.put("REF_BON",
+                new Champ("$F{strREFBON}", "java.lang.String", null, "Center", 70, 62, "strREFBON", false));
+        CHAMPS.put("NOM_CLIENT", new Champ("$F{str_FIRST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 90, 80,
                 "str_FIRST_NAME_CUSTOMER", false));
-        CHAMPS.put("PRENOM_CLIENT", new Champ("$F{str_LAST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 95,
+        CHAMPS.put("PRENOM_CLIENT", new Champ("$F{str_LAST_NAME_CUSTOMER}", "java.lang.String", null, "Left", 95, 80,
                 "str_LAST_NAME_CUSTOMER", false));
         CHAMPS.put("NOM_COMPLET", new Champ("$F{str_FIRST_NAME_CUSTOMER} + \" \" + $F{str_LAST_NAME_CUSTOMER}",
-                "java.lang.String", null, "Left", 135, null, false));
+                "java.lang.String", null, "Left", 175, 155, null, false));
         CHAMPS.put("MATRICULE",
-                new Champ("$F{SECURITE_SOCIAL}", "java.lang.String", null, "Center", 65, "SECURITE_SOCIAL", false));
-        CHAMPS.put("REF_VENTE", new Champ("$F{str_REF}", "java.lang.String", null, "Center", 60, "str_REF", false));
-        CHAMPS.put("TAUX", new Champ("$F{TAUX_TP}", "java.lang.Integer", null, "Center", 40, "TAUX_TP", false));
+                new Champ("$F{SECURITE_SOCIAL}", "java.lang.String", null, "Center", 72, 59, "SECURITE_SOCIAL", false));
+        CHAMPS.put("REF_VENTE", new Champ("$F{str_REF}", "java.lang.String", null, "Center", 70, 62, "str_REF", false));
+        CHAMPS.put("TAUX", new Champ("$F{TAUX_TP}", "java.lang.Integer", null, "Center", 40, 39, "TAUX_TP", false));
         CHAMPS.put("MONTANT_BRUT",
-                new Champ("$F{int_PRICE}", "java.lang.Integer", "#,##0", "Right", 70, "int_PRICE", true));
-        CHAMPS.put("REMISE", new Champ("$F{dbl_MONTANT_REMISE}", "java.math.BigDecimal", "#,##0", "Right", 65,
+                new Champ("$F{int_PRICE}", "java.lang.Integer", "#,##0", "Right", 70, 63, "int_PRICE", true));
+        CHAMPS.put("REMISE", new Champ("$F{dbl_MONTANT_REMISE}", "java.math.BigDecimal", "#,##0", "Right", 65, 43,
                 "dbl_MONTANT_REMISE", true));
         CHAMPS.put("PART_CLIENT",
-                new Champ("$F{int_CUST_PART}", "java.lang.Integer", "#,##0", "Right", 65, "int_CUST_PART", true));
-        CHAMPS.put("PART_TIERS_PAYANT", new Champ("$F{str_TIERS_PAYANT_RO}", "java.lang.Double", "#,##0", "Right", 80,
-                "str_TIERS_PAYANT_RO", true));
+                new Champ("$F{int_CUST_PART}", "java.lang.Integer", "#,##0", "Right", 65, 53, "int_CUST_PART", true));
+        CHAMPS.put("PART_TIERS_PAYANT", new Champ("$F{str_TIERS_PAYANT_RO}", "java.lang.Double", "#,##0", "Right", 65,
+                43, "str_TIERS_PAYANT_RO", true));
     }
 
     /** Retrait du sous-tableau des produits sous la ligne du bon. */
@@ -104,15 +121,6 @@ public final class JrxmlFactureBuilder {
     }
 
     private JrxmlFactureBuilder() {
-    }
-
-    /**
-     * Largeur relative d'une colonne, partagee avec l'edition PDF pour que les deux presentations (PDF genere et
-     * fichier .jrxml exporte) aient exactement les memes proportions de colonnes.
-     */
-    public static float largeurRelative(String champ) {
-        Champ c = CHAMPS.get(champ);
-        return c != null ? c.largeur : 60f;
     }
 
     /** Nom de fichier propose pour le modele (sans extension), utilisable comme nom de rapport Jasper. */
@@ -675,18 +683,69 @@ public final class JrxmlFactureBuilder {
         if (colonnes.isEmpty()) {
             return new int[0];
         }
-        int total = 0;
-        for (ModelFactureDynamiqueColonne c : colonnes) {
-            total += registre.get(c.getChamp()).largeur;
+        int nombre = colonnes.size();
+        int[] minima = new int[nombre];
+        int[] poids = new int[nombre];
+        int sommeMinima = 0;
+        int sommePoids = 0;
+        for (int i = 0; i < nombre; i++) {
+            Champ champ = registre.get(colonnes.get(i).getChamp());
+            minima[i] = Math.max(20, champ.largeurMini);
+            poids[i] = champ.largeur;
+            sommeMinima += minima[i];
+            sommePoids += poids[i];
         }
-        int[] largeurs = new int[colonnes.size()];
+        int[] largeurs = new int[nombre];
         int cumul = 0;
-        for (int i = 0; i < colonnes.size() - 1; i++) {
-            largeurs[i] = Math.max(20, registre.get(colonnes.get(i).getChamp()).largeur * disponible / total);
-            cumul += largeurs[i];
+        if (sommeMinima >= disponible) {
+            /*
+             * Trop de colonnes pour la largeur d'une page : aucune ne peut avoir sa largeur minimale. On les reduit
+             * alors TOUTES dans la meme proportion, plutot que d'en servir quelques-unes et d'ecraser les dernieres.
+             */
+            for (int i = 0; i < nombre - 1; i++) {
+                largeurs[i] = Math.max(20, minima[i] * disponible / sommeMinima);
+                cumul += largeurs[i];
+            }
+        } else {
+            /*
+             * Chaque colonne recoit d'abord de quoi ne PAS couper son contenu sur deux lignes, puis la place qui reste
+             * est partagee selon la largeur souhaitee de chacune : c'est le nom du client, la colonne la plus large,
+             * qui en profite le plus.
+             */
+            int surplus = disponible - sommeMinima;
+            int surplusDonne = 0;
+            for (int i = 0; i < nombre - 1; i++) {
+                int part = sommePoids > 0 ? surplus * poids[i] / sommePoids : 0;
+                largeurs[i] = minima[i] + part;
+                surplusDonne += part;
+                cumul += largeurs[i];
+            }
+            // Le reste entier va a la derniere colonne : la somme fait exactement la largeur utile.
+            largeurs[nombre - 1] = minima[nombre - 1] + (surplus - surplusDonne);
+            cumul += largeurs[nombre - 1];
         }
-        largeurs[colonnes.size() - 1] = Math.max(20, disponible - cumul);
+        if (cumul != disponible) {
+            largeurs[nombre - 1] = Math.max(20, largeurs[nombre - 1] + disponible - cumul);
+        }
         return largeurs;
+    }
+
+    /**
+     * Largeurs definitives des colonnes du BON, en points, pour la largeur utile d'une page A4.
+     *
+     * <p>
+     * L'apercu PDF du createur s'en sert lui aussi : les deux presentations decoupent ainsi la page exactement de la
+     * meme facon, et une colonne qui tient sur une ligne dans l'une tient sur une ligne dans l'autre.
+     * </p>
+     */
+    public static int[] largeursColonnes(List<ModelFactureDynamiqueColonne> colonnes) {
+        List<ModelFactureDynamiqueColonne> retenues = new ArrayList<>();
+        for (ModelFactureDynamiqueColonne c : colonnes) {
+            if (CHAMPS.containsKey(c.getChamp())) {
+                retenues.add(c);
+            }
+        }
+        return repartirLargeurs(retenues, CHAMPS, LARGEUR_UTILE - 2 * MARGE_GAUCHE_TABLE);
     }
 
     /** Abscisses cumulees des colonnes, a partir d'une marge de depart. */

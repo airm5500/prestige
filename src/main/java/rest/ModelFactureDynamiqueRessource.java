@@ -89,7 +89,9 @@ public class ModelFactureDynamiqueRessource {
         COLONNES_DISPONIBLES.put("MONTANT_BRUT", new Object[] { "Montant brut", true });
         COLONNES_DISPONIBLES.put("REMISE", new Object[] { "Remise", true });
         COLONNES_DISPONIBLES.put("PART_CLIENT", new Object[] { "Part client", true });
-        COLONNES_DISPONIBLES.put("PART_TIERS_PAYANT", new Object[] { "Part tiers payant", true });
+        // « Part TP » et non « Part tiers payant » : le libelle long forcait sa colonne a etre
+        // large pour son seul entete, au detriment du nom du client juste a cote.
+        COLONNES_DISPONIBLES.put("PART_TIERS_PAYANT", new Object[] { "Part TP", true });
     }
 
     /** Registre des colonnes disponibles pour le DETAIL DES PRODUITS d'un bon (lignes de vente). */
@@ -615,6 +617,8 @@ public class ModelFactureDynamiqueRessource {
     private static final BaseColor FOND_CARTOUCHE = new BaseColor(237, 242, 248);
     /** Gris-bleu des mentions secondaires de l'en-tete. */
     private static final BaseColor ENCRE_DOUCE = new BaseColor(90, 107, 125);
+    /** Marge haute du modele de reference : l'en-tete repete commence juste en dessous. */
+    private static final float MARGE_HAUTE = 20f;
 
     private byte[] genererPdf(EntityManager em, TFacture facture, TTiersPayant tiersPayant,
             ModelFactureDynamique modele) throws Exception {
@@ -655,22 +659,35 @@ public class ModelFactureDynamiqueRessource {
         fontSignature.setStyle(Font.UNDERLINE);
         BaseColor gris = new BaseColor(204, 204, 204);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        // Marges du modele de reference : 5 pt lateralement, 20 pt en haut et en bas.
-        Document document = new Document(PageSize.A4, 5, 5, 20, modele.isAfficherPiedPage() ? 40 : 20);
-        PdfWriter writer = PdfWriter.getInstance(document, out);
-        if (modele.isAfficherPiedPage()) {
-            writer.setPageEvent(new PiedDePage(gris));
+        /*
+         * L'en-tete est peint sur CHAQUE page, et non ajoute une seule fois au fil du document. Une facture qui tient
+         * sur cinq pages doit rappeler sur chacune de quelle officine elle vient, quel est son numero et a quel
+         * organisme elle s'adresse : la page 2 arrivait jusqu'ici avec le seul bandeau des colonnes.
+         */
+        PdfPTable entete = modele.isAfficherEntete()
+                ? construireEntete(facture, tiersPayant, officine, fontInstitution, fontSousTitre) : null;
+        float hauteurEntete = 0f;
+        if (entete != null) {
+            entete.setTotalWidth(PageSize.A4.getWidth() - 10);
+            entete.setLockedWidth(true);
+            hauteurEntete = entete.getTotalHeight();
         }
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        // Marges du modele de reference : 5 pt lateralement, 20 pt en bas. En haut, la place de
+        // l'en-tete repete, plus les 20 pt du modele.
+        Document document = new Document(PageSize.A4, 5, 5, MARGE_HAUTE + hauteurEntete + 8,
+                modele.isAfficherPiedPage() ? 40 : 20);
+        PdfWriter writer = PdfWriter.getInstance(document, out);
+        writer.setPageEvent(new HabillagePage(entete, modele.isAfficherPiedPage() ? gris : null));
         document.open();
 
-        if (modele.isAfficherEntete()) {
-            ajouterEntete(document, facture, tiersPayant, officine, fontInstitution, fontSousTitre, fontBloc);
-        }
-
-        float[] largeurs = new float[colonnes.size()];
-        for (int i = 0; i < colonnes.size(); i++) {
-            largeurs[i] = JrxmlFactureBuilder.largeurRelative(colonnes.get(i).getChamp());
+        // Largeurs partagees avec le fichier .jrxml : les deux presentations decoupent la page de
+        // la meme facon, et chaque colonne recoit d'abord de quoi ne pas couper son contenu.
+        int[] points = JrxmlFactureBuilder.largeursColonnes(colonnes);
+        float[] largeurs = new float[points.length];
+        for (int i = 0; i < points.length; i++) {
+            largeurs[i] = points[i];
         }
         PdfPTable table = new PdfPTable(largeurs);
         table.setWidthPercentage(100);
@@ -911,43 +928,59 @@ public class ModelFactureDynamiqueRessource {
     }
 
     /**
-     * Bloc d'en-tete repris du modele de reference rp_facture_0202 : nom de l'officine centre, sous-titre, filet
-     * marine, puis le cartouche de la facture (numero et periode sur fond bleu pale a filet vert-bleu) a gauche et
-     * l'identification du tiers payant cadree a droite.
+     * Bloc d'en-tete repris du modele de reference rp_facture_0202, sous forme de tableau pour pouvoir etre repeint a
+     * l'identique en haut de CHAQUE page.
+     *
+     * <p>
+     * Trois bandes : le nom de l'officine et son pharmacien, centres ; un filet bleu marine ; puis le cartouche de la
+     * facture (numero et periode sur fond bleu pale a filet vert-bleu) a gauche et l'identification du tiers payant
+     * cadree a droite.
+     * </p>
      */
-    private void ajouterEntete(Document document, TFacture facture, TTiersPayant tiersPayant, TOfficine officine,
-            Font fontInstitution, Font fontSousTitre, Font fontBloc) throws Exception {
+    PdfPTable construireEntete(TFacture facture, TTiersPayant tiersPayant, TOfficine officine, Font fontInstitution,
+            Font fontSousTitre) {
+        PdfPTable entete = new PdfPTable(1);
+        entete.setWidthPercentage(100);
+
+        Paragraph identite = new Paragraph();
         if (officine != null) {
-            Paragraph institution = new Paragraph(StringUtils.defaultString(officine.getStrNOMABREGE()),
-                    fontInstitution);
-            institution.setAlignment(Element.ALIGN_CENTER);
-            document.add(institution);
+            identite.add(new Phrase(StringUtils.defaultString(officine.getStrNOMABREGE()) + "\n", fontInstitution));
             String sousTitre = (StringUtils.defaultString(officine.getStrFIRSTNAME()) + " "
                     + StringUtils.defaultString(officine.getStrLASTNAME())).trim();
             if (StringUtils.isNotBlank(sousTitre)) {
-                Paragraph p = new Paragraph(sousTitre, fontSousTitre);
-                p.setAlignment(Element.ALIGN_CENTER);
-                document.add(p);
+                identite.add(new Phrase(sousTitre, fontSousTitre));
             }
         }
-        // Filet bleu marine qui separe l'identite de l'officine du cartouche de la facture.
-        PdfPTable filet = new PdfPTable(1);
-        filet.setWidthPercentage(100);
-        PdfPCell celluleFilet = new PdfPCell(new Phrase(" ", fontBloc));
-        celluleFilet.setFixedHeight(2f);
-        celluleFilet.setBorder(0);
-        celluleFilet.setBackgroundColor(MARINE);
-        filet.addCell(celluleFilet);
-        filet.setSpacingBefore(4f);
-        filet.setSpacingAfter(6f);
-        document.add(filet);
+        identite.setAlignment(Element.ALIGN_CENTER);
+        PdfPCell celluleIdentite = new PdfPCell(identite);
+        celluleIdentite.setBorder(Rectangle.NO_BORDER);
+        // Le centrage se regle sur la CELLULE : pose sur le seul paragraphe, il est ignore et le
+        // nom de l'officine revient contre le bord gauche.
+        celluleIdentite.setHorizontalAlignment(Element.ALIGN_CENTER);
+        celluleIdentite.setPaddingBottom(6f);
+        entete.addCell(celluleIdentite);
 
-        /*
-         * Le cartouche de la facture, repris du modele rp_facture_0202 : le numero et la periode poses sur un rectangle
-         * bleu tres pale borde a gauche d'un filet vert-bleu, et en face, cadres a droite, la date puis le tiers payant
-         * et ses coordonnees. C'est ce bloc que l'officine reconnait au premier coup d'oeil, et c'est celui qu'elle a
-         * demande a garder.
-         */
+        // Filet bleu marine qui separe l'identite de l'officine du cartouche de la facture.
+        PdfPCell filet = new PdfPCell(new Phrase(" ", fontSousTitre));
+        filet.setFixedHeight(2f);
+        filet.setBorder(Rectangle.NO_BORDER);
+        filet.setBackgroundColor(MARINE);
+        entete.addCell(filet);
+
+        PdfPCell porteur = new PdfPCell(cartouche(facture, tiersPayant));
+        porteur.setBorder(Rectangle.NO_BORDER);
+        porteur.setPaddingTop(6f);
+        porteur.setPaddingBottom(2f);
+        entete.addCell(porteur);
+        return entete;
+    }
+
+    /**
+     * Le cartouche de la facture, repris du modele rp_facture_0202 : le numero et la periode poses sur un rectangle
+     * bleu tres pale borde a gauche d'un filet vert-bleu, et en face, cadres a droite, la date puis le tiers payant et
+     * ses coordonnees. C'est ce bloc que l'officine reconnait au premier coup d'oeil.
+     */
+    PdfPTable cartouche(TFacture facture, TTiersPayant tiersPayant) {
         Font fontNumero = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, MARINE);
         Font fontPeriode = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, ENCRE_DOUCE);
         Font fontMention = FontFactory.getFont(FontFactory.HELVETICA, 7.5f, ENCRE_DOUCE);
@@ -955,8 +988,6 @@ public class ModelFactureDynamiqueRessource {
 
         PdfPTable bandeau = new PdfPTable(new float[] { 52f, 48f });
         bandeau.setWidthPercentage(100);
-        bandeau.setSpacingBefore(6f);
-        bandeau.setSpacingAfter(8f);
 
         Paragraph gauche = new Paragraph();
         gauche.add(
@@ -992,7 +1023,7 @@ public class ModelFactureDynamiqueRessource {
         celluleDroite.setHorizontalAlignment(Element.ALIGN_RIGHT);
         celluleDroite.setPaddingLeft(10f);
         bandeau.addCell(celluleDroite);
-        document.add(bandeau);
+        return bandeau;
     }
 
     private static void ajouterLigneBloc(Paragraph bloc, String valeur, Font police) {
@@ -1001,21 +1032,42 @@ public class ModelFactureDynamiqueRessource {
         }
     }
 
-    /** Pied de page numerote, comme le pageFooter du modele de reference. */
-    private static final class PiedDePage extends PdfPageEventHelper {
-        private final BaseColor gris;
+    /**
+     * Ce qui se repete sur chaque page : l'en-tete en haut et, s'il est demande, le pied de page numerote en bas.
+     *
+     * <p>
+     * L'en-tete ne peut pas etre simplement ajoute au fil du document : il ne sortirait alors que sur la premiere page.
+     * On le peint donc a chaque changement de page, toujours au meme endroit, la marge haute du document ayant ete
+     * reservee pour lui.
+     * </p>
+     */
+    static final class HabillagePage extends PdfPageEventHelper {
+        /** null quand le modele n'affiche pas d'en-tete. */
+        private final PdfPTable entete;
+        /** null quand le modele n'affiche pas de pied de page. */
+        private final BaseColor grisPied;
 
-        private PiedDePage(BaseColor gris) {
-            this.gris = gris;
+        HabillagePage(PdfPTable entete, BaseColor grisPied) {
+            this.entete = entete;
+            this.grisPied = grisPied;
         }
 
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
-            Font police = FontFactory.getFont(FontFactory.HELVETICA, 8);
             PdfContentByte toile = writer.getDirectContent();
+            if (entete != null) {
+                // Le tableau se dessine vers le BAS a partir de l'ordonnee donnee : on part donc
+                // du haut de la page, sous la marge du modele de reference.
+                entete.writeSelectedRows(0, -1, document.left(), document.getPageSize().getHeight() - MARGE_HAUTE,
+                        toile);
+            }
+            if (grisPied == null) {
+                return;
+            }
+            Font police = FontFactory.getFont(FontFactory.HELVETICA, 8);
             float y = document.bottom() - 14;
             toile.saveState();
-            toile.setColorFill(gris);
+            toile.setColorFill(grisPied);
             toile.rectangle(document.left(), y + 14, document.right() - document.left(), 2);
             toile.fill();
             toile.restoreState();
