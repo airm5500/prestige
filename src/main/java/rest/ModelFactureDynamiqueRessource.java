@@ -609,6 +609,12 @@ public class ModelFactureDynamiqueRessource {
     private static final BaseColor FOND_TOTAL = new BaseColor(221, 230, 240);
     /** Fond du sous-tableau des produits. */
     private static final BaseColor FOND_PRODUIT = new BaseColor(247, 249, 252);
+    /** Filet vert-bleu qui borde a gauche le cartouche de la facture. */
+    private static final BaseColor SARCELLE = new BaseColor(72, 169, 166);
+    /** Fond du cartouche de la facture. */
+    private static final BaseColor FOND_CARTOUCHE = new BaseColor(237, 242, 248);
+    /** Gris-bleu des mentions secondaires de l'en-tete. */
+    private static final BaseColor ENCRE_DOUCE = new BaseColor(90, 107, 125);
 
     private byte[] genererPdf(EntityManager em, TFacture facture, TTiersPayant tiersPayant,
             ModelFactureDynamique modele) throws Exception {
@@ -639,13 +645,12 @@ public class ModelFactureDynamiqueRessource {
         // Polices calquees sur le modele de reference de l'officine (rp_facture) : titre en grand,
         // bandeau de colonnes en 7 gras, lignes en 8.
         Font fontInstitution = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, MARINE);
-        Font fontSousTitre = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
+        Font fontSousTitre = FontFactory.getFont(FontFactory.HELVETICA, 8, ENCRE_DOUCE);
         Font fontEnteteColonne = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7, BaseColor.WHITE);
         Font fontCellule = FontFactory.getFont(FontFactory.HELVETICA, 8);
         Font fontTotal = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, MARINE);
         Font fontBloc = FontFactory.getFont(FontFactory.HELVETICA, 8);
         Font fontBlocGras = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
-        Font fontFacture = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
         Font fontSignature = FontFactory.getFont(FontFactory.COURIER_BOLD, 8);
         fontSignature.setStyle(Font.UNDERLINE);
         BaseColor gris = new BaseColor(204, 204, 204);
@@ -660,8 +665,7 @@ public class ModelFactureDynamiqueRessource {
         document.open();
 
         if (modele.isAfficherEntete()) {
-            ajouterEntete(document, facture, tiersPayant, officine, fontInstitution, fontSousTitre, fontBloc,
-                    fontBlocGras, fontFacture, gris);
+            ajouterEntete(document, facture, tiersPayant, officine, fontInstitution, fontSousTitre, fontBloc);
         }
 
         float[] largeurs = new float[colonnes.size()];
@@ -894,10 +898,6 @@ public class ModelFactureDynamiqueRessource {
         }
     }
 
-    /**
-     * Bloc d'en-tete du modele de reference : nom de l'officine centre, sous-titre, filet gris, puis sur une meme ligne
-     * le numero de facture et la periode a gauche, l'identification du tiers payant a droite.
-     */
     /** Bloc de totaux : fond bleu pale et filet marine au-dessus, comme le bandeau de total du 0202. */
     private static void habillerTotal(PdfPCell cellule) {
         cellule.setBackgroundColor(FOND_TOTAL);
@@ -910,9 +910,13 @@ public class ModelFactureDynamiqueRessource {
         cellule.setPaddingRight(4f);
     }
 
+    /**
+     * Bloc d'en-tete repris du modele de reference rp_facture_0202 : nom de l'officine centre, sous-titre, filet
+     * marine, puis le cartouche de la facture (numero et periode sur fond bleu pale a filet vert-bleu) a gauche et
+     * l'identification du tiers payant cadree a droite.
+     */
     private void ajouterEntete(Document document, TFacture facture, TTiersPayant tiersPayant, TOfficine officine,
-            Font fontInstitution, Font fontSousTitre, Font fontBloc, Font fontBlocGras, Font fontFacture,
-            BaseColor gris) throws Exception {
+            Font fontInstitution, Font fontSousTitre, Font fontBloc) throws Exception {
         if (officine != null) {
             Paragraph institution = new Paragraph(StringUtils.defaultString(officine.getStrNOMABREGE()),
                     fontInstitution);
@@ -926,7 +930,7 @@ public class ModelFactureDynamiqueRessource {
                 document.add(p);
             }
         }
-        // filet gris de separation
+        // Filet bleu marine qui separe l'identite de l'officine du cartouche de la facture.
         PdfPTable filet = new PdfPTable(1);
         filet.setWidthPercentage(100);
         PdfPCell celluleFilet = new PdfPCell(new Phrase(" ", fontBloc));
@@ -938,39 +942,55 @@ public class ModelFactureDynamiqueRessource {
         filet.setSpacingAfter(6f);
         document.add(filet);
 
-        // date de la facture, alignee a droite
-        if (facture.getDtCREATED() != null) {
-            Paragraph dateFacture = new Paragraph(date.FULDATE.format(facture.getDtCREATED()), fontBloc);
-            dateFacture.setAlignment(Element.ALIGN_RIGHT);
-            document.add(dateFacture);
-        }
+        /*
+         * Le cartouche de la facture, repris du modele rp_facture_0202 : le numero et la periode poses sur un rectangle
+         * bleu tres pale borde a gauche d'un filet vert-bleu, et en face, cadres a droite, la date puis le tiers payant
+         * et ses coordonnees. C'est ce bloc que l'officine reconnait au premier coup d'oeil, et c'est celui qu'elle a
+         * demande a garder.
+         */
+        Font fontNumero = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, MARINE);
+        Font fontPeriode = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, ENCRE_DOUCE);
+        Font fontMention = FontFactory.getFont(FontFactory.HELVETICA, 7.5f, ENCRE_DOUCE);
+        Font fontDestinataire = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, MARINE);
 
-        PdfPTable bandeau = new PdfPTable(new float[] { 55f, 45f });
+        PdfPTable bandeau = new PdfPTable(new float[] { 52f, 48f });
         bandeau.setWidthPercentage(100);
         bandeau.setSpacingBefore(6f);
         bandeau.setSpacingAfter(8f);
 
         Paragraph gauche = new Paragraph();
         gauche.add(
-                new Phrase("FACTURE N° " + StringUtils.defaultString(facture.getStrCODEFACTURE()) + "\n", fontFacture));
+                new Phrase("FACTURE N° " + StringUtils.defaultString(facture.getStrCODEFACTURE()) + "\n", fontNumero));
         if (facture.getDtDEBUTFACTURE() != null && facture.getDtFINFACTURE() != null) {
             gauche.add(new Phrase("PERIODE DU " + date.formatterShort.format(facture.getDtDEBUTFACTURE()) + " AU "
-                    + date.formatterShort.format(facture.getDtFINFACTURE()), fontBlocGras));
+                    + date.formatterShort.format(facture.getDtFINFACTURE()), fontPeriode));
         }
         PdfPCell celluleGauche = new PdfPCell(gauche);
-        celluleGauche.setBorder(0);
+        celluleGauche.setBorder(Rectangle.LEFT);
+        celluleGauche.setBorderColorLeft(SARCELLE);
+        celluleGauche.setBorderWidthLeft(3f);
+        celluleGauche.setBackgroundColor(FOND_CARTOUCHE);
+        celluleGauche.setPaddingLeft(10f);
+        celluleGauche.setPaddingTop(5f);
+        celluleGauche.setPaddingBottom(6f);
         bandeau.addCell(celluleGauche);
 
         Paragraph droite = new Paragraph();
+        droite.setAlignment(Element.ALIGN_RIGHT);
+        if (facture.getDtCREATED() != null) {
+            droite.add(new Phrase(date.FULDATE.format(facture.getDtCREATED()) + "\n", fontMention));
+        }
         if (tiersPayant != null) {
-            droite.add(new Phrase(StringUtils.defaultString(tiersPayant.getStrFULLNAME()) + "\n", fontBlocGras));
-            ajouterLigneBloc(droite, tiersPayant.getStrADRESSE(), fontBloc);
-            ajouterLigneBloc(droite, tiersPayant.getStrCOMPTECONTRIBUABLE(), fontBloc);
-            ajouterLigneBloc(droite, tiersPayant.getStrCODEOFFICINE(), fontBloc);
-            ajouterLigneBloc(droite, tiersPayant.getStrREGISTRECOMMERCE(), fontBloc);
+            droite.add(new Phrase(StringUtils.defaultString(tiersPayant.getStrFULLNAME()) + "\n", fontDestinataire));
+            ajouterLigneBloc(droite, tiersPayant.getStrADRESSE(), fontMention);
+            ajouterLigneBloc(droite, tiersPayant.getStrCOMPTECONTRIBUABLE(), fontMention);
+            ajouterLigneBloc(droite, tiersPayant.getStrCODEOFFICINE(), fontMention);
+            ajouterLigneBloc(droite, tiersPayant.getStrREGISTRECOMMERCE(), fontMention);
         }
         PdfPCell celluleDroite = new PdfPCell(droite);
-        celluleDroite.setBorder(0);
+        celluleDroite.setBorder(Rectangle.NO_BORDER);
+        celluleDroite.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        celluleDroite.setPaddingLeft(10f);
         bandeau.addCell(celluleDroite);
         document.add(bandeau);
     }

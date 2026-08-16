@@ -30,7 +30,7 @@ public final class JrxmlFactureBuilder {
     private static final int HAUTEUR_LIGNE_PRODUIT = 13;
     private static final int HAUTEUR_ENTETE_PRODUIT = 11;
     /** Hauteur du bloc d'en-tete (nom de l'officine, bloc tiers payant, numero de facture). */
-    private static final int HAUTEUR_ENTETE = 155;
+    private static final int HAUTEUR_ENTETE = 150;
 
     /** Definition d'une colonne : expression Jasper, classe, format, alignement, largeur souhaitee. */
     private static final class Champ {
@@ -310,30 +310,43 @@ public final class JrxmlFactureBuilder {
         StringBuilder b = new StringBuilder();
         b.append("\t<columnHeader>\n\t\t<band height=\"").append(hauteur).append("\">\n");
         if (avecEntete) {
-            // nom de l'officine et sous-titre, centres en haut de page
-            b.append(texteParametre("P_H_INSTITUTION", 46, 6, 493, 31, "Center", 20, true, "Century Gothic"));
-            b.append(texteParametre("P_AUTRE_DESC", 46, 36, 493, 17, "Center", 8, true, null));
-            // filet gris de separation
-            b.append(filetSeparation(2, 53, 582));
-            // date de la facture, a droite
-            b.append("\t\t\t<textField pattern=\"EEEEE dd MMMMM yyyy\">\n").append(reportElement(420, 58, 160, 15))
-                    .append("\t\t\t\t<textElement textAlignment=\"Left\"><font size=\"8\"/></textElement>\n")
+            /*
+             * En-tete repris du modele rp_facture_0202, au pixel pres.
+             *
+             * Le logo et l'identite de l'officine en haut, centres sur la PAGE et non sur l'espace a cote du logo.
+             * Puis, sous un filet bleu marine, la facture posee sur un rectangle bleu pale a filet vert-bleu, et le
+             * destinataire cadre a droite. C'est ce bloc que l'officine reconnait au premier coup d'oeil.
+             */
+            b.append("\t\t\t<image>\n").append(reportElement(0, 0, 72, 43))
+                    .append("\t\t\t\t<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>\n")
+                    .append("\t\t\t</image>\n");
+            b.append(texteEntete("$P{P_H_INSTITUTION}", 0, 0, 585, 24, "Center", "13", true, MARINE));
+            b.append(texteEntete("$P{P_AUTRE_DESC}", 0, 24, 585, 13, "Center", "8", false, ENCRE_DOUCE));
+            b.append(filetSeparation(0, 46, 585));
+
+            // Le cartouche de la facture : fond bleu pale, filet vert-bleu a gauche.
+            b.append("\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"0\" y=\"58\" width=\"300\"")
+                    .append(" height=\"42\" backcolor=\"").append(FOND_CARTOUCHE).append("\" uuid=\"").append(uuid())
+                    .append("\"/>\n\t\t\t\t<box><pen lineWidth=\"0.0\"/><leftPen lineWidth=\"3.0\" lineColor=\"")
+                    .append(SARCELLE).append("\"/></box>\n\t\t\t\t<text><![CDATA[]]></text>\n\t\t\t</staticText>\n");
+            b.append(texteEntete("$P{P_CODE_FACTURE}", 0, 60, 300, 17, "Left", "10", true, MARINE, 10));
+            b.append(texteEntete("$P{P_H_CLT_INFOS}", 0, 79, 300, 14, "Left", "8", true, ENCRE_DOUCE, 10));
+            b.append(texteEntete("$P{P_CODE_COMPTABLE}", 0, 105, 585, 12, "Left", "7.5", false, ENCRE_DOUCE, 10));
+
+            // Le destinataire, cadre a droite.
+            b.append("\t\t\t<textField pattern=\"EEEEE dd MMMMM yyyy\" isBlankWhenNull=\"true\">\n")
+                    .append(reportElementCouleur(310, 58, 275, 13, ENCRE_DOUCE))
+                    .append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\">")
+                    .append("<font fontName=\"SansSerif\" size=\"7.5\"/></textElement>\n")
                     .append("\t\t\t\t<textFieldExpression><![CDATA[$F{DATEFACTURE}]]></textFieldExpression>\n")
                     .append("\t\t\t</textField>\n");
-            // bloc d'identification du tiers payant, a droite
-            b.append(texteParametre("P_TIERS_PAYANT_NAME", 359, 76, 221, 15, "Left", 8, true, null));
-            b.append(texteParametre("P_CODE_POSTALE", 359, 91, 221, 15, "Left", 8, false, null));
-            b.append(texteParametre("P_COMPTE_CONTRIBUABLE", 359, 106, 221, 15, "Left", 8, false, null));
-            b.append(texteParametre("P_CODE_OFFICINE", 359, 121, 221, 15, "Left", 8, false, null));
-            b.append(texteParametre("P_REGISTRE_COMMERCE", 359, 136, 221, 15, "Left", 8, false, null));
-            // numero de facture et periode, a gauche
-            b.append("\t\t\t<textField>\n").append(reportElement(45, 121, 102, 15))
-                    .append("\t\t\t\t<textElement textAlignment=\"Right\">")
-                    .append("<font size=\"9\" isBold=\"true\" pdfFontName=\"Helvetica-Bold\"/></textElement>\n")
-                    .append("\t\t\t\t<textFieldExpression><![CDATA[\"FACTURE N° \" + $F{str_CODE_FACTURE}]]>")
-                    .append("</textFieldExpression>\n\t\t\t</textField>\n");
-            b.append(texteParametre("P_H_CLT_INFOS", 156, 121, 198, 15, "Left", 9, true, null));
+            b.append(texteEntete("$P{P_TIERS_PAYANT_NAME}", 310, 72, 275, 15, "Right", "10", true, MARINE));
+            b.append(texteEntete("$P{P_CODE_POSTALE}", 310, 87, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
+            b.append(texteEntete("$P{P_COMPTE_CONTRIBUABLE}", 310, 99, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
+            b.append(texteEntete("$P{P_CODE_OFFICINE}", 310, 111, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
+            b.append(texteEntete("$P{P_REGISTRE_COMMERCE}", 310, 123, 275, 12, "Right", "7.5", false, ENCRE_DOUCE));
         }
+
         // Bandeau des colonnes : fond bleu marine, libelles blancs, et cadre a droite au-dessus
         // d'une colonne de montants - la presentation du modele 0202.
         for (int i = 0; i < colonnes.size(); i++) {
@@ -488,6 +501,36 @@ public final class JrxmlFactureBuilder {
         return b.toString();
     }
 
+    /**
+     * Un libelle de l'en-tete : couleur, taille et alignement libres.
+     *
+     * <p>
+     * La taille est passee en texte parce que le modele 0202 utilise des demi-points ({@code 7.5}), que JasperReports
+     * accepte mais qu'un entier ne saurait pas porter.
+     * </p>
+     */
+    private static String texteEntete(String expression, int x, int y, int largeur, int hauteur, String alignement,
+            String taille, boolean gras, String couleur) {
+        return texteEntete(expression, x, y, largeur, hauteur, alignement, taille, gras, couleur, 0);
+    }
+
+    /** Meme libelle, decale de la marge interieure demandee - le texte pose dans le cartouche respire. */
+    private static String texteEntete(String expression, int x, int y, int largeur, int hauteur, String alignement,
+            String taille, boolean gras, String couleur, int margeGauche) {
+        StringBuilder b = new StringBuilder();
+        b.append("\t\t\t<textField isBlankWhenNull=\"true\">\n")
+                .append(reportElementCouleur(x, y, largeur, hauteur, couleur));
+        if (margeGauche > 0) {
+            b.append("\t\t\t\t<box leftPadding=\"").append(margeGauche).append("\"><pen lineWidth=\"0.0\"/></box>\n");
+        }
+        b.append("\t\t\t\t<textElement textAlignment=\"").append(alignement)
+                .append("\" verticalAlignment=\"Middle\"><font fontName=\"SansSerif\" size=\"").append(taille)
+                .append("\" isBold=\"").append(gras).append("\"/></textElement>\n")
+                .append("\t\t\t\t<textFieldExpression><![CDATA[").append(expression)
+                .append("]]></textFieldExpression>\n\t\t\t</textField>\n");
+        return b.toString();
+    }
+
     /** Filet de separation, du meme bleu marine que le bandeau des colonnes. */
     private static String filetSeparation(int x, int y, int largeur) {
         return "\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"" + x + "\" y=\"" + y + "\" width=\""
@@ -504,6 +547,12 @@ public final class JrxmlFactureBuilder {
                 + y + "\" width=\"" + largeur + "\" height=\"" + hauteur + "\" uuid=\"" + uuid() + "\"/>\n";
     }
 
+    /** Le meme element, avec la couleur du texte. */
+    private static String reportElementCouleur(int x, int y, int largeur, int hauteur, String couleur) {
+        return "\t\t\t\t<reportElement x=\"" + x + "\" y=\"" + y + "\" width=\"" + largeur + "\" height=\"" + hauteur
+                + "\" forecolor=\"" + couleur + "\" uuid=\"" + uuid() + "\"/>\n";
+    }
+
     /*
      * Presentation reprise du modele rp_facture_0202 retravaille pour l'officine : bandeau de colonnes bleu marine a
      * texte blanc, lignes alternees sur fond bleu tres pale, filet fin sous chaque ligne plutot qu'un quadrillage
@@ -514,6 +563,15 @@ public final class JrxmlFactureBuilder {
     private static final String ZEBRE = "#F2F6FA";
     private static final String FILET = "#D6DEE8";
     private static final String FOND_TOTAL = "#DDE6F0";
+
+    /** Le vert-bleu du filet vertical qui borde le cartouche de la facture, dans le modele 0202. */
+    private static final String SARCELLE = "#48A9A6";
+
+    /** Le bleu tres pale du fond du cartouche de la facture. */
+    private static final String FOND_CARTOUCHE = "#EDF2F8";
+
+    /** Le gris-bleu des mentions secondaires de l'en-tete. */
+    private static final String ENCRE_DOUCE = "#5A6B7D";
 
     /** Nom du style du bandeau des colonnes. */
     private static final String STYLE_ENTETE_COLONNE = "EnteteColonne";

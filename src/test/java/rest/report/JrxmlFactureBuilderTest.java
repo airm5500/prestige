@@ -373,6 +373,40 @@ class JrxmlFactureBuilderTest {
     }
 
     @Test
+    @DisplayName("L'en-tete est celui du modele 0202 : cartouche bleu pale a filet vert-bleu")
+    void enteteDuModele0202() {
+        String xml = JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET", "DATE_BON", "MONTANT_BRUT"),
+                true, true);
+
+        // Le rectangle qui porte « FACTURE N° ... / PERIODE DU ... » : fond bleu tres pale,
+        // borde a gauche d'un filet vert-bleu de 3 points. C'est ce bloc que l'officine reconnait.
+        assertTrue(xml.contains("backcolor=\"#EDF2F8\""), "le cartouche de la facture doit etre sur fond bleu pale");
+        assertTrue(xml.contains("<leftPen lineWidth=\"3.0\" lineColor=\"#48A9A6\"/>"),
+                "le cartouche doit porter son filet vert-bleu a gauche");
+        // Le numero de facture dans le cartouche, en marine gras, decale de la marge interieure.
+        assertTrue(xml.contains("$P{P_CODE_FACTURE}"), "le numero de facture doit figurer dans l'en-tete");
+        assertTrue(xml.contains("<box leftPadding=\"10\">"), "le texte du cartouche doit respirer de sa bordure");
+        // La periode juste dessous, dans le meme cartouche.
+        assertTrue(xml.contains("$P{P_H_CLT_INFOS}"), "la periode doit figurer sous le numero de facture");
+        // Le destinataire cadre a droite : date, nom du tiers payant, puis ses coordonnees.
+        for (String parametre : new String[] { "$F{DATEFACTURE}", "$P{P_TIERS_PAYANT_NAME}", "$P{P_CODE_POSTALE}",
+                "$P{P_COMPTE_CONTRIBUABLE}", "$P{P_CODE_OFFICINE}", "$P{P_REGISTRE_COMMERCE}" }) {
+            assertTrue(xml.contains(parametre), parametre + " doit figurer dans le bloc de droite");
+        }
+        assertTrue(xml.contains("textAlignment=\"Right\""), "le bloc du destinataire doit etre cadre a droite");
+        // Les mentions secondaires dans le gris-bleu du modele, pas en noir.
+        assertTrue(xml.contains("forecolor=\"#5A6B7D\""), "les mentions secondaires doivent etre en gris-bleu");
+    }
+
+    @Test
+    @DisplayName("Sans en-tete demande, aucun element de l'en-tete n'est genere")
+    void sansEntete() {
+        String xml = JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT"), false, true);
+        assertFalse(xml.contains("backcolor=\"#EDF2F8\""), "le cartouche ne doit pas sortir quand l'en-tete est ote");
+        assertFalse(xml.contains("$P{P_TIERS_PAYANT_NAME}"), "le destinataire ne doit pas sortir non plus");
+    }
+
+    @Test
     @DisplayName("Le tri du modele pilote l'ordre de la requete")
     void triDansLaRequete() {
         assertTrue(JrxmlFactureBuilder.construire(modele("DATE_BON", "NOM_COMPLET"), true, true)
