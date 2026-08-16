@@ -986,7 +986,7 @@ public class ModelFactureDynamiqueRessource {
             return modele.getModeTri();
         }
         String triTp = tiersPayant != null ? tiersPayant.getStrMODETRIFACTURE() : null;
-        return "DATE_BON".equalsIgnoreCase(StringUtils.trimToEmpty(triTp)) ? ModelFactureDynamique.TRI_DATE_BON
+        return rest.report.TriFacture.parDateDeBon(triTp) == 1 ? ModelFactureDynamique.TRI_DATE_BON
                 : ModelFactureDynamique.TRI_ALPHABETIQUE;
     }
 
@@ -999,8 +999,11 @@ public class ModelFactureDynamiqueRessource {
 
     private static String nomCompletNormalise(LigneFacture l) {
         TPreenregistrement pre = l.dossier.getLgPREENREGISTREMENTID();
-        String nom = (StringUtils.defaultString(pre.getStrFIRSTNAMECUSTOMER()) + " "
-                + StringUtils.defaultString(pre.getStrLASTNAMECUSTOMER())).trim();
+        // NOM puis PRENOM, comme l'ORDER BY de l'etat genere. L'apercu du createur de modeles
+        // classait par prenom : le meme modele donnait donc deux ordres differents selon qu'on
+        // regardait l'apercu ou la facture reellement editee.
+        String nom = (StringUtils.defaultString(pre.getStrLASTNAMECUSTOMER()) + " "
+                + StringUtils.defaultString(pre.getStrFIRSTNAMECUSTOMER())).trim();
         return Normalizer.normalize(nom, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase();
     }
 
