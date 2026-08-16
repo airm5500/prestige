@@ -222,6 +222,41 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
             proxy: {type: 'memory'}
         });
 
+        // Hauteur d'une grille de selection pour qu'elle montre TOUTES ses lignes sans ascenseur.
+        // Les colonnes proposees sont connues et peu nombreuses : il n'y a aucune raison de les
+        // couper. Les hauteurs fixes d'avant (380 et 200) laissaient les dernieres lignes hors
+        // de vue, et il fallait agrandir la fenetre a la main pour les atteindre.
+        var HAUTEUR_LIGNE_GRILLE = 22;
+        var HAUTEUR_ENTETES_GRILLE = 58;
+        var hauteurGrille = function (nombreDeLignes) {
+            return HAUTEUR_ENTETES_GRILLE + Math.max(nombreDeLignes, 1) * HAUTEUR_LIGNE_GRILLE;
+        };
+
+        // Ajuste les deux grilles a leur contenu, puis la fenetre a ce qu'elle doit montrer,
+        // sans jamais depasser l'ecran.
+        var ajusterHauteurs = function (fenetre) {
+            if (!fenetre || fenetre.isDestroyed) {
+                return;
+            }
+            var grilleBon = fenetre.down('#mfdColonnes');
+            var grilleProduit = fenetre.down('#mfdColonnesProduit');
+            if (!grilleBon) {
+                return;
+            }
+            var hauteurBon = hauteurGrille(colonnesStore.getCount());
+            var hauteurProduit = hauteurGrille(produitsStore.getCount());
+            grilleBon.setHeight(hauteurBon);
+            if (grilleProduit) {
+                grilleProduit.setHeight(hauteurProduit);
+            }
+            var visibleProduit = grilleProduit && !grilleProduit.isHidden();
+            // Le haut du formulaire (nom, description, tri, options, police, bons par page)
+            var HAUTEUR_FORMULAIRE = 300;
+            var souhaitee = HAUTEUR_FORMULAIRE + hauteurBon + (visibleProduit ? hauteurProduit + 10 : 0);
+            fenetre.setHeight(Math.min(souhaitee, Ext.Element.getViewportHeight() - 40));
+            fenetre.center();
+        };
+
         // Construit les lignes d'un selecteur : colonnes disponibles renvoyees par le serveur,
         // pre-cochees et ordonnees selon le modele en cours de modification.
         var construireLignes = function (disponibles, choisiesDuModele) {
@@ -255,6 +290,7 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                 var object = Ext.JSON.decode(response.responseText, false);
                 colonnesStore.loadData(construireLignes(object.data, rec ? rec.get('colonnes') : null));
                 produitsStore.loadData(construireLignes(object.produit, rec ? rec.get('colonnesProduit') : null));
+                ajusterHauteurs(win);
             }
         });
 
@@ -293,8 +329,18 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                         dataIndex: 'inclure',
                         width: 70,
                         listeners: {
+                            // La colonne « Position » se recalcule pour TOUTES les lignes des qu'on
+                            // en coche une : il faut donc repeindre la grille. Repeindre la ramene
+                            // en haut de liste, et la ligne qu'on vient de cocher semble sauter.
+                            // On remet donc l'ascenseur ou il etait.
                             checkchange: function (col) {
-                                col.up('gridpanel').getView().refresh();
+                                var vue = col.up('gridpanel').getView();
+                                var element = vue.getEl();
+                                var position = element ? element.getScroll().top : 0;
+                                vue.refresh();
+                                if (element) {
+                                    element.scrollTo('top', position);
+                                }
                             }
                         }
                     },
@@ -462,9 +508,9 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                             checked: rec ? rec.get('detaillerProduits') === true : false,
                             listeners: {
                                 change: function (cmp, valeur) {
-                                    var grille = cmp.up('form').down('#mfdColonnesProduit');
-                                    grille.setVisible(valeur);
-                                    cmp.up('form').down('#mfdColonnes').setHeight(valeur ? 200 : 380);
+                                    var fenetre = cmp.up('window');
+                                    fenetre.down('#mfdColonnesProduit').setVisible(valeur);
+                                    ajusterHauteurs(fenetre);
                                 }
                             }
                         },
@@ -473,7 +519,8 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                                     + 'l\'ordre des colonnes',
                             itemId: 'mfdColonnes',
                             store: colonnesStore,
-                            height: (rec && rec.get('detaillerProduits')) ? 200 : 380
+                            // recalculee des que les colonnes disponibles sont arrivees
+                            height: 380
                         }),
                         selecteurColonnes({
                             titre: 'Colonnes des PRODUITS affich&eacute;s sous chaque bon',

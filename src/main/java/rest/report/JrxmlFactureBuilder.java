@@ -179,10 +179,7 @@ public final class JrxmlFactureBuilder {
         // la ligne du bon, comme avant : c'est ce qui les distingue au premier coup d'oeil.
         int taille = modele.taillePoliceEffective();
         int tailleProduit = Math.max(ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taille - 1);
-        xml.append(styleTaille(STYLE_LIGNE_BON, taille));
-        if (avecProduits) {
-            xml.append(styleTaille(STYLE_LIGNE_PRODUIT, tailleProduit));
-        }
+        xml.append(stylesCommuns(taille, avecProduits ? Integer.valueOf(tailleProduit) : null));
 
         for (String p : new String[] { "P_H_INSTITUTION", "P_AUTRE_DESC", "P_INSTITUTION_ADRESSE", "P_H_LOGO",
                 "P_H_CLT_INFOS", "P_PRINTED_BY", "P_LG_FACTURE_ID", "P_LG_TIERS_PAYANT_ID", "P_CODE_COMPTABLE",
@@ -317,7 +314,7 @@ public final class JrxmlFactureBuilder {
             b.append(texteParametre("P_H_INSTITUTION", 46, 6, 493, 31, "Center", 20, true, "Century Gothic"));
             b.append(texteParametre("P_AUTRE_DESC", 46, 36, 493, 17, "Center", 8, true, null));
             // filet gris de separation
-            b.append(filetGris(2, 53, 582));
+            b.append(filetSeparation(2, 53, 582));
             // date de la facture, a droite
             b.append("\t\t\t<textField pattern=\"EEEEE dd MMMMM yyyy\">\n").append(reportElement(420, 58, 160, 15))
                     .append("\t\t\t\t<textElement textAlignment=\"Left\"><font size=\"8\"/></textElement>\n")
@@ -337,15 +334,14 @@ public final class JrxmlFactureBuilder {
                     .append("</textFieldExpression>\n\t\t\t</textField>\n");
             b.append(texteParametre("P_H_CLT_INFOS", 156, 121, 198, 15, "Left", 9, true, null));
         }
-        // bandeau des colonnes, sur fond gris
+        // Bandeau des colonnes : fond bleu marine, libelles blancs, et cadre a droite au-dessus
+        // d'une colonne de montants - la presentation du modele 0202.
         for (int i = 0; i < colonnes.size(); i++) {
-            b.append("\t\t\t<staticText>\n").append("\t\t\t\t<reportElement mode=\"Opaque\" x=\"").append(positions[i])
-                    .append("\" y=\"").append(decalage).append("\" width=\"").append(largeurs[i]).append("\" height=\"")
-                    .append(HAUTEUR_ENTETE_COLONNES).append("\" backcolor=\"#CCCCCC\" uuid=\"").append(uuid())
-                    .append("\"/>\n").append(encadrement("0.25"))
-                    .append("\t\t\t\t<textElement textAlignment=\"Center\" verticalAlignment=\"Middle\">")
-                    .append("<font size=\"7\" isBold=\"true\" pdfFontName=\"Helvetica-Bold\" pdfEncoding=\"Cp1250\"")
-                    .append(" isPdfEmbedded=\"true\"/></textElement>\n").append("\t\t\t\t<text><![CDATA[")
+            boolean montant = CHAMPS.get(colonnes.get(i).getChamp()).numerique;
+            b.append("\t\t\t<staticText>\n")
+                    .append(reportElement(positions[i], decalage, largeurs[i], HAUTEUR_ENTETE_COLONNES,
+                            montant ? STYLE_ENTETE_MONTANT : STYLE_ENTETE_COLONNE))
+                    .append("\t\t\t\t<text><![CDATA[")
                     .append(echapper(StringUtils.upperCase(colonnes.get(i).getLibelle()))).append("]]></text>\n")
                     .append("\t\t\t</staticText>\n");
         }
@@ -375,11 +371,9 @@ public final class JrxmlFactureBuilder {
                 b.append(" pattern=\"").append(def.pattern).append("\"");
             }
             b.append(">\n").append(reportElement(positions[i], y, largeurs[i], hauteur, style))
-                    .append(encadrement("0.25")).append("\t\t\t\t<textElement textAlignment=\"").append(def.alignement)
-                    .append("\" verticalAlignment=\"Middle\">")
-                    .append("<paragraph leftIndent=\"3\" rightIndent=\"1\"/></textElement>\n")
-                    .append("\t\t\t\t<textFieldExpression><![CDATA[").append(def.expression)
-                    .append("]]></textFieldExpression>\n\t\t\t</textField>\n");
+                    .append("\t\t\t\t<textElement textAlignment=\"").append(def.alignement)
+                    .append("\" verticalAlignment=\"Middle\"/>\n").append("\t\t\t\t<textFieldExpression><![CDATA[")
+                    .append(def.expression).append("]]></textFieldExpression>\n\t\t\t</textField>\n");
         }
         return b.toString();
     }
@@ -397,9 +391,8 @@ public final class JrxmlFactureBuilder {
         for (int i = 0; i < colonnesProduit.size(); i++) {
             b.append("\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"").append(positionsProduit[i])
                     .append("\" y=\"").append(HAUTEUR_LIGNE).append("\" width=\"").append(largeursProduit[i])
-                    .append("\" height=\"").append(HAUTEUR_ENTETE_PRODUIT).append("\" backcolor=\"#EEEEEE\" uuid=\"")
-                    .append(uuid()).append("\"/>\n").append(encadrement("0.25"))
-                    .append("\t\t\t\t<textElement textAlignment=\"")
+                    .append("\" height=\"").append(HAUTEUR_ENTETE_PRODUIT).append("\" backcolor=\"#F7F9FC\" uuid=\"")
+                    .append(uuid()).append("\"/>\n").append("\t\t\t\t<textElement textAlignment=\"")
                     .append(CHAMPS_PRODUIT.get(colonnesProduit.get(i).getChamp()).alignement)
                     .append("\" verticalAlignment=\"Middle\"><font size=\"6\" isItalic=\"true\"/></textElement>\n")
                     .append("\t\t\t\t<text><![CDATA[").append(echapper(colonnesProduit.get(i).getLibelle()))
@@ -415,7 +408,7 @@ public final class JrxmlFactureBuilder {
         }
         StringBuilder b = new StringBuilder();
         b.append("\t<pageFooter>\n\t\t<band height=\"40\">\n");
-        b.append(filetGris(0, 4, 584));
+        b.append(filetSeparation(0, 4, 584));
         b.append("\t\t\t<textField>\n").append(reportElement(229, 12, 80, 15))
                 .append("\t\t\t\t<textElement textAlignment=\"Right\"><font size=\"8\"/></textElement>\n")
                 .append("\t\t\t\t<textFieldExpression><![CDATA[\"Page \" + $V{PAGE_NUMBER} + \" sur\"]]>")
@@ -438,10 +431,8 @@ public final class JrxmlFactureBuilder {
             Champ def = CHAMPS.get(c.getChamp());
             if (def.numerique) {
                 b.append("\t\t\t<textField pattern=\"#,##0\" isBlankWhenNull=\"true\">\n")
-                        .append(reportElement(positions[i], 5, largeurs[i], HAUTEUR_LIGNE)).append(encadrement("0.5"))
-                        .append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\">")
-                        .append("<font size=\"8\" isBold=\"true\" pdfFontName=\"Helvetica-BoldOblique\"/>")
-                        .append("<paragraph rightIndent=\"1\"/></textElement>\n")
+                        .append(reportElement(positions[i], 5, largeurs[i], HAUTEUR_LIGNE, STYLE_TOTAL))
+                        .append("\t\t\t\t<textElement textAlignment=\"Right\" verticalAlignment=\"Middle\"/>\n")
                         .append("\t\t\t\t<textFieldExpression><![CDATA[$V{v_TOTAL_").append(c.getChamp())
                         .append("}]]></textFieldExpression>\n\t\t\t</textField>\n");
             } else if (!libelleTotalPose) {
@@ -450,10 +441,9 @@ public final class JrxmlFactureBuilder {
                 for (int j = i; j < colonnes.size() && !CHAMPS.get(colonnes.get(j).getChamp()).numerique; j++) {
                     largeur += largeurs[j];
                 }
-                b.append("\t\t\t<staticText>\n").append(reportElement(positions[i], 5, largeur, HAUTEUR_LIGNE))
-                        .append(encadrement("0.5")).append("\t\t\t\t<textElement verticalAlignment=\"Middle\">")
-                        .append("<font size=\"8\" isBold=\"true\" pdfFontName=\"Helvetica-BoldOblique\"/>")
-                        .append("<paragraph leftIndent=\"3\"/></textElement>\n")
+                b.append("\t\t\t<staticText>\n")
+                        .append(reportElement(positions[i], 5, largeur, HAUTEUR_LIGNE, STYLE_TOTAL))
+                        .append("\t\t\t\t<textElement verticalAlignment=\"Middle\"/>\n")
                         .append("\t\t\t\t<text><![CDATA[TOTAUX]]></text>\n\t\t\t</staticText>\n");
                 libelleTotalPose = true;
             }
@@ -498,9 +488,10 @@ public final class JrxmlFactureBuilder {
         return b.toString();
     }
 
-    private static String filetGris(int x, int y, int largeur) {
+    /** Filet de separation, du meme bleu marine que le bandeau des colonnes. */
+    private static String filetSeparation(int x, int y, int largeur) {
         return "\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"" + x + "\" y=\"" + y + "\" width=\""
-                + largeur + "\" height=\"2\" backcolor=\"#CCCCCC\" uuid=\"" + uuid() + "\"/>\n"
+                + largeur + "\" height=\"2\" backcolor=\"" + MARINE + "\" uuid=\"" + uuid() + "\"/>\n"
                 + "\t\t\t\t<text><![CDATA[]]></text>\n\t\t\t</staticText>\n";
     }
 
@@ -513,18 +504,71 @@ public final class JrxmlFactureBuilder {
                 + y + "\" width=\"" + largeur + "\" height=\"" + hauteur + "\" uuid=\"" + uuid() + "\"/>\n";
     }
 
+    /*
+     * Presentation reprise du modele rp_facture_0202 retravaille pour l'officine : bandeau de colonnes bleu marine a
+     * texte blanc, lignes alternees sur fond bleu tres pale, filet fin sous chaque ligne plutot qu'un quadrillage
+     * complet, bloc de totaux sur fond bleu pale. Les couleurs sont celles du modele, a la valeur pres, pour que le PDF
+     * du createur et les etats livres se ressemblent vraiment.
+     */
+    private static final String MARINE = "#1E3A5F";
+    private static final String ZEBRE = "#F2F6FA";
+    private static final String FILET = "#D6DEE8";
+    private static final String FOND_TOTAL = "#DDE6F0";
+
+    /** Nom du style du bandeau des colonnes. */
+    private static final String STYLE_ENTETE_COLONNE = "EnteteColonne";
+
+    /** Meme bandeau, cadre a droite pour les colonnes de montant. */
+    private static final String STYLE_ENTETE_MONTANT = "EnteteColonneMontant";
+
+    /** Nom du style du bloc de totaux. */
+    private static final String STYLE_TOTAL = "TotalLigne";
+
+    /** Les styles communs a tous les modeles generes. */
+    private static String stylesCommuns(int tailleBon, Integer tailleProduit) {
+        StringBuilder b = new StringBuilder();
+        b.append("\t<style name=\"").append(STYLE_ENTETE_COLONNE).append("\" mode=\"Opaque\" backcolor=\"")
+                .append(MARINE).append("\" forecolor=\"#FFFFFF\" fontName=\"SansSerif\" fontSize=\"7\"")
+                .append(" isBold=\"true\" vAlign=\"Middle\" hAlign=\"Center\">\n")
+                .append("\t\t<box topPadding=\"0\" bottomPadding=\"0\" leftPadding=\"3\" rightPadding=\"3\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n\t\t</box>\n\t</style>\n");
+        b.append("\t<style name=\"").append(STYLE_ENTETE_MONTANT).append("\" style=\"").append(STYLE_ENTETE_COLONNE)
+                .append("\" hAlign=\"Right\">\n")
+                .append("\t\t<box topPadding=\"0\" bottomPadding=\"0\" leftPadding=\"3\" rightPadding=\"4\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n\t\t</box>\n\t</style>\n");
+        b.append(styleLigne(STYLE_LIGNE_BON, tailleBon, true));
+        if (tailleProduit != null) {
+            b.append(styleLigne(STYLE_LIGNE_PRODUIT, tailleProduit, false));
+        }
+        b.append("\t<style name=\"").append(STYLE_TOTAL).append("\" mode=\"Opaque\" backcolor=\"").append(FOND_TOTAL)
+                .append("\" forecolor=\"").append(MARINE)
+                .append("\" fontName=\"SansSerif\" fontSize=\"8\" isBold=\"true\" vAlign=\"Middle\">\n")
+                .append("\t\t<box topPadding=\"2\" bottomPadding=\"2\" leftPadding=\"3\" rightPadding=\"4\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n").append("\t\t\t<topPen lineWidth=\"0.6\" lineColor=\"")
+                .append(MARINE).append("\"/>\n").append("\t\t</box>\n\t</style>\n");
+        return b.toString();
+    }
+
     /**
-     * Un style dont la taille de police suit le reglage de la fiche du tiers payant.
+     * Style d'une ligne de donnees : filet fin dessous, une ligne sur deux teintee, et une taille de police qui suit le
+     * reglage de la fiche du tiers payant.
      *
      * JasperReports ne sait pas calculer une taille de police : {@code <font size>} n'accepte pas d'expression. On
-     * declare donc une variante par taille possible, et c'est le parametre qui designe celle qui s'applique. Quand
-     * aucune taille n'est demandee (parametre absent, valeur 0), aucune variante ne s'applique et le modele garde la
-     * taille choisie dans le createur.
+     * declare donc une variante par taille possible, et c'est le parametre qui designe celle qui s'applique. Sans
+     * taille demandee, aucune variante ne s'applique et le modele garde la taille choisie dans le createur.
      */
-    private static String styleTaille(String nom, int tailleModele) {
+    private static String styleLigne(String nom, int tailleModele, boolean zebre) {
         StringBuilder b = new StringBuilder();
-        b.append("\t<style name=\"").append(nom).append("\" fontName=\"SansSerif\" fontSize=\"").append(tailleModele)
-                .append("\">\n");
+        b.append("\t<style name=\"").append(nom).append("\" mode=\"Transparent\" fontName=\"SansSerif\"")
+                .append(" fontSize=\"").append(tailleModele).append("\" vAlign=\"Middle\">\n")
+                .append("\t\t<box topPadding=\"0\" bottomPadding=\"0\" leftPadding=\"3\" rightPadding=\"4\">\n")
+                .append("\t\t\t<pen lineWidth=\"0.0\"/>\n").append("\t\t\t<bottomPen lineWidth=\"0.25\" lineColor=\"")
+                .append(FILET).append("\"/>\n").append("\t\t</box>\n");
+        if (zebre) {
+            b.append("\t\t<conditionalStyle>\n\t\t\t<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]>")
+                    .append("</conditionExpression>\n\t\t\t<style mode=\"Opaque\" backcolor=\"").append(ZEBRE)
+                    .append("\"/>\n\t\t</conditionalStyle>\n");
+        }
         for (int taille = MiseEnPageFacture.TAILLE_POLICE_MINIMUM; taille <= MiseEnPageFacture.TAILLE_POLICE_MAXIMUM; taille++) {
             b.append("\t\t<conditionalStyle>\n\t\t\t<conditionExpression><![CDATA[$P{")
                     .append(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE).append("} != null && $P{")

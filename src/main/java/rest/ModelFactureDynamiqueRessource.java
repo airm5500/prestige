@@ -8,6 +8,7 @@ import com.itextpdf.text.PageSize;
 import com.itextpdf.text.Paragraph;
 import com.itextpdf.text.BaseColor;
 import com.itextpdf.text.Phrase;
+import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.ColumnText;
 import com.itextpdf.text.pdf.PdfContentByte;
 import com.itextpdf.text.pdf.PdfPCell;
@@ -592,6 +593,23 @@ public class ModelFactureDynamiqueRessource {
         TPreenregistrementCompteClientTiersPayent dossier;
     }
 
+    /*
+     * Palette du modele 0202, celle des etats retravailles pour l'officine. Le PDF produit par le createur de modeles
+     * doit se presenter comme eux : bandeau de colonnes bleu marine, lignes alternees, filet fin sous chaque ligne,
+     * bloc de totaux sur fond bleu pale. Les valeurs sont copiees telles quelles depuis rp_facture_0202.jrxml pour que
+     * les deux se ressemblent vraiment, et non « a peu pres ».
+     */
+    /** Bandeau des colonnes et filets structurants. */
+    private static final BaseColor MARINE = new BaseColor(30, 58, 95);
+    /** Fond d'une ligne sur deux. */
+    private static final BaseColor ZEBRE = new BaseColor(242, 246, 250);
+    /** Filet fin sous chaque ligne de donnees. */
+    private static final BaseColor FILET = new BaseColor(214, 222, 232);
+    /** Fond du bloc de totaux. */
+    private static final BaseColor FOND_TOTAL = new BaseColor(221, 230, 240);
+    /** Fond du sous-tableau des produits. */
+    private static final BaseColor FOND_PRODUIT = new BaseColor(247, 249, 252);
+
     private byte[] genererPdf(EntityManager em, TFacture facture, TTiersPayant tiersPayant,
             ModelFactureDynamique modele) throws Exception {
         List<TFactureDetail> details = em
@@ -620,11 +638,11 @@ public class ModelFactureDynamiqueRessource {
 
         // Polices calquees sur le modele de reference de l'officine (rp_facture) : titre en grand,
         // bandeau de colonnes en 7 gras, lignes en 8.
-        Font fontInstitution = FontFactory.getFont(FontFactory.HELVETICA_BOLDOBLIQUE, 18);
+        Font fontInstitution = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, MARINE);
         Font fontSousTitre = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
-        Font fontEnteteColonne = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7);
+        Font fontEnteteColonne = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7, BaseColor.WHITE);
         Font fontCellule = FontFactory.getFont(FontFactory.HELVETICA, 8);
-        Font fontTotal = FontFactory.getFont(FontFactory.HELVETICA_BOLDOBLIQUE, 8);
+        Font fontTotal = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8, MARINE);
         Font fontBloc = FontFactory.getFont(FontFactory.HELVETICA, 8);
         Font fontBlocGras = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 8);
         Font fontFacture = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9);
@@ -655,26 +673,42 @@ public class ModelFactureDynamiqueRessource {
         table.setHeaderRows(1);
         for (ModelFactureDynamiqueColonne c : colonnes) {
             PdfPCell cell = new PdfPCell(new Phrase(StringUtils.upperCase(c.getLibelle()), fontEnteteColonne));
-            cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            // Un libelle de montant est cadre a droite, comme la colonne qu'il coiffe : c'est ce
+            // qui fait qu'on lit une colonne de chiffres sans hesiter.
+            cell.setHorizontalAlignment(estNumerique(c.getChamp()) ? Element.ALIGN_RIGHT : Element.ALIGN_CENTER);
             cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-            cell.setBackgroundColor(gris);
-            cell.setBorderWidth(0.25f);
+            cell.setBackgroundColor(MARINE);
+            cell.setBorder(Rectangle.NO_BORDER);
             cell.setMinimumHeight(18f);
-            cell.setPadding(2f);
+            cell.setPaddingTop(3f);
+            cell.setPaddingBottom(3f);
+            cell.setPaddingLeft(3f);
+            cell.setPaddingRight(4f);
             table.addCell(cell);
         }
 
         Map<String, Long> totaux = new LinkedHashMap<>();
         int numero = 1;
         for (LigneFacture l : lignes) {
+            // Une ligne sur deux sur fond bleu tres pale : c'est ce qui permet de suivre une ligne
+            // du regard jusqu'au bout sur une facture large, sans quadriller toute la page.
+            boolean paire = numero % 2 == 0;
             for (ModelFactureDynamiqueColonne c : colonnes) {
                 String champ = c.getChamp();
                 PdfPCell cell = new PdfPCell(new Phrase(valeurChamp(champ, l, numero), fontCellule));
                 cell.setHorizontalAlignment(alignement(champ));
                 cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
-                cell.setBorderWidth(0.25f);
+                cell.setBorder(Rectangle.BOTTOM);
+                cell.setBorderColorBottom(FILET);
+                cell.setBorderWidthBottom(0.25f);
+                if (paire) {
+                    cell.setBackgroundColor(ZEBRE);
+                }
                 cell.setMinimumHeight(14f);
-                cell.setPadding(2f);
+                cell.setPaddingTop(2f);
+                cell.setPaddingBottom(2f);
+                cell.setPaddingLeft(3f);
+                cell.setPaddingRight(4f);
                 if (estNumerique(champ)) {
                     totaux.merge(champ, valeurNumerique(champ, l), Long::sum);
                 }
@@ -687,7 +721,9 @@ public class ModelFactureDynamiqueRessource {
                 if (sousTable != null) {
                     PdfPCell porteur = new PdfPCell(sousTable);
                     porteur.setColspan(colonnes.size());
-                    porteur.setBorderWidth(0.25f);
+                    porteur.setBorder(Rectangle.BOTTOM);
+                    porteur.setBorderColorBottom(FILET);
+                    porteur.setBorderWidthBottom(0.25f);
                     porteur.setPaddingLeft(14f);
                     porteur.setPaddingTop(1f);
                     porteur.setPaddingBottom(3f);
@@ -712,8 +748,7 @@ public class ModelFactureDynamiqueRessource {
                     PdfPCell cell = new PdfPCell(new Phrase(
                             conversion.AmountFormat(totaux.getOrDefault(c.getChamp(), 0L).intValue()), fontTotal));
                     cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-                    cell.setBorderWidth(0.5f);
-                    cell.setPadding(3f);
+                    habillerTotal(cell);
                     totalTable.addCell(cell);
                     i++;
                 } else {
@@ -723,8 +758,7 @@ public class ModelFactureDynamiqueRessource {
                     }
                     PdfPCell cell = new PdfPCell(new Phrase(libellePose ? "" : "TOTAUX", fontTotal));
                     cell.setColspan(fusion);
-                    cell.setBorderWidth(0.5f);
-                    cell.setPadding(3f);
+                    habillerTotal(cell);
                     totalTable.addCell(cell);
                     libellePose = true;
                     i += fusion;
@@ -782,13 +816,20 @@ public class ModelFactureDynamiqueRessource {
         }
         PdfPTable sousTable = new PdfPTable(largeurs);
         sousTable.setWidthPercentage(100);
-        Font fontEnteteProduit = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 6.5f);
+        // Le sous-tableau des produits reste discret : c'est le detail d'un bon, pas un second
+        // tableau principal. Fond tres pale, libelles en italique, aucun cadre.
+        Font fontEnteteProduit = FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 6.5f, MARINE);
         for (ModelFactureDynamiqueColonne c : colonnesProduit) {
             PdfPCell cell = new PdfPCell(new Phrase(c.getLibelle(), fontEnteteProduit));
             cell.setHorizontalAlignment(alignementProduit(c.getChamp()));
-            cell.setBackgroundColor(gris);
-            cell.setBorderWidth(0.25f);
-            cell.setPadding(1.5f);
+            cell.setBackgroundColor(FOND_PRODUIT);
+            cell.setBorder(Rectangle.BOTTOM);
+            cell.setBorderColorBottom(FILET);
+            cell.setBorderWidthBottom(0.25f);
+            cell.setPaddingTop(1.5f);
+            cell.setPaddingBottom(1.5f);
+            cell.setPaddingLeft(3f);
+            cell.setPaddingRight(4f);
             sousTable.addCell(cell);
         }
         Font fontProduit = FontFactory.getFont(FontFactory.HELVETICA, 7);
@@ -796,8 +837,11 @@ public class ModelFactureDynamiqueRessource {
             for (ModelFactureDynamiqueColonne c : colonnesProduit) {
                 PdfPCell cell = new PdfPCell(new Phrase(valeurChampProduit(c.getChamp(), d), fontProduit));
                 cell.setHorizontalAlignment(alignementProduit(c.getChamp()));
-                cell.setBorderWidth(0.25f);
-                cell.setPadding(1.5f);
+                cell.setBorder(Rectangle.NO_BORDER);
+                cell.setPaddingTop(1.5f);
+                cell.setPaddingBottom(1.5f);
+                cell.setPaddingLeft(3f);
+                cell.setPaddingRight(4f);
                 sousTable.addCell(cell);
             }
         }
@@ -854,6 +898,18 @@ public class ModelFactureDynamiqueRessource {
      * Bloc d'en-tete du modele de reference : nom de l'officine centre, sous-titre, filet gris, puis sur une meme ligne
      * le numero de facture et la periode a gauche, l'identification du tiers payant a droite.
      */
+    /** Bloc de totaux : fond bleu pale et filet marine au-dessus, comme le bandeau de total du 0202. */
+    private static void habillerTotal(PdfPCell cellule) {
+        cellule.setBackgroundColor(FOND_TOTAL);
+        cellule.setBorder(Rectangle.TOP);
+        cellule.setBorderColorTop(MARINE);
+        cellule.setBorderWidthTop(0.6f);
+        cellule.setPaddingTop(4f);
+        cellule.setPaddingBottom(4f);
+        cellule.setPaddingLeft(3f);
+        cellule.setPaddingRight(4f);
+    }
+
     private void ajouterEntete(Document document, TFacture facture, TTiersPayant tiersPayant, TOfficine officine,
             Font fontInstitution, Font fontSousTitre, Font fontBloc, Font fontBlocGras, Font fontFacture,
             BaseColor gris) throws Exception {
@@ -876,7 +932,7 @@ public class ModelFactureDynamiqueRessource {
         PdfPCell celluleFilet = new PdfPCell(new Phrase(" ", fontBloc));
         celluleFilet.setFixedHeight(2f);
         celluleFilet.setBorder(0);
-        celluleFilet.setBackgroundColor(gris);
+        celluleFilet.setBackgroundColor(MARINE);
         filet.addCell(celluleFilet);
         filet.setSpacingBefore(4f);
         filet.setSpacingAfter(6f);

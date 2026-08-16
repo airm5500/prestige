@@ -281,9 +281,10 @@ class JrxmlFactureBuilderTest {
 
         String xml = JrxmlFactureBuilder.construire(m, true, true);
 
-        assertTrue(xml.contains("<style name=\"LigneBon\" fontName=\"SansSerif\" fontSize=\"9\">"),
+        assertTrue(xml.contains("<style name=\"LigneBon\" mode=\"Transparent\" fontName=\"SansSerif\" fontSize=\"9\""),
                 "la ligne du bon prend la taille demandee");
-        assertTrue(xml.contains("<style name=\"LigneProduit\" fontName=\"SansSerif\" fontSize=\"8\">"),
+        assertTrue(
+                xml.contains("<style name=\"LigneProduit\" mode=\"Transparent\" fontName=\"SansSerif\" fontSize=\"8\""),
                 "les lignes de produit restent un point en dessous");
     }
 
@@ -345,6 +346,30 @@ class JrxmlFactureBuilderTest {
         List<Integer> parPage = bonsParPage(m, 12, 3, new HashMap<>());
 
         assertEquals(Arrays.asList(5, 5, 2), parPage, "5 bons entiers par page, produits compris");
+    }
+
+    @Test
+    @DisplayName("Le modele genere reprend la presentation des etats livres a l'officine (0202)")
+    void memePresentationQueLesEtatsLivres() {
+        String xml = JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET", "DATE_BON", "MONTANT_BRUT"),
+                true, true);
+
+        // Bandeau des colonnes : fond bleu marine, libelles blancs.
+        assertTrue(xml.contains("backcolor=\"#1E3A5F\"") && xml.contains("forecolor=\"#FFFFFF\""),
+                "le bandeau des colonnes doit etre bleu marine a texte blanc");
+        // Un libelle de montant est cadre a droite, au-dessus de sa colonne de chiffres.
+        assertTrue(xml.contains("style=\"EnteteColonneMontant\""),
+                "la colonne de montant doit porter son libelle a droite");
+        // Lignes : une sur deux teintee, filet fin dessous, et non un quadrillage complet.
+        assertTrue(xml.contains("backcolor=\"#F2F6FA\"") && xml.contains("$V{REPORT_COUNT} % 2 == 0"),
+                "une ligne sur deux doit etre teintee");
+        assertTrue(xml.contains("<bottomPen lineWidth=\"0.25\" lineColor=\"#D6DEE8\"/>"),
+                "chaque ligne doit se terminer par un filet fin");
+        // Bloc de totaux : fond bleu pale, filet marine au-dessus.
+        assertTrue(xml.contains("backcolor=\"#DDE6F0\""), "le bloc de totaux doit etre sur fond bleu pale");
+        assertTrue(xml.contains("style=\"TotalLigne\""), "le bloc de totaux doit porter son style");
+        // Le gris de l'ancienne presentation ne doit plus apparaitre nulle part.
+        assertFalse(xml.contains("#CCCCCC"), "l'ancien bandeau gris ne doit plus etre genere");
     }
 
     @Test
