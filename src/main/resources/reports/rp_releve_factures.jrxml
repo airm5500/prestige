@@ -59,6 +59,14 @@
 			<style forecolor="#A62B1F" isBold="true"/>
 		</conditionalStyle>
 	</style>
+	<!-- "Non reglee" est une absence d'information, pas une valeur : elle reste discrete
+	     pour ne pas concurrencer les chiffres du regard. -->
+	<style name="CelluleNonReglee" style="Cellule">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$F{dtUPDATED} == null || $F{dtUPDATED}.trim().isEmpty()]]></conditionExpression>
+			<style forecolor="#9AA7B4" isItalic="true"/>
+		</conditionalStyle>
+	</style>
 	<style name="Organisme" mode="Opaque" backcolor="#FFFFFF" fontName="SansSerif" fontSize="9" isBold="true" forecolor="#1E3A5F" vAlign="Middle">
 		<box topPadding="1" bottomPadding="1" leftPadding="6" rightPadding="4">
 			<pen lineWidth="0.0"/>
@@ -83,6 +91,10 @@
 		<field name="dtUPDATED" class="java.lang.String"/>
 		<field name="heure" class="java.lang.String"/>
 		<field name="strFULLNAME" class="java.lang.String"/>
+		<!-- Periode facturee : deja fournie par l'application (FactureDTO), elle n'etait
+		     simplement pas imprimee. -->
+		<field name="dtDEBUTFACTURE" class="java.lang.String"/>
+		<field name="dtFINFACTURE" class="java.lang.String"/>
 	</subDataset>
 
 	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
@@ -173,7 +185,7 @@
 					<text><![CDATA[]]></text>
 				</staticText>
 				<textField isBlankWhenNull="true">
-					<reportElement x="0" y="3" width="168" height="20" forecolor="#12564F" uuid="c2000001-0000-0000-0000-000000000011"/>
+					<reportElement x="0" y="3" width="236" height="20" forecolor="#12564F" uuid="c2000001-0000-0000-0000-000000000011"/>
 					<box leftPadding="8" rightPadding="2"/>
 					<!-- 7,5 pt : la place disponible avant la premiere colonne de montants est de
 					     158 px. Un libelle de type long ("ORGANISMES SOCIAUX ET PARAPUBLICS")
@@ -184,7 +196,7 @@
 					<textFieldExpression><![CDATA["TOTAL " + ($F{typeTiersPayantLibelle} != null ? $F{typeTiersPayantLibelle}.toUpperCase() : "")]]></textFieldExpression>
 				</textField>
 				<textField pattern="#,##0" isBlankWhenNull="true">
-					<reportElement x="168" y="3" width="86" height="20" forecolor="#1E3A5F" uuid="c2000001-0000-0000-0000-000000000012"/>
+					<reportElement x="236" y="3" width="80" height="20" forecolor="#1E3A5F" uuid="c2000001-0000-0000-0000-000000000012"/>
 					<box rightPadding="4"/>
 					<textElement textAlignment="Right" verticalAlignment="Middle">
 						<font fontName="SansSerif" size="8.5" isBold="true"/>
@@ -192,7 +204,7 @@
 					<textFieldExpression><![CDATA[$V{TOTAL_TYPE_FACTURE}]]></textFieldExpression>
 				</textField>
 				<textField pattern="#,##0" isBlankWhenNull="true">
-					<reportElement x="254" y="3" width="86" height="20" forecolor="#1B6B3A" uuid="c2000001-0000-0000-0000-000000000013"/>
+					<reportElement x="316" y="3" width="80" height="20" forecolor="#1B6B3A" uuid="c2000001-0000-0000-0000-000000000013"/>
 					<box rightPadding="4"/>
 					<textElement textAlignment="Right" verticalAlignment="Middle">
 						<font fontName="SansSerif" size="8.5" isBold="true"/>
@@ -202,14 +214,14 @@
 				<!-- l'emplacement de la colonne "date de reglement" n'a pas de total :
 				     il sert a rappeler sur combien d'organismes porte la ligne -->
 				<textField isBlankWhenNull="true">
-					<reportElement x="340" y="3" width="122" height="20" forecolor="#4A6B68" uuid="c2000001-0000-0000-0000-000000000014"/>
+					<reportElement x="396" y="3" width="88" height="20" forecolor="#4A6B68" uuid="c2000001-0000-0000-0000-000000000014"/>
 					<textElement textAlignment="Center" verticalAlignment="Middle">
 						<font fontName="SansSerif" size="7" isItalic="true"/>
 					</textElement>
 					<textFieldExpression><![CDATA[$V{NB_ORGANISME_TYPE} + ($V{NB_ORGANISME_TYPE}.intValue() > 1 ? " organismes" : " organisme")]]></textFieldExpression>
 				</textField>
 				<textField pattern="#,##0" isBlankWhenNull="true">
-					<reportElement x="462" y="3" width="93" height="20" forecolor="#A62B1F" uuid="c2000001-0000-0000-0000-000000000015"/>
+					<reportElement x="484" y="3" width="71" height="20" forecolor="#A62B1F" uuid="c2000001-0000-0000-0000-000000000015"/>
 					<box rightPadding="4"/>
 					<textElement textAlignment="Right" verticalAlignment="Middle">
 						<font fontName="SansSerif" size="8.5" isBold="true"/>
@@ -307,10 +319,10 @@
 						</jr:tableHeader>
 
 						<!-- N° facture -->
-						<jr:column width="62" uuid="484ba1a3-e2a5-4c63-9609-8c5531939dd2">
+						<jr:column width="60" uuid="484ba1a3-e2a5-4c63-9609-8c5531939dd2">
 							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
 								<staticText>
-									<reportElement x="0" y="0" width="62" height="17" uuid="bb0d9023-61b7-4168-94fe-8c11b696c22b"/>
+									<reportElement x="0" y="0" width="60" height="17" uuid="bb0d9023-61b7-4168-94fe-8c11b696c22b"/>
 									<box leftPadding="4"/>
 									<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<text><![CDATA[TOTAL]]></text>
@@ -318,13 +330,13 @@
 							</jr:tableFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonne" x="0" y="0" width="62" height="16" uuid="c1000001-0000-0000-0000-000000000001"/>
+									<reportElement style="EnteteColonne" x="0" y="0" width="60" height="16" uuid="c1000001-0000-0000-0000-000000000001"/>
 									<text><![CDATA[N° Facture]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField>
-									<reportElement style="Cellule" x="0" y="0" width="62" height="16" uuid="ba3a2183-cbf5-4550-9586-8ea83a63e273"/>
+									<reportElement style="Cellule" x="0" y="0" width="60" height="16" uuid="ba3a2183-cbf5-4550-9586-8ea83a63e273"/>
 									<textElement textAlignment="Center"/>
 									<textFieldExpression><![CDATA[$F{strCODEFACTURE}]]></textFieldExpression>
 								</textField>
@@ -332,28 +344,52 @@
 						</jr:column>
 
 						<!-- Date d'edition -->
-						<jr:column width="106" uuid="626d0382-aac0-4835-aef2-03dd77248a69">
+						<jr:column width="62" uuid="626d0382-aac0-4835-aef2-03dd77248a69">
 							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1"/>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonne" x="0" y="0" width="106" height="16" uuid="c1000001-0000-0000-0000-000000000002"/>
+									<reportElement style="EnteteColonne" x="0" y="0" width="62" height="16" uuid="c1000001-0000-0000-0000-000000000002"/>
 									<text><![CDATA[Date facture]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
-								<textField>
-									<reportElement style="Cellule" x="0" y="0" width="106" height="16" uuid="1a7b50e7-c0b3-4933-8652-921feb8dc27f"/>
+								<textField isBlankWhenNull="true">
+									<reportElement style="Cellule" x="0" y="0" width="62" height="16" uuid="1a7b50e7-c0b3-4933-8652-921feb8dc27f"/>
 									<textElement textAlignment="Center"/>
-									<textFieldExpression><![CDATA[$F{dtCREATED}]]></textFieldExpression>
+									<!-- l'heure d'edition de la facture n'apporte rien sur un releve et coutait
+									     44 px de largeur : la place sert desormais a la periode facturee -->
+									<textFieldExpression><![CDATA[$F{dtCREATED} == null ? "" : ($F{dtCREATED}.length() > 10 ? $F{dtCREATED}.substring(0, 10) : $F{dtCREATED})]]></textFieldExpression>
+								</textField>
+							</jr:detailCell>
+						</jr:column>
+
+						<!-- Periode facturee : sur quel intervalle de ventes porte la facture. C'est
+						     l'information que l'organisme cherche en premier quand il rapproche un
+						     releve de ses propres decomptes. Elle etait deja fournie par l'application
+						     (FactureDTO), elle n'etait simplement pas imprimee. -->
+						<jr:column width="114" uuid="c2000002-0000-0000-0000-000000000001">
+							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1"/>
+							<jr:columnHeader height="16" rowSpan="1">
+								<staticText>
+									<reportElement style="EnteteColonne" x="0" y="0" width="114" height="16" uuid="c2000002-0000-0000-0000-000000000002"/>
+									<text><![CDATA[Période facturée]]></text>
+								</staticText>
+							</jr:columnHeader>
+							<jr:detailCell height="16">
+								<textField isBlankWhenNull="true">
+									<reportElement style="Cellule" x="0" y="0" width="114" height="16" uuid="c2000002-0000-0000-0000-000000000003"/>
+									<textElement textAlignment="Center"/>
+									<textFieldExpression><![CDATA[$F{dtDEBUTFACTURE} == null || $F{dtDEBUTFACTURE}.trim().isEmpty() ? ""
+	: ($F{dtDEBUTFACTURE} + ($F{dtFINFACTURE} == null || $F{dtFINFACTURE}.trim().isEmpty() ? "" : " - " + $F{dtFINFACTURE}))]]></textFieldExpression>
 								</textField>
 							</jr:detailCell>
 						</jr:column>
 
 						<!-- Montant facture -->
-						<jr:column width="86" uuid="a7251f46-bb6f-4789-b5d1-05a013c63b24">
+						<jr:column width="80" uuid="a7251f46-bb6f-4789-b5d1-05a013c63b24">
 							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="86" height="17" uuid="45622e77-0495-4ecc-9810-6cc35343065c"/>
+									<reportElement x="0" y="0" width="80" height="17" uuid="45622e77-0495-4ecc-9810-6cc35343065c"/>
 									<box rightPadding="4"/>
 									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<textFieldExpression><![CDATA[$P{montantFacture}]]></textFieldExpression>
@@ -361,13 +397,13 @@
 							</jr:tableFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonneMontant" x="0" y="0" width="86" height="16" uuid="c1000001-0000-0000-0000-000000000003"/>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="80" height="16" uuid="c1000001-0000-0000-0000-000000000003"/>
 									<text><![CDATA[Montant facturé]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement style="Cellule" x="0" y="0" width="86" height="16" uuid="2c3fe4dd-52f6-449c-a54e-3cf7efba61ef"/>
+									<reportElement style="Cellule" x="0" y="0" width="80" height="16" uuid="2c3fe4dd-52f6-449c-a54e-3cf7efba61ef"/>
 									<textElement textAlignment="Right"/>
 									<textFieldExpression><![CDATA[$F{dblMONTANTCMDE}]]></textFieldExpression>
 								</textField>
@@ -375,10 +411,10 @@
 						</jr:column>
 
 						<!-- Montant regle : en vert, c'est ce qui est encaisse -->
-						<jr:column width="86" uuid="8f4d22b1-9078-4296-b12b-81e440132d19">
+						<jr:column width="80" uuid="8f4d22b1-9078-4296-b12b-81e440132d19">
 							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="86" height="17" forecolor="#1B6B3A" uuid="f3134877-2657-4e03-817b-a8cc3602d142"/>
+									<reportElement x="0" y="0" width="80" height="17" forecolor="#1B6B3A" uuid="f3134877-2657-4e03-817b-a8cc3602d142"/>
 									<box rightPadding="4"/>
 									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<textFieldExpression><![CDATA[$P{montantRegle}]]></textFieldExpression>
@@ -386,13 +422,13 @@
 							</jr:tableFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonneMontant" x="0" y="0" width="86" height="16" uuid="c1000001-0000-0000-0000-000000000004"/>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="80" height="16" uuid="c1000001-0000-0000-0000-000000000004"/>
 									<text><![CDATA[Montant réglé]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement style="MontantRegle" x="0" y="0" width="86" height="16" uuid="406574aa-fec1-4969-932f-d7262a2df995"/>
+									<reportElement style="MontantRegle" x="0" y="0" width="80" height="16" uuid="406574aa-fec1-4969-932f-d7262a2df995"/>
 									<textElement textAlignment="Right"/>
 									<textFieldExpression><![CDATA[$F{dblMONTANTPAYE}]]></textFieldExpression>
 								</textField>
@@ -401,29 +437,33 @@
 
 						<!-- Date ET heure du reglement, en une seule colonne : deux colonnes pour un
 						     seul instant prenaient de la largeur aux montants -->
-						<jr:column width="122" uuid="d08e42b0-f880-4cd8-abe2-d4abb587e7f3">
+						<jr:column width="88" uuid="d08e42b0-f880-4cd8-abe2-d4abb587e7f3">
 							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1"/>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonne" x="0" y="0" width="122" height="16" uuid="c1000001-0000-0000-0000-000000000005"/>
-									<text><![CDATA[Date et heure du règlement]]></text>
+									<reportElement style="EnteteColonne" x="0" y="0" width="88" height="16" uuid="c1000001-0000-0000-0000-000000000005"/>
+									<text><![CDATA[Réglé le]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
+								<!-- Une case vide laissait le lecteur decider s'il s'agissait d'un oubli
+								     ou d'une facture non reglee. Elle le dit maintenant. Les secondes du
+								     reglement ne servaient a rien et coutaient de la largeur. -->
 								<textField isBlankWhenNull="true">
-									<reportElement style="Cellule" x="0" y="0" width="122" height="16" uuid="8083e79a-7864-43c3-93da-d04a86f9b605"/>
+									<reportElement style="CelluleNonReglee" x="0" y="0" width="88" height="16" uuid="8083e79a-7864-43c3-93da-d04a86f9b605"/>
 									<textElement textAlignment="Center"/>
-									<textFieldExpression><![CDATA[$F{dtUPDATED} == null || $F{dtUPDATED}.trim().isEmpty() ? ""
-	: ($F{dtUPDATED} + ($F{heure} == null || $F{heure}.trim().isEmpty() ? "" : " " + $F{heure}))]]></textFieldExpression>
+									<textFieldExpression><![CDATA[$F{dtUPDATED} == null || $F{dtUPDATED}.trim().isEmpty() ? "Non réglée"
+	: ($F{dtUPDATED} + ($F{heure} == null || $F{heure}.trim().isEmpty() ? ""
+		: " " + ($F{heure}.length() > 5 ? $F{heure}.substring(0, 5) : $F{heure})))]]></textFieldExpression>
 								</textField>
 							</jr:detailCell>
 						</jr:column>
 
 						<!-- Reste a regler : en rouge des qu'il y a quelque chose a encaisser -->
-						<jr:column width="93" uuid="03219c89-a8d7-4c1c-97a3-5caf9824b6e0">
+						<jr:column width="71" uuid="03219c89-a8d7-4c1c-97a3-5caf9824b6e0">
 							<jr:tableFooter style="TotalOrganisme" height="17" rowSpan="1">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="93" height="17" forecolor="#A62B1F" uuid="e3dedcee-28fd-4250-9f1b-cc98b599ea8b"/>
+									<reportElement x="0" y="0" width="71" height="17" forecolor="#A62B1F" uuid="e3dedcee-28fd-4250-9f1b-cc98b599ea8b"/>
 									<box rightPadding="4"/>
 									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<textFieldExpression><![CDATA[$P{montantRestant}]]></textFieldExpression>
@@ -431,13 +471,13 @@
 							</jr:tableFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonneMontant" x="0" y="0" width="93" height="16" uuid="c1000001-0000-0000-0000-000000000007"/>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="71" height="16" uuid="c1000001-0000-0000-0000-000000000007"/>
 									<text><![CDATA[Reste à régler]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement style="MontantReste" x="0" y="0" width="93" height="16" uuid="6a114b52-3d58-431d-b50a-eced9e4fd4c2"/>
+									<reportElement style="MontantReste" x="0" y="0" width="71" height="16" uuid="6a114b52-3d58-431d-b50a-eced9e4fd4c2"/>
 									<textElement textAlignment="Right"/>
 									<textFieldExpression><![CDATA[$F{dblMONTANTRESTANT}]]></textFieldExpression>
 								</textField>

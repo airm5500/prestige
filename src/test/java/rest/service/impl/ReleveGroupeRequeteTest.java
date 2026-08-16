@@ -63,7 +63,7 @@ class ReleveGroupeRequeteTest {
     @DisplayName("Chaque colonne du releve porte un nom, et deux colonnes ne portent jamais le meme")
     void chaqueColonneEstNommee() {
         List<String> colonnes = colonnes(ReleveGroupeFactureServiceImpl.REQUETE);
-        assertEquals(9, colonnes.size(), "le releve lit neuf colonnes, dans cet ordre");
+        assertEquals(11, colonnes.size(), "le releve lit onze colonnes, dans cet ordre");
 
         Set<String> noms = new LinkedHashSet<>();
         for (String colonne : colonnes) {
@@ -82,6 +82,16 @@ class ReleveGroupeRequeteTest {
                 "le numero de la facture de groupe doit etre nomme");
         assertTrue(requete.contains("f.`str_CODE_FACTURE` AS codeFacture"),
                 "le numero de la facture de l'organisme doit etre nomme");
+    }
+
+    @Test
+    @DisplayName("La periode facturee est bien lue sur la facture de l'organisme")
+    void periodeFacturee() {
+        String requete = ReleveGroupeFactureServiceImpl.REQUETE;
+        assertTrue(requete.contains("DATE(f.`dt_DEBUT_FACTURE`) AS debutFacture"),
+                "le debut de la periode facturee doit venir de la facture, pas de la facture de groupe");
+        assertTrue(requete.contains("DATE(f.`dt_FIN_FACTURE`) AS finFacture"),
+                "la fin de la periode facturee doit venir de la facture");
     }
 
     @Test

@@ -49,7 +49,9 @@ class ReleveGroupeFactureEtatTest {
 
     private static ReleveGroupeLigneDTO ligne(String codeGroupe, String date, String code, String tiersPayant,
             long facture, long regle) {
-        return new ReleveGroupeLigneDTO(codeGroupe, date, code, tiersPayant, BigDecimal.valueOf(facture),
+        // periode facturee : le mois qui precede la date d'edition, comme en production
+        String periode = "01/" + date.substring(3) + " - 28/" + date.substring(3);
+        return new ReleveGroupeLigneDTO(codeGroupe, date, code, tiersPayant, periode, BigDecimal.valueOf(facture),
                 BigDecimal.valueOf(regle), BigDecimal.valueOf(facture - regle),
                 facture - regle <= 0 ? "Soldée" : "En cours");
     }
@@ -158,6 +160,11 @@ class ReleveGroupeFactureEtatTest {
         // le nom du groupe est rappele sur la ligne de total : sur plusieurs pages, on ne
         // remonte plus chercher de quel groupe il s'agit
         assertTrue(textes.contains("GROUPE SUNU ASSURANCES"), "le total rappelle le nom du groupe");
+        // la periode facturee figure sur CHAQUE ligne, pas seulement dans le titre du document
+        assertTrue(textes.contains("01/07/2026 - 28/07/2026"), "chaque ligne porte sa periode facturee");
+        // le sous-total dit de quoi il est le total
+        assertTrue(textes.stream().anyMatch(t -> t.startsWith("Facture N° 26_1042")),
+                "le sous-total rappelle la facture de groupe");
         assertTrue(textes.contains("TOTAL GÉNÉRAL  (4 factures)"), "le total general rappelle le nombre de factures");
     }
 
@@ -203,6 +210,7 @@ class ReleveGroupeFactureEtatTest {
         assertTrue(textes.stream().anyMatch(t -> t.startsWith("N° 26_1042")),
                 "chaque ligne rappelle de quelle facture de groupe elle vient");
         assertTrue(textes.contains("Facture de groupe"), "l'entete de colonne suit le mode demande");
+        assertTrue(textes.contains("ASCOMA CÔTE D'IVOIRE"), "le sous-total rappelle le nom du tiers payant");
         assertFalse(textes.contains("Tiers payant"), "l'organisme titre deja le bloc, la colonne change de role");
     }
 

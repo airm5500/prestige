@@ -51,7 +51,8 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
             + " COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, '') AS tiersPayant,"
             + " COALESCE(f.`dbl_MONTANT_CMDE`,0) AS montantFacture,"
             + " COALESCE(f.`dbl_MONTANT_PAYE`,0) AS montantRegle,"
-            + " COALESCE(f.`dbl_MONTANT_RESTANT`,0) AS montantRestant"
+            + " COALESCE(f.`dbl_MONTANT_RESTANT`,0) AS montantRestant,"
+            + " DATE(f.`dt_DEBUT_FACTURE`) AS debutFacture, DATE(f.`dt_FIN_FACTURE`) AS finFacture"
             + " FROM `t_groupe_factures` g JOIN `t_groupe_tierspayant` gt ON gt.`lg_GROUPE_ID` = g.`lg_GROUPE_ID`"
             + " JOIN `t_facture` f ON f.`lg_FACTURE_ID` = g.`lg_FACTURES_ID`"
             + " LEFT JOIN `t_tiers_payant` tp ON tp.`lg_TIERS_PAYANT_ID` = f.`str_CUSTOMER`";
@@ -119,8 +120,10 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
             BigDecimal regle = montant(ligne[7]);
             BigDecimal restant = montant(ligne[8]);
 
-            groupe.getFactures().add(new ReleveGroupeLigneDTO(texte(ligne[2]), dateCourte(ligne[3]), texte(ligne[4]),
-                    texte(ligne[5]), facture, regle, restant, restant.signum() <= 0 ? "Soldée" : "En cours"));
+            groupe.getFactures()
+                    .add(new ReleveGroupeLigneDTO(texte(ligne[2]), dateCourte(ligne[3]), texte(ligne[4]),
+                            texte(ligne[5]), periode(ligne[9], ligne[10]), facture, regle, restant,
+                            restant.signum() <= 0 ? "Soldée" : "En cours"));
             groupe.setMontantFacture(groupe.getMontantFacture().add(facture));
             groupe.setMontantRegle(groupe.getMontantRegle().add(regle));
             groupe.setMontantRestant(groupe.getMontantRestant().add(restant));
@@ -152,6 +155,21 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
             return BigDecimal.ZERO;
         }
         return valeur instanceof BigDecimal ? (BigDecimal) valeur : BigDecimal.valueOf(((Number) valeur).doubleValue());
+    }
+
+    /**
+     * Intervalle de ventes couvert par la facture, mis en forme une fois pour toutes.
+     *
+     * C'est l'information que l'organisme cherche en premier quand il rapproche un releve de ses propres decomptes :
+     * elle figure donc sur chaque ligne, et pas seulement dans le titre du document.
+     */
+    private static String periode(Object debut, Object fin) {
+        String d = dateCourte(debut);
+        String f = dateCourte(fin);
+        if (d.isEmpty() && f.isEmpty()) {
+            return "";
+        }
+        return f.isEmpty() ? d : (d.isEmpty() ? f : d + " - " + f);
     }
 
     /** La base renvoie une date SQL : le releve l'affiche au format francais, comme la liste a l'ecran. */

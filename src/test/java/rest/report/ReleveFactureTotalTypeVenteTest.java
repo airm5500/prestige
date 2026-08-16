@@ -1,6 +1,7 @@
 package rest.report;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
@@ -81,6 +82,14 @@ class ReleveFactureTotalTypeVenteTest {
 
         public String getStrFULLNAME() {
             return "";
+        }
+
+        public String getDtDEBUTFACTURE() {
+            return "01/06/2026";
+        }
+
+        public String getDtFINFACTURE() {
+            return "30/06/2026";
         }
 
         public Integer getDblMONTANTCMDE() {
@@ -236,6 +245,22 @@ class ReleveFactureTotalTypeVenteTest {
         // MUTUELLES : un seul organisme
         assertTrue(textes.contains("TOTAL MUTUELLES"));
         assertTrue(textes.contains("1 organisme"), "le singulier est utilise pour un seul organisme");
+    }
+
+    @Test
+    @DisplayName("Chaque ligne porte sa periode facturee, et une facture non reglee le dit")
+    void periodeEtFactureNonReglee() throws Exception {
+        List<String> textes = textes(editer());
+
+        assertTrue(textes.contains("01/06/2026 - 30/06/2026"), "la periode facturee figure sur chaque ligne");
+        assertTrue(textes.contains("Période facturée"), "la colonne est nommee");
+        assertTrue(textes.contains("Réglé le"), "l'entete du reglement est raccourci");
+        // aucune de ces factures d'essai n'a de date de reglement
+        assertTrue(textes.contains("Non réglée"), "une case vide ne laisse plus le lecteur deviner");
+        // la date de facture ne porte plus l'heure : elle tient en dix caracteres
+        assertTrue(textes.contains("02/06/2026"), "la date de facture est imprimee sans son heure");
+        assertFalse(textes.stream().anyMatch(t -> t.startsWith("02/06/2026 16:30")),
+                "l'heure d'edition de la facture n'a plus a etre imprimee");
     }
 
     @Test

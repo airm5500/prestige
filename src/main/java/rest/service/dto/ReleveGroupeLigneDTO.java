@@ -17,6 +17,7 @@ public class ReleveGroupeLigneDTO {
     private String dateEdition;
     private String codeFacture;
     private String tiersPayant;
+    private String periode;
     private BigDecimal montantFacture;
     private BigDecimal montantRegle;
     private BigDecimal montantRestant;
@@ -26,7 +27,9 @@ public class ReleveGroupeLigneDTO {
     }
 
     public ReleveGroupeLigneDTO(String codeFactureGroupe, String dateEdition, String codeFacture, String tiersPayant,
-            BigDecimal montantFacture, BigDecimal montantRegle, BigDecimal montantRestant, String statut) {
+            String periode, BigDecimal montantFacture, BigDecimal montantRegle, BigDecimal montantRestant,
+            String statut) {
+        this.periode = periode;
         this.codeFactureGroupe = codeFactureGroupe;
         this.dateEdition = dateEdition;
         this.codeFacture = codeFacture;
@@ -59,6 +62,15 @@ public class ReleveGroupeLigneDTO {
 
     public void setCodeFacture(String codeFacture) {
         this.codeFacture = codeFacture;
+    }
+
+    /** Intervalle de ventes couvert par la facture, deja mis en forme : "01/06/2026 - 30/06/2026". */
+    public String getPeriode() {
+        return periode;
+    }
+
+    public void setPeriode(String periode) {
+        this.periode = periode;
     }
 
     public String getTiersPayant() {
