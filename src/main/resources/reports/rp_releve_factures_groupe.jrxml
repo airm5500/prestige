@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Releve des factures de GROUPE (menu Facture de groupe).
-     Meme presentation que le releve des factures clients en compte (rp_releve_factures) :
-     un bloc par groupe de tiers payants, une ligne par facture de groupe, un total par
-     bloc et un total general. -->
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_releve_factures_groupe" pageWidth="595" pageHeight="842" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isSummaryWithPageHeaderAndFooter="true" isFloatColumnFooter="true" whenNoDataType="AllSectionsNoDetail" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e11">
+     PAYSAGE : une facture de groupe rassemble une facture par organisme. Le releve descend
+     jusqu'a l'organisme pour qu'on sache a QUI appartient chaque facture, ce qui demande une
+     colonne large pour les noms de tiers payants. Le format paysage la donne sans avoir a
+     reduire les polices au point de rendre le document penible a lire. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="rp_releve_factures_groupe" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" isSummaryWithPageHeaderAndFooter="true" isFloatColumnFooter="true" whenNoDataType="AllSectionsNoDetail" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e11">
 	<property name="ireport.zoom" value="1.5"/>
 	<property name="ireport.x" value="0"/>
 	<property name="ireport.y" value="0"/>
@@ -21,6 +22,11 @@
 			<pen lineWidth="0.0"/>
 		</box>
 	</style>
+	<style name="EnteteColonneGauche" style="EnteteColonne" hAlign="Left">
+		<box topPadding="0" bottomPadding="0" leftPadding="6" rightPadding="3">
+			<pen lineWidth="0.0"/>
+		</box>
+	</style>
 	<style name="Cellule" mode="Transparent" fontName="SansSerif" fontSize="8" vAlign="Middle">
 		<box topPadding="0" bottomPadding="0" leftPadding="4" rightPadding="4">
 			<pen lineWidth="0.0"/>
@@ -31,12 +37,35 @@
 			<style mode="Opaque" backcolor="#F2F6FA"/>
 		</conditionalStyle>
 	</style>
-	<!-- Style de CELLULE : aucune marge interieure, sinon la largeur utile diminue d'autant
-	     et les champs qui occupent toute la cellule sont refuses a la compilation. -->
+	<!-- Nom de l'organisme : cale a gauche et un peu plus marque que le reste de la ligne,
+	     c'est l'information que l'on cherche du regard. -->
+	<style name="CelluleOrganisme" style="Cellule" isBold="true" forecolor="#1E3A5F">
+		<box topPadding="0" bottomPadding="0" leftPadding="6" rightPadding="4">
+			<pen lineWidth="0.0"/>
+			<bottomPen lineWidth="0.25" lineColor="#D6DEE8"/>
+		</box>
+	</style>
+	<!-- Styles de CELLULE : aucune marge interieure ici, sinon la largeur utile de la cellule
+	     diminue d'autant et les champs qui l'occupent entierement sont refuses a la
+	     compilation. Les marges sont posees sur les champs eux-memes. -->
+	<style name="SousTotalFacture" mode="Opaque" backcolor="#EDF2F8" fontName="SansSerif" fontSize="8" vAlign="Middle">
+		<box>
+			<pen lineWidth="0.0"/>
+			<topPen lineWidth="0.25" lineColor="#9AA7B4"/>
+		</box>
+	</style>
 	<style name="TotalGroupe" mode="Opaque" backcolor="#DDE6F0" fontName="SansSerif" fontSize="8" isBold="true" vAlign="Middle">
 		<box>
 			<pen lineWidth="0.0"/>
 			<topPen lineWidth="0.5" lineColor="#1E3A5F"/>
+		</box>
+	</style>
+	<!-- Bandeau d'ouverture d'une facture de groupe : vert-bleu, comme le bandeau de type de
+	     vente du releve des factures clients, pour ne pas le confondre avec les entetes. -->
+	<style name="EnteteFactureGroupe" mode="Opaque" backcolor="#E3F0EF" fontName="SansSerif" fontSize="8" isBold="true" forecolor="#12564F" vAlign="Middle">
+		<box>
+			<pen lineWidth="0.0"/>
+			<topPen lineWidth="0.75" lineColor="#1E7B74"/>
 		</box>
 	</style>
 	<!-- Montants : un zero en vert ou en rouge gras attire l'oeil sur une ligne ou il n'y a
@@ -53,7 +82,7 @@
 			<style forecolor="#A62B1F" isBold="true"/>
 		</conditionalStyle>
 	</style>
-	<!-- Statut : vert quand la facture de groupe est soldee, rouge sombre sinon -->
+	<!-- Statut : vert quand la facture est soldee, rouge sombre sinon -->
 	<style name="Statut" style="Cellule" forecolor="#1B6B3A" isBold="true">
 		<conditionalStyle>
 			<conditionExpression><![CDATA[$F{montantRestant} != null && $F{montantRestant}.signum() > 0]]></conditionExpression>
@@ -68,7 +97,7 @@
 		</box>
 	</style>
 
-	<!-- Les factures de groupe d'UN groupe : c'est la liste affichee a l'ecran -->
+	<!-- Les factures d'UN groupe, une par organisme, regroupees par facture de groupe -->
 	<subDataset name="facturesGroupe" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e12">
 		<parameter name="pGroupeLibelle" class="java.lang.String"/>
 		<parameter name="pTotalFacture" class="java.math.BigDecimal"/>
@@ -77,17 +106,35 @@
 		<queryString>
 			<![CDATA[]]>
 		</queryString>
-		<field name="codeFacture" class="java.lang.String"/>
+		<field name="codeFactureGroupe" class="java.lang.String"/>
 		<field name="dateEdition" class="java.lang.String"/>
-		<field name="nbFactures" class="java.lang.Integer"/>
+		<field name="codeFacture" class="java.lang.String"/>
+		<field name="tiersPayant" class="java.lang.String"/>
 		<field name="montantFacture" class="java.math.BigDecimal"/>
 		<field name="montantRegle" class="java.math.BigDecimal"/>
 		<field name="montantRestant" class="java.math.BigDecimal"/>
 		<field name="statut" class="java.lang.String"/>
-		<!-- nombre total de factures individuelles contenues dans le bloc du groupe -->
-		<variable name="TOTAL_NB_FACTURES" class="java.lang.Integer" calculation="Sum">
-			<variableExpression><![CDATA[$F{nbFactures}]]></variableExpression>
+		<!-- Sous-totaux d'une facture de groupe : ce sont les chiffres que la liste a l'ecran
+		     affiche sur une seule ligne ; ils restent visibles, le detail par organisme s'ajoute
+		     au-dessus. -->
+		<variable name="SOUS_TOTAL_FACTURE" class="java.math.BigDecimal" resetType="Group" resetGroup="factureDeGroupe" calculation="Sum">
+			<variableExpression><![CDATA[$F{montantFacture}]]></variableExpression>
 		</variable>
+		<variable name="SOUS_TOTAL_REGLE" class="java.math.BigDecimal" resetType="Group" resetGroup="factureDeGroupe" calculation="Sum">
+			<variableExpression><![CDATA[$F{montantRegle}]]></variableExpression>
+		</variable>
+		<variable name="SOUS_TOTAL_RESTANT" class="java.math.BigDecimal" resetType="Group" resetGroup="factureDeGroupe" calculation="Sum">
+			<variableExpression><![CDATA[$F{montantRestant}]]></variableExpression>
+		</variable>
+		<variable name="NB_ORGANISMES" class="java.lang.Integer" resetType="Group" resetGroup="factureDeGroupe" calculation="Count">
+			<variableExpression><![CDATA[$F{codeFacture}]]></variableExpression>
+		</variable>
+		<variable name="TOTAL_NB_FACTURES" class="java.lang.Integer" calculation="Count">
+			<variableExpression><![CDATA[$F{codeFacture}]]></variableExpression>
+		</variable>
+		<group name="factureDeGroupe">
+			<groupExpression><![CDATA[$F{codeFactureGroupe}]]></groupExpression>
+		</group>
 	</subDataset>
 
 	<parameter name="P_H_INSTITUTION" class="java.lang.String"/>
@@ -120,38 +167,38 @@
 
 	<!-- ============================ En-tete de page ============================ -->
 	<pageHeader>
-		<band height="96">
+		<band height="90">
 			<image onErrorType="Blank">
 				<reportElement x="0" y="0" width="72" height="43" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e13"/>
 				<imageExpression><![CDATA[$P{P_H_LOGO}]]></imageExpression>
 			</image>
 			<!-- nom de l'officine centre sur la PAGE, pas sur le logo -->
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="0" width="555" height="24" isRemoveLineWhenBlank="true" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e14"/>
+				<reportElement x="0" y="0" width="802" height="24" isRemoveLineWhenBlank="true" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e14"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
 					<font fontName="SansSerif" size="16" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($P{P_H_INSTITUTION} != null ? $P{P_H_INSTITUTION} : "")]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="24" width="555" height="13" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e15"/>
+				<reportElement x="0" y="24" width="802" height="13" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e15"/>
 				<textElement textAlignment="Center" verticalAlignment="Top">
 					<font fontName="SansSerif" size="8"/>
 				</textElement>
 				<textFieldExpression><![CDATA[($P{P_AUTRE_DESC} != null ? $P{P_AUTRE_DESC} : "")]]></textFieldExpression>
 			</textField>
 			<staticText>
-				<reportElement mode="Opaque" x="0" y="47" width="555" height="2" backcolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e16"/>
+				<reportElement mode="Opaque" x="0" y="45" width="802" height="2" backcolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e16"/>
 				<box><pen lineWidth="0.0"/></box>
 				<text><![CDATA[]]></text>
 			</staticText>
 			<staticText>
-				<reportElement mode="Opaque" x="0" y="55" width="555" height="24" backcolor="#EDF2F8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e17"/>
+				<reportElement mode="Opaque" x="0" y="53" width="802" height="24" backcolor="#EDF2F8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e17"/>
 				<box><pen lineWidth="0.0"/><leftPen lineWidth="3.0" lineColor="#48A9A6"/></box>
 				<text><![CDATA[]]></text>
 			</staticText>
 			<textField isBlankWhenNull="true">
-				<reportElement x="8" y="55" width="412" height="24" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e18"/>
+				<reportElement x="8" y="53" width="600" height="24" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e18"/>
 				<box leftPadding="6"/>
 				<textElement textAlignment="Left" verticalAlignment="Middle">
 					<font fontName="SansSerif" size="8.5" isBold="true"/>
@@ -159,7 +206,7 @@
 				<textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="false">
-				<reportElement x="424" y="55" width="125" height="24" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e19"/>
+				<reportElement x="614" y="53" width="182" height="24" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e19"/>
 				<box rightPadding="6"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle">
 					<font fontName="SansSerif" size="7.5"/>
@@ -171,9 +218,9 @@
 
 	<!-- ============================ Un bloc par groupe ============================ -->
 	<detail>
-		<band height="30" splitType="Stretch">
+		<band height="30" splitType="Prevent">
 			<componentElement>
-				<reportElement x="0" y="2" width="555" height="26" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e20"/>
+				<reportElement x="0" y="2" width="802" height="26" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e20"/>
 				<jr:table xmlns:jr="http://jasperreports.sourceforge.net/jasperreports/components" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports/components http://jasperreports.sourceforge.net/xsd/components.xsd">
 					<datasetRun subDataset="facturesGroupe" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e21">
 						<datasetParameter name="pGroupeLibelle">
@@ -190,102 +237,126 @@
 						</datasetParameter>
 						<dataSourceExpression><![CDATA[new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource($F{factures})]]></dataSourceExpression>
 					</datasetRun>
-					<jr:columnGroup width="555" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e22">
+					<jr:columnGroup width="802" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e22">
 						<!-- Nom du groupe, en tete de son propre bloc -->
 						<jr:tableHeader height="18" rowSpan="1">
 							<textField>
-								<reportElement style="Groupe" x="0" y="0" width="555" height="18" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e23"/>
+								<reportElement style="Groupe" x="0" y="0" width="802" height="18" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e23"/>
 								<textFieldExpression><![CDATA[$P{pGroupeLibelle}]]></textFieldExpression>
 							</textField>
 						</jr:tableHeader>
+						<!-- Ouverture d'une facture de groupe : son numero et sa date, sur toute la largeur -->
+						<jr:groupHeader groupName="factureDeGroupe">
+							<jr:cell style="EnteteFactureGroupe" height="15" rowSpan="1">
+								<textField>
+									<reportElement x="0" y="0" width="802" height="15" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e70"/>
+									<box leftPadding="6"/>
+									<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+									<textFieldExpression><![CDATA["FACTURE DE GROUPE N° " + $F{codeFactureGroupe}
+	+ ($F{dateEdition} == null || $F{dateEdition}.trim().isEmpty() ? "" : "   —   éditée le " + $F{dateEdition})]]></textFieldExpression>
+								</textField>
+							</jr:cell>
+						</jr:groupHeader>
 
-						<!-- N° de la facture de groupe -->
-						<jr:column width="76" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e24">
+						<!-- N° de la facture de l'organisme -->
+						<jr:column width="80" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e24">
 							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1">
 								<staticText>
-									<reportElement x="0" y="0" width="76" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e25"/>
-									<box leftPadding="4"/>
+									<reportElement x="0" y="0" width="80" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e25"/>
+									<box leftPadding="6"/>
 									<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<text><![CDATA[TOTAL]]></text>
 								</staticText>
 							</jr:tableFooter>
+							<jr:groupFooter groupName="factureDeGroupe">
+								<jr:cell style="SousTotalFacture" height="15" rowSpan="1">
+									<staticText>
+										<reportElement x="0" y="0" width="80" height="15" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e71"/>
+										<box leftPadding="6"/>
+										<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+										<text><![CDATA[Sous-total]]></text>
+									</staticText>
+								</jr:cell>
+							</jr:groupFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonne" x="0" y="0" width="76" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e26"/>
+									<reportElement style="EnteteColonne" x="0" y="0" width="80" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e26"/>
 									<text><![CDATA[N° Facture]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField>
-									<reportElement style="Cellule" x="0" y="0" width="76" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e27"/>
+									<reportElement style="Cellule" x="0" y="0" width="80" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e27"/>
 									<textElement textAlignment="Center"/>
 									<textFieldExpression><![CDATA[$F{codeFacture}]]></textFieldExpression>
 								</textField>
 							</jr:detailCell>
 						</jr:column>
 
-						<!-- Date d'edition de la facture de groupe -->
-						<jr:column width="74" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e28">
-							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1"/>
+						<!-- A QUI est la facture : l'organisme -->
+						<jr:column width="332" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e28">
+							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1">
+								<textField isBlankWhenNull="true">
+									<reportElement x="0" y="0" width="332" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e72"/>
+									<box rightPadding="8"/>
+									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7.5"/></textElement>
+									<textFieldExpression><![CDATA[$V{TOTAL_NB_FACTURES} + ($V{TOTAL_NB_FACTURES}.intValue() > 1 ? " factures" : " facture")]]></textFieldExpression>
+								</textField>
+							</jr:tableFooter>
+							<jr:groupFooter groupName="factureDeGroupe">
+								<jr:cell style="SousTotalFacture" height="15" rowSpan="1">
+									<textField isBlankWhenNull="true">
+										<reportElement x="0" y="0" width="332" height="15" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e73"/>
+										<box rightPadding="8"/>
+										<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7.5" isItalic="true"/></textElement>
+										<textFieldExpression><![CDATA[$V{NB_ORGANISMES} + ($V{NB_ORGANISMES}.intValue() > 1 ? " organismes" : " organisme")]]></textFieldExpression>
+									</textField>
+								</jr:cell>
+							</jr:groupFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonne" x="0" y="0" width="74" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e29"/>
-									<text><![CDATA[Date d'édition]]></text>
+									<reportElement style="EnteteColonneGauche" x="0" y="0" width="332" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e29"/>
+									<text><![CDATA[Tiers payant]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField isBlankWhenNull="true">
-									<reportElement style="Cellule" x="0" y="0" width="74" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e30"/>
-									<textElement textAlignment="Center"/>
-									<textFieldExpression><![CDATA[$F{dateEdition}]]></textFieldExpression>
-								</textField>
-							</jr:detailCell>
-						</jr:column>
-
-						<!-- Nombre de factures contenues dans la facture de groupe -->
-						<jr:column width="62" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e31">
-							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1">
-								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="62" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e32"/>
-									<box rightPadding="4"/>
-									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
-									<textFieldExpression><![CDATA[$V{TOTAL_NB_FACTURES}]]></textFieldExpression>
-								</textField>
-							</jr:tableFooter>
-							<jr:columnHeader height="16" rowSpan="1">
-								<staticText>
-									<reportElement style="EnteteColonneMontant" x="0" y="0" width="62" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e33"/>
-									<text><![CDATA[Nb factures]]></text>
-								</staticText>
-							</jr:columnHeader>
-							<jr:detailCell height="16">
-								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement style="Cellule" x="0" y="0" width="62" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e34"/>
-									<textElement textAlignment="Right"/>
-									<textFieldExpression><![CDATA[$F{nbFactures}]]></textFieldExpression>
+									<reportElement style="CelluleOrganisme" x="0" y="0" width="332" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e30"/>
+									<textElement textAlignment="Left"/>
+									<textFieldExpression><![CDATA[$F{tiersPayant}]]></textFieldExpression>
 								</textField>
 							</jr:detailCell>
 						</jr:column>
 
 						<!-- Montant facture -->
-						<jr:column width="92" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e35">
+						<jr:column width="105" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e35">
 							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="92" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e36"/>
+									<reportElement x="0" y="0" width="105" height="17" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e36"/>
 									<box rightPadding="4"/>
 									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<textFieldExpression><![CDATA[$P{pTotalFacture}]]></textFieldExpression>
 								</textField>
 							</jr:tableFooter>
+							<jr:groupFooter groupName="factureDeGroupe">
+								<jr:cell style="SousTotalFacture" height="15" rowSpan="1">
+									<textField pattern="#,##0" isBlankWhenNull="true">
+										<reportElement x="0" y="0" width="105" height="15" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e74"/>
+										<box rightPadding="4"/>
+										<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+										<textFieldExpression><![CDATA[$V{SOUS_TOTAL_FACTURE}]]></textFieldExpression>
+									</textField>
+								</jr:cell>
+							</jr:groupFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonneMontant" x="0" y="0" width="92" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e37"/>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="105" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e37"/>
 									<text><![CDATA[Montant facturé]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement style="Cellule" x="0" y="0" width="92" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e38"/>
+									<reportElement style="Cellule" x="0" y="0" width="105" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e38"/>
 									<textElement textAlignment="Right"/>
 									<textFieldExpression><![CDATA[$F{montantFacture}]]></textFieldExpression>
 								</textField>
@@ -293,24 +364,34 @@
 						</jr:column>
 
 						<!-- Montant regle : en vert, c'est ce qui est encaisse -->
-						<jr:column width="92" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e39">
+						<jr:column width="105" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e39">
 							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="92" height="17" forecolor="#1B6B3A" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e40"/>
+									<reportElement x="0" y="0" width="105" height="17" forecolor="#1B6B3A" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e40"/>
 									<box rightPadding="4"/>
 									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<textFieldExpression><![CDATA[$P{pTotalRegle}]]></textFieldExpression>
 								</textField>
 							</jr:tableFooter>
+							<jr:groupFooter groupName="factureDeGroupe">
+								<jr:cell style="SousTotalFacture" height="15" rowSpan="1">
+									<textField pattern="#,##0" isBlankWhenNull="true">
+										<reportElement x="0" y="0" width="105" height="15" forecolor="#1B6B3A" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e75"/>
+										<box rightPadding="4"/>
+										<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+										<textFieldExpression><![CDATA[$V{SOUS_TOTAL_REGLE}]]></textFieldExpression>
+									</textField>
+								</jr:cell>
+							</jr:groupFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonneMontant" x="0" y="0" width="92" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e41"/>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="105" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e41"/>
 									<text><![CDATA[Montant réglé]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement style="MontantRegle" x="0" y="0" width="92" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e42"/>
+									<reportElement style="MontantRegle" x="0" y="0" width="105" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e42"/>
 									<textElement textAlignment="Right"/>
 									<textFieldExpression><![CDATA[$F{montantRegle}]]></textFieldExpression>
 								</textField>
@@ -318,42 +399,55 @@
 						</jr:column>
 
 						<!-- Reste a regler : en rouge des qu'il y a quelque chose a encaisser -->
-						<jr:column width="92" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e43">
+						<jr:column width="105" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e43">
 							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement x="0" y="0" width="92" height="17" forecolor="#A62B1F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e44"/>
+									<reportElement x="0" y="0" width="105" height="17" forecolor="#A62B1F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e44"/>
 									<box rightPadding="4"/>
 									<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="8" isBold="true"/></textElement>
 									<textFieldExpression><![CDATA[$P{pTotalRestant}]]></textFieldExpression>
 								</textField>
 							</jr:tableFooter>
+							<jr:groupFooter groupName="factureDeGroupe">
+								<jr:cell style="SousTotalFacture" height="15" rowSpan="1">
+									<textField pattern="#,##0" isBlankWhenNull="true">
+										<reportElement x="0" y="0" width="105" height="15" forecolor="#A62B1F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e76"/>
+										<box rightPadding="4"/>
+										<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7.5" isBold="true"/></textElement>
+										<textFieldExpression><![CDATA[$V{SOUS_TOTAL_RESTANT}]]></textFieldExpression>
+									</textField>
+								</jr:cell>
+							</jr:groupFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonneMontant" x="0" y="0" width="92" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e45"/>
+									<reportElement style="EnteteColonneMontant" x="0" y="0" width="105" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e45"/>
 									<text><![CDATA[Reste à régler]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField pattern="#,##0" isBlankWhenNull="true">
-									<reportElement style="MontantReste" x="0" y="0" width="92" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e46"/>
+									<reportElement style="MontantReste" x="0" y="0" width="105" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e46"/>
 									<textElement textAlignment="Right"/>
 									<textFieldExpression><![CDATA[$F{montantRestant}]]></textFieldExpression>
 								</textField>
 							</jr:detailCell>
 						</jr:column>
 
-						<!-- Etat de la facture de groupe : soldee ou en cours -->
-						<jr:column width="67" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e47">
+						<!-- Etat de la facture : soldee ou en cours -->
+						<jr:column width="75" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e47">
 							<jr:tableFooter style="TotalGroupe" height="17" rowSpan="1"/>
+							<jr:groupFooter groupName="factureDeGroupe">
+								<jr:cell style="SousTotalFacture" height="15" rowSpan="1"/>
+							</jr:groupFooter>
 							<jr:columnHeader height="16" rowSpan="1">
 								<staticText>
-									<reportElement style="EnteteColonne" x="0" y="0" width="67" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e48"/>
+									<reportElement style="EnteteColonne" x="0" y="0" width="75" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e48"/>
 									<text><![CDATA[Statut]]></text>
 								</staticText>
 							</jr:columnHeader>
 							<jr:detailCell height="16">
 								<textField isBlankWhenNull="true">
-									<reportElement style="Statut" x="0" y="0" width="67" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e49"/>
+									<reportElement style="Statut" x="0" y="0" width="75" height="16" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e49"/>
 									<textElement textAlignment="Center"/>
 									<textFieldExpression><![CDATA[$F{statut}]]></textFieldExpression>
 								</textField>
@@ -369,22 +463,22 @@
 	<pageFooter>
 		<band height="24">
 			<staticText>
-				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e50"/>
+				<reportElement mode="Opaque" x="0" y="4" width="802" height="1" backcolor="#D6DEE8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e50"/>
 				<box><pen lineWidth="0.0"/></box>
 				<text><![CDATA[]]></text>
 			</staticText>
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e51"/>
+				<reportElement x="0" y="8" width="400" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e51"/>
 				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA["Édité par" + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e52"/>
+				<reportElement x="600" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e52"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
 			</textField>
 			<textField evaluationTime="Report">
-				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e53"/>
+				<reportElement x="722" y="8" width="80" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e53"/>
 				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
 			</textField>
@@ -394,32 +488,32 @@
 	<lastPageFooter>
 		<band height="52">
 			<staticText>
-				<reportElement mode="Opaque" x="0" y="4" width="555" height="1" backcolor="#D6DEE8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e54"/>
+				<reportElement mode="Opaque" x="0" y="4" width="802" height="1" backcolor="#D6DEE8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e54"/>
 				<box><pen lineWidth="0.0"/></box>
 				<text><![CDATA[]]></text>
 			</staticText>
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="8" width="300" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e55"/>
+				<reportElement x="0" y="8" width="400" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e55"/>
 				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA["Édité par" + ($P{P_PRINTED_BY} != null ? $P{P_PRINTED_BY} : "")]]></textFieldExpression>
 			</textField>
 			<textField>
-				<reportElement x="380" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e56"/>
+				<reportElement x="600" y="8" width="120" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e56"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " sur"]]></textFieldExpression>
 			</textField>
 			<textField evaluationTime="Report">
-				<reportElement x="502" y="8" width="53" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e57"/>
+				<reportElement x="722" y="8" width="80" height="12" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e57"/>
 				<textElement textAlignment="Left" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="24" width="555" height="11" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e58"/>
+				<reportElement x="0" y="24" width="802" height="11" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e58"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
 			</textField>
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="35" width="555" height="11" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e59"/>
+				<reportElement x="0" y="35" width="802" height="11" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e59"/>
 				<textElement textAlignment="Center" verticalAlignment="Middle"><font fontName="SansSerif" size="7"/></textElement>
 				<textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
 			</textField>
@@ -430,12 +524,12 @@
 	<summary>
 		<band height="100">
 			<staticText>
-				<reportElement mode="Opaque" x="0" y="8" width="555" height="18" backcolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e60"/>
+				<reportElement mode="Opaque" x="0" y="8" width="802" height="18" backcolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e60"/>
 				<box><pen lineWidth="0.0"/></box>
 				<text><![CDATA[]]></text>
 			</staticText>
 			<textField>
-				<reportElement x="0" y="8" width="180" height="18" forecolor="#FFFFFF" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e61"/>
+				<reportElement x="0" y="8" width="250" height="18" forecolor="#FFFFFF" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e61"/>
 				<box leftPadding="8"/>
 				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA["TOTAL GÉNÉRAL"
@@ -444,46 +538,46 @@
 			</textField>
 
 			<staticText>
-				<reportElement mode="Opaque" x="180" y="8" width="125" height="18" backcolor="#EDF2F8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e62"/>
-				<box leftPadding="6"><pen lineWidth="0.0"/><rightPen lineWidth="0.5" lineColor="#FFFFFF"/></box>
+				<reportElement mode="Opaque" x="250" y="8" width="184" height="18" backcolor="#EDF2F8" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e62"/>
+				<box leftPadding="8"><pen lineWidth="0.0"/><rightPen lineWidth="0.5" lineColor="#FFFFFF"/></box>
 				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
 				<text><![CDATA[Facturé]]></text>
 			</staticText>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement x="180" y="8" width="119" height="18" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e63"/>
-				<box rightPadding="6"/>
+				<reportElement x="250" y="8" width="178" height="18" forecolor="#1E3A5F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e63"/>
+				<box rightPadding="8"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA[$P{P_MONTANT_FACTURE}]]></textFieldExpression>
 			</textField>
 
 			<staticText>
-				<reportElement mode="Opaque" x="305" y="8" width="125" height="18" backcolor="#E6F2E9" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e64"/>
-				<box leftPadding="6"><pen lineWidth="0.0"/><rightPen lineWidth="0.5" lineColor="#FFFFFF"/></box>
+				<reportElement mode="Opaque" x="434" y="8" width="184" height="18" backcolor="#E6F2E9" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e64"/>
+				<box leftPadding="8"><pen lineWidth="0.0"/><rightPen lineWidth="0.5" lineColor="#FFFFFF"/></box>
 				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
 				<text><![CDATA[Réglé]]></text>
 			</staticText>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement x="305" y="8" width="119" height="18" forecolor="#1B6B3A" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e65"/>
-				<box rightPadding="6"/>
+				<reportElement x="434" y="8" width="178" height="18" forecolor="#1B6B3A" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e65"/>
+				<box rightPadding="8"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA[$P{P_MONTANT_REGLE}]]></textFieldExpression>
 			</textField>
 
 			<staticText>
-				<reportElement mode="Opaque" x="430" y="8" width="125" height="18" backcolor="#F7E7E5" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e66"/>
-				<box leftPadding="6"><pen lineWidth="0.0"/></box>
+				<reportElement mode="Opaque" x="618" y="8" width="184" height="18" backcolor="#F7E7E5" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e66"/>
+				<box leftPadding="8"><pen lineWidth="0.0"/></box>
 				<textElement verticalAlignment="Middle"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
 				<text><![CDATA[Reste]]></text>
 			</staticText>
 			<textField pattern="#,##0" isBlankWhenNull="true">
-				<reportElement x="430" y="8" width="119" height="18" forecolor="#A62B1F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e67"/>
-				<box rightPadding="6"/>
+				<reportElement x="618" y="8" width="178" height="18" forecolor="#A62B1F" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e67"/>
+				<box rightPadding="8"/>
 				<textElement textAlignment="Right" verticalAlignment="Middle"><font fontName="SansSerif" size="9" isBold="true"/></textElement>
 				<textFieldExpression><![CDATA[$P{P_MONTANT_RESTANT}]]></textFieldExpression>
 			</textField>
 
 			<staticText>
-				<reportElement x="0" y="34" width="555" height="16" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e68">
+				<reportElement x="0" y="34" width="802" height="16" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e68">
 					<printWhenExpression><![CDATA[$V{REPORT_COUNT} == 0]]></printWhenExpression>
 				</reportElement>
 				<textElement textAlignment="Center" verticalAlignment="Middle">
@@ -492,7 +586,7 @@
 				<text><![CDATA[Aucune facture de groupe ne correspond aux critères demandés sur cette période.]]></text>
 			</staticText>
 			<textField isBlankWhenNull="true">
-				<reportElement x="0" y="52" width="555" height="40" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e69">
+				<reportElement x="0" y="52" width="802" height="30" isRemoveLineWhenBlank="true" forecolor="#5A6B7D" uuid="9c1f2f4a-4a51-4a1e-9a34-0a5c1d9b7e69">
 					<printWhenExpression><![CDATA[$V{REPORT_COUNT} > 0]]></printWhenExpression>
 				</reportElement>
 				<box topPadding="5" leftPadding="8" rightPadding="8" bottomPadding="5">

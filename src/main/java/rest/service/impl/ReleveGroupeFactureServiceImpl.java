@@ -35,11 +35,16 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    /**
+     * Une ligne par FACTURE (donc par organisme), et non par facture de groupe : c'est ce niveau de detail qui dit a
+     * qui appartient chaque facture. Le regroupement par facture de groupe est fait par l'etat.
+     */
     private static final String REQUETE = "SELECT g.`lg_GROUPE_ID`, gt.`str_LIBELLE`, g.`str_CODE_FACTURE`,"
-            + " DATE(g.`dt_CREATED`), COUNT(f.`lg_FACTURE_ID`), SUM(COALESCE(f.`dbl_MONTANT_CMDE`,0)),"
-            + " SUM(COALESCE(f.`dbl_MONTANT_PAYE`,0)), SUM(COALESCE(f.`dbl_MONTANT_RESTANT`,0))"
+            + " DATE(g.`dt_CREATED`), f.`str_CODE_FACTURE`, COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, ''),"
+            + " COALESCE(f.`dbl_MONTANT_CMDE`,0), COALESCE(f.`dbl_MONTANT_PAYE`,0), COALESCE(f.`dbl_MONTANT_RESTANT`,0)"
             + " FROM `t_groupe_factures` g JOIN `t_groupe_tierspayant` gt ON gt.`lg_GROUPE_ID` = g.`lg_GROUPE_ID`"
-            + " JOIN `t_facture` f ON f.`lg_FACTURE_ID` = g.`lg_FACTURES_ID`";
+            + " JOIN `t_facture` f ON f.`lg_FACTURE_ID` = g.`lg_FACTURES_ID`"
+            + " LEFT JOIN `t_tiers_payant` tp ON tp.`lg_TIERS_PAYANT_ID` = f.`str_CUSTOMER`";
 
     @Override
     @SuppressWarnings("unchecked")
@@ -72,8 +77,8 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
             valeurs.add(search + "%");
             valeurs.add(search + "%");
         }
-        sql.append(" GROUP BY g.`lg_GROUPE_ID`, gt.`str_LIBELLE`, g.`str_CODE_FACTURE`, DATE(g.`dt_CREATED`)")
-                .append(" ORDER BY gt.`str_LIBELLE` ASC, DATE(g.`dt_CREATED`) ASC, g.`str_CODE_FACTURE` ASC");
+        sql.append(" ORDER BY gt.`str_LIBELLE` ASC, DATE(g.`dt_CREATED`) ASC, g.`str_CODE_FACTURE` ASC,"
+                + " COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, '') ASC");
 
         Query q = em.createNativeQuery(sql.toString());
         for (int i = 0; i < valeurs.size(); i++) {
@@ -95,13 +100,12 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
             ReleveGroupeDTO groupe = parGroupe.computeIfAbsent(nombreEntier(ligne[0]),
                     id -> new ReleveGroupeDTO(id, texte(ligne[1])));
 
-            BigDecimal facture = montant(ligne[5]);
-            BigDecimal regle = montant(ligne[6]);
-            BigDecimal restant = montant(ligne[7]);
-            int nb = nombreEntier(ligne[4]);
+            BigDecimal facture = montant(ligne[6]);
+            BigDecimal regle = montant(ligne[7]);
+            BigDecimal restant = montant(ligne[8]);
 
-            groupe.getFactures().add(new ReleveGroupeLigneDTO(texte(ligne[2]), dateCourte(ligne[3]), nb, facture, regle,
-                    restant, restant.signum() <= 0 ? "Soldée" : "En cours"));
+            groupe.getFactures().add(new ReleveGroupeLigneDTO(texte(ligne[2]), dateCourte(ligne[3]), texte(ligne[4]),
+                    texte(ligne[5]), facture, regle, restant, restant.signum() <= 0 ? "Soldée" : "En cours"));
             groupe.setMontantFacture(groupe.getMontantFacture().add(facture));
             groupe.setMontantRegle(groupe.getMontantRegle().add(regle));
             groupe.setMontantRestant(groupe.getMontantRestant().add(restant));
@@ -109,7 +113,7 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
             totalFacture = totalFacture.add(facture);
             totalRegle = totalRegle.add(regle);
             totalRestant = totalRestant.add(restant);
-            nbFactures += nb;
+            nbFactures++;
         }
 
         releve.setGroupes(new ArrayList<>(parGroupe.values()));

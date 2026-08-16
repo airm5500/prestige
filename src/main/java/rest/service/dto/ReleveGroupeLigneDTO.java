@@ -3,18 +3,20 @@ package rest.service.dto;
 import java.math.BigDecimal;
 
 /**
- * Une ligne du releve des factures de groupe : UNE facture de groupe.
+ * Une ligne du releve des factures de groupe : UNE facture, donc UN tiers payant.
  *
- * C'est exactement une ligne de l'ecran "Facture de groupes" (menu Facture de groupe) : meme numero, meme date
- * d'edition, memes montants. Le releve n'invente aucun chiffre, il reprend ceux de la liste.
+ * Une facture de groupe rassemble plusieurs factures, une par organisme. Le releve descend a ce niveau de detail pour
+ * qu'on sache a QUI appartient chaque facture ; le numero et la date de la facture de groupe sont rappeles sur la ligne
+ * (codeFactureGroupe / dateEdition) et servent a regrouper les lignes dans l'etat.
  *
  * @author koben
  */
 public class ReleveGroupeLigneDTO {
 
-    private String codeFacture;
+    private String codeFactureGroupe;
     private String dateEdition;
-    private Integer nbFactures;
+    private String codeFacture;
+    private String tiersPayant;
     private BigDecimal montantFacture;
     private BigDecimal montantRegle;
     private BigDecimal montantRestant;
@@ -23,23 +25,24 @@ public class ReleveGroupeLigneDTO {
     public ReleveGroupeLigneDTO() {
     }
 
-    public ReleveGroupeLigneDTO(String codeFacture, String dateEdition, Integer nbFactures, BigDecimal montantFacture,
-            BigDecimal montantRegle, BigDecimal montantRestant, String statut) {
-        this.codeFacture = codeFacture;
+    public ReleveGroupeLigneDTO(String codeFactureGroupe, String dateEdition, String codeFacture, String tiersPayant,
+            BigDecimal montantFacture, BigDecimal montantRegle, BigDecimal montantRestant, String statut) {
+        this.codeFactureGroupe = codeFactureGroupe;
         this.dateEdition = dateEdition;
-        this.nbFactures = nbFactures;
+        this.codeFacture = codeFacture;
+        this.tiersPayant = tiersPayant;
         this.montantFacture = montantFacture;
         this.montantRegle = montantRegle;
         this.montantRestant = montantRestant;
         this.statut = statut;
     }
 
-    public String getCodeFacture() {
-        return codeFacture;
+    public String getCodeFactureGroupe() {
+        return codeFactureGroupe;
     }
 
-    public void setCodeFacture(String codeFacture) {
-        this.codeFacture = codeFacture;
+    public void setCodeFactureGroupe(String codeFactureGroupe) {
+        this.codeFactureGroupe = codeFactureGroupe;
     }
 
     public String getDateEdition() {
@@ -50,12 +53,20 @@ public class ReleveGroupeLigneDTO {
         this.dateEdition = dateEdition;
     }
 
-    public Integer getNbFactures() {
-        return nbFactures;
+    public String getCodeFacture() {
+        return codeFacture;
     }
 
-    public void setNbFactures(Integer nbFactures) {
-        this.nbFactures = nbFactures;
+    public void setCodeFacture(String codeFacture) {
+        this.codeFacture = codeFacture;
+    }
+
+    public String getTiersPayant() {
+        return tiersPayant;
+    }
+
+    public void setTiersPayant(String tiersPayant) {
+        this.tiersPayant = tiersPayant;
     }
 
     public BigDecimal getMontantFacture() {

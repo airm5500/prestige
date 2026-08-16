@@ -47,9 +47,11 @@ class ReleveGroupeFactureEtatTest {
         }
     }
 
-    private static ReleveGroupeLigneDTO ligne(String code, String date, int nb, long facture, long regle) {
-        return new ReleveGroupeLigneDTO(code, date, nb, BigDecimal.valueOf(facture), BigDecimal.valueOf(regle),
-                BigDecimal.valueOf(facture - regle), facture - regle <= 0 ? "Soldée" : "En cours");
+    private static ReleveGroupeLigneDTO ligne(String codeGroupe, String date, String code, String tiersPayant,
+            long facture, long regle) {
+        return new ReleveGroupeLigneDTO(codeGroupe, date, code, tiersPayant, BigDecimal.valueOf(facture),
+                BigDecimal.valueOf(regle), BigDecimal.valueOf(facture - regle),
+                facture - regle <= 0 ? "Soldée" : "En cours");
     }
 
     private static ReleveGroupeDTO groupe(int id, String libelle, ReleveGroupeLigneDTO... lignes) {
@@ -109,18 +111,21 @@ class ReleveGroupeFactureEtatTest {
     }
 
     @Test
-    @DisplayName("Un bloc par groupe, avec son total")
-    void unBlocParGroupe() throws Exception {
+    @DisplayName("Une ligne par organisme, un sous-total par facture de groupe, un total par groupe")
+    void detailParOrganisme() throws Exception {
         List<ReleveGroupeDTO> groupes = List.of(
-                groupe(1, "GROUPE SUNU ASSURANCES", ligne("26_1042", "05/07/2026", 7, 4820450, 4820450),
-                        ligne("26_1088", "19/07/2026", 9, 6135900, 2000000)),
-                groupe(2, "GROUPE ALLIANZ", ligne("26_1044", "05/07/2026", 3, 512000, 0)));
+                groupe(1, "GROUPE SUNU ASSURANCES",
+                        ligne("26_1042", "05/07/2026", "26_2101", "ASCOMA CÔTE D'IVOIRE", 1820450, 1820450),
+                        ligne("26_1042", "05/07/2026", "26_2102", "SUNU ASSURANCES VIE", 3000000, 3000000),
+                        ligne("26_1088", "19/07/2026", "26_2210", "ASCOMA CÔTE D'IVOIRE", 6135900, 2000000)),
+                groupe(2, "GROUPE ALLIANZ",
+                        ligne("26_1044", "05/07/2026", "26_2106", "ALLIANZ CÔTE D'IVOIRE", 512000, 0)));
 
         Map<String, Object> parametres = parametres();
         parametres.put("P_MONTANT_FACTURE", BigDecimal.valueOf(11468350));
         parametres.put("P_MONTANT_REGLE", BigDecimal.valueOf(6820450));
         parametres.put("P_MONTANT_RESTANT", BigDecimal.valueOf(4647900));
-        parametres.put("P_NB_FACTURES", 19);
+        parametres.put("P_NB_FACTURES", 4);
 
         JasperPrint impression = JasperFillManager.fillReport(etat, parametres,
                 new JRBeanCollectionDataSource(groupes));
@@ -128,20 +133,27 @@ class ReleveGroupeFactureEtatTest {
 
         assertTrue(textes.contains("GROUPE SUNU ASSURANCES"), "le nom du groupe doit figurer en tete de son bloc");
         assertTrue(textes.contains("GROUPE ALLIANZ"));
-        assertTrue(textes.contains("26_1042"), "chaque facture de groupe doit avoir sa ligne");
-        // total du premier groupe : 4 820 450 + 6 135 900
+        // c'est la demande : savoir A QUI appartient chaque facture
+        assertTrue(textes.contains("ASCOMA CÔTE D'IVOIRE"), "le tiers payant doit figurer sur sa ligne");
+        assertTrue(textes.contains("SUNU ASSURANCES VIE"));
+        assertTrue(textes.contains("26_2101"), "chaque facture d'organisme doit avoir son numero");
+        assertTrue(textes.stream().anyMatch(t -> t.startsWith("FACTURE DE GROUPE N° 26_1042")),
+                "la facture de groupe ouvre son propre bloc de lignes");
+        // sous-total de la facture de groupe 26_1042 : 1 820 450 + 3 000 000
+        assertTrue(textes.contains("4,820,450"), "chaque facture de groupe doit avoir son sous-total");
+        assertTrue(textes.contains("2 organismes"), "le sous-total rappelle le nombre d'organismes");
+        // total du groupe : 4 820 450 + 6 135 900
         assertTrue(textes.contains("10,956,350"), "le total du groupe doit etre imprime");
-        // nombre de factures du premier groupe : 7 + 9
-        assertTrue(textes.contains("16"), "le nombre de factures du groupe doit etre totalise");
-        assertTrue(textes.contains("TOTAL GÉNÉRAL  (19 factures)"), "le total general rappelle le nombre de factures");
+        assertTrue(textes.contains("3 factures"), "le total du groupe rappelle le nombre de factures");
+        assertTrue(textes.contains("TOTAL GÉNÉRAL  (4 factures)"), "le total general rappelle le nombre de factures");
     }
 
     @Test
     @DisplayName("Le statut suit le reste a regler")
     void statutSelonLeReste() throws Exception {
-        List<ReleveGroupeDTO> groupes = List
-                .of(groupe(1, "GROUPE SUNU ASSURANCES", ligne("26_1042", "05/07/2026", 7, 4820450, 4820450),
-                        ligne("26_1088", "19/07/2026", 9, 6135900, 2000000)));
+        List<ReleveGroupeDTO> groupes = List.of(groupe(1, "GROUPE SUNU ASSURANCES",
+                ligne("26_1042", "05/07/2026", "26_2101", "ASCOMA CÔTE D'IVOIRE", 4820450, 4820450),
+                ligne("26_1088", "19/07/2026", "26_2210", "ASCOMA CÔTE D'IVOIRE", 6135900, 2000000)));
 
         List<String> textes = textes(
                 JasperFillManager.fillReport(etat, parametres(), new JRBeanCollectionDataSource(groupes)));
