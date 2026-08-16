@@ -159,55 +159,113 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
 
         });
 
+        /*
+         * Habillage de la fiche.
+         *
+         * Une feuille de style deposee une seule fois : titres de blocs en bleu marine, blocs sur
+         * fond blanc detache du fond de la fenetre, libelles adoucis. Les memes couleurs que les
+         * etats de facture retravailles pour l'officine, pour que l'application et le papier se
+         * ressemblent.
+         */
+        if (!Ext.util.CSS.getRule('.fiche-tp .x-fieldset-header-text')) {
+            Ext.util.CSS.createStyleSheet(
+                    '.fiche-tp .x-panel-body{background:#F4F6F9;}'
+                    + '.fiche-tp .x-fieldset{border:1px solid #D3DBE5;border-radius:3px;'
+                    + 'background:#FFFFFF;padding:6px 12px 10px 12px;margin-bottom:10px;}'
+                    + '.fiche-tp .x-fieldset-header-text{color:#1E3A5F;font-weight:700;font-size:12px;}'
+                    + '.fiche-tp .x-fieldset-header{padding-left:2px;}'
+                    + '.fiche-tp .x-form-item-label{color:#5A6779;}'
+                    + '.fiche-tp .x-form-cb-label{color:#5A6779;}',
+                    'fiche-tiers-payant');
+        }
+
+        /*
+         * Champs conserves mais retires de l'ecran.
+         *
+         * L'officine ne renseigne aucun de ces vingt champs : les afficher obligeait a parcourir
+         * six blocs pour atteindre les quelques-uns qui servent vraiment. Ils restent presents
+         * dans le formulaire, charges et renvoyes tels quels a l'enregistrement : la valeur deja
+         * en base ne bouge pas, et il suffit de retirer un champ de cette liste pour le revoir.
+         */
+        var champsMasques = {
+            xtype: 'container',
+            hidden: true,
+            itemId: 'champsMasques',
+            defaultType: 'textfield',
+            items: [
+                {fieldLabel: 'Ville', xtype: 'combobox', name: 'lg_VILLE_ID', id: 'lg_VILLE_ID',
+                    store: store_ville_tp, valueField: 'lg_VILLE_ID', displayField: 'STR_NAME',
+                    queryMode: 'remote'},
+                // Une fiche creee est faite pour servir : sans la case a l'ecran, le nouveau tiers
+                // payant serait enregistre inactif.
+                {fieldLabel: 'Active', xtype: 'checkbox', name: 'bool_ENABLED', id: 'bool_ENABLED',
+                    checked: Omode !== 'update'},
+                {fieldLabel: 'Periodicite.edit.bord', name: 'int_PERIODICITE_EDIT_BORD',
+                    id: 'int_PERIODICITE_EDIT_BORD'},
+                {fieldLabel: 'Fact.Subrogatoire', xtype: 'checkbox', name: 'bool_PRENUM_FACT_SUBROGATOIRE',
+                    id: 'bool_PRENUM_FACT_SUBROGATOIRE'},
+                {fieldLabel: 'No IDF', name: 'str_NUMERO_IDF_ORGANISME', id: 'str_NUMERO_IDF_ORGANISME'},
+                {fieldLabel: 'Taux.Remboursement', name: 'dbl_TAUX_REMBOURSEMENT', id: 'dbl_TAUX_REMBOURSEMENT'},
+                {fieldLabel: 'Montant F Client', name: 'dbl_MONTANT_F_CLIENT', id: 'dbl_MONTANT_F_CLIENT'},
+                {fieldLabel: 'Base Remise', name: 'dbl_BASE_REMISE', id: 'dbl_BASE_REMISE'},
+                {fieldLabel: 'Code Comptable', name: 'str_CODE_COMPTABLE', id: 'str_CODE_COMPTABLE'},
+                {fieldLabel: 'N0 Decompte', name: 'int_NUMERO_DECOMPTE', id: 'int_NUMERO_DECOMPTE'},
+                {fieldLabel: 'N0 Caisse Officiel', name: 'str_NUMERO_CAISSE_OFFICIEL',
+                    id: 'str_NUMERO_CAISSE_OFFICIEL'},
+                {fieldLabel: 'Code Doc Comptoire', name: 'str_CODE_DOC_COMPTOIRE', id: 'str_CODE_DOC_COMPTOIRE'},
+                {fieldLabel: 'Regime.Caisse', xtype: 'combobox', name: 'lg_REGIMECAISSE_ID', id: 'lg_REGIMECAISSE_ID',
+                    store: store_regime_tp, valueField: 'lg_REGIMECAISSE_ID', displayField: 'str_LIBELLEREGIMECAISSE',
+                    queryMode: 'remote'},
+                {fieldLabel: 'Type.Contrat', xtype: 'combobox', name: 'lg_TYPE_CONTRAT_ID', id: 'lg_TYPE_CONTRAT_ID',
+                    store: store_typecontrat_tp, valueField: 'lg_TYPE_CONTRAT_ID',
+                    displayField: 'str_LIBELLE_TYPE_CONTRAT', queryMode: 'remote'},
+                {fieldLabel: 'Code Regroupement', name: 'str_CODE_REGROUPEMENT', id: 'str_CODE_REGROUPEMENT'},
+                {fieldLabel: 'Risque', xtype: 'combobox', name: 'lg_RISQUE_ID', id: 'lg_RISQUE_ID',
+                    store: store_risque_tp, valueField: 'lg_RISQUE_ID', displayField: 'str_LIBELLE_RISQUE',
+                    queryMode: 'remote'},
+                {fieldLabel: 'Centre payeur', name: 'str_CENTRE_PAYEUR', id: 'str_CENTRE_PAYEUR'},
+                {fieldLabel: 'Caution', name: 'caution', id: 'caution'},
+                {fieldLabel: 'Seuil minimum', name: 'dbl_SEUIL_MINIMUM', id: 'dbl_SEUIL_MINIMUM'},
+                {fieldLabel: 'Code Paiement', name: 'str_CODE_PAIEMENT', id: 'str_CODE_PAIEMENT'}
+            ]
+        };
+
         var form = new Ext.form.Panel({
-            bodyPadding: 15,
+            cls: 'fiche-tp',
+            bodyPadding: 12,
+            scrollable: true,
             fieldDefaults: {
                 labelAlign: 'right',
-                labelWidth: 150,
-                layout: {
-                    type: 'vbox',
-                    align: 'stretch',
-                    padding: 10
-                },
-                defaults: {
-                    flex: 1
-                },
+                labelWidth: 130,
                 msgTarget: 'side'
             },
             /*
-             * Presentation de la fiche.
+             * Quatre blocs seulement, et une meme grille de quatre colonnes sur toutes les lignes.
              *
-             * Les champs etaient poses au fil de l'eau : le mobile au milieu des remises, le code
-             * d'edition du bordereau loin du reste de la facturation, deux champs "Caution" sans
-             * rapport l'un a cote de l'autre, des colonnes qui ne s'alignaient pas d'une ligne a
-             * l'autre. On cherchait un champ plus qu'on ne le lisait.
+             * Le premier reunit ce qu'on regarde en premier : qui est l'organisme et comment le
+             * joindre. Viennent ensuite ce qui decide de sa facture, ses conditions, puis son
+             * compte. Tout le reste est masque (voir champsMasques ci-dessus).
              *
-             * Ils sont maintenant regroupes par sujet - qui est ce tiers payant, comment le joindre,
-             * comment on lui facture, a quelles conditions, quelles references, quel compte - et
-             * TOUTES les lignes sont sur la meme grille de 4 colonnes de largeur egale.
-             *
-             * Aucun champ n'a change de nom ni d'identifiant : l'enregistrement, le chargement et
-             * les regles de saisie sont exactement ceux d'avant. Seule la disposition change.
+             * Aucun champ n'a change de nom ni d'identifiant : l'enregistrement et le chargement
+             * sont exactement ceux d'avant.
              */
             defaults: {
                 xtype: 'fieldset',
                 collapsible: true,
                 layout: 'vbox',
                 defaultType: 'textfield',
-                margin: '0 0 10 0',
                 defaults: {anchor: '100%'}
             },
             items: [
-                // ----------------------------------------------------------------- identification
                 {
-                    title: 'Identification',
+                    title: 'Identification et coordonn&eacute;es',
                     items: [
                         {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
                                     allowBlank: false,
@@ -268,8 +326,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
                                     xtype: 'combobox',
@@ -295,56 +353,11 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     }
                                 },
                                 {
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Ville',
-                                    name: 'lg_VILLE_ID',
-                                    id: 'lg_VILLE_ID',
-                                    store: store_ville_tp,
-                                    valueField: 'lg_VILLE_ID',
-                                    displayField: 'STR_NAME',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir une ville...',
-                                    listeners: {
-                                        keypress: function (field, e) {
-                                            if (e.getKey() === e.BACKSPACE || e.getKey() === 46) {
-
-                                                if (field.getValue().length === 1) {
-                                                    field.getStore().load();
-                                                }
-                                            }
-
-                                        }
-                                    }
-                                },
-                                {
                                     fieldLabel: 'Code Officine',
                                     emptyText: 'Code Officine',
                                     name: 'str_CODE_OFFICINE',
                                     id: 'str_CODE_OFFICINE'
                                 },
-                                {
-                                    xtype: 'checkbox',
-                                    fieldLabel: 'Active',
-                                    emptyText: 'Active',
-                                    name: 'bool_ENABLED',
-                                    id: 'bool_ENABLED'
-                                }
-                            ]
-                        }
-                    ]
-                },
-                // ------------------------------------------------------------------- coordonnees
-                {
-                    title: 'Coordonn&eacute;es',
-                    items: [
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
                                 {
                                     allowBlank: false,
                                     fieldLabel: 'Adresse',
@@ -363,7 +376,16 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     id: 'str_TELEPHONE',
                                     style: 'background-color: #ffffe0;',
                                     value: '225'
-                                },
+                                }
+                            ]
+                        },
+                        {
+                            xtype: 'container',
+                            layout: 'hbox',
+                            defaultType: 'textfield',
+                            margin: '0 0 2 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
+                            items: [
                                 {
                                     maskRe: /[0-9.]/,
                                     fieldLabel: 'Mobile',
@@ -376,39 +398,49 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     emptyText: 'MAIL',
                                     name: 'str_MAIL',
                                     id: 'str_MAIL'
+                                },
+                                {
+                                    fieldLabel: 'Compte Contribuable',
+                                    emptyText: 'Compte Contribuable',
+                                    name: 'str_COMPTE_CONTRIBUABLE',
+                                    id: 'str_COMPTE_CONTRIBUABLE'
+                                },
+                                {
+                                    fieldLabel: 'Registre de Commerce',
+                                    emptyText: 'Registre de Commerce',
+                                    name: 'str_REGISTRE_COMMERCE',
+                                    id: 'str_REGISTRE_COMMERCE'
                                 }
                             ]
                         }
                     ]
                 },
-                // ------------------------------------------------- facturation et edition
                 {
                     /*
-                     * Tout ce qui decide de la facture de ce tiers payant, au meme endroit.
-                     *
-                     * La 4e colonne porte les trois reglages de l'edition, l'un sous l'autre :
-                     * le tri des bons, le nombre de bons par page, la taille de police.
+                     * Tout ce qui decide de la facture de ce tiers payant. La 4e colonne porte les
+                     * trois reglages de l'edition, l'un sous l'autre : tri des bons, nombre de bons
+                     * par page, taille de police.
                      */
                     title: 'Facturation et &eacute;dition de la facture',
                     items: [
                         {
                             xtype: 'container',
                             layout: 'hbox',
-                            margin: '0 0 5 0',
+                            margin: '0 0 2 0',
                             defaults: {
                                 flex: 1,
                                 margin: '0 10 0 0',
                                 xtype: 'container',
                                 layout: 'anchor',
                                 defaultType: 'textfield',
-                                defaults: {anchor: '100%', labelWidth: 115, margin: '0 0 5 0'}
+                                defaults: {anchor: '100%', labelWidth: 105, margin: '0 0 4 0'}
                             },
                             items: [
                                 {
                                     items: [
                                         {
                                             maskRe: /[0-9.]/,
-                                            fieldLabel: 'Nbre Bons à facturer',
+                                            fieldLabel: 'Nbre Bons &agrave; facturer',
                                             emptyText: 'Nbre Bons à facturer',
                                             name: 'nbrbons',
                                             id: 'nbrbons'
@@ -422,34 +454,11 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                         },
                                         {
                                             maskRe: /[0-9.]/,
-                                            fieldLabel: 'Nbre.Exemplaire.Bord',
+                                            fieldLabel: 'Nbre.Exempl.Bord',
                                             emptyText: 'Nbre.Exemplaire.Bord',
                                             name: 'int_NBRE_EXEMPLAIRE_BORD',
                                             id: 'int_NBRE_EXEMPLAIRE_BORD',
                                             minValue: 1
-                                        }
-                                    ]
-                                },
-                                {
-                                    items: [
-                                        {
-                                            maskRe: /[0-9.]/,
-                                            fieldLabel: 'Periodicite.edit.bord',
-                                            emptyText: 'Periodicite.edit.bord',
-                                            name: 'int_PERIODICITE_EDIT_BORD',
-                                            id: 'int_PERIODICITE_EDIT_BORD'
-                                        },
-                                        {
-                                            maskRe: /[0-9.]/,
-                                            fieldLabel: 'Date.derniere.edition',
-                                            name: 'int_DATE_DERNIERE_EDITION',
-                                            id: 'int_DATE_DERNIERE_EDITION'
-                                        },
-                                        {
-                                            fieldLabel: 'No IDF',
-                                            emptyText: 'No IDF',
-                                            name: 'str_NUMERO_IDF_ORGANISME',
-                                            id: 'str_NUMERO_IDF_ORGANISME'
                                         }
                                     ]
                                 },
@@ -466,25 +475,27 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                             store: store_modelfacture
                                         },
                                         {
+                                            maskRe: /[0-9.]/,
+                                            fieldLabel: 'Date.dern.edition',
+                                            name: 'int_DATE_DERNIERE_EDITION',
+                                            id: 'int_DATE_DERNIERE_EDITION'
+                                        },
+                                        {
                                             xtype: 'checkbox',
                                             fieldLabel: 'Grouper par taux',
                                             name: 'groupingByTaux',
                                             id: 'groupingByTaux'
-                                        },
-                                        {
-                                            xtype: 'checkbox',
-                                            fieldLabel: 'Fact.Subrogatoire',
-                                            emptyText: 'Fact.Subrogatoire',
-                                            name: 'bool_PRENUM_FACT_SUBROGATOIRE',
-                                            id: 'bool_PRENUM_FACT_SUBROGATOIRE'
                                         }
                                     ]
+                                },
+                                {
+                                    // 3e colonne libre : elle garde l'alignement des quatre colonnes
+                                    items: []
                                 },
                                 {
                                     // 4e colonne : les trois reglages de l'edition, l'un sous l'autre.
                                     items: [
                                         {
-                                            // Tri des lignes lors de la generation de la facture
                                             xtype: 'combobox',
                                             fieldLabel: 'Tri facture',
                                             name: 'str_MODE_TRI_FACTURE',
@@ -515,29 +526,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                             maxValue: 500,
                                             step: 5,
                                             // 20 bons par page par defaut. Vider le champ revient a
-                                            // « automatique » : la page se remplit alors d'elle-meme
-                                            // et la coupure tombe la ou elle tombait avant.
-                                            value: 20,
-                                            listeners: {
-                                                render: function (champ) {
-                                                    // Les info-bulles ne sont pas initialisees partout
-                                                    // dans l'application : sans ce garde-fou,
-                                                    // l'ouverture de la fiche echouerait sur les ecrans
-                                                    // ou elles ne le sont pas.
-                                                    if (!Ext.tip || !Ext.tip.QuickTipManager) {
-                                                        return;
-                                                    }
-                                                    if (!Ext.tip.QuickTipManager.tip) {
-                                                        Ext.tip.QuickTipManager.init();
-                                                    }
-                                                    Ext.tip.QuickTipManager.register({
-                                                        target: champ.getEl(),
-                                                        text: "Nombre de bons imprimés par page sur la "
-                                                                + "facture. Laisser vide pour laisser la "
-                                                                + "page se remplir d'elle-même."
-                                                    });
-                                                }
-                                            }
+                                            // « automatique » : la page se remplit alors d'elle-meme.
+                                            value: 20
                                         },
                                         {
                                             xtype: 'combobox',
@@ -563,8 +553,7 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                             displayField: 'libelle',
                                             editable: false,
                                             queryMode: 'local',
-                                            // 7 points par defaut : la taille moyenne des modeles
-                                            // livres, qui vont de 6 a 8 selon le nombre de colonnes.
+                                            // 7 points : la taille moyenne des modeles livres.
                                             value: 7
                                         }
                                     ]
@@ -573,7 +562,6 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                         }
                     ]
                 },
-                // --------------------------------------------------------- conditions commerciales
                 {
                     title: 'Conditions commerciales',
                     items: [
@@ -581,16 +569,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
-                                {
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Taux.Remboursement',
-                                    emptyText: 'Taux.Remboursement',
-                                    name: 'dbl_TAUX_REMBOURSEMENT',
-                                    id: 'dbl_TAUX_REMBOURSEMENT'
-                                },
                                 {
                                     maskRe: /[0-9.]/,
                                     fieldLabel: 'Pourcentage.Remise',
@@ -607,59 +588,22 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                 },
                                 {
                                     maskRe: /[0-9.]/,
-                                    fieldLabel: 'Base Remise',
-                                    emptyText: 'Base Remise',
-                                    name: 'dbl_BASE_REMISE',
-                                    id: 'dbl_BASE_REMISE'
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                {
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Seuil minimum',
-                                    emptyText: 'Seuil minimum',
-                                    name: 'dbl_SEUIL_MINIMUM',
-                                    id: 'dbl_SEUIL_MINIMUM'
-                                },
-                                {
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Montant F Client',
-                                    emptyText: 'Montant F Client',
-                                    name: 'dbl_MONTANT_F_CLIENT',
-                                    id: 'dbl_MONTANT_F_CLIENT'
-                                },
-                                {
-                                    fieldLabel: 'Code Paiement',
-                                    emptyText: 'Code Paiement',
-                                    name: 'str_CODE_PAIEMENT',
-                                    id: 'str_CODE_PAIEMENT'
-                                },
-                                {
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Date delai paiement',
+                                    fieldLabel: 'D&eacute;lai paiement',
                                     name: 'dt_DELAI_PAIEMENT',
                                     id: 'dt_DELAI_PAIEMENT'
-                                }
+                                },
+                                {xtype: 'container'}
                             ]
                         },
                         {
                             xtype: 'container',
                             layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 2 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
                                     xtype: 'checkbox',
                                     fieldLabel: 'Interdiction',
-                                    emptyText: 'Interdiction',
                                     name: 'bool_INTERDICTION',
                                     id: 'bool_INTERDICTION'
                                 },
@@ -669,137 +613,12 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     name: 'cmu',
                                     id: 'cmu'
                                 },
-                                {
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'Caution',
-                                    name: 'caution',
-                                    id: 'caution'
-                                },
+                                {xtype: 'container'},
                                 {xtype: 'container'}
                             ]
                         }
                     ]
                 },
-                // ------------------------------------------------- references et rattachements
-                {
-                    title: 'R&eacute;f&eacute;rences comptables et administratives',
-                    items: [
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                {
-                                    fieldLabel: 'Code Comptable',
-                                    emptyText: 'Code Comptable',
-                                    name: 'str_CODE_COMPTABLE',
-                                    id: 'str_CODE_COMPTABLE'
-                                },
-                                {
-                                    fieldLabel: 'Compte Contribuable',
-                                    emptyText: 'Compte Contribuable',
-                                    name: 'str_COMPTE_CONTRIBUABLE',
-                                    id: 'str_COMPTE_CONTRIBUABLE'
-                                },
-                                {
-                                    fieldLabel: 'Registre de Commerce',
-                                    emptyText: 'Registre de Commerce',
-                                    name: 'str_REGISTRE_COMMERCE',
-                                    id: 'str_REGISTRE_COMMERCE'
-                                },
-                                {
-                                    fieldLabel: 'N0 Caisse Officiel',
-                                    emptyText: 'N0 Caisse Officiel',
-                                    name: 'str_NUMERO_CAISSE_OFFICIEL',
-                                    id: 'str_NUMERO_CAISSE_OFFICIEL'
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                {
-                                    fieldLabel: 'Centre payeur',
-                                    emptyText: 'Centre payeur',
-                                    name: 'str_CENTRE_PAYEUR',
-                                    id: 'str_CENTRE_PAYEUR'
-                                },
-                                {
-                                    fieldLabel: 'Code Regroupement',
-                                    emptyText: 'Code Regroupement',
-                                    name: 'str_CODE_REGROUPEMENT',
-                                    id: 'str_CODE_REGROUPEMENT'
-                                },
-                                {
-                                    maskRe: /[0-9.]/,
-                                    fieldLabel: 'N0 Decompte',
-                                    emptyText: 'N0 Decompte',
-                                    name: 'int_NUMERO_DECOMPTE',
-                                    id: 'int_NUMERO_DECOMPTE'
-                                },
-                                {
-                                    fieldLabel: 'Code Doc Comptoire',
-                                    emptyText: 'Code Doc Comptoire',
-                                    name: 'str_CODE_DOC_COMPTOIRE',
-                                    id: 'str_CODE_DOC_COMPTOIRE'
-                                }
-                            ]
-                        },
-                        {
-                            xtype: 'container',
-                            layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
-                            items: [
-                                {
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Risque',
-                                    name: 'lg_RISQUE_ID',
-                                    id: 'lg_RISQUE_ID',
-                                    store: store_risque_tp,
-                                    valueField: 'lg_RISQUE_ID',
-                                    displayField: 'str_LIBELLE_RISQUE',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un risque...'
-                                },
-                                {
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Type.Contrat',
-                                    name: 'lg_TYPE_CONTRAT_ID',
-                                    id: 'lg_TYPE_CONTRAT_ID',
-                                    store: store_typecontrat_tp,
-                                    valueField: 'lg_TYPE_CONTRAT_ID',
-                                    displayField: 'str_LIBELLE_TYPE_CONTRAT',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un type contrat...'
-                                },
-                                {
-                                    xtype: 'combobox',
-                                    fieldLabel: 'Regime.Caisse',
-                                    name: 'lg_REGIMECAISSE_ID',
-                                    id: 'lg_REGIMECAISSE_ID',
-                                    store: store_regime_tp,
-                                    valueField: 'lg_REGIMECAISSE_ID',
-                                    displayField: 'str_LIBELLEREGIMECAISSE',
-                                    typeAhead: true,
-                                    queryMode: 'remote',
-                                    emptyText: 'Choisir un regime caisse...'
-                                },
-                                {xtype: 'container'}
-                            ]
-                        }
-                    ]
-                },
-                // ------------------------------------------------------------ compte et plafonds
                 {
                     title: 'Compte et plafonds',
                     items: [
@@ -807,8 +626,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 4 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
                                     allowBlank: false,
@@ -850,14 +669,12 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                         {
                             xtype: 'container',
                             layout: 'hbox',
-                            defaultType: 'textfield',
-                            margin: '0 0 5 0',
-                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            margin: '0 0 2 0',
+                            defaults: {flex: 1, labelWidth: 105, margin: '0 10 0 0'},
                             items: [
                                 {
                                     xtype: 'checkbox',
                                     fieldLabel: 'Prepayer',
-                                    emptyText: 'Prepayer',
                                     name: 'bool_IsACCOUNT',
                                     id: 'bool_IsACCOUNT',
                                     listeners: {
@@ -887,7 +704,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                             ]
                         }
                     ]
-                }
+                },
+                champsMasques
             ]
 
         });
@@ -974,7 +792,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             autoShow: true,
             title: this.getTitre(),
             width: '85%',
-            height: 620,
+            // Quatre blocs de deux a trois lignes : la fiche tient sans qu'on ait a agrandir la
+            // fenetre a la main. Bornee a l'ecran, et le formulaire garde son ascenseur au cas ou
+            // un theme ou une resolution rendrait les champs plus hauts que prevu.
+            height: Math.min(600, Ext.Element.getViewportHeight() - 40),
             minWidth: 300,
             minHeight: 200,
             layout: 'fit',
