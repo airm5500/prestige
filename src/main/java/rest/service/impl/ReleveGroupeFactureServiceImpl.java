@@ -38,10 +38,18 @@ public class ReleveGroupeFactureServiceImpl implements ReleveGroupeFactureServic
     /**
      * Une ligne par FACTURE (donc par organisme), et non par facture de groupe : c'est ce niveau de detail qui dit a
      * qui appartient chaque facture. Le regroupement par facture de groupe est fait par l'etat.
+     *
+     * CHAQUE colonne porte un nom explicite. Deux colonnes s'appellent str_CODE_FACTURE dans la base - celle de la
+     * facture de groupe et celle de la facture de l'organisme - et sans alias le moteur refuse la requete ("duplicated
+     * sql alias"). Les alias servent uniquement a le lever : les valeurs restent lues par leur position.
      */
-    private static final String REQUETE = "SELECT g.`lg_GROUPE_ID`, gt.`str_LIBELLE`, g.`str_CODE_FACTURE`,"
-            + " DATE(g.`dt_CREATED`), f.`str_CODE_FACTURE`, COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, ''),"
-            + " COALESCE(f.`dbl_MONTANT_CMDE`,0), COALESCE(f.`dbl_MONTANT_PAYE`,0), COALESCE(f.`dbl_MONTANT_RESTANT`,0)"
+    static final String REQUETE = "SELECT g.`lg_GROUPE_ID` AS groupeId, gt.`str_LIBELLE` AS groupeLibelle,"
+            + " g.`str_CODE_FACTURE` AS codeFactureGroupe, DATE(g.`dt_CREATED`) AS dateEdition,"
+            + " f.`str_CODE_FACTURE` AS codeFacture,"
+            + " COALESCE(tp.`str_FULLNAME`, tp.`str_NAME`, '') AS tiersPayant,"
+            + " COALESCE(f.`dbl_MONTANT_CMDE`,0) AS montantFacture,"
+            + " COALESCE(f.`dbl_MONTANT_PAYE`,0) AS montantRegle,"
+            + " COALESCE(f.`dbl_MONTANT_RESTANT`,0) AS montantRestant"
             + " FROM `t_groupe_factures` g JOIN `t_groupe_tierspayant` gt ON gt.`lg_GROUPE_ID` = g.`lg_GROUPE_ID`"
             + " JOIN `t_facture` f ON f.`lg_FACTURE_ID` = g.`lg_FACTURES_ID`"
             + " LEFT JOIN `t_tiers_payant` tp ON tp.`lg_TIERS_PAYANT_ID` = f.`str_CUSTOMER`";

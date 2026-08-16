@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -13,6 +15,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
+import rest.report.MessageEchec;
 import rest.report.ReportUtil;
 import rest.service.ReleveGroupeFactureService;
 import rest.service.dto.ReleveGroupeFactureDTO;
@@ -30,6 +33,7 @@ import util.Constant;
 public class ReleveFactureGroupeServlet extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
+    private static final Logger LOG = Logger.getLogger(ReleveFactureGroupeServlet.class.getName());
 
     @EJB
     private ReportUtil reportUtil;
@@ -38,8 +42,28 @@ public class ReleveFactureGroupeServlet extends HttpServlet {
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.setContentType("application/pdf");
-        response.sendRedirect(request.getContextPath() + buildReport(request));
+        try {
+            String pdf = buildReport(request);
+            response.setContentType("application/pdf");
+            response.sendRedirect(request.getContextPath() + pdf);
+        } catch (RuntimeException e) {
+            // Sans cela l'utilisateur recevait une page de pile Java. Le detail technique part
+            // au journal du serveur, l'ecran ne montre qu'une phrase comprehensible.
+            LOG.log(Level.SEVERE, "Echec de l'edition du releve des factures de groupe", e);
+            afficherEchec(response, MessageEchec.pour(e));
+        }
+    }
+
+    private void afficherEchec(HttpServletResponse response, String cause) throws IOException {
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        response.setContentType("text/html; charset=UTF-8");
+        response.getWriter()
+                .println("<!DOCTYPE html><html lang=\"fr\"><head><meta charset=\"UTF-8\">"
+                        + "<title>Relevé des factures de groupe</title></head>"
+                        + "<body style=\"font-family:sans-serif;margin:40px;color:#1E3A5F\">"
+                        + "<h2>Le relevé n'a pas pu être édité</h2>" + "<p>Motif : " + cause + ".</p>"
+                        + "<p>Le détail complet a été enregistré dans le journal du serveur. "
+                        + "Transmettez-le au support avec l'heure de la tentative.</p>" + "</body></html>");
     }
 
     @Override
