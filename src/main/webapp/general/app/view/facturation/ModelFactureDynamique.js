@@ -876,9 +876,19 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
          * Recherche differee : appelee a chaque caractere tape, elle n'interroge le serveur que
          * lorsque la frappe s'arrete. Sans ce delai, taper « ASCOMA » lancerait six recherches.
          * La touche Entree et le bouton Rechercher partent, eux, sans attendre.
+         *
+         * Une seule lettre ne declenche rien : elle ramenerait presque tout le fichier des tiers
+         * payants pour rien. A partir de deux lettres la recherche part ; et le champ vide
+         * reliste tout, comme a l'ouverture.
          */
+        var LETTRES_MINIMUM = 2;
         var rechercherPlusTard = function (fenetre) {
             clearTimeout(minuterieRecherche);
+            var champ = fenetre.down('#mfdRecherche');
+            var saisie = champ ? (champ.getValue() || '') : '';
+            if (saisie.length > 0 && saisie.length < LETTRES_MINIMUM) {
+                return;
+            }
             minuterieRecherche = setTimeout(function () {
                 if (!fenetre.isDestroyed) {
                     lancerRecherche(fenetre);
@@ -979,8 +989,13 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
         var win = Ext.create('Ext.window.Window', {
             autoShow: true,
             modal: true,
-            // Une recherche en attente ne doit pas partir apres la fermeture de la fenetre.
             listeners: {
+                // A l'ouverture, la liste se remplit toute seule : l'ecran s'ouvrait vide et il
+                // fallait cliquer sur « Rechercher » pour voir le moindre tiers payant.
+                afterrender: function (fenetre) {
+                    lancerRecherche(fenetre);
+                },
+                // Une recherche en attente ne doit pas partir apres la fermeture de la fenetre.
                 destroy: function () {
                     clearTimeout(minuterieRecherche);
                 }
@@ -1015,7 +1030,8 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                                             minWidth: 220,
                                             height: 28,
                                             fieldStyle: 'font-size:13px;',
-                                            emptyText: 'Nom du tiers payant (vide = tout lister)...',
+                                            emptyText: 'Nom du tiers payant : la recherche part d&egrave;s '
+                                                    + '2 lettres (vide = tout lister)',
                                             enableKeyEvents: true,
                                             listeners: {
                                                 // La recherche part toute seule pendant la frappe.
