@@ -49,6 +49,7 @@ import javax.ejb.Stateless;
 import javax.servlet.http.HttpSession;
 import org.apache.commons.lang3.StringUtils;
 import rest.report.ReportUtil;
+import rest.report.TriFacture;
 import rest.service.FacturationService;
 import rest.service.LogService;
 import rest.service.ReglementService;
@@ -240,6 +241,9 @@ public class Facture {
             parameters.put("P_CODE_FACTURE",
                     "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
             parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
+            // Ordre des lignes demande sur la fiche du tiers payant : date de bon, ou
+            // alphabetique nom puis prenom.
+            parameters.put(TriFacture.PARAMETRE, TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OFacture.getStrCODECOMPTABLE());
             parameters.put("P_CODE_POSTALE", util.StringUtils.normalizePhone(OTiersPayant.getStrADRESSE()));
             parameters.put("P_COMPTE_CONTRIBUABLE",

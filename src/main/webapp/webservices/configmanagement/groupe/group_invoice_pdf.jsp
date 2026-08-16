@@ -211,6 +211,9 @@
         parameters.put("P_LG_TIERS_PAYANT_ID", OTiersPayant.getLgTIERSPAYANTID());
         parameters.put("P_CODE_FACTURE", "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
         parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
+        // Chaque sous-facture suit l'ordre demande sur la fiche de SON tiers payant
+        parameters.put(rest.report.TriFacture.PARAMETRE,
+                rest.report.TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
         parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
 
         // parameters.put("P_NUMBERPERPAGE", 12);

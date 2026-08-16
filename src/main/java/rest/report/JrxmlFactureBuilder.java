@@ -181,6 +181,10 @@ public final class JrxmlFactureBuilder {
                 "P_CODE_POSTALE", "P_COMPTE_CONTRIBUABLE", "P_CODE_OFFICINE", "P_REGISTRE_COMMERCE" }) {
             xml.append("\t<parameter name=\"").append(p).append("\" class=\"java.lang.String\"/>\n");
         }
+        // Tri demande sur la fiche du tiers payant : entier lie (0/1), jamais un fragment de SQL.
+        xml.append("\t<parameter name=\"").append(TriFacture.PARAMETRE)
+                .append("\" class=\"java.lang.Integer\">\n\t\t<defaultValueExpression><![CDATA[0]]>")
+                .append("</defaultValueExpression>\n\t</parameter>\n");
 
         xml.append("\t<queryString>\n\t\t<![CDATA[").append(requeteSql(modele, avecProduits))
                 .append("]]>\n\t</queryString>\n");
@@ -517,10 +521,17 @@ public final class JrxmlFactureBuilder {
     private static String requeteSql(ModelFactureDynamique modele, boolean avecProduits) {
         String ordre;
         if (ModelFactureDynamique.TRI_DATE_BON.equals(modele.getModeTri())) {
-            ordre = "p.dt_CREATED";
+            ordre = "p.dt_CREATED, p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER";
+        } else if (ModelFactureDynamique.TRI_ALPHABETIQUE.equals(modele.getModeTri())) {
+            // NOM puis PRENOM : l'ordre inverse etait applique, un annuaire ne se lit pas par prenom
+            ordre = "p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER, p.dt_CREATED";
         } else {
-            // alphabetique : c'est aussi le tri applique par defaut quand le modele suit la fiche du tiers payant
-            ordre = "p.str_FIRST_NAME_CUSTOMER, p.str_LAST_NAME_CUSTOMER";
+            // Le modele suit la fiche du tiers payant : l'etat ne peut pas la connaitre a la
+            // generation, il doit donc porter LES DEUX ordres et laisser le parametre trancher a
+            // l'impression. Auparavant il figeait l'ordre alphabetique, et une fiche reglee sur
+            // "date de bon" restait sans effet sur les modeles dynamiques.
+            ordre = "CASE WHEN $P{" + TriFacture.PARAMETRE + "} = 1 THEN p.dt_CREATED END,\n"
+                    + "          p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER, p.dt_CREATED";
         }
         StringBuilder q = new StringBuilder(1200);
         q.append("SELECT p.*, fa.str_CODE_FACTURE, f.dbl_MONTANT AS str_TIERS_PAYANT_RO, f.dbl_MONTANT_REMISE,\n")

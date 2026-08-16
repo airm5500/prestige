@@ -581,6 +581,10 @@ public class InvoiceServlet extends HttpServlet {
             parameters.put("P_CODE_FACTURE",
                     "FACTURE N° " + OFacture.getStrCODEFACTURE() + " (" + OTiersPayant.getStrNAME() + ")");
             parameters.put("P_TIERS_PAYANT_NAME", OTiersPayant.getStrFULLNAME());
+            // Ordre des lignes demande sur la fiche du tiers payant : l'edition automatique
+            // doit sortir les memes factures que l'edition manuelle.
+            parameters.put(rest.report.TriFacture.PARAMETRE,
+                    rest.report.TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OTypeMvtCaisse.getStrCODECOMPTABLE());
             int codeFACT = new Integer(codeModelFacture);
 

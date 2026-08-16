@@ -167,10 +167,15 @@
     // Les alias sont ceux de la requete des modeles de facture (t_preenregistrement p, t_client c).
     // L'alias "preenreg" utilise ici auparavant n'existe dans AUCUN modele : des qu'un modele aurait
     // honore P_ORDER_BY, le tri par date de bon aurait produit une requete SQL invalide.
-    String triFacture = "c.str_FIRST_NAME ASC, c.str_LAST_NAME ASC";
+    // Le choix de la fiche voyage maintenant sous forme d'un ENTIER lie (0/1) : chaque modele
+    // ecrit son propre ORDER BY avec SES alias. P_ORDER_BY reste transmis pour les modeles
+    // d'officine qui ne seraient pas encore repris, mais aucun des seize livres ne l'utilise.
+    parameters.put(rest.report.TriFacture.PARAMETRE,
+            rest.report.TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
+    String triFacture = "c.str_LAST_NAME ASC, c.str_FIRST_NAME ASC";
     try {
-        if ("DATE_BON".equalsIgnoreCase(OTiersPayant.getStrMODETRIFACTURE())) {
-            triFacture = "p.dt_CREATED ASC, c.str_FIRST_NAME ASC, c.str_LAST_NAME ASC";
+        if (rest.report.TriFacture.DATE_BON.equalsIgnoreCase(OTiersPayant.getStrMODETRIFACTURE())) {
+            triFacture = "p.dt_CREATED ASC, c.str_LAST_NAME ASC, c.str_FIRST_NAME ASC";
         }
     } catch (Exception e) {
     }

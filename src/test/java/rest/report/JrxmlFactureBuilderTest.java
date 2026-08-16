@@ -142,8 +142,34 @@ class JrxmlFactureBuilderTest {
     void triDansLaRequete() {
         assertTrue(JrxmlFactureBuilder.construire(modele("DATE_BON", "NOM_COMPLET"), true, true)
                 .contains("ORDER BY p.dt_CREATED"));
+        // NOM puis PRENOM : l'ordre inverse etait applique, un annuaire ne se lit pas par prenom
         assertTrue(JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET"), true, true)
-                .contains("ORDER BY p.str_FIRST_NAME_CUSTOMER"));
+                .contains("ORDER BY p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER"));
+    }
+
+    @Test
+    @DisplayName("Quand le modele suit la fiche du tiers payant, l'etat porte LES DEUX ordres")
+    void triSelonLaFicheDuTiersPayant() {
+        String xml = JrxmlFactureBuilder.construire(modele("TIERS_PAYANT", "NOM_COMPLET"), true, true);
+
+        // l'etat ne peut pas connaitre la fiche a la generation : c'est le parametre qui tranche
+        // a l'impression. Auparavant l'ordre alphabetique etait fige et une fiche reglee sur
+        // "date de bon" restait sans effet sur les modeles dynamiques.
+        assertTrue(xml.contains("<parameter name=\"" + TriFacture.PARAMETRE + "\" class=\"java.lang.Integer\">"),
+                "l'etat doit declarer le parametre de tri");
+        assertTrue(xml.contains("CASE WHEN $P{" + TriFacture.PARAMETRE + "} = 1 THEN p.dt_CREATED END"),
+                "la date de bon ne doit compter que si la fiche la demande");
+        assertTrue(xml.contains("p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER"),
+                "a defaut, l'ordre reste alphabetique nom puis prenom");
+    }
+
+    @Test
+    @DisplayName("Le parametre de tri est un entier lie, jamais un fragment de SQL")
+    void triSansInjectionDeSql() {
+        for (String mode : new String[] { "DATE_BON", "ALPHABETIQUE", "TIERS_PAYANT" }) {
+            String xml = JrxmlFactureBuilder.construire(modele(mode, "NOM_COMPLET"), true, true);
+            assertFalse(xml.contains("$P!{"), "aucun fragment de SQL ne doit etre injecte (modele " + mode + ")");
+        }
     }
 
     // ------------------------------------------------------- detail des produits
