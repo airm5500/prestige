@@ -9,6 +9,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,13 +47,69 @@ class FusionPdfTest {
         return chemin;
     }
 
+    /**
+     * Nombre de pages, lu SANS ouvrir le fichier.
+     *
+     * PdfReader construit a partir d'un nom de fichier garde le descripteur ouvert meme apres close() : sous Windows,
+     * le fichier devient alors impossible a supprimer et JUnit echoue en nettoyant son dossier temporaire ("Le
+     * processus ne peut pas acceder au fichier car ce fichier est utilise par un autre processus"). Sous Linux
+     * l'incident ne se voit pas, un fichier ouvert pouvant etre efface. On lit donc les octets et on les passe au
+     * lecteur : plus aucun descripteur n'est en jeu, sur aucun systeme.
+     */
     private static int pages(Path pdf) throws Exception {
-        PdfReader lecteur = new PdfReader(pdf.toString());
+        PdfReader lecteur = new PdfReader(Files.readAllBytes(pdf));
         try {
             return lecteur.getNumberOfPages();
         } finally {
             lecteur.close();
         }
+    }
+
+    /**
+     * Verifie qu'AUCUN fichier du dossier n'est reste ouvert.
+     *
+     * Un descripteur oublie ne se voit pas sous Linux - on peut y effacer un fichier ouvert - mais rend le fichier
+     * indestructible sous Windows, ou tourne l'officine. Le poste de developpement lisait donc vert pendant que le
+     * poste client echouait. Ce controle rend le defaut visible des ici, en lisant les descripteurs du processus.
+     */
+    private static void aucunFichierOuvert(Path racine) throws Exception {
+        if (!Files.isDirectory(Paths.get("/proc/self"))) {
+            return; // systeme sans /proc : le controle ne s'applique pas
+        }
+        List<String> retenus = new ArrayList<>();
+
+        // 1. descripteurs ouverts : un flux qu'on a oublie de refermer
+        try (java.util.stream.Stream<Path> fd = Files.list(Paths.get("/proc/self/fd"))) {
+            for (Path lien : fd.collect(java.util.stream.Collectors.toList())) {
+                try {
+                    Path cible = Files.readSymbolicLink(lien);
+                    if (cible.startsWith(racine)) {
+                        retenus.add("descripteur ouvert : " + cible);
+                    }
+                } catch (Exception ignore) {
+                    // descripteur disparu entre-temps : sans importance
+                }
+            }
+        }
+
+        // 2. projections en memoire : PdfReader construit sur un NOM DE FICHIER projette le
+        // fichier (mapping). Cela ne se voit dans aucun descripteur, et Windows refuse alors
+        // d'effacer le fichier tant que la projection n'est pas liberee - ce que close() ne
+        // fait pas. C'est precisement l'echec constate sur le poste de l'officine.
+        for (String ligne : Files.readAllLines(Paths.get("/proc/self/maps"),
+                java.nio.charset.StandardCharsets.ISO_8859_1)) {
+            int espace = ligne.lastIndexOf(' ');
+            if (espace < 0) {
+                continue;
+            }
+            String chemin = ligne.substring(espace + 1).trim();
+            if (!chemin.isEmpty() && chemin.startsWith(racine.toString())) {
+                retenus.add("fichier projete en memoire : " + chemin);
+            }
+        }
+
+        assertTrue(retenus.isEmpty(),
+                "fichier(s) encore retenus, donc impossibles a effacer sous Windows : " + retenus);
     }
 
     @Test
@@ -66,6 +123,7 @@ class FusionPdfTest {
 
         assertTrue(Files.exists(finale), "le document final doit exister");
         assertEquals(4, pages(finale), "le final porte le recapitulatif puis la facture");
+        aucunFichierOuvert(racine);
     }
 
     @Test
@@ -82,6 +140,7 @@ class FusionPdfTest {
         try (java.util.stream.Stream<Path> restants = Files.list(racine)) {
             assertEquals(1, restants.count(), "un seul document doit subsister");
         }
+        aucunFichierOuvert(racine);
     }
 
     @Test
@@ -94,6 +153,7 @@ class FusionPdfTest {
 
         assertEquals(2, pages(finale));
         assertFalse(Files.exists(facture));
+        aucunFichierOuvert(racine);
     }
 
     @Test
