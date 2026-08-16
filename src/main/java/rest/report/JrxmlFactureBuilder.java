@@ -519,19 +519,25 @@ public final class JrxmlFactureBuilder {
      * payant ajoute (colonne "Taux") et l'ordre de tri du modele.
      */
     private static String requeteSql(ModelFactureDynamique modele, boolean avecProduits) {
+        // ATTENTION aux noms de colonnes : dans cette base, str_FIRST_NAME porte le NOM et
+        // str_LAST_NAME porte les PRENOMS. Ce n'est pas une supposition - la fiche client de
+        // l'application libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ strLASTNAME, et
+        // la table CHAMPS ci-dessus associe NOM_CLIENT a str_FIRST_NAME_CUSTOMER. Trier sur
+        // str_LAST_NAME revient donc a trier sur le PRENOM, ce qui donne un ordre illisible.
+        String nom = "p.str_FIRST_NAME_CUSTOMER", prenom = "p.str_LAST_NAME_CUSTOMER";
         String ordre;
         if (ModelFactureDynamique.TRI_DATE_BON.equals(modele.getModeTri())) {
-            ordre = "p.dt_CREATED, p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER";
+            ordre = "p.dt_CREATED, " + nom + ", " + prenom;
         } else if (ModelFactureDynamique.TRI_ALPHABETIQUE.equals(modele.getModeTri())) {
             // NOM puis PRENOM : l'ordre inverse etait applique, un annuaire ne se lit pas par prenom
-            ordre = "p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER, p.dt_CREATED";
+            ordre = nom + ", " + prenom + ", p.dt_CREATED";
         } else {
             // Le modele suit la fiche du tiers payant : l'etat ne peut pas la connaitre a la
             // generation, il doit donc porter LES DEUX ordres et laisser le parametre trancher a
             // l'impression. Auparavant il figeait l'ordre alphabetique, et une fiche reglee sur
             // "date de bon" restait sans effet sur les modeles dynamiques.
-            ordre = "CASE WHEN $P{" + TriFacture.PARAMETRE + "} = 1 THEN p.dt_CREATED END,\n"
-                    + "          p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER, p.dt_CREATED";
+            ordre = "CASE WHEN $P{" + TriFacture.PARAMETRE + "} = 1 THEN p.dt_CREATED END,\n" + "          " + nom
+                    + ", " + prenom + ", p.dt_CREATED";
         }
         StringBuilder q = new StringBuilder(1200);
         q.append("SELECT p.*, fa.str_CODE_FACTURE, f.dbl_MONTANT AS str_TIERS_PAYANT_RO, f.dbl_MONTANT_REMISE,\n")

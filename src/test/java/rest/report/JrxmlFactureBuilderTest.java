@@ -142,9 +142,11 @@ class JrxmlFactureBuilderTest {
     void triDansLaRequete() {
         assertTrue(JrxmlFactureBuilder.construire(modele("DATE_BON", "NOM_COMPLET"), true, true)
                 .contains("ORDER BY p.dt_CREATED"));
-        // NOM puis PRENOM : l'ordre inverse etait applique, un annuaire ne se lit pas par prenom
+        // NOM puis PRENOM. Attention au piege de cette base : str_FIRST_NAME porte le NOM et
+        // str_LAST_NAME les PRENOMS (la fiche client libelle "Nom" le champ strFIRSTNAME).
+        // Trier sur str_LAST_NAME revenait a classer par prenom, et la facture paraissait non triee.
         assertTrue(JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET"), true, true)
-                .contains("ORDER BY p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER"));
+                .contains("ORDER BY p.str_FIRST_NAME_CUSTOMER, p.str_LAST_NAME_CUSTOMER"));
     }
 
     @Test
@@ -159,8 +161,9 @@ class JrxmlFactureBuilderTest {
                 "l'etat doit declarer le parametre de tri");
         assertTrue(xml.contains("CASE WHEN $P{" + TriFacture.PARAMETRE + "} = 1 THEN p.dt_CREATED END"),
                 "la date de bon ne doit compter que si la fiche la demande");
-        assertTrue(xml.contains("p.str_LAST_NAME_CUSTOMER, p.str_FIRST_NAME_CUSTOMER"),
-                "a defaut, l'ordre reste alphabetique nom puis prenom");
+        assertTrue(xml.contains("p.str_FIRST_NAME_CUSTOMER, p.str_LAST_NAME_CUSTOMER"),
+                "a defaut, l'ordre reste alphabetique nom puis prenom - et dans cette base le NOM "
+                        + "est porte par str_FIRST_NAME");
     }
 
     @Test

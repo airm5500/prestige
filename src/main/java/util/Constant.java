@@ -103,6 +103,14 @@ public final class Constant {
     public static final String KEY_PARAMS = "KEY_PARAMS";
     public static final String KEY_TAKE_INTO_ACCOUNT = "KEY_TAKE_INTO_ACCOUNT";
     public static final String KEY_NOMBRE_TICKETS_VNO = "KEY_NOMBRE_TICKETS_VNO";
+    /**
+     * Ville d'édition imprimée en pied de récapitulatif ("ABIDJAN, le 16/08/2026").
+     *
+     * Le modèle rp_facturerecap portait la ville en dur — celle de l'officine pour laquelle il avait été créé — et
+     * toutes les autres officines l'imprimaient donc à tort. Tant que ce paramètre n'est pas renseigné, la ligne se lit
+     * simplement « le &lt;date&gt; ».
+     */
+    public static final String KEY_LIEU_EDITION = "KEY_LIEU_EDITION";
     public static final String SMS_TOKEN_TYPE = "Bearer";
     public static final String GRANT_TYPE = "client_credentials";
     public static final String KEY_SMS_CLOTURE_CAISSE = "KEY_SMS_CLOTURE_CAISSE";

@@ -100,10 +100,16 @@ public class ReportUtil {
             } catch (Exception e) {
                 // .jasper illisible : compile par une autre version de JasperReports, tronque ou
                 // corrompu. Le .jrxml reste la source de verite, on repart de lui.
+                //
+                // La pile complete n'est PAS journalisee ici : l'incident est rattrape, l'edition
+                // aboutit, et une pile de quatre-vingts lignes dans le journal laisse croire a une
+                // panne. Le message dit ce qui s'est passe et ce qui a ete fait ; la pile reste
+                // disponible en niveau FINE pour qui diagnostique.
                 LOG.log(Level.WARNING,
-                        "Etat " + reportName + " : le fichier .jasper deja compile n'a pas pu etre relu ("
-                                + e.getMessage() + "). Recompilation depuis le .jrxml.",
-                        e);
+                        "Etat {0} : le fichier .jasper deja compile n''a pas pu etre relu ({1}). "
+                                + "Recompilation depuis le .jrxml : l''edition se poursuit normalement.",
+                        new Object[] { reportName, e.getMessage() });
+                LOG.log(Level.FINE, "Detail de la lecture du .jasper de " + reportName, e);
             }
         } else {
             LOG.log(Level.INFO, "Etat {0} : pas de .jasper compile, compilation depuis le .jrxml.", reportName);
@@ -232,6 +238,10 @@ public class ReportUtil {
             parameters.put("P_H_INSTITUTION", institution);
             parameters.put("P_PRINTED_BY", " " + op.getStrFIRSTNAME() + "  " + op.getStrLASTNAME());
             parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
+            // Ville d'edition du recapitulatif. Le modele la portait en dur ("TAFIRE") : toute
+            // officine imprimait donc la ville d'une autre. Vide, l'etat se contente de la date.
+            parameters.put("P_LIEU_EDITION",
+                    StringUtils.defaultString(findParameterValue(util.Constant.KEY_LIEU_EDITION)));
             if (StringUtils.isNotEmpty(oTOfficine.getStrREGISTRECOMMERCE())) {
                 footer += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
             }

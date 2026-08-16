@@ -18,6 +18,20 @@ import org.apache.commons.lang3.StringUtils;
  */
 public final class TriFacture {
 
+    /**
+     * Colonne qui porte le NOM de famille.
+     *
+     * Piège de cette base : les deux colonnes sont nommées à l'envers de leur contenu. La fiche client de l'application
+     * libelle « Nom » le champ {@code strFIRSTNAME} et « Prénom » le champ {@code strLASTNAME} ; les états de facture
+     * impriment {@code $F{str_FIRST_NAME}} sous la colonne « NOM » et {@code $F{str_LAST_NAME}} sous « PRÉNOM ». Trier
+     * sur {@code str_LAST_NAME} revient donc à trier sur le PRÉNOM, ce qui donne au lecteur un ordre qui paraît
+     * aléatoire — l'incident constaté en production.
+     */
+    public static final String COLONNE_NOM = "str_FIRST_NAME";
+
+    /** Colonne qui porte les PRÉNOMS. Voir {@link #COLONNE_NOM} : les noms de colonnes sont inversés. */
+    public static final String COLONNE_PRENOM = "str_LAST_NAME";
+
     /** Valeur portée par la fiche du tiers payant pour demander l'ordre des bons. */
     public static final String DATE_BON = "DATE_BON";
 

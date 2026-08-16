@@ -172,10 +172,13 @@
     // d'officine qui ne seraient pas encore repris, mais aucun des seize livres ne l'utilise.
     parameters.put(rest.report.TriFacture.PARAMETRE,
             rest.report.TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
-    String triFacture = "c.str_LAST_NAME ASC, c.str_FIRST_NAME ASC";
+    // Dans cette base, str_FIRST_NAME porte le NOM et str_LAST_NAME les PRENOMS : la fiche
+    // client de l'application libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ
+    // strLASTNAME. Trier sur str_LAST_NAME revenait donc a trier sur le PRENOM.
+    String triFacture = "c.str_FIRST_NAME ASC, c.str_LAST_NAME ASC";
     try {
         if (rest.report.TriFacture.DATE_BON.equalsIgnoreCase(OTiersPayant.getStrMODETRIFACTURE())) {
-            triFacture = "p.dt_CREATED ASC, c.str_LAST_NAME ASC, c.str_FIRST_NAME ASC";
+            triFacture = "p.dt_CREATED ASC, c.str_FIRST_NAME ASC, c.str_LAST_NAME ASC";
         }
     } catch (Exception e) {
     }

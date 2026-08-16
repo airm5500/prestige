@@ -1002,8 +1002,12 @@ public class ModelFactureDynamiqueRessource {
         // NOM puis PRENOM, comme l'ORDER BY de l'etat genere. L'apercu du createur de modeles
         // classait par prenom : le meme modele donnait donc deux ordres differents selon qu'on
         // regardait l'apercu ou la facture reellement editee.
-        String nom = (StringUtils.defaultString(pre.getStrLASTNAMECUSTOMER()) + " "
-                + StringUtils.defaultString(pre.getStrFIRSTNAMECUSTOMER())).trim();
+        //
+        // Dans cette base, str_FIRST_NAME porte le NOM et str_LAST_NAME les PRENOMS : la fiche
+        // client libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ strLASTNAME. Le nom
+        // complet se compose donc FIRST puis LAST, et non l'inverse.
+        String nom = (StringUtils.defaultString(pre.getStrFIRSTNAMECUSTOMER()) + " "
+                + StringUtils.defaultString(pre.getStrLASTNAMECUSTOMER())).trim();
         return Normalizer.normalize(nom, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toUpperCase();
     }
 
