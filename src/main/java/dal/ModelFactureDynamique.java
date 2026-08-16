@@ -70,6 +70,16 @@ public class ModelFactureDynamique implements Serializable {
     @Column(name = "int_TAILLE_POLICE")
     private Integer taillePolice = TAILLE_POLICE_DEFAUT;
 
+    /**
+     * Nombre de bons imprimes par page.
+     *
+     * 0 = automatique, la valeur d'origine : la page se remplit d'elle-meme et la coupure tombe la ou elle tombe
+     * aujourd'hui. Un modele qui n'y touche pas garde donc exactement sa presentation. Une valeur choisie ici sert de
+     * valeur par defaut au modele ; la fiche d'un tiers payant peut encore la remplacer pour ses propres factures.
+     */
+    @Column(name = "int_NB_BONS_PAR_PAGE")
+    private Integer nbBonsParPage = 0;
+
     @Column(name = "dt_CREATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCreated;
@@ -102,6 +112,22 @@ public class ModelFactureDynamique implements Serializable {
             return TAILLE_POLICE_DEFAUT;
         }
         return taillePolice;
+    }
+
+    /**
+     * Nombre de bons par page retenu, 0 quand rien n'a ete choisi ou que la valeur est aberrante : la page se remplit
+     * alors d'elle-meme, comme avant.
+     */
+    public int bonsParPageEffectif() {
+        return rest.report.MiseEnPageFacture.bonsParPage(nbBonsParPage);
+    }
+
+    public Integer getNbBonsParPage() {
+        return nbBonsParPage;
+    }
+
+    public void setNbBonsParPage(Integer nbBonsParPage) {
+        this.nbBonsParPage = nbBonsParPage;
     }
 
     public Integer getTaillePolice() {

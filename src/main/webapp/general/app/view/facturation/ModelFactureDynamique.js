@@ -34,6 +34,7 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                 {name: 'afficherPiedPage', type: 'boolean'},
                 {name: 'detaillerProduits', type: 'boolean'},
                 {name: 'taillePolice', type: 'int'},
+                {name: 'nbBonsParPage', type: 'int', defaultValue: 0},
                 {name: 'colonnesProduit'},
                 {name: 'nbColonnes', type: 'int'},
                 {name: 'nbTiersPayants', type: 'int'},
@@ -433,6 +434,25 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                                     + 'restent d\'un point plus petites.</div>'
                         },
                         {
+                            xtype: 'numberfield',
+                            itemId: 'mfdBonsParPage',
+                            fieldLabel: 'Bons par page',
+                            emptyText: 'Automatique',
+                            // Vide = automatique, la valeur d'origine : la page se remplit d'elle-meme
+                            // et la coupure tombe la ou elle tombe aujourd'hui.
+                            value: (rec && rec.get('nbBonsParPage') > 0) ? rec.get('nbBonsParPage') : null,
+                            allowBlank: true,
+                            minValue: 5,
+                            maxValue: 500,
+                            step: 5,
+                            allowDecimals: false,
+                            width: 260,
+                            afterBodyEl: '<div style="color:#888;font-size:11px;padding:2px 0 0 105px">'
+                                    + 'Laissez vide pour garder la pr&eacute;sentation actuelle. '
+                                    + 'La fiche d\'un tiers payant peut encore remplacer ce nombre '
+                                    + 'pour ses propres factures.</div>'
+                        },
+                        {
                             xtype: 'checkbox',
                             itemId: 'mfdDetailProduits',
                             fieldLabel: 'D&eacute;tail des ventes',
@@ -499,6 +519,7 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                                 afficherPiedPage: formulaire.down('#mfdPiedPage').getValue(),
                                 detaillerProduits: detailProduits,
                                 taillePolice: formulaire.down('#mfdTaillePolice').getValue(),
+                                nbBonsParPage: formulaire.down('#mfdBonsParPage').getValue() || 0,
                                 colonnes: Ext.encode(colonnes),
                                 colonnesProduit: Ext.encode(colonnesProduit)
                             },

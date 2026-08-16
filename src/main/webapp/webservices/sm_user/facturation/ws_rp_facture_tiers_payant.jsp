@@ -174,6 +174,11 @@
     // d'officine qui ne seraient pas encore repris, mais aucun des seize livres ne l'utilise.
     parameters.put(rest.report.TriFacture.PARAMETRE,
             rest.report.TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
+    // Mise en page reglee sur la fiche du tiers payant. Les deux valent 0 = automatique : a 0 le modele
+    // imprime exactement comme avant (la page se remplit d'elle-meme, chaque modele garde sa taille de
+    // police). Un modele qui ne declare pas ces deux parametres les ignore simplement.
+    rest.report.MiseEnPageFacture.appliquer(parameters, OTiersPayant.getIntNBBONSPARPAGE(),
+            OTiersPayant.getIntTAILLEPOLICE());
     // Dans cette base, str_FIRST_NAME porte le NOM et str_LAST_NAME les PRENOMS : la fiche
     // client de l'application libelle "Nom" le champ strFIRSTNAME et "Prenom" le champ
     // strLASTNAME. Trier sur str_LAST_NAME revenait donc a trier sur le PRENOM.

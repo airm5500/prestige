@@ -259,6 +259,67 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                 }
                             ]
                         }, {
+                            // Mise en page de la facture de ce tiers payant, juste sous la liste de tri des bons.
+                            // Les deux reglages valent « Automatique » par defaut : tant qu'on n'y touche pas, la
+                            // facture sort EXACTEMENT comme aujourd'hui (la page se remplit d'elle-meme et chaque
+                            // modele garde sa propre taille de police).
+                            xtype: 'container',
+                            layout: 'hbox',
+                            margin: '0 0 5 0',
+                            defaults: {flex: 1, labelWidth: 115, margin: '0 10 0 0'},
+                            items: [
+                                {
+                                    xtype: 'numberfield',
+                                    fieldLabel: 'Bons par page',
+                                    name: 'int_NB_BONS_PAR_PAGE',
+                                    id: 'int_NB_BONS_PAR_PAGE',
+                                    emptyText: 'Automatique',
+                                    allowBlank: true,
+                                    allowDecimals: false,
+                                    minValue: 5,
+                                    maxValue: 500,
+                                    step: 5,
+                                    // Vide = automatique : la coupure de page tombe la ou elle tombe aujourd'hui
+                                    value: null,
+                                    listeners: {
+                                        render: function (champ) {
+                                            Ext.tip.QuickTipManager.register({
+                                                target: champ.getEl(),
+                                                text: "Nombre de bons imprimés par page sur la facture. "
+                                                        + "Laisser vide pour garder la présentation actuelle."
+                                            });
+                                        }
+                                    }
+                                },
+                                {
+                                    xtype: 'combobox',
+                                    fieldLabel: 'Police facture',
+                                    name: 'int_TAILLE_POLICE',
+                                    id: 'int_TAILLE_POLICE',
+                                    store: Ext.create('Ext.data.ArrayStore', {
+                                        data: [
+                                            [0, 'Automatique (taille du modèle)'],
+                                            [5, '5 points'],
+                                            [6, '6 points'],
+                                            [7, '7 points'],
+                                            [8, '8 points'],
+                                            [9, '9 points'],
+                                            [10, '10 points'],
+                                            [11, '11 points'],
+                                            [12, '12 points']
+                                        ],
+                                        fields: [{name: 'value', type: 'int'}, {name: 'libelle', type: 'string'}]
+                                    }),
+                                    valueField: 'value',
+                                    displayField: 'libelle',
+                                    editable: false,
+                                    queryMode: 'local',
+                                    value: 0
+                                },
+                                {xtype: 'container'},
+                                {xtype: 'container'}
+                            ]
+                        }, {
                             xtype: 'container',
                             layout: 'hbox',
                             defaultType: 'textfield',
@@ -983,6 +1044,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.getCmp('nbrbons').setValue(this.getOdatasource().nbrbons);
             Ext.getCmp('groupingByTaux').setValue(this.getOdatasource().groupingByTaux);
             Ext.getCmp('str_MODE_TRI_FACTURE_TP').setValue(this.getOdatasource().str_MODE_TRI_FACTURE || 'ALPHABETIQUE');
+            // 0 en base = automatique : le champ reste vide / sur « Automatique »
+            var bonsParPage = this.getOdatasource().int_NB_BONS_PAR_PAGE;
+            Ext.getCmp('int_NB_BONS_PAR_PAGE').setValue(bonsParPage > 0 ? bonsParPage : null);
+            Ext.getCmp('int_TAILLE_POLICE').setValue(this.getOdatasource().int_TAILLE_POLICE || 0);
             Ext.getCmp('cmu').setValue(this.getOdatasource().cmu);
             Ext.getCmp('caution').setValue(this.getOdatasource().caution);
             
@@ -1112,6 +1177,9 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                     nbrbons: Ext.getCmp('nbrbons').getValue(),
                     groupingByTaux: Ext.getCmp('groupingByTaux').getValue(),
                     str_MODE_TRI_FACTURE: Ext.getCmp('str_MODE_TRI_FACTURE_TP').getValue(),
+                    // Champ vide = automatique : on transmet 0, la facture garde sa presentation actuelle
+                    int_NB_BONS_PAR_PAGE: Ext.getCmp('int_NB_BONS_PAR_PAGE').getValue() || 0,
+                    int_TAILLE_POLICE: Ext.getCmp('int_TAILLE_POLICE').getValue() || 0,
                     cmu: Ext.getCmp('cmu').getValue(),
                     caution: Ext.getCmp('caution').getValue()
                 },

@@ -82,6 +82,41 @@ public class tierspayantManagement extends bllBase {
             boolean bool_IsACCOUNT, TSequencier OTSequencier, String str_REGISTRE_COMMERCE, String str_CODE_OFFICINE,
             String str_COMPTE_CONTRIBUABLE, boolean b_IsAbsolute, String lg_GROUPE_ID, int nbrbons, Integer montantFact,
             boolean groupingByTaux, boolean cmu, int caution, String str_MODE_TRI_FACTURE) {
+        // Signature historique, conservee pour les appelants qui ne connaissent pas encore la mise en page
+        // (JSP tierspayantmanagement/tierspayant/ws_transaction.jsp) : mise en page automatique, donc identique
+        // a aujourd'hui.
+        return create(str_CODE_ORGANISME, str_NAME, str_FULLNAME, str_ADRESSE, str_MOBILE, str_TELEPHONE, str_MAIL,
+                dbl_PLAFOND_CREDIT, dbl_TAUX_REMBOURSEMENT, str_NUMERO_CAISSE_OFFICIEL, str_CENTRE_PAYEUR,
+                str_CODE_REGROUPEMENT, dbl_SEUIL_MINIMUM, bool_INTERDICTION, str_CODE_COMPTABLE,
+                bool_PRENUM_FACT_SUBROGATOIRE, int_NUMERO_DECOMPTE, str_CODE_PAIEMENT, dt_DELAI_PAIEMENT,
+                dbl_POURCENTAGE_REMISE, dbl_REMISE_FORFETAIRE, str_CODE_EDIT_BORDEREAU, int_NBRE_EXEMPLAIRE_BORD,
+                int_PERIODICITE_EDIT_BORD, int_DATE_DERNIERE_EDITION, str_NUMERO_IDF_ORGANISME, dbl_MONTANT_F_CLIENT,
+                dbl_BASE_REMISE, str_CODE_DOC_COMPTOIRE, bool_ENABLED, lg_VILLE_ID, lg_TYPE_TIERS_PAYANT_ID,
+                lg_TYPE_CONTRAT_ID, lg_REGIMECAISSE_ID, lg_RISQUE_ID, dbl_CAUTION, dbl_QUOTA_CONSO_MENSUELLE, dbl_SOLDE,
+                bool_IsACCOUNT, OTSequencier, str_REGISTRE_COMMERCE, str_CODE_OFFICINE, str_COMPTE_CONTRIBUABLE,
+                b_IsAbsolute, lg_GROUPE_ID, nbrbons, montantFact, groupingByTaux, cmu, caution, str_MODE_TRI_FACTURE,
+                rest.report.MiseEnPageFacture.AUTOMATIQUE, rest.report.MiseEnPageFacture.AUTOMATIQUE);
+    }
+
+    /**
+     * Meme creation, avec en plus la mise en page de la facture reglee sur la fiche : nombre de bons par page et taille
+     * de police. Les deux valent 0 = automatique, c'est-a-dire la presentation d'aujourd'hui.
+     */
+    public boolean create(String str_CODE_ORGANISME, String str_NAME, String str_FULLNAME, String str_ADRESSE,
+            String str_MOBILE, String str_TELEPHONE, String str_MAIL, double dbl_PLAFOND_CREDIT,
+            double dbl_TAUX_REMBOURSEMENT, String str_NUMERO_CAISSE_OFFICIEL, String str_CENTRE_PAYEUR,
+            String str_CODE_REGROUPEMENT, double dbl_SEUIL_MINIMUM, boolean bool_INTERDICTION,
+            String str_CODE_COMPTABLE, boolean bool_PRENUM_FACT_SUBROGATOIRE, int int_NUMERO_DECOMPTE,
+            String str_CODE_PAIEMENT, int dt_DELAI_PAIEMENT, double dbl_POURCENTAGE_REMISE,
+            double dbl_REMISE_FORFETAIRE, String str_CODE_EDIT_BORDEREAU, int int_NBRE_EXEMPLAIRE_BORD,
+            int int_PERIODICITE_EDIT_BORD, int int_DATE_DERNIERE_EDITION, String str_NUMERO_IDF_ORGANISME,
+            double dbl_MONTANT_F_CLIENT, double dbl_BASE_REMISE, String str_CODE_DOC_COMPTOIRE, boolean bool_ENABLED,
+            String lg_VILLE_ID, String lg_TYPE_TIERS_PAYANT_ID, String lg_TYPE_CONTRAT_ID, String lg_REGIMECAISSE_ID,
+            String lg_RISQUE_ID, double dbl_CAUTION, double dbl_QUOTA_CONSO_MENSUELLE, int dbl_SOLDE,
+            boolean bool_IsACCOUNT, TSequencier OTSequencier, String str_REGISTRE_COMMERCE, String str_CODE_OFFICINE,
+            String str_COMPTE_CONTRIBUABLE, boolean b_IsAbsolute, String lg_GROUPE_ID, int nbrbons, Integer montantFact,
+            boolean groupingByTaux, boolean cmu, int caution, String str_MODE_TRI_FACTURE, int int_NB_BONS_PAR_PAGE,
+            int int_TAILLE_POLICE) {
         boolean result = false;
         String str_PHOTO = "default.png";
         try {
@@ -200,6 +235,8 @@ public class tierspayantManagement extends bllBase {
             }
 
             OTTiersPayant.setStrMODETRIFACTURE(normalizeModeTriFacture(str_MODE_TRI_FACTURE));
+            OTTiersPayant.setIntNBBONSPARPAGE(rest.report.MiseEnPageFacture.bonsParPage(int_NB_BONS_PAR_PAGE));
+            OTTiersPayant.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(int_TAILLE_POLICE));
             OTTiersPayant.setStrSTATUT(commonparameter.statut_enable);
             OTTiersPayant.setDtCREATED(new Date());
 
@@ -234,6 +271,39 @@ public class tierspayantManagement extends bllBase {
             String lg_RISQUE_ID, String str_CODE_OFFICINE, String str_REGISTRE_COMMERCE, String str_COMPTE_CONTRIBUABLE,
             double dbl_QUOTA_CONSO_MENSUELLE, boolean b_IsAbsolute, String lg_GROUPE_ID, int nbrbons,
             Integer montantFact, boolean groupingByTaux, boolean cmu, int caution, String str_MODE_TRI_FACTURE) {
+        // Signature historique, conservee pour les appelants qui ne connaissent pas encore la mise en page
+        // (JSP tierspayantmanagement/tierspayant/ws_transaction.jsp) : mise en page automatique, donc identique
+        // a aujourd'hui.
+        update(lg_TIERS_PAYANT_ID, str_CODE_ORGANISME, str_NAME, str_FULLNAME, str_ADRESSE, str_MOBILE, str_TELEPHONE,
+                str_MAIL, dbl_PLAFOND_CREDIT, dbl_TAUX_REMBOURSEMENT, str_NUMERO_CAISSE_OFFICIEL, str_CENTRE_PAYEUR,
+                str_CODE_REGROUPEMENT, dbl_SEUIL_MINIMUM, bool_INTERDICTION, str_CODE_COMPTABLE,
+                bool_PRENUM_FACT_SUBROGATOIRE, int_NUMERO_DECOMPTE, str_CODE_PAIEMENT, dt_DELAI_PAIEMENT,
+                dbl_POURCENTAGE_REMISE, dbl_REMISE_FORFETAIRE, str_CODE_EDIT_BORDEREAU, int_NBRE_EXEMPLAIRE_BORD,
+                int_PERIODICITE_EDIT_BORD, int_DATE_DERNIERE_EDITION, str_NUMERO_IDF_ORGANISME, dbl_MONTANT_F_CLIENT,
+                dbl_BASE_REMISE, str_CODE_DOC_COMPTOIRE, bool_ENABLED, lg_VILLE_ID, lg_TYPE_TIERS_PAYANT_ID,
+                lg_TYPE_CONTRAT_ID, lg_REGIMECAISSE_ID, lg_RISQUE_ID, str_CODE_OFFICINE, str_REGISTRE_COMMERCE,
+                str_COMPTE_CONTRIBUABLE, dbl_QUOTA_CONSO_MENSUELLE, b_IsAbsolute, lg_GROUPE_ID, nbrbons, montantFact,
+                groupingByTaux, cmu, caution, str_MODE_TRI_FACTURE, null, null);
+    }
+
+    /**
+     * Meme mise a jour, avec en plus la mise en page de la facture reglee sur la fiche. Un null laisse la valeur deja
+     * enregistree intacte : un appelant qui ne connait pas ces deux reglages ne peut pas les effacer.
+     */
+    public void update(String lg_TIERS_PAYANT_ID, String str_CODE_ORGANISME, String str_NAME, String str_FULLNAME,
+            String str_ADRESSE, String str_MOBILE, String str_TELEPHONE, String str_MAIL, double dbl_PLAFOND_CREDIT,
+            double dbl_TAUX_REMBOURSEMENT, String str_NUMERO_CAISSE_OFFICIEL, String str_CENTRE_PAYEUR,
+            String str_CODE_REGROUPEMENT, double dbl_SEUIL_MINIMUM, boolean bool_INTERDICTION,
+            String str_CODE_COMPTABLE, boolean bool_PRENUM_FACT_SUBROGATOIRE, int int_NUMERO_DECOMPTE,
+            String str_CODE_PAIEMENT, int dt_DELAI_PAIEMENT, double dbl_POURCENTAGE_REMISE,
+            double dbl_REMISE_FORFETAIRE, String str_CODE_EDIT_BORDEREAU, int int_NBRE_EXEMPLAIRE_BORD,
+            int int_PERIODICITE_EDIT_BORD, int int_DATE_DERNIERE_EDITION, String str_NUMERO_IDF_ORGANISME,
+            double dbl_MONTANT_F_CLIENT, double dbl_BASE_REMISE, String str_CODE_DOC_COMPTOIRE, boolean bool_ENABLED,
+            String lg_VILLE_ID, String lg_TYPE_TIERS_PAYANT_ID, String lg_TYPE_CONTRAT_ID, String lg_REGIMECAISSE_ID,
+            String lg_RISQUE_ID, String str_CODE_OFFICINE, String str_REGISTRE_COMMERCE, String str_COMPTE_CONTRIBUABLE,
+            double dbl_QUOTA_CONSO_MENSUELLE, boolean b_IsAbsolute, String lg_GROUPE_ID, int nbrbons,
+            Integer montantFact, boolean groupingByTaux, boolean cmu, int caution, String str_MODE_TRI_FACTURE,
+            Integer int_NB_BONS_PAR_PAGE, Integer int_TAILLE_POLICE) {
         TTiersPayant OTTiersPayant = null, OTTiersPayantOld = null;
         TCompteClient OTCompteClient = null;
         try {
@@ -355,6 +425,12 @@ public class tierspayantManagement extends bllBase {
             OTTiersPayant.setBoolENABLED(bool_ENABLED);
             OTTiersPayant.setGroupingByTaux(groupingByTaux);
             OTTiersPayant.setStrMODETRIFACTURE(normalizeModeTriFacture(str_MODE_TRI_FACTURE));
+            if (int_NB_BONS_PAR_PAGE != null) {
+                OTTiersPayant.setIntNBBONSPARPAGE(rest.report.MiseEnPageFacture.bonsParPage(int_NB_BONS_PAR_PAGE));
+            }
+            if (int_TAILLE_POLICE != null) {
+                OTTiersPayant.setIntTAILLEPOLICE(rest.report.MiseEnPageFacture.taillePolice(int_TAILLE_POLICE));
+            }
             OTTiersPayant.setStrSTATUT(commonparameter.statut_enable);
             OTTiersPayant.setDtUPDATED(new Date());
 

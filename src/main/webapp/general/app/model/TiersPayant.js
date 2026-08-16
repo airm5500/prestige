@@ -205,6 +205,9 @@ Ext.define('testextjs.model.TiersPayant', {
         }, {name: 'BTNDELETE', type: 'boolean'}
         , {name: 'groupingByTaux', type: 'boolean'},
         {name: 'str_MODE_TRI_FACTURE', type: 'string'},
+        // Mise en page de la facture : 0 = automatique, c'est-a-dire la presentation d'aujourd'hui
+        {name: 'int_NB_BONS_PAR_PAGE', type: 'int', defaultValue: 0},
+        {name: 'int_TAILLE_POLICE', type: 'int', defaultValue: 0},
         {
             name: 'str_CODE_OFFICINE',
             type: 'string'

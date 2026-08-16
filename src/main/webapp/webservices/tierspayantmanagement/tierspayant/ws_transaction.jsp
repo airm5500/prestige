@@ -55,6 +55,9 @@
     boolean cmu = false;
     int caution = 0;
     String str_MODE_TRI_FACTURE = "ALPHABETIQUE";
+    // Mise en page de la facture reglee sur la fiche : 0 = automatique, donc la presentation d'aujourd'hui.
+    // null = le champ n'a pas ete transmis ; en modification la valeur deja enregistree est alors laissee intacte.
+    Integer int_NB_BONS_PAR_PAGE = null, int_TAILLE_POLICE = null;
 
 %>
 <%    TUser OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
@@ -78,6 +81,20 @@
     }
     if (request.getParameter("str_MODE_TRI_FACTURE") != null && !"".equals(request.getParameter("str_MODE_TRI_FACTURE"))) {
         str_MODE_TRI_FACTURE = request.getParameter("str_MODE_TRI_FACTURE");
+    }
+    if (request.getParameter("int_NB_BONS_PAR_PAGE") != null && !"".equals(request.getParameter("int_NB_BONS_PAR_PAGE"))) {
+        try {
+            int_NB_BONS_PAR_PAGE = Integer.valueOf(request.getParameter("int_NB_BONS_PAR_PAGE").trim());
+        } catch (NumberFormatException e) {
+            int_NB_BONS_PAR_PAGE = Integer.valueOf(0);
+        }
+    }
+    if (request.getParameter("int_TAILLE_POLICE") != null && !"".equals(request.getParameter("int_TAILLE_POLICE"))) {
+        try {
+            int_TAILLE_POLICE = Integer.valueOf(request.getParameter("int_TAILLE_POLICE").trim());
+        } catch (NumberFormatException e) {
+            int_TAILLE_POLICE = Integer.valueOf(0);
+        }
     }
     if (request.getParameter("nbrbons") != null && !"".equals(request.getParameter("nbrbons"))) {
         nbrbons = Integer.valueOf(request.getParameter("nbrbons"));
@@ -295,14 +312,14 @@
         if (request.getParameter("mode").toString().equals("create")) {
 
             //tierspayantManagement OtierspayantManagement = new tierspayantManagement(OdataManager);
-            OtierspayantManagement.create(str_CODE_ORGANISME, str_NAME, str_FULLNAME, str_ADRESSE, str_MOBILE, str_TELEPHONE, str_MAIL, dbl_PLAFOND_CREDIT, dbl_TAUX_REMBOURSEMENT, str_NUMERO_CAISSE_OFFICIEL, str_CENTRE_PAYEUR, str_CODE_REGROUPEMENT, dbl_SEUIL_MINIMUM, bool_INTERDICTION, str_CODE_COMPTABLE, bool_PRENUM_FACT_SUBROGATOIRE, int_NUMERO_DECOMPTE, str_CODE_PAIEMENT, dt_DELAI_PAIEMENT, dbl_POURCENTAGE_REMISE, dbl_REMISE_FORFETAIRE, str_CODE_EDIT_BORDEREAU, int_NBRE_EXEMPLAIRE_BORD, int_PERIODICITE_EDIT_BORD, int_DATE_DERNIERE_EDITION, str_NUMERO_IDF_ORGANISME, dbl_MONTANT_F_CLIENT, dbl_BASE_REMISE, str_CODE_DOC_COMPTOIRE, bool_ENABLED, lg_VILLE_ID, lg_TYPE_TIERS_PAYANT_ID, lg_TYPE_CONTRAT_ID, lg_REGIMECAISSE_ID, lg_RISQUE_ID, dbl_CAUTION, dbl_QUOTA_CONSO_MENSUELLE, dbl_SOLDE, bool_IsACCOUNT, OTSequencier, str_REGISTRE_COMMERCE, str_CODE_OFFICINE, str_COMPTE_CONTRIBUABLE, b_IsAbsolute, lg_GROUPE_ID, nbrbons, montantFact, groupingByTaux, cmu, caution, str_MODE_TRI_FACTURE);
+            OtierspayantManagement.create(str_CODE_ORGANISME, str_NAME, str_FULLNAME, str_ADRESSE, str_MOBILE, str_TELEPHONE, str_MAIL, dbl_PLAFOND_CREDIT, dbl_TAUX_REMBOURSEMENT, str_NUMERO_CAISSE_OFFICIEL, str_CENTRE_PAYEUR, str_CODE_REGROUPEMENT, dbl_SEUIL_MINIMUM, bool_INTERDICTION, str_CODE_COMPTABLE, bool_PRENUM_FACT_SUBROGATOIRE, int_NUMERO_DECOMPTE, str_CODE_PAIEMENT, dt_DELAI_PAIEMENT, dbl_POURCENTAGE_REMISE, dbl_REMISE_FORFETAIRE, str_CODE_EDIT_BORDEREAU, int_NBRE_EXEMPLAIRE_BORD, int_PERIODICITE_EDIT_BORD, int_DATE_DERNIERE_EDITION, str_NUMERO_IDF_ORGANISME, dbl_MONTANT_F_CLIENT, dbl_BASE_REMISE, str_CODE_DOC_COMPTOIRE, bool_ENABLED, lg_VILLE_ID, lg_TYPE_TIERS_PAYANT_ID, lg_TYPE_CONTRAT_ID, lg_REGIMECAISSE_ID, lg_RISQUE_ID, dbl_CAUTION, dbl_QUOTA_CONSO_MENSUELLE, dbl_SOLDE, bool_IsACCOUNT, OTSequencier, str_REGISTRE_COMMERCE, str_CODE_OFFICINE, str_COMPTE_CONTRIBUABLE, b_IsAbsolute, lg_GROUPE_ID, nbrbons, montantFact, groupingByTaux, cmu, caution, str_MODE_TRI_FACTURE, int_NB_BONS_PAR_PAGE, int_TAILLE_POLICE);
             ObllBase.setDetailmessage(OtierspayantManagement.getDetailmessage());
             ObllBase.setMessage(OtierspayantManagement.getMessage());
             //  new logger().oCategory.info("creation OTTiersPayant " + OTTiersPayant.getStrNAME());
 
         } else if (request.getParameter("mode").toString().equals("update")) {
 
-            OtierspayantManagement.update(lg_TIERS_PAYANT_ID, str_CODE_ORGANISME, str_NAME, str_FULLNAME, str_ADRESSE, str_MOBILE, str_TELEPHONE, str_MAIL, dbl_PLAFOND_CREDIT, dbl_TAUX_REMBOURSEMENT, str_NUMERO_CAISSE_OFFICIEL, str_CENTRE_PAYEUR, str_CODE_REGROUPEMENT, dbl_SEUIL_MINIMUM, bool_INTERDICTION, str_CODE_COMPTABLE, bool_PRENUM_FACT_SUBROGATOIRE, int_NUMERO_DECOMPTE, str_CODE_PAIEMENT, dt_DELAI_PAIEMENT, dbl_POURCENTAGE_REMISE, dbl_REMISE_FORFETAIRE, str_CODE_EDIT_BORDEREAU, int_NBRE_EXEMPLAIRE_BORD, int_PERIODICITE_EDIT_BORD, int_DATE_DERNIERE_EDITION, str_NUMERO_IDF_ORGANISME, dbl_MONTANT_F_CLIENT, dbl_BASE_REMISE, str_CODE_DOC_COMPTOIRE, bool_ENABLED, lg_VILLE_ID, lg_TYPE_TIERS_PAYANT_ID, lg_TYPE_CONTRAT_ID, lg_REGIMECAISSE_ID, lg_RISQUE_ID, str_CODE_OFFICINE, str_REGISTRE_COMMERCE, str_COMPTE_CONTRIBUABLE, dbl_QUOTA_CONSO_MENSUELLE, b_IsAbsolute, lg_GROUPE_ID, nbrbons, montantFact, groupingByTaux, cmu, caution, str_MODE_TRI_FACTURE);
+            OtierspayantManagement.update(lg_TIERS_PAYANT_ID, str_CODE_ORGANISME, str_NAME, str_FULLNAME, str_ADRESSE, str_MOBILE, str_TELEPHONE, str_MAIL, dbl_PLAFOND_CREDIT, dbl_TAUX_REMBOURSEMENT, str_NUMERO_CAISSE_OFFICIEL, str_CENTRE_PAYEUR, str_CODE_REGROUPEMENT, dbl_SEUIL_MINIMUM, bool_INTERDICTION, str_CODE_COMPTABLE, bool_PRENUM_FACT_SUBROGATOIRE, int_NUMERO_DECOMPTE, str_CODE_PAIEMENT, dt_DELAI_PAIEMENT, dbl_POURCENTAGE_REMISE, dbl_REMISE_FORFETAIRE, str_CODE_EDIT_BORDEREAU, int_NBRE_EXEMPLAIRE_BORD, int_PERIODICITE_EDIT_BORD, int_DATE_DERNIERE_EDITION, str_NUMERO_IDF_ORGANISME, dbl_MONTANT_F_CLIENT, dbl_BASE_REMISE, str_CODE_DOC_COMPTOIRE, bool_ENABLED, lg_VILLE_ID, lg_TYPE_TIERS_PAYANT_ID, lg_TYPE_CONTRAT_ID, lg_REGIMECAISSE_ID, lg_RISQUE_ID, str_CODE_OFFICINE, str_REGISTRE_COMMERCE, str_COMPTE_CONTRIBUABLE, dbl_QUOTA_CONSO_MENSUELLE, b_IsAbsolute, lg_GROUPE_ID, nbrbons, montantFact, groupingByTaux, cmu, caution, str_MODE_TRI_FACTURE, int_NB_BONS_PAR_PAGE, int_TAILLE_POLICE);
             ObllBase.setDetailmessage(OtierspayantManagement.getDetailmessage());
             ObllBase.setMessage(OtierspayantManagement.getMessage());
 

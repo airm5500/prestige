@@ -9,9 +9,26 @@ import dal.ModelFactureDynamique;
 import dal.ModelFactureDynamiqueColonne;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import javax.xml.parsers.DocumentBuilderFactory;
+import net.sf.jasperreports.engine.DefaultJasperReportsContext;
+import net.sf.jasperreports.engine.JRField;
+import net.sf.jasperreports.engine.JRParameter;
+import net.sf.jasperreports.engine.JRPrintElement;
+import net.sf.jasperreports.engine.JRPrintPage;
+import net.sf.jasperreports.engine.JRPrintText;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperReport;
+import net.sf.jasperreports.engine.data.JRMapCollectionDataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Element;
@@ -73,6 +90,94 @@ class JrxmlFactureBuilderTest {
             max = Math.max(max, x + w);
         }
         return max;
+    }
+
+    /**
+     * Imprime le modele avec des lignes fabriquees et renvoie le document obtenu.
+     *
+     * Lire le .jrxml ne suffit pas pour ces deux reglages : la taille de police passe par des styles conditionnels et
+     * la coupure de page par un element <break>. Seul le document imprime dit ce que l'officine verra reellement sur
+     * son papier.
+     */
+    private static JasperPrint imprimer(ModelFactureDynamique modele, int nbBons, int produitsParBon,
+            Map<String, Object> parametres) throws Exception {
+        DefaultJasperReportsContext.getInstance().setProperty("net.sf.jasperreports.awt.ignore.missing.font", "true");
+        JasperReport rapport = JasperCompileManager.compileReport(new ByteArrayInputStream(
+                JrxmlFactureBuilder.construire(modele, true, true).getBytes(StandardCharsets.UTF_8)));
+        List<Map<String, ?>> lignes = new ArrayList<>();
+        for (int bon = 1; bon <= nbBons; bon++) {
+            for (int produit = 0; produit < produitsParBon; produit++) {
+                Map<String, Object> ligne = new HashMap<>();
+                for (JRField champ : rapport.getFields()) {
+                    ligne.put(champ.getName(), valeurDEssai(champ, bon));
+                }
+                lignes.add(ligne);
+            }
+        }
+        Map<String, Object> retenus = new HashMap<>();
+        for (JRParameter p : rapport.getParameters()) {
+            if (!p.isSystemDefined() && parametres.containsKey(p.getName())) {
+                retenus.put(p.getName(), parametres.get(p.getName()));
+            }
+        }
+        return JasperFillManager.fillReport(rapport, retenus, new JRMapCollectionDataSource(lignes));
+    }
+
+    /** Une valeur du bon type ; le NOM porte un repere qui identifie le bon sur le papier. */
+    private static Object valeurDEssai(JRField champ, int bon) {
+        String repere = String.format("BON%02d", bon);
+        switch (champ.getValueClassName()) {
+        case "java.lang.Integer":
+            return 1000 * bon;
+        case "java.lang.Double":
+            return 1000.0 * bon;
+        case "java.sql.Timestamp":
+            return new java.sql.Timestamp(0L);
+        default:
+            return "str_FIRST_NAME_CUSTOMER".equals(champ.getName())
+                    || "lg_PREENREGISTREMENT_ID".equals(champ.getName()) ? repere : "x";
+        }
+    }
+
+    /** Nombre de bons imprimes sur chaque page. */
+    private static List<Integer> bonsParPage(ModelFactureDynamique modele, int nbBons, Map<String, Object> parametres)
+            throws Exception {
+        return bonsParPage(modele, nbBons, 1, parametres);
+    }
+
+    private static List<Integer> bonsParPage(ModelFactureDynamique modele, int nbBons, int produitsParBon,
+            Map<String, Object> parametres) throws Exception {
+        List<Integer> parPage = new ArrayList<>();
+        for (JRPrintPage page : imprimer(modele, nbBons, produitsParBon, parametres).getPages()) {
+            Set<String> vus = new HashSet<>();
+            for (JRPrintElement element : page.getElements()) {
+                if (element instanceof JRPrintText) {
+                    String texte = ((JRPrintText) element).getFullText();
+                    if (texte != null && texte.startsWith("BON")) {
+                        vus.add(texte.substring(0, 5));
+                    }
+                }
+            }
+            parPage.add(vus.size());
+        }
+        return parPage;
+    }
+
+    /** Tailles de police reellement imprimees sur les lignes de bon. */
+    private static Set<Float> taillesDesLignes(ModelFactureDynamique modele, Map<String, Object> parametres)
+            throws Exception {
+        Set<Float> tailles = new HashSet<>();
+        for (JRPrintPage page : imprimer(modele, 3, 1, parametres).getPages()) {
+            for (JRPrintElement element : page.getElements()) {
+                if (element instanceof JRPrintText) {
+                    String texte = ((JRPrintText) element).getFullText();
+                    if (texte != null && texte.startsWith("BON")) {
+                        tailles.add(((JRPrintText) element).getFontsize());
+                    }
+                }
+            }
+        }
+        return tailles;
     }
 
     @Test
@@ -138,48 +243,108 @@ class JrxmlFactureBuilderTest {
     }
 
     @Test
-    @DisplayName("La taille de police du modele est appliquee aux lignes")
-    void taillePoliceDuModele() {
+    @DisplayName("La taille de police du modele est appliquee aux lignes imprimees")
+    void taillePoliceDuModele() throws Exception {
         ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
         m.setTaillePolice(6);
 
-        String xml = JrxmlFactureBuilder.construire(m, true, true);
-
-        assertTrue(xml.contains("<font size=\"6\"/>"), "les lignes doivent prendre la taille demandee");
+        assertEquals(Collections.singleton(6f), taillesDesLignes(m, new HashMap<>()),
+                "les lignes doivent prendre la taille demandee");
     }
 
     @Test
     @DisplayName("Sans taille demandee, la presentation d'origine est conservee")
-    void taillePoliceParDefaut() {
-        String xml = JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT"), true, true);
-
-        assertTrue(xml.contains("<font size=\"8\"/>"), "8 points, comme avant que l'option n'existe");
+    void taillePoliceParDefaut() throws Exception {
+        assertEquals(Collections.singleton(8f),
+                taillesDesLignes(modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT"), new HashMap<>()),
+                "8 points, comme avant que l'option n'existe");
     }
 
     @Test
     @DisplayName("Une taille aberrante revient a la taille d'origine, au lieu d'une facture illisible")
-    void taillePoliceAberrante() {
+    void taillePoliceAberrante() throws Exception {
         ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
         m.setTaillePolice(99);
-
-        assertTrue(JrxmlFactureBuilder.construire(m, true, true).contains("<font size=\"8\"/>"));
+        assertEquals(Collections.singleton(8f), taillesDesLignes(m, new HashMap<>()));
 
         m.setTaillePolice(null);
-        assertTrue(JrxmlFactureBuilder.construire(m, true, true).contains("<font size=\"8\"/>"),
+        assertEquals(Collections.singleton(8f), taillesDesLignes(m, new HashMap<>()),
                 "un modele cree avant cette option n'a pas de taille : il garde la sienne");
     }
 
     @Test
     @DisplayName("Les lignes de produit restent d'un point plus petites que la ligne du bon")
-    void produitsUnPointPlusPetits() {
+    void produitsUnPointPlusPetits() throws Exception {
         ModelFactureDynamique m = modeleAvecProduits(new String[] { "NOM_COMPLET", "MONTANT_BRUT" }, "PROD_DESIGNATION",
                 "PROD_MONTANT");
         m.setTaillePolice(9);
 
         String xml = JrxmlFactureBuilder.construire(m, true, true);
 
-        assertTrue(xml.contains("<font size=\"9\"/>"), "la ligne du bon prend la taille demandee");
-        assertTrue(xml.contains("<font size=\"8\"/>"), "les lignes de produit restent un point en dessous");
+        assertTrue(xml.contains("<style name=\"LigneBon\" fontName=\"SansSerif\" fontSize=\"9\">"),
+                "la ligne du bon prend la taille demandee");
+        assertTrue(xml.contains("<style name=\"LigneProduit\" fontName=\"SansSerif\" fontSize=\"8\">"),
+                "les lignes de produit restent un point en dessous");
+    }
+
+    @Test
+    @DisplayName("La fiche du tiers payant peut remplacer la taille de police du modele")
+    void taillePoliceRempaceeParLaFiche() throws Exception {
+        ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
+        m.setTaillePolice(8);
+
+        Map<String, Object> parametres = new HashMap<>();
+        parametres.put(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE, 6);
+
+        assertEquals(Collections.singleton(6f), taillesDesLignes(m, parametres));
+    }
+
+    @Test
+    @DisplayName("Sans nombre de bons par page, la page se remplit d'elle-meme comme avant")
+    void bonsParPageAutomatique() throws Exception {
+        ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
+
+        List<Integer> parPage = bonsParPage(m, 40, new HashMap<>());
+
+        // La page se remplit d'elle-meme : elle porte tout ce qu'elle peut, et pas un nombre fixe.
+        assertEquals(2, parPage.size(), "40 bons debordent d'une page : " + parPage);
+        assertTrue(parPage.get(0) > 20, "une page pleine porte bien plus de 20 bons : " + parPage);
+    }
+
+    @Test
+    @DisplayName("Le nombre de bons par page du modele est respecte")
+    void bonsParPageDuModele() throws Exception {
+        ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
+        m.setNbBonsParPage(12);
+
+        assertEquals(Arrays.asList(12, 12, 12, 4), bonsParPage(m, 40, new HashMap<>()));
+    }
+
+    @Test
+    @DisplayName("La fiche du tiers payant peut remplacer le nombre de bons par page du modele")
+    void bonsParPageRemplaceParLaFiche() throws Exception {
+        ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
+        m.setNbBonsParPage(12);
+
+        Map<String, Object> parametres = new HashMap<>();
+        parametres.put(MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE, 10);
+
+        assertEquals(Arrays.asList(10, 10, 10, 10, 0), bonsParPage(m, 40, parametres),
+                "la derniere page ne porte plus que le total general");
+    }
+
+    @Test
+    @DisplayName("Avec le detail des produits, la coupure compte les BONS et non les lignes de produit")
+    void bonsParPageAvecDetailProduits() throws Exception {
+        ModelFactureDynamique m = modeleAvecProduits(new String[] { "NOM_COMPLET", "MONTANT_BRUT" }, "PROD_DESIGNATION",
+                "PROD_MONTANT");
+        m.setNbBonsParPage(5);
+
+        // 12 bons de 3 produits : sans le comptage par bon, la coupure tomberait toutes les
+        // 5 LIGNES DE PRODUIT, soit moins de deux bons par page.
+        List<Integer> parPage = bonsParPage(m, 12, 3, new HashMap<>());
+
+        assertEquals(Arrays.asList(5, 5, 2), parPage, "5 bons entiers par page, produits compris");
     }
 
     @Test

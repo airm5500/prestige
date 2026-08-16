@@ -175,6 +175,15 @@ public final class JrxmlFactureBuilder {
                 .append(" whenNoDataType=\"AllSectionsNoDetail\" isSummaryWithPageHeaderAndFooter=\"true\"")
                 .append(" isFloatColumnFooter=\"true\" uuid=\"").append(uuid()).append("\">\n");
 
+        // Taille demandee sur le modele. Les lignes de PRODUIT restent d'un point plus petites que
+        // la ligne du bon, comme avant : c'est ce qui les distingue au premier coup d'oeil.
+        int taille = modele.taillePoliceEffective();
+        int tailleProduit = Math.max(ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taille - 1);
+        xml.append(styleTaille(STYLE_LIGNE_BON, taille));
+        if (avecProduits) {
+            xml.append(styleTaille(STYLE_LIGNE_PRODUIT, tailleProduit));
+        }
+
         for (String p : new String[] { "P_H_INSTITUTION", "P_AUTRE_DESC", "P_INSTITUTION_ADRESSE", "P_H_LOGO",
                 "P_H_CLT_INFOS", "P_PRINTED_BY", "P_LG_FACTURE_ID", "P_LG_TIERS_PAYANT_ID", "P_CODE_COMPTABLE",
                 "P_TIERS_PAYANT_NAME", "P_CODE_FACTURE", "P_TOTAL_GENERAL", "P_ATT_AMOUNT", "P_TOTAL_IN_LETTERS",
@@ -184,6 +193,15 @@ public final class JrxmlFactureBuilder {
         // Tri demande sur la fiche du tiers payant : entier lie (0/1), jamais un fragment de SQL.
         xml.append("\t<parameter name=\"").append(TriFacture.PARAMETRE)
                 .append("\" class=\"java.lang.Integer\">\n\t\t<defaultValueExpression><![CDATA[0]]>")
+                .append("</defaultValueExpression>\n\t</parameter>\n");
+        // Mise en page. La valeur par defaut est celle choisie dans le createur ; la fiche d'un
+        // tiers payant peut encore la remplacer au moment d'imprimer SES factures. Quand la fiche
+        // est sur « automatique », elle ne transmet rien et c'est la valeur du modele qui sert.
+        xml.append("\t<parameter name=\"").append(MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE)
+                .append("\" class=\"java.lang.Integer\">\n\t\t<defaultValueExpression><![CDATA[Integer.valueOf(")
+                .append(modele.bonsParPageEffectif()).append(")]]></defaultValueExpression>\n\t</parameter>\n");
+        xml.append("\t<parameter name=\"").append(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE)
+                .append("\" class=\"java.lang.Integer\">\n\t\t<defaultValueExpression><![CDATA[Integer.valueOf(0)]]>")
                 .append("</defaultValueExpression>\n\t</parameter>\n");
 
         xml.append("\t<queryString>\n\t\t<![CDATA[").append(requeteSql(modele, avecProduits))
@@ -238,17 +256,39 @@ public final class JrxmlFactureBuilder {
                         .append("]]></variableExpression>\n\t</variable>\n");
             }
         }
-        // Taille demandee sur le modele. Les lignes de PRODUIT restent d'un point plus petites que
-        // la ligne du bon, comme avant : c'est ce qui les distingue au premier coup d'oeil.
-        int taille = modele.taillePoliceEffective();
-        int tailleProduit = Math.max(ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taille - 1);
+        // Coupure de page tous les N bons. Sans detail produit, une ligne SQL = un bon : le compte
+        // des enregistrements suffit et la page porte exactement N bons. Avec le detail produit,
+        // une ligne SQL = un PRODUIT : il faut compter les bons, c'est-a-dire les groupes, et la
+        // coupure se pose sur l'en-tete de groupe pour ne jamais separer un bon de ses produits.
+        String coupureDetail = "", coupureGroupe = "";
+        if (avecProduits) {
+            xml.append("\t<variable name=\"NB_BONS_PAGE\" class=\"java.lang.Integer\" resetType=\"Page\"")
+                    .append(" calculation=\"Count\" incrementType=\"Group\" incrementGroup=\"grpBon\">\n")
+                    .append("\t\t<variableExpression><![CDATA[$V{REPORT_COUNT}]]></variableExpression>\n")
+                    .append("\t</variable>\n");
+            // La coupure se pose sur le PIED du bon, apres ses lignes de produit : un bon n'est
+            // jamais separe de ses produits, et la page en porte exactement le nombre demande.
+            // Mesure faite : JasperReports ignore purement et simplement un <break> pose dans un
+            // en-tete de groupe ; il ne l'honore que dans la bande de detail et dans le pied de
+            // groupe. Au pied du bon numero k de la page, NB_BONS_PAGE vaut k.
+            coupureGroupe = coupure("$P{" + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "} != null && $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE
+                    + "}.intValue() > 0 && $V{NB_BONS_PAGE} != null && $V{NB_BONS_PAGE}.intValue() >= $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "}.intValue()");
+        } else {
+            coupureDetail = coupure("$P{" + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "} != null && $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE
+                    + "}.intValue() > 0 && ($V{REPORT_COUNT}.intValue() % $P{"
+                    + MiseEnPageFacture.PARAMETRE_BONS_PAR_PAGE + "}.intValue()) == 0");
+        }
+
         if (avecProduits) {
             xml.append("\t<group name=\"grpBon\" isReprintHeaderOnEachPage=\"true\">\n")
                     .append("\t\t<groupExpression><![CDATA[$F{lg_PREENREGISTREMENT_ID}]]></groupExpression>\n")
                     .append(bandeGroupHeader(colonnes, largeurs, positions, colonnesProduit, largeursProduit,
-                            positionsProduit, taille))
-                    .append("\t\t<groupFooter>\n\t\t\t<band height=\"3\"/>\n\t\t</groupFooter>\n")
-                    .append("\t</group>\n");
+                            positionsProduit))
+                    .append("\t\t<groupFooter>\n\t\t\t<band height=\"3\">\n").append(coupureGroupe)
+                    .append("\t\t\t</band>\n\t\t</groupFooter>\n").append("\t</group>\n");
         }
 
         xml.append("\t<background>\n\t\t<band splitType=\"Stretch\"/>\n\t</background>\n");
@@ -257,7 +297,7 @@ public final class JrxmlFactureBuilder {
         // groupe et la bande de detail porte les lignes de produit.
         xml.append(bandeDetail(avecProduits ? colonnesProduit : colonnes, avecProduits ? largeursProduit : largeurs,
                 avecProduits ? positionsProduit : positions, avecProduits ? CHAMPS_PRODUIT : CHAMPS,
-                avecProduits ? tailleProduit : taille));
+                avecProduits ? STYLE_LIGNE_PRODUIT : STYLE_LIGNE_BON, coupureDetail));
         xml.append(bandePageFooter(avecPiedPage));
         xml.append(bandeSummary(colonnes, largeurs, positions));
         xml.append("</jasperReport>\n");
@@ -314,18 +354,19 @@ public final class JrxmlFactureBuilder {
     }
 
     private static String bandeDetail(List<ModelFactureDynamiqueColonne> colonnes, int[] largeurs, int[] positions,
-            Map<String, Champ> registre, int taillePolice) {
+            Map<String, Champ> registre, String style, String coupure) {
         int hauteur = registre == CHAMPS ? HAUTEUR_LIGNE : HAUTEUR_LIGNE_PRODUIT;
         StringBuilder b = new StringBuilder();
         b.append("\t<detail>\n\t\t<band height=\"").append(hauteur).append("\" splitType=\"Stretch\">\n");
-        b.append(cellulesLigne(colonnes, largeurs, positions, registre, taillePolice, hauteur, 0));
+        b.append(coupure);
+        b.append(cellulesLigne(colonnes, largeurs, positions, registre, style, hauteur, 0));
         b.append("\t\t</band>\n\t</detail>\n");
         return b.toString();
     }
 
     /** Cellules encadrees d'une ligne de donnees, a la position verticale demandee dans la bande. */
     private static String cellulesLigne(List<ModelFactureDynamiqueColonne> colonnes, int[] largeurs, int[] positions,
-            Map<String, Champ> registre, int taillePolice, int hauteur, int y) {
+            Map<String, Champ> registre, String style, int hauteur, int y) {
         StringBuilder b = new StringBuilder();
         for (int i = 0; i < colonnes.size(); i++) {
             Champ def = registre.get(colonnes.get(i).getChamp());
@@ -333,9 +374,9 @@ public final class JrxmlFactureBuilder {
             if (def.pattern != null) {
                 b.append(" pattern=\"").append(def.pattern).append("\"");
             }
-            b.append(">\n").append(reportElement(positions[i], y, largeurs[i], hauteur)).append(encadrement("0.25"))
-                    .append("\t\t\t\t<textElement textAlignment=\"").append(def.alignement)
-                    .append("\" verticalAlignment=\"Middle\"><font size=\"").append(taillePolice).append("\"/>")
+            b.append(">\n").append(reportElement(positions[i], y, largeurs[i], hauteur, style))
+                    .append(encadrement("0.25")).append("\t\t\t\t<textElement textAlignment=\"").append(def.alignement)
+                    .append("\" verticalAlignment=\"Middle\">")
                     .append("<paragraph leftIndent=\"3\" rightIndent=\"1\"/></textElement>\n")
                     .append("\t\t\t\t<textFieldExpression><![CDATA[").append(def.expression)
                     .append("]]></textFieldExpression>\n\t\t\t</textField>\n");
@@ -348,12 +389,11 @@ public final class JrxmlFactureBuilder {
      * libelles de colonnes produit — exactement la meme structure que le PDF genere par l'application.
      */
     private static String bandeGroupHeader(List<ModelFactureDynamiqueColonne> colonnes, int[] largeurs, int[] positions,
-            List<ModelFactureDynamiqueColonne> colonnesProduit, int[] largeursProduit, int[] positionsProduit,
-            int taillePolice) {
+            List<ModelFactureDynamiqueColonne> colonnesProduit, int[] largeursProduit, int[] positionsProduit) {
         StringBuilder b = new StringBuilder();
         b.append("\t\t<groupHeader>\n\t\t\t<band height=\"").append(HAUTEUR_LIGNE + HAUTEUR_ENTETE_PRODUIT)
                 .append("\" splitType=\"Stretch\">\n");
-        b.append(cellulesLigne(colonnes, largeurs, positions, CHAMPS, taillePolice, HAUTEUR_LIGNE, 0));
+        b.append(cellulesLigne(colonnes, largeurs, positions, CHAMPS, STYLE_LIGNE_BON, HAUTEUR_LIGNE, 0));
         for (int i = 0; i < colonnesProduit.size(); i++) {
             b.append("\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"").append(positionsProduit[i])
                     .append("\" y=\"").append(HAUTEUR_LIGNE).append("\" width=\"").append(largeursProduit[i])
@@ -465,9 +505,48 @@ public final class JrxmlFactureBuilder {
     }
 
     private static String reportElement(int x, int y, int largeur, int hauteur) {
-        return "\t\t\t\t<reportElement x=\"" + x + "\" y=\"" + y + "\" width=\"" + largeur + "\" height=\"" + hauteur
-                + "\" uuid=\"" + uuid() + "\"/>\n";
+        return reportElement(x, y, largeur, hauteur, null);
     }
+
+    private static String reportElement(int x, int y, int largeur, int hauteur, String style) {
+        return "\t\t\t\t<reportElement" + (style != null ? " style=\"" + style + "\"" : "") + " x=\"" + x + "\" y=\""
+                + y + "\" width=\"" + largeur + "\" height=\"" + hauteur + "\" uuid=\"" + uuid() + "\"/>\n";
+    }
+
+    /**
+     * Un style dont la taille de police suit le reglage de la fiche du tiers payant.
+     *
+     * JasperReports ne sait pas calculer une taille de police : {@code <font size>} n'accepte pas d'expression. On
+     * declare donc une variante par taille possible, et c'est le parametre qui designe celle qui s'applique. Quand
+     * aucune taille n'est demandee (parametre absent, valeur 0), aucune variante ne s'applique et le modele garde la
+     * taille choisie dans le createur.
+     */
+    private static String styleTaille(String nom, int tailleModele) {
+        StringBuilder b = new StringBuilder();
+        b.append("\t<style name=\"").append(nom).append("\" fontName=\"SansSerif\" fontSize=\"").append(tailleModele)
+                .append("\">\n");
+        for (int taille = MiseEnPageFacture.TAILLE_POLICE_MINIMUM; taille <= MiseEnPageFacture.TAILLE_POLICE_MAXIMUM; taille++) {
+            b.append("\t\t<conditionalStyle>\n\t\t\t<conditionExpression><![CDATA[$P{")
+                    .append(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE).append("} != null && $P{")
+                    .append(MiseEnPageFacture.PARAMETRE_TAILLE_POLICE).append("}.intValue() == ").append(taille)
+                    .append("]]></conditionExpression>\n\t\t\t<style fontSize=\"").append(taille)
+                    .append("\"/>\n\t\t</conditionalStyle>\n");
+        }
+        return b.append("\t</style>\n").toString();
+    }
+
+    /** Element de coupure de page, pose en tete d'une bande et pilote par une condition. */
+    private static String coupure(String condition) {
+        return "\t\t\t<break>\n\t\t\t\t<reportElement x=\"0\" y=\"0\" width=\"100\" height=\"1\" uuid=\"" + uuid()
+                + "\">\n\t\t\t\t\t<printWhenExpression><![CDATA[" + condition
+                + "]]></printWhenExpression>\n\t\t\t\t</reportElement>\n\t\t\t</break>\n";
+    }
+
+    /** Nom du style porte par les lignes de bon. */
+    private static final String STYLE_LIGNE_BON = "LigneBon";
+
+    /** Nom du style porte par les lignes de produit, d'un point plus petites. */
+    private static final String STYLE_LIGNE_PRODUIT = "LigneProduit";
 
     private static String encadrement(String epaisseur) {
         return "\t\t\t\t<box leftPadding=\"1\" rightPadding=\"1\">\n" + "\t\t\t\t\t<topPen lineWidth=\"" + epaisseur

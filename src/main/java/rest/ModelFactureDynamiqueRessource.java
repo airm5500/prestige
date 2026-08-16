@@ -171,8 +171,8 @@ public class ModelFactureDynamiqueRessource {
                         .put("modeTri", m.getModeTri()).put("afficherEntete", m.isAfficherEntete())
                         .put("afficherPiedPage", m.isAfficherPiedPage())
                         .put("detaillerProduits", m.isDetaillerProduits())
-                        .put("taillePolice", m.taillePoliceEffective()).put("colonnes", cols)
-                        .put("colonnesProduit", colsProduit).put("nbColonnes", cols.length())
+                        .put("taillePolice", m.taillePoliceEffective()).put("nbBonsParPage", m.bonsParPageEffectif())
+                        .put("colonnes", cols).put("colonnesProduit", colsProduit).put("nbColonnes", cols.length())
                         .put("nbTiersPayants", nbTp));
             }
             return reponseJson(new JSONObject().put("data", data).put("total", data.length()));
@@ -250,6 +250,7 @@ public class ModelFactureDynamiqueRessource {
             @DefaultValue("true") @FormParam("afficherPiedPage") boolean afficherPiedPage,
             @DefaultValue("false") @FormParam("detaillerProduits") boolean detaillerProduits,
             @DefaultValue("8") @FormParam("taillePolice") int taillePolice,
+            @DefaultValue("0") @FormParam("nbBonsParPage") int nbBonsParPage,
             @DefaultValue("[]") @FormParam("colonnes") String colonnesParam,
             @DefaultValue("[]") @FormParam("colonnesProduit") String colonnesProduitParam) {
         if (utilisateurSession() == null) {
@@ -307,6 +308,8 @@ public class ModelFactureDynamiqueRessource {
             modele.setDetaillerProduits(detaillerProduits);
             // Une taille hors bornes revient a la valeur d'origine : taillePoliceEffective() s'en charge
             modele.setTaillePolice(taillePolice);
+            // Un nombre hors bornes revient a « automatique » : bonsParPageEffectif() s'en charge
+            modele.setNbBonsParPage(nbBonsParPage);
             for (int i = 0; i < colonnes.length(); i++) {
                 JSONObject o = colonnes.getJSONObject(i);
                 ModelFactureDynamiqueColonne col = new ModelFactureDynamiqueColonne();

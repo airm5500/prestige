@@ -244,6 +244,10 @@ public class Facture {
             // Ordre des lignes demande sur la fiche du tiers payant : date de bon, ou
             // alphabetique nom puis prenom.
             parameters.put(TriFacture.PARAMETRE, TriFacture.parDateDeBon(OTiersPayant.getStrMODETRIFACTURE()));
+            // Mise en page reglee sur la fiche du tiers payant : 0 = automatique, donc la presentation
+            // d'aujourd'hui. Un modele qui ne declare pas ces deux parametres les ignore simplement.
+            rest.report.MiseEnPageFacture.appliquer(parameters, OTiersPayant.getIntNBBONSPARPAGE(),
+                    OTiersPayant.getIntTAILLEPOLICE());
             parameters.put("P_CODE_COMPTABLE", "CODE COMPTABLE : " + OFacture.getStrCODECOMPTABLE());
             parameters.put("P_CODE_POSTALE", util.StringUtils.normalizePhone(OTiersPayant.getStrADRESSE()));
             parameters.put("P_COMPTE_CONTRIBUABLE",
