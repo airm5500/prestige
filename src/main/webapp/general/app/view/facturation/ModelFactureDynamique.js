@@ -420,9 +420,9 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                             xtype: 'numberfield',
                             itemId: 'mfdTaillePolice',
                             fieldLabel: 'Taille de police',
-                            // 8 est la taille d'origine : un modele qui n'y touche pas garde
-                            // exactement la presentation qu'il avait.
-                            value: (rec && rec.get('taillePolice')) ? rec.get('taillePolice') : 8,
+                            // 7 points pour un nouveau modele. Un modele deja cree garde SA
+                            // taille : les modeles d'avant cette option valent 8, ils restent a 8.
+                            value: (rec && rec.get('taillePolice')) ? rec.get('taillePolice') : 7,
                             minValue: 5,
                             maxValue: 12,
                             step: 1,
@@ -438,9 +438,9 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                             itemId: 'mfdBonsParPage',
                             fieldLabel: 'Bons par page',
                             emptyText: 'Automatique',
-                            // Vide = automatique, la valeur d'origine : la page se remplit d'elle-meme
-                            // et la coupure tombe la ou elle tombe aujourd'hui.
-                            value: (rec && rec.get('nbBonsParPage') > 0) ? rec.get('nbBonsParPage') : null,
+                            // 20 bons par page par defaut. Vider le champ revient a « automatique » :
+                            // la page se remplit alors d'elle-meme, comme avant cette option.
+                            value: (rec && rec.get('nbBonsParPage') > 0) ? rec.get('nbBonsParPage') : 20,
                             allowBlank: true,
                             minValue: 5,
                             maxValue: 500,

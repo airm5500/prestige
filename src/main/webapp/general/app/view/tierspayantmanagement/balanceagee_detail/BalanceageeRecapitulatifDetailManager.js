@@ -102,7 +102,10 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
 
         var store_tierspayant = new Ext.data.Store({
             model: 'testextjs.model.TiersPayant',
-            pageSize: 10,
+            // pageSize a 0 : aucune limite n'est demandee au serveur, la liste deroulante montre
+            // TOUS les tiers payants. A 10, elle n'en montrait que dix et les autres etaient
+            // introuvables sans les taper au clavier.
+            pageSize: 0,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
@@ -118,7 +121,8 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeR
 
         var store_client = new Ext.data.Store({
             model: 'testextjs.model.Client',
-            pageSize: itemsPerPage,
+            // 0 : tous les clients rattaches au tiers payant choisi, sans limite de page
+            pageSize: 0,
             autoLoad: false,
             proxy: {
                 type: 'ajax',

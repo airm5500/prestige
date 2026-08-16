@@ -95,7 +95,10 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
 
         var store_tierspayant = new Ext.data.Store({
             model: 'testextjs.model.TiersPayant',
-            pageSize: 10,
+            // pageSize a 0 : aucune limite n'est demandee au serveur, la liste deroulante montre
+            // TOUS les tiers payants. A 10, elle n'en montrait que dix et les autres etaient
+            // introuvables sans les taper au clavier.
+            pageSize: 0,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
