@@ -69,6 +69,25 @@ public class FacturationRessouce {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Modèles de facture de la liste déroulante de la fiche tiers payant.
+     *
+     * Remplace la page ws_data_model.jsp. La forme de la réponse est celle que l'écran lit déjà — {@code total} et
+     * {@code results}, avec les mêmes noms de colonnes — pour que la liste se comporte exactement comme avant.
+     *
+     * {@code search_value} est accepté en plus de {@code query} : c'est le nom que lisait l'ancienne page.
+     */
+    @GET
+    @Path("modelfacture/liste")
+    public Response modelfactureListe(@QueryParam("query") String query, @QueryParam("search_value") String searchValue,
+            @QueryParam("start") @DefaultValue("0") int start, @QueryParam("limit") @DefaultValue("20") int limit)
+            throws JSONException {
+        String recherche = query != null && !query.trim().isEmpty() ? query : searchValue;
+        return Response.ok()
+                .entity(facturationService.modelFacturesPourListeDeroulante(recherche, start, limit).toString())
+                .build();
+    }
+
     @GET
     @Path("groupetierspayant")
     public Response groupetierspayant(@QueryParam("query") String query) throws JSONException {

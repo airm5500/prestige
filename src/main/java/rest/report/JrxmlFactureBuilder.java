@@ -238,11 +238,15 @@ public final class JrxmlFactureBuilder {
                         .append("]]></variableExpression>\n\t</variable>\n");
             }
         }
+        // Taille demandee sur le modele. Les lignes de PRODUIT restent d'un point plus petites que
+        // la ligne du bon, comme avant : c'est ce qui les distingue au premier coup d'oeil.
+        int taille = modele.taillePoliceEffective();
+        int tailleProduit = Math.max(ModelFactureDynamique.TAILLE_POLICE_MINIMUM, taille - 1);
         if (avecProduits) {
             xml.append("\t<group name=\"grpBon\" isReprintHeaderOnEachPage=\"true\">\n")
                     .append("\t\t<groupExpression><![CDATA[$F{lg_PREENREGISTREMENT_ID}]]></groupExpression>\n")
                     .append(bandeGroupHeader(colonnes, largeurs, positions, colonnesProduit, largeursProduit,
-                            positionsProduit))
+                            positionsProduit, taille))
                     .append("\t\t<groupFooter>\n\t\t\t<band height=\"3\"/>\n\t\t</groupFooter>\n")
                     .append("\t</group>\n");
         }
@@ -253,7 +257,7 @@ public final class JrxmlFactureBuilder {
         // groupe et la bande de detail porte les lignes de produit.
         xml.append(bandeDetail(avecProduits ? colonnesProduit : colonnes, avecProduits ? largeursProduit : largeurs,
                 avecProduits ? positionsProduit : positions, avecProduits ? CHAMPS_PRODUIT : CHAMPS,
-                avecProduits ? 7 : 8));
+                avecProduits ? tailleProduit : taille));
         xml.append(bandePageFooter(avecPiedPage));
         xml.append(bandeSummary(colonnes, largeurs, positions));
         xml.append("</jasperReport>\n");
@@ -344,11 +348,12 @@ public final class JrxmlFactureBuilder {
      * libelles de colonnes produit — exactement la meme structure que le PDF genere par l'application.
      */
     private static String bandeGroupHeader(List<ModelFactureDynamiqueColonne> colonnes, int[] largeurs, int[] positions,
-            List<ModelFactureDynamiqueColonne> colonnesProduit, int[] largeursProduit, int[] positionsProduit) {
+            List<ModelFactureDynamiqueColonne> colonnesProduit, int[] largeursProduit, int[] positionsProduit,
+            int taillePolice) {
         StringBuilder b = new StringBuilder();
         b.append("\t\t<groupHeader>\n\t\t\t<band height=\"").append(HAUTEUR_LIGNE + HAUTEUR_ENTETE_PRODUIT)
                 .append("\" splitType=\"Stretch\">\n");
-        b.append(cellulesLigne(colonnes, largeurs, positions, CHAMPS, 8, HAUTEUR_LIGNE, 0));
+        b.append(cellulesLigne(colonnes, largeurs, positions, CHAMPS, taillePolice, HAUTEUR_LIGNE, 0));
         for (int i = 0; i < colonnesProduit.size(); i++) {
             b.append("\t\t\t<staticText>\n\t\t\t\t<reportElement mode=\"Opaque\" x=\"").append(positionsProduit[i])
                     .append("\" y=\"").append(HAUTEUR_LIGNE).append("\" width=\"").append(largeursProduit[i])

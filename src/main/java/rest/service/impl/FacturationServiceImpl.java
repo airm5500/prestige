@@ -37,6 +37,8 @@ import javax.persistence.criteria.*;
 import org.apache.commons.lang3.StringUtils;
 
 import org.json.JSONArray;
+import rest.service.dto.ModelFactureComboDTO;
+import toolkits.parameters.commonparameter;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.FacturationService;
@@ -72,6 +74,31 @@ public class FacturationServiceImpl implements FacturationService {
     @Override
     public TModelFacture modelFactureById(String lgMODELFACTUREID) {
         return getEntityManager().find(TModelFacture.class, lgMODELFACTUREID);
+    }
+
+    @Override
+    public JSONObject modelFacturesPourListeDeroulante(String query, int start, int limit) throws JSONException {
+        String recherche = "%" + StringUtils.trimToEmpty(query) + "%";
+        String selection = " FROM TModelFacture t WHERE (t.strDESCRIPTION LIKE ?1 OR t.strVALUE LIKE ?1)"
+                + " AND t.strSTATUT = ?2";
+
+        Long total = getEntityManager().createQuery("SELECT COUNT(t)" + selection, Long.class)
+                .setParameter(1, recherche).setParameter(2, commonparameter.statut_enable).getSingleResult();
+
+        TypedQuery<TModelFacture> tq = getEntityManager()
+                .createQuery("SELECT t" + selection + " ORDER BY t.strDESCRIPTION", TModelFacture.class)
+                .setParameter(1, recherche).setParameter(2, commonparameter.statut_enable);
+        tq.setFirstResult(Math.max(0, start));
+        if (limit > 0) {
+            tq.setMaxResults(limit);
+        }
+
+        JSONArray lignes = new JSONArray();
+        for (TModelFacture modele : tq.getResultList()) {
+            lignes.put(new ModelFactureComboDTO(modele).toJson());
+        }
+        // "total" et "results" : les deux noms que l'ecran lit deja, inchanges depuis la JSP
+        return new JSONObject().put("total", total).put("results", lignes);
     }
 
     @Override

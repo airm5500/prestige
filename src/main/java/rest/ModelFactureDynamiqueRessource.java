@@ -170,7 +170,8 @@ public class ModelFactureDynamiqueRessource {
                         .put("description", StringUtils.defaultString(m.getDescription()))
                         .put("modeTri", m.getModeTri()).put("afficherEntete", m.isAfficherEntete())
                         .put("afficherPiedPage", m.isAfficherPiedPage())
-                        .put("detaillerProduits", m.isDetaillerProduits()).put("colonnes", cols)
+                        .put("detaillerProduits", m.isDetaillerProduits())
+                        .put("taillePolice", m.taillePoliceEffective()).put("colonnes", cols)
                         .put("colonnesProduit", colsProduit).put("nbColonnes", cols.length())
                         .put("nbTiersPayants", nbTp));
             }
@@ -248,6 +249,7 @@ public class ModelFactureDynamiqueRessource {
             @DefaultValue("true") @FormParam("afficherEntete") boolean afficherEntete,
             @DefaultValue("true") @FormParam("afficherPiedPage") boolean afficherPiedPage,
             @DefaultValue("false") @FormParam("detaillerProduits") boolean detaillerProduits,
+            @DefaultValue("8") @FormParam("taillePolice") int taillePolice,
             @DefaultValue("[]") @FormParam("colonnes") String colonnesParam,
             @DefaultValue("[]") @FormParam("colonnesProduit") String colonnesProduitParam) {
         if (utilisateurSession() == null) {
@@ -303,6 +305,8 @@ public class ModelFactureDynamiqueRessource {
             modele.setAfficherEntete(afficherEntete);
             modele.setAfficherPiedPage(afficherPiedPage);
             modele.setDetaillerProduits(detaillerProduits);
+            // Une taille hors bornes revient a la valeur d'origine : taillePoliceEffective() s'en charge
+            modele.setTaillePolice(taillePolice);
             for (int i = 0; i < colonnes.length(); i++) {
                 JSONObject o = colonnes.getJSONObject(i);
                 ModelFactureDynamiqueColonne col = new ModelFactureDynamiqueColonne();

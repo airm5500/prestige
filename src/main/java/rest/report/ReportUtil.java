@@ -48,6 +48,7 @@ import net.sf.jasperreports.export.SimpleOutputStreamExporterOutput;
 import net.sf.jasperreports.export.SimplePrintServiceExporterConfiguration;
 import net.sf.jasperreports.export.SimpleXlsxReportConfiguration;
 import org.apache.commons.lang3.StringUtils;
+import toolkits.parameters.commonparameter;
 import toolkits.utils.jdom;
 import util.DateConverter;
 
@@ -71,6 +72,40 @@ public class ReportUtil {
     public String findParameterValue(String key) {
         dal.TParameters parameter = em.find(dal.TParameters.class, key);
         return parameter != null ? parameter.getStrVALUE() : null;
+    }
+
+    /**
+     * Ville imprimée en pied de récapitulatif (« ABIDJAN, le 16/08/2026 »).
+     *
+     * Le modèle portait cette ville EN DUR — celle de l'officine pour laquelle il avait été créé — et toute autre
+     * officine imprimait donc la ville d'une autre. Elle se règle désormais dans l'écran « Gestion des paramétrages ».
+     *
+     * La ligne du paramètre est créée ici si elle n'existe pas encore : sans cela l'écran ne l'afficherait pas et
+     * l'officine n'aurait aucun endroit où saisir sa ville, sans passer par une commande en base. Elle est créée VIDE :
+     * tant que rien n'est saisi, le récapitulatif se contente de « le &lt;date&gt; », ce qui vaut mieux qu'une ville
+     * fausse.
+     */
+    public String lieuEdition() {
+        dal.TParameters parametre = em.find(dal.TParameters.class, util.Constant.KEY_LIEU_EDITION);
+        if (parametre == null) {
+            try {
+                parametre = new dal.TParameters();
+                parametre.setStrKEY(util.Constant.KEY_LIEU_EDITION);
+                parametre.setStrVALUE("");
+                parametre.setStrDESCRIPTION("Ville de l'officine, imprimée en pied de récapitulatif de facture");
+                parametre.setStrTYPE(commonparameter.PARAMETER_CUSTOMER);
+                parametre.setStrSTATUT(commonparameter.statut_enable);
+                parametre.setDtCREATED(new Date());
+                parametre.setDtUPDATED(new Date());
+                em.persist(parametre);
+            } catch (Exception e) {
+                // Sans gravité pour l'édition en cours : la ville restera simplement vide.
+                LOG.log(Level.WARNING, "Le paramètre {0} n''a pas pu être cree : {1}",
+                        new Object[] { util.Constant.KEY_LIEU_EDITION, e.getMessage() });
+                return "";
+            }
+        }
+        return StringUtils.defaultString(parametre.getStrVALUE());
     }
 
     /**
@@ -240,8 +275,7 @@ public class ReportUtil {
             parameters.put("P_AUTRE_DESC", oTOfficine.getStrFIRSTNAME() + " " + oTOfficine.getStrLASTNAME());
             // Ville d'edition du recapitulatif. Le modele la portait en dur ("TAFIRE") : toute
             // officine imprimait donc la ville d'une autre. Vide, l'etat se contente de la date.
-            parameters.put("P_LIEU_EDITION",
-                    StringUtils.defaultString(findParameterValue(util.Constant.KEY_LIEU_EDITION)));
+            parameters.put("P_LIEU_EDITION", lieuEdition());
             if (StringUtils.isNotEmpty(oTOfficine.getStrREGISTRECOMMERCE())) {
                 footer += "RC N° " + oTOfficine.getStrREGISTRECOMMERCE();
             }

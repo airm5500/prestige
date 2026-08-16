@@ -60,6 +60,16 @@ public class ModelFactureDynamique implements Serializable {
     @Column(name = "b_DETAILLER_PRODUITS")
     private Boolean detaillerProduits = Boolean.FALSE;
 
+    /**
+     * Taille de police des lignes de la facture, en points.
+     *
+     * 8 est la valeur d'origine, celle qui etait figee dans le code : un modele qui n'y touche pas garde exactement la
+     * presentation qu'il avait. La descendre gagne de la place quand les colonnes sont nombreuses et que les noms sont
+     * longs ; la monter rend la facture plus lisible quand il y a peu de colonnes.
+     */
+    @Column(name = "int_TAILLE_POLICE")
+    private Integer taillePolice = TAILLE_POLICE_DEFAUT;
+
     @Column(name = "dt_CREATED")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCreated;
@@ -71,6 +81,36 @@ public class ModelFactureDynamique implements Serializable {
     @OneToMany(mappedBy = "modele", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ordre ASC")
     private List<ModelFactureDynamiqueColonne> colonnes = new ArrayList<>();
+
+    /** Taille de police d'origine, figee dans le code avant que le createur ne la propose. */
+    public static final int TAILLE_POLICE_DEFAUT = 8;
+
+    /** En deca, plus rien n'est lisible sur papier. */
+    public static final int TAILLE_POLICE_MINIMUM = 5;
+
+    /** Au-dela, une ligne de bon ne tiendrait plus dans la hauteur prevue. */
+    public static final int TAILLE_POLICE_MAXIMUM = 12;
+
+    /**
+     * Taille de police retenue, ramenee entre le minimum et le maximum.
+     *
+     * Une valeur absente ou aberrante - un modele cree avant cette option, ou une saisie fantaisiste - revient a la
+     * taille d'origine plutot que de produire une facture illisible.
+     */
+    public int taillePoliceEffective() {
+        if (taillePolice == null || taillePolice < TAILLE_POLICE_MINIMUM || taillePolice > TAILLE_POLICE_MAXIMUM) {
+            return TAILLE_POLICE_DEFAUT;
+        }
+        return taillePolice;
+    }
+
+    public Integer getTaillePolice() {
+        return taillePolice;
+    }
+
+    public void setTaillePolice(Integer taillePolice) {
+        this.taillePolice = taillePolice;
+    }
 
     public Integer getId() {
         return id;

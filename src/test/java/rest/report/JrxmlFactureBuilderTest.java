@@ -138,6 +138,51 @@ class JrxmlFactureBuilderTest {
     }
 
     @Test
+    @DisplayName("La taille de police du modele est appliquee aux lignes")
+    void taillePoliceDuModele() {
+        ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
+        m.setTaillePolice(6);
+
+        String xml = JrxmlFactureBuilder.construire(m, true, true);
+
+        assertTrue(xml.contains("<font size=\"6\"/>"), "les lignes doivent prendre la taille demandee");
+    }
+
+    @Test
+    @DisplayName("Sans taille demandee, la presentation d'origine est conservee")
+    void taillePoliceParDefaut() {
+        String xml = JrxmlFactureBuilder.construire(modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT"), true, true);
+
+        assertTrue(xml.contains("<font size=\"8\"/>"), "8 points, comme avant que l'option n'existe");
+    }
+
+    @Test
+    @DisplayName("Une taille aberrante revient a la taille d'origine, au lieu d'une facture illisible")
+    void taillePoliceAberrante() {
+        ModelFactureDynamique m = modele("ALPHABETIQUE", "NOM_COMPLET", "MONTANT_BRUT");
+        m.setTaillePolice(99);
+
+        assertTrue(JrxmlFactureBuilder.construire(m, true, true).contains("<font size=\"8\"/>"));
+
+        m.setTaillePolice(null);
+        assertTrue(JrxmlFactureBuilder.construire(m, true, true).contains("<font size=\"8\"/>"),
+                "un modele cree avant cette option n'a pas de taille : il garde la sienne");
+    }
+
+    @Test
+    @DisplayName("Les lignes de produit restent d'un point plus petites que la ligne du bon")
+    void produitsUnPointPlusPetits() {
+        ModelFactureDynamique m = modeleAvecProduits(new String[] { "NOM_COMPLET", "MONTANT_BRUT" }, "PROD_DESIGNATION",
+                "PROD_MONTANT");
+        m.setTaillePolice(9);
+
+        String xml = JrxmlFactureBuilder.construire(m, true, true);
+
+        assertTrue(xml.contains("<font size=\"9\"/>"), "la ligne du bon prend la taille demandee");
+        assertTrue(xml.contains("<font size=\"8\"/>"), "les lignes de produit restent un point en dessous");
+    }
+
+    @Test
     @DisplayName("Le tri du modele pilote l'ordre de la requete")
     void triDansLaRequete() {
         assertTrue(JrxmlFactureBuilder.construire(modele("DATE_BON", "NOM_COMPLET"), true, true)

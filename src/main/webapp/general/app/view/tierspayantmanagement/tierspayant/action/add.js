@@ -8,7 +8,9 @@ var url_services_data_typetierspayant_tp = '../webservices/tierspayantmanagement
 var url_services_data_typecontrat_tp = '../webservices/configmanagement/typecontrat/ws_data.jsp';
 var url_services_data_regimecaisse_tp = '../webservices/configmanagement/regimecaisse/ws_data.jsp';
 var url_services_data_risque_tp = '../webservices/configmanagement/risque/ws_data.jsp';
-var url_services_data_modelfacture_rp = '../webservices/tierspayantmanagement/tierspayant/ws_data_model.jsp';
+// Liste des modeles de facture : service REST. La reponse garde la forme lue par l'ecran
+// (total + results, memes noms de colonnes) : le combo se comporte exactement comme avant.
+var url_services_data_modelfacture_rp = '../api/v1/facturation/modelfacture/liste';
 
 var Oview;
 var Omode;
