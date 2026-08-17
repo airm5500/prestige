@@ -16,10 +16,10 @@ import java.util.logging.Logger;
  * Emplacement de stockage des donnees de travail ecrites sur disque (logs du Centre de Support, rapports, logs de
  * calcul semois / seuils de reapprovisionnement, fichier de configuration).
  *
- * Probleme resolu : par defaut ces fichiers allaient dans le profil Windows de l'utilisateur
- * ({@code user.home}, ex. {@code C:\Users\Dr Kouassi\Documents}). Quand Payara tourne en service Windows, le compte
- * de service n'a pas le droit d'ecrire dans ce profil : {@code AccessDeniedException} a chaque ecriture (et les
- * chemins contenant un espace posent en plus des problemes de troncature dans certains outils).
+ * Probleme resolu : par defaut ces fichiers allaient dans le profil Windows de l'utilisateur ({@code user.home}, ex.
+ * {@code C:\Users\Dr Kouassi\Documents}). Quand Payara tourne en service Windows, le compte de service n'a pas le droit
+ * d'ecrire dans ce profil : {@code AccessDeniedException} a chaque ecriture (et les chemins contenant un espace posent
+ * en plus des problemes de troncature dans certains outils).
  *
  * Regle retenue : on ecrit sur un disque de donnees, dans l'ordre de preference <b>D: puis F: puis E:</b>. Un disque
  * n'est retenu que s'il existe ET qu'on peut reellement y creer un dossier (test d'ecriture effectif, pas seulement
@@ -89,9 +89,9 @@ public final class StockageDisque {
     }
 
     /**
-     * Vrai si le disque existe et si on peut reellement creer/ecrire dans le dossier cible. On teste l'ecriture au
-     * lieu de se fier a la seule presence du lecteur : un lecteur reseau deconnecte, un CD-ROM ou un disque protege
-     * en ecriture serait sinon retenu a tort.
+     * Vrai si le disque existe et si on peut reellement creer/ecrire dans le dossier cible. On teste l'ecriture au lieu
+     * de se fier a la seule presence du lecteur : un lecteur reseau deconnecte, un CD-ROM ou un disque protege en
+     * ecriture serait sinon retenu a tort.
      */
     private static boolean estUtilisable(Path dossier) {
         try {

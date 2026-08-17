@@ -35,8 +35,8 @@ public class AppConfig {
         // Emplacement historique (profil utilisateur) : conserve s'il existe deja, pour ne rien casser
         // sur les installations en place. Sinon on cree la configuration sur le disque de donnees
         // (D: puis F: puis E:), accessible en ecriture par le compte de service Windows.
-        File configFile = new File(System.getProperty("user.home") + File.separator + "Documents" + File.separator
-                + "dicisms.properties");
+        File configFile = new File(
+                System.getProperty("user.home") + File.separator + "Documents" + File.separator + "dicisms.properties");
 
         if (!configFile.exists()) {
             configFile = util.StockageDisque.sousDossier("config").resolve("dicisms.properties").toFile();
