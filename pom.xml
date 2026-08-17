@@ -6,15 +6,46 @@
     <artifactId>prestige</artifactId>
     <version>2.0.0</version>
     <repositories>
+        <!-- Depot interne au projet : sert les artefacts qu'aucun depot public ne
+             publie (TOOLKITS, MULTILANGUE) et ceux dont l'hebergeur n'est pas
+             joignable depuis un reseau restreint (com.lowagie:itext:2.1.7.js9,
+             tire par jasperreports depuis le depot Pentaho).
+             Alimentation : scripts/vendor-local-deps.bat (Windows) ou .sh (Unix),
+             a lancer une fois depuis un poste ou le build passe deja. -->
+        <repository>
+            <id>project-local</id>
+            <name>Depot local versionne avec le projet</name>
+            <!-- project.baseUri, et non basedir : il produit une URI file://
+                 valide sur les deux plateformes (sous Windows, basedir vaut
+                 D:\prestige et ses antislashs cassent l'URI). -->
+            <url>${project.baseUri}mvn-repo</url>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>always</updatePolicy>
+            </snapshots>
+        </repository>
+        <!-- snapshots desactives sur les depots publics : ni l'un ni l'autre ne
+             publie TOOLKITS/MULTILANGUE, les interroger ne produit que des
+             avertissements (403) sur un reseau filtre. -->
         <repository>
             <id>central</id>
             <name>Maven Central</name>
             <url>https://repo1.maven.org/maven2/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
         <repository>
             <id>pentaho-repo</id>
             <name>pentaho-repo</name>
             <url>https://public.nexus.pentaho.org/content/groups/omni/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
        
     </repositories>
