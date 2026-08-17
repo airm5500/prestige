@@ -735,7 +735,9 @@ public class SupportEventServiceImpl implements SupportEventService {
         if (StringUtils.isNotBlank(configured)) {
             return Paths.get(configured.trim());
         }
-        return Paths.get(System.getProperty("user.home"), "prestige-support");
+        // Disque de donnees (D: puis F: puis E:) plutot que le profil utilisateur : le compte de service
+        // Windows n'a pas toujours le droit d'ecrire dans C:\Users\... (AccessDeniedException).
+        return util.StockageDisque.sousDossier("support");
     }
 
     private int getIntParameter(String key, int defaultValue) {

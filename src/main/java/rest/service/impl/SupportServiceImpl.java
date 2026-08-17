@@ -232,7 +232,7 @@ public class SupportServiceImpl implements SupportService {
         if (StringUtils.isNotBlank(configured)) {
             base = Paths.get(configured.trim());
         } else {
-            base = Paths.get(System.getProperty("user.home"), "prestige-support");
+            base = util.StockageDisque.sousDossier("support");
         }
         Path dir = base.resolve("pieces-jointes");
         LocalDate now = LocalDate.now();

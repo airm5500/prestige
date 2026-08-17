@@ -48,12 +48,9 @@ public final class ReapproLogWriter {
         }
         try {
             enrich(em, entries);
-            String dir = System.getProperty("user.home") + File.separator + "Documents" + File.separator
-                    + "reappro_logs";
-            File d = new File(dir);
-            if (!d.exists()) {
-                d.mkdirs();
-            }
+            // Disque de donnees (D: puis F: puis E:) plutot que le profil utilisateur : le compte de service
+            // Windows n'a pas toujours le droit d'ecrire dans C:\Users\... (AccessDeniedException).
+            String dir = util.StockageDisque.sousDossier("reappro_logs").toString();
             String file = dir + File.separator + mode + "_" + LocalDate.now() + ".json";
             try (Writer w = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
                 w.write(entries.toString(2));

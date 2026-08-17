@@ -109,7 +109,7 @@ public class SupportWatchdog {
     private Path resolveStorageBase() {
         String configured = StringUtils.trimToEmpty(supportEventService.getParameter("SUPPORT_STORAGE_DIR"));
         return StringUtils.isNotBlank(configured) ? Paths.get(configured)
-                : Paths.get(System.getProperty("user.home"), "prestige-support");
+                : util.StockageDisque.sousDossier("support");
     }
 
     private void ecrireBattement(LocalDateTime now) throws IOException {

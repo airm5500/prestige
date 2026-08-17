@@ -53,7 +53,17 @@ public final class AppParameters {
     Pattern pattern = Pattern.compile("Windows");
 
     Matcher m = pattern.matcher(Os);
-    String path = (m.find() ? pathWindow : pathUnix);
+    // Emplacement historique s'il existe deja (aucune regression sur les installations en place),
+    // sinon le fichier de configuration sur le disque de donnees (D: puis F: puis E:), accessible
+    // en ecriture par le compte de service Windows.
+    String path = resoudreCheminConfig(m.find() ? pathWindow : pathUnix);
+
+    private static String resoudreCheminConfig(String cheminHistorique) {
+        if (new File(cheminHistorique).exists()) {
+            return cheminHistorique;
+        }
+        return StockageDisque.sousDossier("config").resolve("dicisms.properties").toString();
+    }
 
     public String fneUrl;
     public String fnePkey;
