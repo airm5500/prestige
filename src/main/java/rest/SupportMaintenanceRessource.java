@@ -52,9 +52,26 @@ public class SupportMaintenanceRessource {
         return Response.ok().entity(ResultFactory.getSuccessResult(counts, 1)).build();
     }
 
+    /**
+     * Etat du dossier des pieces jointes et volume liberable, a consulter AVANT de lancer la purge.
+     */
+    @GET
+    @Path("pieces-jointes")
+    public Response piecesJointes(@QueryParam("jours") Integer jours) {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (!isAdmin(user)) {
+            return Response.ok().entity(ResultFactory.getFailResult("Action réservée aux administrateurs")).build();
+        }
+        Map<String, Object> comptes = supportMaintenanceService.comptesPiecesJointes(anciennete(jours));
+        return Response.ok().entity(ResultFactory.getSuccessResult(comptes, 1)).build();
+    }
+
     @POST
     @Path("vider")
-    public Response vider(@QueryParam("action") String action) {
+    public Response vider(@QueryParam("action") String action, @QueryParam("jours") Integer jours) {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -63,13 +80,22 @@ public class SupportMaintenanceRessource {
             return Response.ok().entity(ResultFactory.getFailResult("Action réservée aux administrateurs")).build();
         }
         try {
-            Map<String, Object> resultat = supportMaintenanceService.vider(action,
-                    StringUtils.trimToEmpty(user.getStrFIRSTNAME()) + " "
-                            + StringUtils.trimToEmpty(user.getStrLASTNAME()) + " (" + user.getStrLOGIN() + ")");
+            String auteur = StringUtils.trimToEmpty(user.getStrFIRSTNAME()) + " "
+                    + StringUtils.trimToEmpty(user.getStrLASTNAME()) + " (" + user.getStrLOGIN() + ")";
+            Map<String, Object> resultat;
+            if (SupportMaintenanceService.ACTION_PIECES_JOINTES.equals(action)) {
+                resultat = supportMaintenanceService.viderPiecesJointes(anciennete(jours), auteur);
+            } else {
+                resultat = supportMaintenanceService.vider(action, auteur);
+            }
             return Response.ok().entity(ResultFactory.getSuccessResult(resultat, 1)).build();
         } catch (IllegalArgumentException e) {
             return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
         }
+    }
+
+    private int anciennete(Integer jours) {
+        return jours != null && jours > 0 ? jours : SupportMaintenanceService.PIECES_JOINTES_JOURS_DEFAUT;
     }
 
     private TUser currentUser() {

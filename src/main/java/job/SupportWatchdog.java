@@ -29,11 +29,16 @@ import javax.ejb.Singleton;
 import javax.ejb.Startup;
 import org.apache.commons.lang3.StringUtils;
 import rest.service.SupportEventService;
+import util.BoiteNoire;
 
 /**
  * Watchdog de crash du serveur d'application. Detection post-mortem via un fichier temoin (heartbeat) rafraichi
  * regulierement et supprime a l'arret propre : si le fichier est encore present au demarrage, le serveur a plante. On
  * cree alors un incident avec l'indisponibilite estimee et la cause probable (extrait du server.log + hs_err_pid).
+ *
+ * Le fichier temoin fait aussi office de BOITE NOIRE : a chaque battement il enregistre l'etat du serveur (memoire,
+ * disque, requetes en vol). Apres un crash, c'est le seul etat connu d'avant l'arret. Aucune tache supplementaire n'est
+ * planifiee pour cela : la mesure est portee par le battement qui existait deja.
  *
  * @author koben
  */
@@ -53,6 +58,12 @@ public class SupportWatchdog {
     private volatile boolean enabled;
     private volatile String serverLogDir;
     private volatile Path heartbeatFile;
+    private volatile Path storageBase;
+    /**
+     * Boite noire relue au demarrage quand un crash a ete detecte : dernier etat connu du serveur AVANT l'arret. Reste
+     * consultable ensuite via le Centre de Support (le fichier temoin, lui, est immediatement reecrit).
+     */
+    private volatile BoiteNoire.Instantane avantCrash;
 
     @PostConstruct
     public void demarrage() {
@@ -64,16 +75,19 @@ public class SupportWatchdog {
                 return;
             }
             serverLogDir = StringUtils.trimToEmpty(supportEventService.getParameter("SUPPORT_SERVER_LOG_PATH"));
-            heartbeatFile = resolveStorageBase().resolve("watchdog").resolve("heartbeat.flag");
+            storageBase = resolveStorageBase();
+            heartbeatFile = storageBase.resolve("watchdog").resolve("heartbeat.flag");
             LocalDateTime now = LocalDateTime.now();
             if (Files.isRegularFile(heartbeatFile)) {
-                // Le fichier temoin n'a pas ete supprime par un arret propre -> crash.
-                LocalDateTime lastBeat = lireBattement(now);
-                long downMin = Math.max(0, ChronoUnit.MINUTES.between(lastBeat, now));
+                // Le fichier temoin n'a pas ete supprime par un arret propre -> crash. On relit la boite noire AVANT
+                // de reecrire le temoin : c'est le dernier etat connu du serveur, il serait perdu sinon.
+                BoiteNoire.Instantane dernier = lireBattement(now);
+                avantCrash = dernier;
+                long downMin = Math.max(0, ChronoUnit.MINUTES.between(dernier.horodatage, now));
                 String message = "Redemarrage inattendu du serveur (arret non propre) - indisponibilite ~" + downMin
                         + " min";
-                supportEventService.recordServerIncident("crash-" + lastBeat.format(STAMP), "ERROR", message,
-                        buildDetail(lastBeat, now, downMin));
+                supportEventService.recordServerIncident("crash-" + dernier.horodatage.format(STAMP), "ERROR", message,
+                        buildDetail(dernier, now, downMin));
                 LOG.log(Level.WARNING, "Crash serveur detecte : {0}", message);
             }
             ecrireBattement(now);
@@ -115,30 +129,111 @@ public class SupportWatchdog {
         if (heartbeatFile.getParent() != null) {
             Files.createDirectories(heartbeatFile.getParent());
         }
-        Files.write(heartbeatFile, now.format(FMT).getBytes(StandardCharsets.UTF_8));
+        Files.write(heartbeatFile, BoiteNoire.formater(releve(now)).getBytes(StandardCharsets.UTF_8));
     }
 
-    private LocalDateTime lireBattement(LocalDateTime fallback) {
+    /**
+     * Photographie de l'etat courant du serveur. Chaque mesure est isolee : une mesure indisponible vaut
+     * {@link BoiteNoire#INCONNU} et n'empeche pas les autres d'etre enregistrees. Le battement ne doit jamais echouer a
+     * cause de la boite noire.
+     */
+    private BoiteNoire.Instantane releve(LocalDateTime now) {
+        long memUtiliseeMo = BoiteNoire.INCONNU;
+        long memMaxMo = BoiteNoire.INCONNU;
         try {
-            String contenu = new String(Files.readAllBytes(heartbeatFile), StandardCharsets.UTF_8).trim();
-            return LocalDateTime.parse(contenu, FMT);
+            Runtime rt = Runtime.getRuntime();
+            memMaxMo = rt.maxMemory() / (1024L * 1024L);
+            memUtiliseeMo = (rt.totalMemory() - rt.freeMemory()) / (1024L * 1024L);
         } catch (Exception e) {
-            try {
-                return LocalDateTime.ofInstant(Files.getLastModifiedTime(heartbeatFile).toInstant(),
-                        ZoneId.systemDefault());
-            } catch (Exception ex) {
-                return fallback;
+            LOG.log(Level.FINE, "releve memoire", e);
+        }
+        long requetes = BoiteNoire.INCONNU;
+        String plusLongue = null;
+        long plusLongueMs = BoiteNoire.INCONNU;
+        try {
+            List<filter.SlowRequestFilter.RequeteEnCours> enCours = filter.SlowRequestFilter.requetesEnCours();
+            requetes = enCours.size();
+            long maintenant = System.currentTimeMillis();
+            for (filter.SlowRequestFilter.RequeteEnCours requete : enCours) {
+                long duree = maintenant - requete.debutMs;
+                if (duree > plusLongueMs) {
+                    plusLongueMs = duree;
+                    plusLongue = requete.methode + " " + requete.uri;
+                }
             }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "releve requetes", e);
+        }
+        return new BoiteNoire.Instantane(now, memUtiliseeMo, memMaxMo, disqueLibreMo(), requetes, plusLongue,
+                plusLongueMs);
+    }
+
+    private long disqueLibreMo() {
+        try {
+            // Watchdog desactive : aucun de ces deux chemins n'est renseigne, la mesure est simplement indisponible.
+            Path cible = storageBase != null ? storageBase : (heartbeatFile != null ? heartbeatFile.getParent() : null);
+            if (cible == null || !Files.exists(cible)) {
+                return BoiteNoire.INCONNU;
+            }
+            return Files.getFileStore(cible).getUsableSpace() / (1024L * 1024L);
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "releve disque", e);
+            return BoiteNoire.INCONNU;
         }
     }
 
-    private String buildDetail(LocalDateTime lastBeat, LocalDateTime now, long downMin) {
+    private BoiteNoire.Instantane lireBattement(LocalDateTime fallback) {
+        try {
+            String contenu = new String(Files.readAllBytes(heartbeatFile), StandardCharsets.UTF_8);
+            return BoiteNoire.lire(contenu, dateDeModification(fallback));
+        } catch (Exception e) {
+            return BoiteNoire.Instantane.horodateSeul(dateDeModification(fallback));
+        }
+    }
+
+    /** Repli quand le temoin est illisible : sa date de derniere modification vaut dernier battement. */
+    private LocalDateTime dateDeModification(LocalDateTime fallback) {
+        try {
+            return LocalDateTime.ofInstant(Files.getLastModifiedTime(heartbeatFile).toInstant(),
+                    ZoneId.systemDefault());
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    /**
+     * Boite noire consultable a la demande depuis le Centre de Support : etat releve avant le dernier crash s'il y en a
+     * eu un, puis etat courant du serveur.
+     */
+    public String consulterBoiteNoire() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Boite noire du watchdog ===\n\n");
+        if (!enabled) {
+            sb.append("Watchdog desactive (SUPPORT_WATCHDOG_ENABLED=0) : aucun releve n'est enregistre.\n\n");
+        }
+        BoiteNoire.Instantane precedent = avantCrash;
+        if (precedent != null) {
+            sb.append("--- Dernier etat connu AVANT le crash detecte au demarrage ---\n");
+            sb.append(precedent.enTexte()).append("\n");
+        } else {
+            sb.append("--- Aucun crash detecte au dernier demarrage ---\n\n");
+        }
+        sb.append("--- Etat courant ---\n");
+        sb.append(releve(LocalDateTime.now()).enTexte());
+        return sb.toString();
+    }
+
+    private String buildDetail(BoiteNoire.Instantane dernier, LocalDateTime now, long downMin) {
         StringBuilder sb = new StringBuilder();
         sb.append("Le serveur ne s'est pas arrete proprement (crash, kill, coupure de courant, OutOfMemory...).\n");
-        sb.append("Derniere activite connue : ").append(lastBeat.format(FMT)).append("\n");
+        sb.append("Derniere activite connue : ").append(dernier.horodatage.format(FMT)).append("\n");
         sb.append("Redemarrage detecte      : ").append(now.format(FMT)).append("\n");
         sb.append("Indisponibilite estimee  : ~").append(downMin).append(" min\n\n");
-        sb.append(collectCrashCause(lastBeat));
+        // Boite noire : dans quel etat se trouvait le serveur au dernier battement. Le server.log dit ce qui s'est
+        // passe, ces mesures disent s'il etait deja en difficulte (memoire saturee, disque plein, requetes bloquees).
+        sb.append("=== Boite noire : dernier etat connu avant l'arret ===\n");
+        sb.append(dernier.enTexte()).append("\n");
+        sb.append(collectCrashCause(dernier.horodatage));
         return sb.toString();
     }
 
