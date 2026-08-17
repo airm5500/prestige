@@ -28,6 +28,12 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
             'supportdiagnostic button#btnPurger': {
                 click: this.onPurger
             },
+            'supportdiagnostic button#btnPreflight': {
+                click: this.onPreflight
+            },
+            'supportdiagnostic button#btnBoiteNoire': {
+                click: this.onBoiteNoire
+            },
             'supportdiagnostic gridpanel actioncolumn': {
                 voir: this.onVoir,
                 creerticket: this.onCreerTicket
@@ -182,6 +188,97 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
             ]
         });
         win.show();
+    },
+
+    /**
+     * Rejeu de l'auto-diagnostic de la configuration de la supervision. Lecture seule : ce rejeu n'ecrit AUCUN
+     * evenement, seul le passage automatique au demarrage alimente le journal (une verification repetee a la main ne
+     * doit pas creer de bruit).
+     */
+    onPreflight: function () {
+        const progress = Ext.MessageBox.wait('Vérification de la configuration . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/support/diagnostic/preflight',
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                const data = result.data || {};
+                const controles = data.controles || [];
+                let html = '<div style="margin-bottom:10px;"><b>' + Ext.String.htmlEncode(data.synthese || '')
+                        + '</b><br/><span style="color:#777;">Vérifié le '
+                        + Ext.String.htmlEncode(data.execute || '') + '</span></div>';
+                if (data.anomalie) {
+                    html += '<div style="background:#fff8e1;border:1px solid #f0d264;border-radius:6px;'
+                            + 'padding:8px 10px;margin-bottom:10px;">Les lignes en rouge demandent une correction '
+                            + 'dans les paramètres ou sur le serveur.</div>';
+                }
+                html += '<table style="width:100%;border-collapse:collapse;">';
+                Ext.Array.each(controles, function (c) {
+                    const couleur = c.ok ? 'green' : 'red';
+                    const marque = c.ok ? '&#10004;' : '&#10008;';
+                    html += '<tr style="border-bottom:1px solid #eee;">'
+                            + '<td style="width:24px;vertical-align:top;padding:6px 4px;color:' + couleur
+                            + ';font-weight:bold;">' + marque + '</td><td style="padding:6px 4px;">'
+                            + '<span style="color:' + couleur + ';font-weight:bold;">'
+                            + Ext.String.htmlEncode(c.libelle || '') + '</span><br/>'
+                            + '<span style="color:#666;">' + Ext.String.htmlEncode(c.detail || '')
+                            + '</span></td></tr>';
+                });
+                html += '</table>';
+                Ext.create('Ext.window.Window', {
+                    title: 'Auto-diagnostic de la supervision',
+                    modal: true,
+                    width: 720,
+                    height: 480,
+                    resizable: true,
+                    maximizable: true,
+                    layout: 'fit',
+                    items: [{xtype: 'panel', autoScroll: true, bodyPadding: 12, html: html}]
+                }).show();
+            },
+            failure: function () {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Un problème avec le serveur');
+            }
+        });
+    },
+
+    /**
+     * Boite noire du watchdog : dernier etat connu du serveur avant le crash detecte au demarrage (s'il y en a eu un),
+     * puis etat courant. Lecture seule.
+     */
+    onBoiteNoire: function () {
+        const progress = Ext.MessageBox.wait('Lecture de la boîte noire . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/support/diagnostic/boite-noire',
+            success: function (response) {
+                progress.hide();
+                Ext.create('Ext.window.Window', {
+                    title: 'Boîte noire du watchdog',
+                    modal: true,
+                    width: 640,
+                    height: 460,
+                    resizable: true,
+                    maximizable: true,
+                    layout: 'fit',
+                    items: [
+                        {
+                            xtype: 'textarea',
+                            readOnly: true,
+                            selectOnFocus: false,
+                            fieldStyle: 'font-family:monospace;font-size:12px;',
+                            value: response.responseText
+                        }
+                    ]
+                }).show();
+            },
+            failure: function () {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Impossible de lire la boîte noire');
+            }
+        });
     },
 
     onVoir: function (view, rowIndex, colIndex, item, e, record) {

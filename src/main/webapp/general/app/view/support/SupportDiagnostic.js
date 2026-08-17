@@ -79,6 +79,20 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                         '->',
                         {
                             xtype: 'button',
+                            itemId: 'btnPreflight',
+                            text: 'Auto-diagnostic',
+                            iconCls: 'icon-grid',
+                            tooltip: 'Vérifier la configuration de la supervision (lecture seule)'
+                        },
+                        {
+                            xtype: 'button',
+                            itemId: 'btnBoiteNoire',
+                            text: 'Boîte noire',
+                            iconCls: 'icon-grid',
+                            tooltip: 'Dernier état connu du serveur avant le dernier crash, puis état courant'
+                        },
+                        {
+                            xtype: 'button',
                             itemId: 'btnPurger',
                             text: 'Purger...',
                             iconCls: 'icon-delete'
