@@ -59,6 +59,23 @@ public class SupportDiagnosticRessource {
     private job.SupportWatchdog supportWatchdog;
     @EJB
     private job.SupportPreflight supportPreflight;
+    @EJB
+    private job.SupportDatabaseMonitor supportDatabaseMonitor;
+
+    /**
+     * Mesures courantes de la base de donnees (connexions, requetes en cours, verrous). Photographie en lecture seule :
+     * ne declenche aucune alerte, la surveillance periodique s'en charge.
+     */
+    @GET
+    @Path("base")
+    @Produces("application/json")
+    public Response base() {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return Response.ok().entity(ResultFactory.getSuccessResult(supportDatabaseMonitor.mesures(), 1)).build();
+    }
 
     /**
      * Boite noire du watchdog : dernier etat connu du serveur avant le crash detecte au demarrage, puis etat courant.

@@ -93,6 +93,13 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                         },
                         {
                             xtype: 'button',
+                            itemId: 'btnBase',
+                            text: 'Base de données',
+                            iconCls: 'icon-grid',
+                            tooltip: 'Connexions, requêtes en cours et verrous (lecture seule)'
+                        },
+                        {
+                            xtype: 'button',
                             itemId: 'btnPurger',
                             text: 'Purger...',
                             iconCls: 'icon-delete'

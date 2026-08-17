@@ -34,6 +34,9 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
             'supportdiagnostic button#btnBoiteNoire': {
                 click: this.onBoiteNoire
             },
+            'supportdiagnostic button#btnBase': {
+                click: this.onBase
+            },
             'supportdiagnostic gridpanel actioncolumn': {
                 voir: this.onVoir,
                 creerticket: this.onCreerTicket
@@ -277,6 +280,58 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
             failure: function () {
                 progress.hide();
                 Ext.Msg.alert('Message', 'Impossible de lire la boîte noire');
+            }
+        });
+    },
+
+    /**
+     * Mesures courantes de la base de donnees. Lecture seule : la surveillance periodique est ce qui alerte, cet ecran
+     * ne fait que montrer l'etat a l'instant du clic.
+     */
+    onBase: function () {
+        const progress = Ext.MessageBox.wait('Lecture de la base . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/support/diagnostic/base',
+            success: function (response) {
+                progress.hide();
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                const d = result.data || {};
+                function ligne(libelle, valeur, alerte) {
+                    return '<tr style="border-bottom:1px solid #eee;">'
+                            + '<td style="padding:6px 4px;color:#555;">' + libelle + '</td>'
+                            + '<td style="padding:6px 4px;text-align:right;font-weight:bold;'
+                            + (alerte ? 'color:red;' : '') + '">' + valeur + '</td></tr>';
+                }
+                const pct = d.connexionsPct;
+                let html = '<table style="width:100%;border-collapse:collapse;">';
+                html += ligne('Connexions ouvertes', d.connexionsOuvertes + ' / ' + d.connexionsMax
+                        + (pct >= 0 ? ' (' + pct + '%)' : ''), pct >= 80);
+                html += ligne('Requêtes réellement actives', d.requetesActives, false);
+                html += ligne('Requêtes de plus de ' + d.seuilRequeteLenteS + ' s', d.requetesLentes,
+                        d.requetesLentes > 0);
+                html += ligne('Transactions en attente d\'un verrou', d.attentesVerrou, d.attentesVerrou > 0);
+                html += ligne('Attente moyenne sur verrou', d.attenteVerrouMoyenneMs + ' ms', false);
+                html += ligne('Connexions refusées depuis le démarrage', d.connexionsRefusees, false);
+                html += '</table>';
+                html += '<div style="margin-top:12px;"><b>Requêtes en cours au-delà du seuil</b>'
+                        + '<pre style="white-space:pre-wrap;background:#f7f7f7;border:1px solid #e0e0e0;'
+                        + 'border-radius:4px;padding:8px;margin-top:4px;font-size:12px;">'
+                        + Ext.String.htmlEncode(d.detailRequetesLentes || '') + '</pre></div>';
+                Ext.create('Ext.window.Window', {
+                    title: 'Base de données — état courant',
+                    modal: true,
+                    width: 680,
+                    height: 480,
+                    resizable: true,
+                    maximizable: true,
+                    layout: 'fit',
+                    items: [{xtype: 'panel', autoScroll: true, bodyPadding: 12, html: html}]
+                }).show();
+            },
+            failure: function () {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Un problème avec le serveur');
             }
         });
     },
