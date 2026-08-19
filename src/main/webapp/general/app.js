@@ -965,6 +965,31 @@ Ext.application({
         return false;
     };
 
+    // Promesses rejetees sans .catch() : invisibles de window.onerror, elles ne laissaient donc aucune trace.
+    // Meme traitement que les erreurs de script : filtre des messages benins, plafond de remontees, deduplication
+    // par signature et fil d'Ariane sont ceux de reportError.
+    if (window.addEventListener) {
+        window.addEventListener('unhandledrejection', function (evenement) {
+            try {
+                var raison = evenement ? evenement.reason : null;
+                var message = (raison && raison.message) ? raison.message : String(raison);
+                if (estBenin(message)) {
+                    return;
+                }
+                reportError({
+                    type: 'JS',
+                    niveau: 'ERROR',
+                    module: 'FRONTEND',
+                    messageCourt: ('Promesse rejetée : ' + message).substring(0, 500),
+                    urlOuEcran: String(window.location.pathname || '').substring(0, 255),
+                    stack: (raison && raison.stack) ? String(raison.stack).substring(0, 8000) : null
+                });
+            } catch (ignore) {
+                // capture silencieuse
+            }
+        });
+    }
+
     Ext.onReady(function () {
         // Alimente le fil d'Ariane a chaque appel API (hors envois du support lui-meme).
         Ext.Ajax.on('beforerequest', function (conn, options) {
