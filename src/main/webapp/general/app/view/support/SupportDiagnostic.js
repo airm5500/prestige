@@ -188,7 +188,7 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                             menuDisabled: true,
                             items: [
                                 {
-                                    icon: 'resources/images/icons/fam/page_white_edit.png',
+                                    icon: 'resources/images/icons/fam/application_view_list.png',
                                     tooltip: 'Voir le détail',
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('voir', view, rowIndex, colIndex, item, e, record, row);

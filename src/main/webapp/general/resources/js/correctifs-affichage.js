@@ -206,7 +206,10 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'etatscontrolemanager', 'etatannuel', 'achatgrossistemensuel',
     'tableauPhama', 'tableauPhamaCarnet', 'statistiqueTVA',
     // divers
-    'diffmanager','valorisationstock'
+    'diffmanager','valorisationstock',
+    // centre de support
+    'supportcontact', 'supporttickets', 'supportdiagnostic',
+    'supportsante', 'supporthistorique', 'supportmaintenance'
 ];
 
 /**

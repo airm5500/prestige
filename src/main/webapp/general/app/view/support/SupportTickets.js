@@ -182,7 +182,7 @@ Ext.define('testextjs.view.support.SupportTickets', {
                             sortable: false,
                             menuDisabled: true,
                             items: [{
-                                    icon: 'resources/images/icons/fam/page_white_edit.png',
+                                    icon: 'resources/images/icons/fam/application_view_list.png',
                                     tooltip: 'Ouvrir le ticket',
                                     handler: function (view, rowIndex, colIndex, item, e, record, row) {
                                         this.fireEvent('ouvrir', view, rowIndex, colIndex, item, e, record, row);
