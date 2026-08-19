@@ -738,15 +738,20 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             selectedBL = rec;
             selectedBLs.push(rec);
         } else {
-            selectedBL = {};
             if (selectedBLs.indexOf(rec) !== -1) {
                 selectedBLs.splice(selectedBLs.indexOf(rec), 1);
             }
+            // selectedBL doit rester un ENREGISTREMENT du store : il est encore lu par
+            // onReglerSelectionBL (titre de la fenetre) et par paybls.js, qui appellent .get() dessus.
+            // Il portait auparavant un objet nu {}, sans methode get : tout decochage levait alors
+            // "selectedBL.get is not a function" des la ligne suivante, ce qui empechait aussi
+            // rec.commit() de s'executer. On reprend le dernier bon encore coche, ou null s'il n'en
+            // reste aucun (ce cas est deja ecarte par le test selectedBLs.length === 0 du reglement).
+            selectedBL = selectedBLs.length ? selectedBLs[selectedBLs.length - 1] : null;
         }
 
-
-        lg_BON_LIVRAISON_ID = selectedBL.get('lgBONLIVRAISONID');
-        int_MHT = selectedBL.get('intMHT');
+        lg_BON_LIVRAISON_ID = selectedBL ? selectedBL.get('lgBONLIVRAISONID') : null;
+        int_MHT = selectedBL ? selectedBL.get('intMHT') : null;
 
         rec.commit();
     },
@@ -764,6 +769,12 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             });
 
         } else {
+
+            // Filet de securite : selectedBL doit toujours designer l'un des bons encore coches.
+            // Une session ouverte avant ce correctif peut encore porter un objet nu, sans methode get.
+            if (!selectedBL || typeof selectedBL.get !== 'function' || selectedBLs.indexOf(selectedBL) === -1) {
+                selectedBL = selectedBLs[selectedBLs.length - 1];
+            }
 
             new testextjs.view.commandemanagement.etats.action.paybls({
                 selectedBLs: selectedBLs,
