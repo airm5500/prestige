@@ -80,6 +80,10 @@
              apres ext-all.js. -->
         <script src="resources/js/correctifs-affichage.js"></script>
 
+        <!-- Remontee des erreurs JavaScript du navigateur vers le Centre de Support. A charger
+             AVANT bootstrap.js : une erreur au demarrage de l'application doit deja etre captee. -->
+        <script src="resources/js/support-erreurs-js.js"></script>
+
         <script src="bootstrap.js"></script>
 
         <!-- </x-bootstrap> -->
