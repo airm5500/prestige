@@ -334,7 +334,11 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
                     var object = Ext.JSON.decode(response.responseText, false);
 
                     if (object.success == "0") {
-                        Ext.MessageBox.alert('Error Message', object.errors);
+                        // Le serveur renvoie deja un motif explicite ("Ce login est deja utilise par un
+                        // autre utilisateur", "Veuillez selectionner une langue valide"...). Seul le titre
+                        // etait technique et anglais : il laissait croire a une panne plutot qu'a une saisie
+                        // a corriger.
+                        Ext.MessageBox.alert('Création impossible', object.errors);
                         return;
                     } else {
                         Ext.MessageBox.alert('Confirmation', object.errors);

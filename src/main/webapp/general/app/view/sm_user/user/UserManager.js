@@ -207,7 +207,11 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                     xtype: 'textfield',
                     id: 'TXT_SEARCH',
                     name: 'user',
-                    emptyText: 'Recherche',
+                    emptyText: 'Nom ou login (2 caractères)',
+                    // Recherche automatique des 2 caracteres saisis. Le seuil evite d'interroger le
+                    // serveur sur une seule lettre, qui ramenerait presque tout l'annuaire. Le buffer
+                    // laisse finir la frappe : une seule requete part, pas une par touche.
+                    enableKeyEvents: true,
                     listeners: {
                         'render': function(cmp) {
                             cmp.getEl().on('keypress', function(e) {
@@ -218,6 +222,19 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                                  alert("key "+e.getKey());
                                  }*/
                             });
+                        },
+                        'keyup': {
+                            buffer: 350,
+                            fn: function(cmp, e) {
+                                if (e.getKey() === e.ENTER) {
+                                    return;
+                                }
+                                var valeur = (cmp.getValue() || '').trim();
+                                // Champ vide : on recharge la liste complete (annulation du filtre).
+                                if (valeur.length >= 2 || valeur.length === 0) {
+                                    Me_Workflow.onRechClick();
+                                }
+                            }
                         }
                     }
                 }, {
@@ -459,8 +476,10 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
     },
     onRechClick: function() {
         var val = Ext.getCmp('TXT_SEARCH');
+        // getValue() et non .value : la propriete .value n'est rafraichie qu'au change/blur, elle
+        // renverrait donc la saisie PRECEDENTE lors de la recherche automatique a la frappe.
         // parametre persistant : la pagination conserve la recherche
-        this.getStore().getProxy().setExtraParam('search_value', val.value || '');
+        this.getStore().getProxy().setExtraParam('search_value', (val ? val.getValue() : '') || '');
         this.getStore().loadPage(1);
     }
 

@@ -86,10 +86,12 @@ public class UtilisateurServiceImpl implements UtilisateurService {
             // etat=true (ou super admin) : tous les emplacements ; sinon celui de l'utilisateur connecte
             String emplacement = (superAdmin || etat) ? "%%" : connecte.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
 
-            StringBuilder where = new StringBuilder(
-                    " FROM TRoleUser t WHERE (t.lgUSERID.strFIRSTNAME LIKE ?1" + " OR t.lgUSERID.strLASTNAME LIKE ?1"
-                            + " OR CONCAT(t.lgUSERID.strFIRSTNAME,' ',t.lgUSERID.strLASTNAME) LIKE ?1)"
-                            + " AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?2 AND t.lgUSERID.strSTATUT = ?3");
+            // Le login fait partie des criteres : c'est souvent la seule chose dont on se souvienne
+            // d'un compte (le nom affiche peut differer de l'identifiant de connexion).
+            StringBuilder where = new StringBuilder(" FROM TRoleUser t WHERE (t.lgUSERID.strFIRSTNAME LIKE ?1"
+                    + " OR t.lgUSERID.strLASTNAME LIKE ?1" + " OR t.lgUSERID.strLOGIN LIKE ?1"
+                    + " OR CONCAT(t.lgUSERID.strFIRSTNAME,' ',t.lgUSERID.strLASTNAME) LIKE ?1)"
+                    + " AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?2 AND t.lgUSERID.strSTATUT = ?3");
             if (!superAdmin && !admin) {
                 // Les autres profils ne voient ni l'administrateur ni le super administrateur
                 where.append(" AND t.lgROLEID.strNAME NOT LIKE ?4 AND t.lgROLEID.strNAME NOT LIKE ?5")
