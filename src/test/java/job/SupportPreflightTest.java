@@ -81,6 +81,61 @@ class SupportPreflightTest {
     }
 
     @Test
+    @DisplayName("Privilege PROCESS : reconnu quand il est accorde globalement")
+    void processAccorde() {
+        assertTrue(SupportPreflight.accordeProcess("GRANT PROCESS ON *.* TO `prestige`@`localhost`"));
+        assertTrue(SupportPreflight.accordeProcess("GRANT SELECT, PROCESS, INSERT ON *.* TO `prestige`@`%`"));
+        assertTrue(SupportPreflight.accordeProcess("GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost`"));
+        assertTrue(SupportPreflight.accordeProcess("grant process on *.* to `p`@`%`"), "casse indifferente");
+    }
+
+    @Test
+    @DisplayName("Privilege PROCESS : non reconnu s'il n'est pas global ou pas reellement present")
+    void processNonAccorde() {
+        // Accorde sur une seule base, il ne donne aucune visibilite sur les connexions.
+        assertFalse(SupportPreflight.accordeProcess("GRANT PROCESS ON `prestige`.* TO `p`@`%`"));
+        assertFalse(SupportPreflight.accordeProcess("GRANT ALL PRIVILEGES ON `prestige`.* TO `p`@`%`"));
+        assertFalse(SupportPreflight.accordeProcess("GRANT SELECT, INSERT ON *.* TO `p`@`%`"));
+        // Un nom de base contenant le mot ne doit pas faire illusion.
+        assertFalse(SupportPreflight.accordeProcess("GRANT SELECT ON `process_db`.* TO `p`@`%`"));
+        assertFalse(SupportPreflight.accordeProcess(""));
+        assertFalse(SupportPreflight.accordeProcess(null));
+    }
+
+    @Test
+    @DisplayName("Privilege PROCESS : la declaration suffit, sans regarder les compteurs")
+    void processDeclareSuffit() {
+        SupportPreflight.Controle controle = SupportPreflight
+                .evaluerPrivilegeProcess(Arrays.asList("GRANT PROCESS ON *.* TO `p`@`%`"), -1L, -1L);
+
+        assertTrue(controle.ok);
+        assertTrue(controle.detail.contains("accorde"));
+    }
+
+    @Test
+    @DisplayName("Privilege PROCESS : anomalie quand des connexions echappent au moniteur")
+    void processCecieProuvee() {
+        // 12 connexions ouvertes, 3 visibles : le moniteur est aveugle a 9 d'entre elles.
+        SupportPreflight.Controle controle = SupportPreflight.evaluerPrivilegeProcess(Collections.emptyList(), 12L, 3L);
+
+        assertFalse(controle.ok);
+        assertTrue(controle.detail.contains("3 connexion(s) sur 12"));
+        assertTrue(controle.detail.contains("GRANT PROCESS"), "le detail doit donner la commande de correction");
+    }
+
+    @Test
+    @DisplayName("Privilege PROCESS : aucune alerte tant que la cecite n'est pas prouvee")
+    void processPasDAlarmeInjustifiee() {
+        // L'application est le seul client : voir uniquement ses propres connexions n'a rien d'anormal.
+        assertTrue(SupportPreflight.evaluerPrivilegeProcess(Collections.emptyList(), 8L, 8L).ok);
+        // Ecart d'une unite : une connexion ouverte entre les deux mesures, pas une preuve.
+        assertTrue(SupportPreflight.evaluerPrivilegeProcess(Collections.emptyList(), 9L, 8L).ok);
+        // Mesures indisponibles : on ne conclut pas.
+        assertTrue(SupportPreflight.evaluerPrivilegeProcess(Collections.emptyList(), -1L, -1L).ok);
+        assertTrue(SupportPreflight.evaluerPrivilegeProcess(null, -1L, 3L).ok);
+    }
+
+    @Test
     @DisplayName("Synthese : compte les anomalies, et le dit clairement quand il n'y en a aucune")
     void synthese() {
         SupportPreflight.Controle ok = SupportPreflight.Controle.ok("A", "a", "");

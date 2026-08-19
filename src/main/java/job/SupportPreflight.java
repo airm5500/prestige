@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,6 +19,8 @@ import javax.ejb.DependsOn;
 import javax.ejb.EJB;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import org.apache.commons.lang3.StringUtils;
 import rest.service.SupportEventService;
 
@@ -44,6 +47,8 @@ public class SupportPreflight {
     private static final Logger LOG = Logger.getLogger(SupportPreflight.class.getName());
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    @PersistenceContext(unitName = "JTA_UNIT")
+    private EntityManager em;
     @EJB
     private SupportEventService supportEventService;
 
@@ -99,6 +104,7 @@ public class SupportPreflight {
                 parametre("SUPPORT_AUTO_TICKET_SEUIL"), 1L, 100_000L));
         controles.add(verifierNotification(parametre("SUPPORT_NOTIFY_ENABLED"), parametre("SUPPORT_EMAIL")));
         controles.add(verifierJournalServeur(parametre("SUPPORT_SERVER_LOG_PATH")));
+        controles.add(verifierPrivilegeProcess());
 
         boolean anomalie = aAnomalie(controles);
         String synthese = synthese(controles);
@@ -209,6 +215,58 @@ public class SupportPreflight {
         }
     }
 
+    /**
+     * La detection de requetes lentes lit {@code information_schema.PROCESSLIST}. Sans le privilege PROCESS, le SGBD
+     * n'y montre a un utilisateur que SES PROPRES connexions : le moniteur tourne alors normalement, sans la moindre
+     * erreur, en rapportant toujours zero. C'est precisement le genre de panne muette que cet auto-diagnostic existe
+     * pour reveler.
+     *
+     * Deux signaux, du plus sur au plus indirect :
+     * <ol>
+     * <li>les habilitations declarees ({@code SHOW GRANTS}) : preuve directe quand PROCESS y figure ;</li>
+     * <li>a defaut, une mesure : si le serveur declare plus de connexions ouvertes que le moniteur n'en voit, c'est
+     * qu'une partie lui echappe.</li>
+     * </ol>
+     */
+    private Controle verifierPrivilegeProcess() {
+        try {
+            return evaluerPrivilegeProcess(lireGrants(), premiereValeur("SHOW GLOBAL STATUS LIKE 'Threads_connected'"),
+                    premiereValeur("SELECT COUNT(*) FROM information_schema.PROCESSLIST"));
+        } catch (Exception e) {
+            // Une base injoignable est deja signalee ailleurs : ici on ne conclut rien plutot que d'alarmer a tort.
+            return Controle.ok("PRIVILEGE_PROCESS", LIBELLE_PROCESS, "verification impossible : " + messageDe(e));
+        }
+    }
+
+    private List<String> lireGrants() {
+        List<String> lignes = new ArrayList<>();
+        try {
+            for (Object ligne : em.createNativeQuery("SHOW GRANTS FOR CURRENT_USER()").getResultList()) {
+                Object valeur = (ligne instanceof Object[]) ? ((Object[]) ligne)[0] : ligne;
+                lignes.add(StringUtils.trimToEmpty(String.valueOf(valeur)));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "preflight lireGrants", e);
+        }
+        return lignes;
+    }
+
+    /** Premiere valeur utile d'un SHOW (2 colonnes) ou d'un SELECT (1 colonne), ou -1 si indisponible. */
+    private long premiereValeur(String sql) {
+        try {
+            List<?> lignes = em.createNativeQuery(sql).getResultList();
+            if (lignes.isEmpty()) {
+                return -1L;
+            }
+            Object ligne = lignes.get(0);
+            Object valeur = (ligne instanceof Object[]) ? ((Object[]) ligne)[1] : ligne;
+            return Long.parseLong(StringUtils.trimToEmpty(String.valueOf(valeur)));
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "preflight premiereValeur " + sql, e);
+            return -1L;
+        }
+    }
+
     private Path resolveStorageBase() {
         String configure = StringUtils.trimToEmpty(parametre("SUPPORT_STORAGE_DIR"));
         return StringUtils.isNotBlank(configure) ? Paths.get(configure) : util.StockageDisque.sousDossier("support");
@@ -285,6 +343,70 @@ public class SupportPreflight {
             return Controle.anomalie("NOTIFICATION", libelle, "adresse invalide : \"" + adresse + "\"");
         }
         return Controle.ok("NOTIFICATION", libelle, adresse);
+    }
+
+    /** Libelle unique du controle, partage par la partie technique et par la regle. */
+    static final String LIBELLE_PROCESS = "Privilege PROCESS (detection des requetes lentes)";
+
+    /**
+     * Regle du privilege PROCESS.
+     *
+     * Prudence deliberee sur le dernier cas : ne voir que ses propres connexions n'a rien d'anormal si l'application
+     * est le seul client de la base - et ce sont alors les seules requetes qui l'interessent. On ne signale donc une
+     * anomalie que lorsque la cecite est PROUVEE : le serveur declare des connexions que le moniteur ne voit pas.
+     *
+     * L'ecart doit depasser une unite : les deux mesures ne sont pas prises au meme instant, une connexion ouverte ou
+     * fermee entre les deux ne doit pas declencher de fausse alerte.
+     *
+     * @param grants
+     *            lignes rendues par SHOW GRANTS (vide si illisible)
+     * @param threadsConnectes
+     *            connexions declarees par le serveur, -1 si inconnu
+     * @param threadsVisibles
+     *            lignes visibles dans information_schema.PROCESSLIST, -1 si inconnu
+     */
+    static Controle evaluerPrivilegeProcess(List<String> grants, long threadsConnectes, long threadsVisibles) {
+        if (grants != null) {
+            for (String ligne : grants) {
+                if (accordeProcess(ligne)) {
+                    return Controle.ok("PRIVILEGE_PROCESS", LIBELLE_PROCESS, "accorde");
+                }
+            }
+        }
+        if (threadsConnectes >= 0 && threadsVisibles >= 0 && threadsVisibles + 1 < threadsConnectes) {
+            return Controle.anomalie("PRIVILEGE_PROCESS", LIBELLE_PROCESS,
+                    "privilege absent : le moniteur ne voit que " + threadsVisibles + " connexion(s) sur "
+                            + threadsConnectes + " ouvertes. La detection des requetes lentes restera sans effet."
+                            + " Corriger par : GRANT PROCESS ON *.* TO <utilisateur de l'application>;");
+        }
+        return Controle.ok("PRIVILEGE_PROCESS", LIBELLE_PROCESS,
+                "non declare explicitement, mais aucune connexion n'echappe au moniteur");
+    }
+
+    /**
+     * Vrai si cette ligne de SHOW GRANTS accorde PROCESS au niveau global. Le privilege n'a de sens que sur {@code *.*}
+     * : accorde sur une base precise, il ne donne aucune visibilite sur les connexions.
+     */
+    static boolean accordeProcess(String ligneGrant) {
+        String ligne = StringUtils.trimToEmpty(ligneGrant).toUpperCase(Locale.ROOT);
+        if (!ligne.startsWith("GRANT ")) {
+            return false;
+        }
+        int surGlobal = ligne.indexOf(" ON *.*");
+        if (surGlobal < 0) {
+            return false;
+        }
+        String privileges = ligne.substring("GRANT ".length(), surGlobal);
+        if (privileges.contains("ALL PRIVILEGES")) {
+            return true;
+        }
+        // Comparaison sur le privilege ENTIER : un nom de base contenant "process" ne doit pas faire illusion.
+        for (String privilege : privileges.split(",")) {
+            if ("PROCESS".equals(privilege.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean aAnomalie(List<Controle> controles) {
