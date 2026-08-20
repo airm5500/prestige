@@ -1,3 +1,23 @@
-
-INSERT INTO t_role_privelege(lg_ROLE_PRIVILEGE,lg_ROLE_ID,lg_PRIVILEGE_ID,dt_CREATED,dt_UPDATED) 
-SELECT LEFT(UUID(), 40) AS id,'00',  d.lg_PRIVELEGE_ID,now(),now() FROM t_privilege d WHERE d.lg_PRIVELEGE_ID NOT IN (SELECT r.lg_ROLE_PRIVILEGE FROM t_role_privelege r WHERE r.lg_ROLE_ID='00') AND d.str_STATUT='enable';
+-- =====================================================================
+-- Attribution au compte systeme '00' de tous les privileges actifs.
+-- ---------------------------------------------------------------------
+-- Migration REPETABLE : elle est rejouee a chaque demarrage pour que les
+-- privileges ajoutes depuis la derniere version soient attribues au
+-- compte systeme sans intervention.
+--
+-- Correction : la garde anti-doublon comparait l'identifiant du privilege
+-- a r.lg_ROLE_PRIVILEGE, qui est la cle primaire de la ligne d'ASSOCIATION
+-- (un UUID), et non l'identifiant du privilege. La comparaison ne
+-- correspondait donc jamais : le script tentait de reinserer TOUS les
+-- privileges actifs a chaque demarrage, se heurtait au premier doublon sur
+-- uq_role_privilege, et abandonnait l'insertion entiere.
+--
+-- Consequence observee sur une base reelle : 290 privileges actifs, 17
+-- seulement attribues au compte '00', et les 273 autres jamais attribues -
+-- alors que c'est precisement l'objet de ce script.
+--
+-- La garde porte desormais sur r.lg_PRIVILEGE_ID, la colonne qui designe
+-- reellement le privilege.
+-- =====================================================================
+INSERT INTO t_role_privelege(lg_ROLE_PRIVILEGE,lg_ROLE_ID,lg_PRIVILEGE_ID,dt_CREATED,dt_UPDATED)
+SELECT LEFT(UUID(), 40) AS id,'00',  d.lg_PRIVELEGE_ID,now(),now() FROM t_privilege d WHERE d.lg_PRIVELEGE_ID NOT IN (SELECT r.lg_PRIVILEGE_ID FROM t_role_privelege r WHERE r.lg_ROLE_ID='00') AND d.str_STATUT='enable';
