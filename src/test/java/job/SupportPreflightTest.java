@@ -136,6 +136,29 @@ class SupportPreflightTest {
     }
 
     @Test
+    @DisplayName("Acces de depannage ouvert : signale, avec la consigne de le refermer")
+    void accesDepannageOuvert() {
+        SupportPreflight.Controle controle = SupportPreflight.evaluerAccesDepannage("1");
+
+        assertFalse(controle.ok);
+        assertTrue(controle.detail.contains("OUVERT"));
+        assertTrue(controle.detail.contains("ACCES_DEPANNAGE_ACTIF"),
+                "le detail doit nommer le parametre a remettre a 0");
+    }
+
+    @Test
+    @DisplayName("Acces de depannage ferme : aucune alerte, y compris parametre absent")
+    void accesDepannageFerme() {
+        // Meme regle que l'authentification : tout ce qui n'est pas exactement '1' laisse l'acces
+        // ferme, et ne doit donc pas etre signale comme ouvert.
+        assertTrue(SupportPreflight.evaluerAccesDepannage("0").ok);
+        assertTrue(SupportPreflight.evaluerAccesDepannage(null).ok, "parametre absent = acces ferme");
+        assertTrue(SupportPreflight.evaluerAccesDepannage("").ok);
+        assertTrue(SupportPreflight.evaluerAccesDepannage("true").ok);
+        assertTrue(SupportPreflight.evaluerAccesDepannage("oui").ok);
+    }
+
+    @Test
     @DisplayName("Synthese : compte les anomalies, et le dit clairement quand il n'y en a aucune")
     void synthese() {
         SupportPreflight.Controle ok = SupportPreflight.Controle.ok("A", "a", "");

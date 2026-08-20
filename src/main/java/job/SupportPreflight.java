@@ -105,6 +105,7 @@ public class SupportPreflight {
         controles.add(verifierNotification(parametre("SUPPORT_NOTIFY_ENABLED"), parametre("SUPPORT_EMAIL")));
         controles.add(verifierJournalServeur(parametre("SUPPORT_SERVER_LOG_PATH")));
         controles.add(verifierPrivilegeProcess());
+        controles.add(evaluerAccesDepannage(parametre("ACCES_DEPANNAGE_ACTIF")));
 
         boolean anomalie = aAnomalie(controles);
         String synthese = synthese(controles);
@@ -407,6 +408,28 @@ public class SupportPreflight {
             }
         }
         return false;
+    }
+
+    /** Libelle du controle de l'acces de depannage. */
+    static final String LIBELLE_DEPANNAGE = "Acces de depannage (connexion sans mot de passe)";
+
+    /**
+     * Signale un acces de depannage reste OUVERT.
+     *
+     * Cet acces ouvre le compte systeme sans mot de passe. Il est ferme par defaut et ne s'ouvre que le temps d'une
+     * intervention, mais rien ne le referme automatiquement : l'oubli apres depannage est le risque residuel du
+     * dispositif. Ce controle en fait un oubli VISIBLE, constate a chaque demarrage et a chaque rejeu manuel, au lieu
+     * d'une porte laissee ouverte sans que personne ne le sache.
+     *
+     * La regle d'ouverture est celle de l'authentification : seule la valeur '1' ouvre l'acces.
+     */
+    static Controle evaluerAccesDepannage(String valeur) {
+        if ("1".equals(StringUtils.trimToEmpty(valeur))) {
+            return Controle.anomalie("ACCES_DEPANNAGE", LIBELLE_DEPANNAGE,
+                    "OUVERT : la connexion sans mot de passe au compte systeme est active sur cette installation."
+                            + " Remettre le parametre ACCES_DEPANNAGE_ACTIF a 0 des la fin de l'intervention.");
+        }
+        return Controle.ok("ACCES_DEPANNAGE", LIBELLE_DEPANNAGE, "ferme");
     }
 
     static boolean aAnomalie(List<Controle> controles) {

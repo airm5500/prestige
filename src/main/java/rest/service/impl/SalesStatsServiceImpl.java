@@ -519,13 +519,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             LOG.log(Level.INFO, "{0} {1}", new Object[] { venteId, tp });
             // Tracabilite : vente abandonnee (ecran "Suppressions de vente")
             venteSuppressionService.logVenteSuppression(tp, this.sessionHelperService.getCurrentUser());
-            Collection<TPreenregistrementDetail> items = tp.getTPreenregistrementDetailCollection();
-            if (CollectionUtils.isNotEmpty(items)) {
-                items.forEach(em::remove);
-            }
-
-            deleteCompteClientBulk(venteId);
-            getEntityManager().remove(tp);
+            supprimerVenteEtDependances(tp, venteId);
             json.put("success", true);
 
         } catch (Exception e) {
@@ -534,6 +528,72 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             json.put("success", false);
         }
         return json;
+    }
+
+    /**
+     * Suppression physique d'une vente en attente et de ce qui en depend. Extrait de {@link #delete} pour que la
+     * suppression manuelle et la suppression automatique du changement de journee suivent EXACTEMENT le meme chemin :
+     * seule la trace differe (auteur reel ou "Systeme").
+     */
+    private void supprimerVenteEtDependances(TPreenregistrement tp, String venteId) {
+        Collection<TPreenregistrementDetail> items = tp.getTPreenregistrementDetailCollection();
+        if (CollectionUtils.isNotEmpty(items)) {
+            items.forEach(em::remove);
+        }
+        deleteCompteClientBulk(venteId);
+        getEntityManager().remove(tp);
+    }
+
+    /**
+     * Ventes en attente de LA VEILLE, jamais validees : elles disparaissaient de l'ecran au changement de journee sans
+     * laisser aucune trace, car la liste ne montre que le jour courant. Rien ne les supprimait : elles restaient
+     * indefiniment en base, invisibles.
+     *
+     * Chacune est desormais tracee dans "Suppressions de vente" avec ses produits et leurs quantites, sous l'operateur
+     * "Systeme", puis reellement supprimee - le meme traitement que si un utilisateur l'avait supprimee lui-meme.
+     *
+     * Perimetre volontairement limite a la VEILLE. Les ventes plus anciennes, accumulees depuis des annees sur une
+     * installation en exploitation, ne sont pas touchees : les traiter d'un bloc au premier passage aurait produit des
+     * milliers de suppressions irreversibles en une transaction.
+     *
+     * Idempotent par construction : une vente traitee n'existe plus, un second passage ne la retrouve pas.
+     *
+     * @return nombre de ventes archivees puis supprimees
+     */
+    @Override
+    public int supprimerVentesAttenteExpirees() {
+        int traitees = 0;
+        try {
+            @SuppressWarnings("unchecked")
+            List<String> ids = getEntityManager()
+                    .createNativeQuery("SELECT p.lg_PREENREGISTREMENT_ID FROM t_preenregistrement p"
+                            + " WHERE p.str_STATUT IN ('" + Constant.STATUT_IS_PROGRESS + "','"
+                            + Constant.STATUT_PENDING + "')" + " AND p.lg_NATURE_VENTE_ID <> '3'"
+                            + " AND p.dt_UPDATED >= CURDATE() - INTERVAL 1 DAY AND p.dt_UPDATED < CURDATE()"
+                            + " AND EXISTS (SELECT 1 FROM t_preenregistrement_detail dd"
+                            + "   WHERE dd.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID)")
+                    .getResultList();
+            for (String venteId : ids) {
+                try {
+                    TPreenregistrement tp = getEntityManager().find(TPreenregistrement.class, venteId);
+                    if (tp == null) {
+                        continue;
+                    }
+                    venteSuppressionService.logVenteSuppressionSysteme(tp);
+                    supprimerVenteEtDependances(tp, venteId);
+                    traitees++;
+                } catch (Exception e) {
+                    // Une vente en echec ne doit pas empecher le traitement des suivantes.
+                    LOG.log(Level.SEVERE, "suppression vente en attente expiree " + venteId, e);
+                }
+            }
+            if (traitees > 0) {
+                LOG.log(Level.INFO, "Ventes en attente de la veille archivees puis supprimees : {0}", traitees);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "supprimerVentesAttenteExpirees", e);
+        }
+        return traitees;
     }
 
     @Override

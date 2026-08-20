@@ -74,6 +74,32 @@ public class VenteSuppressionServiceImpl implements VenteSuppressionService {
         }
     }
 
+    /** Operateur affiche pour les suppressions faites par le systeme, et non par une personne. */
+    public static final String AUTEUR_SYSTEME = "Système";
+
+    @Override
+    public void logVenteSuppressionSysteme(TPreenregistrement vente) {
+        try {
+            if (vente == null || CollectionUtils.isEmpty(vente.getTPreenregistrementDetailCollection())) {
+                return;
+            }
+            // Les devis (nature de vente '3') ne sont pas des ventes abandonnees : meme exclusion que
+            // la suppression manuelle, pour que les deux chemins tracent exactement les memes cas.
+            if (vente.getLgNATUREVENTEID() != null && "3".equals(vente.getLgNATUREVENTEID().getLgNATUREVENTEID())) {
+                return;
+            }
+            for (TPreenregistrementDetail detail : vente.getTPreenregistrementDetailCollection()) {
+                VenteSuppression suppression = build(VenteSuppression.TYPE_VENTE, vente, detail, null);
+                // Pas d'utilisateur : on force le libelle plutot que de laisser la colonne vide, sans
+                // quoi ces lignes seraient indiscernables d'une trace incomplete.
+                suppression.setUserName(AUTEUR_SYSTEME);
+                em.persist(suppression);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "logVenteSuppressionSysteme", e);
+        }
+    }
+
     private VenteSuppression build(String type, TPreenregistrement vente, TPreenregistrementDetail detail, TUser user) {
         VenteSuppression suppression = new VenteSuppression();
         suppression.setTypeSuppression(type);

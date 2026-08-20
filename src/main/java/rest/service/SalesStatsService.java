@@ -37,6 +37,17 @@ public interface SalesStatsService {
 
     JSONObject delete(String venteId) throws JSONException;
 
+    /**
+     * Archive puis supprime les ventes en attente de LA VEILLE, jamais validees.
+     *
+     * Elles sortaient de l'ecran au changement de journee sans laisser de trace, et rien ne les supprimait : elles
+     * restaient indefiniment en base, invisibles. Elles apparaissent desormais dans "Suppressions de vente" avec leurs
+     * produits, sous l'operateur "Systeme".
+     *
+     * @return nombre de ventes traitees
+     */
+    int supprimerVentesAttenteExpirees();
+
     JSONObject trash(String venteId, String statut) throws JSONException;
 
     JSONObject findVenteById(String venteId) throws JSONException;

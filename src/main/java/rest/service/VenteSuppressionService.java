@@ -19,6 +19,13 @@ public interface VenteSuppressionService {
 
     void logVenteSuppression(TPreenregistrement vente, TUser user);
 
+    /**
+     * Trace d'une vente en attente supprimee par le systeme au changement de journee (et non par une personne).
+     * L'operateur affiche est {@code Systeme}, ce qui distingue ces lignes des suppressions manuelles dans l'ecran
+     * "Suppressions de vente".
+     */
+    void logVenteSuppressionSysteme(TPreenregistrement vente);
+
     JSONObject list(String dtStart, String dtEnd, String userId, String query, String type, int start, int limit);
 
     List<VenteSuppressionDTO> fetchAll(String dtStart, String dtEnd, String userId, String query, String type);
