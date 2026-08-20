@@ -112,7 +112,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
         var store_type = new Ext.data.Store({
             fields: ['str_TYPE', 'str_desc'],
-            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}]
+            /* 'NEGATIF' : articles dont la quantite retenue par l'inventaire est encore negative.
+             * Une ligne non comptee porte toujours le stock machine du depart : ces articles
+             * resteront en stock negatif si l'inventaire est cloture en l'etat. */
+            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}, {str_TYPE: 'NEGATIF', str_desc: 'Articles encore négatifs'}]
         });
 
         var store_grossiste = new Ext.data.Store({
@@ -1350,6 +1353,20 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
      * machine est choisi cote serveur (privilege / case 'Afficher stock'). */
     onbtnprintfiltre: function () {
         var p = Me.getCurrentFilterParams();
+        /* Le PDF applique le filtre dans son modele JasperReports, qui ne connait pas encore
+         * 'NEGATIF' : il imprimerait toutes les lignes sous le titre « Tous les articles ».
+         * Mieux vaut le dire que sortir un etat qui ne correspond pas a l'ecran. */
+        if (p.str_TYPE === 'NEGATIF') {
+            Ext.MessageBox.show({
+                title: 'Impression indisponible',
+                width: 420,
+                msg: 'Le filtre « Articles encore négatifs » n\'est pas encore pris en charge par l\'état PDF.'
+                        + '<br/>La liste reste consultable à l\'écran.',
+                buttons: Ext.MessageBox.OK,
+                icon: Ext.MessageBox.INFO
+            });
+            return;
+        }
         var chkShowStock = Ext.getCmp('chk_show_stock_print');
         p.showStock = (chkShowStock && chkShowStock.getValue()) ? 'true' : 'false';
         var linkUrl = '../webservices/stockmanagement/inventaire/ws_generate_pdf_filtre.jsp?'

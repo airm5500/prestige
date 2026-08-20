@@ -2173,10 +2173,29 @@ public class InventaireManager extends bllBase {
     }
 
     /*
-     * clause commune aux listes touche/non touche : memes filtres et champs de recherche que la liste 'Tous'
+     * clause commune aux listes de l'ecran d'inventaire : memes filtres et champs de recherche que la liste 'Tous'
      * (ws_data_inventaire_famille)
      */
-    private static final String INVENTAIRE_TOUCHE_WHERE = " FROM TInventaireFamille t, TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR g.strCODEARTICLE LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9 AND t.dtUPDATED IS ";
+    private static final String INVENTAIRE_LIGNES_WHERE = " FROM TInventaireFamille t, TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR g.strCODEARTICLE LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9";
+
+    /* clause des listes touche / non touche */
+    private static final String INVENTAIRE_TOUCHE_WHERE = INVENTAIRE_LIGNES_WHERE + " AND t.dtUPDATED IS ";
+
+    /*
+     * clause du filtre « articles encore negatifs » : la quantite retenue par l'inventaire (int_NUMBER) est negative.
+     *
+     * A la creation d'une ligne, int_NUMBER vaut le stock machine du moment (int_NUMBER_INIT) ; une ligne non comptee
+     * porte donc toujours son stock negatif de depart. La cloture n'ecrit le stock que lorsque int_NUMBER differe de
+     * int_NUMBER_INIT : ces articles resteront donc en stock negatif si l'inventaire est cloture en l'etat. Le filtre
+     * couvre aussi le cas, plus rare, d'une quantite negative saisie a la main.
+     *
+     * A la difference des autres listes de l'ecran, celle-ci ne joint PAS TFamilleGrossiste. Cette jointure ecarte les
+     * articles qui n'ont aucune ligne dans t_famille_grossiste, et ce sont justement eux qui concentrent les stocks
+     * negatifs : sur la base de reference, 11 des 14 lignes negatives disparaissaient ainsi. Un filtre cense montrer ce
+     * qui restera negatif ne peut pas en taire les trois quarts. Le code article grossiste reste interrogeable par la
+     * recherche, via un EXISTS qui n'ecarte aucune ligne.
+     */
+    private static final String INVENTAIRE_NEGATIF_WHERE = " FROM TInventaireFamille t WHERE t.lgINVENTAIREID.lgINVENTAIREID LIKE ?1 AND t.lgFAMILLEID.lgGROSSISTEID.lgGROSSISTEID LIKE ?2 AND t.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID LIKE ?3 AND t.lgFAMILLEID.lgFAMILLEARTICLEID.lgFAMILLEARTICLEID LIKE ?4 AND (t.lgFAMILLEID.strDESCRIPTION LIKE ?6 OR t.lgFAMILLEID.intCIP LIKE ?6 OR t.lgFAMILLEID.intEAN13 LIKE ?6 OR t.lgFAMILLEID.lgZONEGEOID.strCODE LIKE ?6 OR t.lgFAMILLEID.lgFAMILLEARTICLEID.strCODEFAMILLE LIKE ?6 OR EXISTS (SELECT 1 FROM TFamilleGrossiste g WHERE g.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID AND g.strCODEARTICLE LIKE ?6)) AND t.boolINVENTAIRE = ?8 AND t.strUPDATEDID LIKE ?9 AND t.intNUMBER < 0";
 
     // liste des lignes touchees (dt_UPDATED renseigne) ou non touchees d'un inventaire
     public List<TInventaireFamille> listInventaireTouche(String search_value, String lg_INVENTAIRE_ID,
@@ -2222,6 +2241,51 @@ public class InventaireManager extends bllBase {
         return count;
     }
     // fin liste des lignes touchees / non touchees
+
+    // liste des lignes dont la quantite retenue est encore negative
+    public List<TInventaireFamille> listInventaireNegatif(String search_value, String lg_INVENTAIRE_ID,
+            String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, int start, int limit,
+            String lg_USER_ID) {
+        List<TInventaireFamille> lstTInventaireFamille = new ArrayList<>();
+        try {
+            if (search_value == null || "".equals(search_value)) {
+                search_value = "%%";
+            }
+            // Sans jointure fan-out, DISTINCT est inutile.
+            String jpql = "SELECT t" + INVENTAIRE_NEGATIF_WHERE + " " + buildOrderByInventaire(lg_INVENTAIRE_ID);
+            lstTInventaireFamille = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
+                    .setParameter(8, true).setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return lstTInventaireFamille;
+    }
+
+    public long getCountInventaireNegatif(String search_value, String lg_INVENTAIRE_ID, String lg_FAMILLEARTICLE_ID,
+            String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String lg_USER_ID) {
+        long count = 0l;
+        try {
+            if (search_value == null || "".equals(search_value)) {
+                search_value = "%%";
+            }
+            String jpql = "SELECT COUNT(t)" + INVENTAIRE_NEGATIF_WHERE;
+            Object object = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + search_value + "%")
+                    .setParameter(8, true).setParameter(9, lg_USER_ID)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
+            count = Long.valueOf(object + "");
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return count;
+    }
+    // fin liste des lignes encore negatives
 
     /*
      * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone geographique) pour un inventaire, sur

@@ -649,6 +649,10 @@ public class InventaireRessource {
                 total = manager.getCountInventaireTouche(search, inv, famille, zone, grossiste, false, utilisateur);
                 lignes = manager.listInventaireTouche(search, inv, famille, zone, grossiste, false, start, limit,
                         utilisateur);
+            } else if ("NEGATIF".equalsIgnoreCase(type)) {
+                total = manager.getCountInventaireNegatif(search, inv, famille, zone, grossiste, utilisateur);
+                lignes = manager.listInventaireNegatif(search, inv, famille, zone, grossiste, start, limit,
+                        utilisateur);
             } else {
                 total = manager.getCountByInventaire(search, inv, famille, zone, grossiste, true, utilisateur);
                 lignes = manager.listTFamilleByInventaire(search, inv, famille, zone, grossiste, true, start, limit,
