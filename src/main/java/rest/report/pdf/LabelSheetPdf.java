@@ -154,6 +154,18 @@ public final class LabelSheetPdf {
         return format;
     }
 
+    /**
+     * Premiere position occupee sur la planche, telle qu'elle arrive de l'ecran (texte). Toute valeur absente ou
+     * illisible repart de la premiere case : mieux vaut une planche decalee qu'une page d'erreur a la place du PDF.
+     */
+    public static int positionDepart(String valeur) {
+        try {
+            return Integer.parseInt(StringUtils.trimToEmpty(valeur));
+        } catch (NumberFormatException e) {
+            return 1;
+        }
+    }
+
     private static int readInt(UnaryOperator<String> reader, String key, int defaultValue) {
         try {
             String value = reader != null ? reader.apply(key) : null;

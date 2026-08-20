@@ -2,6 +2,9 @@ var Oview;
 var Omode;
 var Me;
 var ref;
+/* Servlet d'edition : c'est lui qui applique la bascule KEY_ETIQUETTE_MOTEUR et renvoie, le cas
+ * echeant, vers la generation JasperReports historique (ws_generate_pdf.jsp). */
+var url_services_etiquette_moteur = '../Etiquete';
 
 
 Ext.define('testextjs.view.stockmanagement.etiquette.action.printEtiquette', {
@@ -140,7 +143,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.printEtiquette', {
         }
         
         if (form.isValid()) {
-            var linkUrl = url_services_pdf_etiquette + '?lg_ETIQUETTE_ID=' + ref + "&begin=" + Ext.getCmp('intQUANTITY').getValue();
+            var linkUrl = url_services_etiquette_moteur + '?lg_ETIQUETTE_ID=' + encodeURIComponent(ref) + "&begin=" + Ext.getCmp('intQUANTITY').getValue();
             window.open(linkUrl);
             win.close();
             Me_Workflow = Oview;

@@ -2,6 +2,9 @@ var url_services_data_famille_select_dovente = '../webservices/sm_user/famille/w
 var url_services_data_detailetiquette = '../webservices/stockmanagement/etiquette/ws_data_detail.jsp';
 var url_services_transaction_etiquette = '../webservices/stockmanagement/etiquette/ws_transaction.jsp?mode=';
 var url_services_pdf_fiche_massiveetiquette = '../webservices/stockmanagement/etiquette/ws_generate_etiquette_pdf.jsp';
+/* Servlet d'edition : c'est lui qui applique la bascule KEY_ETIQUETTE_MOTEUR et renvoie, le cas
+ * echeant, vers la generation JasperReports historique (url_services_pdf_fiche_massiveetiquette). */
+var url_services_etiquette_moteur_massif = '../Etiquete';
 var Me;
 var LaborexWorkFlow;
 var store_famille_dovente = null;
@@ -411,7 +414,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                 'Confirmer l\'impression de ces etiquettes',
                 function(btn) {
                     if (btn === 'yes') {
-                        var linkUrl = url_services_pdf_fiche_massiveetiquette + "?int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
+                        var linkUrl = url_services_etiquette_moteur_massif + "?etiquettes=EN_PREPARATION&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
                         window.open(linkUrl);
                         Me.onbtnback();
                     }

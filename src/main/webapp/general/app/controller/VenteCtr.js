@@ -622,7 +622,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.queryClientLambda
                     },
                     'clientLambda #queryClientLambda': {
-                        specialkey: this.onClientLambdaKey
+                        specialkey: this.onClientLambdaKey,
+                        keyup: {fn: this.onQueryClientLambdaKeyUp, buffer: 350}
 
                     },
                     'doventemanager #contenu [xtype=gridpanel]': {
@@ -2661,7 +2662,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         {
                             xtype: 'textfield',
                             itemId: 'queryClientLambda',
-                            emptyText: 'Taper ici pour rechercher',
+                            emptyText: 'Rechercher un client (2 caractères)',
                             width: '70%',
                             height: 45,
                             enableKeyEvents: true
@@ -2915,6 +2916,26 @@ Ext.define('testextjs.controller.VenteCtr', {
                 me.queryClientLambda();
             }
         }
+    },
+
+    /**
+     * Recherche automatique des 2 caracteres saisis dans la fenetre « Ajouter un client a la
+     * vente » (mobile money, differe, avoir). Le seuil evite d'interroger le serveur sur une
+     * seule lettre, qui ramenerait presque tout le fichier client ; le buffer declare a
+     * l'ecoute de l'evenement laisse finir la frappe, pour n'envoyer qu'une requete.
+     *
+     * En dessous de 2 caracteres on ne fait rien : la grille garde le dernier resultat plutot
+     * que de se vider sous les yeux de la caissiere pendant qu'elle corrige sa saisie.
+     */
+    onQueryClientLambdaKeyUp: function (field, e) {
+        if (e.getKey() === e.ENTER) {
+            // Deja traite par specialkey : ne pas lancer deux fois la meme recherche.
+            return;
+        }
+        if ((field.getValue() || '').trim().length < 2) {
+            return;
+        }
+        this.queryClientLambda();
     },
     updateventeOngrid: function (editor, e, url, params) {
         const me = this;
