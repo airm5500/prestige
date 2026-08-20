@@ -648,7 +648,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                         specialkey: this.onClientSearchTextField
                     }
                     , 'assuranceClient #queryClientAssurance': {
-                        specialkey: this.onQueryClientAssurance
+                        specialkey: this.onQueryClientAssurance,
+                        // buffer : une seule requete en fin de frappe, pas une par touche
+                        keyup: {fn: this.onQueryClientAssuranceKeyUp, buffer: 350}
                     }, 'assuranceClient [xtype=gridpanel] actioncolumn': {
                         click: this.onBtnClientAssuranceClick
                     }, 'assuranceClient [xtype=gridpanel]': {
@@ -3658,22 +3660,46 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     onQueryClientAssurance: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
-            const me = this, grid = me.getGridClientAss();
-            let typeVenteId = me.getTypeVenteCombo().getValue();
-            let typeClientId = '';
-            if (typeVenteId === '2') {
-                typeClientId = '1';
-            } else if (typeVenteId === '3') {
-                typeClientId = '2';
-            }
-            if (field.getValue() && field.getValue().trim() !== '') {
-                grid.getStore().load({
-                    params: {
-                        'query': field.getValue(),
-                        'typeClientId': typeClientId
-                    }
-                });
-            }
+            this.rechercherClientAssurance(field);
+        }
+    },
+
+    /**
+     * Recherche automatique des 2 caracteres saisis. Le seuil evite d'interroger le serveur sur une
+     * seule lettre, qui ramenerait presque tout le fichier client ; le buffer declare a l'ecoute de
+     * l'evenement laisse finir la frappe, pour n'envoyer qu'une requete.
+     *
+     * En dessous de 2 caracteres on ne fait rien : la grille garde le dernier resultat plutot que de
+     * se vider sous les yeux de la caissiere pendant qu'elle corrige sa saisie.
+     */
+    onQueryClientAssuranceKeyUp: function (field, e) {
+        if (e.getKey() === e.ENTER) {
+            // Deja traite par specialkey : ne pas lancer deux fois la meme recherche.
+            return;
+        }
+        if ((field.getValue() || '').trim().length < 2) {
+            return;
+        }
+        this.rechercherClientAssurance(field);
+    },
+
+    /** Chemin unique de recherche : bouton, touche Entree et saisie automatique passent tous par ici. */
+    rechercherClientAssurance: function (field) {
+        const me = this, grid = me.getGridClientAss();
+        let typeVenteId = me.getTypeVenteCombo().getValue();
+        let typeClientId = '';
+        if (typeVenteId === '2') {
+            typeClientId = '1';
+        } else if (typeVenteId === '3') {
+            typeClientId = '2';
+        }
+        if (field.getValue() && field.getValue().trim() !== '') {
+            grid.getStore().load({
+                params: {
+                    'query': field.getValue(),
+                    'typeClientId': typeClientId
+                }
+            });
         }
     },
     loadAssuranceClient: function (queryString) {

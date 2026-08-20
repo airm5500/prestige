@@ -144,7 +144,7 @@ Ext.define('testextjs.view.vente.user.ClientGrid', {
                                     flex: 1,
                                     height: 35,
                                     enableKeyEvents: true,
-                                    emptyText: 'Taper ici pour rechercher un client'
+                                    emptyText: 'Rechercher un client (2 caractères)'
                                 }
                             ]
                         }
