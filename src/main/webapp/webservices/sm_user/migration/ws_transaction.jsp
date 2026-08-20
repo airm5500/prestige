@@ -39,6 +39,9 @@
 
 <%   
     String table_name = "", str_TYPE_TRANSACTION = commonparameter.ACCOUNT_BALANCE_MESSAGE, lg_GROSSISTE_ID = Parameter.DEFAUL_GROSSISTE;
+    // Association d'un code tableau a un article qui n'en avait pas : faut-il aussi majorer son prix de vente ?
+    // Champ absent = comportement historique, on majore.
+    boolean bMajorerPrixCodeTableau = true;
     
     if (request.getParameter("table_name") != null) {
         table_name = request.getParameter("table_name");
@@ -94,7 +97,13 @@
                         }*/
                         if (fieldName.equalsIgnoreCase("str_TYPE_TRANSACTION_IMPORT")) {
                             str_TYPE_TRANSACTION = item.getString();
-                            new logger().OCategory.info("str_TYPE_TRANSACTION:"+str_TYPE_TRANSACTION); 
+                            new logger().OCategory.info("str_TYPE_TRANSACTION:"+str_TYPE_TRANSACTION);
+                        }
+                        if (fieldName.equalsIgnoreCase("bool_MAJORER_PRIX_CODE_TABLEAU")) {
+                            // La case a cocher de l'ecran est placee AVANT le fichier : sa valeur est donc
+                            // connue quand le fichier est traite, plus bas dans cette meme boucle.
+                            bMajorerPrixCodeTableau = familleManagement.majorationDemandee(item.getString());
+                            new logger().OCategory.info("bool_MAJORER_PRIX_CODE_TABLEAU:"+bMajorerPrixCodeTableau);
                         }
                     } else {
                         String fileName = "";   // The file name the user entered.
@@ -112,7 +121,7 @@
                                 item.write(savedFile);
                                 String file_final_name = jdom.path_file_generate_absolute_imported + "csv/" + New_Name_Of_File;
 
-                                OMigrationManager.ImportDataToDataBase(table_name, file_final_name, extension, str_TYPE_TRANSACTION);
+                                OMigrationManager.ImportDataToDataBase(table_name, file_final_name, extension, str_TYPE_TRANSACTION, bMajorerPrixCodeTableau);
                                 ObllBase.setDetailmessage(OMigrationManager.getDetailmessage());
                                 ObllBase.setMessage(OMigrationManager.getMessage());
                             } catch (Exception e) {

@@ -51,6 +51,16 @@ public class MigrationManager extends bll.bllBase {
     // importation de données
     public boolean ImportDataToDataBase(String table_name, String filename, String extension,
             String str_TYPE_TRANSACTION) {
+        return ImportDataToDataBase(table_name, filename, extension, str_TYPE_TRANSACTION, true);
+    }
+
+    /**
+     * @param majorerPrixAvecCodeTableau
+     *            en mise a jour d'articles, faut-il majorer le prix de vente du taux code tableau quand le fichier
+     *            associe un code tableau a un article qui n'en avait pas ? Vrai = comportement historique.
+     */
+    public boolean ImportDataToDataBase(String table_name, String filename, String extension,
+            String str_TYPE_TRANSACTION, boolean majorerPrixAvecCodeTableau) {
         boolean result = false;
         List<String> lstString = new ArrayList<>();
         familleManagement OfamilleManagement = new familleManagement(this.getOdataManager(), this.getOTUser());
@@ -74,6 +84,7 @@ public class MigrationManager extends bll.bllBase {
             }
             new logger().OCategory.info("lstString" + lstString.size());
             if (table_name.equalsIgnoreCase(Parameter.TABLE_FAMILLE)) {
+                OfamilleManagement.setMajorerPrixAvecCodeTableau(majorerPrixAvecCodeTableau);
                 if (!str_TYPE_TRANSACTION.equalsIgnoreCase(commonparameter.TYPE_IMPORTATION_UPDATEDATA)) {
                     OfamilleManagement.createMasseFamille(lstString, str_TYPE_TRANSACTION);
                 } else {

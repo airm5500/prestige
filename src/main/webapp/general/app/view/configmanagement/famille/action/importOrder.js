@@ -6,6 +6,25 @@ var Omode;
 var Me;
 var table_name;
 
+/* Le choix « mettre aussi a jour le prix » ne concerne que les modes qui modifient des articles
+ * existants : la majoration du code tableau ne s'applique qu'a un article qui n'en avait pas encore.
+ * Les modes de creation (basculement, nouvelle installation, DCI) ne sont pas concernes. */
+var MODES_MISE_A_JOUR_ARTICLES = ['UPDATEDATA', 'UPDATEDATAWITHSTOCK', 'UPDATEDATAWITHOUTSTOCK'];
+
+function majorationCodeTableauVisible(mode) {
+    var cadre = Ext.getCmp('bool_MAJORER_PRIX_CODE_TABLEAU'),
+            aide = Ext.getCmp('aide_MAJORER_PRIX_CODE_TABLEAU');
+    if (!cadre) {
+        return;
+    }
+    var concerne = table_name === 'TABLE_FAMILLE' && Omode === 'importfile'
+            && Ext.Array.contains(MODES_MISE_A_JOUR_ARTICLES, mode);
+    cadre.setVisible(concerne);
+    if (aide) {
+        aide.setVisible(concerne);
+    }
+}
+
 
 Ext.define('testextjs.view.configmanagement.famille.action.importOrder', {
     extend: 'Ext.window.Window',
@@ -68,6 +87,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.importOrder', {
                             emptyText: 'Choisir un mode d\'importation...',
                             listeners: {
                                 select: function(cmp) {
+                                    // En premier : la ligne suivante cherche un composant qui n'appartient pas
+                                    // a cette fenetre et peut lever. L'affichage de la case ne doit pas en dependre.
+                                    majorationCodeTableauVisible(cmp.getValue());
                                     if(cmp.getValue() === "INSTALLATION") {
                                         Ext.getCmp("lg_GROSSISTE_ID").show();
                                     } else {
@@ -75,6 +97,33 @@ Ext.define('testextjs.view.configmanagement.famille.action.importOrder', {
                                     }
                                 }
                             }
+                        },
+                        /* Meme question que sur la fiche article : associer un code tableau a un article qui
+                         * n'en avait pas majore son prix de vente du taux KEY_TAUX_CODE_TABLEAU. Si les prix du
+                         * parc portent deja cette majoration, il ne faut pas l'ajouter une seconde fois.
+                         * A placer AVANT le fichier : la page qui recoit l'envoi lit les champs et le fichier
+                         * dans l'ordre du formulaire, et doit connaitre ce choix avant de traiter le fichier. */
+                        {
+                            xtype: 'checkbox',
+                            name: 'bool_MAJORER_PRIX_CODE_TABLEAU',
+                            id: 'bool_MAJORER_PRIX_CODE_TABLEAU',
+                            hidden: true,
+                            // Sans colonne de libelle, la coche part de la gauche et sa legende
+                            // dispose de toute la largeur de la fenetre : elle tient sur une ligne.
+                            hideLabel: true,
+                            margin: '5 0 5 0',
+                            inputValue: '1',
+                            uncheckedValue: '0',
+                            checked: true,
+                            boxLabel: 'Mettre aussi à jour le prix de vente (majoration du code tableau)'
+                        },
+                        {
+                            xtype: 'displayfield',
+                            id: 'aide_MAJORER_PRIX_CODE_TABLEAU',
+                            hidden: true,
+                            hideLabel: true,
+                            fieldStyle: 'color:#777;font-style:italic;',
+                            value: 'À décocher si les prix de vente du fichier contiennent déjà cette majoration : elle serait sinon ajoutée une seconde fois.'
                         },
                       {
                             xtype: 'filefield',
@@ -94,6 +143,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.importOrder', {
 
         if (table_name == "TABLE_FAMILLE" && Omode == "importfile") {
             Ext.getCmp('str_TYPE_TRANSACTION_IMPORT').show();
+            majorationCodeTableauVisible(Ext.getCmp('str_TYPE_TRANSACTION_IMPORT').getValue());
         }
 
         // Une seule fenetre a la fois : un nouveau clic remplace la precedente.
@@ -104,8 +154,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.importOrder', {
             autoShow: true,
             modal: true,
             title: this.getTitre(),
-            width: 500,
-            height: 200,
+            width: 620,
+            height: 260,
             minWidth: 300,
             minHeight: 200,
             layout: 'fit',

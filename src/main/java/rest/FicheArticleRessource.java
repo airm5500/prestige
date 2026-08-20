@@ -473,7 +473,8 @@ public class FicheArticleRessource {
             @FormParam("lg_ZONE_GEO_ID") String zoneGeoId, @FormParam("bool_CALCUL_SEUIL") String boolCalculSeuil,
             @FormParam("bool_SUGGERABLE") String boolSuggerable, @FormParam("bool_REMISE") String boolRemise,
             @FormParam("int_Q1_SEUIL_REAPPRO") String q1SeuilReappro,
-            @FormParam("int_Q2_QTE_REAPPRO") String q2QteReappro) {
+            @FormParam("int_Q2_QTE_REAPPRO") String q2QteReappro,
+            @FormParam("bool_MAJORER_PRIX_CODE_TABLEAU") String majorerPrixCodeTableau) {
         HttpSession hs = servletRequest.getSession();
         TUser sessionUser = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (sessionUser == null) {
@@ -491,6 +492,10 @@ public class FicheArticleRessource {
             TUser user = odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
             bll.configManagement.familleManagement ofm = new bll.configManagement.familleManagement(odm, user);
             ofm.setUsersPrivileges(privileges);
+            // Association d'un code tableau a un article qui n'en avait pas : l'ecran dit s'il faut aussi majorer le
+            // prix de vente. Champ absent (anciens appels) = comportement historique, on majore.
+            ofm.setMajorerPrixAvecCodeTableau(
+                    bll.configManagement.familleManagement.majorationDemandee(majorerPrixCodeTableau));
 
             if ("create".equals(mode)) {
                 // Meme controle que la JSP : privilege obligatoire cote serveur
