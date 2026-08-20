@@ -118,6 +118,23 @@ public class TparameterManager extends bllDirectBase {
 
     // Liste des parametres generaux de l'application
     public List<TParameters> listeParameter(String search_value, String str_TYPE) {
+        return listeParameter(search_value, str_TYPE, null);
+    }
+
+    /**
+     * Liste des parametres generaux.
+     *
+     * @param search_value
+     *            texte recherche dans la cle ou la description. La recherche est "contenante" : un parametre se
+     *            retrouve par un fragment de son nom, pas seulement par son debut.
+     * @param str_TYPE
+     *            regle de VISIBILITE issue du profil connecte (ne jamais elargir : c'est elle qui reserve certains
+     *            parametres aux administrateurs).
+     * @param typeFiltre
+     *            filtre facultatif choisi par l'utilisateur dans l'ecran. Il RESTREINT la liste a l'interieur de ce que
+     *            la visibilite autorise deja ; vide = aucun filtre.
+     */
+    public List<TParameters> listeParameter(String search_value, String str_TYPE, String typeFiltre) {
         List<TParameters> lst = new ArrayList<>();
         // privilege Oprivilege = new privilege(this.getOdataManager(), this.getOTUser());
         try {
@@ -128,17 +145,22 @@ public class TparameterManager extends bllDirectBase {
              * if (Oprivilege.isColonneStockMachineIsAuthorize(Parameter.P_SHOW_ALL_ACTIVITY_ADMIN)) { str_TYPE = "%%";
              * }
              */
+            // Recherche "contenante" : un parametre se retrouve par un fragment de son nom. Avec l'ancien
+            // "commence par", il fallait connaitre le debut exact de la cle pour esperer la trouver.
+            String motif = "%" + search_value.replace("%%", "") + "%";
+            // Filtre facultatif de l'ecran. Il s'ajoute a la visibilite, il ne la remplace jamais :
+            // "%%" quand aucun type n'est choisi, donc sans effet.
+            String filtre = (typeFiltre == null || typeFiltre.trim().isEmpty()) ? "%%" : typeFiltre.trim();
             if (str_TYPE.equalsIgnoreCase(commonparameter.PARAMETER_ADMIN)) {
                 lst = this.getOdataManager().getEm().createQuery(
-                        "SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND (t.strTYPE LIKE ?2 OR t.strTYPE LIKE ?4) AND t.strSTATUT = ?3")
-                        .setParameter(1, search_value + "%").setParameter(2, str_TYPE)
-                        .setParameter(3, commonparameter.statut_enable)
-                        .setParameter(4, commonparameter.PARAMETER_CUSTOMER).getResultList();
+                        "SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND (t.strTYPE LIKE ?2 OR t.strTYPE LIKE ?4) AND t.strTYPE LIKE ?5 AND t.strSTATUT = ?3")
+                        .setParameter(1, motif).setParameter(2, str_TYPE).setParameter(3, commonparameter.statut_enable)
+                        .setParameter(4, commonparameter.PARAMETER_CUSTOMER).setParameter(5, filtre).getResultList();
             } else {
                 lst = this.getOdataManager().getEm().createQuery(
-                        "SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND t.strTYPE LIKE ?2 AND t.strSTATUT = ?3")
-                        .setParameter(1, search_value + "%").setParameter(2, str_TYPE)
-                        .setParameter(3, commonparameter.statut_enable).getResultList();
+                        "SELECT t FROM TParameters t WHERE (t.strKEY LIKE ?1 OR t.strDESCRIPTION LIKE ?1) AND t.strTYPE LIKE ?2 AND t.strTYPE LIKE ?5 AND t.strSTATUT = ?3")
+                        .setParameter(1, motif).setParameter(2, str_TYPE).setParameter(3, commonparameter.statut_enable)
+                        .setParameter(5, filtre).getResultList();
 
             }
         } catch (Exception e) {

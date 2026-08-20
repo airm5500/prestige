@@ -4,6 +4,8 @@ var url_services_data_parametre_transaction = '../webservices/sm_user/parameter/
 var url_rest_data_parametre = '../api/v1/app-params/liste';
 // bascule d'un parametre booleen : ne modifie que la valeur, conserve la description
 var url_rest_toggle_parametre = '../api/v1/app-params/toggle';
+// types proposes dans le filtre : deduits cote serveur des parametres reellement visibles par le profil
+var url_rest_data_parametre_types = '../api/v1/app-params/types';
 
 var Me;
 Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
@@ -153,10 +155,40 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                     scope: this,
                     handler: this.onAddClick
                 }, '-', */{
+                    xtype: 'combobox',
+                    itemId: 'comboTypeParam',
+                    fieldLabel: 'Type',
+                    labelWidth: 35,
+                    width: 200,
+                    emptyText: 'Tous',
+                    editable: false,
+                    queryMode: 'local',
+                    displayField: 'str_TYPE',
+                    valueField: 'str_TYPE',
+                    // Les types viennent du serveur : ils suivent la visibilite du profil connecte, et
+                    // aucun type inaccessible n'est propose. Une liste figee ici se serait desynchronisee.
+                    store: new Ext.data.Store({
+                        fields: [{name: 'str_TYPE', type: 'string'}],
+                        autoLoad: true,
+                        proxy: {
+                            type: 'ajax',
+                            url: url_rest_data_parametre_types,
+                            reader: {type: 'json', root: 'results', totalProperty: 'total'}
+                        }
+                    }),
+                    listeners: {
+                        change: function() {
+                            Me.onRechClick();
+                        }
+                    }
+                }, {
                     xtype: 'textfield',
                     id: 'rechecher',
                     name: 'facture',
-                    emptyText: 'Recherche',
+                    emptyText: 'Rechercher (2 caractères)',
+                    // Recherche automatique des 2 caracteres saisis, avec un delai qui laisse finir la
+                    // frappe : une seule requete part, pas une par touche.
+                    enableKeyEvents: true,
                     listeners: {
                         'render': function(cmp) {
                             cmp.getEl().on('keypress', function(e) {
@@ -164,7 +196,35 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                                     Me.onRechClick();
                                 }
                             });
+                        },
+                        'keyup': {
+                            buffer: 350,
+                            fn: function(cmp, e) {
+                                if (e.getKey() === e.ENTER) {
+                                    return;
+                                }
+                                var valeur = (cmp.getValue() || '').trim();
+                                // Champ vide : on recharge la liste complete (annulation du filtre).
+                                if (valeur.length >= 2 || valeur.length === 0) {
+                                    Me.onRechClick();
+                                }
+                            }
                         }
+                    }
+                }, {
+                    text: 'Réinitialiser',
+                    tooltip: 'Effacer la recherche et le filtre de type',
+                    scope: this,
+                    handler: function() {
+                        var champ = Ext.getCmp('rechecher');
+                        if (champ) {
+                            champ.setValue('');
+                        }
+                        var combo = Me.down('#comboTypeParam');
+                        if (combo) {
+                            combo.setValue(null);
+                        }
+                        Me.onRechClick();
                     }
                 }, {
                     text: 'rechercher',
@@ -300,10 +360,12 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
 //        }
 //    },
     onRechClick: function () {
-        // extraParam persistant : la recherche est conservee quand on change de page
+        // extraParam persistant : la recherche ET le filtre de type sont conserves quand on change de page
         var val = Ext.getCmp('rechecher');
+        var combo = Me ? Me.down('#comboTypeParam') : null;
         var store = this.getStore();
-        store.getProxy().setExtraParam('search_value', val.getValue());
+        store.getProxy().setExtraParam('search_value', val ? val.getValue() : '');
+        store.getProxy().setExtraParam('type_filtre', (combo && combo.getValue()) ? combo.getValue() : '');
         store.loadPage(1);
     }
 

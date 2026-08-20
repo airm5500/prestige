@@ -117,7 +117,8 @@ public class ParametreRessource {
     @GET
     @Path("liste")
     public Response liste(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
-            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
+            @QueryParam("type_filtre") String typeFiltre, @DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("20") @QueryParam("limit") int limit) {
         TUser sessionUser = currentUser();
         if (sessionUser == null) {
             return deconnecte();
@@ -136,7 +137,10 @@ public class ParametreRessource {
                 type = "%%";
             }
             TparameterManager manager = new TparameterManager(odm, sessionUser);
-            List<TParameters> parametres = manager.listeParameter(StringUtils.defaultString(search), type);
+            // typeFiltre est le choix de l'utilisateur dans l'ecran ; "type" reste la regle de visibilite
+            // liee a son profil. Le premier restreint a l'interieur du second, il ne l'elargit jamais.
+            List<TParameters> parametres = manager.listeParameter(StringUtils.defaultString(search), type,
+                    StringUtils.trimToNull(typeFiltre));
             JSONArray results = new JSONArray();
             int fin = limit > 0 ? Math.min(parametres.size(), Math.max(0, start) + limit) : parametres.size();
             for (int i = Math.max(0, start); i < fin; i++) {
@@ -155,6 +159,53 @@ public class ParametreRessource {
                     .build();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "liste parametres", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Types de parametres proposables dans le filtre de l'ecran.
+     *
+     * Ils sont deduits de la MEME methode metier que la liste, et non d'une requete dediee : la regle de visibilite
+     * liee au profil ne peut donc pas diverger entre les deux. Un type auquel l'utilisateur n'a pas acces n'apparait
+     * jamais dans son filtre.
+     */
+    @GET
+    @Path("types")
+    public Response types() {
+        TUser sessionUser = currentUser();
+        if (sessionUser == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            String type = commonparameter.PARAMETER_CUSTOMER;
+            bll.userManagement.user ouser = new bll.userManagement.user(odm);
+            TRole role = ouser.getTRoleUser(sessionUser.getLgUSERID()).getLgROLEID();
+            if (role != null && (bll.userManagement.user.isSuperAdminRole(role.getStrNAME())
+                    || bll.userManagement.user.isAdminRole(role.getStrNAME())
+                    || commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(role.getStrTYPE()))) {
+                type = "%%";
+            }
+            TparameterManager manager = new TparameterManager(odm, sessionUser);
+            java.util.Set<String> types = new java.util.TreeSet<>();
+            for (TParameters p : manager.listeParameter("", type)) {
+                if (StringUtils.isNotBlank(p.getStrTYPE())) {
+                    types.add(p.getStrTYPE().trim());
+                }
+            }
+            JSONArray results = new JSONArray();
+            for (String t : types) {
+                results.put(new JSONObject().put("str_TYPE", t));
+            }
+            return Response.ok().entity(new JSONObject().put("total", types.size()).put("results", results).toString())
+                    .build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "types parametres", e);
             return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
                     .build();
         } finally {
