@@ -632,6 +632,12 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
     @Override
     public JSONObject supprimerSuggestion(TUser user, String suggestionId, String motif) {
+        // Motif obligatoire, controle aussi cote serveur : l'ecran le demande deja, mais une fois la
+        // suggestion supprimee ce motif reste le SEUL element expliquant sa disparition. Le rendre
+        // facultatif ici laisserait passer les suppressions non motivees venues d'un autre appelant.
+        if (!notBlank(motif)) {
+            return echec("Le motif de la suppression est obligatoire.");
+        }
         TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
         if (s == null) {
             return echec("Suggestion introuvable.");
@@ -657,7 +663,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             }
         }
         s.setStrSTATUT(TSuggestionReserve.STATUT_SUPPRIMEE);
-        s.setStrCOMMENTAIRE(notBlank(motif) ? motif.trim() : s.getStrCOMMENTAIRE());
+        // Borne alignee sur la colonne str_COMMENTAIRE (500) : un motif plus long ferait echouer
+        // l'enregistrement au lieu d'etre simplement raccourci.
+        s.setStrCOMMENTAIRE(org.apache.commons.lang3.StringUtils.abbreviate(motif.trim(), 500));
         s.setLgUSERCLOTUREID(user);
         s.setDtCLOTURE(new Date());
         s.setDtUPDATED(s.getDtCLOTURE());

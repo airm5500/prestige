@@ -607,26 +607,54 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                 });
     },
 
-    onSupprimer: function (rec) {
+    /**
+     * @param {Object} rec suggestion a supprimer
+     * @param {String} motifPrecedent saisie a reafficher quand on redemande le motif (ne pas la perdre)
+     */
+    onSupprimer: function (rec, motifPrecedent) {
         var me = this;
         if (!rec) {
             return;
         }
         Ext.MessageBox.show({
             title: 'Supprimer la suggestion',
-            msg: 'Motif de la suppression (facultatif) :',
+            msg: 'Motif de la suppression (obligatoire, 500 caractères maximum) :',
             buttons: Ext.MessageBox.OKCANCEL,
             prompt: true,
+            value: motifPrecedent || '',
             width: 460,
             fn: function (btn, text) {
                     if (btn !== 'ok') {
+                        return;
+                    }
+                    var motif = (text || '').trim();
+                    // Motif obligatoire : une fois la suggestion supprimee, il reste le seul element
+                    // permettant de comprendre pourquoi elle a disparu. On redemande en conservant la
+                    // saisie plutot que de la faire retaper.
+                    if (motif.length === 0) {
+                        Ext.MessageBox.alert('Motif obligatoire',
+                                'Indiquez le motif de la suppression : il restera le seul moyen de savoir '
+                                + 'pourquoi cette suggestion a été supprimée.',
+                                function () {
+                                    me.onSupprimer(rec, text);
+                                });
+                        return;
+                    }
+                    // Borne alignee sur la colonne str_COMMENTAIRE (500) : mieux vaut le dire ici que
+                    // laisser le serveur tronquer en silence.
+                    if (motif.length > 500) {
+                        Ext.MessageBox.alert('Motif trop long',
+                                'Le motif ne doit pas dépasser 500 caractères (saisi : ' + motif.length + ').',
+                                function () {
+                                    me.onSupprimer(rec, text);
+                                });
                         return;
                     }
                     Ext.Ajax.request({
                         method: 'DELETE',
                         url: '../api/v1/suggestion-reserve/'
                                 + encodeURIComponent(rec.get('lg_SUGGESTION_RESERVE_ID'))
-                                + '?motif=' + encodeURIComponent(text || ''),
+                                + '?motif=' + encodeURIComponent(motif),
                         success: function (response) {
                             var res = Ext.JSON.decode(response.responseText, true) || {};
                             if (res.success === false) {
