@@ -59,6 +59,8 @@ public class SupportNightlyCatchUp {
     private SupportCoherenceService supportCoherenceService;
     @EJB
     private SupportEventService supportEventService;
+    @EJB
+    private VenteAttenteExpiration venteAttenteExpiration;
 
     @PostConstruct
     public void planifier() {
@@ -89,6 +91,15 @@ public class SupportNightlyCatchUp {
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "rattrapage coherence", e);
+        }
+        try {
+            if (aBesoinDeRattrapage(VenteAttenteExpiration.CODE_JOB)) {
+                LOG.info("Rattrapage au demarrage : ventes en attente de la veille"
+                        + " (le job de 00:10 n'a pas tourne)");
+                venteAttenteExpiration.executer();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "rattrapage ventes en attente", e);
         }
     }
 
