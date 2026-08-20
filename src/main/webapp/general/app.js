@@ -800,6 +800,7 @@ Ext.application({
         'FactureCtr',
         'FamilleArticleStatsCtr',
         'VingthManagerCtr',
+        'AnalyseTiersPayantCtr',
         'AbcManagerCtr',
         'FeuilleDeMatchCtr',
         'peremptionManagerCtr',
