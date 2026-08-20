@@ -106,6 +106,11 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
                         testextjs.app.getController('App').StopWaitingProcess();
                         const object = Ext.JSON.decode(response.responseText, false);
                         Me.onbtnprint(object.mvtId);
+                        // La caisse vient d'etre ouverte : on relit l'etat pour que le bouton
+                        // "Ouvrir caisse" disparaisse et laisse place a la date d'ouverture.
+                        // Sans cela il restait actif et invitait a une seconde ouverture, que
+                        // l'ecran soit venu du menu ou de la fenetre modale de la vente.
+                        Me.LoadData();
                     },
                     failure: function (response)
                     {

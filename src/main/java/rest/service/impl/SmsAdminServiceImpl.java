@@ -108,7 +108,9 @@ public class SmsAdminServiceImpl implements SmsAdminService {
         if (p == null) {
             p = new TParameters(key);
             p.setStrDESCRIPTION(description);
-            p.setStrTYPE("SYSTEM");
+            // Constante et non chaine en dur : cette ligne ecrivait "SYSTEM" sans le E, creant une
+            // seconde orthographe du meme type dans t_parameters (cf. migration V6.8.3).
+            p.setStrTYPE(util.Constant.PARAMETER_SYSTEM);
             p.setStrSTATUT("enable");
             p.setDtCREATED(new Date());
             p.setStrVALUE(value);

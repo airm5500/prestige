@@ -1412,7 +1412,21 @@ Ext.define('testextjs.controller.DepotCtr', {
                 me.clotureVenteDepotAgree(typeDepot);
             }
         } else {
-            Ext.Msg.alert("Message", "Désolé votre caisse est fermée. Veuillez l'ouvrir avant de proceder à la validation");
+            // Meme traitement que dans la vente : proposer d'ouvrir la caisse sur place plutot que
+            // d'annoncer l'impasse et d'obliger a quitter l'ecran pour aller au menu.
+            Ext.Msg.confirm('Caisse fermée', 'Votre caisse est fermée, voulez-vous l\'ouvrir ?', function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+                Ext.create('Ext.window.Window', {
+                    title: 'Ouverture de caisse',
+                    modal: true,
+                    width: 470,
+                    autoScroll: true,
+                    layout: 'fit',
+                    items: [{xtype: 'ouverturecaissemanger'}]
+                }).show();
+            });
         }
 //        me.resetAlls();
 

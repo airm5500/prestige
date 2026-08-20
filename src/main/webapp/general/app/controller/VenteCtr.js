@@ -3658,6 +3658,30 @@ Ext.define('testextjs.controller.VenteCtr', {
             field.setValue('');
         }
     },
+    /**
+     * Caisse fermee au moment de valider : plutot que d'annoncer l'impasse et de laisser l'operateur
+     * quitter la vente pour aller au menu, on propose de l'ouvrir sur place. La reponse "oui" ouvre
+     * l'ecran d'ouverture de caisse en fenetre modale, exactement comme si on s'y etait rendu.
+     *
+     * Meme motif que DoReglement.afficherErreurReglement, qui traitait deja ce cas cote reglement de
+     * facture : un seul comportement pour une meme situation.
+     */
+    proposerOuvertureCaisse: function () {
+        Ext.Msg.confirm('Caisse fermée', 'Votre caisse est fermée, voulez-vous l\'ouvrir ?', function (btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            Ext.create('Ext.window.Window', {
+                title: 'Ouverture de caisse',
+                modal: true,
+                width: 470,
+                autoScroll: true,
+                layout: 'fit',
+                items: [{xtype: 'ouverturecaissemanger'}]
+            }).show();
+        });
+    },
+
     onQueryClientAssurance: function (field, e, options) {
         if (e.getKey() === e.ENTER) {
             this.rechercherClientAssurance(field);
@@ -5141,7 +5165,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         me.onbtncloturerAssurance(typeRegle);
                     }
                 } else {
-                    Ext.Msg.alert("Message", "Désolé votre caisse est fermée. Veuillez l'ouvrir avant de proceder à la validation");
+                    me.proposerOuvertureCaisse();
                 }
             }
         } else {

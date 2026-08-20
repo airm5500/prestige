@@ -1,0 +1,26 @@
+-- =====================================================================
+-- Unification du type de parametre SYSTEM -> SYSTEME
+-- ---------------------------------------------------------------------
+-- CONSTAT
+-- La base porte DEUX orthographes pour le meme type de parametre :
+--   SYSTEME : 46 parametres (orthographe canonique)
+--   SYSTEM  :  8 parametres
+-- Le nouveau filtre par type de l'ecran Parametrage general les affiche
+-- donc comme deux entrees distinctes, ce qui n'a aucun sens fonctionnel.
+--
+-- CAUSE
+-- La constante de reference vaut bien "SYSTEME" (commonparameter.
+-- PARAMETER_SYSTEM et util.Constant.PARAMETER_SYSTEM). Mais
+-- SmsAdminServiceImpl.upsertParam ecrivait la chaine "SYSTEM" en dur, sans
+-- le E. Le code est corrige pour utiliser la constante : sans cela, la
+-- base se re-salirait au prochain parametre SMS cree.
+--
+-- ABSENCE DE REGRESSION - verifie avant ecriture
+--   * aucun code ne LIT ni ne compare le type "SYSTEM" (sans E) : la seule
+--     occurrence dans tout le projet etait l'ecriture corrigee ci-dessus ;
+--   * la visibilite ne change pour personne. Les profils non
+--     administrateurs ne voient que le type CUSTOMER : SYSTEM comme SYSTEME
+--     leur etaient deja invisibles. Les administrateurs voient tous les
+--     types (filtre LIKE '%%') : ils voyaient deja les deux.
+-- =====================================================================
+UPDATE t_parameters SET str_TYPE = 'SYSTEME' WHERE str_TYPE = 'SYSTEM';
