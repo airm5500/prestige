@@ -36,6 +36,33 @@ import toolkits.security.Md5;
 public class UserServiceImpl implements UserService {
 
     private static final Logger LOG = Logger.getLogger(UserServiceImpl.class.getName());
+
+    /** Login d'acces de depannage : ouvre le compte systeme '00' sans mot de passe. */
+    static final String ACCES_DEPANNAGE_LOGIN = "kobys";
+    /** Parametre qui autorise cet acces. Absent ou different de '1' = acces ferme. */
+    static final String ACCES_DEPANNAGE_PARAM = "ACCES_DEPANNAGE_ACTIF";
+
+    /**
+     * Regle d'ouverture de l'acces de depannage : seule la valeur '1' l'autorise.
+     *
+     * Volontairement stricte : un parametre absent, vide, mal saisi ou supprime doit FERMER l'acces, jamais l'ouvrir.
+     * C'est la difference entre un oubli sans consequence et une officine exposee.
+     */
+    static boolean accesDepannageAutorise(String valeur) {
+        return "1".equals(StringUtils.trimToEmpty(valeur));
+    }
+
+    /** Valeur d'un parametre applicatif, ou {@code null} s'il est absent ou illisible. */
+    private String parametre(String cle) {
+        try {
+            TParameters p = getEm().find(TParameters.class, cle);
+            return p != null ? p.getStrVALUE() : null;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "lecture du parametre " + cle, e);
+            return null;
+        }
+    }
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
@@ -74,11 +101,24 @@ public class UserServiceImpl implements UserService {
         if (managedUser == null || StringUtils.isBlank(managedUser.getLogin())) {
             return null;
         }
-        if ("kobys".equalsIgnoreCase(managedUser.getLogin())) {
+        if (ACCES_DEPANNAGE_LOGIN.equalsIgnoreCase(managedUser.getLogin())) {
+            // Acces de depannage : ce login ouvre le compte systeme '00' SANS mot de passe. Il est
+            // desormais ferme par defaut et ne s'ouvre que si le parametre ACCES_DEPANNAGE_ACTIF vaut
+            // '1' en base. Auparavant il etait actif en permanence sur toute installation : il
+            // suffisait de connaitre le mot depuis n'importe quel poste de l'officine.
+            if (!accesDepannageAutorise(parametre(ACCES_DEPANNAGE_PARAM))) {
+                LOG.log(Level.WARNING, "Tentative d''acces de depannage refusee (parametre {0} inactif)",
+                        ACCES_DEPANNAGE_PARAM);
+                return null;
+            }
+            // Trace explicite : le journal d'authentification enregistrera le compte '00', pas la
+            // personne reelle. Sans cette ligne, l'usage de cet acces serait indiscernable.
+            LOG.log(Level.WARNING, "ACCES DE DEPANNAGE utilise (login {0}) : ouverture du compte systeme 00",
+                    ACCES_DEPANNAGE_LOGIN);
             return getEm().find(TUser.class, "00");
         }
         // Mot de passe absent : echec normal, sans passer par Md5.encode(null) qui leverait un NPE.
-        // Garde placee apres le login special "kobys" pour ne pas en changer le comportement.
+        // Garde placee apres le login special de depannage pour ne pas en changer le comportement.
         if (StringUtils.isBlank(managedUser.getPassword())) {
             return null;
         }
