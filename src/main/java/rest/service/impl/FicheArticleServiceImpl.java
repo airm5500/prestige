@@ -1251,18 +1251,27 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     private static final String CHAMP_TVA = "TVA";
     private static final String CHAMP_CODE_REMISE = "CODE_REMISE";
     private static final String CHAMP_CODE_TABLEAU = "CODE_TABLEAU";
+    private static final String CHAMP_LABORATOIRE = "LABORATOIRE";
+    private static final String CHAMP_GAMME = "GAMME";
 
     /**
-     * Les combos « Tous » des services communs renvoient la valeur ALL : c'est l'absence de filtre, pas un identifiant.
-     * La confondre avec un identifiant reel ne ramenerait aucune ligne.
+     * Les combos « Tous » des services communs renvoient la valeur ALL - ou, pour les laboratoires et les gammes, un
+     * simple espace. Dans les deux cas c'est l'absence de filtre, pas un identifiant : la confondre avec un identifiant
+     * reel ne ramenerait aucune ligne, et l'utilisateur croirait le fichier vide.
      */
     static boolean filtreActif(String valeur) {
         return StringUtils.isNotBlank(valeur) && !"ALL".equalsIgnoreCase(valeur.trim());
     }
 
     private String majSelectiveWhere(String zoneGeoId, String codeFamille, String codeTableau, String codeTvaId,
-            String codeRemise, String search) {
+            String codeRemise, String laboratoireId, String gammeId, String search) {
         StringBuilder w = new StringBuilder(" WHERE f.str_STATUT='enable' ");
+        if (filtreActif(laboratoireId)) {
+            w.append(" AND f.laboratoire_id = :labo ");
+        }
+        if (filtreActif(gammeId)) {
+            w.append(" AND f.gamme_id = :gamme ");
+        }
         if (filtreActif(zoneGeoId)) {
             w.append(" AND f.lg_ZONE_GEO_ID = :zone ");
         }
@@ -1288,7 +1297,13 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     private void majSelectiveParams(Query q, String zoneGeoId, String codeFamille, String codeTableau, String codeTvaId,
-            String codeRemise, String search) {
+            String codeRemise, String laboratoireId, String gammeId, String search) {
+        if (filtreActif(laboratoireId)) {
+            q.setParameter("labo", laboratoireId);
+        }
+        if (filtreActif(gammeId)) {
+            q.setParameter("gamme", gammeId);
+        }
         if (filtreActif(zoneGeoId)) {
             q.setParameter("zone", zoneGeoId);
         }
@@ -1316,24 +1331,28 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     @Override
     @SuppressWarnings("unchecked")
     public JSONObject majSelectiveList(String zoneGeoId, String codeFamille, String codeTableau, String codeTvaId,
-            String codeRemise, String search, int start, int limit) {
+            String codeRemise, String laboratoireId, String gammeId, String search, int start, int limit) {
         JSONObject data = new JSONObject();
         JSONArray arr = new JSONArray();
         try {
-            String where = majSelectiveWhere(zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, search);
+            String where = majSelectiveWhere(zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, laboratoireId,
+                    gammeId, search);
             // Jointures externes : un article sans emplacement, sans famille ou sans grossiste doit rester
             // visible et modifiable - c'est meme souvent celui que l'on cherche a corriger.
             // Alias explicites : sans eux str_NAME (article et TVA) puis str_LIBELLE (famille et grossiste)
             // apparaissent deux fois, et la requete native est rejetee au lieu de rendre des lignes.
             Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID AS id, f.int_CIP AS cip, f.str_NAME AS nom,"
                     + " z.str_LIBELLEE AS emplacement, fa.str_LIBELLE AS famille, t.str_NAME AS tva,"
-                    + " f.str_CODE_REMISE AS remise, f.int_T AS tableau, g.str_LIBELLE AS grossiste"
-                    + " FROM t_famille f" + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
+                    + " f.str_CODE_REMISE AS remise, f.int_T AS tableau, g.str_LIBELLE AS grossiste,"
+                    + " lab.libelle AS laboratoire, gam.libelle AS gamme" + " FROM t_famille f"
+                    + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
                     + " LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID"
                     + " LEFT JOIN t_code_tva t ON t.lg_CODE_TVA_ID = f.lg_CODE_TVA_ID"
-                    + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID" + where
-                    + " ORDER BY f.str_NAME ASC");
-            majSelectiveParams(q, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, search);
+                    + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID"
+                    + " LEFT JOIN laboratoire lab ON lab.id = f.laboratoire_id"
+                    + " LEFT JOIN gamme_produit gam ON gam.id = f.gamme_id" + where + " ORDER BY f.str_NAME ASC");
+            majSelectiveParams(q, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, laboratoireId, gammeId,
+                    search);
             if (limit > 0) {
                 q.setFirstResult(Math.max(0, start));
                 q.setMaxResults(limit);
@@ -1342,10 +1361,12 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 arr.put(new JSONObject().put("lg_FAMILLE_ID", texteDe(r[0])).put("int_CIP", texteDe(r[1]))
                         .put("str_NAME", texteDe(r[2])).put("emplacement", texteDe(r[3])).put("famille", texteDe(r[4]))
                         .put("tva", texteDe(r[5])).put("codeRemise", texteDe(r[6])).put("codeTableau", texteDe(r[7]))
-                        .put("grossiste", texteDe(r[8])));
+                        .put("grossiste", texteDe(r[8])).put("laboratoire", texteDe(r[9]))
+                        .put("gamme", texteDe(r[10])));
             }
             Query qc = em.createNativeQuery("SELECT COUNT(*) FROM t_famille f " + where);
-            majSelectiveParams(qc, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, search);
+            majSelectiveParams(qc, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, laboratoireId, gammeId,
+                    search);
             data.put("total", ((Number) qc.getSingleResult()).longValue()).put("data", arr);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "majSelectiveList", e);
@@ -1377,13 +1398,16 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     /** Produits vises par l'operation : les coches, ou tout le filtre moins les exceptions decochees. */
     @SuppressWarnings("unchecked")
     private List<String> majSelectiveCibles(String mode, String zoneGeoId, String codeFamille, String codeTableau,
-            String codeTvaId, String codeRemise, String search, List<String> ids, List<String> uncheckedIds) {
+            String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
+            List<String> uncheckedIds) {
         if (!"ALL".equalsIgnoreCase(mode)) {
             return (ids != null) ? new java.util.ArrayList<>(ids) : new java.util.ArrayList<>();
         }
-        String where = majSelectiveWhere(zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, search);
+        String where = majSelectiveWhere(zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, laboratoireId,
+                gammeId, search);
         Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID FROM t_famille f " + where);
-        majSelectiveParams(q, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, search);
+        majSelectiveParams(q, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, laboratoireId, gammeId,
+                search);
         List<String> cibles = new java.util.ArrayList<>();
         for (Object o : (List<Object>) q.getResultList()) {
             if (o != null) {
@@ -1398,8 +1422,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
     @Override
     public JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
-            String codeTvaId, String codeRemise, String search, List<String> ids, List<String> uncheckedIds,
-            String champ, String valeur) {
+            String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
+            List<String> uncheckedIds, String champ, String valeur) {
         JSONObject res = new JSONObject();
         try {
             String cible = StringUtils.trimToEmpty(champ).toUpperCase();
@@ -1432,6 +1456,14 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 valeurAffectee = valeurSaisie;
                 jpql = "UPDATE TFamille f SET f.intT = :valeur WHERE f.lgFAMILLEID IN :ids";
                 break;
+            case CHAMP_LABORATOIRE:
+                valeurAffectee = em.find(dal.Laboratoire.class, valeurSaisie);
+                jpql = "UPDATE TFamille f SET f.laboratoire = :valeur WHERE f.lgFAMILLEID IN :ids";
+                break;
+            case CHAMP_GAMME:
+                valeurAffectee = em.find(dal.GammeProduit.class, valeurSaisie);
+                jpql = "UPDATE TFamille f SET f.gamme = :valeur WHERE f.lgFAMILLEID IN :ids";
+                break;
             default:
                 return res.put("success", false).put("count", 0).put("message",
                         "Donnée à mettre à jour inconnue : " + champ);
@@ -1441,7 +1473,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                         "La valeur choisie n'existe plus. Rafraîchissez la liste puis recommencez.");
             }
             List<String> cibles = majSelectiveCibles(mode, zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise,
-                    search, ids, uncheckedIds);
+                    laboratoireId, gammeId, search, ids, uncheckedIds);
             if (cibles.isEmpty()) {
                 return res.put("success", false).put("count", 0).put("message", "Aucun produit retenu.");
             }

@@ -755,8 +755,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         '-',
                         {
                             text: 'MAJ SÉLECTIVE',
-                            tooltip: 'Affecter une donnée (grossiste, famille, TVA, code remise ou code tableau) '
-                                    + 'à plusieurs produits d\'un coup',
+                            tooltip: 'Affecter une donnée (grossiste, famille, TVA, code remise, code tableau, '
+                                    + 'laboratoire ou gamme) à plusieurs produits d\'un coup',
                             id: 'btn_maj_selective',
                             iconCls: 'configuration',
                             scope: this,
@@ -1132,7 +1132,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     onMajSelective: function () {
         new testextjs.view.configmanagement.famille.action.maj_selective({
             parentview: this,
-            titre: 'MAJ SÉLECTIVE (grossiste, famille, TVA, code remise, code tableau)'
+            titre: 'MAJ SÉLECTIVE (grossiste, famille, TVA, code remise, code tableau, laboratoire, gamme)'
         });
     },
 

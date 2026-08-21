@@ -605,11 +605,11 @@ public class FicheArticleRessource {
     public Response majSelectiveList(@QueryParam("zoneGeoId") String zoneGeoId,
             @QueryParam("codeFamille") String codeFamille, @QueryParam("codeTableau") String codeTableau,
             @QueryParam("codeTvaId") String codeTvaId, @QueryParam("codeRemise") String codeRemise,
+            @QueryParam("laboratoireId") String laboratoireId, @QueryParam("gammeId") String gammeId,
             @QueryParam("search") String search, @QueryParam("start") int start, @QueryParam("limit") int limit) {
         int lim = (limit > 0) ? limit : 15;
-        return Response.ok().entity(ficheArticleService
-                .majSelectiveList(zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, search, start, lim)
-                .toString()).build();
+        return Response.ok().entity(ficheArticleService.majSelectiveList(zoneGeoId, codeFamille, codeTableau, codeTvaId,
+                codeRemise, laboratoireId, gammeId, search, start, lim).toString()).build();
     }
 
     /** Codes tableau presents dans le fichier articles : le champ est libre, la liste vient donc des donnees. */
@@ -636,7 +636,8 @@ public class FicheArticleRessource {
         return Response.ok()
                 .entity(ficheArticleService.majSelectiveApply(in.optString("mode", "SELECTED"),
                         in.optString("zoneGeoId", ""), in.optString("codeFamille", ""), in.optString("codeTableau", ""),
-                        in.optString("codeTvaId", ""), in.optString("codeRemise", ""), in.optString("search", ""),
+                        in.optString("codeTvaId", ""), in.optString("codeRemise", ""),
+                        in.optString("laboratoireId", ""), in.optString("gammeId", ""), in.optString("search", ""),
                         jsonArrToList(in.optJSONArray("ids")), jsonArrToList(in.optJSONArray("uncheckedIds")),
                         in.optString("champ", ""), in.optString("valeur", "")).toString())
                 .build();

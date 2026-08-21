@@ -115,11 +115,11 @@ public interface FicheArticleService {
 
     /**
      * Liste paginee des produits pour l'ecran MAJ SELECTIVE. Memes filtres que l'ecran : emplacement, famille, code
-     * tableau, code TVA, code remise, recherche libre. Chaque ligne porte la valeur actuelle des cinq donnees
-     * modifiables, pour que l'on voie ce que l'on s'apprete a changer.
+     * tableau, code TVA, code remise, laboratoire, gamme, recherche libre. Chaque ligne porte la valeur actuelle des
+     * donnees modifiables, pour que l'on voie ce que l'on s'apprete a changer.
      */
     JSONObject majSelectiveList(String zoneGeoId, String codeFamille, String codeTableau, String codeTvaId,
-            String codeRemise, String search, int start, int limit);
+            String codeRemise, String laboratoireId, String gammeId, String search, int start, int limit);
 
     /** Valeurs de code tableau reellement presentes dans le fichier articles, pour alimenter le filtre. */
     JSONObject majSelectiveCodesTableau();
@@ -129,13 +129,13 @@ public interface FicheArticleService {
      * moins les exceptions decochees).
      *
      * @param champ
-     *            GROSSISTE, FAMILLE, TVA, CODE_REMISE ou CODE_TABLEAU
+     *            GROSSISTE, FAMILLE, TVA, CODE_REMISE, CODE_TABLEAU, LABORATOIRE ou GAMME
      * @param valeur
      *            la valeur a affecter, verifiee avant toute ecriture pour les champs qui referencent une autre table
      */
     JSONObject majSelectiveApply(String mode, String zoneGeoId, String codeFamille, String codeTableau,
-            String codeTvaId, String codeRemise, String search, List<String> ids, List<String> uncheckedIds,
-            String champ, String valeur);
+            String codeTvaId, String codeRemise, String laboratoireId, String gammeId, String search, List<String> ids,
+            List<String> uncheckedIds, String champ, String valeur);
 
     byte[] buildComparaisonExcel(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil, String codeFamile,
             String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException;

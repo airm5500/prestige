@@ -2,9 +2,9 @@ var winMajSelectiveOuverte = null;
 /* global Ext, testextjs */
 
 /*
- * MAJ SELECTIVE : affecte UNE donnee (grossiste, famille, TVA, code remise ou code tableau) a plusieurs
- * produits d'un coup. Meme facon de travailler que MAJ SEUIL : on filtre, on coche a travers les pages,
- * puis on applique.
+ * MAJ SELECTIVE : affecte UNE donnee (grossiste, famille, TVA, code remise, code tableau, laboratoire ou
+ * gamme) a plusieurs produits d'un coup. Meme facon de travailler que MAJ SEUIL : on filtre, on coche a
+ * travers les pages, puis on applique.
  *
  * Une seule donnee par operation, volontairement. Permettre d'en changer plusieurs a la fois rendrait la
  * confirmation illisible et, en cas d'erreur, on ne saurait plus ce qui a ete touche.
@@ -16,14 +16,16 @@ var selSelected = [];   // ids coches (mode SELECTED)
 var selUnchecked = [];  // ids decoches en mode ALL (exceptions)
 var selSelectAll = false;
 
-/* Les cinq donnees modifiables. 'champ' est la valeur envoyee au serveur, 'saisie' l'identifiant du
+/* Les donnees modifiables. 'champ' est la valeur envoyee au serveur, 'saisie' l'identifiant du
  * composant qui porte la valeur a affecter : un seul est visible a la fois. */
 var SEL_CHAMPS = [
     {champ: 'GROSSISTE', libelle: 'Grossiste', saisie: 'selValGrossiste'},
     {champ: 'FAMILLE', libelle: 'Famille', saisie: 'selValFamille'},
     {champ: 'TVA', libelle: 'Code TVA', saisie: 'selValTva'},
     {champ: 'CODE_REMISE', libelle: 'Code remise', saisie: 'selValRemise'},
-    {champ: 'CODE_TABLEAU', libelle: 'Code tableau', saisie: 'selValTableau'}
+    {champ: 'CODE_TABLEAU', libelle: 'Code tableau', saisie: 'selValTableau'},
+    {champ: 'LABORATOIRE', libelle: 'Laboratoire', saisie: 'selValLabo'},
+    {champ: 'GAMME', libelle: 'Gamme', saisie: 'selValGamme'}
 ];
 
 Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
@@ -55,6 +57,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
         // Le code tableau est un champ libre dans la fiche article : la liste vient donc des valeurs
         // reellement presentes, sinon le filtre proposerait des codes que personne n'utilise.
         var codeTableauStore = listeSimple('../api/v1/fichearticle/maj-selective/codes-tableau');
+        var laboStore = listeSimple('../api/v1/common/laboratoireproduits');
+        var gammeStore = listeSimple('../api/v1/common/gammeproduits');
         var tvaStore = Ext.create('Ext.data.Store', {
             fields: ['lg_CODE_TVA_ID', 'str_NAME'], autoLoad: true, pageSize: 9999,
             proxy: {type: 'ajax', url: '../api/v1/common/tvas',
@@ -80,7 +84,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
 
         var store = Ext.create('Ext.data.Store', {
             fields: ['lg_FAMILLE_ID', 'int_CIP', 'str_NAME', 'emplacement', 'famille', 'tva', 'codeRemise',
-                'codeTableau', 'grossiste', {name: 'isChecked', type: 'boolean', defaultValue: false}],
+                'codeTableau', 'grossiste', 'laboratoire', 'gamme',
+                {name: 'isChecked', type: 'boolean', defaultValue: false}],
             pageSize: itemsPerPage,
             autoLoad: false,
             proxy: {
@@ -116,14 +121,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
                 {header: 'Remise', dataIndex: 'codeRemise', flex: 0.6, align: 'center'},
                 {header: 'Tableau', dataIndex: 'codeTableau', flex: 0.6, align: 'center'},
                 {header: 'Grossiste', dataIndex: 'grossiste', flex: 1.2},
+                {header: 'Laboratoire', dataIndex: 'laboratoire', flex: 1.2},
+                {header: 'Gamme', dataIndex: 'gamme', flex: 1},
                 {
                     xtype: 'checkcolumn', text: '&#10003;', dataIndex: 'isChecked', flex: 0.4,
                     menuDisabled: true, sortable: false,
                     listeners: {checkChange: this.onSelCheckChange}
                 }
             ],
-            /* Six filtres, un bouton et une case : sur une seule ligne les libelles se coupent et la case
-             * « Tous Sélectionner » devient une case anonyme. Deux lignes, donc, chacune lisible. */
+            /* Huit filtres, deux boutons et une case : entasses sur une ligne, les libelles se coupent et la
+             * case « Tous Sélectionner » devient une case anonyme. Trois lignes, chacune lisible. */
             dockedItems: [
                 {
                     xtype: 'toolbar', dock: 'top',
@@ -171,6 +178,23 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
                             xtype: 'combobox', id: 'selRemise', store: remiseFiltreStore, valueField: 'id',
                             displayField: 'libelle', fieldLabel: 'Code remise', labelWidth: 85, flex: 0.9,
                             typeAhead: true, queryMode: 'local', emptyText: 'Tous...',
+                            listeners: {select: function () { selMe.onSelRech(); }}
+                        }
+                    ]
+                },
+                {
+                    xtype: 'toolbar', dock: 'top',
+                    items: [
+                        {
+                            xtype: 'combobox', id: 'selLabo', store: laboStore, valueField: 'id',
+                            displayField: 'libelle', fieldLabel: 'Laboratoire', labelWidth: 80, flex: 1.3,
+                            typeAhead: true, queryMode: 'local', emptyText: 'Tous les laboratoires...',
+                            listeners: {select: function () { selMe.onSelRech(); }}
+                        },
+                        {
+                            xtype: 'combobox', id: 'selGamme', store: gammeStore, valueField: 'id',
+                            displayField: 'libelle', fieldLabel: 'Gamme', labelWidth: 55, flex: 1.1,
+                            typeAhead: true, queryMode: 'local', emptyText: 'Toutes les gammes...',
                             listeners: {select: function () { selMe.onSelRech(); }}
                         },
                         {
@@ -245,6 +269,12 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
                         Ext.apply({xtype: 'combobox', id: 'selValTableau', store: codeTableauStore,
                             valueField: 'id', displayField: 'libelle', queryMode: 'local', editable: true,
                             emptyText: 'Saisir ou choisir un code tableau...'}, valeurCommune),
+                        Ext.apply({xtype: 'combobox', id: 'selValLabo', store: laboStore,
+                            valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'local',
+                            emptyText: 'Choisir un laboratoire...'}, valeurCommune),
+                        Ext.apply({xtype: 'combobox', id: 'selValGamme', store: gammeStore,
+                            valueField: 'id', displayField: 'libelle', typeAhead: true, queryMode: 'local',
+                            emptyText: 'Choisir une gamme...'}, valeurCommune),
                         {xtype: 'splitter'},
                         {xtype: 'displayfield', id: 'selCompteur', width: 220, value: ''}
                     ]
@@ -300,11 +330,13 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
         proxy.setExtraParam('codeTableau', v('selTableau'));
         proxy.setExtraParam('codeTvaId', v('selTva'));
         proxy.setExtraParam('codeRemise', v('selRemise'));
+        proxy.setExtraParam('laboratoireId', v('selLabo'));
+        proxy.setExtraParam('gammeId', v('selGamme'));
     },
 
     /** Vrai des qu'un filtre est pose : le mode « tout cocher » l'exige, pour ne pas viser tout le fichier. */
     filtreRenseigne: function () {
-        var ids = ['selRech', 'selZone', 'selFam', 'selTableau', 'selTva', 'selRemise'];
+        var ids = ['selRech', 'selZone', 'selFam', 'selTableau', 'selTva', 'selRemise', 'selLabo', 'selGamme'];
         return Ext.Array.some(ids, function (id) {
             var c = Ext.getCmp(id);
             var val = c && c.getValue();
@@ -313,7 +345,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
     },
 
     onSelEffacerFiltres: function () {
-        Ext.Array.each(['selRech', 'selZone', 'selFam', 'selTableau', 'selTva', 'selRemise'], function (id) {
+        Ext.Array.each(['selRech', 'selZone', 'selFam', 'selTableau', 'selTva', 'selRemise', 'selLabo', 'selGamme'],
+                function (id) {
             var c = Ext.getCmp(id);
             if (c) { c.setValue(null); }
         });
@@ -387,7 +420,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
         if (mode === 'ALL' && !this.filtreRenseigne()) {
             Ext.MessageBox.show({title: 'Filtre requis', width: 460,
                 msg: 'En mode « Tous Sélectionner », veuillez d\'abord poser au moins un filtre '
-                        + '(emplacement, famille, code tableau, TVA, code remise ou recherche).',
+                        + '(emplacement, famille, code tableau, TVA, code remise, laboratoire, gamme '
+                        + 'ou recherche).',
                 buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
             return;
         }
@@ -421,6 +455,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.maj_selective', {
                         jsonData: {
                             mode: mode, search: v('selRech'), zoneGeoId: v('selZone'), codeFamille: v('selFam'),
                             codeTableau: v('selTableau'), codeTvaId: v('selTva'), codeRemise: v('selRemise'),
+                            laboratoireId: v('selLabo'), gammeId: v('selGamme'),
                             ids: selSelected, uncheckedIds: selUnchecked,
                             champ: champ, valeur: String(valeur)
                         },
