@@ -28,6 +28,12 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
             },
             'analysetierspayant #btnExportProduits': {
                 click: this.onExportProduits
+            },
+            'analysetierspayant #btnPrintTiersPayants': {
+                click: this.onImprimerTiersPayants
+            },
+            'analysetierspayant #btnPrintProduits': {
+                click: this.onImprimerProduits
             }
         });
     },
@@ -39,6 +45,41 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
         window.open('../api/v1/analyse-tierspayant/csv?' + Ext.Object.toQueryString({
             niveau: 'TIERSPAYANT', dtStart: p.dtStart, dtEnd: p.dtEnd, query: p.queryTiersPayant
         }));
+    },
+
+    /* L'edition PDF est produite cote serveur puis ouverte : le service repond par l'URL du fichier.
+     * Meme enchainement que l'impression du dictionnaire des pannes (SupportTicketsCtr). */
+    imprimer: function (params) {
+        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/analyse-tierspayant/print',
+            params: params,
+            success: function (response) {
+                progress.hide();
+                var result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success && result.msg) {
+                    window.open('..' + result.msg, '_blank');
+                } else {
+                    Ext.Msg.alert('Message', result.msg || 'Impossible de générer le PDF');
+                }
+            },
+            failure: function () {
+                progress.hide();
+                Ext.Msg.alert('Message', 'Un problème avec le serveur');
+            }
+        });
+    },
+
+    onImprimerTiersPayants: function (bouton) {
+        var p = this.ecran(bouton).parametres();
+        this.imprimer({niveau: 'TIERSPAYANT', dtStart: p.dtStart, dtEnd: p.dtEnd, query: p.queryTiersPayant});
+    },
+
+    onImprimerProduits: function (bouton) {
+        var ecran = this.ecran(bouton), p = ecran.parametres();
+        this.imprimer({niveau: 'PRODUIT', dtStart: p.dtStart, dtEnd: p.dtEnd,
+            tiersPayantId: ecran.tiersPayantSelectionne(), query: p.queryProduit});
     },
 
     onExportProduits: function (bouton) {

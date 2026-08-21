@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Analyse tiers payants, niveau tiers payant : une ligne par tiers payant, A4 paysage.
+
+  Le modele est embarque dans le war (src/main/resources/reports) : ReportUtil le compile depuis le
+  classpath lorsqu'il n'est pas deploye dans le repertoire des rapports de l'officine. Rien a installer.
+
+  La marge est celle de l'analyse 20/80 du chiffre d'affaires : chiffre d'affaires hors taxes net de
+  remise, diminue du prix d'achat reel de la ligne de vente.
+
+  Le taux de synthese est recalcule sur les totaux (somme des marges / somme du CA HT). Faire la moyenne
+  des taux ligne a ligne donnerait un chiffre faux : un petit tiers payant y pese autant qu'un gros.
+-->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="analyse_tiers_payant" pageWidth="842" pageHeight="595" orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_INSTITUTION_ADRESSE" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_PERIODE" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_FOOTER_RC" class="java.lang.String"/>
+
+    <field name="tiersPayant" class="java.lang.String"/>
+    <field name="nbVentes" class="java.lang.Long"/>
+    <field name="quantite" class="java.lang.Long"/>
+    <field name="caTtc" class="java.lang.Long"/>
+    <field name="partTiersPayant" class="java.lang.Long"/>
+    <field name="partClient" class="java.lang.Long"/>
+    <field name="caHt" class="java.lang.Long"/>
+    <field name="montantAchat" class="java.lang.Long"/>
+    <field name="marge" class="java.lang.Long"/>
+    <field name="tauxMarge" class="java.lang.Double"/>
+
+    <variable name="V_VENTES" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{nbVentes}]]></variableExpression>
+    </variable>
+    <variable name="V_QUANTITE" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{quantite}]]></variableExpression>
+    </variable>
+    <variable name="V_CA_TTC" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{caTtc}]]></variableExpression>
+    </variable>
+    <variable name="V_PART_TP" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{partTiersPayant}]]></variableExpression>
+    </variable>
+    <variable name="V_PART_CLIENT" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{partClient}]]></variableExpression>
+    </variable>
+    <variable name="V_CA_HT" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{caHt}]]></variableExpression>
+    </variable>
+    <variable name="V_ACHAT" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{montantAchat}]]></variableExpression>
+    </variable>
+    <variable name="V_MARGE" class="java.lang.Long" calculation="Sum">
+        <variableExpression><![CDATA[$F{marge}]]></variableExpression>
+    </variable>
+
+    <title>
+        <band height="76" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="0" width="500" height="16"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="16" width="600" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_INSTITUTION_ADRESSE}]]></textFieldExpression>
+            </textField>
+            <textField pattern="dd/MM/yyyy HH:mm">
+                <reportElement x="602" y="0" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="602" y="14" width="200" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="36" width="802" height="18"/>
+                <textElement textAlignment="Center"><font size="13" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="56" width="802" height="14"/>
+                <textElement textAlignment="Center"><font size="9"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_PERIODE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="20" splitType="Stretch">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="20" backcolor="#2E75B6"/>
+                <staticText>
+                    <reportElement x="2" y="0" width="148" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Tiers payant]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="152" y="0" width="50" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Ventes]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="204" y="0" width="55" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Quantité]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="261" y="0" width="85" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[CA TTC]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="348" y="0" width="85" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Part tiers payant]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="435" y="0" width="80" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Part client]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="517" y="0" width="80" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[CA HT]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="599" y="0" width="75" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Achat]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="676" y="0" width="70" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Marge]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="748" y="0" width="54" height="20" forecolor="#FFFFFF"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Marge/CA HT]]></text>
+                </staticText>
+            </frame>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="16" splitType="Stretch">
+            <line>
+                <reportElement x="0" y="15" width="802" height="1" forecolor="#D9D9D9"/>
+            </line>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="2" y="1" width="148" height="14"/>
+                <textElement verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{tiersPayant}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="152" y="1" width="50" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{nbVentes}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="204" y="1" width="55" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{quantite}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="261" y="1" width="85" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{caTtc}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="348" y="1" width="85" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{partTiersPayant}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="435" y="1" width="80" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{partClient}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="517" y="1" width="80" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{caHt}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="599" y="1" width="75" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{montantAchat}]]></textFieldExpression>
+            </textField>
+            <!-- Une marge negative est une vente a perte : elle doit sauter aux yeux sur le papier aussi. -->
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="676" y="1" width="70" height="14">
+                    <printWhenExpression><![CDATA[$F{marge} != null && $F{marge}.longValue() >= 0]]></printWhenExpression>
+                </reportElement>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{marge}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0" isBlankWhenNull="true">
+                <reportElement x="676" y="1" width="70" height="14" forecolor="#B02A37">
+                    <printWhenExpression><![CDATA[$F{marge} != null && $F{marge}.longValue() < 0]]></printWhenExpression>
+                </reportElement>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{marge}]]></textFieldExpression>
+            </textField>
+            <textField pattern="#,##0.00" isBlankWhenNull="true">
+                <reportElement x="748" y="1" width="54" height="14"/>
+                <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[$F{tauxMarge}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <pageFooter>
+        <band height="18" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0" y="4" width="600" height="12"/>
+                <textElement><font size="7"/></textElement>
+                <textFieldExpression><![CDATA[$P{P_FOOTER_RC}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="662" y="4" width="100" height="12"/>
+                <textElement textAlignment="Right"><font size="8"/></textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER} + " /"]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="764" y="4" width="38" height="12"/>
+                <textElement><font size="8"/></textElement>
+                <textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+        </band>
+    </pageFooter>
+
+    <summary>
+        <band height="26" splitType="Stretch">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="2" width="802" height="20" backcolor="#EDEDED"/>
+                <staticText>
+                    <reportElement x="2" y="0" width="148" height="20"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[TOTAL]]></text>
+                </staticText>
+                <textField pattern="#,##0">
+                    <reportElement x="152" y="0" width="50" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_VENTES}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="204" y="0" width="55" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_QUANTITE}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="261" y="0" width="85" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_CA_TTC}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="348" y="0" width="85" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_PART_TP}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="435" y="0" width="80" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_PART_CLIENT}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="517" y="0" width="80" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_CA_HT}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="599" y="0" width="75" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_ACHAT}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0">
+                    <reportElement x="676" y="0" width="70" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[$V{V_MARGE}]]></textFieldExpression>
+                </textField>
+                <textField pattern="#,##0.00">
+                    <reportElement x="748" y="0" width="54" height="20"/>
+                    <textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <textFieldExpression><![CDATA[($V{V_CA_HT} == null || $V{V_CA_HT}.longValue() == 0) ? Double.valueOf(0d) : Double.valueOf($V{V_MARGE}.doubleValue() * 100d / $V{V_CA_HT}.doubleValue())]]></textFieldExpression>
+                </textField>
+            </frame>
+        </band>
+    </summary>
+</jasperReport>

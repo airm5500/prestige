@@ -135,10 +135,23 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                     },
                     {text: 'Rechercher', itemId: 'btnRechercher', iconCls: 'searchicon'},
                     '->',
-                    {text: 'Exporter CSV', itemId: 'btnExportTiersPayants', iconCls: 'icon-clear-group',
-                     tooltip: 'Export CSV de la liste des tiers payants'},
-                    {text: 'Exporter CSV produits', itemId: 'btnExportProduits', iconCls: 'icon-clear-group',
-                     tooltip: 'Export CSV de la liste des produits affichée'}
+                    /* Un bouton par action, un menu par niveau : l'edition et l'export portent sur
+                     * l'une ou l'autre des deux grilles, jamais sur les deux a la fois. */
+                    {
+                        text: 'Imprimer', itemId: 'btnImprimer',
+                        icon: 'resources/images/icons/fam/printer.png',
+                        menu: [
+                            {text: 'Synthèse par tiers payant', itemId: 'btnPrintTiersPayants'},
+                            {text: 'Détail par produit', itemId: 'btnPrintProduits'}
+                        ]
+                    },
+                    {
+                        text: 'Exporter CSV', itemId: 'btnExporter', iconCls: 'icon-clear-group',
+                        menu: [
+                            {text: 'Synthèse par tiers payant', itemId: 'btnExportTiersPayants'},
+                            {text: 'Détail par produit', itemId: 'btnExportProduits'}
+                        ]
+                    }
                 ]
             }],
             items: [

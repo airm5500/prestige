@@ -24,4 +24,12 @@ public interface AnalyseTiersPayantService {
      *            confondus.
      */
     List<AnalyseTiersPayantDTO> parProduit(String dtStart, String dtEnd, String tiersPayantId, String recherche);
+
+    /**
+     * Periode reellement analysee : celle qui est demandee, ou le mois en cours quand les bornes recues sont
+     * inutilisables. L'etat imprime l'annonce en sous-titre, il ne peut donc pas la deviner de son cote.
+     *
+     * @return deux dates au format aaaa-mm-jj, debut puis fin incluse.
+     */
+    String[] periodeRetenue(String dtStart, String dtEnd);
 }

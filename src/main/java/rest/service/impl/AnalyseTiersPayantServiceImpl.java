@@ -129,6 +129,11 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
         }
     }
 
+    @Override
+    public String[] periodeRetenue(String dtStart, String dtEnd) {
+        return periodeOuMoisEnCours(dtStart, dtEnd);
+    }
+
     /**
      * Part prise en charge par chaque tiers payant sur la periode.
      *

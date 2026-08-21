@@ -1,6 +1,7 @@
 package rest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -63,5 +64,38 @@ class AnalyseTiersPayantCsvTest {
         // Un fichier vide laisse croire a un echec ; l'entete seule dit « rien sur cette periode ».
         assertEquals("TIERS PAYANT;VENTES;QUANTITE;CA TTC;PART TIERS PAYANT;PART CLIENT;CA HT;ACHAT;MARGE;"
                 + "MARGE/CA HT (%)\n", AnalyseTiersPayantRessource.csv(Collections.emptyList(), false));
+    }
+
+    // ------------------------------------------------------------------ sous-titre de l'etat imprime
+
+    @Test
+    @DisplayName("Sous-titre : la periode analysee, lisible comme a l'ecran")
+    void sousTitrePeriode() {
+        String titre = AnalyseTiersPayantRessource.sousTitre(new String[] { "2023-08-01", "2023-08-31" }, "", "", 5);
+
+        // Deux impressions de periodes differentes doivent se distinguer, papier en main.
+        assertTrue(titre.startsWith("Du 01/08/2023 au 31/08/2023"), titre);
+        assertTrue(titre.endsWith("5 lignes"), titre);
+    }
+
+    @Test
+    @DisplayName("Sous-titre : rappelle le tiers payant et le filtre quand ils restreignent l'etat")
+    void sousTitreFiltres() {
+        String titre = AnalyseTiersPayantRessource.sousTitre(new String[] { "2023-08-01", "2023-08-31" }, "OLEA CI",
+                "DOLI", 12);
+
+        assertTrue(titre.contains("Tiers payant : OLEA CI"), titre);
+        assertTrue(titre.contains("Filtre : DOLI"), titre);
+    }
+
+    @Test
+    @DisplayName("Sous-titre : rien n'est annonce qui n'ait ete demande")
+    void sousTitreSansFiltre() {
+        String titre = AnalyseTiersPayantRessource.sousTitre(new String[] { "2026-03-01", "2026-03-15" }, "", "  ", 1);
+
+        assertFalse(titre.contains("Tiers payant :"), titre);
+        assertFalse(titre.contains("Filtre :"), titre);
+        // Une seule ligne : le libelle s'accorde.
+        assertTrue(titre.endsWith("1 ligne"), titre);
     }
 }
