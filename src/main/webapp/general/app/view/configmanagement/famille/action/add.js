@@ -58,25 +58,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
     _g: null,
 
     // mode ∈ {'required','optional','off'}
-    _codeTableauInitial: '',
-    _articleDeconditionne: false,
-    /*
-     * La case « associer le code seul » n'a de sens que dans une seule situation : un article qui n'avait
-     * pas de code tableau, auquel on en donne un, et qui n'est pas un article detail. Partout ailleurs le
-     * prix ne depend pas de ce choix, et proposer la case ne ferait qu'induire en erreur. Elle est donc
-     * masquee, et remise a zero en meme temps, pour qu'une case cochee puis devenue sans objet ne parte
-     * pas au serveur.
-     */
-    majCodeTableauVisible: function () {
-        var g = this._g;
-        if (!g) { return; }
-        var champ = g('int_T'), cadre = g('bool_CODE_TABLEAU_SEUL');
-        if (!champ || !cadre) { return; }
-        var saisi = (champ.getValue() || '').toString().trim();
-        var concerne = !this._codeTableauInitial && !!saisi && !this._articleDeconditionne;
-        if (!concerne && cadre.getValue()) { cadre.setValue(false); }
-        cadre.setVisible(concerne);
-    },
     setQtyDetailState: function (mode) {
         var g = this._g || function(){ return null; };
         var f = g('int_NUMBERDETAIL');
@@ -349,20 +330,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                             items: [
                                 { xtype: 'combobox', fieldLabel: 'Code.Acte', name: 'lg_CODE_ACTE_ID', width: 400, itemId: 'lg_CODE_ACTE_ID', store: store_codeacte_famille, valueField: 'lg_CODE_ACTE_ID', displayField: 'str_LIBELLEE', typeAhead: true, autoSelect: true, selectOnFocus: true, queryMode: 'remote', emptyText: 'Choisir un code acte...' },
                                 { fieldLabel: 'Code.Taux.Remb', width: 400, value: 0, emptyText: 'TAUX REMBOURSEMENT', name: 'str_CODE_TAUX_REMBOURSEMENT', itemId: 'str_CODE_TAUX_REMBOURSEMENT' },
-                                { fieldLabel: 'Code.Tableau', width: 350, emptyText: 'Code Tableau', name: 'int_T', itemId: 'int_T', enableKeyEvents: true }
+                                { fieldLabel: 'Code.Tableau', width: 350, emptyText: 'Code Tableau', name: 'int_T', itemId: 'int_T' }
                             ]
-                        },
-                        /* Associer un code tableau a un article qui n'en avait pas majore son prix de vente du
-                         * taux KEY_TAUX_CODE_TABLEAU. Quand le prix porte deja cette majoration alors que la
-                         * colonne code tableau est restee vide, la majorer une seconde fois ajouterait le taux
-                         * en double : cette case permet de dire qu'on associe le code seul. Elle n'apparait que
-                         * dans le seul cas ou elle change quelque chose (voir majCodeTableauVisible). */
-                        {
-                            xtype: 'checkbox',
-                            itemId: 'bool_CODE_TABLEAU_SEUL',
-                            hidden: true,
-                            margin: '0 0 5 0',
-                            boxLabel: 'Le prix de vente inclut déjà la majoration du code tableau : associer le code seul, sans y toucher'
                         },
                         {
                             xtype: 'container',
@@ -644,13 +613,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('lg_TYPEETIQUETTE_ID').setValue(ds.lg_TYPEETIQUETTE_ID);
             g('lg_FABRIQUANT_ID').setValue(ds.lg_FABRIQUANT_ID); g('lg_FABRIQUANT_ID').show();
             g('int_T').setValue(ds.int_T);
-            // Cas ou la majoration du prix se joue : l'article n'avait pas de code tableau et on lui en
-            // donne un. On memorise l'etat de depart, puis on suit la saisie du champ.
-            this._codeTableauInitial = (ds.int_T || '').toString().trim();
-            this._articleDeconditionne = (ds.bool_DECONDITIONNE == 1);
-            this.majCodeTableauVisible();
-            g('int_T').on('keyup', this.majCodeTableauVisible, this, {buffer: 200});
-            g('int_T').on('change', this.majCodeTableauVisible, this, {buffer: 200});
             g('str_CODE_TAUX_REMBOURSEMENT').setValue(ds.str_CODE_TAUX_REMBOURSEMENT);
             g('lg_CODE_ACTE_ID').setValue(ds.lg_CODE_ACTE_ID);
             g('int_TAUX_MARQUE').setValue(ds.int_TAUX_MARQUE);
@@ -865,9 +827,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 dt_Peremtion: g('dt_Peremtion_new').getSubmitValue(),
                 lg_TYPEETIQUETTE_ID: g('lg_TYPEETIQUETTE_ID').getValue(),
                 int_T: g('int_T').getValue(),
-                // Case cochee = on associe le code sans majorer le prix. Case absente ou decochee =
-                // comportement historique (le prix saisi est majore du taux code tableau).
-                bool_MAJORER_PRIX_CODE_TABLEAU: (g('bool_CODE_TABLEAU_SEUL') && g('bool_CODE_TABLEAU_SEUL').getValue()) ? 'false' : 'true',
                 str_CODE_TAUX_REMBOURSEMENT: g('str_CODE_TAUX_REMBOURSEMENT').getValue(),
                 int_QTE_REAPPROVISIONNEMENT: g('int_QTE_REAPPROVISIONNEMENT').getValue(),
                 lg_CODE_ACTE_ID: g('lg_CODE_ACTE_ID').getValue(),

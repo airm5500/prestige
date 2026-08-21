@@ -106,106 +106,6 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
     Object Otable = TFamille.class;
 
-    /**
-     * Quand on associe un code tableau a un article qui n'en avait pas, faut-il aussi majorer son prix de vente de
-     * KEY_TAUX_CODE_TABLEAU ?
-     *
-     * Vrai (defaut) : comportement historique, le prix saisi est majore du taux. C'est le cas d'une officine qui
-     * n'appliquait pas le code tableau et qui decide de le mettre en place : le code et le prix sont mis a jour.
-     *
-     * Faux : le code est simplement associe, le prix reste celui qui est saisi. C'est le cas des articles dont le prix
-     * de vente porte deja la majoration alors que la colonne code tableau est restee vide ; les majorer une seconde
-     * fois ajouterait le taux en double.
-     *
-     * Les autres situations (article qui a deja un code tableau, retrait du code tableau, article detail) ne sont pas
-     * concernees : elles ne dependent pas de ce choix.
-     */
-    private boolean majorerPrixAvecCodeTableau = true;
-
-    public void setMajorerPrixAvecCodeTableau(boolean majorerPrixAvecCodeTableau) {
-        this.majorerPrixAvecCodeTableau = majorerPrixAvecCodeTableau;
-    }
-
-    /**
-     * Lecture du choix envoye par les ecrans. Il arrive sous deux formes, « false » depuis la fiche article et « 0 »
-     * depuis la case a cocher de l'ecran d'importation ; toute autre valeur, y compris l'absence du champ, vaut le
-     * comportement historique : on majore.
-     */
-    public static boolean majorationDemandee(String valeur) {
-        if (valeur == null) {
-            return true;
-        }
-        String v = valeur.trim();
-        return !("0".equals(v) || "false".equalsIgnoreCase(v));
-    }
-
-    /**
-     * Prix de vente a enregistrer selon le code tableau, pour la mise a jour d'un article existant (fiche article).
-     *
-     * @param codeSaisi
-     *            code tableau saisi a l'ecran (vide = pas de code tableau)
-     * @param codeActuel
-     *            code tableau enregistre sur l'article
-     * @param prixSaisi
-     *            prix de vente saisi a l'ecran
-     * @param prixActuel
-     *            prix de vente enregistre sur l'article
-     * @param taux
-     *            valeur de KEY_TAUX_CODE_TABLEAU
-     * @param deconditionne
-     *            1 pour un article detail : son prix ne suit pas le code tableau
-     * @param majorerPrix
-     *            voir {@link #majorerPrixAvecCodeTableau}
-     *
-     * @return le prix a enregistrer, ou null quand il ne faut pas toucher au prix
-     */
-    static Integer prixSelonCodeTableau(String codeSaisi, String codeActuel, int prixSaisi, int prixActuel, int taux,
-            short deconditionne, boolean majorerPrix) {
-        boolean aUnCode = codeSaisi != null && !codeSaisi.trim().isEmpty();
-        boolean avaitUnCode = codeActuel != null && !codeActuel.trim().isEmpty();
-        if (aUnCode) {
-            if (!avaitUnCode) {
-                if (deconditionne != 0) {
-                    return null;
-                }
-                return majorerPrix ? prixSaisi + taux : prixSaisi;
-            }
-            // Code deja present : le taux est deja dans le prix, on ne le rejoute pas.
-            return prixSaisi != prixActuel ? prixSaisi : null;
-        }
-        if (avaitUnCode && deconditionne == 0) {
-            // Retrait du code tableau : le prix perd la majoration qu'il portait.
-            return prixSaisi - taux;
-        }
-        return prixSaisi;
-    }
-
-    /**
-     * Meme question, pour la mise a jour d'articles par fichier (import « Mise a jour des donnees »).
-     *
-     * La regle historique de l'import n'est pas celle de la fiche article et on la conserve telle quelle : quand
-     * l'article a deja un code tableau, le prix du fichier n'est pas repris, et quand ni l'article ni le fichier n'en
-     * ont, le prix reste inchange. Seule l'association d'un code tableau a un article qui n'en avait pas suit le choix
-     * fait a l'ecran d'importation.
-     *
-     * @return le prix a enregistrer, ou null quand il ne faut pas toucher au prix
-     */
-    static Integer prixSelonCodeTableauImport(String codeSaisi, String codeActuel, int prixSaisi, int taux,
-            short deconditionne, boolean majorerPrix) {
-        boolean aUnCode = codeSaisi != null && !codeSaisi.trim().isEmpty();
-        boolean avaitUnCode = codeActuel != null && !codeActuel.trim().isEmpty();
-        if (aUnCode) {
-            if (!avaitUnCode && deconditionne == 0) {
-                return majorerPrix ? prixSaisi + taux : prixSaisi;
-            }
-            return null;
-        }
-        if (avaitUnCode && deconditionne == 0) {
-            return prixSaisi - taux;
-        }
-        return null;
-    }
-
     public familleManagement(dataManager OdataManager) {
         this.setOdataManager(OdataManager);
         this.checkDatamanager();
@@ -2953,10 +2853,15 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             OTFamille.setStrDESCRIPTION(str_DESCRIPTION);
             // OTFamille.setIntPRICE((!int_T.equalsIgnoreCase("") ? int_PRICE + int_TAUX : int_PRICE));
 
-            Integer prixCodeTableau = prixSelonCodeTableauImport(int_T, OTFamille.getIntT(), int_PRICE, int_TAUX,
-                    OTFamille.getBoolDECONDITIONNE(), this.majorerPrixAvecCodeTableau);
-            if (prixCodeTableau != null) {
-                OTFamille.setIntPRICE(prixCodeTableau);
+            if (!int_T.equalsIgnoreCase("")) {
+                if (OTFamille.getIntT().equalsIgnoreCase("") && OTFamille.getBoolDECONDITIONNE() == 0) {
+                    OTFamille.setIntPRICE(int_PRICE + int_TAUX);
+                }
+
+            } else {
+                if (!OTFamille.getIntT().equalsIgnoreCase("") && OTFamille.getBoolDECONDITIONNE() == 0) {
+                    OTFamille.setIntPRICE(int_PRICE - int_TAUX);
+                }
             }
             OTFamille.setIntT(int_T);
             OTFamille.setIntPRICETIPS(int_PRICE_TIPS);
@@ -4087,10 +3992,24 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             if (!"".equals(dt_Peremtion)) {
                 OTFamille.setDtPEREMPTION(java.sql.Date.valueOf(dt_Peremtion));
             }
-            Integer prixCodeTableau = prixSelonCodeTableau(int_T, OTFamille.getIntT(), int_PRICE, int_PRICE_OLD,
-                    int_TAUX, OTFamille.getBoolDECONDITIONNE(), this.majorerPrixAvecCodeTableau);
-            if (prixCodeTableau != null) {
-                OTFamille.setIntPRICE(prixCodeTableau);
+            if (!int_T.equalsIgnoreCase("")) {
+                if (OTFamille.getIntT().equalsIgnoreCase("")) {
+                    if (OTFamille.getBoolDECONDITIONNE() == 0) {
+                        OTFamille.setIntPRICE(int_PRICE + int_TAUX);
+                    }
+                } else {
+                    if (int_PRICE != int_PRICE_OLD) {
+                        OTFamille.setIntPRICE(int_PRICE);
+                    }
+                }
+
+            } else {
+                if (!OTFamille.getIntT().equalsIgnoreCase("") && OTFamille.getBoolDECONDITIONNE() == 0) {
+                    OTFamille.setIntPRICE(int_PRICE - int_TAUX);
+                } else {
+                    OTFamille.setIntPRICE(int_PRICE);
+                    new logger().OCategory.info("prix avant:" + int_PRICE + ":fin:" + OTFamille.getIntPRICE());
+                }
             }
             OTFamille.setIntS(int_S);
             OTFamille.setIntT(int_T);
