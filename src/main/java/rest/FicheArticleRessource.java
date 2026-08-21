@@ -599,6 +599,49 @@ public class FicheArticleRessource {
                 .build();
     }
 
+    // ----------------------- MAJ SELECTIVE (une donnee, plusieurs produits) -----------------------
+    @GET
+    @Path("maj-selective/list")
+    public Response majSelectiveList(@QueryParam("zoneGeoId") String zoneGeoId,
+            @QueryParam("codeFamille") String codeFamille, @QueryParam("codeTableau") String codeTableau,
+            @QueryParam("codeTvaId") String codeTvaId, @QueryParam("codeRemise") String codeRemise,
+            @QueryParam("search") String search, @QueryParam("start") int start, @QueryParam("limit") int limit) {
+        int lim = (limit > 0) ? limit : 15;
+        return Response.ok().entity(ficheArticleService
+                .majSelectiveList(zoneGeoId, codeFamille, codeTableau, codeTvaId, codeRemise, search, start, lim)
+                .toString()).build();
+    }
+
+    /** Codes tableau presents dans le fichier articles : le champ est libre, la liste vient donc des donnees. */
+    @GET
+    @Path("maj-selective/codes-tableau")
+    public Response majSelectiveCodesTableau() {
+        return Response.ok().entity(ficheArticleService.majSelectiveCodesTableau().toString()).build();
+    }
+
+    @POST
+    @Path("maj-selective/apply")
+    public Response majSelectiveApply(String body) {
+        // Meme privilege que MAJ SEUIL, controle cote serveur comme pour lui : masquer le bouton ne suffit pas.
+        HttpSession hs = servletRequest.getSession();
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        if (!hasPrivilege(privileges, Constant.P_BTN_MAJ_SEUIL)) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false)
+                            .put("message", "Vous n'avez pas le privilège requis pour cette opération").toString())
+                    .build();
+        }
+        JSONObject in = new JSONObject(body);
+        return Response.ok()
+                .entity(ficheArticleService.majSelectiveApply(in.optString("mode", "SELECTED"),
+                        in.optString("zoneGeoId", ""), in.optString("codeFamille", ""), in.optString("codeTableau", ""),
+                        in.optString("codeTvaId", ""), in.optString("codeRemise", ""), in.optString("search", ""),
+                        jsonArrToList(in.optJSONArray("ids")), jsonArrToList(in.optJSONArray("uncheckedIds")),
+                        in.optString("champ", ""), in.optString("valeur", "")).toString())
+                .build();
+    }
+
     private static List<String> jsonArrToList(org.json.JSONArray a) {
         List<String> l = new java.util.ArrayList<>();
         if (a != null) {

@@ -44,6 +44,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         'testextjs.model.Famille',
         'testextjs.view.configmanagement.famille.action.add',
         'testextjs.view.configmanagement.famille.action.maj_seuil',
+        'testextjs.view.configmanagement.famille.action.maj_selective',
         'testextjs.view.configmanagement.famille.action.infogenerale',
         'testextjs.view.configmanagement.famille.action.comptabilite',
         'testextjs.view.configmanagement.famille.action.autreinfos',
@@ -753,6 +754,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         },
                         '-',
                         {
+                            text: 'MAJ SÉLECTIVE',
+                            tooltip: 'Affecter une donnée (grossiste, famille, TVA, code remise ou code tableau) '
+                                    + 'à plusieurs produits d\'un coup',
+                            id: 'btn_maj_selective',
+                            iconCls: 'configuration',
+                            scope: this,
+                            handler: this.onMajSelective
+                        },
+                        '-',
+                        {
                             xtype: 'combobox',
                             name: 'stock_operator',
                             id: 'stock_operator',
@@ -1103,6 +1114,9 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 masquerSiRefuse('btn_add', 'P_BTN_CREER_ARTICLE');
                 masquerSiRefuse('btn_recalc_seuils', 'P_BTN_RECALCULER_SEUILS');
                 masquerSiRefuse('btn_maj_seuil', 'P_BTN_MAJ_SEUIL');
+                // MAJ SELECTIVE suit le meme privilege que MAJ SEUIL : meme nature d'operation,
+                // une modification groupee du fichier articles.
+                masquerSiRefuse('btn_maj_selective', 'P_BTN_MAJ_SEUIL');
                 masquerSiRefuse('btn_import_menu', 'P_BTN_IMPORT_ARTICLE');
             }
         });
@@ -1112,6 +1126,13 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         new testextjs.view.configmanagement.famille.action.maj_seuil({
             parentview: this,
             titre: 'MAJ SEUIL groupée (Q1/Q2 réappro)'
+        });
+    },
+
+    onMajSelective: function () {
+        new testextjs.view.configmanagement.famille.action.maj_selective({
+            parentview: this,
+            titre: 'MAJ SÉLECTIVE (grossiste, famille, TVA, code remise, code tableau)'
         });
     },
 
