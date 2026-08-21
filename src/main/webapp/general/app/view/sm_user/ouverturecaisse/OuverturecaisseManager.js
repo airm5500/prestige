@@ -31,7 +31,11 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
             if (win) {
                 win.close();
             } else {
-                testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager.retourNavigation();
+                /* Ecran ouvert depuis le menu : on revient a l'ecran d'accueil de l'utilisateur.
+                 * Cette branche s'appelait elle-meme, ce qui ne ramenait nulle part et epuisait la
+                 * pile d'appels : la fenetre restait alors affichee, remplie des informations du
+                 * compte, au lieu de rendre la main a l'ecran appelant. */
+                testextjs.app.getController('App').onLoadNewComponent(xtypeload, "", "");
             }
         }
     },
@@ -130,6 +134,12 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
             {
                 const object = Ext.JSON.decode(response.responseText, false);
                 const caisse = object.data;
+                /* La reponse peut arriver apres la fermeture de l'ecran : ouvert en fenetre modale
+                 * depuis la vente, il se referme des la confirmation d'impression. Renseigner des
+                 * champs detruits leverait une erreur au moment ou l'utilisateur revient a sa vente. */
+                if (!Ext.getCmp('coffreCaisseId')) {
+                    return;
+                }
                 Ext.getCmp('coffreCaisseId').setValue(caisse.id);
                 Ext.getCmp('coffreCaisseFirstName').setValue(caisse.firstName);
                 Ext.getCmp('coffreCaisseLastName').setValue(caisse.lastName);
@@ -161,12 +171,14 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
                 'Confirmation de l\'impression du ticket',
                 function (btn) {
                     if (btn == 'yes') {
+                        // lunchPrinter rend la main a l'ecran appelant une fois le ticket lance.
                         Me.lunchPrinter(ref);
-
                     } else {
                         testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager.retourNavigation();
                     }
-                    testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager.retourNavigation();
+                    /* Le retour etait aussi demande ici, sans condition : sur « oui » il refermait
+                     * l'ecran avant meme que le ticket ne soit lance, et sur « non » il etait demande
+                     * deux fois de suite. Une seule sortie par branche. */
                 });
 
     },

@@ -765,7 +765,14 @@ Ext.define('testextjs.controller.VenteCtr', {
             }, null, {single: true});
         }
     },
-    cheickCaisse: function () {
+    /*
+     * Relit l'etat de la caisse. Appele a l'ouverture de l'ecran, et de nouveau apres une ouverture
+     * de caisse faite depuis la vente : sans cette relecture l'ecran garderait « caisse fermee » en
+     * memoire et reposerait la meme question au clic suivant.
+     *
+     * @param suite fonction appelee avec l'etat relu, pour reprendre ce qui avait ete interrompu.
+     */
+    cheickCaisse: function (suite) {
         const me = this;
         Ext.Ajax.request({
             method: 'GET',
@@ -774,6 +781,15 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
                     me.caisse = result.data;
+                }
+                if (Ext.isFunction(suite)) {
+                    suite(me.getCaisse());
+                }
+            },
+            failure: function () {
+                // On ne bloque pas la suite sur un echec de relecture : l'appelant decidera.
+                if (Ext.isFunction(suite)) {
+                    suite(me.getCaisse());
                 }
             }
 
@@ -3687,7 +3703,41 @@ Ext.define('testextjs.controller.VenteCtr', {
      * Meme motif que DoReglement.afficherErreurReglement, qui traitait deja ce cas cote reglement de
      * facture : un seul comportement pour une meme situation.
      */
-    proposerOuvertureCaisse: function () {
+    /*
+     * Finalisation d'une vente, la caisse etant ouverte. Extrait tel quel du gestionnaire du bouton
+     * « Terminer la vente » pour pouvoir etre rejoue apres une ouverture de caisse faite depuis la vente.
+     */
+    finaliserVenteCaisseOuverte: function (typeVenteCombo, typeRegle) {
+        const me = this;
+        if (typeVenteCombo === '1') {
+            if (typeRegle === '1') {
+                me.onbtncloturerVnoComptant(typeRegle);
+            } else {
+                let client = me.getClient();
+                if (client) {
+                    me.onbtncloturerVnoComptant(typeRegle);
+                } else {
+                    Ext.MessageBox.show({
+                        title: 'Message d\'erreur',
+                        width: 550,
+                        msg: 'Veuillez ajouter un client à la vente',
+                        buttons: Ext.MessageBox.OK,
+                        icon: Ext.MessageBox.ERROR,
+                        fn: function (buttonId) {
+                            if (buttonId === "ok") {
+                                me.showAndHideInfosStandardClient(true);
+                            }
+                        }
+                    });
+                }
+            }
+        } else {
+            me.onbtncloturerAssurance(typeRegle);
+        }
+    },
+
+    proposerOuvertureCaisse: function (suite) {
+        const me = this;
         Ext.Msg.confirm('Caisse fermée', 'Votre caisse est fermée, voulez-vous l\'ouvrir ?', function (btn) {
             if (btn !== 'yes') {
                 return;
@@ -3698,7 +3748,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                 width: 470,
                 autoScroll: true,
                 layout: 'fit',
-                items: [{xtype: 'ouverturecaissemanger'}]
+                items: [{xtype: 'ouverturecaissemanger'}],
+                listeners: {
+                    /*
+                     * La fenetre refermee, la caisse vient peut-etre d'etre ouverte : on relit son
+                     * etat avant de reprendre. Sans cela l'ecran de vente gardait « caisse fermee »
+                     * en memoire et reposait la meme question a chaque clic sur « Terminer la vente ».
+                     */
+                    close: function () {
+                        me.cheickCaisse(suite);
+                    }
+                }
             }).show();
         });
     },
@@ -5158,35 +5218,16 @@ Ext.define('testextjs.controller.VenteCtr', {
 
             } else {
                 if (me.getCaisse()) {
-                    if (typeVenteCombo === '1') {
-                        if (typeRegle === '1') {
-                            me.onbtncloturerVnoComptant(typeRegle);
-                        } else {
-                            let client = me.getClient();
-                            if (client) {
-                                me.onbtncloturerVnoComptant(typeRegle);
-                            } else {
-                                Ext.MessageBox.show({
-                                    title: 'Message d\'erreur',
-                                    width: 550,
-                                    msg: 'Veuillez ajouter un client à la vente',
-                                    buttons: Ext.MessageBox.OK,
-                                    icon: Ext.MessageBox.ERROR,
-                                    fn: function (buttonId) {
-                                        if (buttonId === "ok") {
-                                            me.showAndHideInfosStandardClient(true);
-                                        }
-                                    }
-                                });
-                            }
-                        }
-
-
-                    } else {
-                        me.onbtncloturerAssurance(typeRegle);
-                    }
+                    me.finaliserVenteCaisseOuverte(typeVenteCombo, typeRegle);
                 } else {
-                    me.proposerOuvertureCaisse();
+                    /* Caisse fermee : on propose de l'ouvrir sur place, puis on reprend la
+                     * finalisation la ou elle s'est arretee — l'utilisateur n'a pas a recliquer
+                     * sur « Terminer la vente ». */
+                    me.proposerOuvertureCaisse(function (caisseOuverte) {
+                        if (caisseOuverte) {
+                            me.finaliserVenteCaisseOuverte(typeVenteCombo, typeRegle);
+                        }
+                    });
                 }
             }
         } else {
