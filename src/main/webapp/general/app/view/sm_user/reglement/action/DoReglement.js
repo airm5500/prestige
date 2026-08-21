@@ -1069,9 +1069,16 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
             testextjs.app.getController('App').onLoadNewComponent('facturemanager', 'Gestion Facturation', '');
         }
     },
-    // Message d'echec du reglement : si la caisse est fermee, proposer de l'ouvrir
-    // (vue d'ouverture de caisse en modale, retour a la facture apres validation)
-    afficherErreurReglement: function (messageErreur) {
+    /*
+     * Message d'echec du reglement : si la caisse est fermee, proposer de l'ouvrir sur place
+     * (ecran d'ouverture en fenetre modale), puis reprendre le reglement la ou il s'est arrete.
+     *
+     * @param reprise fonction rejouant le reglement, appelee seulement si la caisse est bien ouverte.
+     * @return vrai si la caisse fermee a ete prise en charge. L'appelant doit alors CONSERVER la
+     *         selection de dossiers : il la vide apres chaque echec, et sans cela le reglement
+     *         rejoue se heurterait a \u00ab Veuillez selectionner au moins un dossier \u00bb.
+     */
+    afficherErreurReglement: function (messageErreur, reprise) {
         if (String(messageErreur || '').toLowerCase().indexOf('caisse est ferm') !== -1) {
             Ext.Msg.confirm('Caisse ferm\u00e9e', 'Votre caisse est ferm\u00e9e, voulez-vous l\'ouvrir ?', function (btn) {
                 if (btn === 'yes') {
@@ -1081,13 +1088,35 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                         width: 470,
                         autoScroll: true,
                         layout: 'fit',
-                        items: [{xtype: 'ouverturecaissemanger'}]
+                        items: [{xtype: 'ouverturecaissemanger'}],
+                        listeners: {
+                            close: function () {
+                                if (!Ext.isFunction(reprise)) {
+                                    return;
+                                }
+                                /* On ne rejoue le reglement que si la caisse est reellement
+                                 * ouverte : refermer la fenetre sans rien faire relancerait
+                                 * sinon un reglement voue au meme refus, et la question
+                                 * reviendrait en boucle. */
+                                Ext.Ajax.request({
+                                    method: 'GET',
+                                    url: '../api/v1/vente/cheick-caisse',
+                                    success: function (response) {
+                                        var resultat = Ext.JSON.decode(response.responseText, true) || {};
+                                        if (resultat.success && resultat.data) {
+                                            reprise();
+                                        }
+                                    }
+                                });
+                            }
+                        }
                     }).show();
                 }
             });
-        } else {
-            Ext.MessageBox.alert('Error Message', messageErreur);
+            return true;
         }
+        Ext.MessageBox.alert('Error Message', messageErreur);
+        return false;
     },
 
     Doreglement: function () {
@@ -1233,7 +1262,13 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
 
 
                 } else {
-                    Ext.getCmp('doreglementmanagerID').afficherErreurReglement(object.success);
+                    var vueReglement = Ext.getCmp('doreglementmanagerID');
+                    if (vueReglement.afficherErreurReglement(object.success, function () {
+                        vueReglement.Doreglement();
+                    })) {
+                        // Caisse fermee : on garde la selection pour que le reglement puisse etre rejoue.
+                        return;
+                    }
                 }
                 net = 0;
                 listProductSelected = [];
@@ -1421,7 +1456,13 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
 
 
                     } else {
-                        Ext.getCmp('doreglementmanagerID').afficherErreurReglement(object.success);
+                        var vueReglement = Ext.getCmp('doreglementmanagerID');
+                        if (vueReglement.afficherErreurReglement(object.success, function () {
+                            vueReglement.Doreglement();
+                        })) {
+                            // Caisse fermee : on garde la selection pour que le reglement puisse etre rejoue.
+                            return;
+                        }
                     }
                     net = 0;
                     listProductSelected = [];
