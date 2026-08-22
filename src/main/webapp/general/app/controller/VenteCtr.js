@@ -5247,6 +5247,19 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     /**
+     * L'ecran de vente est-il toujours la ?
+     *
+     * La verification puis la question posee a la caissiere peuvent prendre plusieurs secondes, et sa reponse
+     * davantage encore. Pendant ce temps elle peut avoir quitte l'ecran de vente. Reprendre alors la vente, la
+     * reinitialiser ou rendre le focus a un champ disparu leverait une erreur JavaScript sur une vente qui, elle,
+     * s'est peut-etre parfaitement bien passee.
+     */
+    ecranDeVenteVivant: function () {
+        const ecran = Ext.ComponentQuery.query('doventemanager')[0];
+        return !!(ecran && !ecran.isDestroyed && ecran.rendered);
+    },
+
+    /**
      * Ce que fait l'ecran quand la reponse d'une cloture n'est pas revenue.
      *
      * L'objectif est que la caissiere ne voie JAMAIS d'anomalie sur une vente qui est passee : elle doit recevoir la
@@ -5263,12 +5276,24 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.verifierSiVenteCloturee(venteId, me.essaisVerificationCloture, function (issue) {
             attente.hide();
             me.signalerReponsePerdue(chemin, venteId, issue);
+            const ecranLa = me.ecranDeVenteVivant();
             if (issue === 'cloturee') {
+                if (!ecranLa) {
+                    // L'ecran a ete quitte entre-temps : on ne le reinitialise pas, on informe simplement.
+                    Ext.Msg.alert('Vente enregistrée', 'La vente a bien été enregistrée.');
+                    return;
+                }
                 // La vente EST passee : on enchaine comme apres une cloture ordinaire.
                 apresSucces();
                 return;
             }
             if (issue === 'nonCloturee') {
+                if (!ecranLa) {
+                    // Sans l'ecran, il n'y a plus de vente a reprendre : proposer de reessayer n'aurait pas de sens.
+                    Ext.Msg.alert('Vente non enregistrée',
+                            'La vente n\'a pas été enregistrée : aucun encaissement n\'a eu lieu.');
+                    return;
+                }
                 Ext.MessageBox.show({
                     title: 'Vente non enregistrée',
                     width: 480,
@@ -5277,10 +5302,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                     buttons: Ext.MessageBox.YESNO,
                     icon: Ext.MessageBox.QUESTION,
                     fn: function (bouton) {
+                        // Le temps de repondre, l'ecran a pu etre quitte : on le verifie de nouveau, pas avant.
+                        if (!me.ecranDeVenteVivant()) {
+                            return;
+                        }
                         if (bouton === 'yes') {
                             reessayer();
-                        } else {
-                            me.getMontantRecu().focus(true, 100);
+                            return;
+                        }
+                        const champ = me.getMontantRecu();
+                        if (champ) {
+                            champ.focus(true, 100);
                         }
                     }
                 });
