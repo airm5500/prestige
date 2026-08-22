@@ -366,6 +366,19 @@ public class ProduitServiceImpl implements ProduitService {
         }
     }
 
+    /**
+     * Critere de recherche du Suivi mouvement article 2 : le CIP OU le libelle CONTIENT la saisie.
+     *
+     * La recherche etait en « commence par ». Taper un mot situe au milieu du libelle - « CILLINE » pour AMOXICILLINE,
+     * « SUSP » pour une suspension buvable - ne ramenait rien, ce qui se lit comme une recherche en panne. Le meme
+     * critere sert la liste et son compteur : les deux doivent rester d'accord, sans quoi le total affiche ne
+     * correspondrait plus aux lignes.
+     */
+    private static Predicate motifRecherche(CriteriaBuilder cb, Join<HMvtProduit, TFamille> famille, String saisie) {
+        String motif = "%" + saisie.trim() + "%";
+        return cb.or(cb.like(famille.get(TFamille_.intCIP), motif), cb.like(famille.get(TFamille_.strNAME), motif));
+    }
+
     private List<TFamille> produitMvtArticle(MvtArticleParams params) {
         try {
             List<Predicate> predicates = new ArrayList<>();
@@ -387,9 +400,7 @@ public class ProduitServiceImpl implements ProduitService {
                                 params.getCategorieId())));
             }
             if (params.getSearch() != null && !"".equals(params.getSearch())) {
-                Predicate predicate = cb.and(cb.or(cb.like(fa.get(TFamille_.intCIP), params.getSearch() + "%"),
-                        cb.like(fa.get(TFamille_.strNAME), params.getSearch() + "%")));
-                predicates.add(predicate);
+                predicates.add(motifRecherche(cb, fa, params.getSearch()));
             }
             if (params.getRayonId() != null && !"".equals(params.getRayonId())) {
                 predicates.add(cb.and(cb.equal(fa.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID),
@@ -446,9 +457,7 @@ public class ProduitServiceImpl implements ProduitService {
 
             }
             if (params.getSearch() != null && !"".equals(params.getSearch())) {
-                Predicate predicate = cb.and(cb.or(cb.like(fa.get(TFamille_.intCIP), params.getSearch() + "%"),
-                        cb.like(fa.get(TFamille_.strNAME), params.getSearch() + "%")));
-                predicates.add(predicate);
+                predicates.add(motifRecherche(cb, fa, params.getSearch()));
             }
             if (params.getRayonId() != null && !"".equals(params.getRayonId())) {
                 predicates.add(cb.and(cb.equal(fa.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID),
