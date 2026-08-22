@@ -172,7 +172,10 @@ public class BilletageServiceImpl implements BilletageService {
                 .solde(caisse.getIntSOLDE().longValue())
                 .cashFund(Objects.nonNull(resumeCaisse.getIntSOLDEMATIN()) ? resumeCaisse.getIntSOLDEMATIN() : 0)
                 .display(true).userFullName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME())
-                .createAt(DateUtil.convertDateToDD_MM_YYYY_HH_mm(caisse.getDtCREATED()))
+                // La date attendue est celle de l'ouverture EN COURS, donc celle du resume de caisse.
+                // TCaisse est la caisse de l'utilisateur, creee une seule fois et conservee d'une
+                // session a l'autre : sa date de creation peut remonter a des annees.
+                .createAt(DateUtil.convertDateToDD_MM_YYYY_HH_mm(resumeCaisse.getDtCREATED()))
                 .updateAt(DateUtil.convertDateToDD_MM_YYYY_HH_mm(caisse.getDtUPDATED()))
                 .resumeCaisseId(resumeCaisse.getLdCAISSEID()).build();
     }
@@ -364,6 +367,18 @@ public class BilletageServiceImpl implements BilletageService {
 
     }
 
+    /**
+     * Date a afficher pour un fond de caisse : l'heure d'ouverture quand la caisse est en service, sinon la date portee
+     * par le fond lui-meme. L'ordre compte : tant que la caisse est ouverte, c'est l'ouverture qui fait foi, jamais
+     * l'affectation du fond.
+     */
+    static String dateAffichee(String ouvertureA, Date dateDuFond) {
+        if (StringUtils.isNotBlank(ouvertureA)) {
+            return ouvertureA;
+        }
+        return DateUtil.convertDateToDD_MM_YYYY_HH_mm(dateDuFond);
+    }
+
     @Override
     public CoffreCaisseDTO getUserCoffreCaisse(String dtStart, String dtEnd, String hStart, String hEnd, TUser user) {
         Pair<LocalDateTime, LocalDateTime> pair = buildDateParam(dtStart, dtEnd, hStart, hEnd);
@@ -371,12 +386,22 @@ public class BilletageServiceImpl implements BilletageService {
         LocalDateTime end = pair.getRight();
         TCoffreCaisse caisse = getCoffreCaisse(start, end, user, Constant.STATUT_IS_WAITING_VALIDATION);
         boolean isUsing = caisseService.checkCaisse(user);
+        /*
+         * L'ecran n'affiche « Ouverte a » que lorsque la caisse est en service, et la date attendue est celle de cette
+         * ouverture. Ni TCaisse ni TCoffreCaisse ne la portent : TCaisse est creee une seule fois pour l'utilisateur,
+         * et TCoffreCaisse porte la date d'AFFECTATION du fond par l'administrateur, qui peut preceder l'ouverture de
+         * plusieurs heures, voire d'un jour. Seul le resume de caisse en cours porte l'heure a laquelle la caissiere a
+         * ouvert.
+         */
+        TResumeCaisse enCours = isUsing ? getUserResumeCaisse(user, Constant.STATUT_IS_USING).orElse(null) : null;
+        String ouvertureA = Objects.nonNull(enCours) ? DateUtil.convertDateToDD_MM_YYYY_HH_mm(enCours.getDtCREATED())
+                : null;
 
         if (Objects.nonNull(caisse)) {
             return CoffreCaisseDTO.builder().userId(user.getLgUSERID()).id(caisse.getIdCoffreCaisse())
                     .amount(caisse.getIntAMOUNT().intValue()).hidden(true).inUse(isUsing)
                     .userFullName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME())
-                    .createAt(DateUtil.convertDateToDD_MM_YYYY_HH_mm(caisse.getDtCREATED()))
+                    .createAt(dateAffichee(ouvertureA, caisse.getDtCREATED()))
                     .updateAt(DateUtil.convertDateToDD_MM_YYYY_HH_mm(caisse.getDtUPDATED()))
                     .statut(caisse.getStrSTATUT()).build();
         }
@@ -387,13 +412,19 @@ public class BilletageServiceImpl implements BilletageService {
             return CoffreCaisseDTO.builder().userId(user.getLgUSERID()).hidden(true).inUse(isUsing)
                     .amount(caisse.getIntAMOUNT().intValue())
                     .userFullName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME())
-                    .firstName(user.getStrFIRSTNAME())
-                    .createAt(DateUtil.convertDateToDD_MM_YYYY_HH_mm(caisse.getDtCREATED()))
+                    .firstName(user.getStrFIRSTNAME()).createAt(dateAffichee(ouvertureA, caisse.getDtCREATED()))
                     .lastName(user.getStrLASTNAME()).build();
         }
+        /*
+         * Aucun fond de caisse dans la fenetre de dates interrogee, alors que la caisse est ouverte : c'est le cas d'un
+         * fond affecte la veille. L'ecran passait alors en « ouverte » sans date ni montant. Le resume de caisse en
+         * cours porte les deux, on les rend depuis lui.
+         */
         return CoffreCaisseDTO.builder().userId(user.getLgUSERID()).hidden(false).inUse(isUsing)
-                .userFullName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()).firstName(user.getStrFIRSTNAME())
-                .lastName(user.getStrLASTNAME()).build();
+                .amount(Objects.nonNull(enCours) && Objects.nonNull(enCours.getIntSOLDEMATIN())
+                        ? enCours.getIntSOLDEMATIN() : 0)
+                .createAt(ouvertureA).userFullName(user.getStrFIRSTNAME() + " " + user.getStrLASTNAME())
+                .firstName(user.getStrFIRSTNAME()).lastName(user.getStrLASTNAME()).build();
 
     }
 
