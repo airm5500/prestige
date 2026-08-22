@@ -69,6 +69,8 @@ public class SupportPoolMonitor {
     private EntityManager em;
     @EJB
     private SupportEventService supportEventService;
+    @javax.inject.Inject
+    private config.AppConfig appConfig;
 
     /**
      * La source de donnees de l'application. Injectee par son nom JNDI, celui que porte la persistance : c'est bien le
@@ -101,7 +103,7 @@ public class SupportPoolMonitor {
         if (attente >= seuil) {
             depassementsAttente++;
             if (depassementsAttente >= PALIERS_ATTENTE) {
-                publier(evaluerAttente(attente, seuil, statistiquesPool()));
+                publier(evaluerAttente(attente, seuil, statistiquesPool()), poste());
                 depassementsAttente = 0;
             }
         } else {
@@ -116,7 +118,7 @@ public class SupportPoolMonitor {
         Alerte alerte = evaluerDormantes(dormantes, seuil, ageMinutes);
         if (alerte != null) {
             publier(new Alerte(alerte.code, alerte.niveau, alerte.message,
-                    alerte.detail + "\n" + listerDormantes(ageMinutes)));
+                    alerte.detail + "\n" + listerDormantes(ageMinutes)), poste());
         }
     }
 
@@ -261,6 +263,7 @@ public class SupportPoolMonitor {
     public Map<String, Object> mesures() {
         Map<String, Object> mesures = new LinkedHashMap<>();
         int ageMinutes = intParam("SUPPORT_POOL_SLEEP_MIN", 60);
+        mesures.put("poste", poste());
         mesures.put("tempsObtentionMs", tempsObtentionMs());
         mesures.put("seuilAttenteMs", intParam("SUPPORT_POOL_WAIT_MS", 2000));
         mesures.put("dormantesAgeMinutes", ageMinutes);
@@ -271,13 +274,25 @@ public class SupportPoolMonitor {
         return mesures;
     }
 
-    private void publier(Alerte alerte) {
+    /**
+     * Nom du poste qui fait la mesure. Chaque poste a son PROPRE serveur d'application, donc son propre pool : sans ce
+     * nom, on saurait qu'un pool va mal sans savoir lequel, et le premier poste a signaler masquerait les autres.
+     */
+    private String poste() {
+        try {
+            return PosteLocal.identifiant(appConfig != null && appConfig.isServerMode());
+        } catch (Exception e) {
+            return PosteLocal.nomMachine();
+        }
+    }
+
+    private void publier(Alerte alerte, String poste) {
         if (alerte == null) {
             return;
         }
-        supportEventService.recordServerIncident(alerte.code + "-" + LocalDate.now(), alerte.niveau, alerte.message,
-                alerte.detail);
-        LOG.log(Level.WARNING, "Alerte pool de connexions : {0}", alerte.message);
+        supportEventService.recordServerIncident(alerte.code + "-" + poste + "-" + LocalDate.now(), alerte.niveau,
+                alerte.message + " (" + poste + ")", "Poste : " + poste + "\n\n" + alerte.detail);
+        LOG.log(Level.WARNING, "Alerte pool de connexions sur {0} : {1}", new Object[] { poste, alerte.message });
     }
 
     private int intParam(String cle, int defaut) {

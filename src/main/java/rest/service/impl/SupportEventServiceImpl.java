@@ -174,8 +174,18 @@ public class SupportEventServiceImpl implements SupportEventService {
     public void recordServerIncident(String code, String niveau, String message, String detail) {
         try {
             String signature = sha256Hex("SERVEUR|" + StringUtils.trimToEmpty(code));
-            if (findBySignature(signature) != null) {
-                // idempotent : incident deja enregistre (ex. double demarrage sur le meme crash)
+            ApplicationEvent connu = findBySignature(signature);
+            if (connu != null) {
+                /*
+                 * Incident deja enregistre : on ne cree pas de doublon, mais on COMPTE. L'ancienne version repartait
+                 * sans rien faire, si bien qu'un incident survenu quarante fois dans la journee se lisait comme survenu
+                 * une seule fois - or c'est justement le nombre, et l'heure de la derniere fois, qui disent si le
+                 * probleme s'aggrave et a quel moment de la journee il frappe.
+                 */
+                connu.setOccurrences(connu.getOccurrences() + 1);
+                connu.setLastSeenAt(LocalDateTime.now());
+                em.merge(connu);
+                addOccurrence(connu);
                 return;
             }
             SupportEventDTO dto = new SupportEventDTO();

@@ -46,6 +46,8 @@ public class SupportClotureMonitor {
 
     @EJB
     private SupportEventService supportEventService;
+    @javax.inject.Inject
+    private config.AppConfig appConfig;
 
     private final AtomicLong nombre = new AtomicLong();
     private final AtomicLong nombreLentes = new AtomicLong();
@@ -111,10 +113,26 @@ public class SupportClotureMonitor {
      * qui repond a la question posee.
      */
     private void signaler(String chemin, long dureeMs, int seuil, int heure) {
-        supportEventService.recordServerIncident("CLOTURE_LENTE-" + LocalDate.now(),
+        /*
+         * Le poste entre dans le code, donc dans la signature de l'evenement. Chaque caisse a son propre serveur
+         * d'application : sans cela, la premiere a signaler masquerait les autres, et on saurait qu'une caisse rame
+         * sans savoir laquelle.
+         */
+        String poste = poste();
+        supportEventService.recordServerIncident("CLOTURE_LENTE-" + poste + "-" + LocalDate.now(),
                 dureeMs >= seuil * 4L ? dal.ApplicationEvent.NIVEAU_ERROR : dal.ApplicationEvent.NIVEAU_WARN,
-                "Cloture de vente anormalement longue", detail(chemin, dureeMs, seuil, heure));
-        LOG.log(Level.WARNING, "Cloture de vente en {0} ms ({1})", new Object[] { dureeMs, chemin });
+                "Cloture de vente anormalement longue (" + poste + ")",
+                "Poste : " + poste + "\n\n" + detail(chemin, dureeMs, seuil, heure));
+        LOG.log(Level.WARNING, "Cloture de vente en {0} ms sur {1} ({2})", new Object[] { dureeMs, poste, chemin });
+    }
+
+    /** Nom du poste qui a fait la cloture : chaque caisse a son propre serveur d'application. */
+    private String poste() {
+        try {
+            return PosteLocal.identifiant(appConfig != null && appConfig.isServerMode());
+        } catch (Exception e) {
+            return PosteLocal.nomMachine();
+        }
     }
 
     private String detail(String chemin, long dureeMs, int seuil, int heure) {
@@ -157,6 +175,7 @@ public class SupportClotureMonitor {
      */
     public Map<String, Object> mesures() {
         Map<String, Object> mesures = new LinkedHashMap<>();
+        mesures.put("poste", poste());
         mesures.put("clotures", nombre.get());
         mesures.put("cloturesLentes", nombreLentes.get());
         mesures.put("seuilMs", seuilMs());
