@@ -9,6 +9,9 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
     closeAction: 'hide',
     closable: false,
     maximizable: true,
+    /* Battement du champ actif (vp-focus-zone), comme sur l'ecran de vente : la creation d'un
+     * client assurance enchaine une dizaine de champs, on doit voir d'un coup d'oeil ou l'on est. */
+    cls: 'vp-focus-zone',
     layout: {
         type: 'fit'
     },

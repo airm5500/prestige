@@ -17,6 +17,9 @@ Ext.define('testextjs.view.vente.user.AddCarnet', {
     closeAction: 'hide',
     closable: false,
     maximizable: true,
+    /* Battement du champ actif (vp-focus-zone), comme sur l'ecran de vente et la creation
+     * d'un client assurance : meme enchainement de champs, meme besoin de reperage. */
+    cls: 'vp-focus-zone',
     layout: {
         type: 'fit'
 

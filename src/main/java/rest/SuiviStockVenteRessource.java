@@ -42,6 +42,19 @@ public class SuiviStockVenteRessource {
     @Inject
     private HttpServletRequest servletRequest;
 
+    /**
+     * Date et heure d'une ligne de consommation.
+     *
+     * Formatteur cree ici et non partage : les SimpleDateFormat statiques de la classe utilitaire ne sont pas surs
+     * entre plusieurs requetes simultanees, et cette methode est appelee en boucle sur chaque ligne.
+     */
+    private static String horodatage(Date valeur) {
+        if (valeur == null) {
+            return "";
+        }
+        return new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(valeur);
+    }
+
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
     }
@@ -109,8 +122,9 @@ public class SuiviStockVenteRessource {
                 json.put("int_NUMBER", detail.getIntQUANTITYSERVED());
                 json.put("str_CODE_TVA", detail.getLgPREENREGISTREMENTID().getStrREF());
                 json.put("int_VALUE1", conversion.AmountFormat(detail.getIntPRICE(), '.'));
-                json.put("dt_UPDATED",
-                        date.DateToString(detail.getLgPREENREGISTREMENTID().getDtUPDATED(), date.formatterShort));
+                // Heure en plus de la date : plusieurs ventes du meme article dans la journee etaient
+                // indiscernables, alors que c'est justement l'heure qui permet de retrouver le ticket.
+                json.put("dt_UPDATED", horodatage(detail.getLgPREENREGISTREMENTID().getDtUPDATED()));
                 results.put(json);
             }
             return Response.ok().entity(new JSONObject().put("total", total).put("results", results).toString())
