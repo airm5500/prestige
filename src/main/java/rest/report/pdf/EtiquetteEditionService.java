@@ -66,6 +66,28 @@ public class EtiquetteEditionService {
     }
 
     /**
+     * Solde le panier apres l'edition de la planche : les lignes en preparation passent a l'etat « editee ».
+     *
+     * <p>
+     * Sans cela elles restent en preparation, et la vue de creation groupee les represente a la reouverture : on rouvre
+     * l'ecran et on retrouve les articles qu'on vient d'imprimer, sans savoir s'ils l'ont ete. C'est la meme regle que
+     * pour une ligne editee a l'unite ; elle n'avait jamais ete appliquee au panier.
+     *
+     * @return le nombre de lignes soldees
+     */
+    public int solderPanier() {
+        try {
+            return em.createQuery("UPDATE TEtiquette t SET t.strSTATUT = ?1, t.dtUPDATED = ?2 WHERE t.strSTATUT = ?3")
+                    .setParameter(1, commonparameter.statut_Read).setParameter(2, new Date())
+                    .setParameter(3, commonparameter.statut_is_Process).executeUpdate();
+        } catch (Exception e) {
+            // Le PDF est deja parti au navigateur : un echec ici ne doit pas casser l'edition.
+            LOG.log(Level.SEVERE, "solderPanier", e);
+            return 0;
+        }
+    }
+
+    /**
      * Marque la ligne comme editee, exactement comme le moteur ANCIEN le fait en fin de generation : sans cela
      * l'etiquette resterait indefiniment a l'etat « a editer » dans la grille.
      */

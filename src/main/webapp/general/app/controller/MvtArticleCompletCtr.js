@@ -53,8 +53,10 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
                 beforechange: this.doBeforechange
             },
 
+            // Meme correction que sur « Suivi mouvement article 2 » : la recherche ne part qu'a
+            // Entree. Branche sur doSearch, specialkey la relancait a chaque caractere efface.
             'monitoringarticlecomplet #query': {
-                specialkey: this.doSearch
+                specialkey: this.onSpecialKey
             },
             'monitoringarticlecomplet #categorieId': {
                 select: this.doSearch

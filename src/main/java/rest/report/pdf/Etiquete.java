@@ -105,6 +105,12 @@ public class Etiquete extends HttpServlet {
                 return;
             }
             ecrire(response, etiquetteEditionService.etiquettesEnPreparation(), debut, format);
+            /*
+             * Le panier est solde une fois la planche produite : sans cela on rouvre la creation groupee et on y
+             * retrouve les articles qu'on vient d'imprimer, sans savoir s'ils l'ont ete. Meme regle que pour une ligne
+             * editee a l'unite, quelques lignes plus haut.
+             */
+            etiquetteEditionService.solderPanier();
             return;
         }
 

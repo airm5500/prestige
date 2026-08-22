@@ -126,13 +126,24 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                                             displayField: 'str_DESCRIPTION',
                                             typeAhead: true,
                                             width: 600,
-                                            flex: 2,
+                                            flex: 3,
                                             minChars: 3,
                                             queryMode: 'remote',
                                             emptyText: 'Choisir un article par Nom ou Cip...',
                                             listConfig: {
+                                                /* La liste deroulante prenait la largeur du champ : les
+                                                 * designations longues passaient a la ligne et se
+                                                 * melaient a la suivante. Elle est desormais plus large
+                                                 * que le champ, et chaque ligne tient sur une seule. */
+                                                minWidth: 780,
                                                 getInnerTpl: function() {
-                                                    return '<span style="width:100px;display:inline-block;">{CIP}</span>{str_DESCRIPTION} <span style="float: right; font-weight:600;"> ({int_PRICE})</span>';
+                                                    return '<div style="display:table;width:100%;table-layout:fixed;">'
+                                                            + '<span style="display:table-cell;width:90px;color:#555;">{CIP}</span>'
+                                                            + '<span style="display:table-cell;white-space:nowrap;'
+                                                            + 'overflow:hidden;text-overflow:ellipsis;">{str_DESCRIPTION}</span>'
+                                                            + '<span style="display:table-cell;width:90px;'
+                                                            + 'text-align:right;font-weight:600;">({int_PRICE})</span>'
+                                                            + '</div>';
                                                 }
                                             },
                                             listeners: {

@@ -1,7 +1,14 @@
-var url_services_data_typeetiquette = '../webservices/stockmanagement/etiquette/ws_data_type_etiquette.jsp';
-var url_services_data_etiquette = '../webservices/stockmanagement/etiquette/ws_data.jsp';
+/*
+ * Cet ecran passe par l'API REST. Les trois pages qu'il appelait - ws_data.jsp,
+ * ws_data_type_etiquette.jsp et le mode delete de ws_transaction.jsp - restent en place, mais
+ * verification faite, aucun autre ecran ne les appelait : elles ne servaient qu'ici.
+ *
+ * Le nom est prefixe et ne reprend PAS url_services_data_typeetiquette : quatre autres fichiers
+ * declarent ce nom-la, en variable globale, pour une page differente. Le dernier charge l'emporte,
+ * et l'ecran aurait fini par interroger le service de l'autre.
+ */
+var url_api_etiquette = '../api/v1/etiquette';
 var url_services_pdf_etiquette = '../webservices/stockmanagement/etiquette/ws_generate_pdf.jsp';
-var url_services_data_etiquette_transaction = '../webservices/stockmanagement/etiquette/ws_transaction.jsp';
 
 var valdatedebut;
 var valdatefin;
@@ -43,7 +50,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_etiquette,
+                url: url_api_etiquette,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -59,7 +66,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_typeetiquette,
+                url: url_api_etiquette + '/types',
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -180,10 +187,11 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
                     format: 'd/m/Y',
                     listeners: {
                         'change': function(me) {
+                            /* Les criteres partent en parametres de la recherche (onRechClick) : les
+                             * recopier dans l'URL du proxy les y laissait ensuite pour toujours, y compris
+                             * sur les changements de page. */
                             valdatedebut = me.getSubmitValue();
                             Ext.getCmp('datefin').setMinValue(me.getValue());
-                            Ext.getCmp('GridetiquetteID').getStore().getProxy().url = url_services_data_etiquette + "?datedebut=" + valdatedebut;
-
                         }
                     }
                 }, '-', {
@@ -198,7 +206,6 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
                         'change': function(me) {
                             valdatefin = me.getSubmitValue();
                             Ext.getCmp('datedebut').setMaxValue(me.getValue());
-                            Ext.getCmp('GridetiquetteID').getStore().getProxy().url = url_services_data_etiquette + "?datedebut=" + valdatedebut + "&datefin=" + valdatefin;
                         }
                     }
                 }, '-', {
@@ -216,7 +223,6 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
                     listeners: {
                         select: function(cmp) {
                             lg_TYPEETIQUETTE_ID = cmp.getValue();
-                            Ext.getCmp('GridetiquetteID').getStore().getProxy().url = url_services_data_etiquette + "?datedebut=" + valdatedebut + "&datefin=" + valdatefin + "&lg_TYPEETIQUETTE_ID=" + lg_TYPEETIQUETTE_ID;
                             Me_Workflow.onRechClick();
                         }
                     }
@@ -310,19 +316,19 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
                     if (btn === 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_data_etiquette_transaction + 'delete',
-                            params: {
-                                lg_ETIQUETTE_ID: rec.get('lg_ETIQUETTE_ID')
-                            },
+                            /* L'adresse etait construite en collant 'delete' a un nom de fichier, sans le
+                             * « ?mode= » attendu : elle designait ws_transaction.jspdelete, qui n'existe
+                             * pas. La suppression rendait donc un 404 depuis toujours. */
+                            url: url_api_etiquette + '/' + encodeURIComponent(rec.get('lg_ETIQUETTE_ID')),
+                            method: 'DELETE',
                             success: function(response)
                             {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == 0) {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
+                                var object = Ext.JSON.decode(response.responseText, true) || {};
+                                if (!object.success) {
+                                    Ext.MessageBox.alert('Error Message', object.msg || 'Suppression impossible');
                                     return;
-                                } else {
-                                    Ext.MessageBox.alert('Confirmation', object.errors);
                                 }
+                                Ext.MessageBox.alert('Confirmation', object.msg);
                                 grid.getStore().reload();
                             },
                             failure: function(response)
@@ -356,14 +362,18 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
             return;
         }
 
-        this.getStore().load({
-            params: {
-                search_value: val.getValue(),
-                datedebut: valdatedebut,
-                datefin: valdatefin,
-                lg_TYPEETIQUETTE_ID: lg_TYPEETIQUETTE_ID
-            }
-        }, url_services_data_etiquette);
+        /* Les criteres sont poses sur le PROXY et non passes a ce seul chargement : sans cela, le
+         * changement de page repartirait sans eux et rendrait la liste entiere. C'est ce que la
+         * reecriture de l'URL cherchait a faire, en laissant les criteres colles a l'adresse. */
+        this.getStore().getProxy().extraParams = {
+            search_value: val.getValue(),
+            datedebut: valdatedebut,
+            datefin: valdatefin,
+            lg_TYPEETIQUETTE_ID: lg_TYPEETIQUETTE_ID
+        };
+        /* Retour a la premiere page : sans cela, une recherche lancee depuis la page 4 demande la
+         * page 4 du NOUVEAU resultat, souvent vide, et la liste parait vide a tort. */
+        this.getStore().loadPage(1);
     }
 
 });

@@ -59,8 +59,12 @@ Ext.define('testextjs.controller.MvtArticleCtr', {
             'monitoringproduct #fabricantId': {
                 select: this.doSearch
             },
+            /* La recherche ne part qu'a la touche Entree, et non a chaque touche « speciale ».
+             * L'evenement specialkey d'ExtJS couvre aussi Retour arriere et Suppr : branche
+             * directement sur doSearch, il relancait donc une recherche a CHAQUE caractere efface.
+             * onSpecialKey, qui filtre sur Entree, existait deja mais n'etait relie a rien. */
             'monitoringproduct #query': {
-                specialkey: this.doSearch
+                specialkey: this.onSpecialKey
             },
             'monitoringproduct #categorieId': {
                 select: this.doSearch
