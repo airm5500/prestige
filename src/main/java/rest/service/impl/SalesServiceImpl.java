@@ -169,6 +169,8 @@ public class SalesServiceImpl implements SalesService {
     private LotService lotService;
     @EJB
     private rest.service.VenteSuppressionService venteSuppressionService;
+    @EJB
+    private SupportEventService supportEventService;
 
     private final java.util.function.Predicate<Optional<TParameters>> test = e -> {
         if (e.isPresent()) {
@@ -1773,6 +1775,52 @@ public class SalesServiceImpl implements SalesService {
     }
 
     /**
+     * Signale au Centre de Support qu'une SECONDE demande de cloture est arrivee sur une vente deja encaissee.
+     *
+     * <p>
+     * La caissiere ne voit plus rien : c'est justement pour cela qu'il faut le tracer. Une seconde demande veut dire
+     * que quelque chose a declenche deux fois - double appui, poste qui renvoie, coupure reseau suivie d'une reprise -
+     * et sans ce journal, la correction rendrait le phenomene invisible au lieu de le rendre mesurable.
+     *
+     * <p>
+     * L'evenement est unique et compte ses occurrences : le message reste identique d'un cas a l'autre et ne porte ni
+     * reference ni identifiant, ce sont eux qui creeraient un evenement different a chaque vente. Le detail de la vente
+     * concernee part dans le contenu de l'evenement. L'enregistrement est asynchrone : il ne peut ni ralentir la caisse
+     * ni compromettre la transaction de cloture.
+     */
+    private void signalerDoubleCloture(String chemin, String venteId, Object copie, TUser utilisateur) {
+        try {
+            rest.service.dto.SupportEventDTO dto = new rest.service.dto.SupportEventDTO();
+            dto.setType("APPLICATION");
+            dto.setNiveau(dal.ApplicationEvent.NIVEAU_WARN);
+            dto.setModule("VENTE");
+            dto.setMessageCourt("Double demande de cloture sur une meme vente");
+            dto.setUrlOuEcran("POST " + chemin);
+            dto.setStack("Seconde demande de cloture recue sur une vente deja encaissee."
+                    + " Elle a recu un succes sans rien rejouer : la vente reste encaissee une seule fois.");
+            dto.setPayloadJson(new JSONObject().put("vente", venteId).put("venteCopiee", estUneCopie(copie))
+                    .put("caissier", utilisateur != null ? utilisateur.getLgUSERID() : "")
+                    .put("explication",
+                            "Deux validations sont parties pour la meme vente."
+                                    + " A surveiller : si le compteur monte, chercher du cote du poste (double appui,"
+                                    + " douchette, reprise apres coupure reseau) plutot que du cote du serveur.")
+                    .toString());
+            supportEventService.record(dto,
+                    utilisateur != null ? utilisateur.getStrFIRSTNAME() + " " + utilisateur.getStrLASTNAME() : null);
+            /*
+             * L'evenement du support compte les cas ; il ne retient que la reference du premier, puisque tous se
+             * regroupent sous la meme signature. La trace ci-dessous nomme CHAQUE vente concernee : c'est elle qui
+             * permet ensuite de remonter au poste et a l'heure.
+             */
+            LOG.log(Level.WARNING, "Double demande de cloture sur la vente {0} ({1})",
+                    new Object[] { venteId, chemin });
+        } catch (Exception e) {
+            // Le journal du support ne doit jamais peser sur une cloture de vente.
+            LOG.log(Level.WARNING, "signalerDoubleCloture", e);
+        }
+    }
+
+    /**
      * Lecture du drapeau « copie » venu d'une requete native : selon le pilote et la version de MySQL, la colonne
      * revient en booleen, en entier ou en chaine. Les trois formes doivent donner le meme resultat.
      */
@@ -1828,6 +1876,8 @@ public class SalesServiceImpl implements SalesService {
                 return json;
             }
             if (Constant.STATUT_IS_CLOSED.equals(String.valueOf(etatVente[0]))) {
+                signalerDoubleCloture("/api/v1/vente/cloturer/assurance", venteId, etatVente[1],
+                        clotureVenteParams.getUserId());
                 return reponseVenteDejaCloturee(json, venteId, etatVente[1]);
             }
             tp = emg.find(TPreenregistrement.class, venteId);
@@ -2083,6 +2133,8 @@ public class SalesServiceImpl implements SalesService {
                 return json;
             }
             if (Constant.STATUT_IS_CLOSED.equals(String.valueOf(etatVente[0]))) {
+                signalerDoubleCloture("/api/v1/vente/cloturer/vno", venteId, etatVente[1],
+                        clotureVenteParams.getUserId());
                 return reponseVenteDejaCloturee(json, venteId, etatVente[1]);
             }
             tp = emg.find(TPreenregistrement.class, venteId);

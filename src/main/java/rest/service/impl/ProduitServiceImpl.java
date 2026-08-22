@@ -367,15 +367,22 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     /**
-     * Critere de recherche du Suivi mouvement article 2 : le CIP OU le libelle CONTIENT la saisie.
+     * Motif de recherche des suivis de mouvement : la saisie encadree de jokers, donc « contient ».
      *
+     * <p>
      * La recherche etait en « commence par ». Taper un mot situe au milieu du libelle - « CILLINE » pour AMOXICILLINE,
-     * « SUSP » pour une suspension buvable - ne ramenait rien, ce qui se lit comme une recherche en panne. Le meme
-     * critere sert la liste et son compteur : les deux doivent rester d'accord, sans quoi le total affiche ne
-     * correspondrait plus aux lignes.
+     * « SUSP » pour une suspension buvable - ne ramenait rien, ce qui se lit comme une recherche en panne. Tous les
+     * ecrans de suivi de mouvement passent par ici : le suivi 2 avec sa liste et son compteur, et le suivi complet avec
+     * ses deux sources. Ils doivent rester d'accord entre eux, sans quoi le meme mot ramenerait des resultats
+     * differents d'un ecran a l'autre - et, sur le suivi 2, un total qui ne correspondrait plus aux lignes.
      */
+    static String motifContient(String saisie) {
+        return "%" + saisie.trim() + "%";
+    }
+
+    /** Le CIP OU le libelle contient la saisie, sur une jointure vers la famille. */
     private static Predicate motifRecherche(CriteriaBuilder cb, Join<HMvtProduit, TFamille> famille, String saisie) {
-        String motif = "%" + saisie.trim() + "%";
+        String motif = motifContient(saisie);
         return cb.or(cb.like(famille.get(TFamille_.intCIP), motif), cb.like(famille.get(TFamille_.strNAME), motif));
     }
 
@@ -1179,8 +1186,7 @@ public class ProduitServiceImpl implements ProduitService {
                                 params.getCategorieId())));
             }
             if (params.getSearch() != null && !"".equals(params.getSearch())) {
-                predicates.add(cb.and(cb.or(cb.like(fa.get(TFamille_.intCIP), params.getSearch() + "%"),
-                        cb.like(fa.get(TFamille_.strNAME), params.getSearch() + "%"))));
+                predicates.add(motifRecherche(cb, fa, params.getSearch()));
             }
             if (params.getRayonId() != null && !"".equals(params.getRayonId())) {
                 predicates.add(cb.and(cb.equal(fa.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID),
@@ -1229,7 +1235,7 @@ public class ProduitServiceImpl implements ProduitService {
                 q.setParameter("categorie", params.getCategorieId());
             }
             if (hasSearch) {
-                q.setParameter("search", params.getSearch() + "%");
+                q.setParameter("search", motifContient(params.getSearch()));
             }
             if (hasRayon) {
                 q.setParameter("rayon", params.getRayonId());
