@@ -40,21 +40,22 @@ public class AnalyseTiersPayantRessource {
     @GET
     @Path("tiers-payants")
     public Response parTiersPayant(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
-            @QueryParam("query") String recherche) {
+            @QueryParam("query") String recherche, @QueryParam("tri") String tri) {
         if (utilisateur() == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return reponse(analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche));
+        return reponse(analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri));
     }
 
     @GET
     @Path("produits")
     public Response parProduit(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
-            @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche) {
+            @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
+            @QueryParam("tri") String tri) {
         if (utilisateur() == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        return reponse(analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche));
+        return reponse(analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri));
     }
 
     /**
@@ -66,14 +67,14 @@ public class AnalyseTiersPayantRessource {
     @Produces("text/csv")
     public Response csv(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
-            @QueryParam("niveau") String niveau) {
+            @QueryParam("niveau") String niveau, @QueryParam("tri") String tri) {
         if (utilisateur() == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
         boolean parProduit = "PRODUIT".equalsIgnoreCase(niveau);
         List<AnalyseTiersPayantDTO> lignes = parProduit
-                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche)
-                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche);
+                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri)
+                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri);
         String contenu = csv(lignes, parProduit);
         return Response.ok(contenu)
                 .header("Content-Disposition",
@@ -92,15 +93,15 @@ public class AnalyseTiersPayantRessource {
     @Path("print")
     public Response imprimer(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("tiersPayantId") String tiersPayantId, @QueryParam("query") String recherche,
-            @QueryParam("niveau") String niveau) {
+            @QueryParam("niveau") String niveau, @QueryParam("tri") String tri) {
         TUser user = utilisateur();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         boolean parProduit = "PRODUIT".equalsIgnoreCase(niveau);
         List<AnalyseTiersPayantDTO> lignes = parProduit
-                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche)
-                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche);
+                ? analyseTiersPayantService.parProduit(dtStart, dtEnd, tiersPayantId, recherche, tri)
+                : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, recherche, tri);
 
         Map<String, Object> parametres = reportUtil.officineData(user);
         // Mise en forme des nombres : 1.234,56, la convention deja utilisee par les ecrans
@@ -168,7 +169,8 @@ public class AnalyseTiersPayantRessource {
         if (StringUtils.isBlank(tiersPayantId)) {
             return "tous";
         }
-        for (AnalyseTiersPayantDTO ligne : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, null)) {
+        // On ne cherche qu'un libelle dans la liste : l'ordre n'a aucune importance ici.
+        for (AnalyseTiersPayantDTO ligne : analyseTiersPayantService.parTiersPayant(dtStart, dtEnd, null, null)) {
             if (tiersPayantId.equals(ligne.getTiersPayantId())) {
                 return ligne.getTiersPayant();
             }

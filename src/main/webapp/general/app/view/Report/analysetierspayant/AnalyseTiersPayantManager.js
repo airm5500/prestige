@@ -133,6 +133,21 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                         margin: '0 10 0 0', emptyText: 'Filtrer un produit (CIP ou libellé)...',
                         enableKeyEvents: true
                     },
+                    /* Tri des DEUX grilles, toujours du plus grand au plus petit. « Marge » est en tete :
+                     * c'etait le seul tri jusqu'ici, l'ecran s'ouvre donc comme avant. */
+                    {
+                        xtype: 'combobox', itemId: 'tri', fieldLabel: 'Trier par', labelWidth: 55,
+                        margin: '0 10 0 0', width: 230, editable: false, queryMode: 'local',
+                        valueField: 'code', displayField: 'libelle', value: 'MARGE',
+                        store: new Ext.data.Store({
+                            fields: ['code', 'libelle'],
+                            data: [
+                                {code: 'MARGE', libelle: 'Marge (décroissant)'},
+                                {code: 'CA', libelle: 'Chiffre d\'affaires TTC (décroissant)'},
+                                {code: 'QUANTITE', libelle: 'Quantité (décroissant)'}
+                            ]
+                        })
+                    },
                     {text: 'Rechercher', itemId: 'btnRechercher', iconCls: 'searchicon'},
                     '->',
                     /* Un bouton par action, un menu par niveau : l'edition et l'export portent sur
@@ -207,6 +222,13 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
         });
 
         me.callParent();
+
+        /* L'ecran occupe exactement la place disponible et reste colle a la barre de titre : sans cela,
+         * une periode qui ramene beaucoup de tiers payants fait defiler la PAGE entiere, et la barre de
+         * recherche comme les dates disparaissent vers le haut (cf. correctifs-affichage.js). */
+        if (window.PrestigeAffichage) {
+            window.PrestigeAffichage.collerAuConteneur(me);
+        }
     },
 
     /* Parametres de la periode et des filtres, partages par les chargements et les exports. */
@@ -220,7 +242,8 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
             dtStart: valeur('#dtStart', function (c) { return c.getSubmitValue(); }),
             dtEnd: valeur('#dtEnd', function (c) { return c.getSubmitValue(); }),
             queryTiersPayant: valeur('#rechercheTiersPayant', function (c) { return c.getValue(); }).trim(),
-            queryProduit: valeur('#rechercheProduit', function (c) { return c.getValue(); }).trim()
+            queryProduit: valeur('#rechercheProduit', function (c) { return c.getValue(); }).trim(),
+            tri: valeur('#tri', function (c) { return c.getValue(); })
         };
     },
 
@@ -233,7 +256,7 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
     chargerTiersPayants: function () {
         var p = this.parametres();
         this.storeTiersPayants.load({
-            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, query: p.queryTiersPayant}
+            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, query: p.queryTiersPayant, tri: p.tri}
         });
     },
 
@@ -244,7 +267,7 @@ Ext.define('testextjs.view.Report.analysetierspayant.AnalyseTiersPayantManager',
                 ? 'Par produit — ' + selection[0].get('tiersPayant')
                 : 'Par produit — tous tiers payants');
         me.storeProduits.load({
-            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, tiersPayantId: tp, query: p.queryProduit}
+            params: {dtStart: p.dtStart, dtEnd: p.dtEnd, tiersPayantId: tp, query: p.queryProduit, tri: p.tri}
         });
     }
 });

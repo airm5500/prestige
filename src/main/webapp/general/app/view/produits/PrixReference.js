@@ -60,16 +60,20 @@ Ext.define('testextjs.view.produits.PrixReference', {
     xtype: 'button',
     iconCls: 'cancelicon',
     itemId: 'btnCancel',
-    text: 'Annuler',
-    handler: function() {
-        // Fermer directement
+    // « Fermer » et non « Annuler » : le bouton ne defait rien, il quitte la liste des prix.
+    text: 'Fermer',
+    handler: function () {
         const win = this.up('window');
         if (win) {
             win.close();
         }
-        
-        // Focus sur recherche
-        Ext.getCmp('rechecher').focus(true, 100);
+        /* Retour au champ de recherche de la fiche article. Cet identifiant appartient a un AUTRE
+         * ecran : s'il n'est pas ouvert, Ext.getCmp rend undefined et l'appel direct levait une
+         * erreur au moment meme ou l'on quitte la fenetre. */
+        const recherche = Ext.getCmp('rechecher');
+        if (recherche) {
+            recherche.focus(true, 100);
+        }
     }
 }
                     ]
@@ -562,7 +566,15 @@ Ext.define('testextjs.view.produits.PrixReference', {
                                     xtype: 'button',
                                     itemId: 'btnCancel',
                                     text: 'Annuler',
-                                    handler: function () {
+                                    /* Le gestionnaire etait VIDE : le bouton ne fermait rien, et la seule facon de
+                                     * sortir du formulaire etait la croix de la fenetre. On ferme la fenetre qui
+                                     * porte le bouton, sans passer par la variable form : celle-ci n'existe pas
+                                     * encore au moment ou cette configuration est evaluee. */
+                                    handler: function (btn) {
+                                        const fenetre = btn.up('window');
+                                        if (fenetre) {
+                                            fenetre.close();
+                                        }
                                     }
 
                                 }

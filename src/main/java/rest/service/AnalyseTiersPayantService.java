@@ -14,7 +14,7 @@ import rest.service.dto.AnalyseTiersPayantDTO;
 public interface AnalyseTiersPayantService {
 
     /** Une ligne par tiers payant ayant couvert au moins une vente sur la periode, la plus rentable en tete. */
-    List<AnalyseTiersPayantDTO> parTiersPayant(String dtStart, String dtEnd, String recherche);
+    List<AnalyseTiersPayantDTO> parTiersPayant(String dtStart, String dtEnd, String recherche, String tri);
 
     /**
      * Une ligne par produit vendu sur la periode dans une vente couverte par un tiers payant.
@@ -23,7 +23,8 @@ public interface AnalyseTiersPayantService {
      *            limite a ce tiers payant ; vide pour tous, les produits etant alors regroupes tous tiers payants
      *            confondus.
      */
-    List<AnalyseTiersPayantDTO> parProduit(String dtStart, String dtEnd, String tiersPayantId, String recherche);
+    List<AnalyseTiersPayantDTO> parProduit(String dtStart, String dtEnd, String tiersPayantId, String recherche,
+            String tri);
 
     /**
      * Periode reellement analysee : celle qui est demandee, ou le mois en cours quand les bornes recues sont

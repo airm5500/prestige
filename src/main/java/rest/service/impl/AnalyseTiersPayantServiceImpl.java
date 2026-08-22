@@ -61,20 +61,43 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
             + " SUM(pd.prixAchat * pd.int_QUANTITY) AS achat,"
             + " SUM(pd.int_PRICE - pd.int_PRICE_REMISE - pd.montantTva) - SUM(pd.prixAchat * pd.int_QUANTITY) AS marge";
 
+    /**
+     * Clause de tri des deux listes, decroissante, choisie par l'utilisateur.
+     *
+     * <p>
+     * La valeur recue ne peut PAS etre recopiee telle quelle dans le SQL : ce serait une porte ouverte a l'injection.
+     * Elle sert donc uniquement a choisir dans cette liste fermee, et toute valeur inconnue - ou absente - retombe sur
+     * la marge, qui etait le seul tri jusqu'ici.
+     *
+     * <p>
+     * « CA » designe le chiffre d'affaires TTC : c'est le montant reellement facture, et la premiere colonne de chiffre
+     * d'affaires de l'ecran.
+     */
+    static String ordreDeTri(String tri) {
+        String demande = StringUtils.trimToEmpty(tri).toUpperCase();
+        if ("QUANTITE".equals(demande)) {
+            return " ORDER BY quantite DESC";
+        }
+        if ("CA".equals(demande)) {
+            return " ORDER BY ca_ttc DESC";
+        }
+        return " ORDER BY marge DESC";
+    }
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
     private SessionHelperService sessionHelperService;
 
     @Override
-    public List<AnalyseTiersPayantDTO> parTiersPayant(String dtStart, String dtEnd, String recherche) {
+    public List<AnalyseTiersPayantDTO> parTiersPayant(String dtStart, String dtEnd, String recherche, String tri) {
         String[] periode = periodeOuMoisEnCours(dtStart, dtEnd);
         String motif = motifRecherche(recherche);
         try {
             String sql = "SELECT tp.lg_TIERS_PAYANT_ID, tp.str_NAME,"
                     + " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS nb_ventes," + AGREGATS + VENTES_TIERS_PAYANT
-                    + " AND (?4 = '' OR tp.str_NAME LIKE ?5)"
-                    + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME ORDER BY marge DESC";
+                    + " AND (?4 = '' OR tp.str_NAME LIKE ?5)" + " GROUP BY tp.lg_TIERS_PAYANT_ID, tp.str_NAME"
+                    + ordreDeTri(tri);
             Query query = em.createNativeQuery(sql);
             parametresCommuns(query, periode);
             query.setParameter(4, StringUtils.trimToEmpty(recherche));
@@ -98,8 +121,8 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
     }
 
     @Override
-    public List<AnalyseTiersPayantDTO> parProduit(String dtStart, String dtEnd, String tiersPayantId,
-            String recherche) {
+    public List<AnalyseTiersPayantDTO> parProduit(String dtStart, String dtEnd, String tiersPayantId, String recherche,
+            String tri) {
         String[] periode = periodeOuMoisEnCours(dtStart, dtEnd);
         String motif = motifRecherche(recherche);
         String tp = StringUtils.trimToEmpty(tiersPayantId);
@@ -107,7 +130,7 @@ public class AnalyseTiersPayantServiceImpl implements AnalyseTiersPayantService 
             String sql = "SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION," + AGREGATS + VENTES_TIERS_PAYANT
                     + " AND (?4 = '' OR c.lg_TIERS_PAYANT_ID = ?4)"
                     + " AND (?5 = '' OR f.str_DESCRIPTION LIKE ?6 OR f.int_CIP LIKE ?6)"
-                    + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION ORDER BY marge DESC";
+                    + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION" + ordreDeTri(tri);
             Query query = em.createNativeQuery(sql);
             parametresCommuns(query, periode);
             query.setParameter(4, tp);
