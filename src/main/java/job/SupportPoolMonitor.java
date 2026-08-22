@@ -80,6 +80,7 @@ public class SupportPoolMonitor {
     private DataSource dataSource;
 
     private int depassementsAttente = 0;
+    private int filsSatures = 0;
 
     @Schedule(hour = "*", minute = "*/5", persistent = false)
     public void verifier() {
@@ -88,6 +89,7 @@ public class SupportPoolMonitor {
                 return;
             }
             verifierAttente();
+            verifierFilsHttp();
             verifierDormantes();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "SupportPoolMonitor.verifier", e);
@@ -108,6 +110,94 @@ public class SupportPoolMonitor {
             }
         } else {
             depassementsAttente = 0;
+        }
+    }
+
+    /**
+     * Fils d'execution HTTP occupes.
+     *
+     * <p>
+     * Le pool de fils HTTP de Payara vaut CINQ par defaut, et il n'est pas dimensionne dans l'installation type d'une
+     * caisse. Cinq requetes simultanees suffisent alors a bloquer le poste : les suivantes font la queue sans qu'aucune
+     * erreur ne soit levee, et l'utilisateur voit un « Veuillez patienter » qui ne finit pas. Un redemarrage repare, ce
+     * qui acheve de faire passer le probleme pour un mystere.
+     *
+     * <p>
+     * On ne passe pas par la surveillance de Payara, qui demande une configuration : les fils portent un nom
+     * reconnaissable dans la machine virtuelle, il suffit de les compter.
+     */
+    static java.util.Map<String, Object> filsHttp() {
+        java.util.Map<String, Object> mesures = new LinkedHashMap<>();
+        /*
+         * Le comptage se fait PAR ECOUTEUR. Payara en declare deux - le port ordinaire et le port securise - et chacun
+         * dispose de son propre quota, alors qu'ils partagent le nom du pool. Un total global masquerait la saturation
+         * : cinq fils pris sur dix, ce n'est pas la moitie du poste occupee, c'est l'ecouteur qui recoit TOUT le trafic
+         * qui est plein, et plus rien ne passe. Constate a l'essai.
+         */
+        java.util.Map<String, int[]> parEcouteur = new LinkedHashMap<>();
+        try {
+            java.lang.management.ThreadMXBean fils = java.lang.management.ManagementFactory.getThreadMXBean();
+            java.lang.management.ThreadInfo[] infos = fils.getThreadInfo(fils.getAllThreadIds());
+            for (java.lang.management.ThreadInfo info : infos) {
+                if (info == null || !StringUtils.startsWith(info.getThreadName(), "http-thread-pool")) {
+                    continue;
+                }
+                String ecouteur = StringUtils.substringBefore(StringUtils.substringAfter(info.getThreadName(), "::"),
+                        "(");
+                int[] compte = parEcouteur.computeIfAbsent(StringUtils.defaultIfBlank(ecouteur, "ecouteur"),
+                        c -> new int[2]);
+                compte[0]++;
+                /*
+                 * Un fil qui SERT une requete est executable ou bloque sur la base ; un fil au repos attend dans la
+                 * file du pool, donc en WAITING sans requete. C'est cette distinction qui dit si le poste sature.
+                 */
+                if (info.getThreadState() != Thread.State.WAITING
+                        && info.getThreadState() != Thread.State.TIMED_WAITING) {
+                    compte[1]++;
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "filsHttp", e);
+        }
+        int total = 0;
+        int occupes = 0;
+        int pireOccupes = 0;
+        int pireTotal = 0;
+        for (java.util.Map.Entry<String, int[]> e : parEcouteur.entrySet()) {
+            total += e.getValue()[0];
+            occupes += e.getValue()[1];
+            mesures.put("filsHttp[" + e.getKey() + "]", e.getValue()[1] + "/" + e.getValue()[0]);
+            // L'ecouteur le plus charge decide : c'est lui qui bloque, meme si les autres respirent.
+            if (e.getValue()[0] > 0 && e.getValue()[1] * pireTotal >= pireOccupes * e.getValue()[0]) {
+                pireOccupes = e.getValue()[1];
+                pireTotal = e.getValue()[0];
+            }
+        }
+        mesures.put("filsHttpTotal", total);
+        mesures.put("filsHttpOccupes", occupes);
+        mesures.put("filsHttpEcouteurLePlusCharge", pireOccupes + "/" + pireTotal);
+        mesures.put("filsHttpPireOccupes", pireOccupes);
+        mesures.put("filsHttpPireTotal", pireTotal);
+        return mesures;
+    }
+
+    /*
+     * La verification periodique tourne sur un fil de MINUTERIE, pas sur un fil HTTP : elle n'occupe donc pas elle-meme
+     * une des places qu'elle compte, et peut voir l'ecouteur reellement plein. Le releve fait a la demande depuis le
+     * Centre de Support, lui, arrive par HTTP et occupe une place - il montrera donc au plus n-1 sur n.
+     */
+    private void verifierFilsHttp() {
+        java.util.Map<String, Object> fils = filsHttp();
+        int total = (Integer) fils.get("filsHttpPireTotal");
+        int occupes = (Integer) fils.get("filsHttpPireOccupes");
+        if (total <= 0 || occupes < total) {
+            filsSatures = 0;
+            return;
+        }
+        filsSatures++;
+        if (filsSatures >= PALIERS_ATTENTE) {
+            publier(evaluerFilsHttp(occupes, total), poste());
+            filsSatures = 0;
         }
     }
 
@@ -270,6 +360,7 @@ public class SupportPoolMonitor {
         mesures.put("dormantes", compterDormantes(ageMinutes));
         mesures.put("seuilDormantes", intParam("SUPPORT_POOL_SLEEP_MAX", 20));
         mesures.put("detailDormantes", listerDormantes(ageMinutes));
+        mesures.putAll(filsHttp());
         mesures.putAll(statistiquesPool());
         return mesures;
     }
@@ -350,6 +441,26 @@ public class SupportPoolMonitor {
         }
         return new Alerte("POOL_ATTENTE", niveau, "Le pool de connexions fait attendre les requetes",
                 detail.toString());
+    }
+
+    /**
+     * Tous les fils HTTP occupes : le poste ne peut plus servir une requete de plus, les suivantes attendent leur tour
+     * en silence. Le pool vaut CINQ par defaut et n'est pas dimensionne dans l'installation type - c'est le plafond le
+     * plus bas de la chaine, et le plus facile a atteindre.
+     */
+    static Alerte evaluerFilsHttp(int occupes, int total) {
+        if (total <= 0 || occupes < total) {
+            return null;
+        }
+        String detail = "Les " + total + " fil(s) d'execution HTTP de ce poste sont tous occupes.\n\n"
+                + "Une requete de plus doit attendre qu'un fil se libere. Rien n'est signale a l'utilisateur :"
+                + " l'ecran affiche « Veuillez patienter » et ne bouge plus. Si la caissiere abandonne et revalide,"
+                + " c'est de la que vient l'erreur sur une vente pourtant encaissee.\n\n"
+                + "Le pool de fils HTTP de Payara vaut CINQ par defaut. Verifier qu'il est dimensionne sur ce poste :\n"
+                + "  asadmin get server-config.thread-pools.thread-pool.http-thread-pool.max-thread-pool-size\n"
+                + "Un poste de caisse tient confortablement avec 50.";
+        return new Alerte("HTTP_FILS_SATURES", dal.ApplicationEvent.NIVEAU_ERROR,
+                "Tous les fils d'execution HTTP du poste sont occupes", detail);
     }
 
     /**

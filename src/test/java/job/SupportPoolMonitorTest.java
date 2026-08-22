@@ -80,4 +80,27 @@ class SupportPoolMonitorTest {
         assertTrue(a.detail.contains("60 minute"), a.detail);
         assertTrue(a.detail.contains("jconnexion"), a.detail);
     }
+
+    @Test
+    @DisplayName("Les fils HTTP n'alertent que lorsqu'ils sont TOUS occupes")
+    void filsHttp() {
+        assertNull(SupportPoolMonitor.evaluerFilsHttp(4, 5));
+        assertNull(SupportPoolMonitor.evaluerFilsHttp(0, 0));
+        SupportPoolMonitor.Alerte a = SupportPoolMonitor.evaluerFilsHttp(5, 5);
+        assertNotNull(a);
+        assertEquals("HTTP_FILS_SATURES", a.code);
+        assertEquals(dal.ApplicationEvent.NIVEAU_ERROR, a.niveau);
+        assertTrue(a.detail.contains("5 fil(s)"), a.detail);
+        assertTrue(a.detail.contains("max-thread-pool-size"), a.detail);
+    }
+
+    @Test
+    @DisplayName("Le comptage des fils HTTP rend toujours deux valeurs coherentes")
+    void comptageDesFils() {
+        java.util.Map<String, Object> m = SupportPoolMonitor.filsHttp();
+        int total = (Integer) m.get("filsHttpTotal");
+        int occupes = (Integer) m.get("filsHttpOccupes");
+        assertTrue(total >= 0);
+        assertTrue(occupes >= 0 && occupes <= total);
+    }
 }
