@@ -243,7 +243,7 @@ Ext.define('testextjs.view.devis.form.FormCarnet', {
                                     collapsible: false,
                                     height: 120,
                                     bodyPadding: 5,
-                                    title: 'Infos.Tiers.Payant.RO',
+                                    title: 'Infos Compte Carnet',
                                     layout: {
                                         type: 'vbox', align: 'stretch'
 

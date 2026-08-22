@@ -897,6 +897,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         montantTp.show();
         // "Vente sans bon" retiré de l'écran (le paramètre reste à false)
         me.setGridFillHeight(false);
+        me.appliquerLibellesTiersPayant(typevente);
         me.updateAssurerResetCmp();
         me.updateAyantDroitResetCmp();
         if (typevente === "2") {
@@ -3419,6 +3420,51 @@ Ext.define('testextjs.controller.VenteCtr', {
         contenu.add(vno);
         me.loadVenteData(venteId);
     },
+    /**
+     * Nomme le bloc et le montant selon le type de vente : « assurance » en vente assurance, « carnet » en
+     * vente carnet. « Tiers payant » est le terme du modele de donnees, pas celui de la caissiere, et il
+     * designait la meme chose dans les deux cas.
+     *
+     * Appele depuis resetTitle (changement de type par la combo) et depuis showAssureContainer (rappel
+     * d'une vente existante, ou la combo est repositionnee sans evenement select).
+     */
+    /**
+     * Entree sur un numero de bon : on passe au numero de bon de l'assurance SUIVANTE s'il y en a une,
+     * sinon au champ de selection du produit. Une vente peut porter deux ou trois assurances ; il fallait
+     * jusqu'ici viser chaque champ a la souris.
+     *
+     * Les champs sont pris dans leur ordre d'AFFICHAGE, et non par le numero d'ordre porte par leur itemId :
+     * ce numero vient du serveur et peut sauter une valeur quand une assurance a ete retiree de la vente.
+     */
+    bonSuivantOuProduit: function (champCourant) {
+        const me = this;
+        const formulaire = me.getTpContainerForm && me.getTpContainerForm();
+        const bons = formulaire ? formulaire.query('textfield').filter(function (c) {
+            return c.itemId && c.itemId.indexOf('refBon') === 0;
+        }) : [];
+        const position = bons.indexOf(champCourant);
+        if (position !== -1 && position + 1 < bons.length) {
+            bons[position + 1].focus(false, 100);
+            return;
+        }
+        const produit = me.getVnoproduitCombo && me.getVnoproduitCombo();
+        if (produit) {
+            produit.focus(true, 100);
+        }
+    },
+    appliquerLibellesTiersPayant: function (typeVente) {
+        const me = this;
+        const carnet = (typeVente === '3');
+        const bloc = me.getTpContainer && me.getTpContainer();
+        if (bloc && bloc.setTitle) {
+            bloc.setTitle('<span style="color:blue;">'
+                    + (carnet ? 'INFOS COMPTE CARNET' : 'INFOS ASSURANCE') + '</span>');
+        }
+        const montant = me.getMontantTp && me.getMontantTp();
+        if (montant && montant.setFieldLabel) {
+            montant.setFieldLabel(carnet ? 'PART CARNET:' : 'PART ASSURANCE:');
+        }
+    },
     resetTitle: function (typeVente) {
         const me = this;
         if (typeVente) {
@@ -3433,7 +3479,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.getDoventemanager().setTitle('VENTE AU COMPTANT');
 
         }
-
+        me.appliquerLibellesTiersPayant(typeVente);
 
     },
     chargerCopieDeVenteAmodifier: function (venteId) {
@@ -4968,6 +5014,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                             listeners: {
                                 afterrender: function (field) {
                                     field.focus(false, 100);
+                                },
+                                specialkey: function (field, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        e.stopEvent();
+                                        me.bonSuivantOuProduit(field);
+                                    }
                                 }
                             }
                         },

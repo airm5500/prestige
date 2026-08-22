@@ -15,6 +15,24 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
     layout: {
         type: 'fit'
     },
+    /**
+     * Dernier maillon de l'enchainement au clavier : le bouton « Enregistrer » prend le focus et se met a
+     * battre. Sans cette marque, rien ne dit a l'utilisateur que la prochaine frappe d'Entree va valider —
+     * le contour de focus du navigateur ne se voit pas sur un bouton bleu. La classe est retiree des que le
+     * bouton perd le focus, pour qu'un bouton au repos ne clignote jamais.
+     */
+    donnerLeFocusAuBouton: function () {
+        var bouton = this.down('#btnAddClientAssurance');
+        if (!bouton) {
+            return;
+        }
+        if (!bouton.suiviDuFocusPose) {
+            bouton.suiviDuFocusPose = true;
+            bouton.on('focus', function (b) { b.addCls('vp-bouton-pret'); });
+            bouton.on('blur', function (b) { b.removeCls('vp-bouton-pret'); });
+        }
+        bouton.focus(false, 100);
+    },
 
     initComponent: function () {
         var me = this;
@@ -297,7 +315,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                     collapsible: false,
                                     height: 120,
                                     bodyPadding: 5,
-                                    title: 'Infos.Tiers.Payant.RO',
+                                    title: 'Infos Assurance Principale',
                                     layout: {
                                         type: 'vbox', 
                                         align: 'stretch'
@@ -310,7 +328,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                             items: [
                                                 {
                                                     xtype: 'combobox',
-                                                    fieldLabel: 'Tiers.Payant',
+                                                    fieldLabel: 'Assurance',
                                                     name: 'lgTIERSPAYANTID',
                                                     itemId: 'tiersvo',
                                                     flex: 1, 
@@ -322,7 +340,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     typeAhead: false,
                                                     allowBlank: false,
                                                     queryMode: 'remote',
-                                                    emptyText: 'Choisir un tierspayant...',
+                                                    emptyText: 'Choisir une assurance...',
                                                     listeners: {
                                                         specialkey: function(field, e) {
                                                             if (e.getKey() === e.ENTER) {
@@ -351,7 +369,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                         specialkey: function(field, e) {
                                                             if (e.getKey() === e.ENTER) {
                                                                 e.stopEvent();
-                                                                me.down('#btnAddClientAssurance').focus(false, 100);
+                                                                me.donnerLeFocusAuBouton();
                                                             }
                                                         }
                                                     }
@@ -421,7 +439,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                     collapsible: false,
                                     height: 200,
                                     bodyPadding: 5,
-                                    title: 'Infos.Tiers-payant.complémentaire',
+                                    title: 'Infos Assurance Complémentaire',
                                     layout: {
                                         type: 'fit'
                                     },
@@ -444,7 +462,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                         {
                                                             xtype: 'button',
                                                             itemId: 'associertps',
-                                                            text: 'Associer Tiers-payant'
+                                                            text: 'Associer une assurance'
                                                         }
                                                     ]
                                                 }
@@ -462,7 +480,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     dataIndex: 'compteTp'
                                                 },
                                                 {
-                                                    text: 'Tiers-payant',
+                                                    text: 'Assurance',
                                                     flex: 1,
                                                     dataIndex: 'tpFullName'
                                                 },

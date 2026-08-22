@@ -705,3 +705,83 @@ body.x-body,
 .retiremodeleicon {
     background-image: url(../images/icons/fam/delete.png) !important;
 }
+
+/* ============================================================
+ * BOUTON D'ENREGISTREMENT QUI A RECU LE FOCUS AU CLAVIER
+ *
+ * Sur les vues de creation de client (assurance et carnet), la
+ * touche Entree enchaine les champs et, au dernier, donne le focus
+ * au bouton « Enregistrer ». Sans marque visible, l'utilisateur ne
+ * sait pas que la prochaine frappe d'Entree va valider : le contour
+ * de focus du navigateur est trop discret sur un bouton bleu.
+ *
+ * Meme vocabulaire visuel que les champs actifs de l'ecran de vente
+ * (vp-focus-beat) : la meme couleur, le meme rythme. Le halo bat sur
+ * les quatre bords, sans voile blanc a l'interieur — le libelle du
+ * bouton doit rester lisible pendant l'animation.
+ *
+ * Pour l'activer : ajouter la classe vp-bouton-pret au bouton
+ * lorsqu'il prend le focus, la retirer lorsqu'il le perd.
+ * ============================================================ */
+
+@keyframes vp-bouton-beat {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 233, 202, .95);
+    }
+    35% {
+        box-shadow: 0 0 0 8px rgba(13, 233, 202, .45);
+    }
+    70% {
+        box-shadow: 0 0 0 12px rgba(13, 233, 202, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 233, 202, 0);
+    }
+}
+
+.vp-bouton-pret {
+    border: 2px solid #0de9ca !important;
+    border-radius: 5px;
+    animation: vp-bouton-beat 1.4s ease-out infinite;
+}
+
+.vp-bouton-pret .x-btn-inner {
+    font-weight: 700;
+}
+
+/* Poste regle pour limiter les animations : le contour reste, le battement s'arrete. */
+@media (prefers-reduced-motion: reduce) {
+    .vp-bouton-pret {
+        animation: none;
+        box-shadow: 0 0 0 4px rgba(13, 233, 202, .55);
+    }
+}
+
+/* ============================================================
+ * BANDEAU CLIENT DE L'ECRAN DE VENTE, SUR UNE SEULE LIGNE
+ *
+ * Nom, prenoms et matricule occupaient trois lignes empilees,
+ * chacune precedee de son etiquette : 118 px de haut pour trois
+ * valeurs courtes, sur un ecran ou chaque pixel rendu a la grille
+ * des produits compte.
+ *
+ * Les trois champs restent TROIS composants ExtJS distincts — tout
+ * le code qui les renseigne continue de fonctionner — mais ils sont
+ * rendus en ligne, comme des mots dans une phrase. Ils se replient
+ * donc d'eux-memes sur une deuxieme ligne quand un nom compose et un
+ * long matricule ne tiennent plus, et restent sur une seule ligne le
+ * reste du temps. Aucun calcul de largeur, aucune troncature.
+ * ============================================================ */
+
+.vp-ligne-client .x-form-item {
+    display: inline-block !important;
+    width: auto !important;
+    margin: 0 6px 2px 0 !important;
+    vertical-align: middle;
+}
+
+.vp-ligne-client .x-form-item-body,
+.vp-ligne-client .x-form-display-field {
+    width: auto !important;
+    white-space: normal;
+}

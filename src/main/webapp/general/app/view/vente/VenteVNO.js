@@ -135,7 +135,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     cls: 'vp-assur-card',
                                     title: '<span style="color:blue;">RECHERCHER LE CLIENT</span>',
                                     flex: 0.6,
-                                    height: 118,
+                                    // Meme hauteur que les deux cartes voisines, qui viennent de passer a une ligne.
+                                    minHeight: 62,
                                     margin: '0 10 0 0',
                                     layout: {type: 'anchor', align: 'middle'},
 
@@ -143,7 +144,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         {
                                             xtype: 'textfield',
                                             anchor: '100%',
-                                            margin: '15 0 0',
+                                            margin: '5 0 0',
                                             itemId: 'clientSearchTextField',
                                             emptyText: 'Tapez ici pour rechercher un client',
                                             height: 35,
@@ -160,7 +161,12 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     cls: 'vp-assur-card',
                                     margin: '0 5 0 0',
                                     flex: 1.2,
-                                    height: 118,
+                                    /* Nom, prenoms et matricule tenaient sur TROIS lignes empilees, chacune avec son
+                                     * etiquette : 118 px de haut pour trois valeurs courtes. Ils sont maintenant sur
+                                     * une seule ligne, et la carte descend a 62 px - autant de gagne pour la grille
+                                     * des produits. Hauteur MINIMALE et non fixe : un nom compose suivi d'un long
+                                     * matricule se replie tout seul sur une deuxieme ligne au lieu d'etre rogne. */
+                                    minHeight: 62,
                                     layout: {
                                         type: 'hbox', pack: 'start',
                                         align: 'middle'
@@ -168,33 +174,36 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     items: [
                                         {
                                             xtype: 'container',
-
-                                            flex: 1.5,
-                                            layout: {type: 'vbox', align: 'stretch'},
+                                            flex: 1,
+                                            /* Mise en page libre et classe vp-ligne-client : les trois champs
+                                             * s'enchainent en ligne et reviennent a la ligne d'eux-memes quand la
+                                             * place manque. Ils restent TROIS composants distincts, avec leurs
+                                             * itemId : tout le code qui les renseigne fonctionne sans changement. */
+                                            layout: 'auto',
+                                            cls: 'vp-ligne-client',
                                             items: [
 
                                                 {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'Nom :',
-                                                    flex: 1,
+                                                    hideLabel: true,
                                                     itemId: 'nomAssure',
-                                                    fieldStyle: "color:blue;",
-                                                    margin: '0 10 0 0'
+                                                    fieldStyle: "color:#333;font-weight:bold;"
                                                 }, {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'Prénom(s):',
+                                                    hideLabel: true,
                                                     itemId: 'prenomAssure',
-                                                    flex: 1,
-                                                    fieldStyle: "color:blue;",
-                                                    margin: '0 10 0 0'
+                                                    fieldStyle: "color:#333;font-weight:bold;"
                                                 },
                                                 {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'Matricule/SS:',
+                                                    hideLabel: true,
                                                     itemId: 'numAssure',
-                                                    flex: 1,
-                                                    fieldStyle: "color:blue;",
-                                                    margin: '0 10 0 0'
+                                                    fieldStyle: "color:#0B57D0;font-weight:bold;",
+                                                    // Le matricule entre parentheses, en bleu : c'est lui que la
+                                                    // caissiere verifie face a la carte de l'assure.
+                                                    renderer: function (v) {
+                                                        return v ? '(' + v + ')' : '';
+                                                    }
                                                 }
 
                                             ]
@@ -202,15 +211,17 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         },
                                         {
                                             xtype: 'container',
-                                            flex: 0.5,
+                                            width: 44,
                                             layout: {type: 'vbox', align: 'middle'},
                                             items: [
 
                                                 {
-                                                    text: 'Modifier Infos ',
+                                                    // Icone seule : le libelle « Modifier Infos » prenait la largeur
+                                                    // que l'on vient de gagner. L'infobulle dit ce que fait le bouton.
                                                     itemId: 'btnModifierInfo',
                                                     icon: 'resources/images/icons/fam/user_edit.png',
-//                                                    margin: '5 10 0 0',
+                                                    tooltip: 'Cliquez ici pour modifier',
+                                                    width: 34, height: 34,
                                                     xtype: 'button'
 
                                                 }
@@ -227,7 +238,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     itemId: 'ayantDroyCmp',
                                     cls: 'vp-assur-card',
                                     flex: 1.2,
-                                    height: 118,
+                                    // Meme mise en page que la carte de l'assure ci-dessus.
+                                    minHeight: 62,
 //                                    hidden: true,
                                     layout: {
                                         type: 'hbox', pack: 'start',
@@ -236,33 +248,30 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                     items: [
                                         {
                                             xtype: 'container',
-
-                                            flex: 1.5,
-                                            layout: {type: 'vbox', align: 'stretch'},
+                                            flex: 1,
+                                            layout: 'auto',
+                                            cls: 'vp-ligne-client',
                                             items: [
 
                                                 {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'Nom :',
-                                                    flex: 1,
+                                                    hideLabel: true,
                                                     itemId: 'nomAyantDroit',
-                                                    fieldStyle: "color:blue;",
-                                                    margin: '0 10 0 0'
+                                                    fieldStyle: "color:#333;font-weight:bold;"
                                                 }, {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'Prénom(s):',
+                                                    hideLabel: true,
                                                     itemId: 'prenomAyantDroit',
-                                                    flex: 1,
-                                                    fieldStyle: "color:blue;",
-                                                    margin: '0 10 0 0'
+                                                    fieldStyle: "color:#333;font-weight:bold;"
                                                 },
                                                 {
                                                     xtype: 'displayfield',
-                                                    fieldLabel: 'Matricule/SS:',
+                                                    hideLabel: true,
                                                     itemId: 'numAyantDroit',
-                                                    flex: 1,
-                                                    fieldStyle: "color:blue;",
-                                                    margin: '0 10 0 0'
+                                                    fieldStyle: "color:#0B57D0;font-weight:bold;",
+                                                    renderer: function (v) {
+                                                        return v ? '(' + v + ')' : '';
+                                                    }
                                                 }
 
                                             ]
@@ -270,15 +279,15 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                         },
                                         {
                                             xtype: 'container',
-                                            flex: 0.5,
+                                            width: 44,
                                             layout: {type: 'vbox', align: 'middle'},
                                             items: [
 
                                                 {
-                                                    text: 'Autre ayant droit',
                                                     itemId: 'btnModifierAyant',
                                                     icon: 'resources/images/icons/fam/user_add.png',
-                                                    margin: '20 0 0 0',
+                                                    tooltip: 'Cliquez ici pour choisir un autre ayant droit',
+                                                    width: 34, height: 34,
                                                     xtype: 'button'
 
                                                 }
