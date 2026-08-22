@@ -61,6 +61,10 @@ public class SupportDiagnosticRessource {
     private job.SupportPreflight supportPreflight;
     @EJB
     private job.SupportDatabaseMonitor supportDatabaseMonitor;
+    @EJB
+    private job.SupportPoolMonitor supportPoolMonitor;
+    @EJB
+    private job.SupportClotureMonitor supportClotureMonitor;
 
     /**
      * Mesures courantes de la base de donnees (connexions, requetes en cours, verrous). Photographie en lecture seule :
@@ -75,6 +79,40 @@ public class SupportDiagnosticRessource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
         return Response.ok().entity(ResultFactory.getSuccessResult(supportDatabaseMonitor.mesures(), 1)).build();
+    }
+
+    /**
+     * Mesures du pool de connexions du serveur d'application.
+     *
+     * <p>
+     * La mesure qui compte est le temps d'obtention d'une connexion : il doit etre de quelques millisecondes. Des qu'il
+     * s'allonge, toutes les caisses ralentissent en meme temps - c'est ce que l'utilisateur voit comme un « Veuillez
+     * patienter » sans fin, et que le redemarrage du serveur repare.
+     */
+    @GET
+    @Path("pool")
+    @Produces("application/json")
+    public Response pool() {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return Response.ok().entity(ResultFactory.getSuccessResult(supportPoolMonitor.mesures(), 1)).build();
+    }
+
+    /**
+     * Duree des clotures de vente, et repartition des clotures lentes par heure. Compteurs en memoire : ils repartent
+     * de zero a chaque demarrage du serveur.
+     */
+    @GET
+    @Path("clotures")
+    @Produces("application/json")
+    public Response clotures() {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return Response.ok().entity(ResultFactory.getSuccessResult(supportClotureMonitor.mesures(), 1)).build();
     }
 
     /**

@@ -56,6 +56,8 @@ public class SalesRessource {
     GenerateTicketService generateTicketService;
     @EJB
     SmsService smsService;
+    @EJB
+    private job.SupportClotureMonitor supportClotureMonitor;
 
     @POST
     @Path("ticket/vno")
@@ -139,11 +141,31 @@ public class SalesRessource {
 
     }
 
+    /**
+     * Duree d'une cloture, mesuree cote serveur.
+     *
+     * <p>
+     * L'officine remonte des « Veuillez patienter » qui tournent sans fin en fin de journee, et une erreur sur une
+     * vente pourtant encaissee. La cause suspectee est un ralentissement general - pool de connexions plein - et non la
+     * cloture elle-meme, mais personne ne mesure la duree reelle : on ne peut donc ni confirmer, ni infirmer. Chaque
+     * cloture est desormais chronometree, et celles qui depassent le seuil sont signalees au support avec l'heure. Si
+     * le compteur monte a 18 h, l'affaire est entendue sans avoir a etre devant le serveur.
+     */
+    private JSONObject cloturerEnMesurant(String chemin, java.util.function.Supplier<JSONObject> cloture) {
+        long depart = System.nanoTime();
+        try {
+            return cloture.get();
+        } finally {
+            supportClotureMonitor.enregistrer(chemin, (System.nanoTime() - depart) / 1_000_000L);
+        }
+    }
+
     @POST
     @Path("cloturer/vno")
     public Response cloturerVno(ClotureVenteParams clotureVenteParams) {
 
-        JSONObject json = salesService.updateVenteClotureComptant(clotureVenteParams);
+        JSONObject json = cloturerEnMesurant("/api/v1/vente/cloturer/vno",
+                () -> salesService.updateVenteClotureComptant(clotureVenteParams));
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -167,7 +189,8 @@ public class SalesRessource {
     @Path("cloturer/assurance")
     public Response cloturerAssurance(ClotureVenteParams clotureVenteParams) {
 
-        JSONObject json = salesService.updateVenteClotureAssurance(clotureVenteParams);
+        JSONObject json = cloturerEnMesurant("/api/v1/vente/cloturer/assurance",
+                () -> salesService.updateVenteClotureAssurance(clotureVenteParams));
         return Response.ok().entity(json.toString()).build();
     }
 
