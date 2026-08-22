@@ -2077,6 +2077,31 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (!me.prendreVerrouCloture()) {
             return;
         }
+        /* La suite d'une cloture reussie, nommee une fois : elle sert aussi quand la reponse s'est perdue et
+         * qu'on a retrouve la vente encaissee - la caissiere doit alors voir exactement la meme chose. */
+        const apresSucces = function () {
+            if (!me.getTicketCaisse()) {
+                me.onPrintTicket(param, typeVenteCombo);
+                me.resetAll(montantRemis);
+                me.getVnoproduitCombo().focus(false, 100, function () {
+                });
+                return;
+            }
+            Ext.MessageBox.show({
+                title: 'Impression du ticket',
+                msg: 'Voulez-vous imprimer le ticket ?',
+                buttons: Ext.MessageBox.YESNO,
+                fn: function (button) {
+                    if ('yes' == button) {
+                        me.onPrintTicket(param, typeVenteCombo);
+                    }
+                    me.resetAll(montantRemis);
+                    me.getVnoproduitCombo().focus(false, 100, function () {
+                    });
+                },
+                icon: Ext.MessageBox.QUESTION
+            });
+        };
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
@@ -2089,29 +2114,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const result = Ext.JSON.decode(response.responseText, true);
                 progress.hide();
                 if (result.success) {
-                    if (!me.getTicketCaisse()) {
-                        me.onPrintTicket(param, typeVenteCombo);
-                        me.resetAll(montantRemis);
-                        me.getVnoproduitCombo().focus(false, 100, function () {
-                        });
-                    } else {
-                        Ext.MessageBox.show({
-                            title: 'Impression du ticket',
-                            msg: 'Voulez-vous imprimer le ticket ?',
-                            buttons: Ext.MessageBox.YESNO,
-                            fn: function (button) {
-                                if ('yes' == button) {
-                                    me.onPrintTicket(param, typeVenteCombo);
-                                }
-                                me.resetAll(montantRemis);
-                                me.getVnoproduitCombo().focus(false, 100, function () {
-                                });
-                            },
-                            icon: Ext.MessageBox.QUESTION
-                        });
-                    }
-
-
+                    apresSucces();
                 } else {
                     let codeError = result.codeError;
                     //il faut ajouter un medecin à la vente 
@@ -2143,7 +2146,10 @@ Ext.define('testextjs.controller.VenteCtr', {
             failure: function (response, options) {
                 me.rendreVerrouCloture();
                 progress.hide();
-                Ext.Msg.alert("Message", me.messageEchecCloture(response));
+                me.apresEchecCloture('/api/v1/vente/cloturer/vno', param.venteId, response, apresSucces,
+                        function () {
+                            me.closeVenteVno(param, montantRemis, typeVenteCombo);
+                        });
             }
 
         });
@@ -5144,6 +5150,147 @@ Ext.define('testextjs.controller.VenteCtr', {
         return 'Erreur du serveur ' + response.status;
     },
 
+    /* ------------------------------------------------------------------
+     * Cloture dont la reponse n'est pas revenue
+     *
+     * Reseau coupe, delai depasse : le poste ne sait pas si la vente est passee. Il DEMANDE au serveur au lieu de
+     * renvoyer la caissiere chercher dans les ventes terminees - ce qui la laissait sans ticket et lui avouait un
+     * defaut sur une vente pourtant encaissee.
+     * ------------------------------------------------------------------ */
+
+    /* Nombre de fois qu'on redemande, et l'attente entre deux. La cloture peut etre ENCORE EN COURS cote serveur au
+     * moment ou l'on interroge : conclure « pas enregistree » sur une seule reponse ferait revalider une vente sur le
+     * point d'aboutir. On laisse donc plusieurs chances avant de conclure. */
+    essaisVerificationCloture: 3,
+    attenteVerificationCloture: 2500,
+
+    /**
+     * Demande au serveur si la vente est encaissee, puis appelle la suite.
+     *
+     * @param venteId identifiant de la vente
+     * @param essais nombre de tentatives restantes
+     * @param suite fonction appelee avec 'cloturee', 'nonCloturee' ou 'inconnue'
+     */
+    verifierSiVenteCloturee: function (venteId, essais, suite) {
+        const me = this;
+        if (!venteId) {
+            suite('inconnue');
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/vente/statut/' + encodeURIComponent(venteId),
+            timeout: 20000,
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (result.success && result.cloturee) {
+                    suite('cloturee');
+                    return;
+                }
+                /* Ni cloturee, ni erreur : elle est peut-etre encore en cours d'enregistrement. On redemande
+                 * plutot que de conclure trop vite. */
+                if (essais > 1) {
+                    Ext.defer(function () {
+                        me.verifierSiVenteCloturee(venteId, essais - 1, suite);
+                    }, me.attenteVerificationCloture);
+                    return;
+                }
+                suite(result.success ? 'nonCloturee' : 'inconnue');
+            },
+            failure: function () {
+                // Le serveur ne repond toujours pas : on retente, puis on renonce a savoir.
+                if (essais > 1) {
+                    Ext.defer(function () {
+                        me.verifierSiVenteCloturee(venteId, essais - 1, suite);
+                    }, me.attenteVerificationCloture);
+                    return;
+                }
+                suite('inconnue');
+            }
+        });
+    },
+
+    /**
+     * Signale au Centre de Support qu'une reponse de cloture s'est perdue.
+     *
+     * Ce n'est PAS une double cloture - le serveur, lui, n'a rien vu d'anormal : il a mene une cloture a son terme.
+     * Sans cette trace depuis le poste, le cas serait rendu invisible a l'utilisateur ET au support. D'ou son propre
+     * libelle : la reponse s'est perdue entre le serveur et le poste.
+     */
+    signalerReponsePerdue: function (chemin, venteId, issue) {
+        try {
+            Ext.Ajax.request({
+                method: 'POST',
+                url: '../api/v1/support/events',
+                headers: {'Content-Type': 'application/json'},
+                params: Ext.JSON.encode({
+                    type: 'APPLICATION',
+                    niveau: 'WARN',
+                    module: 'VENTE',
+                    messageCourt: 'Reponse de cloture non revenue au poste',
+                    urlOuEcran: 'POST ' + chemin,
+                    stack: 'Le poste n\'a pas recu la reponse de sa cloture et a interroge le serveur.'
+                            + ' Issue : ' + issue + '.',
+                    payloadJson: Ext.JSON.encode({
+                        vente: venteId,
+                        issue: issue,
+                        explication: 'Le serveur n\'a rien vu d\'anormal : c\'est la reponse qui ne lui est pas'
+                                + ' revenue. A surveiller : si le compteur monte, chercher du cote du reseau, du'
+                                + ' delai de la cloture, ou de la saturation du poste (fils HTTP, pool de connexions).'
+                    })
+                }),
+                failure: Ext.emptyFn
+            });
+        } catch (ignore) {
+            // Une trace ne doit jamais peser sur une vente.
+        }
+    },
+
+    /**
+     * Ce que fait l'ecran quand la reponse d'une cloture n'est pas revenue.
+     *
+     * L'objectif est que la caissiere ne voie JAMAIS d'anomalie sur une vente qui est passee : elle doit recevoir la
+     * meme question qu'a l'ordinaire, « voulez-vous imprimer le ticket ? ».
+     */
+    apresEchecCloture: function (chemin, venteId, response, apresSucces, reessayer) {
+        const me = this;
+        // Une vraie erreur du serveur (400, 500...) garde son message : elle porte une cause, elle n'est pas perdue.
+        if (response && response.status > 0 && !response.timedout) {
+            Ext.Msg.alert('Message', me.messageEchecCloture(response));
+            return;
+        }
+        const attente = Ext.MessageBox.wait('Vérification de la vente . . .', 'Un instant');
+        me.verifierSiVenteCloturee(venteId, me.essaisVerificationCloture, function (issue) {
+            attente.hide();
+            me.signalerReponsePerdue(chemin, venteId, issue);
+            if (issue === 'cloturee') {
+                // La vente EST passee : on enchaine comme apres une cloture ordinaire.
+                apresSucces();
+                return;
+            }
+            if (issue === 'nonCloturee') {
+                Ext.MessageBox.show({
+                    title: 'Vente non enregistrée',
+                    width: 480,
+                    msg: 'La vente n\'a pas été enregistrée : aucun encaissement n\'a eu lieu.'
+                            + '<br/>Voulez-vous réessayer&nbsp;?',
+                    buttons: Ext.MessageBox.YESNO,
+                    icon: Ext.MessageBox.QUESTION,
+                    fn: function (bouton) {
+                        if (bouton === 'yes') {
+                            reessayer();
+                        } else {
+                            me.getMontantRecu().focus(true, 100);
+                        }
+                    }
+                });
+                return;
+            }
+            // On n'a pas pu savoir : on reste prudent, c'est le seul cas ou l'ancien message garde son sens.
+            Ext.Msg.alert('Message', me.messageEchecCloture(response));
+        });
+    },
+
     doCloture: function () {
         const me = this;
 
@@ -5427,6 +5574,31 @@ Ext.define('testextjs.controller.VenteCtr', {
             if (!me.prendreVerrouCloture()) {
                 return;
             }
+            /* Meme raison que sur la cloture au comptant : la suite d'une cloture reussie est nommee une fois,
+             * pour que le cas « reponse perdue mais vente retrouvee encaissee » aboutisse au meme ecran. */
+            const apresSucces = function () {
+                if (!me.getTicketCaisse()) {
+                    me.onPrintTicket(param, typeVenteCombo);
+                    me.resetAll(montantRemis);
+                    me.getVnoproduitCombo().focus(false, 100, function () {
+                    });
+                    return;
+                }
+                Ext.MessageBox.show({
+                    title: 'Impression du ticket',
+                    msg: 'Voulez-vous imprimer le ticket ?',
+                    buttons: Ext.MessageBox.YESNO,
+                    fn: function (button) {
+                        if ('yes' == button) {
+                            me.onPrintTicket(param, typeVenteCombo);
+                        }
+                        me.resetAll(montantRemis);
+                        me.getVnoproduitCombo().focus(false, 100, function () {
+                        });
+                    },
+                    icon: Ext.MessageBox.QUESTION
+                });
+            };
             const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
             Ext.Ajax.request({
                 method: 'POST',
@@ -5439,28 +5611,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     let result = Ext.JSON.decode(response.responseText, true);
                     progress.hide();
                     if (result.success) {
-                        if (!me.getTicketCaisse()) {
-                            me.onPrintTicket(param, typeVenteCombo);
-                            me.resetAll(montantRemis);
-                            me.getVnoproduitCombo().focus(false, 100, function () {
-                            });
-                        } else {
-                            Ext.MessageBox.show({
-                                title: 'Impression du ticket',
-                                msg: 'Voulez-vous imprimer le ticket ?',
-                                buttons: Ext.MessageBox.YESNO,
-                                fn: function (button) {
-                                    if ('yes' == button) {
-                                        me.onPrintTicket(param, typeVenteCombo);
-                                    }
-                                    me.resetAll(montantRemis);
-                                    me.getVnoproduitCombo().focus(false, 100, function () {
-                                    });
-                                },
-                                icon: Ext.MessageBox.QUESTION
-                            });
-
-                        }
+                        apresSucces();
                     } else {
                         let codeError = result.codeError;
                         //il faut ajouter un medecin à la vente 
@@ -5488,7 +5639,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                 failure: function (response, options) {
                     me.rendreVerrouCloture();
                     progress.hide();
-                    Ext.Msg.alert("Message", me.messageEchecCloture(response));
+                    me.apresEchecCloture('/api/v1/vente/cloturer/assurance', venteId, response, apresSucces,
+                            function () {
+                                me.onbtncloturerAssurance(typeRegleId);
+                            });
                 }
 
             });

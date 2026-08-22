@@ -43,6 +43,19 @@ public interface SalesService {
 
     JSONObject updateVenteClotureAssurance(ClotureVenteParams clotureVenteParams);
 
+    /**
+     * Etat d'une vente : est-elle encaissee ?
+     *
+     * <p>
+     * Sert au poste qui n'a pas recu la reponse de sa cloture - reseau coupe, delai depasse - et qui doit savoir s'il
+     * doit proposer le ticket ou proposer de recommencer. La lecture est SCALAIRE et sans verrou : elle doit repondre
+     * meme quand le serveur est deja charge, c'est justement dans ce cas qu'on l'interroge.
+     *
+     * @param venteId
+     *            identifiant de la vente
+     */
+    JSONObject statutVente(String venteId);
+
     JSONObject clotureravoir(String id, TUser tUser);
 
     JSONObject closeventeBon(String id);

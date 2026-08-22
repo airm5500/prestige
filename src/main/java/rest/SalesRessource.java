@@ -194,6 +194,20 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Etat d'une vente : est-elle encaissee ?
+     *
+     * <p>
+     * Appele par le poste dont la cloture n'a pas recu de reponse. C'est ce qui lui permet d'enchainer tout seul -
+     * proposer le ticket si la vente est passee, proposer de recommencer sinon - au lieu de renvoyer la caissiere
+     * chercher dans les ventes terminees.
+     */
+    @GET
+    @Path("statut/{id}")
+    public Response statutVente(@PathParam("id") String id) {
+        return Response.ok().entity(salesService.statutVente(id).toString()).build();
+    }
+
     @POST
     @Path("clotureravoir/{id}")
     public Response clotureravoir(@PathParam("id") String id) {

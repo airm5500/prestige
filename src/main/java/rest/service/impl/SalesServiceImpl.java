@@ -1766,6 +1766,39 @@ public class SalesServiceImpl implements SalesService {
     }
 
     /**
+     * Etat d'une vente, sans verrou.
+     *
+     * <p>
+     * Le poste qui n'a pas recu la reponse de sa cloture ne sait pas si la vente est passee. Plutot que de lui faire
+     * chercher dans les ventes terminees - ce qui revient a lui avouer un defaut et le laisse sans ticket - il demande
+     * ici, et l'ecran enchaine tout seul : le ticket si elle est encaissee, la reprise sinon.
+     *
+     * <p>
+     * Lecture SCALAIRE et sans verrou, volontairement : c'est justement quand le serveur peine que cette question est
+     * posee, elle ne doit ni attendre un verrou, ni charger une entite et ses associations.
+     */
+    @Override
+    public JSONObject statutVente(String venteId) {
+        JSONObject json = new JSONObject();
+        try {
+            Object ligne = getEm().createNativeQuery("SELECT p.str_STATUT, p.str_REF FROM t_preenregistrement p"
+                    + " WHERE p.lg_PREENREGISTREMENT_ID = ?1").setParameter(1, venteId).getSingleResult();
+            Object[] valeurs = (ligne instanceof Object[]) ? (Object[]) ligne : new Object[] { ligne, null };
+            String statut = valeurs[0] != null ? String.valueOf(valeurs[0]) : "";
+            return json.put("success", true).put("trouvee", true)
+                    .put("cloturee", Constant.STATUT_IS_CLOSED.equals(statut)).put("statut", statut)
+                    .put("ref", valeurs[1] != null ? String.valueOf(valeurs[1]) : "");
+        } catch (javax.persistence.NoResultException e) {
+            // Vente inconnue : ce n'est pas une erreur, c'est une reponse. L'ecran en tirera qu'il n'y a rien a
+            // imprimer.
+            return json.put("success", true).put("trouvee", false).put("cloturee", false);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "statutVente " + venteId, e);
+            return json.put("success", false).put("msg", "Etat de la vente indisponible");
+        }
+    }
+
+    /**
      * Vente deja cloturee : on rend le meme succes que si l'on venait de la cloturer. L'objectif demande par la caisse
      * - cloturer cette vente - est atteint ; annoncer une erreur ferait recommencer une operation deja faite.
      */
