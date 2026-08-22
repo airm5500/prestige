@@ -437,7 +437,7 @@ public class SalesStatsRessource {
             lignes.add(null); // sentinelle : ligne d'avertissement
         }
         String[] headers = { "Reference", "N° ticket", "Type", "Categorie", "Client", "Montant", "Part client",
-                "Remise", "Date", "Heure", "Vendeur", "Caissier" };
+                "Remise", "Montant différé", "Date", "Heure", "Vendeur", "Caissier" };
         byte[] data = excelExportService.createLandscapeExcelReport(titreExportVentes(body), headers, lignes,
                 (row, v) -> {
                     if (v == null) {
@@ -453,10 +453,11 @@ public class SalesStatsRessource {
                     row.createCell(5).setCellValue(v.getIntPRICE() == null ? 0 : v.getIntPRICE());
                     row.createCell(6).setCellValue(v.getIntCUSTPART() == null ? 0 : v.getIntCUSTPART());
                     row.createCell(7).setCellValue(v.getIntPRICEREMISE() == null ? 0 : v.getIntPRICEREMISE());
-                    row.createCell(8).setCellValue(nonNul(v.getDtUPDATED()));
-                    row.createCell(9).setCellValue(nonNul(v.getHeure()));
-                    row.createCell(10).setCellValue(nonNul(v.getUserVendeurName()));
-                    row.createCell(11).setCellValue(nonNul(v.getUserCaissierName()));
+                    row.createCell(8).setCellValue(v.getIntPRICERESTE() == null ? 0 : v.getIntPRICERESTE());
+                    row.createCell(9).setCellValue(nonNul(v.getDtUPDATED()));
+                    row.createCell(10).setCellValue(nonNul(v.getHeure()));
+                    row.createCell(11).setCellValue(nonNul(v.getUserVendeurName()));
+                    row.createCell(12).setCellValue(nonNul(v.getUserCaissierName()));
                 });
         String filename = "ventes_terminees_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";

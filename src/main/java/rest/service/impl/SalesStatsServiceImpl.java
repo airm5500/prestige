@@ -149,6 +149,14 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     private static final String SEARCH_CLOSE = " AND ((p.lg_PREENREGISTREMENT_ID  IN (SELECT d.lg_PREENREGISTREMENT_ID FROM  t_preenregistrement_detail d JOIN t_famille f ON d.lg_FAMILLE_ID=f.lg_FAMILLE_ID WHERE f.int_CIP LIKE '%s' OR f.str_NAME LIKE '%s' )) OR p.str_REF LIKE '%s' )";
     private static final String NATURE_CLOSE = " AND p.str_TYPE_VENTE='%s' ";
     private static final String VENTE_SQL = "SELECT {distinct} p.lg_PREENREGISTREMENT_ID as lgPREENREGISTREMENTID,p.str_REF as strREF,p.str_REF_TICKET as strREFTICKET,p.int_PRICE as intPRICE,p.int_CUST_PART as intCUSTPART,p.int_PRICE_REMISE as intPRICEREMISE,p.str_STATUT as strSTATUT,p.dt_CREATED as dtCREATED, p.dt_UPDATED as dtUPDATED,p.str_TYPE_VENTE as strTYPEVENTE,p.b_IS_AVOIR as avoir,p.b_IS_CANCEL as cancel,p.b_WITHOUT_BON as sansbon, p.lg_TYPE_VENTE_ID as lgTYPEVENTEID,p.copy as copy,"
+            /*
+             * Montant differe encore du sur la vente. Il vit dans t_preenregistrement_compte_client, une ligne par
+             * vente mise au compte du client, et il DIMINUE a chaque reglement jusqu'a zero : la colonne montre donc ce
+             * qu'il reste a encaisser, pas ce qui avait ete differe le jour de la vente. Sous-requete et non jointure,
+             * pour qu'une vente portant deux lignes de compte ne ressorte pas en double dans la liste.
+             */
+            + "(SELECT SUM(pcc.int_PRICE_RESTE) FROM t_preenregistrement_compte_client pcc"
+            + " WHERE pcc.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID) as intPRICERESTE,"
             + "p.dt_ANNULER as dtANNULER,p.lg_USER_CAISSIER_ID as lgUSERCAISSIERID,CONCAT(caissier.str_FIRST_NAME,' ',caissier.str_LAST_NAME) AS userCaissierName,CONCAT(c.str_FIRST_NAME,' ',c.str_LAST_NAME) AS clientFullName, CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeurName,CONCAT(op.str_FIRST_NAME,' ',op.str_LAST_NAME) AS userValidateur,p.dt_CLOTURE_AVOIR as dtClotureAvoir,em.lg_EMPLACEMENT_ID AS  pkBrand from {select_placeholder} INNER JOIN t_user caissier ON caissier.lg_USER_ID=p.lg_USER_CAISSIER_ID LEFT JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID LEFT JOIN t_user op ON op.lg_USER_ID=p.lg_USER_ID LEFT  JOIN  t_client c ON p.lg_CLIENT_ID=c.lg_CLIENT_ID "
             + " LEFT JOIN t_emplacement em ON em.lg_EMPLACEMENT_ID=p.PK_BRAND {produit_join} where p.dt_UPDATED >=:dtStart and p.dt_UPDATED <=:dtEnd and p.str_STATUT=:status";
     private static final String NATURE_CLOSE2 = " and p.lg_NATURE_VENTE_ID=:natureVente";
@@ -2774,6 +2782,18 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return tuples.stream().map(tuple -> tupleToVenteDTO(tuple, canexport, params)).collect(Collectors.toList());
     }
 
+    /**
+     * Montant differe d'une vente, tel qu'il revient de la somme SQL.
+     *
+     * <p>
+     * La somme vaut null pour toute vente jamais mise au compte du client - c'est-a-dire la quasi-totalite d'entre
+     * elles - et l'ecran attend un nombre, pas un vide. Le type concret varie par ailleurs selon le pilote : la somme
+     * d'une colonne entiere revient en BigDecimal sous MySQL, d'ou la lecture en Number.
+     */
+    static int montantDiffere(Number sommeSql) {
+        return sommeSql != null ? sommeSql.intValue() : 0;
+    }
+
     private VenteDTO tupleToVenteDTO(Tuple tuple, boolean canexport, SalesStatsParams params) {
         VenteDTO venteDTO = new VenteDTO();
         venteDTO.setLgPREENREGISTREMENTID(tuple.get("lgPREENREGISTREMENTID", String.class));
@@ -2825,6 +2845,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             venteDTO.setHeureAnnulation(heureFormat.format(dtAnnuler));
         }
 
+        venteDTO.setIntPRICERESTE(montantDiffere(tuple.get("intPRICERESTE", Number.class)));
         venteDTO.setLgUSERCAISSIERID(tuple.get("lgUSERCAISSIERID", String.class));
         venteDTO.setUserCaissierName(tuple.get("userCaissierName", String.class));
         venteDTO.setClientFullName(tuple.get("clientFullName", String.class));
