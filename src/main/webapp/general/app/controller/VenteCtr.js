@@ -2073,13 +2073,18 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     closeVenteVno: function (param, montantRemis, typeVenteCombo) {
         const me = this;
+        if (!me.prendreVerrouCloture()) {
+            return;
+        }
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
         Ext.Ajax.request({
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/vente/cloturer/vno',
             params: Ext.JSON.encode(param),
+            timeout: me.delaiCloture,
             success: function (response, options) {
+                me.rendreVerrouCloture();
                 const result = Ext.JSON.decode(response.responseText, true);
                 progress.hide();
                 if (result.success) {
@@ -2135,8 +2140,9 @@ Ext.define('testextjs.controller.VenteCtr', {
 
             },
             failure: function (response, options) {
+                me.rendreVerrouCloture();
                 progress.hide();
-                Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
+                Ext.Msg.alert("Message", me.messageEchecCloture(response));
             }
 
         });
@@ -5046,6 +5052,46 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     // Wrapper: confirmation montant élevé + sécurité anti-scan avant clôture
+    /*
+     * Verrou de cloture.
+     *
+     * « Terminer vente » part de deux endroits - le bouton et la touche Entree dans « Montant reçu » - et le voile
+     * d'attente n'apparait qu'au tout dernier moment, apres les controles de saisie, la confirmation des montants
+     * eleves et le controle de caisse. Pendant tout cet intervalle, rien n'empechait une seconde demande de partir.
+     * Deux cloture de la meme vente se croisaient alors cote serveur : l'une encaissait, l'autre butait sur la
+     * contrainte d'unicite du mouvement de caisse, et la caissiere voyait une erreur sur une vente pourtant validee.
+     *
+     * Le verrou est pris juste avant l'envoi et rendu dans les deux issues, succes comme echec.
+     */
+    clotureEnCours: false,
+
+    /* Une cloture ecrit la vente, le stock, la caisse et le ticket : trois minutes, la ou le defaut d'ExtJS
+     * (30 secondes) abandonnait cote poste une cloture que le serveur menait pourtant a son terme. */
+    delaiCloture: 180000,
+
+    prendreVerrouCloture: function () {
+        const me = this;
+        if (me.clotureEnCours) {
+            return false;
+        }
+        me.clotureEnCours = true;
+        return true;
+    },
+
+    rendreVerrouCloture: function () {
+        this.clotureEnCours = false;
+    },
+
+    /* Un abandon cote poste porte le statut 0 : ne pas le presenter comme une erreur du serveur, et dire quoi faire
+     * plutot que d'inviter a revalider une vente peut-etre deja encaissee. */
+    messageEchecCloture: function (response) {
+        if (!response || response.status === 0 || response.timedout) {
+            return 'La réponse du serveur n\'est pas arrivée. <b>Ne revalidez pas cette vente&nbsp;:</b> '
+                    + 'vérifiez d\'abord dans les ventes terminées si elle est déjà enregistrée.';
+        }
+        return 'Erreur du serveur ' + response.status;
+    },
+
     doCloture: function () {
         const me = this;
 
@@ -5326,13 +5372,18 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "medecinId": medecinId,
                 "reglements": me.buildModeReglements(typeRegleId, netTopay)
             };
+            if (!me.prendreVerrouCloture()) {
+                return;
+            }
             const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
             Ext.Ajax.request({
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 url: url,
                 params: Ext.JSON.encode(param),
+                timeout: me.delaiCloture,
                 success: function (response, options) {
+                    me.rendreVerrouCloture();
                     let result = Ext.JSON.decode(response.responseText, true);
                     progress.hide();
                     if (result.success) {
@@ -5383,8 +5434,9 @@ Ext.define('testextjs.controller.VenteCtr', {
 
                 },
                 failure: function (response, options) {
+                    me.rendreVerrouCloture();
                     progress.hide();
-                    Ext.Msg.alert("Message", 'Un problème avec le serveur ' + response.status);
+                    Ext.Msg.alert("Message", me.messageEchecCloture(response));
                 }
 
             });
