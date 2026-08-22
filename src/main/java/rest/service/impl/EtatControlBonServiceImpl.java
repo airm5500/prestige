@@ -441,6 +441,85 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         }
     }
 
+    /** Les trois seuls etats qu'un bon puisse porter, ecrits tels que la table les attend. */
+    static final String NON_REGLE = "NON REGLE";
+    static final String REGLE_EN_PARTIE = "REGLE EN PARTIE";
+    static final String REGLE = "REGLE";
+
+    /**
+     * Etat demande par l'ecran, ramene a l'une des trois valeurs connues.
+     *
+     * <p>
+     * Rien d'autre ne doit pouvoir entrer en base : la colonne est lue telle quelle par les listes et les etats, une
+     * valeur inattendue y resterait sans que personne ne la voie.
+     */
+    static String statutDeReglement(String demande) {
+        String valeur = StringUtils.trimToEmpty(demande).toUpperCase();
+        if (REGLE_EN_PARTIE.equals(valeur)) {
+            return REGLE_EN_PARTIE;
+        }
+        if (REGLE.equals(valeur) || "REGLE TOTALEMENT".equals(valeur)) {
+            return REGLE;
+        }
+        return NON_REGLE;
+    }
+
+    @Override
+    public JSONObject reglerBons(List<String> bonIds, String statut, String dateReglement, Integer montantRegle) {
+        JSONObject json = new JSONObject();
+        if (bonIds == null || bonIds.isEmpty()) {
+            return json.put("success", false).put("msg", "Veuillez sélectionner au moins un bon de livraison.");
+        }
+        String etat = statutDeReglement(statut);
+        Date date = null;
+        if (!NON_REGLE.equals(etat)) {
+            try {
+                date = java.sql.Date.valueOf(LocalDate.parse(StringUtils.trimToEmpty(dateReglement)));
+            } catch (RuntimeException e) {
+                return json.put("success", false).put("msg", "Veuillez indiquer une date de règlement valide.");
+            }
+        }
+        if (REGLE_EN_PARTIE.equals(etat) && (montantRegle == null || montantRegle <= 0)) {
+            return json.put("success", false).put("msg", "Veuillez indiquer le montant réglé.");
+        }
+        int marques = 0;
+        try {
+            for (String id : bonIds) {
+                TBonLivraison bon = getById(id);
+                if (bon == null) {
+                    continue;
+                }
+                /*
+                 * Le montant de reference est le TTC du bon. Le reste a payer se DEDUIT du montant verse : le laisser
+                 * saisir a la main, c'est accepter qu'il ne corresponde pas au bon.
+                 */
+                int ttc = bon.getIntHTTC() != null ? bon.getIntHTTC() : 0;
+                bon.setSTATUS(etat);
+                bon.setDtREGLEMENTDATE(date);
+                if (NON_REGLE.equals(etat)) {
+                    bon.setIntMONTANTREGLE(0);
+                    bon.setIntMONTANTRESTANT(ttc);
+                } else if (REGLE_EN_PARTIE.equals(etat)) {
+                    int verse = Math.min(montantRegle, ttc);
+                    bon.setIntMONTANTREGLE(verse);
+                    bon.setIntMONTANTRESTANT(ttc - verse);
+                } else {
+                    bon.setIntMONTANTREGLE(ttc);
+                    bon.setIntMONTANTRESTANT(0);
+                }
+                em.merge(bon);
+                marques++;
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "reglerBons", e);
+            return json.put("success", false).put("msg", "Le règlement n'a pas pu être enregistré.");
+        }
+        if (marques == 0) {
+            return json.put("success", false).put("msg", "Aucun des bons sélectionnés n'a été retrouvé.");
+        }
+        return json.put("success", true).put("count", marques).put("statut", etat);
+    }
+
     @Override
     public JSONObject updateBon(EtatControlBonEditDto bonEdit) {
         JSONObject json = new JSONObject();

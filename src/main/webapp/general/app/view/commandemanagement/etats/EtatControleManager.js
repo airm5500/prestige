@@ -521,15 +521,26 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     scope: this,
                     handler: this.onInventaireDeLaSelection
                 }, '-',
-                /* Ces deux boutons etaient caches en dur depuis l'origine : la fonction existait mais
-                 * restait inatteignable, y compris pour la tester. Ils sont desormais affiches. */
+                /*
+                 * Ces deux boutons etaient caches en dur depuis l'origine. Ils ont ete affiches le temps de la
+                 * recette, et sont remis en retrait sur demande, en attendant l'arbitrage :
+                 *
+                 * - REGLER UNE SELECTION DE BL fonctionne desormais : il postait vers ws_transaction2.jsp, page
+                 *   qui n'a jamais existe dans le projet, et passe par un service REST depuis la reprise. Il est
+                 *   pret a etre reaffiche, il suffit de retirer le hidden.
+                 * - GESTION DES QUINZAINES reste inoperant : les pages qui le servent appellent des classes
+                 *   com.asc.prestige2.business.bonlivraisons absentes du projet, en source comme en bibliotheque,
+                 *   et rendent HTTP 500. Ne le reafficher qu'une fois ces pages reprises.
+                 */
                 {
                     text: 'GESTION DES QUINZAINES',
+                    hidden: true,
                     scope: this,
                     handler: this.onGestionQuinzaine
                 }, '-',
                 {
                     text: 'REGLER UNE SELECTION DE BL',
+                    hidden: true,
                     scope: this,
                     handler: this.onReglerSelectionBL
                 }
@@ -877,10 +888,18 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 selectedBL = selectedBLs[selectedBLs.length - 1];
             }
 
+            /* L'entete nomme ce qu'on regle, pas l'identifiant technique : celui-ci ne dit rien a
+             * la caissiere et mangeait toute la barre de titre. Numero de BL et montant suffisent,
+             * et le nombre de bons est rappele des qu'il y en a plusieurs. */
+            var intitule = 'Règlement de Bons de Livraison — n° '
+                    + (selectedBL.get('strREFLIVRAISON') || '') + ' : ' + selectedBL.get('intMHT');
+            if (selectedBLs.length > 1) {
+                intitule = 'Règlement de ' + selectedBLs.length + ' Bons de Livraison';
+            }
             new testextjs.view.commandemanagement.etats.action.paybls({
                 selectedBLs: selectedBLs,
                 selectedBL: selectedBL,
-                titre: 'Règlement de Bons de Livraison[ ' + selectedBL.get('lgBONLIVRAISONID') + ' : ' + selectedBL.get('intMHT') + ' ]'
+                titre: intitule
             });
         }
 

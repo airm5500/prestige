@@ -126,6 +126,39 @@ public class EtatControlBonResource {
                 .build();
     }
 
+    /**
+     * Marque le reglement d'une selection de bons de livraison.
+     *
+     * <p>
+     * L'ecran postait jusqu'ici vers {@code ws_transaction2.jsp}, page qui n'a jamais existe dans le projet : le
+     * reglement rendait donc un 404 et n'enregistrait rien. Le bouton qui y menait etant cache depuis l'origine,
+     * personne ne pouvait s'en apercevoir.
+     *
+     * @param body
+     *            {@code {"bons":["id1","id2"],"statut":"REGLE","date":"2026-08-22","montantRegle":0}}
+     */
+    @POST
+    @Path("reglement")
+    public Response reglerBons(String body) throws org.json.JSONException {
+        javax.servlet.http.HttpSession hs = servletRequest.getSession();
+        if (hs.getAttribute(util.Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
+        }
+        org.json.JSONObject entree = new org.json.JSONObject(body == null ? "{}" : body);
+        java.util.List<String> bons = new java.util.ArrayList<>();
+        org.json.JSONArray tableau = entree.optJSONArray("bons");
+        for (int i = 0; tableau != null && i < tableau.length(); i++) {
+            String id = tableau.optString(i, "").trim();
+            if (!id.isEmpty()) {
+                bons.add(id);
+            }
+        }
+        Integer montant = entree.has("montantRegle") ? entree.optInt("montantRegle") : null;
+        return Response.ok().entity(etatControlBonService
+                .reglerBons(bons, entree.optString("statut", ""), entree.optString("date", ""), montant).toString())
+                .build();
+    }
+
     @GET
     @Path("export-annuel-excel")
     @Produces(MediaType.APPLICATION_OCTET_STREAM)
