@@ -1,6 +1,7 @@
-var url_services_data_famille_select_dovente = '../webservices/sm_user/famille/ws_data_jdbc.jsp';
-var url_services_data_detailetiquette = '../webservices/stockmanagement/etiquette/ws_data_detail.jsp';
-var url_services_transaction_etiquette = '../webservices/stockmanagement/etiquette/ws_transaction.jsp?mode=';
+/* Cet ecran passe par l'API REST. Les pages JSP qu'il appelait restent en place, INTOUCHEES :
+ * ws_data_jdbc.jsp sert encore le retour depot, l'ajustement, les achats differes et le retour
+ * fournisseur, et ws_data_detail.jsp sert l'ecran principal des etiquettes. */
+var url_services_etiquette_panier = '../api/v1/etiquette-panier';
 var url_services_pdf_fiche_massiveetiquette = '../webservices/stockmanagement/etiquette/ws_generate_etiquette_pdf.jsp';
 /* Servlet d'edition : c'est lui qui applique la bascule KEY_ETIQUETTE_MOTEUR et renvoie, le cas
  * echeant, vers la generation JasperReports historique (url_services_pdf_fiche_massiveetiquette). */
@@ -47,7 +48,8 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
         var itemsPerPage = 20;
         LaborexWorkFlow = Ext.create('testextjs.controller.LaborexWorkFlow', {});
 //        store_famille_dovente = LaborexWorkFlow.BuildStore('testextjs.model.Famille', itemsPerPage, url_services_data_famille_select_dovente + "?str_TYPE_TRANSACTION=init"); // a decommenter en cas de probleme
-        store_famille_dovente = LaborexWorkFlow.BuildStore('testextjs.model.Famille', itemsPerPage, url_services_data_famille_select_dovente);
+        store_famille_dovente = LaborexWorkFlow.BuildStore('testextjs.model.Famille', itemsPerPage,
+                url_services_etiquette_panier + '/produits');
 
         var store_details = new Ext.data.Store({
             model: 'testextjs.model.Etiquette',
@@ -55,7 +57,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_detailetiquette,
+                url: url_services_etiquette_panier,
                 reader: {
                     type: 'json',
                     root: 'results',
@@ -347,17 +349,15 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
         Ext.getCmp('gridpanelID').on('edit', function(editor, e) {
 
             Ext.Ajax.request({
-                url: '../webservices/stockmanagement/etiquette/ws_transaction.jsp?mode=updateetiquette',
-                params: {
-                    lg_ETIQUETTE_ID: e.record.data.lg_ETIQUETTE_ID,
-                    lg_FAMILLE_ID: e.record.data.lg_FAMILLE_ID,
-                    int_NUMBER: e.record.data.int_NUMBER
-                },
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                url: url_services_etiquette_panier + '/' + encodeURIComponent(e.record.data.lg_ETIQUETTE_ID),
+                params: Ext.JSON.encode({quantite: parseInt(e.record.data.int_NUMBER, 10)}),
                 success: function(response)
                 {
                     var object = Ext.JSON.decode(response.responseText, false);
-                    if (object.success === 0) {
-                        Ext.MessageBox.alert('Error Message', object.errors);
+                    if (!object.success) {
+                        Ext.MessageBox.alert('Message', object.msg || 'L\'opération n\'a pas abouti.');
                         return;
                     }
                     e.record.commit();
@@ -432,15 +432,13 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                     if (btn == 'yes') {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_etiquette + 'delete',
-                            params: {
-                                lg_ETIQUETTE_ID: rec.get('lg_ETIQUETTE_ID')
-                            },
+                            method: 'DELETE',
+                            url: url_services_etiquette_panier + '/' + encodeURIComponent(rec.get('lg_ETIQUETTE_ID')),
                             success: function(response)
                             {
                                 var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success === 0) {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
+                                if (!object.success) {
+                                    Ext.MessageBox.alert('Message', object.msg || 'L\'opération n\'a pas abouti.');
                                     return;
                                 }
                                 grid.getStore().reload();
@@ -467,17 +465,19 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
     onbtnadd: function() {
         testextjs.app.getController('App').ShowWaitingProcess();
         Ext.Ajax.request({
-            url: url_services_transaction_etiquette + 'createetiquette',
-            params: {
-                lg_FAMILLE_ID: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
-                int_NUMBER: Ext.getCmp('int_QUANTITE').getValue()
-            },
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: url_services_etiquette_panier,
+            params: Ext.JSON.encode({
+                produitId: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
+                quantite: parseInt(Ext.getCmp('int_QUANTITE').getValue(), 10)
+            }),
             success: function(response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();
                 var object = Ext.JSON.decode(response.responseText, false);
-                if (object.errors_code == 0) {
-                    Ext.MessageBox.alert('Message d\'erreur', object.errors);
+                if (!object.success) {
+                    Ext.MessageBox.alert('Message', object.msg || 'L\'opération n\'a pas abouti.');
                     return;
                 }
 
