@@ -14,9 +14,60 @@ Ext.define('testextjs.view.vente.VentesFinis', {
         type: 'fit'
     },
     initComponent: function () {
-        const store = Ext.create('Ext.data.ArrayStore', {
-            data: [['VNO'], ['VO']],
-            fields: [{name: 'typeVente', type: 'string'}]
+        /* Un filtre pose se retire en choisissant « Tous » : sans cette entree, une valeur selectionnee
+         * par erreur ne se defait plus, la combo n'ayant pas de bouton d'effacement. L'identifiant ALL
+         * est neutralise par le controleur, qui n'envoie alors aucun critere au serveur. */
+        const ajouterTous = function (champId, champLibelle, libelle) {
+            return function (st) {
+                if (st.findExact(champId, 'ALL') === -1) {
+                    const premier = {};
+                    premier[champId] = 'ALL';
+                    premier[champLibelle] = libelle;
+                    st.insert(0, premier);
+                    st.commitChanges();
+                }
+            };
+        };
+        // Categories de vente : au comptant, assurance, carnet, depot agree, depot extension.
+        const typeVenteStore = new Ext.data.Store({
+            fields: ['lgTYPEVENTEID', 'strDESCRIPTION'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/alltypeventes',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            },
+            listeners: {load: ajouterTous('lgTYPEVENTEID', 'strDESCRIPTION', 'Tous les types')}
+        });
+        const modeReglementStore = new Ext.data.Store({
+            fields: ['id', 'libelle'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/type-reglements',
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            },
+            listeners: {load: ajouterTous('id', 'libelle', 'Tous les modes')}
+        });
+        const caissierStore = new Ext.data.Store({
+            fields: ['lgUSERID', 'strFIRSTNAME', 'strLASTNAME', 'fullName'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/common/users',
+                extraParams: {start: 0, limit: 200},
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            },
+            listeners: {
+                load: function (st) {
+                    st.each(function (r) {
+                        if (!r.get('fullName')) {
+                            r.set('fullName', (r.get('strFIRSTNAME') || '') + ' ' + (r.get('strLASTNAME') || ''));
+                        }
+                    });
+                    ajouterTous('lgUSERID', 'fullName', 'Toutes les caissières')(st);
+                }
+            }
         });
         const natureventeStore = new Ext.data.Store({
             model: 'testextjs.model.caisse.Nature',
@@ -106,21 +157,6 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                         }, '-',
                         {
                             xtype: 'combobox',
-                            fieldLabel: 'Type.vente',
-                            labelWidth: 65,
-                            itemId: 'typeVente',
-                            store: store,
-                            flex: 1,
-                            valueField: 'typeVente',
-                            displayField: 'typeVente',
-                            typeAhead: false,
-                            mode: 'local',
-                            minChars: 1.2,
-                            emptyText: 'Selectionner un type de vente'
-
-                        }, '-',
-                        {
-                            xtype: 'combobox',
                             itemId: 'nature',
                             fieldLabel: 'Nature.vente',
                             store: natureventeStore,
@@ -151,6 +187,62 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             itemId: 'rechercher',
                             scope: this,
                             iconCls: 'searchicon'
+                        }
+                    ]
+                },
+                /* Seconde ligne : les filtres ajoutes. Une seule barre ne tenait plus en largeur sur
+                 * les postes de caisse, ou l'ecran est souvent en 1366 points. */
+                {
+                    xtype: 'toolbar',
+                    dock: 'top',
+                    items: [
+                        {
+                            xtype: 'combobox',
+                            itemId: 'lgTypeVenteId',
+                            fieldLabel: 'Type.vente',
+                            labelWidth: 65,
+                            store: typeVenteStore,
+                            editable: false,
+                            flex: 1.2,
+                            valueField: 'lgTYPEVENTEID',
+                            displayField: 'strDESCRIPTION',
+                            typeAhead: false,
+                            queryMode: 'local',
+                            emptyText: 'Tous les types'
+                        }, '-',
+                        {
+                            xtype: 'combobox',
+                            itemId: 'modeReglementId',
+                            fieldLabel: 'Règlement',
+                            labelWidth: 65,
+                            store: modeReglementStore,
+                            editable: false,
+                            flex: 1.2,
+                            valueField: 'id',
+                            displayField: 'libelle',
+                            typeAhead: false,
+                            queryMode: 'local',
+                            emptyText: 'Tous les modes'
+                        }, '-',
+                        {
+                            xtype: 'combobox',
+                            itemId: 'caissierId',
+                            fieldLabel: 'Caissière',
+                            labelWidth: 65,
+                            store: caissierStore,
+                            editable: false,
+                            flex: 1.2,
+                            valueField: 'lgUSERID',
+                            displayField: 'fullName',
+                            typeAhead: false,
+                            queryMode: 'local',
+                            emptyText: 'Toutes les caissières'
+                        }, '->',
+                        {
+                            text: 'Exporter en Excel',
+                            tooltip: 'Exporter la liste filtrée dans un fichier Excel',
+                            itemId: 'exporterExcel',
+                            icon: 'resources/images/icons/fam/excel_csv.png'
                         }
                     ]
                 }

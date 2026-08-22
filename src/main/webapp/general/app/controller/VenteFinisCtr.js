@@ -42,11 +42,17 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
             ref: 'queryField',
             selector: 'ventemanager #query'
         }, {
-            ref: 'typeVente',
-            selector: 'ventemanager #typeVente'
-        }, {
             ref: 'nature',
             selector: 'ventemanager #nature'
+        }, {
+            ref: 'lgTypeVenteId',
+            selector: 'ventemanager #lgTypeVenteId'
+        }, {
+            ref: 'modeReglementId',
+            selector: 'ventemanager #modeReglementId'
+        }, {
+            ref: 'caissierId',
+            selector: 'ventemanager #caissierId'
         }
         , {
             ref: 'salesItem',
@@ -67,11 +73,20 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
             'ventemanager #rechercher': {
                 click: this.doSearch
             },
-            'ventemanager #typeVente': {
-                select: this.doSearch
-            },
             'ventemanager #nature': {
                 select: this.doSearch
+            },
+            'ventemanager #lgTypeVenteId': {
+                select: this.doSearch
+            },
+            'ventemanager #modeReglementId': {
+                select: this.doSearch
+            },
+            'ventemanager #caissierId': {
+                select: this.doSearch
+            },
+            'ventemanager #exporterExcel': {
+                click: this.onExporterExcel
             },
             'ventemanager gridpanel': {
                 viewready: this.doInitStore
@@ -322,30 +337,38 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
                     }
                 });
     },
+    /* « Tous » vaut ALL dans les combos de filtre : c'est l'absence de critere, et le serveur ne doit
+     * donc rien recevoir. Sans cela le filtre chercherait un type de vente nomme « ALL ». */
+    valeurFiltre: function (combo) {
+        const valeur = combo.getValue();
+        return (!valeur || valeur === 'ALL') ? null : valeur;
+    },
+    /* Les criteres de la liste, en un seul endroit : la pagination, la recherche et l'export doivent
+     * porter exactement les memes, sinon la page 2 ou le fichier ne montrent pas la meme chose. */
+    criteres: function () {
+        const me = this;
+        return {
+            query: me.getQueryField().getValue(),
+            dtStart: me.getDtStart().getSubmitValue(),
+            dtEnd: me.getDtEnd().getSubmitValue(),
+            hStart: me.getHStart().getSubmitValue(),
+            hEnd: me.getHEnd().getSubmitValue(),
+            onlyAvoir: false,
+            sansBon: false,
+            nature: me.getNature().getValue(),
+            lgTypeVenteId: me.valeurFiltre(me.getLgTypeVenteId()),
+            modeReglementId: me.valeurFiltre(me.getModeReglementId()),
+            caissierId: me.valeurFiltre(me.getCaissierId())
+        };
+    },
     doBeforechange: function (page, currentPage) {
         const me = this;
         const myProxy = me.getVentemanagerGrid().getStore().getProxy();
-        myProxy.params = {
-            query: null,
-            typeVenteId: null,
-            dtStart: null,
-            dtEnd: null,
-            hEnd: null,
-            hStart: null,
-            onlyAvoir: false,
-            sansBon: false,
-            nature: null
-
-        };
-        myProxy.setExtraParam('sansBon', false);
-        myProxy.setExtraParam('onlyAvoir', false);
-        myProxy.setExtraParam('query', me.getQueryField().getValue());
-        myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
-        myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
-        myProxy.setExtraParam('typeVenteId', me.getTypeVente().getValue());
-        myProxy.setExtraParam('hStart', me.getHStart().getSubmitValue());
-        myProxy.setExtraParam('hEnd', me.getHEnd().getSubmitValue());
-        myProxy.setExtraParam('nature', me.getNature().getValue());
+        const criteres = me.criteres();
+        myProxy.params = criteres;
+        Ext.Object.each(criteres, function (cle, valeur) {
+            myProxy.setExtraParam(cle, valeur);
+        });
     },
     doInitStore: function () {
         const me = this;
@@ -360,19 +383,20 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
     },
     doSearch: function () {
         const me = this;
-        me.getVentemanagerGrid().getStore().load({
-            params: {
-                "query": me.getQueryField().getValue(),
-                "dtStart": me.getDtStart().getSubmitValue(),
-                "dtEnd": me.getDtEnd().getSubmitValue(),
-                "typeVenteId": me.getTypeVente().getValue(),
-                "hStart": me.getHStart().getSubmitValue(),
-                "hEnd": me.getHEnd().getSubmitValue(),
-                "onlyAvoir": false,
-                "sansBon": false,
-                "nature": me.getNature().getValue()
+        me.getVentemanagerGrid().getStore().load({params: me.criteres()});
+    },
+    /* Le fichier est produit par le serveur avec les criteres affiches. On passe par window.location et
+     * non par Ext.Ajax : la reponse est un fichier, c'est au navigateur de le prendre en charge. */
+    onExporterExcel: function () {
+        const me = this;
+        const criteres = me.criteres();
+        const morceaux = [];
+        Ext.Object.each(criteres, function (cle, valeur) {
+            if (valeur !== null && valeur !== undefined && valeur !== '') {
+                morceaux.push(encodeURIComponent(cle) + '=' + encodeURIComponent(valeur));
             }
         });
+        window.location = '../api/v1/ventestats/excel?' + morceaux.join('&');
     },
     toExportToJson: function (view, rowIndex, colIndex, item, e, rec, row) {
         window.location = '../api/v1/vente-depot/as/order/' + rec.get('lgPREENREGISTREMENTID');

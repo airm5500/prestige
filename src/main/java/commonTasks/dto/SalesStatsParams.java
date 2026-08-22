@@ -55,6 +55,29 @@ public class SalesStatsParams implements Serializable {
     private String depotId;
     private String typeDepotId;
     private String grossisteId;
+    /**
+     * Categorie de vente : t_preenregistrement.lg_TYPE_VENTE_ID (comptant, assurance, carnet, depot...). A ne pas
+     * confondre avec typeVenteId ci-dessus, qui porte str_TYPE_VENTE, c'est-a-dire VO / VNO.
+     */
+    private String lgTypeVenteId;
+    /** Mode de reglement : t_type_reglement.lg_TYPE_REGLEMENT_ID, recherche dans les lignes de vente_reglement. */
+    private String modeReglementId;
+
+    public String getLgTypeVenteId() {
+        return lgTypeVenteId;
+    }
+
+    public void setLgTypeVenteId(String lgTypeVenteId) {
+        this.lgTypeVenteId = lgTypeVenteId;
+    }
+
+    public String getModeReglementId() {
+        return modeReglementId;
+    }
+
+    public void setModeReglementId(String modeReglementId) {
+        this.modeReglementId = modeReglementId;
+    }
 
     public String getDepotId() {
         return depotId;

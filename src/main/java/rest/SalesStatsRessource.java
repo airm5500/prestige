@@ -85,6 +85,9 @@ public class SalesStatsRessource {
     @EJB
     private rest.service.utils.ReportExcelExportService excelExportService;
 
+    @EJB
+    private rest.service.CommonService commonService;
+
     @GET
     @Path("preventes")
     public Response getDetails(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
@@ -373,14 +376,100 @@ public class SalesStatsRessource {
             @QueryParam(value = "onlyAvoir") boolean onlyAvoir, @QueryParam(value = "typeVenteId") String typeVenteId,
             @QueryParam(value = "nature") String nature, @QueryParam(value = "depotOnly") Boolean depotOnly,
             @QueryParam(value = "typeDepotId") String typeDepotId, @QueryParam(value = "depotId") String depotId,
-            @QueryParam(value = "avoirStatut") String avoirStatut, @QueryParam(value = "caissierId") String caissierId)
-            throws JSONException {
+            @QueryParam(value = "avoirStatut") String avoirStatut, @QueryParam(value = "caissierId") String caissierId,
+            @QueryParam(value = "lgTypeVenteId") String lgTypeVenteId,
+            @QueryParam(value = "modeReglementId") String modeReglementId) throws JSONException {
         SalesStatsParams body = buildParams(start, limit, query, dtStart, dtEnd, hStart, hEnd, sansBon, onlyAvoir,
                 typeVenteId, nature, depotOnly, typeDepotId, depotId);
         body.setAvoirStatut(avoirStatut);
         body.setCaissierId(caissierId);
+        body.setLgTypeVenteId(lgTypeVenteId);
+        body.setModeReglementId(modeReglementId);
         JSONObject jsono = salesService.getVenteTerminees(body);
         return Response.ok().entity(jsono.toString()).build();
+    }
+
+    /**
+     * Plafond de lignes de l'export Excel. Le fichier reste ouvrable et la memoire du serveur bornee. Au-dela, une
+     * derniere ligne du tableau le dit explicitement : un export tronque en silence se lirait comme un export complet.
+     */
+    private static final int EXPORT_VENTES_MAX = 20000;
+
+    /*
+     * Export Excel de la liste des ventes terminees, avec EXACTEMENT les filtres actifs a l'ecran. Les colonnes
+     * reprennent celles de la liste, plus la categorie de vente et la part client : ce sont les informations que la
+     * liste porte deja, aucune requete supplementaire par ligne n'est faite.
+     */
+    @GET
+    @Path("excel")
+    @Produces("application/vnd.ms-excel")
+    public Response exportVentesTermineesExcel(@QueryParam(value = "query") String query,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "hStart") String hStart, @QueryParam(value = "hEnd") String hEnd,
+            @QueryParam(value = "sansBon") boolean sansBon, @QueryParam(value = "onlyAvoir") boolean onlyAvoir,
+            @QueryParam(value = "typeVenteId") String typeVenteId, @QueryParam(value = "nature") String nature,
+            @QueryParam(value = "depotOnly") Boolean depotOnly, @QueryParam(value = "typeDepotId") String typeDepotId,
+            @QueryParam(value = "depotId") String depotId, @QueryParam(value = "avoirStatut") String avoirStatut,
+            @QueryParam(value = "caissierId") String caissierId,
+            @QueryParam(value = "lgTypeVenteId") String lgTypeVenteId,
+            @QueryParam(value = "modeReglementId") String modeReglementId) throws Exception {
+        SalesStatsParams body = buildParams(0, EXPORT_VENTES_MAX, query, dtStart, dtEnd, hStart, hEnd, sansBon,
+                onlyAvoir, typeVenteId, nature, depotOnly, typeDepotId, depotId);
+        body.setAvoirStatut(avoirStatut);
+        body.setCaissierId(caissierId);
+        body.setLgTypeVenteId(lgTypeVenteId);
+        body.setModeReglementId(modeReglementId);
+
+        List<commonTasks.dto.VenteDTO> ventes = salesService.getListTerminees(body);
+        if (ventes.isEmpty()) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("message", "Aucune vente à exporter").toString())
+                    .build();
+        }
+        java.util.Map<String, String> categories = new java.util.HashMap<>();
+        for (dal.TTypeVente t : commonService.findAllTypeVente()) {
+            categories.put(t.getLgTYPEVENTEID(), t.getStrDESCRIPTION());
+        }
+
+        java.util.List<commonTasks.dto.VenteDTO> lignes = new java.util.ArrayList<>(ventes);
+        boolean tronque = ventes.size() >= EXPORT_VENTES_MAX;
+        if (tronque) {
+            lignes.add(null); // sentinelle : ligne d'avertissement
+        }
+        String[] headers = { "Reference", "N° ticket", "Type", "Categorie", "Client", "Montant", "Part client",
+                "Remise", "Date", "Heure", "Vendeur", "Caissier" };
+        byte[] data = excelExportService.createLandscapeExcelReport(titreExportVentes(body), headers, lignes,
+                (row, v) -> {
+                    if (v == null) {
+                        row.createCell(0).setCellValue("Liste tronquée aux " + EXPORT_VENTES_MAX
+                                + " premières ventes : affinez la période ou les filtres.");
+                        return;
+                    }
+                    row.createCell(0).setCellValue(nonNul(v.getStrREF()));
+                    row.createCell(1).setCellValue(nonNul(v.getStrREFTICKET()));
+                    row.createCell(2).setCellValue(nonNul(v.getStrTYPEVENTE()));
+                    row.createCell(3).setCellValue(nonNul(categories.get(v.getLgTYPEVENTEID())));
+                    row.createCell(4).setCellValue(nonNul(v.getClientFullName()));
+                    row.createCell(5).setCellValue(v.getIntPRICE() == null ? 0 : v.getIntPRICE());
+                    row.createCell(6).setCellValue(v.getIntCUSTPART() == null ? 0 : v.getIntCUSTPART());
+                    row.createCell(7).setCellValue(v.getIntPRICEREMISE() == null ? 0 : v.getIntPRICEREMISE());
+                    row.createCell(8).setCellValue(nonNul(v.getDtUPDATED()));
+                    row.createCell(9).setCellValue(nonNul(v.getHeure()));
+                    row.createCell(10).setCellValue(nonNul(v.getUserVendeurName()));
+                    row.createCell(11).setCellValue(nonNul(v.getUserCaissierName()));
+                });
+        String filename = "ventes_terminees_"
+                + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";
+        return Response.ok(data).header("Content-Disposition", "attachment; filename=\"" + filename + "\"").build();
+    }
+
+    private static String nonNul(String valeur) {
+        return valeur == null ? "" : valeur;
+    }
+
+    private String titreExportVentes(SalesStatsParams body) {
+        DateTimeFormatter jour = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        return "VENTES TERMINEES DU " + body.getDtStart().format(jour) + " AU " + body.getDtEnd().format(jour);
     }
 
     /*

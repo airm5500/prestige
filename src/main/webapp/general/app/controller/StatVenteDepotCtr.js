@@ -81,10 +81,13 @@ Ext.define('testextjs.controller.StatVenteDepotCtr', {
                 facture: this.onFacture,
                 showProduits: this.onShowProduits
             },
-            'ventemanager #query': {
+            /* Ces deux ecoutes visaient 'ventemanager', qui est l'xtype des VENTES TERMINEES et non
+             * celui de cet ecran : la touche Entree dans la recherche des ventes terminees declenchait
+             * donc doSearch d'ici, sur une grille absente, et levait une erreur JavaScript. */
+            'ventehistoriquedepotmanager #query': {
                 specialkey: this.onSpecialKey
             },
-            'ventemanager #depotId': {
+            'ventehistoriquedepotmanager #depotId': {
                 select: this.doSearch
             }
         });

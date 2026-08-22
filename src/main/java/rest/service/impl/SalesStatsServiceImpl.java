@@ -153,6 +153,16 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             + " LEFT JOIN t_emplacement em ON em.lg_EMPLACEMENT_ID=p.PK_BRAND {produit_join} where p.dt_UPDATED >=:dtStart and p.dt_UPDATED <=:dtEnd and p.str_STATUT=:status";
     private static final String NATURE_CLOSE2 = " and p.lg_NATURE_VENTE_ID=:natureVente";
     private static final String TYPE_CLOSE = " and p.str_TYPE_VENTE=:typeVente";
+    /** Categorie de la vente : au comptant, assurance, carnet, depot... */
+    private static final String TYPE_VENTE_CLOSE = " and p.lg_TYPE_VENTE_ID=:lgTypeVenteId";
+    /*
+     * Mode de reglement. Une vente peut etre reglee en plusieurs fois et de plusieurs facons : vente_reglement porte
+     * alors une ligne par mode. La vente ressort donc sous CHACUN des modes qui l'ont soldee, ce qui est le
+     * comportement attendu - filtrer sur « WAVE » doit montrer toute vente ayant recu du WAVE, meme partiellement.
+     * EXISTS, et non une jointure, pour ne pas dupliquer la ligne quand deux reglements portent le meme mode.
+     */
+    private static final String MODE_REGLEMENT_CLOSE = " and exists (select 1 from vente_reglement vr"
+            + " where vr.vente_id=p.lg_PREENREGISTREMENT_ID and vr.type_regelement=:modeReglementId)";
     private static final String SEARCH_CLOSE2 = " and (f.int_CIP like :searchTerm or p.str_REF_TICKET like :searchTerm or p.str_REF like :searchTerm or f.str_NAME like :searchTerm or f.int_EAN13 like :searchTerm) ";
     private static final String SELECT_P = " t_preenregistrement p ";
     private static final String ORDER_BY = " order by p.dt_UPDATED ";
@@ -2728,6 +2738,12 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         if (StringUtils.isNotEmpty(params.getTypeVenteId())) {
             query.setParameter("typeVente", params.getTypeVenteId());
         }
+        if (StringUtils.isNotEmpty(params.getLgTypeVenteId())) {
+            query.setParameter("lgTypeVenteId", params.getLgTypeVenteId());
+        }
+        if (StringUtils.isNotEmpty(params.getModeReglementId())) {
+            query.setParameter("modeReglementId", params.getModeReglementId());
+        }
         if (StringUtils.isNotEmpty(params.getQuery())) {
             query.setParameter("searchTerm", params.getQuery() + "%");
         }
@@ -2895,6 +2911,12 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
         if (StringUtils.isNotEmpty(params.getTypeVenteId())) {
             finalSql.append(TYPE_CLOSE);
+        }
+        if (StringUtils.isNotEmpty(params.getLgTypeVenteId())) {
+            finalSql.append(TYPE_VENTE_CLOSE);
+        }
+        if (StringUtils.isNotEmpty(params.getModeReglementId())) {
+            finalSql.append(MODE_REGLEMENT_CLOSE);
         }
         if (StringUtils.isNotEmpty(params.getQuery())) {
             finalSql.append(SEARCH_CLOSE2);
