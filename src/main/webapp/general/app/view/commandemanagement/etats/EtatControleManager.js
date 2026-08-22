@@ -861,10 +861,12 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 width: 320,
                 msg: 'Aucun bon de Livraison sélectionné.',
                 buttons: Ext.MessageBox.OK,
-                icon: Ext.MessageBox.ERROR,
-                fn: function (btn) {
-                    btn.up('window').close();
-                }
+                icon: Ext.MessageBox.ERROR
+                /* Pas de fn : le rappel d'une boite de message recoit l'IDENTIFIANT du bouton
+                 * ('ok'), une simple chaine, et non le composant. Le fn d'origine appelait
+                 * btn.up('window').close() et levait donc « btn.up is not a function » a chaque
+                 * validation. Le defaut n'avait jamais pu se voir : le bouton qui mene ici etait
+                 * cache. La boite se referme d'elle-meme, il n'y a rien a fermer a la main. */
             });
 
         } else {

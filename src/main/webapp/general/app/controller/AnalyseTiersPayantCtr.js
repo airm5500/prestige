@@ -97,7 +97,12 @@ Ext.define('testextjs.controller.AnalyseTiersPayantCtr', {
     },
 
     ecran: function (composant) {
-        return composant.up('analysetierspayant') || Ext.ComponentQuery.query('analysetierspayant')[0];
+        /* Le composant est celui qui a declenche l'action : bouton, champ, grille. Il peut manquer
+         * quand l'action est rappelee autrement qu'a la main ; on retombe alors sur l'ecran ouvert. */
+        if (composant && composant.up) {
+            return composant.up('analysetierspayant') || Ext.ComponentQuery.query('analysetierspayant')[0];
+        }
+        return Ext.ComponentQuery.query('analysetierspayant')[0];
     },
 
     onEcranAffiche: function (ecran) {
