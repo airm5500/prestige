@@ -35,6 +35,20 @@ public interface EtatControlBonService {
 
     JSONObject updateBon(EtatControlBonEditDto bonEdit);
 
+    /**
+     * Identifiants des produits portes par les bons de livraison donnes, sans doublon.
+     *
+     * <p>
+     * Un produit livre sur deux bons ne donnera donc qu'une ligne d'inventaire : c'est bien le meme article que l'on
+     * recompte une fois.
+     *
+     * @param bonIds
+     *            identifiants des bons de livraison
+     *
+     * @return les identifiants d'article, ou un ensemble vide si les bons sont introuvables ou sans ligne
+     */
+    java.util.Set<String> produitsDesBons(List<String> bonIds);
+
     byte[] generate(String search, String dtStart, String dtEnd, String grossisteId, String dateType)
             throws IOException;
 

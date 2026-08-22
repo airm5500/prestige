@@ -18,6 +18,15 @@ Ext.util.Format.thousandSeparator = '.';
 function amountformat(val) {
     return Ext.util.Format.number(val, '0,000.');
 }
+/* Reperage visuel de la ligne, demande par la caisse : le numero de BL en vert, les montants en
+ * bleu, le grossiste en gras. Sur une grille de dix colonnes chiffrees, l'oeil trouve ainsi tout
+ * de suite le bon et ses montants. */
+function refBlFormat(val) {
+    return '<span style="color:#1B7F3B;font-weight:bold;">' + Ext.util.Format.htmlEncode(val || '') + '</span>';
+}
+function montantFormat(val) {
+    return '<span style="color:#0B57D0;">' + amountformat(val) + '</span>';
+}
 
 Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     extend: 'Ext.grid.Panel',
@@ -206,39 +215,35 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 },
                 {
                     header: 'GROSSISTE',
-                    tpl: '{fournisseur.fournisseurLibelle}',
+                    tpl: '<b>{fournisseur.fournisseurLibelle}</b>',
                     xtype: 'templatecolumn',
                     flex: 1.5
                 },
                 {
-                    header: 'NO CMD',
-                    dataIndex: 'orderRef',
-                    flex: 1
-                },
-                {
                     header: 'REF BL',
                     dataIndex: 'strREFLIVRAISON',
+                    renderer: refBlFormat,
                     align: 'right',
                     flex: 1
                 },
                 {
                     header: 'Montant HT',
                     dataIndex: 'intMHT',
-                    renderer: amountformat,
+                    renderer: montantFormat,
                     align: 'right',
                     flex: 1
                 },
                 {
                     header: 'Montant TVA',
                     dataIndex: 'intTVA',
-                    renderer: amountformat,
+                    renderer: montantFormat,
                     align: 'right',
                     flex: 1
                 },
                 {
                     header: 'Montant TTC',
                     dataIndex: 'intHTTC',
-                    renderer: amountformat,
+                    renderer: montantFormat,
                     align: 'right',
                     flex: 1
                 },
@@ -257,7 +262,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 {
                     header: 'MTN AVOIR',
                     dataIndex: 'montantAvoir',
-                    renderer: amountformat,
+                    renderer: montantFormat,
                     align: 'right',
                     flex: 1
                 },
@@ -287,6 +292,20 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                             tooltip: 'Voir le detail du controle (quantites controlees saisies)',
                             scope: this,
                             handler: this.onDetailControleClick
+                        }]
+                },
+                {
+                    xtype: 'actioncolumn',
+                    header: 'INVENT.',
+                    width: 55,
+                    align: 'center',
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/table_refresh.png',
+                            tooltip: 'Créer un inventaire des produits de ce bon de livraison',
+                            scope: this,
+                            handler: this.onInventaireDuBon
                         }]
                 },
                 {
@@ -496,15 +515,22 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 }, '-',
 
                 {
+                    text: 'INVENTAIRE DE LA SELECTION',
+                    tooltip: 'Créer un inventaire des produits contenus dans les bons cochés',
+                    icon: 'resources/images/icons/fam/table_refresh.png',
+                    scope: this,
+                    handler: this.onInventaireDeLaSelection
+                }, '-',
+                /* Ces deux boutons etaient caches en dur depuis l'origine : la fonction existait mais
+                 * restait inatteignable, y compris pour la tester. Ils sont desormais affiches. */
+                {
                     text: 'GESTION DES QUINZAINES',
                     scope: this,
-                    hidden: true,
                     handler: this.onGestionQuinzaine
                 }, '-',
                 {
                     text: 'REGLER UNE SELECTION DE BL',
                     scope: this,
-                    hidden: true,
                     handler: this.onReglerSelectionBL
                 }
             ],
@@ -755,6 +781,79 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
 
         rec.commit();
     },
+    /**
+     * Inventaire des produits d'UN bon de livraison, depuis l'icone de la ligne.
+     *
+     * Enchainement naturel du controle des achats : on vient de recevoir une livraison, on veut recompter
+     * ce qu'elle contenait.
+     */
+    onInventaireDuBon: function (grid, rowIndex) {
+        var rec = grid.getStore().getAt(rowIndex);
+        if (!rec) {
+            return;
+        }
+        Me.creerInventaire([rec.get('lgBONLIVRAISONID')],
+                'Créer un inventaire des produits du bon ' + (rec.get('strREFLIVRAISON') || '') + ' ?');
+    },
+
+    /**
+     * Inventaire des produits de TOUS les bons coches, depuis le bouton du haut. Reutilise la case a cocher
+     * qui existe deja sur chaque ligne.
+     */
+    onInventaireDeLaSelection: function () {
+        if (selectedBLs.length === 0) {
+            Ext.MessageBox.alert('Inventaire', 'Aucun bon de livraison sélectionné.');
+            return;
+        }
+        var ids = Ext.Array.map(selectedBLs, function (r) {
+            return r.get('lgBONLIVRAISONID');
+        });
+        Me.creerInventaire(ids, 'Créer un inventaire des produits contenus dans les '
+                + ids.length + ' bons sélectionnés ?');
+    },
+
+    /**
+     * Demande de creation d'un inventaire au serveur.
+     *
+     * Seuls les identifiants des BONS partent : un bon peut porter des centaines de lignes, c'est au serveur
+     * d'en tirer la liste des produits, sans doublon entre deux bons.
+     */
+    creerInventaire: function (bonIds, question) {
+        Ext.MessageBox.confirm('Confirmation', question, function (btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            var attente = Ext.MessageBox.wait('Création de l\'inventaire . . .', 'Veuillez patienter');
+            Ext.Ajax.request({
+                method: 'POST',
+                url: '../api/v1/etat-control-bon/inventaire',
+                headers: {'Content-Type': 'application/json'},
+                // 4 minutes : un inventaire sur plusieurs bons touche beaucoup d'articles.
+                timeout: 240000,
+                params: Ext.JSON.encode(bonIds),
+                success: function (response) {
+                    attente.hide();
+                    var o = Ext.decode(response.responseText, true) || {};
+                    if (o.success === false) {
+                        Ext.MessageBox.alert('Inventaire', o.msg || 'L\'opération n\'a pas abouti.');
+                        return;
+                    }
+                    if (o.count > 0) {
+                        Ext.MessageBox.alert('Inventaire',
+                                'Inventaire créé : ' + o.count + ' article(s).<br>' + (o.message || ''));
+                    } else {
+                        Ext.MessageBox.alert('Inventaire', 'Aucun article à inventorier pour ces bons.');
+                    }
+                },
+                failure: function (response) {
+                    attente.hide();
+                    Ext.MessageBox.alert('Inventaire',
+                            'Erreur lors de la création de l\'inventaire (code ' + response.status + ').');
+                }
+            });
+        });
+    },
+
     onReglerSelectionBL: function () {
         if (selectedBLs.length === 0) {
             Ext.MessageBox.show({

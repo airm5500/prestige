@@ -31,6 +31,8 @@ public class EtatControlBonResource {
     private EtatControlBonService etatControlBonService;
     @EJB
     private ExportExcelUtilService exportExcelUtilService;
+    @EJB
+    private rest.service.ReserveService reserveService;
 
     @GET
     @Path("list")
@@ -78,6 +80,50 @@ public class EtatControlBonResource {
     public Response editBon(EtatControlBonEditDto bonEditDto) {
         return Response.ok().entity(etatControlBonService.updateBon(bonEditDto).toString()).build();
 
+    }
+
+    /**
+     * Cree un inventaire sur les produits d'un ou plusieurs bons de livraison.
+     *
+     * <p>
+     * Enchainement naturel du controle des achats : on vient de recevoir une livraison, on veut recompter ce qu'elle
+     * contenait. L'ecran n'envoie que les identifiants des bons ; c'est le serveur qui en tire la liste des produits,
+     * un bon pouvant porter des centaines de lignes.
+     *
+     * @param body
+     *            tableau JSON des identifiants de bons, par exemple {@code ["id1","id2"]}
+     */
+    @POST
+    @Path("inventaire")
+    public Response inventaireDepuisBons(String body) throws org.json.JSONException {
+        javax.servlet.http.HttpSession hs = servletRequest.getSession();
+        dal.TUser user = (dal.TUser) hs.getAttribute(util.Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
+        }
+        java.util.List<String> bons = new java.util.ArrayList<>();
+        org.json.JSONArray tableau = new org.json.JSONArray(body == null ? "[]" : body);
+        for (int i = 0; i < tableau.length(); i++) {
+            String id = tableau.optString(i, "").trim();
+            if (!id.isEmpty()) {
+                bons.add(id);
+            }
+        }
+        if (bons.isEmpty()) {
+            return Response.ok().entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", "Veuillez sélectionner au moins un bon de livraison.").toString()).build();
+        }
+        java.util.Set<String> produits = etatControlBonService.produitsDesBons(bons);
+        if (produits.isEmpty()) {
+            return Response.ok().entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", "Ces bons de livraison ne contiennent aucun produit.").toString()).build();
+        }
+        String quoi = bons.size() == 1 ? "du bon de livraison " + bons.get(0)
+                : "de " + bons.size() + " bons de livraison";
+        // Titre laisse au service : il porte la convention de nommage et l'horodatage des inventaires.
+        return Response.ok().entity(
+                reserveService.createInventaireFromSelection(user, produits, "Inventaire issu " + quoi).toString())
+                .build();
     }
 
     @GET

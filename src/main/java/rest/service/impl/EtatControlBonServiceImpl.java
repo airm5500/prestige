@@ -420,6 +420,28 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     }
 
     @Override
+    public java.util.Set<String> produitsDesBons(List<String> bonIds) {
+        if (bonIds == null || bonIds.isEmpty()) {
+            return java.util.Collections.emptySet();
+        }
+        try {
+            /*
+             * La liste des produits est resolue ICI et non dans le navigateur : un bon peut porter des centaines de
+             * lignes, et l'ecran n'a a envoyer que les identifiants des bons coches. LinkedHashSet : sans doublon - un
+             * produit livre sur deux bons ne donne qu'une ligne d'inventaire - et dans un ordre stable.
+             */
+            List<String> ids = em
+                    .createQuery("SELECT DISTINCT d.lgFAMILLEID.lgFAMILLEID FROM TBonLivraisonDetail d"
+                            + " WHERE d.lgBONLIVRAISONID.lgBONLIVRAISONID IN :bons", String.class)
+                    .setParameter("bons", bonIds).getResultList();
+            return new java.util.LinkedHashSet<>(ids);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitsDesBons", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    @Override
     public JSONObject updateBon(EtatControlBonEditDto bonEdit) {
         JSONObject json = new JSONObject();
 
