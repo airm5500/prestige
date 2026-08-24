@@ -23,11 +23,47 @@ import net.sf.jasperreports.engine.export.JRXlsExporterParameter;
 import net.sf.jasperreports.engine.xml.JRXmlLoader;
 import toolkits.utils.logger;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  *
  * @author Thierry
  */
 public class reportManager {
+
+    private static final Logger LOG = Logger.getLogger(reportManager.class.getName());
+
+    /**
+     * Ecrit dans le journal QUEL etat a echoue et POURQUOI.
+     *
+     * <p>
+     * Cette classe sert toutes les editions Jasper de l'application. L'echec etait jusqu'ici jete sur la sortie
+     * standard par un printStackTrace() : rien n'arrivait dans le journal du serveur, et surtout rien ne disait de quel
+     * etat il s'agissait. L'edition continuait, le document n'etait pas produit, et l'utilisateur recevait plus loin un
+     * message sur un fichier temporaire qui ne designe rien pour lui.
+     * </p>
+     *
+     * <p>
+     * On nomme donc le fichier .jrxml en cause et on traduit la cause en langage courant, pour que l'officine puisse la
+     * transmettre au support telle quelle.
+     * </p>
+     */
+    private void signalerEchec(String etape, Exception e) {
+        signalerEchec(etape, getPath_report_src(), e);
+    }
+
+    /** Meme signalement, quand l'etat en cause n'est pas celui de l'instance (un sous-etat). */
+    private void signalerEchec(String etape, String chemin, Exception e) {
+        LOG.log(Level.SEVERE, messageEchec(etape, chemin, e), e);
+    }
+
+    /** La phrase ecrite dans le journal, isolee pour pouvoir etre relue par un controle automatique. */
+    static String messageEchec(String etape, String chemin, Exception e) {
+        String etat = (chemin == null || chemin.trim().isEmpty()) ? "inconnu" : new File(chemin).getName();
+        return "Echec de l'edition : l'etat " + etat + " (" + etape + ") n'a pas produit de document. Cause : "
+                + rest.report.MessageEchec.pour(e);
+    }
 
     private jconnexion ojconnexion;
     private String Path_report_src;
@@ -62,7 +98,7 @@ public class reportManager {
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
-            e.printStackTrace();
+            signalerEchec("BuildReport", e);
 
         }
 
@@ -83,7 +119,7 @@ public class reportManager {
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
-            e.printStackTrace();
+            signalerEchec("BuildReport", e);
 
         }
 
@@ -104,7 +140,7 @@ public class reportManager {
             // JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
-            e.printStackTrace();
+            signalerEchec("CompileSubreport", path_subreport_src, e);
 
         }
 
@@ -128,7 +164,7 @@ public class reportManager {
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
-            e.printStackTrace();
+            signalerEchec("BuildReportPDF", e);
 
         }
 
@@ -149,7 +185,7 @@ public class reportManager {
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
-            e.printStackTrace();
+            signalerEchec("BuildReportPDF", e);
 
         }
 
@@ -299,7 +335,7 @@ public class reportManager {
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
-            e.printStackTrace();
+            signalerEchec("BuildReportEmptyDs", e);
 
         }
 
