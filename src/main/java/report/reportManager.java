@@ -58,6 +58,31 @@ public class reportManager {
         LOG.log(Level.SEVERE, messageEchec(etape, chemin, e), e);
     }
 
+    /**
+     * Dit au journal qu'un etat n'a ramene AUCUNE ligne.
+     *
+     * <p>
+     * JasperReports produit alors un document sans page, et l'export PDF ecrit une page BLANCHE. Assemblee a la suite
+     * du recapitulatif, cette page blanche partait chez l'organisme sans que rien, nulle part, ne signale le probleme.
+     * Le document sort toujours - on ne casse pas une edition en cours - mais le journal nomme desormais l'etat et dit
+     * ce qui s'est passe.
+     * </p>
+     */
+    private void verifierPagesProduites(JasperPrint jasperPrint, String etape) {
+        if (jasperPrint == null || !jasperPrint.getPages().isEmpty()) {
+            return;
+        }
+        LOG.log(Level.SEVERE, messageAucuneLigne(etape, getPath_report_src()));
+    }
+
+    /** La phrase ecrite quand un etat ne ramene aucune ligne, isolee pour etre relue par un controle. */
+    static String messageAucuneLigne(String etape, String chemin) {
+        String etat = (chemin == null || chemin.trim().isEmpty()) ? "inconnu" : new File(chemin).getName();
+        return "L'etat " + etat + " (" + etape + ") n'a ramene AUCUNE ligne : sa page sortira BLANCHE."
+                + " Verifier que la requete du modele correspond bien a la facture demandee"
+                + " (par exemple un modele reserve aux factures de groupe, utilise sur une facture individuelle).";
+    }
+
     /** La phrase ecrite dans le journal, isolee pour pouvoir etre relue par un controle automatique. */
     static String messageEchec(String etape, String chemin, Exception e) {
         String etat = (chemin == null || chemin.trim().isEmpty()) ? "inconnu" : new File(chemin).getName();
@@ -95,6 +120,7 @@ public class reportManager {
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
                     getOjconnexion().get_StringConnexion());
             //
+            verifierPagesProduites(jasperPrint, "BuildReport");
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {
@@ -116,6 +142,7 @@ public class reportManager {
             JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
                     Ojconnexion.get_StringConnexion());
             // - Création du rapport au format PDF
+            verifierPagesProduites(jasperPrint, "BuildReport");
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
         } catch (JRException e) {

@@ -1,5 +1,6 @@
 package report;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -67,6 +68,27 @@ class EchecEditionJournaliseTest {
             assertTrue(message.contains("inconnu"),
                     "sans chemin, le message doit le dire au lieu de lever une erreur : " + message);
         }
+    }
+
+    @Test
+    @DisplayName("Un etat qui ne ramene aucune ligne est signale, avec la piste a suivre")
+    void aucuneLigneSignalee() {
+        String message = reportManager.messageAucuneLigne("BuildReport",
+                "D:/projet/prestige/etats/rp_facture_0303.jrxml");
+        assertTrue(message.contains("rp_facture_0303.jrxml"), "l'etat doit etre nomme : " + message);
+        assertTrue(message.contains("AUCUNE ligne"), "le journal doit dire qu'il n'y a pas de donnees : " + message);
+        assertTrue(message.contains("BLANCHE"),
+                "le journal doit annoncer la consequence visible pour l'officine : " + message);
+        assertTrue(message.contains("factures de groupe"),
+                "le journal doit donner la piste la plus frequente : " + message);
+    }
+
+    @Test
+    @DisplayName("Le controle des pages vides est pose sur les deux editions de facture")
+    void controlePosePartout() throws IOException {
+        String source = source();
+        assertEquals(2, source.split("verifierPagesProduites\\(jasperPrint", -1).length - 1,
+                "les deux methodes BuildReport doivent verifier qu'une page a bien ete produite");
     }
 
     @Test
