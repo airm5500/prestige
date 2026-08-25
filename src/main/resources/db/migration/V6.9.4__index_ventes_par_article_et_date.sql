@@ -1,0 +1,31 @@
+-- =====================================================================
+-- Index (article, date) sur les lignes de vente
+-- ---------------------------------------------------------------------
+-- L'ecran des suggestions affiche, pour chaque ligne, les quantites vendues
+-- du mois courant et des trois mois precedents. C'est donc QUATRE requetes
+-- « quantite vendue de cet article sur ce mois » par ligne affichee, soit
+-- quarante pour une page de dix lignes.
+--
+-- Aucun index ne servait cette question. Les index existants attaquent par la
+-- vente (idx_preenregistrement_detail_vente_famille, idx_tpd_vente_famille_quantite)
+-- ou par la date (idx_tpd_ca_famille_date_vente, qui commence par dt_CREATED) ;
+-- il ne restait que lg_FAMILLE_ID seul. La base ramenait alors TOUT l'historique
+-- de l'article - plusieurs milliers de lignes pour un produit courant apres
+-- quelques annees - pour n'en garder que le mois demande, et recommencait
+-- quarante fois.
+--
+-- Mesure sur une base d'officine reelle, 687 233 lignes de vente, un article
+-- totalisant 5 280 ventes :
+--     sans cet index : 5 280 lignes parcourues, 227 ms
+--     avec cet index :     5 lignes parcourues,   1,3 ms
+-- Soit, pour une page de dix lignes, environ neuf secondes ramenees a moins
+-- d'une demie.
+--
+-- La cle unique (lg_FAMILLE_ID, lg_PREENREGISTREMENT_ID) n'est deliberement PAS
+-- posee ici : certaines bases portent des doublons anciens et la pose echouerait,
+-- laissant une migration en echec qui bloquerait toutes les suivantes. Le
+-- dedoublonnage se fait a la main, base par base, avec le script prevu pour cela.
+-- =====================================================================
+
+ALTER TABLE `t_preenregistrement_detail`
+    ADD INDEX IF NOT EXISTS `idx_prd_famille_date` (`lg_FAMILLE_ID`, `dt_CREATED`);
