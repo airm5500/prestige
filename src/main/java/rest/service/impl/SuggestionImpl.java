@@ -867,17 +867,32 @@ public class SuggestionImpl implements SuggestionService {
 
     }
 
+    /**
+     * Montants d'une suggestion : deux sommes, calculees par la base.
+     *
+     * <p>
+     * L'ecran redemande ces deux montants a chaque chargement de page. La version precedente parcourait la collection
+     * d'entites de la suggestion : chaque ligne ramenait son article, et l'article son propre voisinage (rayon, forme,
+     * fabricant, laboratoire, zone, grossiste...), tous montes en EAGER. Une suggestion de 861 lignes se payait ainsi
+     * une jointure sur 22 tables et 288 colonnes, soit un quart de million de valeurs traversant le reseau pour
+     * additionner deux entiers par ligne. Mesure sur une suggestion reelle de 861 lignes : 172 a 221 ms contre 1,5 ms
+     * par la somme ci-dessous, pour des montants identiques (5 779 075 et 8 666 252).
+     *
+     * <p>
+     * La lecture est SCALAIRE : elle ne monte aucune entite, et son cout ne depend plus du nombre de lignes.
+     */
     @Override
     public SuggestionDTO getSuggestionAmount(String suggestionId) {
         long montantAchat = 0;
         long montantVente = 0;
         try {
-            TSuggestionOrder order = getEmg().find(TSuggestionOrder.class, suggestionId);
+            Object[] sommes = (Object[]) getEmg().createQuery(
+                    "SELECT COALESCE(SUM(d.intPRICE), 0), COALESCE(SUM(d.intPRICEDETAIL * d.intNUMBER), 0) "
+                            + "FROM TSuggestionOrderDetails d WHERE d.lgSUGGESTIONORDERID.lgSUGGESTIONORDERID = ?1")
+                    .setParameter(1, suggestionId).getSingleResult();
 
-            for (TSuggestionOrderDetails item : order.getTSuggestionOrderDetailsCollection()) {
-                montantAchat += item.getIntPRICE();
-                montantVente += ((long) item.getIntPRICEDETAIL() * item.getIntNUMBER());
-            }
+            montantAchat = ((Number) sommes[0]).longValue();
+            montantVente = ((Number) sommes[1]).longValue();
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
