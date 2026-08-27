@@ -67,10 +67,12 @@ public class EspaceProduitRessource {
         for (Object[] r : resultats) {
             long reserve = nombreDe(r[4]);
             long total = nombreDe(r[5]);
+            // rayon = total - reserve, SANS ecretage : un rayon negatif doit se voir
+            // (la ligne passe en rouge quand rayon et total sont negatifs)
             lignes.put(new JSONObject().put("cip", texteDe(r[0])).put("designation", texteDe(r[1]))
                     .put("emplacement", texteDe(r[2])).put("prixVente", nombreDe(r[3]))
-                    .put("stockRayon", Math.max(0, total - reserve)).put("stockReserve", reserve)
-                    .put("stockTotal", total).put("id", texteDe(r[6])));
+                    .put("stockRayon", total - reserve).put("stockReserve", reserve).put("stockTotal", total)
+                    .put("id", texteDe(r[6])));
         }
         return Response.ok().entity(reponse.put("total", lignes.length()).put("data", lignes).toString()).build();
     }

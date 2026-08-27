@@ -30,6 +30,22 @@
     .ep-vide { padding: 26px 10px; text-align: center; color: #5A6B80; }
     .ep-total { margin-top: 10px; font-size: 13px; color: #5A6B80; }
     td.ep-col-btn, th.ep-col-btn { width: 42px; text-align: center; }
+
+    /* Couleurs des colonnes : prix en gras bleu, rayon en gras vert quand > 0,
+       reserve en orange, total en bleu nuit gras. */
+    td.ep-prix { color: #1A3FC4; font-weight: bold; }
+    td.ep-rayon-pos { color: #1E8449; font-weight: bold; }
+    td.ep-reserve { color: #E67E22; }
+    td.ep-stock-total { color: #14213D; font-weight: bold; }
+    /* Lignes speciales : rouge quand rayon ET total sont negatifs,
+       violet quand rayon ET total sont a zero. Ces couleurs priment sur celles des colonnes. */
+    tr.ep-ligne-rouge td { color: #C0392B !important; font-weight: bold; }
+    tr.ep-ligne-violette td { color: #8E44AD !important; font-weight: bold; }
+
+    /* Survol : la ligne entiere ressort, legerement grossie et coloree. */
+    tbody tr { transition: transform .12s ease, background-color .12s ease, box-shadow .12s ease; }
+    tbody tr:hover { background: #DCEEFF; transform: scale(1.012); box-shadow: 0 2px 12px rgba(30,95,168,.28);
+                     position: relative; z-index: 1; }
     .ep-btn-courbe { border: 1px solid #4C9A46; background: #F0F8F0; color: #2E6B3E; border-radius: 5px;
                      padding: 3px 8px; cursor: pointer; font-size: 14px; }
     .ep-btn-courbe:hover { background: #4C9A46; color: #fff; }
@@ -135,10 +151,16 @@
         var html = '';
         for (var i = 0; i < lignes.length; i++) {
           var l = lignes[i];
-          html += '<tr><td>' + echapper(l.cip) + '</td><td>' + echapper(l.designation) + '</td><td>'
-              + echapper(l.emplacement) + '</td><td class="num">' + montant(l.prixVente) + '</td><td class="num">'
-              + montant(l.stockRayon) + '</td><td class="num">' + montant(l.stockReserve) + '</td><td class="num">'
-              + montant(l.stockTotal) + '</td><td class="ep-col-btn">'
+          var rayon = Number(l.stockRayon || 0), totalStock = Number(l.stockTotal || 0);
+          // ligne rouge : rayon ET total negatifs ; ligne violette : rayon ET total a zero
+          var classeLigne = (rayon < 0 && totalStock < 0) ? ' class="ep-ligne-rouge"'
+              : (rayon === 0 && totalStock === 0) ? ' class="ep-ligne-violette"' : '';
+          var classeRayon = rayon > 0 ? ' ep-rayon-pos' : '';
+          html += '<tr' + classeLigne + '><td>' + echapper(l.cip) + '</td><td>' + echapper(l.designation)
+              + '</td><td>' + echapper(l.emplacement) + '</td><td class="num ep-prix">' + montant(l.prixVente)
+              + '</td><td class="num' + classeRayon + '">' + montant(rayon)
+              + '</td><td class="num ep-reserve">' + montant(l.stockReserve)
+              + '</td><td class="num ep-stock-total">' + montant(totalStock) + '</td><td class="ep-col-btn">'
               + '<button type="button" class="ep-btn-courbe" title="Évolution des ventes par mois (année en cours)"'
               + ' data-id="' + echapper(l.id) + '" data-nom="' + echapper(l.designation) + '">📈</button>'
               + '</td></tr>';
