@@ -1424,7 +1424,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/groupe/ws_data.jsp',
+                url: '../api/v1/groupe-tierspayant/list', // meme logique et memes cles JSON que la JSP historique
                 reader: {
                     type: 'json',
                     root: 'data',

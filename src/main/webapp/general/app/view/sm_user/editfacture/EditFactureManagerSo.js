@@ -119,7 +119,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../webservices/configmanagement/groupe/ws_data.jsp',
+                url: '../api/v1/groupe-tierspayant/list', // meme logique et memes cles JSON que la JSP historique
                 reader: {
                     type: 'json',
                     root: 'data',
