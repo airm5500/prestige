@@ -385,6 +385,59 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
+    public JSONObject modifierCodeEan(String lgFAMILLEID, String codeEan) throws JSONException {
+        String code = rest.CodeEanUtil.normaliser(codeEan);
+        if (!rest.CodeEanUtil.estRenseigne(code)) {
+            return new JSONObject().put("success", false).put("message",
+                    "Aucun code saisi. Le code EAN actuel n'a pas ete touche.");
+        }
+        try {
+            TFamille famille = getEntityManager().find(TFamille.class, lgFAMILLEID);
+            if (famille == null) {
+                return new JSONObject().put("success", false).put("message", "Article introuvable.");
+            }
+
+            // Le produit et ses deconditionnes, pris ensemble : la meme boite, donc le meme code.
+            String racine = rest.CodeEanUtil.identifiantDeGroupe(famille.getLgFAMILLEID(),
+                    famille.getLgFAMILLEPARENTID());
+            List<TFamille> groupe = getEntityManager()
+                    .createQuery("SELECT f FROM TFamille f WHERE f.lgFAMILLEID = ?1 OR f.lgFAMILLEPARENTID = ?1",
+                            TFamille.class)
+                    .setParameter(1, racine).getResultList();
+            if (groupe.isEmpty()) {
+                groupe = java.util.Collections.singletonList(famille);
+            }
+            List<String> duGroupe = groupe.stream().map(TFamille::getLgFAMILLEID).collect(Collectors.toList());
+
+            // Le code appartient-il deja a un article etranger au groupe ?
+            List<TFamille> porteurs = getEntityManager()
+                    .createQuery("SELECT f FROM TFamille f WHERE f.intEAN13 = ?1 AND f.lgFAMILLEID NOT IN ?2",
+                            TFamille.class)
+                    .setParameter(1, code).setParameter(2, duGroupe).setMaxResults(3).getResultList();
+            if (!porteurs.isEmpty()) {
+                TFamille autre = porteurs.get(0);
+                String detail = autre.getStrNAME() + (autre.getIntCIP() == null || autre.getIntCIP().isEmpty() ? ""
+                        : " (CIP " + autre.getIntCIP() + ")");
+                return new JSONObject().put("success", false).put("message",
+                        "Ce code EAN est deja porte par : " + detail + ". Rien n'a ete modifie.");
+            }
+
+            for (TFamille membre : groupe) {
+                membre.setIntEAN13(code);
+                membre.setDtUPDATED(new Date());
+                getEntityManager().merge(membre);
+            }
+            return new JSONObject().put("success", true).put("nombre", groupe.size()).put("codeEan", code).put(
+                    "message",
+                    groupe.size() > 1 ? "Code EAN mis a jour sur le produit et son detail." : "Code EAN mis a jour.");
+
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "mise a jour du code EAN de " + lgFAMILLEID, e);
+            return new JSONObject().put("success", false).put("message", "La mise a jour a echoue.");
+        }
+    }
+
+    @Override
     public List<ArticleDTO> articleSurStock(TUser u, String query, String codeFamile, String codeRayon,
             String codeGrossiste, int nbreMois, int nbreConsommation, int start, int limit, boolean all) {
         try {

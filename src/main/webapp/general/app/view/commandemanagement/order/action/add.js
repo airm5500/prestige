@@ -673,6 +673,18 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     sortable: false,
                                     menuDisabled: true,
                                     items: [{
+                                            icon: 'resources/images/icons/fam/page_white_edit.png',
+                                            tooltip: 'Mettre a jour le code EAN de cet article',
+                                            scope: this,
+                                            handler: this.onMajCodeEanClick
+                                        }]
+                                },
+                                {
+                                    xtype: 'actioncolumn',
+                                    width: 30,
+                                    sortable: false,
+                                    menuDisabled: true,
+                                    items: [{
                                             icon: 'resources/images/icons/fam/delete.png',
                                             tooltip: 'Supprimer',
                                             scope: this,
@@ -1025,10 +1037,9 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                             items: [
                                 {
                                     xtype: 'button',
-                                    text: 'Save',
+                                    text: 'Ajouter le code',
                                     handler: function (btn) {
                                         let formulaire = btn.up("form");
-                                        console.log(formulaire);
                                         if (formulaire.isValid()) {
                                             me.updateCip(win, formulaire);
 
@@ -1055,6 +1066,103 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
 
     },
+    /**
+     * Mise a jour du code EAN de l'article de la ligne cliquee.
+     *
+     * Le code est ecrit sur le produit ET sur son deconditionne : les deux designent la meme boite et
+     * doivent porter le meme code, sans quoi la douchette n'en retrouve qu'un. Le serveur s'en charge,
+     * quel que soit celui des deux sur lequel on a clique, et refuse un code deja porte par un autre
+     * article en nommant le porteur.
+     */
+    onMajCodeEanClick: function (grid, rowIndex) {
+        let rec = grid.getStore().getAt(rowIndex);
+        let familleId = rec.get('lg_FAMILLE_ID');
+        let designation = rec.get('lg_FAMILLE_NAME');
+
+        let envoyer = function (win, champ) {
+            let code = Ext.String.trim(champ.getValue() || '');
+            if (!code) {
+                Ext.Msg.alert('Code EAN', 'Saisissez le code avant de valider.');
+                return;
+            }
+            Ext.Ajax.request({
+                method: 'PUT',
+                url: '../api/v1/fichearticle/code-ean/' + familleId,
+                params: {ean: code},
+                success: function (response) {
+                    let reponse = Ext.JSON.decode(response.responseText, true) || {};
+                    if (reponse.success) {
+                        win.close();
+                        Ext.Msg.alert('Code EAN', reponse.message || 'Code EAN mis a jour.');
+                    } else {
+                        // Le code appartient a un autre article : on garde la fenetre ouverte et on
+                        // represente la saisie, prete a etre corrigee.
+                        Ext.Msg.alert('Code EAN', reponse.message || 'La mise a jour a echoue.');
+                        champ.focus(true, 50);
+                    }
+                },
+                failure: function (response) {
+                    Ext.Msg.alert('Code EAN', 'Le serveur n\'a pas repondu : ' + response.status);
+                }
+            });
+        };
+
+        let win = Ext.create('Ext.window.Window', {
+            title: 'Code EAN — ' + designation,
+            modal: true,
+            width: 520,
+            maximizable: false,
+            items: [{
+                    xtype: 'form',
+                    bodyPadding: 10,
+                    fieldDefaults: {labelAlign: 'right', labelWidth: 160, msgTarget: 'side', anchor: '100%'},
+                    items: [{
+                            xtype: 'fieldset',
+                            title: 'Nouveau code EAN',
+                            defaultType: 'textfield',
+                            defaults: {anchor: '100%'},
+                            items: [{
+                                    name: 'codeEan',
+                                    itemId: 'codeEan',
+                                    fieldLabel: 'Code EAN',
+                                    emptyText: 'Scannez ou saisissez le code',
+                                    allowBlank: false,
+                                    enableKeyEvents: true,
+                                    listeners: {
+                                        afterrender: function (champ) {
+                                            champ.focus(true, 50);
+                                        },
+                                        specialkey: function (champ, e) {
+                                            if (e.getKey() === e.ENTER) {
+                                                envoyer(win, champ);
+                                            }
+                                        }
+                                    }
+                                }]
+                        }],
+                    dockedItems: [{
+                            xtype: 'toolbar',
+                            dock: 'bottom',
+                            ui: 'footer',
+                            layout: {pack: 'end', type: 'hbox'},
+                            items: [{
+                                    xtype: 'button',
+                                    text: 'Mettre a jour',
+                                    handler: function (btn) {
+                                        envoyer(win, btn.up('form').down('#codeEan'));
+                                    }
+                                }, {
+                                    text: 'Fermer',
+                                    handler: function () {
+                                        win.close();
+                                    }
+                                }]
+                        }]
+                }]
+        });
+        win.show();
+    },
+
     onbtnaddArticle: function () {
         var grossisteIdValue = Ext.getCmp('lgGROSSISTEID').getValue();
         new testextjs.view.configmanagement.famille.action.add2({

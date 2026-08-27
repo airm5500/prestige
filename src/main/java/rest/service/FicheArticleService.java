@@ -55,6 +55,22 @@ public interface FicheArticleService {
 
     JSONObject modifierArticleDatePeremption(String lgFAMILLEID, String dtperemption) throws JSONException;
 
+    /**
+     * Corrige le code EAN d'un article, et de son deconditionne s'il en a un.
+     *
+     * <p>
+     * Un produit et son detail designent la meme boite : ils portent le meme code, et la correction porte donc sur les
+     * deux, quel que soit celui sur lequel on a clique. Si le code demande appartient deja a un AUTRE article, rien
+     * n'est ecrit et le nom du porteur actuel est renvoye - deux articles au meme code EAN, c'est une douchette qui
+     * n'en retrouve qu'un.
+     *
+     * @param lgFAMILLEID
+     *            article sur lequel l'utilisateur a clique, produit ou deconditionne
+     * @param codeEan
+     *            code demande, tel que saisi
+     */
+    JSONObject modifierCodeEan(String lgFAMILLEID, String codeEan) throws JSONException;
+
     List<ArticleDTO> articleSurStock(TUser u, String query, String codeFamile, String codeRayon, String codeGrossiste,
             int nbreMois, int nbreConsommation, int start, int limit, boolean all);
 

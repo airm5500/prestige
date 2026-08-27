@@ -92,6 +92,18 @@ public class FicheArticleRessource {
                 .build();
     }
 
+    /**
+     * Corrige le code EAN d'un article depuis la saisie de commande. Le code voyage en parametre et non dans le chemin
+     * : un code mal saisi peut contenir n'importe quoi, y compris une barre oblique.
+     */
+    @PUT
+    @Path("code-ean/{id}")
+    public Response modifierCodeEan(@PathParam("id") String id, @QueryParam(value = "ean") String ean)
+            throws JSONException {
+
+        return Response.ok().entity(ficheArticleService.modifierCodeEan(id, ean).toString()).build();
+    }
+
     @GET
     @Path("surstocks")
     public Response articleSurStock(@QueryParam(value = "nbreMois") int nbreMois,
