@@ -244,7 +244,7 @@ Ext.define('testextjs.view.sm_user.RecapOrganisme.RecapManager', {
                                 {
                                     xtype: 'datefield',
                                     format: 'd/m/Y',
-                                    emptyText: 'Date debut',
+                                    emptyText: 'Date fin',
                                     submitFormat: 'Y-m-d',
                                     fieldLabel: 'Au',
                                     labelWidth: 20,

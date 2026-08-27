@@ -583,7 +583,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                         click: this.refresh
                     },
                     'doventemanager #contenu [xtype=gridpanel] #query': {
-                        specialkey: this.onSpecialSpecialKey
+                        specialkey: this.onSpecialSpecialKey,
+                        keyup: this.onQueryFrappe
                     },
                     'doventemanager #contenu #montantRecu': {
                         change: this.montantRecuChangeListener,
@@ -1483,6 +1484,37 @@ Ext.define('testextjs.controller.VenteCtr', {
             const me = this;
             me.refresh();
         }
+    },
+
+    /**
+     * Recherche pendant la frappe dans « LISTE DES ARTICLES CHOISIS », des deux caracteres.
+     *
+     * Le declencheur est la VALEUR du champ, jamais la touche : les fleches, la tabulation ou
+     * Majuscule ne relancent donc rien, et une saisie rapide n'envoie qu'une seule requete grace
+     * au delai de grace. En dessous de deux caracteres on ne cherche pas - sauf quand le champ
+     * redevient vide, ou l'on remet la liste complete, sans quoi la caissiere ne pourrait plus y
+     * revenir. Entree conserve son role et cherche sans attendre, par onSpecialSpecialKey.
+     */
+    onQueryFrappe: function (field, e) {
+        const me = this;
+        if (e.getKey() === e.ENTER) {
+            return;
+        }
+        const valeur = (field.getValue() || '').trim();
+        if (valeur === me.derniereRechercheArticle) {
+            return;
+        }
+        if (valeur.length === 1) {
+            return;
+        }
+        me.derniereRechercheArticle = valeur;
+        clearTimeout(me.attenteRechercheArticle);
+        me.attenteRechercheArticle = setTimeout(function () {
+            const ecran = Ext.ComponentQuery.query('doventemanager')[0];
+            if (ecran && !ecran.isDestroyed) {
+                me.refresh();
+            }
+        }, 350);
     },
     onQtySpecialKey: function (field, e, options) {
         if (field.getValue() > 0) {
@@ -6946,7 +6978,14 @@ Ext.define('testextjs.controller.VenteCtr', {
             maximizable: true,
             items: [{
                     xtype: 'container',
-                    layout: 'hbox',
+                    /* align: 'stretch' est ce qui donne aux deux panneaux la hauteur de la
+                     * fenetre. Sans lui, une rangee hbox laisse chaque panneau prendre la
+                     * hauteur de son contenu : avec trente-cinq articles, le panneau de detail
+                     * depassait la fenetre et emportait ses boutons hors de l'ecran. */
+                    layout: {
+                        type: 'hbox',
+                        align: 'stretch'
+                    },
                     padding: 15, // Plus de padding
                     items: [
                         me.buildPreventeListPanel(),
@@ -7125,17 +7164,23 @@ Ext.define('testextjs.controller.VenteCtr', {
             margin: '0 0 0 10',
             layout: 'fit',
             items: [{
-                    xtype: 'container',
+                    /* Un panneau et non un simple conteneur : c'est ce qui permet d'AMARRER les
+                     * deux boutons en bas (voir dockedItems), tout en restant le composant que le
+                     * reste du code retrouve par down('#preventeDetailContainer'). */
+                    xtype: 'panel',
+                    border: false,
                     itemId: 'preventeDetailContainer',
                     layout: {
                         type: 'vbox',
                         align: 'stretch'
                     },
-                    // AJOUT: Définir une hauteur fixe avec défilement si nécessaire
-                    style: {
-                        'max-height': '700px', // Augmenter la hauteur maximale
-                        'overflow-y': 'auto'   // Permettre le défilement si nécessaire
-                    },
+                    /* Le defilement est confie a ExtJS, plus a une hauteur maximale en CSS.
+                     *
+                     * Une prevente de trente-cinq articles faisait deborder ce conteneur : le CSS
+                     * bornait la hauteur de l'element sans qu'ExtJS en sache rien, et le bas de la
+                     * pile - les boutons - sortait de la zone visible. Avec autoScroll, c'est la
+                     * mise en page qui borne le conteneur et fait defiler le trop-plein. */
+                    autoScroll: true,
                     items: [{
                             xtype: 'container',
                             layout: 'hbox',
@@ -7290,11 +7335,17 @@ Ext.define('testextjs.controller.VenteCtr', {
                                         return v ? Ext.util.Format.number(v, '0,000') + ' F' : '';
                                     }
                                 }]
-                        }, {
+                        }],
+                    /* Les deux boutons sont AMARRES au bas du panneau : ils ne font plus partie
+                     * de la pile qui defile. Quel que soit le nombre d'articles de la prevente,
+                     * ils restent a leur place et visibles. Amarres ICI, sur le composant que le
+                     * reste du code interroge, ils continuent d'etre trouves par
+                     * detailContainer.down('#recallPreventeBtn'). */
+                    dockedItems: [{
                             xtype: 'container',
+                            dock: 'bottom',
                             layout: 'hbox',
-                            margin: '15 0 0 0', // AUGMENTER la marge supérieure
-                            padding: '10 0',
+                            padding: '10 0 0 0',
                             items: [{
                                     xtype: 'button',
                                     text: 'Rappeler cette prévente',

@@ -4,7 +4,11 @@ var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tiersp
 var url_services_transaction_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
 
 var url_services_data_ville_tp = '../webservices/configmanagement/ville/ws_data.jsp';
-var url_services_data_typetierspayant_tp = '../webservices/tierspayantmanagement/typetierspayant/ws_data.jsp';
+// Types de tiers payant : service REST. La reponse garde la forme lue par l'ecran (total +
+// results, memes noms de colonnes), le combo se comporte donc exactement comme avant.
+// Le JSP reste en place : cinq autres vues s'en servent encore (edition de facture, achat
+// differe, factures reglees, reglement, suivi conso clients) et ne sont pas touchees ici.
+var url_services_data_typetierspayant_tp = '../api/v1/tierspayant/types';
 var url_services_data_typecontrat_tp = '../webservices/configmanagement/typecontrat/ws_data.jsp';
 var url_services_data_regimecaisse_tp = '../webservices/configmanagement/regimecaisse/ws_data.jsp';
 var url_services_data_risque_tp = '../webservices/configmanagement/risque/ws_data.jsp';
@@ -677,6 +681,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     fieldLabel: 'Prepayer',
                                     name: 'bool_IsACCOUNT',
                                     id: 'bool_IsACCOUNT',
+                                    // Retire de la vue, mais toujours present : le champ garde sa valeur, la
+                                    // soumet comme avant, et son ecouteur continue de piloter le quota et le
+                                    // montant du compte. Rien n'est supprime, on cesse seulement de le montrer.
+                                    hidden: true,
                                     listeners: {
                                         change: function (checkbox, newValue, oldValue, eOpts) {
                                             if (newValue) {

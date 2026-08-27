@@ -252,13 +252,54 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                             ],
                             tbar: [
                                 {xtype: 'textfield', cls: 'glass-input', id: 'rechercherDetail', name: 'rechercherDetail', emptyText: 'Recherche', flex: 1,
-                                    listeners: {render: function (cmp) {
-                                            cmp.getEl().on('keypress', function (e) {
-                                                if (e.getKey() === e.ENTER) {
-                                                    Me_Workflow.onRechClick();
-                                                }
-                                            });
-                                        }}
+                                    enableKeyEvents: true,
+                                    /* Recherche pendant la frappe, des deux caracteres.
+                                     *
+                                     * Le declencheur est la VALEUR, pas la touche : les fleches, la tabulation
+                                     * ou Majuscule ne relancent donc rien, et une saisie rapide n'envoie qu'une
+                                     * seule requete grace au delai de grace. En dessous de deux caracteres on
+                                     * ne cherche pas - sauf quand le champ redevient vide, ou l'on remet la
+                                     * liste complete, sans quoi l'utilisateur ne pourrait plus y revenir.
+                                     *
+                                     * Entree garde son role : elle cherche tout de suite, sans attendre. */
+                                    derniereRecherche: null,
+                                    attenteRecherche: null,
+                                    rechercherSiBesoin: function (immediat) {
+                                        const cmp = this;
+                                        const valeur = (cmp.getValue() || '').trim();
+                                        if (valeur === cmp.derniereRecherche) {
+                                            return;
+                                        }
+                                        if (valeur.length === 1) {
+                                            return;
+                                        }
+                                        cmp.derniereRecherche = valeur;
+                                        clearTimeout(cmp.attenteRecherche);
+                                        if (immediat) {
+                                            Me_Workflow.onRechClick();
+                                            return;
+                                        }
+                                        cmp.attenteRecherche = setTimeout(function () {
+                                            Me_Workflow.onRechClick();
+                                        }, 350);
+                                    },
+                                    listeners: {
+                                        keyup: function (cmp, e) {
+                                            cmp.rechercherSiBesoin(e.getKey() === e.ENTER);
+                                        },
+                                        /* Au retour dans le champ, la saisie precedente est selectionnee :
+                                         * la frappe suivante la remplace, sans avoir a effacer. */
+                                        focus: function (cmp) {
+                                            if (cmp.getValue()) {
+                                                Ext.defer(function () {
+                                                    cmp.selectText();
+                                                }, 1);
+                                            }
+                                        },
+                                        destroy: function (cmp) {
+                                            clearTimeout(cmp.attenteRecherche);
+                                        }
+                                    }
                                 }, '-',
                                 {xtype: 'combobox', cls: 'glass-input', name: 'str_TYPE_TRANSACTION', margins: '0 0 0 10', id: 'str_TYPE_TRANSACTION',
                                     store: store_type, valueField: 'str_TYPE_TRANSACTION', displayField: 'str_desc',
