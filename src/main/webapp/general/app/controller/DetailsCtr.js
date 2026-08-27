@@ -108,26 +108,25 @@ Ext.define('testextjs.controller.DetailsCtr', {
         this.chargerListe(ecran);
     },
 
+    /*
+     * Pas de boite « Génération du PDF » : le modele compile est en cache cote serveur, la
+     * reponse est immediate - le PDF s'ouvre directement dans un nouvel onglet (URL relative
+     * au contexte, comme les autres editions). On ne parle a l'usager qu'en cas d'echec.
+     */
     imprimer: function (url, params) {
-        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
         Ext.Ajax.request({
             method: 'GET',
             url: url,
             params: params,
             success: function (response) {
-                progress.hide();
                 var r = Ext.JSON.decode(response.responseText, true) || {};
                 if (r.success && r.msg) {
-                    // Meme mecanique que les autres editions (analyse tiers payants) : l'URL du
-                    // fichier est relative au contexte de l'application, le PDF s'affiche dans
-                    // un nouvel onglet.
                     window.open('..' + r.msg, '_blank');
                 } else {
                     Ext.Msg.alert('Message', r.msg || 'Le PDF n\'a pas pu être généré.');
                 }
             },
             failure: function () {
-                progress.hide();
                 Ext.Msg.alert('Message', 'Le PDF n\'a pas pu être généré.');
             }
         });

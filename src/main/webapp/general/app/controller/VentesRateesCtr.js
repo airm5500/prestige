@@ -125,14 +125,16 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
         this.chargerRegistre(ecran);
     },
 
+    /*
+     * Pas de boite « Génération du PDF » : le modele compile est en cache cote serveur, la
+     * reponse est immediate - le PDF s'ouvre directement dans un nouvel onglet.
+     */
     onImprimer: function (bouton) {
-        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/ventes-ratees/recherche/print',
             params: this.ecran(bouton).parametresRegistre(),
             success: function (response) {
-                progress.hide();
                 var r = Ext.JSON.decode(response.responseText, true) || {};
                 if (r.success && r.msg) {
                     // URL relative au contexte, comme les autres editions de l'application
@@ -142,7 +144,6 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 }
             },
             failure: function () {
-                progress.hide();
                 Ext.Msg.alert('Message', 'Le PDF n\'a pas pu être généré.');
             }
         });
@@ -539,13 +540,11 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
     },
 
     onImprimerAnalyse: function (bouton) {
-        var progress = Ext.MessageBox.wait('Génération du PDF . . .', 'Veuillez patienter');
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/ventes-ratees/analyse/print',
             params: this.ecran(bouton).parametresAnalyse(),
             success: function (response) {
-                progress.hide();
                 var r = Ext.JSON.decode(response.responseText, true) || {};
                 if (r.success && r.msg) {
                     // URL relative au contexte, comme les autres editions de l'application
@@ -555,7 +554,6 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
                 }
             },
             failure: function () {
-                progress.hide();
                 Ext.Msg.alert('Message', 'Le PDF n\'a pas pu être généré.');
             }
         });

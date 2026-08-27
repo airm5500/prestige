@@ -144,15 +144,29 @@ public class ReportUtil {
     }
 
     /**
+     * Modeles embarques deja compiles, gardes en memoire : un .jrxml du war ne change jamais en cours d'execution, il
+     * n'y a aucune raison de le recompiler a chaque impression - c'est la compilation qui faisait attendre l'usager
+     * plusieurs centaines de millisecondes a CHAQUE clic sur PDF. Le cache disparait avec le redeploiement, comme le
+     * war. Un JasperReport compile est immuable et se remplit sans etat partage : le partage entre requetes est sur.
+     */
+    private static final java.util.concurrent.ConcurrentMap<String, JasperReport> MODELES_EMBARQUES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
      * Compile un modele .jrxml embarque dans le classpath (/reports/&lt;nom&gt;.jrxml) lorsque le fichier n'est pas
-     * deploye dans le repertoire des rapports.
+     * deploye dans le repertoire des rapports. Compile UNE fois, puis servi depuis la memoire.
      */
     public JasperReport compileFromClasspath(String reportName) {
+        JasperReport connu = MODELES_EMBARQUES.get(reportName);
+        if (connu != null) {
+            return connu;
+        }
         try (InputStream in = ReportUtil.class.getResourceAsStream("/reports/" + reportName + ".jrxml")) {
             if (in == null) {
                 return null;
             }
-            return JasperCompileManager.compileReport(in);
+            JasperReport compile = JasperCompileManager.compileReport(in);
+            MODELES_EMBARQUES.put(reportName, compile);
+            return compile;
         } catch (IOException | JRException e) {
             LOG.log(Level.SEVERE, "compileFromClasspath " + reportName, e);
             return null;
