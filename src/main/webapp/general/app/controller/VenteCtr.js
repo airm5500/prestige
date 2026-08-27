@@ -4998,6 +4998,70 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
 
     },
+    /**
+     * Etat du plafond d'un compte carnet.
+     *
+     * Un plafond a zero, absent ou nul veut dire « pas de plafond » : le compte n'est alors jamais
+     * signale comme atteint, sans quoi tous les carnets sans plafond declencheraient l'alerte.
+     */
+    etatDuPlafondCarnet: function (record) {
+        const encours = Number(record.dbPLAFONDENCOURS || 0);
+        const plafond = Number(record.dblPLAFOND || 0);
+        const sansPlafond = !(plafond > 0);
+        return {
+            encours: encours,
+            plafond: plafond,
+            sansPlafond: sansPlafond,
+            atteint: !sansPlafond && encours >= plafond
+        };
+    },
+
+    /**
+     * Ligne « Encours / Plafond » du compte carnet, avec l'avertissement quand le plafond est atteint.
+     * Renvoie null hors carnet : la vente assurance n'a pas de compte a plafonner de cette facon.
+     */
+    ligneCompteCarnet: function (record) {
+        const me = this;
+        const etat = me.etatDuPlafondCarnet(record);
+        const montant = function (v) {
+            return Ext.util.Format.number(v, '0,000') + ' F';
+        };
+        const items = [{
+                xtype: 'displayfield',
+                fieldLabel: 'Encours:',
+                labelWidth: 60,
+                flex: 1,
+                itemId: 'encoursCarnet' + record.order,
+                fieldStyle: 'color:' + (etat.atteint ? 'red' : 'blue') + ';font-weight:bold;',
+                value: montant(etat.encours),
+                margin: '0 10 0 0'
+            }, {
+                xtype: 'displayfield',
+                fieldLabel: 'Plafond:',
+                labelWidth: 60,
+                flex: 1,
+                itemId: 'plafondCarnet' + record.order,
+                fieldStyle: 'color:blue;font-weight:bold;',
+                value: etat.sansPlafond ? 'aucun' : montant(etat.plafond),
+                margin: '0 10 0 0'
+            }];
+        if (etat.atteint) {
+            items.push({
+                xtype: 'displayfield',
+                hideLabel: true,
+                flex: 2,
+                itemId: 'alertePlafond' + record.order,
+                cls: 'vp-alerte-plafond',
+                value: 'attention!!! ce client payera en especes'
+            });
+        }
+        return {
+            xtype: 'fieldcontainer',
+            layout: {type: 'hbox', align: 'stretch'},
+            items: items
+        };
+    },
+
     buildCmp: function (record) {
         let percent = '30%';
         let me = this, typeVente = me.getTypeVenteCombo().getValue();
@@ -5076,6 +5140,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                         }
                     ]
                 },
+                // Compte carnet : encours et plafond sous les yeux de la caissiere, avec
+                // l'avertissement quand le plafond est atteint. Rien en vente assurance.
+                ...(typeVente === '3' ? [me.ligneCompteCarnet(record)] : []),
                 {
                     xtype: 'hiddenfield',
                     name: 'compteTp' + record.order,

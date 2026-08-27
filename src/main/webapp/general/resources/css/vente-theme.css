@@ -785,3 +785,44 @@ body.x-body,
     width: auto !important;
     white-space: normal;
 }
+
+/* ============================================================
+ * PLAFOND DU COMPTE CARNET ATTEINT
+ *
+ * Le compte est a bout : la caissiere doit encaisser en especes.
+ * Le message ne peut pas passer inapercu au milieu des autres
+ * informations du bandeau, d'ou le rouge, le gras et le
+ * clignotement — meme vocabulaire visuel que les autres
+ * signaux de l'ecran de vente (vp-focus-beat, vp-bouton-beat),
+ * pour que l'oeil le lise comme une alerte et non comme une
+ * donnee de plus.
+ *
+ * Sur un poste regle pour limiter les animations, le message
+ * reste rouge et gras : c'est le battement qui s'arrete, pas
+ * l'avertissement.
+ * ============================================================ */
+
+@keyframes vp-alerte-plafond-beat {
+    0% {
+        opacity: 1;
+    }
+    50% {
+        opacity: .25;
+    }
+    100% {
+        opacity: 1;
+    }
+}
+
+.vp-alerte-plafond .x-form-display-field {
+    color: #d9534f !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    animation: vp-alerte-plafond-beat 1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vp-alerte-plafond .x-form-display-field {
+        animation: none;
+    }
+}

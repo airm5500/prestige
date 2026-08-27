@@ -166,7 +166,8 @@ public class TiersPayantRessource {
             @DefaultValue("false") @FormParam("cmu") boolean cmu, @DefaultValue("0") @FormParam("caution") int caution,
             @DefaultValue("ALPHABETIQUE") @FormParam("str_MODE_TRI_FACTURE") String strModeTriFacture,
             @FormParam("int_NB_BONS_PAR_PAGE") Integer nbBonsParPage,
-            @FormParam("int_TAILLE_POLICE") Integer taillePolice) {
+            @FormParam("int_TAILLE_POLICE") Integer taillePolice,
+            @DefaultValue("false") @FormParam("is_depot") boolean isDepot) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
             return reponseDeconnecte();
@@ -185,10 +186,92 @@ public class TiersPayantRessource {
                     villeId, typeTiersPayantId, typeContratId, regimeCaisseId, risque, codeOfficine, registreCommerce,
                     compteContribuable, quotaConsoMensuelle, isAbsolute, groupeId, nbrBons, montantFact, groupingByTaux,
                     cmu, caution, strModeTriFacture, nbBonsParPage, taillePolice);
+            // « Gere comme depot » n'est pas porte par la methode metier historique, partagee avec
+            // la JSP : on pose l'indicateur a part, sur l'entite, une fois la modification faite.
+            marquerDepot(odm.getEm(), tiersPayantId, isDepot);
             return reponseSimple(otm.getMessage(), otm.getDetailmessage());
         } catch (Exception e) {
             LOG_GESTION.log(Level.SEVERE, "updateTiersPayant", e);
             return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible de modifier ce tiers payant");
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Pose ou retire « gere comme depot » sur un tiers payant. Sans effet si l'identifiant est vide ou inconnu.
+     */
+    private void marquerDepot(javax.persistence.EntityManager em, String tiersPayantId, boolean depot) {
+        if (StringUtils.isBlank(tiersPayantId)) {
+            return;
+        }
+        dal.TTiersPayant tp = em.find(dal.TTiersPayant.class, tiersPayantId);
+        if (tp == null) {
+            return;
+        }
+        tp.setIsDepot(depot);
+        ecrire(em, tp);
+    }
+
+    /**
+     * Ecrit une entite avec l'unite de persistance historique, qui n'est pas geree par le conteneur : sans transaction
+     * ouverte, le merge reste en memoire et se perd a la fermeture. On n'ouvre la transaction que si le code metier
+     * appele juste avant n'en a pas deja une en cours.
+     */
+    private void ecrire(javax.persistence.EntityManager em, Object entite) {
+        javax.persistence.EntityTransaction transaction = em.getTransaction();
+        boolean aNous = !transaction.isActive();
+        if (aNous) {
+            transaction.begin();
+        }
+        em.merge(entite);
+        if (aNous) {
+            transaction.commit();
+        }
+    }
+
+    /**
+     * « Gere comme depot » sur un tiers payant qui vient d'etre CREE.
+     *
+     * <p>
+     * La creation passe encore par la page historique, qui ne rend pas l'identifiant du tiers payant qu'elle vient
+     * d'ecrire. Plutot que de deviner cote ecran, on le retrouve ici : meme nom, meme type, cree dans les cinq
+     * dernieres minutes, et un seul candidat. A defaut, rien n'est ecrit et l'ecran le dit - mieux vaut inviter a
+     * cocher la case depuis la liste que de marquer un homonyme cree l'an dernier.
+     */
+    @POST
+    @Path("gestion/depot-apres-creation")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response marquerDepotApresCreation(@DefaultValue("") @FormParam("str_NAME") String name,
+            @DefaultValue("") @FormParam("lg_TYPE_TIERS_PAYANT_ID") String typeTiersPayantId,
+            @DefaultValue("false") @FormParam("is_depot") boolean isDepot) {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            java.util.Date limite = new java.util.Date(System.currentTimeMillis() - 5 * 60 * 1000L);
+            List<dal.TTiersPayant> candidats = odm.getEm()
+                    .createQuery("SELECT t FROM TTiersPayant t WHERE t.strNAME = ?1"
+                            + " AND t.lgTYPETIERSPAYANTID.lgTYPETIERSPAYANTID = ?2 AND t.dtCREATED >= ?3"
+                            + " ORDER BY t.dtCREATED DESC", dal.TTiersPayant.class)
+                    .setParameter(1, name).setParameter(2, typeTiersPayantId).setParameter(3, limite).setMaxResults(2)
+                    .getResultList();
+            if (candidats.size() != 1) {
+                return Response.ok().entity(new JSONObject().put("success", false)
+                        .put("message", "Le tiers payant a bien ete cree, mais l'option « gere comme depot » n'a pas pu"
+                                + " etre posee automatiquement. Ouvrez la fiche depuis la liste pour la cocher.")
+                        .toString()).build();
+            }
+            dal.TTiersPayant tp = candidats.get(0);
+            tp.setIsDepot(isDepot);
+            ecrire(odm.getEm(), tp);
+            return Response.ok().entity(new JSONObject().put("success", true).toString()).build();
+        } catch (Exception e) {
+            LOG_GESTION.log(Level.SEVERE, "marquerDepotApresCreation", e);
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "L'option « gere comme depot » n'a pas pu etre posee.").toString()).build();
         } finally {
             odm.closeEntityManager();
         }

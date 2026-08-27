@@ -218,7 +218,10 @@ public class ClientServiceImpl implements ClientService {
             CriteriaBuilder cb = emg.getCriteriaBuilder();
             CriteriaQuery<TClient> cq = cb.createQuery(TClient.class);
             Root<TClient> root = cq.from(TClient.class);
-            cq.select(root).orderBy(cb.asc(root.get(TClient_.strFIRSTNAME)));
+            // Nom PUIS prenom : le tri s'arretait au nom, si bien qu'a nom egal - et il y a
+            // beaucoup d'homonymes - les prenoms sortaient dans le desordre du stockage, et il
+            // fallait parcourir la liste des yeux pour retrouver la bonne personne.
+            cq.select(root).orderBy(cb.asc(root.get(TClient_.strFIRSTNAME)), cb.asc(root.get(TClient_.strLASTNAME)));
             predicates.add(cb.and(cb.equal(root.get(TClient_.strSTATUT), Constant.STATUT_ENABLE)));
             if (!StringUtils.isEmpty(typeClientId)) {
                 predicates.add(cb.and(cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), typeClientId)));

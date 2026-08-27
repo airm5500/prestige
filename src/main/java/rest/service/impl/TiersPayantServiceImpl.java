@@ -87,6 +87,9 @@ public class TiersPayantServiceImpl implements TiersPayantService {
             }
 
             json.put("lg_TIERS_PAYANT_ID", tTiersPayant.getLgTIERSPAYANTID());
+            // Gere comme depot : l'ecran de modification en a besoin pour presenter l'interrupteur
+            // dans l'etat ou il se trouve, plutot que decoche par defaut.
+            json.put("is_depot", Boolean.TRUE.equals(tTiersPayant.getIsDepot()));
             // str_CODE_ORGANISME
             json.put("str_CODE_ORGANISME", tTiersPayant.getStrCODEORGANISME());
             // str_NAME

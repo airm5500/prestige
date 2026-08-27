@@ -3,6 +3,38 @@
 var url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp';
 var url_services_transaction_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_transaction.jsp?mode=';
 
+/*
+ * L'interrupteur « gerer ce carnet comme un depot » ne concerne que les carnets : il n'apparait
+ * que lorsque le type choisi en est un. On se fie au LIBELLE du type plutot qu'a son identifiant,
+ * qui n'est pas garanti d'une officine a l'autre ; l'identifiant sert de recours.
+ */
+function typeEstCarnet(combo) {
+    if (!combo) {
+        return false;
+    }
+    var valeur = combo.getValue();
+    var enregistrement = combo.getStore() ? combo.getStore().findRecord('lg_TYPE_TIERS_PAYANT_ID', valeur) : null;
+    if (enregistrement) {
+        var libelle = (enregistrement.get('str_LIBELLE_TYPE_TIERS_PAYANT') || '').toLowerCase();
+        return libelle.indexOf('carnet') !== -1;
+    }
+    return valeur === '2';
+}
+
+function majAffichageCarnetDepot() {
+    var interrupteur = Ext.getCmp('is_depot');
+    if (!interrupteur) {
+        return;
+    }
+    var carnet = typeEstCarnet(Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD'));
+    interrupteur.setVisible(carnet);
+    if (!carnet) {
+        // Un tiers payant qui n'est pas un carnet ne peut pas etre gere en depot : on ne laisse
+        // pas trainer une case cochee que l'utilisateur ne voit plus.
+        interrupteur.setValue(false);
+    }
+}
+
 var url_services_data_ville_tp = '../webservices/configmanagement/ville/ws_data.jsp';
 // Types de tiers payant : service REST. La reponse garde la forme lue par l'ecran (total +
 // results, memes noms de colonnes), le combo se comporte donc exactement comme avant.
@@ -322,7 +354,12 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     editable: false,
                                     queryMode: 'remote',
                                     emptyText: 'Choisir un type tiers payant ...',
-                                    style: 'background-color: #ffffe0;'
+                                    style: 'background-color: #ffffe0;',
+                                    listeners: {
+                                        select: function () {
+                                            majAffichageCarnetDepot();
+                                        }
+                                    }
                                 }
                             ]
                         },
@@ -707,7 +744,18 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                                     checked: false,
                                     id: 'b_IsAbsolute'
                                 },
-                                {xtype: 'container'},
+                                {
+                                    /* Ne concerne que les carnets : l'interrupteur reste cache tant que le
+                                     * type choisi n'est pas « carnet ». Il evite d'avoir a ressortir de la
+                                     * fiche pour aller cocher « gerer comme depot » dans un autre menu. */
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Carnet dépôt',
+                                    boxLabel: 'Gérer ce carnet comme un dépôt',
+                                    name: 'is_depot',
+                                    id: 'is_depot',
+                                    checked: false,
+                                    hidden: true
+                                },
                                 {xtype: 'container'}
                             ]
                         }
@@ -769,6 +817,13 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
             Ext.getCmp('bool_ENABLED').setValue(this.getOdatasource().bool_ENABLED);
             Ext.getCmp('lg_VILLE_ID').setValue(this.getOdatasource().lg_VILLE_ID);
             Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD').setValue(this.getOdatasource().lg_TYPE_TIERS_PAYANT_ID);
+            // L'interrupteur du carnet depot se presente dans l'etat enregistre. Le magasin des
+            // types se remplit en differe : on repasse a son chargement pour que la case soit
+            // visible ou non selon le type reellement charge.
+            Ext.getCmp('is_depot').setValue(this.getOdatasource().is_depot === true
+                    || this.getOdatasource().is_depot === 'true');
+            majAffichageCarnetDepot();
+            store_type_tp.on('load', majAffichageCarnetDepot);
             Ext.getCmp('lg_TYPE_CONTRAT_ID').setValue(this.getOdatasource().lg_TYPE_CONTRAT_ID);
             Ext.getCmp('lg_REGIMECAISSE_ID').setValue(this.getOdatasource().lg_REGIMECAISSE_ID);
             Ext.getCmp('lg_RISQUE_ID').setValue(this.getOdatasource().lg_RISQUE_ID);
@@ -922,7 +977,10 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                     int_NB_BONS_PAR_PAGE: Ext.getCmp('int_NB_BONS_PAR_PAGE').getValue() || 0,
                     int_TAILLE_POLICE: Ext.getCmp('int_TAILLE_POLICE').getValue() || 0,
                     cmu: Ext.getCmp('cmu').getValue(),
-                    caution: Ext.getCmp('caution').getValue()
+                    caution: Ext.getCmp('caution').getValue(),
+                    // Gere comme depot : n'a de sens que pour un carnet, d'ou le controle de
+                    // visibilite. En modification, le service REST le pose avec le reste.
+                    is_depot: Ext.getCmp('is_depot').isVisible() && Ext.getCmp('is_depot').getValue()
                 },
                 success: function (response)
                 {
@@ -932,10 +990,41 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.action.add', {
                         Ext.MessageBox.alert('Error Message', object.errors);
                         return;
                     } else {
-                        Ext.MessageBox.alert('Confirmation', object.errors);
-                        fenetre.close();
-                        Me_Workflow = Oview;
-                        Me_Workflow.getStore().reload();
+                        /* A la CREATION, la page historique ne rend pas l'identifiant du tiers
+                         * payant qu'elle vient d'ecrire : l'option « gere comme depot » ne peut
+                         * donc pas voyager avec le reste. On la pose dans un second temps, et
+                         * c'est le serveur qui retrouve la fiche - meme nom, meme type, creee a
+                         * l'instant. En modification, elle est deja posee par le service REST. */
+                        var poserDepot = (Omode === "create" && Ext.getCmp('is_depot').isVisible()
+                                && Ext.getCmp('is_depot').getValue());
+                        var terminer = function (messageEnPlus) {
+                            Ext.MessageBox.alert('Confirmation',
+                                    object.errors + (messageEnPlus ? '<br><br>' + messageEnPlus : ''));
+                            fenetre.close();
+                            Me_Workflow = Oview;
+                            Me_Workflow.getStore().reload();
+                        };
+                        if (!poserDepot) {
+                            terminer();
+                            return;
+                        }
+                        Ext.Ajax.request({
+                            url: '../api/v1/tierspayant/gestion/depot-apres-creation',
+                            method: 'POST',
+                            params: {
+                                str_NAME: Ext.getCmp('str_NAME_ADD').getValue(),
+                                lg_TYPE_TIERS_PAYANT_ID: Ext.getCmp('lg_TYPE_TIERS_PAYANT_ID_ADD').getValue(),
+                                is_depot: true
+                            },
+                            success: function (reponseDepot) {
+                                var r = Ext.JSON.decode(reponseDepot.responseText, true) || {};
+                                terminer(r.success ? '' : r.message);
+                            },
+                            failure: function () {
+                                terminer("L'option « géré comme dépôt » n'a pas pu être posée."
+                                        + " Ouvrez la fiche depuis la liste pour la cocher.");
+                            }
+                        });
                     }
 
                 },
