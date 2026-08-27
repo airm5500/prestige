@@ -71,6 +71,13 @@ Ext.define('testextjs.controller.VentesRateesCtr', {
 
     onEcranAffiche: function (ecran) {
         this.chargerRegistre(ecran);
+        // Curseur directement dans le filtre produit, pret pour la saisie
+        Ext.defer(function () {
+            var champ = ecran.down('#filtreProduit');
+            if (champ && champ.rendered) {
+                champ.focus();
+            }
+        }, 400);
     },
 
     /** L'onglet Analyse se charge seul a sa premiere ouverture, sur la journee en cours. */

@@ -876,6 +876,21 @@ input:focus {
   transition: transform .18s ease;
 }
 
+/* Espace produit : le MEME bouton anime (pl-btn : balayage lumineux, point orbital,
+   soulevement au survol) mais a la taille de la pilule de marque voisine, pour
+   garder l'harmonie de la ligne du haut. */
+.pl-btn--compact {
+  width: auto;
+  min-height: 0;
+  margin-top: 0;
+  align-self: stretch; /* meme hauteur que la pilule « prestige » a sa gauche */
+  padding: 10px 18px;
+  gap: 8px;
+  font-size: 15px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .pl-loader {
   position: absolute;
   inset: -30px -22px;

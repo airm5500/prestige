@@ -50,12 +50,11 @@
               <span class="pl-brand__text pl-animated-text--brand"><%= jdom.APP_NAME %></span>
             </div>
             <!-- Espace produit : consultation LIBRE, sans compte. S'ouvre en fenetre MODALE
-                 par-dessus l'ecran de connexion ; son bouton « Retour » la referme. -->
-            <a href="espace-produit.html" id="espaceProduit"
+                 par-dessus l'ecran de connexion ; son bouton « Retour » la referme.
+                 Meme animation que le bouton d'origine (pl-btn), taille de la pilule voisine. -->
+            <a href="espace-produit.html" id="espaceProduit" class="pl-btn pl-btn--compact"
                onclick="prestigeOuvrirEspaceProduit(); return false;"
-               style="display:inline-flex;align-items:center;gap:6px;margin-left:14px;padding:7px 14px;
-                      background:#4C9A46;color:#fff;border-radius:18px;text-decoration:none;
-                      font-size:13px;font-weight:600;white-space:nowrap;">
+               style="background:#4C9A46;">
               <span aria-hidden="true">🔎</span><span>Espace produit</span>
             </a>
           </div>
@@ -129,9 +128,21 @@
     function prestigeOuvrirEspaceProduit() {
       var modale = document.getElementById('ep-modale');
       var cadre = document.getElementById('ep-cadre');
-      if (!cadre.src) { cadre.src = 'espace-produit.html'; }
+      var premierChargement = !cadre.src;
+      if (premierChargement) { cadre.src = 'espace-produit.html'; }
       modale.style.display = 'block';
-      try { cadre.contentWindow.focus(); } catch (e) { }
+      // Curseur directement dans le champ de recherche, pret pour la saisie -
+      // au premier chargement comme aux reouvertures.
+      var focaliserRecherche = function () {
+        try {
+          cadre.contentWindow.focus();
+          cadre.contentWindow.document.getElementById('ep-q').focus();
+        } catch (e) { }
+      };
+      if (premierChargement) {
+        cadre.addEventListener('load', focaliserRecherche, { once: true });
+      }
+      setTimeout(focaliserRecherche, 150);
     }
     function prestigeFermerEspaceProduit() {
       document.getElementById('ep-modale').style.display = 'none';

@@ -58,6 +58,13 @@ Ext.define('testextjs.controller.DetailsCtr', {
     onEcranAffiche: function (ecran) {
         this.chargerListe(ecran);
         this.chargerHistorique(ecran);
+        // Curseur directement dans la recherche, pret pour la saisie
+        Ext.defer(function () {
+            var champ = ecran.down('#rech');
+            if (champ && champ.rendered) {
+                champ.focus();
+            }
+        }, 400);
     },
 
     onToucheEntree: function (champ, e) {
